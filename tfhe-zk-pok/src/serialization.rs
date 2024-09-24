@@ -1,11 +1,24 @@
+#![allow(non_snake_case)]
+
 use std::error::Error;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
+use crate::backward_compatibility::{
+    SerializableAffineVersions, SerializableCubicExtFieldVersions, SerializableFpVersions,
+    SerializableGroupElementsVersions, SerializablePKEv1PublicParamsVersions,
+    SerializablePKEv2PublicParamsVersions, SerializableQuadExtFieldVersions,
+};
 use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ec::AffineRepr;
 use ark_ff::{BigInt, Field, Fp, Fp2, Fp6, Fp6Config, FpConfig, QuadExtConfig, QuadExtField};
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
+
+use crate::curve_api::{Curve, CurveGroupOps};
+use crate::proofs::pke::PublicParams as PKEv1PublicParams;
+use crate::proofs::pke_v2::PublicParams as PKEv2PublicParams;
+use crate::proofs::GroupElements;
 
 /// Error returned when a conversion from a vec to a fixed size array failed because the vec size is
 /// incorrect
@@ -40,7 +53,8 @@ fn try_vec_to_array<T, const N: usize>(vec: Vec<T>) -> Result<[T; N], InvalidArr
 
 /// Serialization equivalent of the [`Fp`] struct, where the bigint is split into
 /// multiple u64.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableFpVersions)]
 pub struct SerializableFp {
     val: Vec<u64>, // Use a Vec<u64> since serde does not support fixed size arrays with a generic
 }
@@ -60,6 +74,24 @@ impl<P: FpConfig<N>, const N: usize> TryFrom<SerializableFp> for Fp<P, N> {
         Ok(Fp(BigInt(try_vec_to_array(value.val)?), PhantomData))
     }
 }
+
+#[derive(Debug)]
+pub struct InvalidSerializedFpError {
+    expected_len: usize,
+    found_len: usize,
+}
+
+impl Display for InvalidSerializedFpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Invalid serialized FP: found array of size {}, expected {}",
+            self.found_len, self.expected_len
+        )
+    }
+}
+
+impl Error for InvalidSerializedFpError {}
 
 #[derive(Debug)]
 pub enum InvalidSerializedAffineError {
@@ -100,8 +132,9 @@ impl From<InvalidArraySizeError> for InvalidSerializedAffineError {
 
 /// Serialization equivalent to the [`Affine`], which support an optional compression mode
 /// where only the `x` coordinate is stored, and the `y` is computed on load.
-#[derive(Serialize, Deserialize)]
-pub(crate) enum SerializableAffine<F> {
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableAffineVersions)]
+pub enum SerializableAffine<F> {
     Infinity,
     Compressed { x: F, take_largest_y: bool },
     Uncompressed { x: F, y: F },
@@ -157,13 +190,17 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub(crate) struct SerializableQuadExtField<F> {
+pub(crate) type SerializableG1Affine = SerializableAffine<SerializableFp>;
+
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableQuadExtFieldVersions)]
+pub struct SerializableQuadExtField<F> {
     c0: F,
     c1: F,
 }
 
 pub(crate) type SerializableFp2 = SerializableQuadExtField<SerializableFp>;
+pub type SerializableG2Affine = SerializableAffine<SerializableFp2>;
 
 impl<F, P: QuadExtConfig> From<QuadExtField<P>> for SerializableQuadExtField<F>
 where
@@ -191,14 +228,15 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub(crate) struct SerializableCubicExtField<F> {
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableCubicExtFieldVersions)]
+pub struct SerializableCubicExtField<F> {
     c0: F,
     c1: F,
     c2: F,
 }
 
-type SerializableFp6 = SerializableCubicExtField<SerializableFp2>;
+pub(crate) type SerializableFp6 = SerializableCubicExtField<SerializableFp2>;
 
 impl<F, P6: Fp6Config> From<Fp6<P6>> for SerializableCubicExtField<F>
 where
@@ -229,3 +267,396 @@ where
 }
 
 pub(crate) type SerializableFp12 = SerializableQuadExtField<SerializableFp6>;
+
+#[derive(Debug)]
+pub enum InvalidSerializedGroupElementsError {
+    InvalidAffine(InvalidSerializedAffineError),
+    InvalidGlistDimension(InvalidArraySizeError),
+}
+
+impl Display for InvalidSerializedGroupElementsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvalidSerializedGroupElementsError::InvalidAffine(affine_error) => {
+                write!(f, "Invalid Affine in GroupElement: {}", affine_error)
+            }
+            InvalidSerializedGroupElementsError::InvalidGlistDimension(arr_error) => {
+                write!(f, "invalid number of elements in g_list: {}", arr_error)
+            }
+        }
+    }
+}
+
+impl Error for InvalidSerializedGroupElementsError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            InvalidSerializedGroupElementsError::InvalidAffine(affine_error) => Some(affine_error),
+            InvalidSerializedGroupElementsError::InvalidGlistDimension(arr_error) => {
+                Some(arr_error)
+            }
+        }
+    }
+}
+
+impl From<InvalidSerializedAffineError> for InvalidSerializedGroupElementsError {
+    fn from(value: InvalidSerializedAffineError) -> Self {
+        Self::InvalidAffine(value)
+    }
+}
+
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableGroupElementsVersions)]
+pub(crate) struct SerializableGroupElements {
+    pub(crate) g_list: Vec<SerializableG1Affine>,
+    pub(crate) g_hat_list: Vec<SerializableG2Affine>,
+}
+
+impl<G: Curve> From<GroupElements<G>> for SerializableGroupElements
+where
+    <G::G1 as CurveGroupOps<G::Zp>>::Affine: Into<SerializableG1Affine>,
+    <G::G2 as CurveGroupOps<G::Zp>>::Affine: Into<SerializableG2Affine>,
+{
+    fn from(value: GroupElements<G>) -> Self {
+        let mut g_list = Vec::new();
+        let mut g_hat_list = Vec::new();
+        for idx in 0..value.message_len {
+            g_list.push(value.g_list[(idx * 2) + 1].into());
+            g_list.push(value.g_list[(idx * 2) + 2].into());
+            g_hat_list.push(value.g_hat_list[idx + 1].into())
+        }
+
+        Self { g_list, g_hat_list }
+    }
+}
+
+impl<G: Curve> TryFrom<SerializableGroupElements> for GroupElements<G>
+where
+    <G::G1 as CurveGroupOps<G::Zp>>::Affine:
+        TryFrom<SerializableG1Affine, Error = InvalidSerializedAffineError>,
+    <G::G2 as CurveGroupOps<G::Zp>>::Affine:
+        TryFrom<SerializableG2Affine, Error = InvalidSerializedAffineError>,
+{
+    type Error = InvalidSerializedGroupElementsError;
+
+    fn try_from(value: SerializableGroupElements) -> Result<Self, Self::Error> {
+        if value.g_list.len() != value.g_hat_list.len() * 2 {
+            return Err(InvalidSerializedGroupElementsError::InvalidGlistDimension(
+                InvalidArraySizeError {
+                    expected_len: value.g_hat_list.len() * 2,
+                    found_len: value.g_list.len(),
+                },
+            ));
+        }
+
+        let g_list = value
+            .g_list
+            .into_iter()
+            .map(<G::G1 as CurveGroupOps<G::Zp>>::Affine::try_from)
+            .collect::<Result<_, InvalidSerializedAffineError>>()?;
+        let g_hat_list = value
+            .g_hat_list
+            .into_iter()
+            .map(<G::G2 as CurveGroupOps<G::Zp>>::Affine::try_from)
+            .collect::<Result<_, InvalidSerializedAffineError>>()?;
+
+        Ok(Self::from_vec(g_list, g_hat_list))
+    }
+}
+
+#[derive(Debug)]
+pub enum InvalidSerializedPublicParamsError {
+    InvalidGroupElements(InvalidSerializedGroupElementsError),
+    InvalidHashDimension(InvalidArraySizeError),
+}
+
+impl Display for InvalidSerializedPublicParamsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvalidSerializedPublicParamsError::InvalidGroupElements(group_error) => {
+                write!(f, "Invalid PublicParams: {}", group_error)
+            }
+            InvalidSerializedPublicParamsError::InvalidHashDimension(arr_error) => {
+                write!(f, "invalid size of hash: {}", arr_error)
+            }
+        }
+    }
+}
+
+impl Error for InvalidSerializedPublicParamsError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            InvalidSerializedPublicParamsError::InvalidGroupElements(group_error) => {
+                Some(group_error)
+            }
+            InvalidSerializedPublicParamsError::InvalidHashDimension(arr_error) => Some(arr_error),
+        }
+    }
+}
+
+impl From<InvalidSerializedGroupElementsError> for InvalidSerializedPublicParamsError {
+    fn from(value: InvalidSerializedGroupElementsError) -> Self {
+        Self::InvalidGroupElements(value)
+    }
+}
+
+impl From<InvalidArraySizeError> for InvalidSerializedPublicParamsError {
+    fn from(value: InvalidArraySizeError) -> Self {
+        Self::InvalidHashDimension(value)
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SerializablePKEv2PublicParamsVersions)]
+pub struct SerializablePKEv2PublicParams {
+    pub(crate) g_lists: SerializableGroupElements,
+    pub(crate) D: usize,
+    pub n: usize,
+    pub d: usize,
+    pub k: usize,
+    pub B: u64,
+    pub B_r: u64,
+    pub B_bound: u64,
+    pub m_bound: usize,
+    pub q: u64,
+    pub t: u64,
+    pub msbs_zero_padding_bit_count: u64,
+    // We use Vec<u8> since serde does not support fixed size arrays of 256 elements
+    hash: Vec<u8>,
+    hash_R: Vec<u8>,
+    hash_t: Vec<u8>,
+    hash_w: Vec<u8>,
+    hash_agg: Vec<u8>,
+    hash_lmap: Vec<u8>,
+    hash_phi: Vec<u8>,
+    hash_xi: Vec<u8>,
+    hash_z: Vec<u8>,
+    hash_chi: Vec<u8>,
+}
+
+impl<G: Curve> From<PKEv2PublicParams<G>> for SerializablePKEv2PublicParams
+where
+    GroupElements<G>: Into<SerializableGroupElements>,
+{
+    fn from(value: PKEv2PublicParams<G>) -> Self {
+        let PKEv2PublicParams {
+            g_lists,
+            D,
+            n,
+            d,
+            k,
+            B,
+            B_r,
+            B_bound,
+            m_bound,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = value;
+        Self {
+            g_lists: g_lists.into(),
+            D,
+            n,
+            d,
+            k,
+            B,
+            B_r,
+            B_bound,
+            m_bound,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash: hash.to_vec(),
+            hash_R: hash_R.to_vec(),
+            hash_t: hash_t.to_vec(),
+            hash_w: hash_w.to_vec(),
+            hash_agg: hash_agg.to_vec(),
+            hash_lmap: hash_lmap.to_vec(),
+            hash_phi: hash_phi.to_vec(),
+            hash_xi: hash_xi.to_vec(),
+            hash_z: hash_z.to_vec(),
+            hash_chi: hash_chi.to_vec(),
+        }
+    }
+}
+
+impl<G: Curve> TryFrom<SerializablePKEv2PublicParams> for PKEv2PublicParams<G>
+where
+    GroupElements<G>:
+        TryFrom<SerializableGroupElements, Error = InvalidSerializedGroupElementsError>,
+{
+    type Error = InvalidSerializedPublicParamsError;
+
+    fn try_from(value: SerializablePKEv2PublicParams) -> Result<Self, Self::Error> {
+        let SerializablePKEv2PublicParams {
+            g_lists,
+            D,
+            n,
+            d,
+            k,
+            B,
+            B_r,
+            B_bound,
+            m_bound,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = value;
+        Ok(Self {
+            g_lists: g_lists.try_into()?,
+            D,
+            n,
+            d,
+            k,
+            B,
+            B_r,
+            B_bound,
+            m_bound,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash: try_vec_to_array(hash)?,
+            hash_R: try_vec_to_array(hash_R)?,
+            hash_t: try_vec_to_array(hash_t)?,
+            hash_w: try_vec_to_array(hash_w)?,
+            hash_agg: try_vec_to_array(hash_agg)?,
+            hash_lmap: try_vec_to_array(hash_lmap)?,
+            hash_phi: try_vec_to_array(hash_phi)?,
+            hash_xi: try_vec_to_array(hash_xi)?,
+            hash_z: try_vec_to_array(hash_z)?,
+            hash_chi: try_vec_to_array(hash_chi)?,
+        })
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SerializablePKEv1PublicParamsVersions)]
+pub struct SerializablePKEv1PublicParams {
+    pub(crate) g_lists: SerializableGroupElements,
+    pub(crate) big_d: usize,
+    pub n: usize,
+    pub d: usize,
+    pub k: usize,
+    pub b: u64,
+    pub b_r: u64,
+    pub q: u64,
+    pub t: u64,
+    pub msbs_zero_padding_bit_count: u64,
+    // We use Vec<u8> since serde does not support fixed size arrays of 256 elements
+    pub(crate) hash: Vec<u8>,
+    pub(crate) hash_t: Vec<u8>,
+    pub(crate) hash_agg: Vec<u8>,
+    pub(crate) hash_lmap: Vec<u8>,
+    pub(crate) hash_z: Vec<u8>,
+    pub(crate) hash_w: Vec<u8>,
+}
+
+impl<G: Curve> From<PKEv1PublicParams<G>> for SerializablePKEv1PublicParams
+where
+    GroupElements<G>: Into<SerializableGroupElements>,
+{
+    fn from(value: PKEv1PublicParams<G>) -> Self {
+        let PKEv1PublicParams {
+            g_lists,
+            big_d,
+            n,
+            d,
+            k,
+            b,
+            b_r,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_z,
+            hash_w,
+        } = value;
+        Self {
+            g_lists: g_lists.into(),
+            big_d,
+            n,
+            d,
+            k,
+            b,
+            b_r,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash: hash.to_vec(),
+            hash_t: hash_t.to_vec(),
+            hash_agg: hash_agg.to_vec(),
+            hash_lmap: hash_lmap.to_vec(),
+            hash_z: hash_z.to_vec(),
+            hash_w: hash_w.to_vec(),
+        }
+    }
+}
+
+impl<G: Curve> TryFrom<SerializablePKEv1PublicParams> for PKEv1PublicParams<G>
+where
+    GroupElements<G>:
+        TryFrom<SerializableGroupElements, Error = InvalidSerializedGroupElementsError>,
+{
+    type Error = InvalidSerializedPublicParamsError;
+
+    fn try_from(value: SerializablePKEv1PublicParams) -> Result<Self, Self::Error> {
+        let SerializablePKEv1PublicParams {
+            g_lists,
+            big_d,
+            n,
+            d,
+            k,
+            b,
+            b_r,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_z,
+            hash_w,
+        } = value;
+        Ok(Self {
+            g_lists: g_lists.try_into()?,
+            big_d,
+            n,
+            d,
+            k,
+            b,
+            b_r,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash: try_vec_to_array(hash)?,
+            hash_t: try_vec_to_array(hash_t)?,
+            hash_agg: try_vec_to_array(hash_agg)?,
+            hash_lmap: try_vec_to_array(hash_lmap)?,
+            hash_z: try_vec_to_array(hash_z)?,
+            hash_w: try_vec_to_array(hash_w)?,
+        })
+    }
+}

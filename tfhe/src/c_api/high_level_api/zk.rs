@@ -1,7 +1,7 @@
 use super::utils::*;
 use crate::c_api::high_level_api::config::Config;
 use crate::c_api::utils::get_ref_checked;
-use crate::zk::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
+use crate::zk::{Compress, Validate};
 use std::ffi::c_int;
 
 #[repr(C)]

@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::*;
 use crate::js_on_wasm_api::js_high_level_api::config::TfheConfig;
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic_result, into_js_error};
 use crate::js_on_wasm_api::shortint::ShortintParameters;
-use tfhe_zk_pok::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
+use tfhe_zk_pok::{Compress, Validate};
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[wasm_bindgen]
 pub enum ZkComputeLoad {

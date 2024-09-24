@@ -2,19 +2,36 @@
 #![allow(non_snake_case)]
 
 use super::*;
+use crate::backward_compatibility::{PKEv2ProofVersions, SerializablePKEv2PublicParamsVersions};
 use crate::four_squares::*;
+use crate::serialization::{
+    InvalidSerializedPublicParamsError, SerializableGroupElements, SerializablePKEv2PublicParams,
+};
 use core::marker::PhantomData;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use tfhe_versionable::{
+    Unversionize, UnversionizeError, Versionize, VersionizeOwned, VersionsDispatch,
+};
 
 fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
 /// The CRS of the zk scheme
-#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, CanonicalSerialize, CanonicalDeserialize)]
+#[serde(
+    try_from = "SerializablePKEv2PublicParams",
+    into = "SerializablePKEv2PublicParams",
+    bound(
+        deserialize = "PublicParams<G>: TryFrom<SerializablePKEv2PublicParams, Error = InvalidSerializedPublicParamsError>",
+        serialize = "PublicParams<G>: Into<SerializablePKEv2PublicParams>"
+    )
+)]
 pub struct PublicParams<G: Curve> {
-    g_lists: GroupElements<G>,
-    D: usize,
+    pub(crate) g_lists: GroupElements<G>,
+    pub(crate) D: usize,
     pub n: usize,
     pub d: usize,
     pub k: usize,
@@ -25,16 +42,63 @@ pub struct PublicParams<G: Curve> {
     pub q: u64,
     pub t: u64,
     pub msbs_zero_padding_bit_count: u64,
-    hash: [u8; HASH_METADATA_LEN_BYTES],
-    hash_R: [u8; HASH_METADATA_LEN_BYTES],
-    hash_t: [u8; HASH_METADATA_LEN_BYTES],
-    hash_w: [u8; HASH_METADATA_LEN_BYTES],
-    hash_agg: [u8; HASH_METADATA_LEN_BYTES],
-    hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
-    hash_phi: [u8; HASH_METADATA_LEN_BYTES],
-    hash_xi: [u8; HASH_METADATA_LEN_BYTES],
-    hash_z: [u8; HASH_METADATA_LEN_BYTES],
-    hash_chi: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_R: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_t: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_w: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_agg: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_phi: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_xi: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_z: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_chi: [u8; HASH_METADATA_LEN_BYTES],
+}
+
+// Manual impl of Versionize because the proc macro has trouble handling conversion from/into types
+// with generics
+impl<G: Curve> Versionize for PublicParams<G>
+where
+    Self: Clone,
+    SerializablePKEv2PublicParamsVersions: VersionsDispatch<SerializablePKEv2PublicParams>,
+    GroupElements<G>: Into<SerializableGroupElements>,
+{
+    type Versioned<'vers> =
+        <SerializablePKEv2PublicParamsVersions as VersionsDispatch<
+            SerializablePKEv2PublicParams,
+            >>::Owned where G:'vers;
+    fn versionize(&self) -> Self::Versioned<'_> {
+        VersionizeOwned::versionize_owned(SerializablePKEv2PublicParams::from(self.to_owned()))
+    }
+}
+
+impl<G: Curve> VersionizeOwned for PublicParams<G>
+where
+    Self: Clone,
+    SerializablePKEv2PublicParamsVersions: VersionsDispatch<SerializablePKEv2PublicParams>,
+    GroupElements<G>: Into<SerializableGroupElements>,
+{
+    type VersionedOwned = <SerializablePKEv2PublicParamsVersions as VersionsDispatch<
+        SerializablePKEv2PublicParams,
+    >>::Owned;
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        VersionizeOwned::versionize_owned(SerializablePKEv2PublicParams::from(self.to_owned()))
+    }
+}
+
+impl<E, G: Curve> Unversionize for PublicParams<G>
+where
+    Self: Clone,
+    SerializablePKEv2PublicParamsVersions: VersionsDispatch<SerializablePKEv2PublicParams>,
+    GroupElements<G>: Into<SerializableGroupElements>,
+    Self: TryFrom<SerializablePKEv2PublicParams, Error = E>,
+    E: Error + Send + Sync + 'static,
+{
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        SerializablePKEv2PublicParams::unversionize(versioned).and_then(|value| {
+            TryInto::<Self>::try_into(value)
+                .map_err(|e| UnversionizeError::conversion("SerializablePublicParams", e))
+        })
+    }
 }
 
 impl<G: Curve> PublicParams<G> {
@@ -95,11 +159,12 @@ impl<G: Curve> PublicParams<G> {
 
 /// This represents a proof that the given ciphertext is a valid encryptions of the input messages
 /// with the provided public key.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[serde(bound(
     deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
     serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
 ))]
+#[versionize(PKEv2ProofVersions)]
 pub struct Proof<G: Curve> {
     C_hat_e: G::G2,
     C_e: G::G1,
@@ -2071,6 +2136,7 @@ pub fn verify<G: Curve>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ark_serialize::{Compress, SerializationError, Validate};
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
 

@@ -17,8 +17,17 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
     }
 }
 
+#[cfg(feature = "zk-pok")]
+use crate::ProvenCompactCiphertextList;
+
 #[derive(VersionsDispatch)]
 pub enum CompactCiphertextListVersions {
     V0(CompactCiphertextListV0),
     V1(CompactCiphertextList),
+}
+
+#[cfg(feature = "zk-pok")]
+#[derive(VersionsDispatch)]
+pub enum ProvenCompactCiphertextListVersions {
+    V0(ProvenCompactCiphertextList),
 }

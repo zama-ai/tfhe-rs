@@ -1,4 +1,5 @@
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
+use crate::shortint::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, MessageModulus, ShortintCompactCiphertextListCastingMode,
@@ -10,6 +11,7 @@ use crate::zk::{
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 impl CompactPkeCrs {
     /// Construct the CRS that corresponds to the given parameters
@@ -49,7 +51,8 @@ impl CompactPkeCrs {
 /// A List of CompactCiphertext with their zero-knowledge proofs
 ///
 /// The proofs can only be generated during the encryption with a [CompactPublicKey]
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(ProvenCompactCiphertextListVersions)]
 pub struct ProvenCompactCiphertextList {
     pub(crate) proved_lists: Vec<(CompactCiphertextList, CompactPkeProof)>,
 }
