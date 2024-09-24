@@ -5,7 +5,10 @@ use tfhe_versionable::Versionize;
 
 use super::PBSOrder;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
+use crate::core_crypto::prelude::{
+    allocate_and_generate_new_binary_glwe_secret_key,
+    allocate_and_generate_new_binary_lwe_secret_key, decrypt_lwe_ciphertext,
+};
 use crate::shortint::backward_compatibility::client_key::ClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
@@ -15,7 +18,7 @@ use crate::shortint::parameters::{
 use crate::shortint::CarryModulus;
 use secret_encryption_key::SecretEncryptionKeyView;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 /// A structure containing the client key, which must be kept secret.
 ///
@@ -89,6 +92,68 @@ impl ClientKey {
                 self.lwe_secret_key.as_view(),
                 self.parameters.lwe_noise_distribution(),
             ),
+        }
+    }
+
+    pub fn try_from_lwe_encryption_key<P>(
+        encryption_key: LweSecretKeyOwned<u64>,
+        parameters: P,
+    ) -> crate::Result<Self>
+    where
+        P: TryInto<ShortintParameterSet>,
+        <P as TryInto<ShortintParameterSet>>::Error: Display,
+    {
+        let parameters = parameters
+            .try_into()
+            .map_err(|err| crate::Error::new(format!("{err}")))?;
+
+        let expected_lwe_dimension = parameters.encryption_lwe_dimension();
+        if encryption_key.lwe_dimension() != expected_lwe_dimension {
+            return Err(
+                crate::Error::new(
+                    format!(
+                        "The given encryption key does not have the correct LweDimension, expected: {:?}, got: {:?}",
+                        encryption_key.lwe_dimension(),
+                        expected_lwe_dimension)));
+        }
+
+        // The key we got is the one used to encrypt,
+        // we have to generate the other key
+        match parameters.encryption_key_choice() {
+            EncryptionKeyChoice::Big => {
+                // We have to generate the small lwe key
+                let small_key = ShortintEngine::with_thread_local_mut(|engine| {
+                    allocate_and_generate_new_binary_lwe_secret_key(
+                        parameters.lwe_dimension(),
+                        &mut engine.secret_generator,
+                    )
+                });
+
+                Ok(Self {
+                    glwe_secret_key: GlweSecretKeyOwned::from_container(
+                        encryption_key.into_container(),
+                        parameters.polynomial_size(),
+                    ),
+                    lwe_secret_key: small_key,
+                    parameters,
+                })
+            }
+            EncryptionKeyChoice::Small => {
+                // We have to generate the big lwe key
+                let glwe_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
+                    allocate_and_generate_new_binary_glwe_secret_key(
+                        parameters.glwe_dimension(),
+                        parameters.polynomial_size(),
+                        &mut engine.secret_generator,
+                    )
+                });
+
+                Ok(Self {
+                    glwe_secret_key,
+                    lwe_secret_key: encryption_key,
+                    parameters,
+                })
+            }
         }
     }
 
