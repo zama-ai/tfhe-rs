@@ -247,6 +247,13 @@ clippy_gpu: install_rs_check_toolchain
 		--all-targets \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
+.PHONY: check_gpu # Run check on tfhe with "gpu" enabled
+check_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" check \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,gpu \
+		--all-targets \
+		-p $(TFHE_SPEC)
+
 .PHONY: fix_newline # Fix newline at end of file issues to be UNIX compliant
 fix_newline: check_linelint_installed
 	linelint -a .

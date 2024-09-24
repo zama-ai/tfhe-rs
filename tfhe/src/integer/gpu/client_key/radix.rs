@@ -91,7 +91,11 @@ impl RadixClientKey {
         let cuda_decompression_key = CudaDecompressionKey {
             blind_rotate_key,
             lwe_per_glwe: params.lwe_per_glwe,
-            parameters: self.parameters(),
+            glwe_dimension: self.parameters().glwe_dimension(),
+            polynomial_size: self.parameters().polynomial_size(),
+            message_modulus: self.parameters().message_modulus(),
+            carry_modulus: self.parameters().carry_modulus(),
+            ciphertext_modulus: self.parameters().ciphertext_modulus(),
         };
 
         (cuda_compression_key, cuda_decompression_key)

@@ -3,7 +3,10 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{CiphertextModulusLog, GlweCiphertextCount, LweCiphertextCount};
+use crate::core_crypto::prelude::{
+    CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount, LweCiphertextCount,
+    PolynomialSize,
+};
 use crate::integer::ciphertext::DataKind;
 use crate::integer::compression_keys::CompressionKey;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
@@ -13,7 +16,8 @@ use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::{CarryModulus, MessageModulus, PBSOrder, PBSParameters};
+use crate::shortint::prelude::GlweDimension;
+use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
 
 #[derive(Debug)]
@@ -26,7 +30,11 @@ pub struct CudaCompressionKey {
 pub struct CudaDecompressionKey {
     pub blind_rotate_key: CudaBootstrappingKey,
     pub lwe_per_glwe: LweCiphertextCount,
-    pub parameters: PBSParameters,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub ciphertext_modulus: CiphertextModulus<u64>,
 }
 
 pub struct CudaPackedGlweCiphertext {
@@ -37,6 +45,20 @@ pub struct CudaPackedGlweCiphertext {
     pub storage_log_modulus: CiphertextModulusLog,
     pub lwe_per_glwe: LweCiphertextCount,
     pub initial_len: usize,
+}
+
+impl Clone for CudaPackedGlweCiphertext {
+    fn clone(&self) -> Self {
+        Self {
+            glwe_ciphertext_list: CudaGlweCiphertextList(self.glwe_ciphertext_list.0.clone()),
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            bodies_count: self.bodies_count,
+            storage_log_modulus: self.storage_log_modulus,
+            lwe_per_glwe: self.lwe_per_glwe,
+            initial_len: self.initial_len,
+        }
+    }
 }
 
 impl CudaCompressionKey {
@@ -184,16 +206,16 @@ impl CudaDecompressionKey {
             .map(|x| x as u32)
             .collect_vec();
 
-        let encryption_glwe_dimension = self.parameters.glwe_dimension();
-        let encryption_polynomial_size = self.parameters.polynomial_size();
+        let encryption_glwe_dimension = self.glwe_dimension;
+        let encryption_polynomial_size = self.polynomial_size;
         let glwe_ciphertext_list = &packed_list.glwe_ciphertext_list;
         let compression_glwe_dimension = glwe_ciphertext_list.glwe_dimension();
         let compression_polynomial_size = glwe_ciphertext_list.polynomial_size();
         let indexes_array_len = LweCiphertextCount(indexes_array.len());
 
-        let message_modulus = self.parameters.message_modulus();
-        let carry_modulus = self.parameters.carry_modulus();
-        let ciphertext_modulus = self.parameters.ciphertext_modulus();
+        let message_modulus = self.message_modulus;
+        let carry_modulus = self.carry_modulus;
+        let ciphertext_modulus = self.ciphertext_modulus;
         let storage_log_modulus = packed_list.storage_log_modulus;
 
         match &self.blind_rotate_key {

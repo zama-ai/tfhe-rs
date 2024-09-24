@@ -9,7 +9,8 @@ use crate::core_crypto::prelude::{
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
-    CudaRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey, CudaPackedGlweCiphertext,
@@ -17,11 +18,53 @@ use crate::integer::gpu::list_compression::server_keys::{
 use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
 use crate::shortint::PBSOrder;
 use itertools::Itertools;
+use serde::{Deserializer, Serializer};
 
+pub trait CudaExpandable: Sized {
+    fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self>;
+}
+
+impl<T> CudaExpandable for T
+where
+    T: CudaIntegerRadixCiphertext,
+{
+    fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self> {
+        match (kind, T::IS_SIGNED) {
+            (DataKind::Unsigned(_), false) | (DataKind::Signed(_), true) => Ok(T::from(blocks)),
+            (DataKind::Boolean, _) => {
+                let signed_or_unsigned_str = if T::IS_SIGNED { "signed" } else { "unsigned" };
+                Err(crate::Error::new(format!(
+                    "Tried to expand a {signed_or_unsigned_str} radix while boolean is stored"
+                )))
+            }
+            (DataKind::Unsigned(_), true) => Err(crate::Error::new(
+                "Tried to expand a signed radix while an unsigned radix is stored".to_string(),
+            )),
+            (DataKind::Signed(_), false) => Err(crate::Error::new(
+                "Tried to expand an unsigned radix while a signed radix is stored".to_string(),
+            )),
+        }
+    }
+}
+
+impl CudaExpandable for CudaBooleanBlock {
+    fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self> {
+        match kind {
+            DataKind::Unsigned(_) => Err(crate::Error::new(
+                "Tried to expand a boolean block while an unsigned radix was stored".to_string(),
+            )),
+            DataKind::Signed(_) => Err(crate::Error::new(
+                "Tried to expand a boolean block while a signed radix was stored".to_string(),
+            )),
+            DataKind::Boolean => Ok(Self::from_cuda_radix_ciphertext(blocks)),
+        }
+    }
+}
 pub struct CudaCompressedCiphertextList {
     pub(crate) packed_list: CudaPackedGlweCiphertext,
     info: Vec<DataKind>,
 }
+
 impl CudaCompressedCiphertextList {
     pub fn len(&self) -> usize {
         self.info.len()
@@ -31,12 +74,17 @@ impl CudaCompressedCiphertextList {
         self.info.len() == 0
     }
 
-    pub fn get(
+    pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
+        self.info.get(index).copied()
+    }
+
+    #[allow(clippy::unnecessary_wraps)]
+    fn blocks_of(
         &self,
         index: usize,
         decomp_key: &CudaDecompressionKey,
         streams: &CudaStreams,
-    ) -> CudaRadixCiphertext {
+    ) -> Option<(CudaRadixCiphertext, DataKind)> {
         let preceding_infos = self.info.get(..index).unwrap();
         let current_info = self.info.get(index).copied().unwrap();
 
@@ -46,17 +94,33 @@ impl CudaCompressedCiphertextList {
             .map(DataKind::num_blocks)
             .sum();
 
-        let end_block_index = start_block_index + current_info.num_blocks() - 1;
+        let end_block_index = start_block_index + current_info.num_blocks();
 
-        decomp_key.unpack(
-            &self.packed_list,
+        Some((
+            decomp_key.unpack(
+                &self.packed_list,
+                current_info,
+                start_block_index,
+                end_block_index,
+                streams,
+            ),
             current_info,
-            start_block_index,
-            end_block_index,
-            streams,
-        )
+        ))
     }
 
+    pub fn get<T>(
+        &self,
+        index: usize,
+        decomp_key: &CudaDecompressionKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<Option<T>>
+    where
+        T: CudaExpandable,
+    {
+        self.blocks_of(index, decomp_key, streams)
+            .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
+            .transpose()
+    }
     /// ```rust
     ///  use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::{BooleanBlock, ClientKey, RadixCiphertext, SignedRadixCiphertext};
@@ -224,7 +288,13 @@ impl CompressedCiphertextList {
     ///         radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
     ///
     ///     let cuda_decompression_key =
-    ///         compressed_decompression_key.decompress_to_cuda(radix_cks.parameters(), &streams);
+    ///         compressed_decompression_key.decompress_to_cuda(
+    ///                 radix_cks.parameters().glwe_dimension(),
+    ///                 radix_cks.parameters().polynomial_size(),
+    ///                 radix_cks.parameters().message_modulus(),
+    ///                 radix_cks.parameters().carry_modulus(),
+    ///                 radix_cks.parameters().ciphertext_modulus(),
+    ///                 &streams);
     ///
     ///     let compression_key = compressed_compression_key.decompress();
     ///
@@ -240,23 +310,20 @@ impl CompressedCiphertextList {
     ///
     ///         let cuda_compressed = compressed.to_cuda_compressed_ciphertext_list(&streams);
     ///
-    ///         let d_decompressed1 = CudaUnsignedRadixCiphertext {
-    ///             ciphertext: cuda_compressed.get(0, &cuda_decompression_key, &streams),
-    ///         };
+    ///         let d_decompressed1: CudaUnsignedRadixCiphertext =
+    ///             cuda_compressed.get(0, &cuda_decompression_key, &streams).unwrap().unwrap();
     ///         let decompressed1 = d_decompressed1.to_radix_ciphertext(&streams);
     ///         let decrypted: u32 = radix_cks.decrypt(&decompressed1);
     ///         assert_eq!(decrypted, 3_u32);
     ///
-    ///         let d_decompressed2 = CudaSignedRadixCiphertext {
-    ///             ciphertext: cuda_compressed.get(1, &cuda_decompression_key, &streams),
-    ///         };
+    ///         let d_decompressed2: CudaSignedRadixCiphertext =
+    ///             cuda_compressed.get(1, &cuda_decompression_key, &streams).unwrap().unwrap();
     ///         let decompressed2 = d_decompressed2.to_signed_radix_ciphertext(&streams);
     ///         let decrypted: i32 = radix_cks.decrypt_signed(&decompressed2);
     ///         assert_eq!(decrypted, -2);
     ///
-    ///         let d_decompressed3 = CudaBooleanBlock::from_cuda_radix_ciphertext(
-    ///             cuda_compressed.get(2, &cuda_decompression_key, &streams),
-    ///         );
+    ///         let d_decompressed3: CudaBooleanBlock =
+    ///             cuda_compressed.get(2, &cuda_decompression_key, &streams).unwrap().unwrap();
     ///         let decompressed3 = d_decompressed3.to_boolean_block(&streams);
     ///         let decrypted = radix_cks.decrypt_bool(&decompressed3);
     ///         assert!(decrypted);
@@ -386,6 +453,16 @@ impl CudaCompressedCiphertextListBuilder {
         self
     }
 
+    pub fn extend<T>(&mut self, values: impl Iterator<Item = T>, streams: &CudaStreams) -> &mut Self
+    where
+        T: CudaCompressible,
+    {
+        for value in values {
+            self.push(value, streams);
+        }
+        self
+    }
+
     pub fn build(
         &self,
         comp_key: &CudaCompressionKey,
@@ -397,6 +474,38 @@ impl CudaCompressedCiphertextListBuilder {
             packed_list,
             info: self.info.clone(),
         }
+    }
+}
+
+impl Clone for CudaCompressedCiphertextList {
+    fn clone(&self) -> Self {
+        Self {
+            packed_list: self.packed_list.clone(),
+            info: self.info.clone(),
+        }
+    }
+}
+
+impl serde::Serialize for CudaCompressedCiphertextList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let streams = CudaStreams::new_multi_gpu();
+        let cpu_res = self.to_compressed_ciphertext_list(&streams);
+        cpu_res.serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CudaCompressedCiphertextList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let cpu_compressed = CompressedCiphertextList::deserialize(deserializer)?;
+        let streams = CudaStreams::new_multi_gpu();
+
+        Ok(cpu_compressed.to_cuda_compressed_ciphertext_list(&streams))
     }
 }
 
@@ -460,9 +569,10 @@ mod tests {
                 let cuda_compressed = builder.build(&cuda_compression_key, &streams);
 
                 for (i, message) in messages.iter().enumerate() {
-                    let d_decompressed = CudaUnsignedRadixCiphertext {
-                        ciphertext: cuda_compressed.get(i, &cuda_decompression_key, &streams),
-                    };
+                    let d_decompressed: CudaUnsignedRadixCiphertext = cuda_compressed
+                        .get(i, &cuda_decompression_key, &streams)
+                        .unwrap()
+                        .unwrap();
                     let decompressed = d_decompressed.to_radix_ciphertext(&streams);
                     let decrypted: u128 = radix_cks.decrypt(&decompressed);
                     assert_eq!(decrypted, *message);
@@ -494,9 +604,10 @@ mod tests {
                 let cuda_compressed = builder.build(&cuda_compression_key, &streams);
 
                 for (i, message) in messages.iter().enumerate() {
-                    let d_decompressed = CudaSignedRadixCiphertext {
-                        ciphertext: cuda_compressed.get(i, &cuda_decompression_key, &streams),
-                    };
+                    let d_decompressed: CudaSignedRadixCiphertext = cuda_compressed
+                        .get(i, &cuda_decompression_key, &streams)
+                        .unwrap()
+                        .unwrap();
                     let decompressed = d_decompressed.to_signed_radix_ciphertext(&streams);
                     let decrypted: i128 = radix_cks.decrypt_signed(&decompressed);
                     assert_eq!(decrypted, *message);
@@ -527,9 +638,10 @@ mod tests {
                 let cuda_compressed = builder.build(&cuda_compression_key, &streams);
 
                 for (i, message) in messages.iter().enumerate() {
-                    let d_decompressed = CudaBooleanBlock::from_cuda_radix_ciphertext(
-                        cuda_compressed.get(i, &cuda_decompression_key, &streams),
-                    );
+                    let d_decompressed: CudaBooleanBlock = cuda_compressed
+                        .get(i, &cuda_decompression_key, &streams)
+                        .unwrap()
+                        .unwrap();
                     let decompressed = d_decompressed.to_boolean_block(&streams);
                     let decrypted = radix_cks.decrypt_bool(&decompressed);
                     assert_eq!(decrypted, *message);
@@ -587,33 +699,28 @@ mod tests {
                 for (i, val) in messages.iter().enumerate() {
                     match val {
                         MessageType::Unsigned(message) => {
-                            let d_decompressed = CudaUnsignedRadixCiphertext {
-                                ciphertext: cuda_compressed.get(
-                                    i,
-                                    &cuda_decompression_key,
-                                    &streams,
-                                ),
-                            };
+                            let d_decompressed: CudaUnsignedRadixCiphertext = cuda_compressed
+                                .get(i, &cuda_decompression_key, &streams)
+                                .unwrap()
+                                .unwrap();
                             let decompressed = d_decompressed.to_radix_ciphertext(&streams);
                             let decrypted: u128 = radix_cks.decrypt(&decompressed);
                             assert_eq!(decrypted, *message);
                         }
                         MessageType::Signed(message) => {
-                            let d_decompressed = CudaSignedRadixCiphertext {
-                                ciphertext: cuda_compressed.get(
-                                    i,
-                                    &cuda_decompression_key,
-                                    &streams,
-                                ),
-                            };
+                            let d_decompressed: CudaSignedRadixCiphertext = cuda_compressed
+                                .get(i, &cuda_decompression_key, &streams)
+                                .unwrap()
+                                .unwrap();
                             let decompressed = d_decompressed.to_signed_radix_ciphertext(&streams);
                             let decrypted: i128 = radix_cks.decrypt_signed(&decompressed);
                             assert_eq!(decrypted, *message);
                         }
                         MessageType::Boolean(message) => {
-                            let d_decompressed = CudaBooleanBlock::from_cuda_radix_ciphertext(
-                                cuda_compressed.get(i, &cuda_decompression_key, &streams),
-                            );
+                            let d_decompressed: CudaBooleanBlock = cuda_compressed
+                                .get(i, &cuda_decompression_key, &streams)
+                                .unwrap()
+                                .unwrap();
                             let decompressed = d_decompressed.to_boolean_block(&streams);
                             let decrypted = radix_cks.decrypt_bool(&decompressed);
                             assert_eq!(decrypted, *message);

@@ -23,6 +23,8 @@ extern "C" {
         gpu_index: u32,
     );
 
+    pub fn cuda_memcpy_gpu_to_gpu(dest: *mut c_void, src: *const c_void, size: u64, gpu_index: u32);
+
     pub fn cuda_memcpy_async_gpu_to_gpu(
         dest: *mut c_void,
         src: *const c_void,

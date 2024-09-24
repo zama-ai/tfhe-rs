@@ -5,6 +5,8 @@ use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKey
 use crate::conformance::ParameterSetConformant;
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
+#[cfg(feature = "gpu")]
+use crate::high_level_api::keys::inner::IntegerCudaServerKey;
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
@@ -238,14 +240,49 @@ impl CompressedServerKey {
     #[cfg(feature = "gpu")]
     pub fn decompress_to_gpu(&self) -> CudaServerKey {
         let streams = CudaStreams::new_multi_gpu();
-        synchronize_devices(streams.len() as u32);
-        let cuda_key = crate::integer::gpu::CudaServerKey::decompress_from_cpu(
+        let key = crate::integer::gpu::CudaServerKey::decompress_from_cpu(
             &self.integer_key.key,
             &streams,
         );
+        let compression_key: Option<
+            crate::integer::gpu::list_compression::server_keys::CudaCompressionKey,
+        > = self
+            .integer_key
+            .compression_key
+            .as_ref()
+            .map(|compression_key| compression_key.decompress_to_cuda(&streams));
+        let decompression_key: Option<
+            crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey,
+        > = match &self.integer_key.decompression_key {
+            Some(decompression_key) => {
+                let polynomial_size = decompression_key.key.blind_rotate_key.polynomial_size();
+                let glwe_dimension = decompression_key
+                    .key
+                    .blind_rotate_key
+                    .glwe_size()
+                    .to_glwe_dimension();
+                let message_modulus = key.message_modulus;
+                let carry_modulus = key.carry_modulus;
+                let ciphertext_modulus =
+                    decompression_key.key.blind_rotate_key.ciphertext_modulus();
+                Some(decompression_key.decompress_to_cuda(
+                    glwe_dimension,
+                    polynomial_size,
+                    message_modulus,
+                    carry_modulus,
+                    ciphertext_modulus,
+                    &streams,
+                ))
+            }
+            None => None,
+        };
         synchronize_devices(streams.len() as u32);
         CudaServerKey {
-            key: Arc::new(cuda_key),
+            key: Arc::new(IntegerCudaServerKey {
+                key,
+                compression_key,
+                decompression_key,
+            }),
             tag: self.tag.clone(),
         }
     }
@@ -268,14 +305,14 @@ impl Named for CompressedServerKey {
 #[cfg(feature = "gpu")]
 #[derive(Clone)]
 pub struct CudaServerKey {
-    pub(crate) key: Arc<crate::integer::gpu::CudaServerKey>,
+    pub(crate) key: Arc<IntegerCudaServerKey>,
     pub(crate) tag: Tag,
 }
 
 #[cfg(feature = "gpu")]
 impl CudaServerKey {
     pub(crate) fn message_modulus(&self) -> crate::shortint::MessageModulus {
-        self.key.message_modulus
+        self.key.key.message_modulus
     }
 }
 

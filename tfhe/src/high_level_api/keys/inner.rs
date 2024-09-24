@@ -280,6 +280,15 @@ impl IntegerServerKey {
     }
 }
 
+#[cfg(feature = "gpu")]
+pub struct IntegerCudaServerKey {
+    pub(crate) key: crate::integer::gpu::CudaServerKey,
+    pub(crate) compression_key:
+        Option<crate::integer::gpu::list_compression::server_keys::CudaCompressionKey>,
+    pub(crate) decompression_key:
+        Option<crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey>,
+}
+
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(IntegerCompressedServerKeyVersions)]
 pub struct IntegerCompressedServerKey {

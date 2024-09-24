@@ -219,7 +219,10 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let result = cuda_key.key.is_even(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key
+                    .key
+                    .key
+                    .is_even(&*self.ciphertext.on_gpu(), streams);
                 FheBool::new(result, cuda_key.tag.clone())
             }),
         })
@@ -252,7 +255,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let result = cuda_key.key.is_odd(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.key.is_odd(&*self.ciphertext.on_gpu(), streams);
                 FheBool::new(result, cuda_key.tag.clone())
             }),
         })
@@ -291,10 +294,11 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key
                     .key
+                    .key
                     .leading_zeros(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    crate::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
@@ -335,10 +339,11 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key
                     .key
+                    .key
                     .leading_ones(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    crate::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
@@ -379,10 +384,11 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key
                     .key
+                    .key
                     .trailing_zeros(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    crate::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
@@ -423,10 +429,11 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key
                     .key
+                    .key
                     .trailing_ones(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    crate::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
@@ -541,10 +548,10 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let result = cuda_key.key.ilog2(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.ilog2(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    crate::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
@@ -594,10 +601,11 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let (result, is_ok) = cuda_key
                     .key
+                    .key
                     .checked_ilog2(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    crate::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 (
@@ -717,7 +725,7 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let target_num_blocks = IntoId::num_blocks(cuda_key.message_modulus());
-                let new_ciphertext = cuda_key.key.cast_to_signed(
+                let new_ciphertext = cuda_key.key.key.cast_to_signed(
                     input.ciphertext.into_gpu(),
                     target_num_blocks,
                     streams,
@@ -761,7 +769,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let new_ciphertext = cuda_key.key.cast_to_signed(
+                let new_ciphertext = cuda_key.key.key.cast_to_signed(
                     input.ciphertext.into_gpu(),
                     IntoId::num_blocks(cuda_key.message_modulus()),
                     streams,
@@ -808,7 +816,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let inner = cuda_key.key.cast_to_signed(
+                let inner = cuda_key.key.key.cast_to_signed(
                     input.ciphertext.into_gpu().0,
                     Id::num_blocks(cuda_key.message_modulus()),
                     streams,

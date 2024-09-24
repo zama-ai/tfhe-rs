@@ -54,7 +54,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let (result, overflow) = cuda_key.key.signed_overflowing_add(
+                let (result, overflow) = cuda_key.key.key.signed_overflowing_add(
                     &self.ciphertext.on_gpu(),
                     &other.ciphertext.on_gpu(),
                     streams,
@@ -150,7 +150,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let (result, overflow) = cuda_key.key.signed_overflowing_scalar_add(
+                let (result, overflow) = cuda_key.key.key.signed_overflowing_scalar_add(
                     &self.ciphertext.on_gpu(),
                     other,
                     streams,
@@ -284,7 +284,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let (result, overflow) = cuda_key.key.signed_overflowing_sub(
+                let (result, overflow) = cuda_key.key.key.signed_overflowing_sub(
                     &self.ciphertext.on_gpu(),
                     &other.ciphertext.on_gpu(),
                     streams,
@@ -379,7 +379,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let (result, overflow) = cuda_key.key.signed_overflowing_scalar_sub(
+                let (result, overflow) = cuda_key.key.key.signed_overflowing_scalar_sub(
                     &self.ciphertext.on_gpu(),
                     other,
                     streams,
