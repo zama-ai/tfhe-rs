@@ -6,7 +6,6 @@ use rand::prelude::*;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use tfhe::core_crypto::prelude::*;
 use tfhe::integer::key_switching_key::KeySwitchingKey;
 use tfhe::integer::parameters::{
     IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
@@ -157,10 +156,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
             let shortint_params: PBSParameters = param_fhe.into();
 
-            let mut crs_data = vec![];
-            public_params
-                .serialize_with_mode(&mut crs_data, Compress::No)
-                .unwrap();
+            let crs_data = bincode::serialize(&public_params).unwrap();
 
             println!("CRS size: {}", crs_data.len());
 

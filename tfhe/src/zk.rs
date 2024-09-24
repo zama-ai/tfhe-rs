@@ -8,7 +8,6 @@ use tfhe_zk_pok::proofs::pke::crs_gen;
 
 pub use tfhe_zk_pok::curve_api::Compressible;
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
-pub use tfhe_zk_pok::{Compress, Validate};
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 pub type CompactPkeProof = tfhe_zk_pok::proofs::pke::Proof<Curve>;
 pub type CompactPkePublicParams = tfhe_zk_pok::proofs::pke::PublicParams<Curve>;
