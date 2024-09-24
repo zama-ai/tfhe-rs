@@ -1,0 +1,206 @@
+# Run benchmarks on an L40 VM and return parsed results to Slab CI bot.
+name: Cuda benchmarks (L40)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly benchmarks will be triggered each Saturday at 1a.m.
+    - cron: '0 1 * * 6'
+
+env:
+  CARGO_TERM_COLOR: always
+  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+jobs:
+  setup-instance:
+    name: Setup instance (cuda-l40-benchmarks)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@c0e7168795bd78f61f61146951ed9d0c73c9b701
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: hyperstack
+          profile: l40 
+
+  cuda-l40-benchmarks:
+    name: Cuda benchmarks (L40)
+    needs: setup-instance
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 1440 # 24 hours
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        command: [integer_multi_bit]
+        op_flavor: [default]
+        # explicit include-based build matrix, of known valid options
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.2"
+            gcc: 11
+    env:
+      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
+      CMAKE_VERSION: 3.29.6
+    steps:
+      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y checkinstall zlib1g-dev libssl-dev
+          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          cd cmake-${{ env.CMAKE_VERSION }}
+          ./bootstrap
+          make -j"$(nproc)"
+          sudo make install
+
+      - name: Checkout tfhe-rs repo with tags
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+
+      - name: Get benchmark details
+        run: |
+          {
+            echo "BENCH_DATE=$(date --iso-8601=seconds)";
+            echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})";
+            echo "COMMIT_HASH=$(git describe --tags --dirty)";
+          } >> "${GITHUB_ENV}"
+
+      - name: Set up home
+        # "Install rust" step require root user to have a HOME directory which is not set.
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
+        with:
+          toolchain: nightly
+
+      - name: Export CUDA variables
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "CUDA_PATH=$CUDA_PATH";
+            echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
+            echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc";
+          } >> "${GITHUB_ENV}"
+          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+
+      # Specify the correct host compilers
+      - name: Export gcc and g++ variables
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
+            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+          } >> "${GITHUB_ENV}"
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          repository: zama-ai/slab
+          path: slab
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+
+      - name: Check device is detected
+        if: ${{ !cancelled() }}
+        run: nvidia-smi
+
+      - name: Run benchmarks with AVX512
+        run: |
+          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_${{ matrix.command }}_gpu
+
+      - name: Run compression benchmarks with AVX512
+        run: |
+          make bench_integer_compression_gpu
+
+      - name: Run PBS benchmarks 
+        run: |
+          make bench_pbs_gpu
+
+      - name: Run KS benchmarks 
+        run: |
+          make bench_ks_gpu
+
+      - name: Parse results
+        run: |
+          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          --database tfhe_rs \
+          --hardware "L40x1" \
+          --backend gpu \
+          --project-version "${{ env.COMMIT_HASH }}" \
+          --branch ${{ github.ref_name }} \
+          --commit-date "${{ env.COMMIT_DATE }}" \
+          --bench-date "${{ env.BENCH_DATE }}" \
+          --walk-subdirs \
+          --name-suffix avx512 \
+          --throughput
+
+      - name: Upload parsed results artifact
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        with:
+          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}
+          path: ${{ env.RESULTS_FILENAME }}
+
+      - name: Send data to Slab
+        shell: bash
+        run: |
+          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          --slab-url "${{ secrets.SLAB_URL }}"
+
+  slack-notify:
+    name: Slack Notification
+    needs: [ setup-instance, cuda-l40-benchmarks ]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.cuda-l40-benchmarks.result != 'skipped' && failure() }}
+    continue-on-error: true
+    steps:
+      - name: Send message
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ needs.cuda-l40-benchmarks.result }}
+          SLACK_MESSAGE: "Cuda benchmarks (L40) finished with status: ${{ needs.cuda-l40-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
+
+  teardown-instance:
+    name: Teardown instance (cuda-l40-benchmarks)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, cuda-l40-benchmarks, slack-notify ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@c0e7168795bd78f61f61146951ed9d0c73c9b701
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (cuda-l40-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
