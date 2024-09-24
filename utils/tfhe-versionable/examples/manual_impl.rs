@@ -94,7 +94,6 @@ enum MyStructVersionsDispatchOwned<T: Default + VersionizeOwned> {
     V1(MyStructVersionOwned<T>),
 }
 
-#[test]
 fn main() {
     let ms = MyStruct {
         attr: 37u64,
@@ -104,4 +103,9 @@ fn main() {
     let serialized = bincode::serialize(&ms.versionize()).unwrap();
 
     let _unserialized = MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap());
+}
+
+#[test]
+fn test() {
+    main()
 }

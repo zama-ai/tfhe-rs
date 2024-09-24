@@ -77,7 +77,6 @@ mod v0 {
     }
 }
 
-#[test]
 fn main() {
     let values: [u64; 6] = [12, 23, 34, 45, 56, 67];
     let vec = values
@@ -94,4 +93,9 @@ fn main() {
     let unser_values: Vec<u64> = unserialized.vec.iter().map(|inner| inner.val).collect();
 
     assert_eq!(unser_values, values);
+}
+
+#[test]
+fn test() {
+    main()
 }

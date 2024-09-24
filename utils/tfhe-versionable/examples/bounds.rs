@@ -57,7 +57,6 @@ enum MyStructVersions<T> {
     V1(MyStruct<T>),
 }
 
-#[test]
 fn main() {
     let val = 64;
     let stru_v0 = v0::MyStruct {
@@ -72,4 +71,9 @@ fn main() {
             .unwrap();
 
     assert_eq!(unvers.val, val);
+}
+
+#[test]
+fn test() {
+    main()
 }

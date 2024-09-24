@@ -132,7 +132,6 @@ mod v2 {
     }
 }
 
-#[test]
 fn main() {
     let v0 = v0::MyStruct(37);
 
@@ -147,4 +146,9 @@ fn main() {
 
     assert_eq!(v0.0, v2.count);
     assert_eq!(v2.attr, u64::default());
+}
+
+#[test]
+fn test() {
+    main()
 }

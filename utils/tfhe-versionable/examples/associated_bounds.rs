@@ -28,7 +28,6 @@ struct MyStruct<T: WithAssociated> {
     other_val: T::OtherAssoc,
 }
 
-#[test]
 fn main() {
     let ms = MyStruct::<Marker> {
         val: 27,
@@ -36,4 +35,9 @@ fn main() {
     };
 
     ms.versionize();
+}
+
+#[test]
+fn test() {
+    main()
 }

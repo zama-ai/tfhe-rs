@@ -76,7 +76,6 @@ mod v0 {
     }
 }
 
-#[test]
 fn main() {
     let builtin = 654;
     let inner = v0::MyStructInner { builtin: 654 };
@@ -89,4 +88,9 @@ fn main() {
         MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
 
     assert_eq!(unserialized.inner.builtin, builtin);
+}
+
+#[test]
+fn test() {
+    main()
 }
