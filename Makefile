@@ -318,9 +318,17 @@ clippy_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-zk-pok -- --no-deps -D warnings
 
+.PHONY: clippy_versionable # Run clippy lints on tfhe-versionable
+clippy_versionable: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-versionable-derive -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-versionable -- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
-clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_zk_pok clippy_trivium
+clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_zk_pok clippy_trivium \
+clippy_versionable
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
