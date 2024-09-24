@@ -282,7 +282,7 @@ impl<'a> From<&'a ShortintBootstrappingKey>
     fn from(value: &'a ShortintBootstrappingKey) -> Self {
         match value {
             ShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk.as_view()),
-            ShortintBootstrappingKey::ClassicNtt(bsk) => todo!("Not supported. Serialization isn't implemented for ShortintNtt") ,
+            ShortintBootstrappingKey::ClassicNtt(_bsk) => todo!("Not supported. Serialization isn't implemented for ShortintNtt") ,
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk: bsk,
                 deterministic_execution,
@@ -301,7 +301,7 @@ impl From<ShortintBootstrappingKey>
     fn from(value: ShortintBootstrappingKey) -> Self {
         match value {
             ShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk),
-            ShortintBootstrappingKey::ClassicNtt(bsk) => todo!("Not supported. Serialization isn't implemented for ShortintNtt") ,
+            ShortintBootstrappingKey::ClassicNtt(_bsk) => todo!("Not supported. Serialization isn't implemented for ShortintNtt") ,
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
@@ -449,7 +449,7 @@ impl ShortintBootstrappingKey {
     pub fn bootstrapping_key_size_elements(&self) -> usize {
         match self {
             Self::Classic(bsk) => bsk.as_view().data().len(),
-            Self::ClassicNtt(bsk) => todo!(),
+            Self::ClassicNtt(_bsk) => todo!(),
             Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => bsk.as_view().data().len(),
@@ -459,7 +459,7 @@ impl ShortintBootstrappingKey {
     pub fn bootstrapping_key_size_bytes(&self) -> usize {
         match self {
             Self::Classic(bsk) => std::mem::size_of_val(bsk.as_view().data()),
-            Self::ClassicNtt(bsk) => todo!(),
+            Self::ClassicNtt(_bsk) => todo!(),
             Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => std::mem::size_of_val(bsk.as_view().data()),

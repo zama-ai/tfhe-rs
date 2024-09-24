@@ -654,7 +654,7 @@ pub fn pbs_modulus_switch_non_native<Scalar: UnsignedTorus + CastInto<usize>>(
 /// Perform the external product of `ggsw` and `glwe`, and adds the result to `out`.
 #[cfg_attr(feature = "__profiling", inline(never))]
 pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
-    mut out: GlweCiphertextMutView<'_, u64>,
+    out: GlweCiphertextMutView<'_, u64>,
     ggsw: NttGgswCiphertextView<'_, u64>,
     glwe: &GlweCiphertext<InputGlweCont>,
     ntt: Ntt64View<'_>,
@@ -943,7 +943,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
 pub(crate) fn cmux_ntt64_assign(
     ct0: GlweCiphertextMutView<'_, u64>,
-    mut ct1: GlweCiphertextMutView<'_, u64>,
+    ct1: GlweCiphertextMutView<'_, u64>,
     ggsw: NttGgswCiphertextView<'_, u64>,
     ntt: Ntt64View<'_>,
     stack: PodStack<'_>,
