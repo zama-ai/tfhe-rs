@@ -39,7 +39,6 @@ impl From<SerializableMyStruct> for MyStruct {
     }
 }
 
-#[test]
 fn main() {
     let stru = MyStruct { val: 37 };
 
@@ -48,4 +47,9 @@ fn main() {
     let stru_decoded = MyStruct::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
 
     assert_eq!(stru.val, stru_decoded.val)
+}
+
+#[test]
+fn test() {
+    main()
 }

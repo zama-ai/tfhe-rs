@@ -61,7 +61,6 @@ mod v0 {
     }
 }
 
-#[test]
 fn main() {
     // In the past we saved a value
     let value = 1234;
@@ -74,4 +73,9 @@ fn main() {
         MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
 
     assert_eq!(unserialized.builtin, value);
+}
+
+#[test]
+fn test() {
+    main()
 }

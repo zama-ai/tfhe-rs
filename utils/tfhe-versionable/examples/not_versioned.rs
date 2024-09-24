@@ -22,11 +22,15 @@ enum MyStructVersions {
     V0(MyStruct),
 }
 
-#[test]
 fn main() {
     let ms = MyStruct {
         inner: MyStructNotVersioned { val: 1234 },
     };
 
     let _versioned = ms.versionize();
+}
+
+#[test]
+fn test() {
+    main()
 }
