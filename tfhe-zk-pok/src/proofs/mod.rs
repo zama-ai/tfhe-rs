@@ -1,19 +1,23 @@
-use crate::curve_api::{Curve, CurveGroupOps, FieldOps, PairingGroupOps};
 use ark_serialize::{
     CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError, Valid, Validate,
 };
-use core::ops::{Index, IndexMut};
 use rand::{Rng, RngCore};
+use std::ops::{Index, IndexMut};
 
-#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
-#[repr(transparent)]
-struct OneBased<T: ?Sized>(T);
+use tfhe_versionable::{Unversionize, Versionize, VersionizeOwned};
+
+use crate::backward_compatibility::GroupElementsVersions;
+use crate::curve_api::{Curve, CurveGroupOps, FieldOps, PairingGroupOps};
 
 impl<T: Valid> Valid for OneBased<T> {
     fn check(&self) -> Result<(), SerializationError> {
         self.0.check()
     }
 }
+
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[repr(transparent)]
+pub(crate) struct OneBased<T: ?Sized>(T);
 
 impl<T: CanonicalDeserialize> CanonicalDeserialize for OneBased<T> {
     fn deserialize_with_mode<R: ark_serialize::Read>(
@@ -39,6 +43,36 @@ impl<T: CanonicalSerialize> CanonicalSerialize for OneBased<T> {
     }
 }
 
+// TODO: these impl could be removed by adding support for `repr(transparent)` in tfhe-versionable
+impl<T: Versionize> Versionize for OneBased<T> {
+    type Versioned<'vers> = T::Versioned<'vers>
+    where
+        T: 'vers,
+    ;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.0.versionize()
+    }
+}
+
+impl<T: VersionizeOwned> VersionizeOwned for OneBased<T> {
+    type VersionedOwned = T::VersionedOwned;
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        self.0.versionize_owned()
+    }
+}
+
+impl<T: Unversionize> Unversionize for OneBased<T> {
+    fn unversionize(
+        versioned: Self::VersionedOwned,
+    ) -> Result<Self, tfhe_versionable::UnversionizeError> {
+        Ok(Self(T::unversionize(versioned)?))
+    }
+}
+
+/// The proving scheme is available in 2 versions, one that puts more load on the prover and one
+/// that puts more load on the verifier
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ComputeLoad {
     Proof,
@@ -77,16 +111,23 @@ impl<T: ?Sized + IndexMut<usize>> IndexMut<usize> for OneBased<T> {
 pub type Affine<Zp, Group> = <Group as CurveGroupOps<Zp>>::Affine;
 
 #[derive(
-    Clone, Debug, serde::Serialize, serde::Deserialize, CanonicalSerialize, CanonicalDeserialize,
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+    Versionize,
 )]
 #[serde(bound(
     deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
     serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
 ))]
-struct GroupElements<G: Curve> {
-    g_list: OneBased<Vec<Affine<G::Zp, G::G1>>>,
-    g_hat_list: OneBased<Vec<Affine<G::Zp, G::G2>>>,
-    message_len: usize,
+#[versionize(GroupElementsVersions)]
+pub(crate) struct GroupElements<G: Curve> {
+    pub(crate) g_list: OneBased<Vec<Affine<G::Zp, G::G1>>>,
+    pub(crate) g_hat_list: OneBased<Vec<Affine<G::Zp, G::G2>>>,
+    pub(crate) message_len: usize,
 }
 
 impl<G: Curve> GroupElements<G> {

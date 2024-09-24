@@ -1,6 +1,8 @@
 use tfhe_versionable::Versionize;
 
 use crate::backward_compatibility::compact_list::CompactCiphertextListVersions;
+#[cfg(feature = "zk-pok")]
+use crate::backward_compatibility::compact_list::ProvenCompactCiphertextListVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::prelude::Numeric;
@@ -194,7 +196,8 @@ impl ParameterSetConformant for CompactCiphertextList {
 mod zk {
     use super::*;
 
-    #[derive(Clone, Serialize, Deserialize)]
+    #[derive(Clone, Serialize, Deserialize, Versionize)]
+    #[versionize(ProvenCompactCiphertextListVersions)]
     pub struct ProvenCompactCiphertextList {
         pub(crate) inner: crate::integer::ciphertext::ProvenCompactCiphertextList,
         pub(crate) tag: Tag,

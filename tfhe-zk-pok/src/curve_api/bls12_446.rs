@@ -34,7 +34,10 @@ fn bigint_to_le_bytes(x: [u64; 7]) -> [u8; 7 * 8] {
 }
 
 mod g1 {
-    use crate::serialization::InvalidSerializedAffineError;
+    use tfhe_versionable::Versionize;
+
+    use crate::backward_compatibility::SerializableG1AffineVersions;
+    use crate::serialization::{InvalidSerializedAffineError, SerializableG1Affine};
 
     use super::*;
 
@@ -46,13 +49,16 @@ mod g1 {
         Eq,
         Serialize,
         Deserialize,
-        Hash,
-        CanonicalDeserialize,
         CanonicalSerialize,
+        CanonicalDeserialize,
+        Hash,
+        Versionize,
     )]
-    #[serde(
-        try_from = "SerializableAffine<SerializableFp>",
-        into = "SerializableAffine<SerializableFp>"
+    #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
+    #[versionize(
+        SerializableG1AffineVersions,
+        try_from = "SerializableG1Affine",
+        into = "SerializableG1Affine"
     )]
     #[repr(transparent)]
     pub struct G1Affine {
@@ -98,13 +104,16 @@ mod g1 {
         Eq,
         Serialize,
         Deserialize,
-        Hash,
         CanonicalSerialize,
         CanonicalDeserialize,
+        Hash,
+        Versionize,
     )]
-    #[serde(
-        try_from = "SerializableAffine<SerializableFp>",
-        into = "SerializableAffine<SerializableFp>"
+    #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
+    #[versionize(
+        SerializableG1AffineVersions,
+        try_from = "SerializableG1Affine",
+        into = "SerializableG1Affine"
     )]
     #[repr(transparent)]
     pub struct G1 {
@@ -251,6 +260,11 @@ mod g1 {
 }
 
 mod g2 {
+    use tfhe_versionable::Versionize;
+
+    use crate::backward_compatibility::SerializableG2AffineVersions;
+    use crate::serialization::SerializableG2Affine;
+
     use super::*;
     use crate::serialization::InvalidSerializedAffineError;
 
@@ -262,13 +276,16 @@ mod g2 {
         Eq,
         Serialize,
         Deserialize,
-        Hash,
         CanonicalSerialize,
         CanonicalDeserialize,
+        Hash,
+        Versionize,
     )]
-    #[serde(
-        try_from = "SerializableAffine<SerializableFp2>",
-        into = "SerializableAffine<SerializableFp2>"
+    #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
+    #[versionize(
+        SerializableG2AffineVersions,
+        try_from = "SerializableG2Affine",
+        into = "SerializableG2Affine"
     )]
     #[repr(transparent)]
     pub struct G2Affine {
@@ -404,13 +421,16 @@ mod g2 {
         Eq,
         Serialize,
         Deserialize,
-        Hash,
         CanonicalSerialize,
         CanonicalDeserialize,
+        Hash,
+        Versionize,
     )]
-    #[serde(
-        try_from = "SerializableAffine<SerializableFp2>",
-        into = "SerializableAffine<SerializableFp2>"
+    #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
+    #[versionize(
+        SerializableG2AffineVersions,
+        try_from = "SerializableG2Affine",
+        into = "SerializableG2Affine"
     )]
     #[repr(transparent)]
     pub struct G2 {
@@ -603,12 +623,14 @@ mod g2 {
 }
 
 mod gt {
+    use crate::backward_compatibility::SerializableFp12Versions;
     use crate::curve_446::{Fq, Fq12, Fq2};
     use crate::serialization::InvalidSerializedAffineError;
 
     use super::*;
     use ark_ec::pairing::{MillerLoopOutput, Pairing};
     use ark_ff::{CubicExtField, QuadExtField};
+    use tfhe_versionable::Versionize;
 
     type Bls = crate::curve_446::Bls12_446;
 
@@ -778,8 +800,13 @@ mod gt {
         }
     }
 
-    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash)]
     #[serde(try_from = "SerializableFp12", into = "SerializableFp12")]
+    #[versionize(
+        SerializableFp12Versions,
+        try_from = "SerializableFp12",
+        into = "SerializableFp12"
+    )]
     #[repr(transparent)]
     pub struct Gt {
         pub(crate) inner: ark_ec::pairing::PairingOutput<crate::curve_446::Bls12_446>,
@@ -922,9 +949,12 @@ mod gt {
 }
 
 mod zp {
+    use crate::backward_compatibility::SerializableFpVersions;
+
     use super::*;
     use crate::serialization::InvalidArraySizeError;
     use ark_ff::Fp;
+    use tfhe_versionable::Versionize;
     use zeroize::Zeroize;
 
     fn redc(n: [u64; 5], nprime: u64, mut t: [u64; 7]) -> [u64; 5] {
@@ -961,8 +991,13 @@ mod zp {
         t
     }
 
-    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Zeroize)]
+    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash, Zeroize)]
     #[serde(try_from = "SerializableFp", into = "SerializableFp")]
+    #[versionize(
+        SerializableFpVersions,
+        try_from = "SerializableFp",
+        into = "SerializableFp"
+    )]
     #[repr(transparent)]
     pub struct Zp {
         pub inner: crate::curve_446::Fr,
