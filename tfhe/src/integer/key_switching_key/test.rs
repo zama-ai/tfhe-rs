@@ -12,19 +12,21 @@ use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
 };
 use crate::shortint::parameters::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
-use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
 
 #[test]
 fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
     let num_block = 4;
 
-    let client_key_1 = RadixClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
+    let client_key_1 = RadixClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_block);
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::Radix,
+    );
     let client_key_2 = RadixClientKey::from((client_key_2, num_block));
 
     assert_eq!(
@@ -58,11 +60,14 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
 fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
     let basis = vec![2, 3, 5, 7, 11];
 
-    let client_key_1 = CrtClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis.clone());
+    let client_key_1 =
+        CrtClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, basis.clone());
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::CRT);
+    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::CRT,
+    );
     let client_key_2 = CrtClientKey::from((client_key_2, basis));
 
     assert_eq!(
@@ -99,12 +104,16 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
 fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
     let basis = vec![2, 3, 5, 7, 11];
 
-    let (client_key_1, server_key_1) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::CRT);
+    let (client_key_1, server_key_1) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::CRT,
+    );
     let client_key_1 = CrtClientKey::from((client_key_1, basis.clone()));
 
-    let (client_key_2, server_key_2) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_1_CARRY_1_KS_PBS, IntegerKeyKind::CRT);
+    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::CRT,
+    );
     let client_key_2 = CrtClientKey::from((client_key_2, basis));
 
     assert_eq!(
@@ -129,11 +138,13 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
 #[test]
 fn gen_multi_keys_test_integer_to_integer_ci_run_filter() {
     // We generate a set of client keys, using the default parameters:
-    let client_key_1 = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    let client_key_1 = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::Radix,
+    );
 
     assert_eq!(
         client_key_1.parameters().encryption_key_choice(),

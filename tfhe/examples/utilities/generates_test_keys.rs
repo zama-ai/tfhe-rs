@@ -15,12 +15,16 @@ use tfhe::shortint::parameters::coverage_parameters::{
 use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
 use tfhe::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 
+use tfhe::shortint::parameters::multi_bit::gaussian::ALL_MULTI_BIT_PARAMETER_VEC;
 use tfhe::shortint::parameters::{
-    ClassicPBSParameters, ALL_MULTI_BIT_PARAMETER_VEC, PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_2_KS_PBS, PARAM_MESSAGE_1_CARRY_3_KS_PBS, PARAM_MESSAGE_1_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_5_KS_PBS, PARAM_MESSAGE_1_CARRY_6_KS_PBS, PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_3_KS_PBS, PARAM_MESSAGE_3_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS, PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    ClassicPBSParameters, PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
 };
 #[cfg(feature = "experimental")]
 use tfhe::shortint::parameters::{
@@ -80,13 +84,13 @@ fn client_server_keys() {
             ShortintKeySwitchingParameters,
         ); 2] = [
             (
-                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
                 PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
             ),
             (
-                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
                 PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
             ),
         ];
@@ -96,7 +100,7 @@ fn client_server_keys() {
         #[cfg(feature = "experimental")]
         {
             const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 1] = [(
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
                 WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             )];
             generate_wopbs_keys(&WOPBS_PARAMS);
@@ -106,20 +110,23 @@ fn client_server_keys() {
             [DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS];
         generate_boolean_keys(&BOOLEAN_PARAMS);
     } else {
-        const PBS_KEYS: [ClassicPBSParameters; 13] = [
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_4_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_5_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_6_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+        const PBS_KEYS: [ClassicPBSParameters; 14] = [
+            // TUniform
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            // Gaussian
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
         ];
         generate_pbs_keys(&PBS_KEYS);
 
@@ -127,19 +134,19 @@ fn client_server_keys() {
         {
             const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 4] = [
                 (
-                    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+                    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
                     WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
                 ),
                 (
-                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
                     WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
                 ),
                 (
-                    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
                     WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                 ),
                 (
-                    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+                    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
                     WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
                 ),
             ];
