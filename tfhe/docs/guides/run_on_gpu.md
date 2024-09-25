@@ -180,3 +180,6 @@ they are available and have peer access to GPU 0 via NVLink. To keep the API as 
 
 ## Benchmark 
 Please refer to the [GPU benchmarks](../getting_started/benchmarks/gpu_benchmarks.md) for detailed performance benchmark results.
+
+## Warning
+When measuring GPU times on your own on Linux, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution.
