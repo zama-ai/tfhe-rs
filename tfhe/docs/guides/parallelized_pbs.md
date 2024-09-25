@@ -17,7 +17,7 @@ use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-           tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+           tfhe::shortint::parameters::PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         )
         .build();
         
@@ -50,7 +50,7 @@ use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-           tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.with_deterministic_execution(),
+           tfhe::shortint::parameters::PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.with_deterministic_execution(),
         )
         .build();
         

@@ -189,7 +189,7 @@ where
 mod test {
     use super::*;
     use crate::core_crypto::prelude::UnsignedInteger;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::{CiphertextModulus, CompressedCiphertext};
     use crate::{generate_keys, set_server_key, CompressedFheUint8, ConfigBuilder};
     use rand::{thread_rng, Rng};
@@ -241,7 +241,7 @@ mod test {
         let ct = CompressedFheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
         assert!(ct.is_conformant(&FheUintConformanceParams::from(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
         )));
 
         let breaker_lists = [
@@ -265,7 +265,7 @@ mod test {
                     breaker(i, &mut ct_clone);
 
                     assert!(!ct_clone.is_conformant(&FheUintConformanceParams::from(
-                        PARAM_MESSAGE_2_CARRY_2_KS_PBS
+                        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
                     )));
                 }
             }
@@ -296,7 +296,7 @@ mod test {
                 breaker(i, &mut ct_clone);
 
                 assert!(!ct_clone.is_conformant(&FheUintConformanceParams::from(
-                    PARAM_MESSAGE_2_CARRY_2_KS_PBS
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
                 )));
             }
         }
@@ -313,7 +313,7 @@ mod test {
         let ct = CompressedFheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
         assert!(ct.is_conformant(&FheUintConformanceParams::from(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
         )));
 
         let mut rng = thread_rng();
@@ -333,7 +333,7 @@ mod test {
                     .0 = rng.gen::<u128>();
             }
             assert!(ct_clone.is_conformant(&FheUintConformanceParams::from(
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
             )));
 
             let mut ct_clone_decompressed = ct_clone.decompress();

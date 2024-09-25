@@ -33,7 +33,7 @@ const NB_TESTS: usize = 1;
 const NB_TESTS_SMALLER: usize = 1;
 
 #[cfg(not(tarpaulin))]
-const PARAM: ClassicPBSParameters = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
+const PARAM: ClassicPBSParameters = PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64;
 #[cfg(tarpaulin)]
 const PARAM: ClassicPBSParameters = COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
