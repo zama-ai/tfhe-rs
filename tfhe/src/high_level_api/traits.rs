@@ -210,3 +210,5 @@ pub trait CiphertextList {
     where
         T: HlExpandable + Tagged;
 }
+
+pub trait FheId: Copy + Default {}
