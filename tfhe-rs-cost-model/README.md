@@ -1,11 +1,7 @@
 
 # Noise Sampling & Assurance Tool
 
-<<<<<<< HEAD
 Before a `Makefile` is done (**TODO**?), we run the tool (only analysis of previously gathered samples) in `./src` via
-=======
-Before a `Makefile` is done (TODO), we run the tool (analysis mode only) in `./src` via
->>>>>>> d62eed0c (readme)
 ```bash
 ./bin/python3 external_product_correction.py --chunks 192 --rust-toolchain nightly-2024-08-19 --analysis-only --dir multi-bit-sampling/gf2/ -- --algorithm multi-bit-ext-prod --multi-bit-grouping-factor 2
 ```
@@ -44,4 +40,6 @@ which writes down the list of parameters that can also be given to the analyzing
     - make a macro that generates these tests?
     - put this macro "near" each tested operation (i.e., greatly simplify adding new op's)
   - use noise formulas extracted from the latest optimizer (was there a PR on that?)
-  
+    - improve output:
+    - meaning of printed values
+  - ...
