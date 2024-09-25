@@ -734,7 +734,7 @@ impl CudaServerKey {
         T::from(CudaRadixCiphertext::new(trimmed_ct_list, trimmed_ct_info))
     }
 
-    pub(crate) fn generate_lookup_table<F>(&self, f: F) -> LookupTableOwned
+    pub fn generate_lookup_table<F>(&self, f: F) -> LookupTableOwned
     where
         F: Fn(u64) -> u64,
     {
@@ -826,7 +826,7 @@ impl CudaServerKey {
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until streams is synchronised
-    pub(crate) unsafe fn apply_lookup_table_async(
+    pub unsafe fn apply_lookup_table_async(
         &self,
         output: &mut CudaRadixCiphertext,
         input: &CudaRadixCiphertext,
@@ -1005,7 +1005,7 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn apply_many_lookup_table_async(
+    pub(crate) unsafe fn apply_many_lookup_table_async(
         &self,
         input: &CudaRadixCiphertext,
         lut: &ManyLookupTableOwned,
