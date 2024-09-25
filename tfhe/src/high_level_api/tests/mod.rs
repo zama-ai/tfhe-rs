@@ -159,7 +159,7 @@ fn test_serialize_deserialize_are_implemented() {
 
 #[test]
 fn test_try_from_single_lwe_encryption_key() {
-    let parameters = crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let parameters = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     let lwe_sk = crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
         crate::core_crypto::algorithms::allocate_and_generate_new_binary_lwe_secret_key(
             parameters

@@ -22,7 +22,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// // Generate the client key and the server key:
@@ -49,7 +49,7 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let ct = cks.encrypt(msg);
@@ -92,7 +92,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -117,7 +117,7 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg >> shift, dec);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
@@ -150,7 +150,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// // Generate the client key and the server key:
@@ -177,7 +177,7 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let ct = cks.encrypt(msg);
@@ -211,7 +211,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -236,7 +236,7 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg >> shift, dec);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
@@ -281,7 +281,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -307,7 +307,7 @@ impl ServerKey {
     ///
     /// assert_eq!((msg << shift) % modulus, msg_only);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let ct = cks.encrypt(msg);
@@ -352,7 +352,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -378,7 +378,7 @@ impl ServerKey {
     ///
     /// assert_eq!((msg << shift) % modulus, msg_only);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
@@ -413,7 +413,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// // Generate the client key and the server key:
@@ -444,7 +444,7 @@ impl ServerKey {
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let ct = cks.encrypt(msg);
@@ -481,7 +481,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -510,7 +510,7 @@ impl ServerKey {
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
@@ -547,7 +547,7 @@ impl ServerKey {
     ///```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// // Generate the client key and the server key:
@@ -564,7 +564,7 @@ impl ServerKey {
     ///
     /// assert!(res.is_err());
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let ct1 = cks.encrypt(msg);
@@ -600,7 +600,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// // Generate the client key and the server key:
@@ -636,7 +636,7 @@ impl ServerKey {
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let ct1 = cks.encrypt(msg);
@@ -696,7 +696,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -724,7 +724,7 @@ impl ServerKey {
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);

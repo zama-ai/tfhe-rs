@@ -688,7 +688,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// {
@@ -717,7 +717,7 @@ impl ServerKey {
     /// }
     /// {
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     ///     let msg = 3;
     ///
@@ -856,7 +856,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// {
@@ -885,7 +885,7 @@ impl ServerKey {
     /// }
     /// {
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     ///     let msg = 3;
     ///

@@ -15,12 +15,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 14u64;
     /// let msg2 = 97u64;
@@ -145,12 +145,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 14u64;
     /// let msg2 = 97u64;
@@ -181,12 +181,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 97u64;
     /// let msg2 = 97u64;
@@ -217,12 +217,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 237u64;
     /// let msg2 = 23u64;
@@ -253,12 +253,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 237u64;
     /// let msg2 = 23u64;
@@ -288,12 +288,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 237u64;
     /// let msg2 = 23u64;
@@ -323,12 +323,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 237u64;
     /// let msg2 = 23u64;
@@ -357,12 +357,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 14u64;
     /// let msg2 = 97u64;
@@ -410,12 +410,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 14u64;
     /// let msg2 = 97u64;
@@ -444,12 +444,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 14u64;
     /// let msg2 = 97u64;
@@ -478,12 +478,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 14u64;
     /// let msg2 = 97u64;
@@ -512,12 +512,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 14u64;
     /// let msg2 = 97u64;
@@ -546,12 +546,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 14u64;
     /// let msg2 = 97u64;
@@ -580,12 +580,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg1 = 14u64;
     /// let msg2 = 97u64;
