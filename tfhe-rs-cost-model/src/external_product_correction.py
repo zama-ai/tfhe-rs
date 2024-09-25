@@ -229,7 +229,7 @@ def remove_outlier(bits, x_values, y_values):
     # select all rows that are not outliers
     mask = yhat != -1
     previous_size = len(x_values)
-    x_values, y_values = x_values[mask, :], y_values[mask]
+    # ~ x_values, y_values = x_values[mask, :], y_values[mask]
     new_size = len(x_values)
     print(f"Removing {previous_size - new_size} outliers ...")
     x_values = x_values.astype(np.float64)
@@ -240,7 +240,7 @@ def remove_outlier(bits, x_values, y_values):
     return x_values, y_values
 
 
-def fft_noise(x, a, b, log2_q):
+def fft_noise(x, a, b, c, log2_q):
     """
     Noise formula for FFTW.
     """
@@ -258,12 +258,15 @@ def fft_noise(x, a, b, log2_q):
     # ~ print(x[:,-1])
     # ~ print("----")
     return (k + 1) * level * (
-        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
-        + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
+        # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
+        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
+        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2                 # in theory, not present
+        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
+        # ~ + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
     ) + theoretical_var
 
 
-def fft_noise_128(x, a, b, log2_q):
+def fft_noise_128(x, a, b, c, log2_q):
     """
     Noise formula for f128 fft
     """
@@ -278,18 +281,21 @@ def fft_noise_128(x, a, b, log2_q):
     theoretical_var = x[:, -1]
     # we lose 2 * 11 bits of mantissa per conversion 22 * 2 = 44
     return (k + 1) * level * (
-        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
-        + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
+        # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
+        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
+        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
+        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
+        # ~ + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
     ) + theoretical_var
 
-def log_fft_noise_fun(x, a, b, fft_noise_fun):
-    return np.log2(fft_noise_fun(x, a, b))
+def log_fft_noise_fun(x, a, b, c, fft_noise_fun):
+    return np.log2(fft_noise_fun(x, a, b, c))
 
 
 def train(x_values, y_values, fft_noise_fun):
     weights, _ = curve_fit(
         #TODO try changing the formula according to paper
-        lambda x, a, b: log_fft_noise_fun(x, a, b, fft_noise_fun), x_values, np.log2(y_values)
+        lambda x, a, b, c: log_fft_noise_fun(x, a, b, c, fft_noise_fun), x_values, np.log2(y_values)
     )
     return weights
 
@@ -299,7 +305,7 @@ def get_weights(filename, fft_noise_fun, bits):
     Get weights from sampling results.
 
     :param filename: results filename as :class:`Path`
-    :return: :class:`dict` of weights formatted as ``{"a": <float>, "b": <float>}``
+    :return: :class:`dict` of weights formatted as ``{"a": <float>, "b": <float>, "c": <float>}``
     """
     inputs_without_outlier = get_input_without_outlier(filename, bits)
     if inputs_without_outlier is None:
@@ -307,7 +313,7 @@ def get_weights(filename, fft_noise_fun, bits):
     x_values, y_values = inputs_without_outlier
     weights = train(x_values, y_values, fft_noise_fun)
     test(x_values, y_values, weights, fft_noise_fun)
-    return {"a": weights[0], "b": weights[1]}
+    return {"a": weights[0], "b": weights[1], "c": weights[2]}
 
 
 def write_to_file(filename, obj):
@@ -504,11 +510,13 @@ def main():
             return
         max_a = weights["a"]
         max_b = weights["b"]
+        max_c = weights["c"]
         for _ in range(1000):
             weights = get_weights(result_file, fft_noise_fun, bits)
             max_a = max(max_a, weights["a"])
             max_b = max(max_b, weights["b"])
-        write_to_file(output_file, {"a": max_a, "b": max_b})
+            max_c = max(max_c, weights["c"])
+        write_to_file(output_file, {"a": max_a, "b": max_b, "c": max_c})
     else:
         weights = get_weights(result_file, fft_noise_fun, bits)
         if weights is None:

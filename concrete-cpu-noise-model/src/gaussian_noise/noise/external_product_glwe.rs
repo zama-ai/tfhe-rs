@@ -48,13 +48,14 @@ pub fn theoretical_variance_external_product_glwe(
     let big_n = polynomial_size as f64;
     let q_square = 2_f64.powi(2 * ciphertext_modulus_log as i32);
 
-    let res_1 = l * (k + 1.) * big_n * (square(b) + 2.) / 12. * variance_ggsw;
-    let res_2 = (q_square - b2l) / (24. * b2l)
+    //TODO check with optimizer / FIX
+    let res_1 = l * (k + 1.) * big_n * (square(b) + 2.) / 12. * variance_ggsw;  // not balanced .. ok?
+    let res_2 = (q_square - b2l) / (24. * b2l)                                  // 24 because ... / 12 B^2l * E(s^2) = ... / 24 B^2l
         * (modular_variance_to_variance(1., ciphertext_modulus_log)
             + k * big_n
                 * (variance_key_coefficient_binary + square_expectation_key_coefficient_binary))
-        + k * big_n / 8. * variance_key_coefficient_binary
-        + 1. / 16. * square(1. - k * big_n) * square_expectation_key_coefficient_binary;
+        + k * big_n / 8. * variance_key_coefficient_binary                                  // ??
+        + 1. / 16. * square(1. - k * big_n) * square_expectation_key_coefficient_binary;    // ??
 
     res_1 + res_2
 }

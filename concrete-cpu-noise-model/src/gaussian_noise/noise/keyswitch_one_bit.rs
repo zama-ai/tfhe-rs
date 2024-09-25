@@ -19,14 +19,14 @@ pub fn variance_keyswitch_one_bit(
     let q_square = 2_f64.powi((2 * ciphertext_modulus_log) as i32);
 
     // res 2
-    let res_2 = (q_square / (12. * b2l) - 1. / 12.)
+    let res_2 = (q_square / (12. * b2l) - 1. / 12.)         //TODO -1/12 is what?
         * (variance_key_coefficient_binary + square_expectation_key_coefficient_binary);
 
     // res 3
-    let res_3 = 1. / 4. * variance_key_coefficient_binary;
+    let res_3 = 1. / 4. * variance_key_coefficient_binary;  //TODO is what?
 
     // res 4
-    let res_4 = (level as f64) * variance_ksk * (square(base) + 2.) / 12.;
+    let res_4 = (level as f64) * variance_ksk * (square(base) + 2.) / 12.;  //TODO agreed
 
     res_2 + res_3 + res_4
 }
