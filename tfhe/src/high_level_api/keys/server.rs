@@ -24,9 +24,10 @@ use std::sync::Arc;
 ///
 /// For a server to be able to do some FHE computations, the client needs to send this key
 /// beforehand.
-// Keys are stored in an Arc, so that cloning them is cheap
-// (compared to an actual clone hundreds of MB / GB), and cheap cloning is needed for
-// multithreading with less overhead)
+///
+/// Keys are stored in an Arc, so that cloning them is cheap
+/// (compared to an actual clone hundreds of MB / GB), and cheap cloning is needed for
+/// multithreading with less overhead)
 #[derive(Clone, Versionize)]
 #[versionize(ServerKeyVersions)]
 pub struct ServerKey {
