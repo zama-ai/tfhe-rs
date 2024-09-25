@@ -1,7 +1,11 @@
 
 # Noise Sampling & Assurance Tool
 
+<<<<<<< HEAD
 Before a `Makefile` is done (**TODO**?), we run the tool (only analysis of previously gathered samples) in `./src` via
+=======
+Before a `Makefile` is done (TODO), we run the tool (analysis mode only) in `./src` via
+>>>>>>> d62eed0c (readme)
 ```bash
 ./bin/python3 external_product_correction.py --chunks 192 --rust-toolchain nightly-2024-08-19 --analysis-only --dir multi-bit-sampling/gf2/ -- --algorithm multi-bit-ext-prod --multi-bit-grouping-factor 2
 ```
