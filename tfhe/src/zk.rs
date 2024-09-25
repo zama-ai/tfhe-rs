@@ -1,5 +1,6 @@
 use crate::core_crypto::commons::math::random::BoundedDistribution;
 use crate::core_crypto::prelude::*;
+use crate::named::Named;
 use rand_core::RngCore;
 use std::cmp::Ordering;
 use std::collections::Bound;
@@ -10,7 +11,27 @@ pub use tfhe_zk_pok::curve_api::Compressible;
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 pub type CompactPkeProof = tfhe_zk_pok::proofs::pke::Proof<Curve>;
+
+impl Named for CompactPkeProof {
+    const NAME: &'static str = "zk::CompactPkeProof";
+}
+
 pub type CompactPkePublicParams = tfhe_zk_pok::proofs::pke::PublicParams<Curve>;
+pub type SerializableCompactPkePublicParams =
+    tfhe_zk_pok::serialization::SerializablePKEv1PublicParams;
+
+impl Named for CompactPkePublicParams {
+    const NAME: &'static str = "zk::CompactPkePublicParams";
+}
+
+// If we call `CompactPkePublicParams::compress` we end up with a
+// `SerializableCompactPkePublicParams` that should also impl Named to be serializable with
+// `safe_serialization`. Since the `CompactPkePublicParams` is transformed into a
+// `SerializableCompactPkePublicParams` anyways before serialization, their impl of `Named` should
+// return the same string.
+impl Named for SerializableCompactPkePublicParams {
+    const NAME: &'static str = CompactPkePublicParams::NAME;
+}
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ZkVerificationOutCome {
