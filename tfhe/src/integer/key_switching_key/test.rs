@@ -12,9 +12,9 @@ use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
 };
 use crate::shortint::parameters::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
-use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
+use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 #[test]
 fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
@@ -103,8 +103,10 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
         KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::CRT);
     let client_key_1 = CrtClientKey::from((client_key_1, basis.clone()));
 
-    let (client_key_2, server_key_2) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_1_CARRY_1_KS_PBS, IntegerKeyKind::CRT);
+    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::CRT,
+    );
     let client_key_2 = CrtClientKey::from((client_key_2, basis));
 
     assert_eq!(

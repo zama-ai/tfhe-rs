@@ -15,7 +15,7 @@ create_parametrized_test!(
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         },
         no_coverage => {
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         }
     }

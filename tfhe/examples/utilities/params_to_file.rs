@@ -7,10 +7,11 @@ use tfhe::core_crypto::prelude::{DynamicDistribution, TUniform, UnsignedInteger}
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::classic::compact_pk::ALL_PARAMETER_VEC_COMPACT_PK;
 use tfhe::shortint::parameters::classic::gaussian::ALL_PARAMETER_VEC_GAUSSIAN;
-use tfhe::shortint::parameters::multi_bit::ALL_MULTI_BIT_PARAMETER_VEC;
-use tfhe::shortint::parameters::p_fail_2_minus_64::ks_pbs_gpu::*;
+use tfhe::shortint::parameters::multi_bit::gaussian::ALL_MULTI_BIT_PARAMETER_VEC;
 use tfhe::shortint::parameters::{
-    ShortintParameterSet, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ShortintParameterSet, PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 
 pub trait ParamDetails<T: UnsignedInteger> {
@@ -202,12 +203,8 @@ fn main() {
     let all_multi_pbs = [
         ALL_MULTI_BIT_PARAMETER_VEC.to_vec(),
         vec![
-            PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         ],
     ]
     .concat();
