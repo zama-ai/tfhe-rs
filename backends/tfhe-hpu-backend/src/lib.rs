@@ -1,14 +1,13 @@
 mod entities;
-#[cfg(not(feature = "debug"))]
+
+#[cfg(all(feature = "hw-itf", not(feature = "debug")))]
 mod ffi;
-#[cfg(feature = "debug")]
+#[cfg(all(feature = "hw-itf", feature = "debug"))]
 pub mod ffi;
 
-#[cfg(not(feature = "debug"))]
+#[cfg(all(feature = "hw-itf", not(feature = "debug")))]
 mod interface;
-#[cfg(feature = "debug")]
+#[cfg(all(feature = "hw-itf", feature = "debug"))]
 pub mod interface;
-
-#[cfg(feature = "io-dump")]
 
 pub mod prelude;

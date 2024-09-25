@@ -43,7 +43,7 @@ impl HpuVar {
             SyncState::None | SyncState::OperationPending => Err(HpuInternalError::SyncPending),
             SyncState::CpuSync | SyncState::BothSync => Ok(()),
             SyncState::HpuSync => {
-                for  slot in self.bundle.iter_mut() {
+                for slot in self.bundle.iter_mut() {
                     slot.mz
                         .iter_mut()
                         .for_each(|mz| mz.pin_mut().sync(ffi::SyncMode::Device2Host));
@@ -82,12 +82,12 @@ impl HpuVar {
 
 /// Parameters inspection
 impl HpuVar {
- pub fn params(&self) -> HpuParameters {
-    let params = {
-        let be_lock = self.backend.lock().unwrap();
-        be_lock.params.clone()
-    };
-    params
+    pub fn params(&self) -> HpuParameters {
+        let params = {
+            let be_lock = self.backend.lock().unwrap();
+            be_lock.params.clone()
+        };
+        params
     }
 }
 
@@ -140,7 +140,11 @@ impl HpuVarWrapped {
                 for (id, cut) in ct.hw_slice().iter().enumerate() {
                     slot.mz[id].pin_mut().write(0, &cut);
                     #[cfg(feature = "io-dump")]
-                    io_dump::dump(&cut.as_slice(), io_dump::DumpKind::BlweIn, io_dump::DumpId::Slot(slot.id, id));
+                    io_dump::dump(
+                        &cut.as_slice(),
+                        io_dump::DumpKind::BlweIn,
+                        io_dump::DumpId::Slot(slot.id, id),
+                    );
                 }
             }
             inner.state = SyncState::CpuSync;
@@ -175,12 +179,17 @@ impl HpuVarWrapped {
             let mut hw_cut = vec![cut_0, cut_1];
 
             // Copy from Xrt memory and shuffle back to cpu order
-            std::iter::zip(slot.mz.iter(), hw_cut.iter_mut()).enumerate()
+            std::iter::zip(slot.mz.iter(), hw_cut.iter_mut())
+                .enumerate()
                 .for_each(|(id, (mz, cut))| {
                     mz.read(0, *cut);
                     #[cfg(feature = "io-dump")]
-                    io_dump::dump(&cut.as_ref(), io_dump::DumpKind::BlweOut, io_dump::DumpId::Slot(slot.id, id));
-            });
+                    io_dump::dump(
+                        &cut.as_ref(),
+                        io_dump::DumpKind::BlweOut,
+                        io_dump::DumpId::Slot(slot.id, id),
+                    );
+                });
             hpu_lwe.copy_from_hw_slice(&hw_slice);
             ct.push(hpu_lwe);
         }
@@ -188,7 +197,6 @@ impl HpuVarWrapped {
         Ok(ct)
     }
 
-    
     /// Retrieved a vector of HpuLweCiphertext from a Hpu variable
     /// Blocking call that pool the Hpu Backend until variable is ready
     pub fn into_ct(self) -> Vec<HpuLweCiphertextOwned<u64>> {
@@ -223,7 +231,12 @@ impl HpuVarWrapped {
     #[inline(always)]
     fn iop_ct_raw(name: cmd::IOpName, dst: &Self, rhs_0: &Self, rhs_1: &Self) {
         let hpu_op = cmd::HpuCmd::new_ct_ct(name, dst.clone(), rhs_0.clone(), rhs_1.clone());
-        dst.inner.lock().unwrap().cmd_api.send(hpu_op.into()).expect("Issue with cmd_api");
+        dst.inner
+            .lock()
+            .unwrap()
+            .cmd_api
+            .send(hpu_op.into())
+            .expect("Issue with cmd_api");
     }
 
     /// This function format and push associated work in cmd_api
@@ -257,7 +270,12 @@ impl HpuVarWrapped {
     #[inline(always)]
     fn iop_imm_raw(name: cmd::IOpName, dst: &Self, rhs_0: &Self, rhs_1: usize) {
         let hpu_op = cmd::HpuCmd::new_ct_imm(name, dst.clone(), rhs_0.clone(), rhs_1);
-        dst.inner.lock().unwrap().cmd_api.send(hpu_op.into()).expect("Issue with cmd_api");
+        dst.inner
+            .lock()
+            .unwrap()
+            .cmd_api
+            .send(hpu_op.into())
+            .expect("Issue with cmd_api");
     }
 
     /// This function format and push associated work in dst cmd_api

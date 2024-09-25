@@ -2,8 +2,8 @@
 use super::*;
 use crate::entities::*;
 use crate::ffi;
-use hw_hpu::asm::{self, Asm};
-use hw_hpu::asm::{strum::IntoEnumIterator, AsmBin, PbsLut};
+use hw_hpu::asm::strum::IntoEnumIterator;
+use hw_hpu::asm::{self, Asm, AsmBin, PbsLut};
 use hw_hpu::fw::Fw;
 use rtl::FromRtl;
 
@@ -229,10 +229,10 @@ impl HpuBackend {
 
         // Allocate memory pool for Ct
         // NB: Compute size of each cut.
-        // Cut are 4k aligned -> One cut match with page boundary but the second one (with body extra coefs) crossed it
-        // => Use an extra page in both to have same addr incr (and match Rtl behavior)
-        let cut_size_b = (hpu_big_lwe_ciphertext_size(&params)
-        .div_ceil(params.pc_params.pem_pc)
+        // Cut are 4k aligned -> One cut match with page boundary but the second one (with body
+        // extra coefs) crossed it => Use an extra page in both to have same addr incr (and
+        // match Rtl behavior)
+        let cut_size_b = (hpu_big_lwe_ciphertext_size(&params).div_ceil(params.pc_params.pem_pc)
             * std::mem::size_of::<u64>())
         .div_ceil(memory::MEM_PAGE_SIZE_B)
             * memory::MEM_PAGE_SIZE_B;
@@ -240,7 +240,8 @@ impl HpuBackend {
             .map(|bid| memory::CiphertextMemoryProperties {
                 bank: bid,
                 hbm_cut: config.board.ct_pc.clone(),
-                // NB: Xrt only support page align memory allocation. Thus we round cut coefs to match the next 4k page boundary
+                // NB: Xrt only support page align memory allocation. Thus we round cut coefs to
+                // match the next 4k page boundary
                 cut_size_b,
                 slot_nb: config.board.ct_bank[bid],
             })
@@ -352,7 +353,11 @@ impl HpuBackend {
         for (id, bsk_cut) in bsk.hw_slice().iter().enumerate() {
             bsk_key.write_cut_at(id, 0, bsk_cut);
             #[cfg(feature = "io-dump")]
-            io_dump::dump(&bsk_cut.as_slice(), io_dump::DumpKind::Bsk, io_dump::DumpId::Key(id));
+            io_dump::dump(
+                &bsk_cut.as_slice(),
+                io_dump::DumpKind::Bsk,
+                io_dump::DumpId::Key(id),
+            );
         }
 
         // Write pc_addr in memory
@@ -468,7 +473,11 @@ impl HpuBackend {
         for (id, ksk_cut) in ksk.hw_slice().iter().enumerate() {
             ksk_key.write_cut_at(id, 0, ksk_cut);
             #[cfg(feature = "io-dump")]
-            io_dump::dump(&ksk_cut.as_slice(), io_dump::DumpKind::Ksk, io_dump::DumpId::Key(id));
+            io_dump::dump(
+                &ksk_cut.as_slice(),
+                io_dump::DumpKind::Ksk,
+                io_dump::DumpId::Key(id),
+            );
         }
 
         // Write pc_addr in memory
@@ -537,7 +546,11 @@ impl HpuBackend {
             let ofst = lut_gid * params.pbs_params.polynomial_size;
             lut_mem.write_cut_at(0, ofst, hpu_lut.as_view().into_container());
             #[cfg(feature = "io-dump")]
-            io_dump::dump(&hpu_lut.as_ref(), io_dump::DumpKind::Glwe, io_dump::DumpId::Lut(lut_gid));
+            io_dump::dump(
+                &hpu_lut.as_ref(),
+                io_dump::DumpKind::Glwe,
+                io_dump::DumpId::Lut(lut_gid),
+            );
         }
 
         // Configure Hpu register accordingly
@@ -641,8 +654,9 @@ impl HpuBackend {
         for (id, fw_bytes) in id_fw.into_iter() {
             // Store lookup addr
             // NB: ublaze expect addr with Hbm_pc offset
-            // NB': Ublaze understand lut entry as ofst from PC_MEM => on't add cut_ofst in the entry
-            let byte_ofst = (/*cut_ofst +*/(ofst * std::mem::size_of::<u32>())) as u32;
+            // NB': Ublaze understand lut entry as ofst from PC_MEM => on't add cut_ofst in the
+            // entry
+            let byte_ofst = (/* cut_ofst + */(ofst * std::mem::size_of::<u32>())) as u32;
             tr_lut[id] = byte_ofst;
 
             // Write tr-table

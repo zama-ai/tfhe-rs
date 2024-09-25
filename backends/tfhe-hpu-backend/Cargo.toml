@@ -8,8 +8,9 @@ readme = "README.md"
 
 [features]
 default = []
+hw-itf = []
 io-dump = ["num-traits"]
-debug = ["clap", "clap-num"]
+debug = ["hw-itf", "clap", "clap-num"]
 
 [build-dependencies]
 cxx-build = "1.0"

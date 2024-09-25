@@ -69,7 +69,7 @@ pub mod wopbs;
 #[cfg(feature = "gpu")]
 pub mod gpu;
 
-#[cfg(feature = "hpu")]
+#[cfg(feature = "hpu-hw")]
 pub mod hpu;
 
 #[cfg(feature = "zk-pok")]

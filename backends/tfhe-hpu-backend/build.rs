@@ -1,3 +1,7 @@
+#[cfg(not(feature = "hw-itf"))]
+fn main() {}
+
+#[cfg(feature = "hw-itf")]
 fn main() {
     println!("cargo:rustc-link-search=/opt/xilinx/xrt/lib");
     println!("cargo:rustc-link-lib=dylib=stdc++");

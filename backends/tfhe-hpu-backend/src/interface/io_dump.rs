@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::fs::{OpenOptions, File};
 use std::io::Write;
 
-use super::memory::ciphertext::SlotId;
+use crate::interface::memory::ciphertext::SlotId;
 
 /// Configure the line width in dumped files
 const LINE_WIDTH_BYTES:usize = 64_usize;
