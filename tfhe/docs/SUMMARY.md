@@ -41,6 +41,7 @@
 * [Multi-threading with Rayon crate](guides/rayon\_crate.md)
 * [Trivial ciphertexts](guides/trivial\_ciphertext.md)
 * [PBS statistics](guides/pbs-stats.md)
+* [Array](guides/array.md)
 
 ## Tutorials
 

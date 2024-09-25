@@ -45,6 +45,7 @@ mod test_cpu_doc {
     );
 
     // GUIDES
+    doctest!("../docs/guides/array.md", array);
     doctest!(
         "../docs/guides/overflow_operations.md",
         guides_overflow_operations
