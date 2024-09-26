@@ -394,7 +394,7 @@ def run_sampling_chunk(rust_toolchain, total_chunks, identity, input_args) -> bo
 def var_to_bit(variance):
     if variance <= 0:
         return np.nan
-    return np.ceil(0.5 * np.log2(variance))
+    return 0.5 * np.log2(variance)
 
 
 def test(x_values, y_values, weights, fft_noise_fun):
@@ -405,14 +405,13 @@ def test(x_values, y_values, weights, fft_noise_fun):
         params = np.array([x_values[index, :]])
         real_out = y_values[index]
         pred_out = max(fft_noise_fun(params, *list(weights))[0], 0.000001)
-        if var_to_bit(real_out) >= var_to_bit(pred_out):
-            mse += (var_to_bit(real_out) - var_to_bit(pred_out)) ** 2
-            # print(
-            #     f"th: {var_to_bit(params[0, -1])}, pred_fft: {var_to_bit(pred_out)}, "
-            #     f"real: {var_to_bit(real_out)}"
-            # )
-            mse_without_correction += (var_to_bit(real_out) - var_to_bit(params[0, -1])) ** 2
-            count += 1
+        mse += (var_to_bit(real_out) - var_to_bit(pred_out)) ** 2
+        # print(
+        #     f"th: {var_to_bit(params[0, -1])}, pred_fft: {var_to_bit(pred_out)}, "
+        #     f"real: {var_to_bit(real_out)}"
+        # )
+        mse_without_correction += (var_to_bit(real_out) - var_to_bit(params[0, -1])) ** 2
+        count += 1
         # print(var_to_bit(params[0, -1]))
         # mse_without_correction += (var_to_bit(real_out) ) ** 2
 
