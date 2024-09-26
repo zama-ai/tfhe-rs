@@ -34,10 +34,10 @@ which writes down the list of parameters that can also be given to the analyzing
 
 ## Nice-To-Have
 
-  - `Makefile`?
-  - analysis tool not only for the external product, but as an assurator for other op's, too
-  - use noise formulas extracted from the latest optimizer
-  - simple interface to add custom circuits easily (like compression)
-  - improve output:
-    - meaning of printed values
-  - ...
+  - `Makefile`? part of CI workflow? test report?
+    - for now, improve output: meaning of printed values, ...
+  - rework as an assurance tool for all op's (not only for external product)
+    - make a macro that generates these tests?
+    - put this macro "near" each tested operation (i.e., greatly simplify adding new op's)
+  - use noise formulas extracted from the latest optimizer (was there a PR on that?)
+  
