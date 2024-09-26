@@ -285,11 +285,17 @@ clippy_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),shortint \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=$(TARGET_ARCH_FEATURE),shortint,experimental \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_integer # Run clippy lints enabling the integer features
 clippy_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),integer \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=$(TARGET_ARCH_FEATURE),integer,experimental \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
@@ -338,6 +344,9 @@ clippy_trivium: install_rs_check_toolchain
 clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok,experimental \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng

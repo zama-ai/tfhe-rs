@@ -155,7 +155,7 @@ cargo "${RUST_TOOLCHAIN}" nextest run \
     --cargo-profile "${cargo_profile}" \
     --package "${tfhe_package}" \
     --profile ci \
-    --features="${ARCH_FEATURE}",integer,internal-keycache,zk-pok,"${avx512_feature}","${gpu_feature}" \
+    --features="${ARCH_FEATURE}",integer,internal-keycache,zk-pok,experimental,"${avx512_feature}","${gpu_feature}" \
     --test-threads "${test_threads}" \
     -E "$filter_expression"
 
@@ -163,7 +163,7 @@ if [[ -z ${multi_bit_argument} ]]; then
     cargo "${RUST_TOOLCHAIN}" test \
         --profile "${cargo_profile}" \
         --package "${tfhe_package}" \
-        --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}","${gpu_feature}" \
+        --features="${ARCH_FEATURE}",integer,internal-keycache,experimental,"${avx512_feature}","${gpu_feature}" \
         --doc \
         -- --test-threads="${doctest_threads}" integer::"${gpu_feature}"
 fi
