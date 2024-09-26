@@ -44,7 +44,7 @@ jobs:
               - backends/tfhe-cuda-backend/**
               - tfhe/src/core_crypto/gpu/**
               - tfhe/src/integer/gpu/**
-              - tfhe/shortint/parameters/**
+              - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
