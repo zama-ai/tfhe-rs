@@ -1908,7 +1908,8 @@ pub fn main() {
     let lut = sks.generate_lookup_table(|x| x);
 
     let start = std::time::Instant::now();
-
+    let ct = cks.encrypt_radix(0u32, 16);
+  
     let actual_fails: u32 = (0..num_pbs)
         .into_par_iter()
         .map(|_i| {
@@ -1921,7 +1922,7 @@ pub fn main() {
 
             // let lut = sks.generate_lookup_table(|x| x);
 
-            let ct = cks.encrypt_radix(0u32, 16);
+            //let ct = cks.encrypt_radix(0u32, 16);
             let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
             let mut d_ct_out = d_ct.duplicate(&streams);
             // Get baseline noise after PBS
@@ -1932,7 +1933,7 @@ pub fn main() {
             // // PBS with baseline noise as input
             // sks.unchecked_scalar_mul_assign(&mut ct, max_scalar_mul);
             // sks.apply_lookup_table_assign(&mut ct, &lut);
-            let res = d_ct.to_radix_ciphertext(&streams);
+            let res = d_ct_out.to_radix_ciphertext(&streams);
             let dec: u32 = cks.decrypt_radix(&res);
 
             if dec != 0 {
