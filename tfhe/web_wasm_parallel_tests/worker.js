@@ -669,7 +669,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
       [ZkComputeLoad.Verify]: "compute_load_verify",
     };
 
-    let bits_to_encrypt = [640, 1280, 4096];
+    let bits_to_encrypt = [64, 640, 1280, 4096];
 
     let encrypt_counts = bits_to_encrypt.map((v) => v / 64);
 
