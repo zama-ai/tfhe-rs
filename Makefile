@@ -414,6 +414,7 @@ build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
 		wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok \
 		-Z build-std=panic_abort,std
+	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
 
 .PHONY: build_node_js_api # Build the js API targeting nodejs
 build_node_js_api: install_rs_build_toolchain install_wasm_pack
