@@ -24,6 +24,7 @@ use std::fmt::Debug;
 mod client_side;
 mod public_side;
 mod server_side;
+#[cfg(feature = "experimental")]
 mod wopbs;
 
 thread_local! {
@@ -262,8 +263,6 @@ impl std::fmt::Display for EngineError {
         write!(f, "{}", &self.error)
     }
 }
-
-pub(crate) type EngineResult<T> = Result<T, EngineError>;
 
 /// ShortintEngine
 ///
