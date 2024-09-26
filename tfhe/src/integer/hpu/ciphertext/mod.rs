@@ -13,6 +13,17 @@ use crate::shortint::{
 #[derive(Clone)]
 pub struct HpuRadixCiphertext(pub(crate) HpuVarWrapped);
 
+#[cfg(feature = "hpu-debug")]
+/// Implement dedicated interface for trace application
+impl HpuRadixCiphertext {
+    pub fn new(hpu_var: HpuVarWrapped) -> Self {
+        Self(hpu_var)
+    }
+    pub fn into_var(self) -> HpuVarWrapped {
+        self.0
+    }
+}
+
 impl HpuRadixCiphertext {
     /// Create a Hpu Radix ciphertext based on a Cpu one.
     /// No xfer with Fpga occured until operation is request on HpuRadixCiphertext
