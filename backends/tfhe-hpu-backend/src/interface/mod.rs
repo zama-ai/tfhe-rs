@@ -3,9 +3,9 @@ mod cmd;
 mod config;
 mod device;
 mod memory;
-#[cfg(not(feature = "debug"))]
+#[cfg(not(feature = "utils"))]
 mod rtl;
-#[cfg(feature = "debug")]
+#[cfg(feature = "utils")]
 pub mod rtl;
 mod variable;
 

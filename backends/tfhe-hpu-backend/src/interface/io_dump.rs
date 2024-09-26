@@ -57,7 +57,6 @@ pub fn dump<T: HexMem>(value: &T, kind: DumpKind, id: DumpId) {
     HPU_IO_DUMP.with_borrow(|inner| {
         if let Some(path) = inner {
             // Open file
-            let kind_path = path.join(&format!("{:?}", kind));
             let file_path = match id {
                 DumpId::Slot(sid, cut) => match kind {
                     DumpKind::BlweIn => format!(

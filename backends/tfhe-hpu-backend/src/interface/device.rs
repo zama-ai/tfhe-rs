@@ -68,7 +68,7 @@ impl HpuDevice {
         ksk: HpuLweKeyswitchKeyOwned<u64>,
         gen_lut: F,
     ) where
-        F: Fn(HpuParameters, hw_hpu::asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
+        F: Fn(HpuParameters, crate::asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
     {
         // Properly reset keys
         self.bsk_unset();
@@ -123,7 +123,7 @@ impl HpuDevice {
 impl HpuDevice {
     pub(crate) fn lut_init<F>(&self, gen_lut: F)
     where
-        F: Fn(HpuParameters, hw_hpu::asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
+        F: Fn(HpuParameters, crate::asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
     {
         let mut backend = self.backend.lock().unwrap();
         backend.lut_init(gen_lut)
@@ -144,8 +144,8 @@ impl HpuDevice {
 }
 
 /// Spawn a background thread that handle periodically update HW state
-/// WARN: Variable still required lock on HpuBackend for allocation. Thus ensure to relase the lock periodically
-/// NB: This should be replaced by Irq when available
+/// WARN: Variable still required lock on HpuBackend for allocation. Thus ensure to relase the lock
+/// periodically NB: This should be replaced by Irq when available
 impl HpuDevice {
     fn run_polling(&self) {
         let backend = self.backend.clone();

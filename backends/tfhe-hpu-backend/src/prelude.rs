@@ -2,7 +2,7 @@
 pub use super::entities::*;
 
 /// Export Hw_hpu for asm definition
-pub use hw_hpu::asm as hpu_asm;
+pub use super::asm as hpu_asm;
 
 #[cfg(feature = "hw-itf")]
 /// Load Hw-interface stuff
@@ -12,4 +12,3 @@ pub use super::interface::{HpuConfig, HpuDevice, HpuError, HpuVarWrapped, ACKQ_E
 #[cfg(all(feature = "hw-itf", feature = "io-dump"))]
 /// Expose io_dump init function
 pub use super::interface::io_dump::set_hpu_io_dump;
-

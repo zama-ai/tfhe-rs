@@ -1,10 +1,10 @@
 /// Implement inner-view of Hpu backend
 use super::*;
+use crate::asm::strum::IntoEnumIterator;
+use crate::asm::{self, Asm, AsmBin, PbsLut};
 use crate::entities::*;
 use crate::ffi;
-use hw_hpu::asm::strum::IntoEnumIterator;
-use hw_hpu::asm::{self, Asm, AsmBin, PbsLut};
-use hw_hpu::fw::Fw;
+use crate::fw::Fw;
 use rtl::FromRtl;
 
 use std::collections::VecDeque;
@@ -595,7 +595,7 @@ impl HpuBackend {
             // TODO extend with multi-width support
             integer_w: config.firmware.integer_w[0],
         };
-        let mut fw = hw_hpu::fw::fw_impl::ilp::Ilp::default();
+        let mut fw = crate::fw::fw_impl::ilp::Ilp::default();
 
         // Generate Fw for standard operation
         let mut id_fw = asm::IOpName::iter()

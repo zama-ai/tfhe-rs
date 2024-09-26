@@ -12,7 +12,7 @@ pub use concrete_csprng::seeders::RdseedSeeder;
 #[cfg(feature = "seeder_unix")]
 pub use concrete_csprng::seeders::UnixSeeder;
 
-/// We enable manual seeding for reproductible Hw simulation
+// We enable manual seeding for reproductible Hw simulation
 #[cfg(feature = "seeder-manual")]
 thread_local! {
     static MANUAL_SEED: std::cell::RefCell<Option<u128>> = const { std::cell::RefCell::new(None) };

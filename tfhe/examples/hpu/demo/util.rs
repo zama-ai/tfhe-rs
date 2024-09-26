@@ -1,5 +1,5 @@
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 pub struct Time {
     begin: Instant,

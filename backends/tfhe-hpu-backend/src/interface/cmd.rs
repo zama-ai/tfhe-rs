@@ -1,9 +1,8 @@
 ///
 /// Help with IOp management over HPU
 /// Track IOp status and handle backward update of associated HpuVariable
-///
 use super::*;
-pub(crate) use hw_hpu::asm::{Arg, Asm, IOp, IOpName};
+use crate::asm::{Arg, Asm, IOp, IOpName};
 use variable::HpuVarWrapped;
 
 /// Structure that hold an IOp with there associated operands

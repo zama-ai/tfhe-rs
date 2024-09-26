@@ -10,37 +10,60 @@ readme = "README.md"
 default = []
 hw-itf = []
 io-dump = ["num-traits"]
-debug = ["hw-itf", "clap", "clap-num"]
+utils = ["clap", "clap-num"]
 
 [build-dependencies]
 cxx-build = "1.0"
 
 [dev-dependencies]
 serial_test = "3.1.1"
-rand = "0.8.5"
 
 [dependencies]
 cxx = "1.0"
 hw_regmap = {git = "ssh://git@github.com/zama-ai/hw_regmap.git", branch="main"}
-hw-hpu = {git = "ssh://git@github.com/zama-ai/hw-hpu.git", branch="main"}
 
+strum = { version = "0.26.2", features = ["derive"] }
+strum_macros = "0.26.2"
+enum_dispatch = "0.3.13"
+tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"]}
 toml = {version = "*", features = []}
 paste = "1.0.15"
 thiserror = "1.0.61"
-tracing = "0.1.40"
 bytemuck = "1.16.0"
+anyhow = "1.0.82"
+deku = "0.16.0"
+lazy_static = "1.4.0"
+rand = "0.8.5"
+regex = "1.10.4"
+bitflags = "2.5.0"
+itertools = "0.11.0"
+lru = "0.12.3"
 
+# Dependencies used for debug feature
 num-traits = { version = "*", optional=true}
 clap = { version = "4.4.4", features = ["derive"], optional=true}
 clap-num = {version = "1.1.1", optional=true}
-rand = { version = "0.8.5", optional=true}
-serde_json = {version = "1.0.117", optional=true}
 
 
 # Binary for manual debugging
+# Enable to access Hpu register and drive some custom sequence by hand
 [[bin]]
 name = "hputil"
-path = "src/util.rs"
-required-features = ["debug"]
+path = "src/utils/hputil.rs"
+required-features = ["utils", "hw-itf"]
+
+# Binary for asm manipulation
+# Enable to convert back and forth between asm/hex format
+[[bin]]
+name = "fmt"
+path = "src/utils/fmt.rs"
+required-features = ["utils"]
+
+# Firmware generation
+# Enable to expand IOp in list of Dop for inspection
+[[bin]]
+name = "fw"
+path = "src/utils/fw.rs"
+required-features = ["utils"]

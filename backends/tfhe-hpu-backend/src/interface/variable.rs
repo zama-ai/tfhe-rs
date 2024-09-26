@@ -3,9 +3,8 @@
 //! Handle lifetime management, deallocation and state inside HpuDevice.
 use super::*;
 use crate::entities::{hpu_big_lwe_ciphertext_size, HpuLweCiphertextOwned, HpuParameters};
-use crate::ffi;
+use crate::{asm, ffi};
 use backend::HpuBackendWrapped;
-use hw_hpu::asm;
 use std::sync::{mpsc, Arc, Mutex};
 
 #[derive(Debug)]
@@ -229,7 +228,7 @@ impl HpuVarWrapped {
     /// IOp format is Ct <- Ct x Ct
     /// IOp width is inferred from operand width
     #[inline(always)]
-    fn iop_ct_raw(name: cmd::IOpName, dst: &Self, rhs_0: &Self, rhs_1: &Self) {
+    fn iop_ct_raw(name: crate::asm::IOpName, dst: &Self, rhs_0: &Self, rhs_1: &Self) {
         let hpu_op = cmd::HpuCmd::new_ct_ct(name, dst.clone(), rhs_0.clone(), rhs_1.clone());
         dst.inner
             .lock()
@@ -243,7 +242,7 @@ impl HpuVarWrapped {
     /// IOp format is Ct <- Ct x Ct
     /// IOp width is inferred from operand width
     /// Dst operand is allocated
-    pub fn iop_ct(self, name: cmd::IOpName, rhs: Self) -> Self {
+    pub fn iop_ct(self, name: crate::asm::IOpName, rhs: Self) -> Self {
         // Allocate output variable
         let backend = {
             // NB: use extra scop to take care of mutex lifetime
@@ -260,7 +259,7 @@ impl HpuVarWrapped {
     /// IOp format is Ct <- Ct x Ct
     /// IOp width is inferred from operand width
     /// Dest operand is first src operand
-    pub fn iop_ct_assign(&mut self, name: cmd::IOpName, rhs: Self) {
+    pub fn iop_ct_assign(&mut self, name: crate::asm::IOpName, rhs: Self) {
         Self::iop_ct_raw(name, &self, &self, &rhs);
     }
 
@@ -268,7 +267,7 @@ impl HpuVarWrapped {
     /// IOp format is Ct <- Ct x Imm
     /// IOp width is inferred from operand width
     #[inline(always)]
-    fn iop_imm_raw(name: cmd::IOpName, dst: &Self, rhs_0: &Self, rhs_1: usize) {
+    fn iop_imm_raw(name: crate::asm::IOpName, dst: &Self, rhs_0: &Self, rhs_1: usize) {
         let hpu_op = cmd::HpuCmd::new_ct_imm(name, dst.clone(), rhs_0.clone(), rhs_1);
         dst.inner
             .lock()
@@ -282,7 +281,7 @@ impl HpuVarWrapped {
     /// IOp format is Ct <- Ct x Imm
     /// IOp width is inferred from operand width
     /// Dst operand is allocated
-    pub fn iop_imm(self, name: cmd::IOpName, rhs: usize) -> Self {
+    pub fn iop_imm(self, name: crate::asm::IOpName, rhs: usize) -> Self {
         // Allocate output variable
         let backend = {
             // NB: use extra scop to take care of mutex lifetime
@@ -299,7 +298,7 @@ impl HpuVarWrapped {
     /// IOp format is Ct <- Ct x Imm
     /// IOp width is inferred from operand width
     /// Dest operand is first src operand
-    pub fn iop_imm_assign(&mut self, name: cmd::IOpName, rhs: usize) {
+    pub fn iop_imm_assign(&mut self, name: crate::asm::IOpName, rhs: usize) {
         Self::iop_imm_raw(name, &self, &self, rhs);
     }
 }
@@ -317,7 +316,7 @@ macro_rules! impl_ct_ct_raw {
             {
                 /// This function format and push associated work in dst cmd_api
                 fn [<$hpu_op:lower _raw>](dst: &Self, rhs_0: &Self, rhs_1: &Self) {
-                    Self::iop_ct_raw(cmd::IOpName::[<$hpu_op:upper>],dst, rhs_0, rhs_1)
+                    Self::iop_ct_raw(crate::asm::IOpName::[<$hpu_op:upper>],dst, rhs_0, rhs_1)
                 }
             }
         }
@@ -384,7 +383,7 @@ macro_rules! impl_ct_imm_raw {
             {
                 /// This function format and push associated work in dst cmd_api
                 fn [<$hpu_op:lower _raw>](dst: &Self, rhs_0: &Self, rhs_1: usize) {
-                    Self::iop_imm_raw(cmd::IOpName::[<$hpu_op:upper>], dst, rhs_0, rhs_1);
+                    Self::iop_imm_raw(crate::asm::IOpName::[<$hpu_op:upper>], dst, rhs_0, rhs_1);
                 }
             }
         }
