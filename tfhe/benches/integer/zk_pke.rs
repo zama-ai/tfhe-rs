@@ -53,7 +53,7 @@ fn pke_zk_proof(c: &mut Criterion) {
         let mut rng = rand::thread_rng();
         metadata.fill_with(|| rng.gen());
 
-        for bits in [640usize, 1280, 4096] {
+        for bits in [64usize, 640, 1280, 4096] {
             assert_eq!(bits % 64, 0);
             // Packing, so we take the message and carry modulus to compute our block count
             let num_block = 64usize.div_ceil(
@@ -138,7 +138,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
         let mut rng = rand::thread_rng();
         metadata.fill_with(|| rng.gen());
 
-        for bits in [640usize, 1280, 4096] {
+        for bits in [64usize, 640, 1280, 4096] {
             assert_eq!(bits % 64, 0);
             // Packing, so we take the message and carry modulus to compute our block count
             let num_block = 64usize.div_ceil(
