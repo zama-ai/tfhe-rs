@@ -40,6 +40,3 @@ which writes down the list of parameters that can also be given to the analyzing
     - make a macro that generates these tests?
     - put this macro "near" each tested operation (i.e., greatly simplify adding new op's)
   - use noise formulas extracted from the latest optimizer (was there a PR on that?)
-    - improve output:
-    - meaning of printed values
-  - ...
