@@ -8,7 +8,7 @@ void scratch_cuda_integer_compress_radix_ciphertext_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
     uint32_t compression_glwe_dimension, uint32_t compression_polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t num_lwes, uint32_t message_modulus, uint32_t carry_modulus,
+    uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, uint32_t lwe_per_glwe, uint32_t storage_log_modulus,
     bool allocate_gpu_memory);
 
@@ -17,7 +17,7 @@ void scratch_cuda_integer_decompress_radix_ciphertext_64(
     uint32_t encryption_glwe_dimension, uint32_t encryption_polynomial_size,
     uint32_t compression_glwe_dimension, uint32_t compression_polynomial_size,
     uint32_t lwe_dimension, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t num_lwes, uint32_t message_modulus, uint32_t carry_modulus,
+    uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, uint32_t storage_log_modulus, uint32_t body_count,
     bool allocate_gpu_memory);
 
@@ -96,7 +96,7 @@ template <typename Torus> struct int_decompression {
 
   uint32_t storage_log_modulus;
 
-  uint32_t num_lwes;
+  uint32_t num_radix_blocks;
   uint32_t body_count;
 
   Torus *tmp_extracted_glwe;
@@ -113,7 +113,7 @@ template <typename Torus> struct int_decompression {
     this->encryption_params = encryption_params;
     this->compression_params = compression_params;
     this->storage_log_modulus = storage_log_modulus;
-    this->num_lwes = num_radix_blocks;
+    this->num_radix_blocks = num_radix_blocks;
     this->body_count = body_count;
 
     if (allocate_gpu_memory) {
@@ -134,7 +134,7 @@ template <typename Torus> struct int_decompression {
       tmp_extracted_lwe = (Torus *)cuda_malloc_async(
           num_radix_blocks * lwe_accumulator_size * sizeof(Torus), streams[0],
           gpu_indexes[0]);
-      // Decompression
+
       // Carry extract LUT
       auto carry_extract_f = [encryption_params](Torus x) -> Torus {
         return x / encryption_params.message_modulus;
@@ -157,7 +157,7 @@ template <typename Torus> struct int_decompression {
     cuda_drop_async(tmp_indexes_array, streams[0], gpu_indexes[0]);
 
     carry_extract_lut->release(streams, gpu_indexes, gpu_count);
-    delete (carry_extract_lut);
+    delete carry_extract_lut;
   }
 };
 #endif
