@@ -193,6 +193,10 @@ impl ParameterSetConformant for CompactCiphertextList {
 #[cfg(feature = "zk-pok")]
 mod zk {
     use super::*;
+    use crate::conformance::ParameterSetConformant;
+    use crate::shortint::parameters::CompactCiphertextListExpansionKind;
+    use crate::shortint::ClassicPBSParameters;
+    use crate::zk::CompactPkeCrs;
 
     #[derive(Clone, Serialize, Deserialize)]
     pub struct ProvenCompactCiphertextList {
@@ -357,6 +361,61 @@ mod zk {
                 #[cfg(feature = "gpu")]
                 Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
             })
+        }
+    }
+
+    impl ParameterSetConformant for ProvenCompactCiphertextList {
+        type ParameterSet = (
+            ClassicPBSParameters,
+            CompactPkeCrs,
+            CompactCiphertextListExpansionKind,
+        );
+
+        fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+            let Self { inner, tag: _ } = self;
+
+            inner.is_conformant(parameter_set)
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use rand::{thread_rng, Rng};
+
+        use crate::shortint::PBSOrder;
+        use crate::zk::CompactPkeCrs;
+
+        use super::*;
+        #[test]
+        fn conformanceaa() {
+            let mut rng = thread_rng();
+
+            let params: crate::shortint::ClassicPBSParameters =
+                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let config = crate::ConfigBuilder::with_custom_parameters(params);
+
+            let client_key = crate::ClientKey::generate(config.clone());
+            // This is done in an offline phase and the CRS is shared to all clients and the server
+            let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
+            let public_zk_params = crs.public_params();
+            let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
+            // This can be left empty, but if provided allows to tie the proof to arbitrary data
+            let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+
+            let clear_a = rng.gen::<u64>();
+            let clear_b = rng.gen::<u64>();
+
+            let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
+                .push(clear_a)
+                .push(clear_b)
+                .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            assert!(proven_compact_list.is_conformant(&(
+                params,
+                crs,
+                CompactCiphertextListExpansionKind::NoCasting(PBSOrder::KeyswitchBootstrap,)
+            )));
         }
     }
 }

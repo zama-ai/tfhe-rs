@@ -1,15 +1,20 @@
+use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
+use crate::core_crypto::prelude::LweCiphertextListParameters;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
+    CiphertextListConformanceParams, CompactCiphertextListExpansionKind,
     CompactPublicKeyEncryptionParameters, MessageModulus, ShortintCompactCiphertextListCastingMode,
 };
-use crate::shortint::{Ciphertext, CompactPublicKey};
+use crate::shortint::{Ciphertext, ClassicPBSParameters, CompactPublicKey};
 use crate::zk::{
     CompactPkeCrs, CompactPkeProof, CompactPkePublicParams, ZkMSBZeroPaddingBitCount,
     ZkVerificationOutCome,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+
+use super::{Degree, NoiseLevel};
 
 impl CompactPkeCrs {
     /// Construct the CRS that corresponds to the given parameters
@@ -138,6 +143,74 @@ impl ProvenCompactCiphertextList {
 
     pub fn message_modulus(&self) -> MessageModulus {
         self.proved_lists[0].0.message_modulus
+    }
+}
+
+pub struct ProvenCompactCiphertextListConformanceParams {
+    pub sk_params: ClassicPBSParameters,
+    pub elements_per_block: usize,
+    pub expected_len: usize,
+    pub expansion_kind: CompactCiphertextListExpansionKind,
+}
+
+impl ParameterSetConformant for ProvenCompactCiphertextList {
+    type ParameterSet = ProvenCompactCiphertextListConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { proved_lists } = self;
+
+        let ProvenCompactCiphertextListConformanceParams {
+            sk_params,
+            elements_per_block,
+            expected_len: full_expected_len,
+            expansion_kind,
+        } = parameter_set;
+
+        let mut remaining_len = *full_expected_len;
+
+        let elements_per_block = *elements_per_block;
+
+        for (compatc_ct_lict, proof) in proved_lists {
+            if remaining_len == 0 {
+                return false;
+            }
+
+            let expected_len;
+
+            if remaining_len > elements_per_block {
+                remaining_len -= elements_per_block;
+
+                expected_len = elements_per_block
+            } else {
+                expected_len = remaining_len;
+                remaining_len = 0;
+            };
+
+            let params = CiphertextListConformanceParams {
+                ct_list_params: LweCiphertextListParameters {
+                    lwe_dim: sk_params
+                        .glwe_dimension
+                        .to_equivalent_lwe_dimension(sk_params.polynomial_size),
+                    lwe_ciphertext_count_constraint: ListSizeConstraint::exact_size(expected_len),
+                    ct_modulus: sk_params.ciphertext_modulus,
+                },
+                message_modulus: sk_params.message_modulus,
+                carry_modulus: sk_params.carry_modulus,
+                degree: Degree::new(sk_params.message_modulus.0 * sk_params.message_modulus.0 - 1),
+                noise_level: NoiseLevel::NOMINAL,
+                expansion_kind: *expansion_kind,
+            };
+
+            if !proof.is_valid() {
+                return false;
+            }
+
+            if !compatc_ct_lict.is_conformant(&params) {
+                return false;
+            }
+        }
+
+        true
     }
 }
 

@@ -9,8 +9,16 @@ pub use crate::integer::parameters::{
     IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
 };
 use crate::integer::{CompactPublicKey, ServerKey};
+#[cfg(feature = "zk-pok")]
+use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
 use crate::shortint::parameters::CiphertextConformanceParams;
+#[cfg(feature = "zk-pok")]
+use crate::shortint::parameters::CompactCiphertextListExpansionKind;
+#[cfg(feature = "zk-pok")]
+use crate::shortint::ClassicPBSParameters;
 use crate::shortint::{Ciphertext, MessageModulus};
+#[cfg(feature = "zk-pok")]
+use crate::zk::CompactPkeCrs;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -723,6 +731,30 @@ impl ProvenCompactCiphertextList {
 
     pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
         self.info.get(index).copied()
+    }
+}
+
+#[cfg(feature = "zk-pok")]
+impl ParameterSetConformant for ProvenCompactCiphertextList {
+    type ParameterSet = (
+        ClassicPBSParameters,
+        CompactPkeCrs,
+        CompactCiphertextListExpansionKind,
+    );
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { ct_list, info } = self;
+
+        let expected_len = info.iter().map(|a| a.num_blocks()).sum();
+
+        let a = ProvenCompactCiphertextListConformanceParams {
+            sk_params: parameter_set.0,
+            elements_per_block: parameter_set.1.public_params().k,
+            expected_len,
+            expansion_kind: parameter_set.2,
+        };
+
+        ct_list.is_conformant(&a)
     }
 }
 
