@@ -92,32 +92,27 @@ impl CudaCompressionKey {
         let lwe_ciphertext_count = LweCiphertextCount(total_num_blocks);
 
         let gpu_index = streams.gpu_indexes[0];
-        let d_vec = unsafe {
-            let mut d_vec = CudaVec::new_async(
-                lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
-                streams,
-                gpu_index,
+        let mut d_vec = CudaVec::new_async(
+            lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
+            streams,
+            gpu_index,
+        );
+        let mut offset: usize = 0;
+        for ciphertext in vec_ciphertexts {
+            let dest_ptr = d_vec
+                .as_mut_c_ptr(gpu_index)
+                .add(offset * std::mem::size_of::<u64>());
+            let size = ciphertext.d_blocks.0.d_vec.len * std::mem::size_of::<u64>();
+            cuda_memcpy_async_gpu_to_gpu(
+                dest_ptr,
+                ciphertext.d_blocks.0.d_vec.as_c_ptr(gpu_index),
+                size as u64,
+                streams.ptr[gpu_index as usize],
+                streams.gpu_indexes[gpu_index as usize],
             );
-            let mut offset: usize = 0;
-            for ciphertext in vec_ciphertexts {
-                let dest_ptr = d_vec
-                    .as_mut_c_ptr(gpu_index)
-                    .add(offset * std::mem::size_of::<u64>());
-                let size = ciphertext.d_blocks.0.d_vec.len * std::mem::size_of::<u64>();
-                cuda_memcpy_async_gpu_to_gpu(
-                    dest_ptr,
-                    ciphertext.d_blocks.0.d_vec.as_c_ptr(gpu_index),
-                    size as u64,
-                    streams.ptr[gpu_index as usize],
-                    streams.gpu_indexes[gpu_index as usize],
-                );
 
-                offset += ciphertext.d_blocks.0.d_vec.len;
-            }
-
-            streams.synchronize();
-            d_vec
-        };
+            offset += ciphertext.d_blocks.0.d_vec.len;
+        }
 
         CudaLweCiphertextList::from_cuda_vec(d_vec, lwe_ciphertext_count, ciphertext_modulus)
     }
