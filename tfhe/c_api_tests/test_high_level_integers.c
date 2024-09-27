@@ -399,54 +399,7 @@ int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *serve
   deser_view.pointer = value_buffer.pointer;
   deser_view.length = value_buffer.length;
   ok = fhe_uint8_safe_deserialize_conformant(deser_view, max_serialization_size, server_key,
-                                             &deserialized_lhs);
-  assert(ok == 0);
-
-  uint8_t clear;
-  ok = fhe_uint8_decrypt(deserialized_lhs, deserialized_client_key, &clear);
-  assert(ok == 0);
-
-  assert(clear == lhs_clear);
-
-  if (value_buffer.pointer != NULL) {
-    destroy_dynamic_buffer(&value_buffer);
-  }
-  fhe_uint8_destroy(lhs);
-  fhe_uint8_destroy(deserialized_lhs);
-  return ok;
-}
-
-int uint8_safe_serialization_versioned(const ClientKey *client_key, const ServerKey *server_key) {
-  int ok;
-  FheUint8 *lhs = NULL;
-  FheUint8 *deserialized_lhs = NULL;
-  DynamicBuffer value_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
-  DynamicBuffer cks_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
-  DynamicBufferView deser_view = {.pointer = NULL, .length = 0};
-  ClientKey *deserialized_client_key = NULL;
-
-  const uint64_t max_serialization_size = UINT64_C(1) << UINT64_C(20);
-
-  uint8_t lhs_clear = 123;
-
-  ok = client_key_serialize(client_key, &cks_buffer);
-  assert(ok == 0);
-
-  deser_view.pointer = cks_buffer.pointer;
-  deser_view.length = cks_buffer.length;
-  ok = client_key_deserialize(deser_view, &deserialized_client_key);
-  assert(ok == 0);
-
-  ok = fhe_uint8_try_encrypt_with_client_key_u8(lhs_clear, client_key, &lhs);
-  assert(ok == 0);
-
-  ok = fhe_uint8_safe_serialize_versioned(lhs, &value_buffer, max_serialization_size);
-  assert(ok == 0);
-
-  deser_view.pointer = value_buffer.pointer;
-  deser_view.length = value_buffer.length;
-  ok = fhe_uint8_safe_deserialize_conformant_versioned(deser_view, max_serialization_size,
-                                                       server_key, &deserialized_lhs);
+																						 &deserialized_lhs);
   assert(ok == 0);
 
   uint8_t clear;
@@ -656,8 +609,6 @@ int main(void) {
     ok = uint8_serialization(client_key);
     assert(ok == 0);
     ok = uint8_safe_serialization(client_key, server_key);
-    assert(ok == 0);
-    ok = uint8_safe_serialization_versioned(client_key, server_key);
     assert(ok == 0);
     ok = uint8_compressed(client_key);
     assert(ok == 0);

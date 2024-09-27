@@ -57,6 +57,7 @@ impl Named for FheBool {
     const NAME: &'static str = "high_level_api::FheBool";
 }
 
+#[derive(Copy, Clone)]
 pub struct FheBoolConformanceParams(pub(crate) CiphertextConformanceParams);
 
 impl<P> From<P> for FheBoolConformanceParams

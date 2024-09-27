@@ -318,7 +318,7 @@ fn compressed_bool_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
 
 mod cpu {
     use super::*;
-    use crate::safe_deserialization::safe_deserialize_conformant;
+    use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     use crate::FheBoolConformanceParams;
     use rand::random;
@@ -682,12 +682,14 @@ mod cpu {
         let clear_a = random::<bool>();
         let a = FheBool::encrypt(clear_a, &client_key);
         let mut serialized = vec![];
-        assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+        SerializationConfig::new(1 << 20)
+            .serialize_into(&a, &mut serialized)
+            .unwrap();
 
         let params = FheBoolConformanceParams::from(&server_key);
-        let deserialized_a =
-            safe_deserialize_conformant::<FheBool>(serialized.as_slice(), 1 << 20, &params)
-                .unwrap();
+        let deserialized_a = DeserializationConfig::new(1 << 20)
+            .deserialize_from::<FheBool>(serialized.as_slice(), &params)
+            .unwrap();
         let decrypted: bool = deserialized_a.decrypt(&client_key);
         assert_eq!(decrypted, clear_a);
 
@@ -703,15 +705,14 @@ mod cpu {
         let clear_a = random::<bool>();
         let a = CompressedFheBool::encrypt(clear_a, &client_key);
         let mut serialized = vec![];
-        assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+        SerializationConfig::new(1 << 20)
+            .serialize_into(&a, &mut serialized)
+            .unwrap();
 
         let params = FheBoolConformanceParams::from(&server_key);
-        let deserialized_a = safe_deserialize_conformant::<CompressedFheBool>(
-            serialized.as_slice(),
-            1 << 20,
-            &params,
-        )
-        .unwrap();
+        let deserialized_a = DeserializationConfig::new(1 << 20)
+            .deserialize_from::<CompressedFheBool>(serialized.as_slice(), &params)
+            .unwrap();
 
         assert!(deserialized_a.is_conformant(&FheBoolConformanceParams::from(block_params)));
 
