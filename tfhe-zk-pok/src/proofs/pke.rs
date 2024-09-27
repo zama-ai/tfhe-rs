@@ -317,6 +317,15 @@ where
     }
 }
 
+impl<G: Curve> Proof<G> {
+    pub fn content_is_usable(&self) -> bool {
+        matches!(
+            (self.c_hat_t, self.c_h, self.pi_kzg),
+            (None, None, None) | (Some(_), Some(_), Some(_))
+        )
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PublicCommit<G: Curve> {
     a: Vec<i64>,

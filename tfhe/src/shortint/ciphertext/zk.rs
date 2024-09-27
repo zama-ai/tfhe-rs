@@ -1,8 +1,13 @@
+use super::{Degree, NoiseLevel};
+use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
+use crate::core_crypto::prelude::LweCiphertextListParameters;
 use crate::shortint::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
-    CompactPublicKeyEncryptionParameters, MessageModulus, ShortintCompactCiphertextListCastingMode,
+    CarryModulus, CiphertextListConformanceParams, CiphertextModulus,
+    CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters, LweDimension,
+    MessageModulus, ShortintCompactCiphertextListCastingMode,
 };
 use crate::shortint::{Ciphertext, CompactPublicKey};
 use crate::zk::{
@@ -141,6 +146,83 @@ impl ProvenCompactCiphertextList {
 
     pub fn message_modulus(&self) -> MessageModulus {
         self.proved_lists[0].0.message_modulus
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct ProvenCompactCiphertextListConformanceParams {
+    pub encryption_lwe_dimension: LweDimension,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub expansion_kind: CompactCiphertextListExpansionKind,
+    pub max_lwe_count_per_compact_list: usize,
+    pub total_expected_lwe_count: usize,
+}
+
+impl ParameterSetConformant for ProvenCompactCiphertextList {
+    type ParameterSet = ProvenCompactCiphertextListConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { proved_lists } = self;
+
+        let ProvenCompactCiphertextListConformanceParams {
+            max_lwe_count_per_compact_list,
+            total_expected_lwe_count,
+            expansion_kind,
+            encryption_lwe_dimension,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+        } = parameter_set;
+
+        let max_elements_per_compact_list = *max_lwe_count_per_compact_list;
+
+        let mut remaining_len = *total_expected_lwe_count;
+
+        for (compact_ct_list, proof) in proved_lists {
+            if remaining_len == 0 {
+                return false;
+            }
+
+            if !proof.content_is_usable() {
+                return false;
+            }
+
+            let expected_len;
+
+            if remaining_len > max_elements_per_compact_list {
+                remaining_len -= max_elements_per_compact_list;
+
+                expected_len = max_elements_per_compact_list;
+            } else {
+                expected_len = remaining_len;
+                remaining_len = 0;
+            };
+
+            let params = CiphertextListConformanceParams {
+                ct_list_params: LweCiphertextListParameters {
+                    lwe_dim: *encryption_lwe_dimension,
+                    lwe_ciphertext_count_constraint: ListSizeConstraint::exact_size(expected_len),
+                    ct_modulus: *ciphertext_modulus,
+                },
+                message_modulus: *message_modulus,
+                carry_modulus: *carry_modulus,
+                degree: Degree::new(message_modulus.0 * message_modulus.0 - 1),
+                noise_level: NoiseLevel::NOMINAL,
+                expansion_kind: *expansion_kind,
+            };
+
+            if !compact_ct_list.is_conformant(&params) {
+                return false;
+            }
+        }
+
+        if remaining_len != 0 {
+            return false;
+        }
+
+        true
     }
 }
 

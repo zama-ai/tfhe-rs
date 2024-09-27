@@ -196,6 +196,8 @@ impl ParameterSetConformant for CompactCiphertextList {
 #[cfg(feature = "zk-pok")]
 mod zk {
     use super::*;
+    use crate::conformance::ParameterSetConformant;
+    use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
 
     #[derive(Clone, Serialize, Deserialize, Versionize)]
     #[versionize(ProvenCompactCiphertextListVersions)]
@@ -361,6 +363,96 @@ mod zk {
                 #[cfg(feature = "gpu")]
                 Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
             })
+        }
+    }
+
+    impl ParameterSetConformant for ProvenCompactCiphertextList {
+        type ParameterSet = IntegerProvenCompactCiphertextListConformanceParams;
+
+        fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+            let Self { inner, tag: _ } = self;
+
+            inner.is_conformant(parameter_set)
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+        use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
+        use crate::zk::CompactPkeCrs;
+        use rand::{thread_rng, Rng};
+
+        #[test]
+        fn conformance_zk_compact_ciphertext_list() {
+            let mut rng = thread_rng();
+
+            let params: crate::shortint::ClassicPBSParameters =
+                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let config = crate::ConfigBuilder::with_custom_parameters(params);
+
+            let client_key = crate::ClientKey::generate(config.clone());
+            // This is done in an offline phase and the CRS is shared to all clients and the server
+            let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
+            let public_zk_params = crs.public_params();
+            let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
+            // This can be left empty, but if provided allows to tie the proof to arbitrary data
+            let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+
+            let clear_a = rng.gen::<u64>();
+            let clear_b = rng.gen::<bool>();
+
+            let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
+                .push(clear_a)
+                .push(clear_b)
+                .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            let params =
+                IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+                    params.try_into().unwrap(),
+                    &crs,
+                );
+
+            assert!(proven_compact_list.is_conformant(&params));
+        }
+
+        #[test]
+        fn conformance_zk_compact_ciphertext_list_casting() {
+            let mut rng = thread_rng();
+
+            let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let cpk_params = crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let config = crate::ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+
+            let client_key = crate::ClientKey::generate(config.clone());
+
+            let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
+            let public_zk_params = crs.public_params();
+            let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
+
+            let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+
+            let clear_a = rng.gen::<u64>();
+            let clear_b = rng.gen::<bool>();
+
+            let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
+                .push(clear_a)
+                .push(clear_b)
+                .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            let params =
+                IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+                    cpk_params, &crs,
+                );
+
+            assert!(proven_compact_list.is_conformant(&params));
         }
     }
 }

@@ -11,8 +11,18 @@ pub use crate::integer::parameters::{
     IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
 };
 use crate::integer::{CompactPublicKey, ServerKey};
+#[cfg(feature = "zk-pok")]
+use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
 use crate::shortint::parameters::CiphertextConformanceParams;
+#[cfg(feature = "zk-pok")]
+use crate::shortint::parameters::CompactCiphertextListExpansionKind;
+#[cfg(feature = "zk-pok")]
+use crate::shortint::parameters::{
+    CarryModulus, CiphertextModulus, CompactPublicKeyEncryptionParameters, LweDimension,
+};
 use crate::shortint::{Ciphertext, MessageModulus};
+#[cfg(feature = "zk-pok")]
+use crate::zk::CompactPkeCrs;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -727,6 +737,58 @@ impl ProvenCompactCiphertextList {
 
     pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
         self.info.get(index).copied()
+    }
+}
+
+#[cfg(feature = "zk-pok")]
+#[derive(Copy, Clone)]
+pub struct IntegerProvenCompactCiphertextListConformanceParams {
+    pub encryption_lwe_dimension: LweDimension,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub expansion_kind: CompactCiphertextListExpansionKind,
+    pub max_elements_per_compact_list: usize,
+}
+
+#[cfg(feature = "zk-pok")]
+impl IntegerProvenCompactCiphertextListConformanceParams {
+    pub fn from_crs_and_parameters(
+        value: CompactPublicKeyEncryptionParameters,
+        crs_params: &CompactPkeCrs,
+    ) -> Self {
+        Self {
+            encryption_lwe_dimension: value.encryption_lwe_dimension,
+            message_modulus: value.message_modulus,
+            carry_modulus: value.carry_modulus,
+            ciphertext_modulus: value.ciphertext_modulus,
+            expansion_kind: value.expansion_kind,
+            max_elements_per_compact_list: crs_params.public_params().k,
+        }
+    }
+}
+
+#[cfg(feature = "zk-pok")]
+impl ParameterSetConformant for ProvenCompactCiphertextList {
+    type ParameterSet = IntegerProvenCompactCiphertextListConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { ct_list, info } = self;
+
+        let total_expected_num_blocks: usize = info.iter().map(|a| a.num_blocks()).sum();
+
+        let a = ProvenCompactCiphertextListConformanceParams {
+            expansion_kind: parameter_set.expansion_kind,
+            encryption_lwe_dimension: parameter_set.encryption_lwe_dimension,
+            message_modulus: parameter_set.message_modulus,
+            carry_modulus: parameter_set.carry_modulus,
+            ciphertext_modulus: parameter_set.ciphertext_modulus,
+            max_lwe_count_per_compact_list: parameter_set.max_elements_per_compact_list,
+            // packing by 2
+            total_expected_lwe_count: total_expected_num_blocks.div_ceil(2),
+        };
+
+        ct_list.is_conformant(&a)
     }
 }
 

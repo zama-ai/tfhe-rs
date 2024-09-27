@@ -248,6 +248,7 @@ pub struct CompressedCiphertextConformanceParams {
 /// Structure to store the expected properties of a ciphertext list
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
+#[derive(Copy, Clone)]
 pub struct CiphertextListConformanceParams {
     pub ct_list_params: LweCiphertextListParameters<u64>,
     pub message_modulus: MessageModulus,
