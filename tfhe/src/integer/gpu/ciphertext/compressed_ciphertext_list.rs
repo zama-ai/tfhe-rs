@@ -129,19 +129,19 @@ impl CudaCompressedCiphertextList {
     /// use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     ///
     ///     let private_compression_key =
-    ///         cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    ///         cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     ///
     ///     let streams = CudaStreams::new_multi_gpu();
     ///
     ///     let num_blocks = 32;
     ///     let (radix_cks, _) = gen_keys_radix_gpu(
-    ///         PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     ///         num_blocks,
     ///         &streams,
     ///     );
@@ -268,19 +268,19 @@ impl CompressedCiphertextList {
     /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     ///
     ///     let private_compression_key =
-    ///         cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    ///         cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     ///
     ///     let streams = CudaStreams::new_multi_gpu();
     ///
     ///     let num_blocks = 32;
     ///     let (radix_cks, _) = gen_keys_radix_gpu(
-    ///         PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     ///         num_blocks,
     ///         &streams,
     ///     );
@@ -514,8 +514,8 @@ mod tests {
     use super::*;
     use crate::integer::gpu::gen_keys_radix_gpu;
     use crate::integer::ClientKey;
-    use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use rand::Rng;
 
     const NB_TESTS: usize = 10;
@@ -523,16 +523,16 @@ mod tests {
 
     #[test]
     fn test_gpu_ciphertext_compression() {
-        let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+        let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 
         let private_compression_key =
-            cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+            cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 
         let streams = CudaStreams::new_multi_gpu();
 
         let num_blocks = 32;
         let (radix_cks, _) = gen_keys_radix_gpu(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             num_blocks,
             &streams,
         );
