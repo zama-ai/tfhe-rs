@@ -409,6 +409,34 @@ def log_var(variance):
 
 
 def test(x_values, y_values, weights, fft_noise_fun):
+    for nu in range(8,15):
+        big_N = 2.**nu
+        mse = 0.0
+        mse_without_correction = 0.0
+        count = 0
+        for index in range(len(x_values)):
+            params = np.array([x_values[index, :]])
+            real_out = y_values[index]
+            pred_out = max(fft_noise_fun(params, *list(weights))[0], 0.000001)  #TODO make sure this const is OK
+            if params[0,0] == big_N:
+                mse += (log_var(real_out) - log_var(pred_out)) ** 2
+                # ~ print(f"{log_var(real_out) - log_var(pred_out)}, {real_out}, {pred_out}") # log_var(real_out) - log_var(pred_out) == log_var(real_out/pred_out)
+                # print(
+                #     f"th: {log_var(params[0, -1])}, pred_fft: {log_var(pred_out)}, "
+                #     f"real: {log_var(real_out)}"
+                # )
+                mse_without_correction += (log_var(real_out) - log_var(params[0, -1])) ** 2
+                count += 1
+            # print(log_var(params[0, -1]))
+            # mse_without_correction += (log_var(real_out) ) ** 2
+
+        count = max(count, 1)
+
+        mse /= count  # len(x_values)
+        mse = .5 * mse ** .5
+        mse_without_correction /= count  # len(x_values)
+        print(f"½ √mse (N = {big_N}): {mse}") #  \nMSE without correction: {mse_without_correction}
+
     mse = 0.0
     mse_without_correction = 0.0
     count = 0
@@ -432,7 +460,7 @@ def test(x_values, y_values, weights, fft_noise_fun):
     mse = .5 * mse ** .5
     mse_without_correction /= count  # len(x_values)
     mse_without_correction = .5 * mse_without_correction ** .5
-    print(f"½ √mse: {mse} \n½ √MSE without correction: {mse_without_correction}")
+    print(f"½ √mse (all N): {mse} \n½ √MSE without correction: {mse_without_correction}")
     return mse, mse_without_correction
 
 
