@@ -92,8 +92,8 @@ public:
         &payload_modulus, &delta, number_of_inputs, repetitions, samples);
 
     scratch_cuda_multi_bit_programmable_bootstrap_64(
-        stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
-        polynomial_size, pbs_level, grouping_factor, number_of_inputs, true);
+        stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
+        pbs_level, number_of_inputs, true);
 
     lwe_ct_out_array =
         (uint64_t *)malloc((glwe_dimension * polynomial_size + 1) *

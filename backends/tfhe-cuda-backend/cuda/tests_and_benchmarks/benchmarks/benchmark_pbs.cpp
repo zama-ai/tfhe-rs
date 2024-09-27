@@ -177,8 +177,8 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 
   scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
-      grouping_factor, input_lwe_ciphertext_count, true);
+      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
+      true);
   uint32_t lut_count = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
@@ -231,8 +231,8 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
 (benchmark::State &st) {
   scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
-      grouping_factor, input_lwe_ciphertext_count, true);
+      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
+      true);
   uint32_t lut_count = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {

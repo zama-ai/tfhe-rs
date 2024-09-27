@@ -180,11 +180,9 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         streams.ptr[0],
         streams.gpu_indexes[0],
         std::ptr::addr_of_mut!(pbs_buffer),
-        lwe_dimension.0 as u32,
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
         level.0 as u32,
-        grouping_factor.0 as u32,
         num_samples,
         true,
     );

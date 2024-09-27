@@ -271,9 +271,8 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
       if (grouping_factor == 0)
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
       scratch_cuda_multi_bit_programmable_bootstrap_64(
-          stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, level_count, grouping_factor,
-          input_lwe_ciphertext_count, allocate_gpu_memory);
+          stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
+          level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
       break;
     case CLASSICAL:
       scratch_cuda_programmable_bootstrap_64(

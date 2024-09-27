@@ -17,8 +17,7 @@ void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
 
 void scratch_cuda_multi_bit_programmable_bootstrap_64(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t grouping_factor,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
@@ -48,8 +47,7 @@ bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
 template <typename Torus>
 void scratch_cuda_tbc_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t grouping_factor,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template <typename Torus>
@@ -82,8 +80,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 template <typename Torus>
 void scratch_cuda_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t grouping_factor,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template <typename Torus>
@@ -130,7 +127,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   int8_t *d_mem_acc_step_two = NULL;
   int8_t *d_mem_acc_cg = NULL;
   int8_t *d_mem_acc_tbc = NULL;
-
+  uint32_t lwe_chunk_size;
   double2 *keybundle_fft;
   Torus *global_accumulator;
   double2 *global_accumulator_fft;
@@ -142,6 +139,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
              uint32_t input_lwe_ciphertext_count, uint32_t lwe_chunk_size,
              PBS_VARIANT pbs_variant, bool allocate_gpu_memory) {
     this->pbs_variant = pbs_variant;
+    this->lwe_chunk_size = lwe_chunk_size;
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
     // default
