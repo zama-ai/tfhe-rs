@@ -2344,7 +2344,7 @@ mod tests {
                 .map(|_| (rng.gen::<u64>() % t) as i64)
                 .collect::<Vec<_>>();
             while tmp.iter().all(|&x| (x as u64) < effective_cleartext_t) {
-                tmp.fill_with(|| rng.gen());
+                tmp.fill_with(|| (rng.gen::<u64>() % t) as i64);
             }
 
             tmp
@@ -2385,9 +2385,6 @@ mod tests {
 
         let mut metadata = [0u8; METADATA_LEN];
         metadata.fill_with(|| rng.gen::<u8>());
-
-        let mut fake_metadata = [255u8; METADATA_LEN];
-        fake_metadata.fill_with(|| rng.gen::<u8>());
 
         let mut m_roundtrip = vec![0i64; k];
         for i in 0..k {
