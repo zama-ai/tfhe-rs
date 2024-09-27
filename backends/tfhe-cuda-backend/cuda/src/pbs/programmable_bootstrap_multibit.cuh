@@ -385,10 +385,9 @@ uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two(
 template <typename Torus, typename params>
 __host__ void scratch_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer<Torus, MULTI_BIT> **buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, uint32_t grouping_factor,
-    bool allocate_gpu_memory) {
+    pbs_buffer<Torus, MULTI_BIT> **buffer, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
       gpu_index, input_lwe_ciphertext_count, polynomial_size);
@@ -404,9 +403,9 @@ __host__ void execute_compute_keybundle(
     Torus *lwe_input_indexes, Torus *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t lwe_chunk_size, uint32_t lwe_offset) {
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
 
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
   uint32_t chunk_size =
       std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
   if (chunk_size == 0)
@@ -507,9 +506,9 @@ __host__ void execute_step_two(
     Torus *lwe_output_indexes, pbs_buffer<Torus, MULTI_BIT> *buffer,
     uint32_t num_samples, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, int32_t grouping_factor, uint32_t level_count,
-    uint32_t j, uint32_t lwe_offset, uint32_t lwe_chunk_size,
-    uint32_t lut_count, uint32_t lut_stride) {
+    uint32_t j, uint32_t lwe_offset, uint32_t lut_count, uint32_t lut_stride) {
 
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
   uint64_t full_sm_accumulate_step_two =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
@@ -555,8 +554,7 @@ __host__ void host_multi_bit_programmable_bootstrap(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t lut_count, uint32_t lut_stride) {
 
-  auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
-      gpu_index, num_samples, polynomial_size);
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
 
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {
@@ -565,7 +563,7 @@ __host__ void host_multi_bit_programmable_bootstrap(
     execute_compute_keybundle<Torus, params>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
         buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, lwe_chunk_size, lwe_offset);
+        grouping_factor, level_count, lwe_offset);
     // Accumulate
     uint32_t chunk_size = std::min(
         lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
@@ -578,8 +576,7 @@ __host__ void host_multi_bit_programmable_bootstrap(
       execute_step_two<Torus, params>(
           stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
           num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, level_count, j, lwe_offset, lwe_chunk_size,
-          lut_count, lut_stride);
+          grouping_factor, level_count, j, lwe_offset, lut_count, lut_stride);
     }
   }
 }
