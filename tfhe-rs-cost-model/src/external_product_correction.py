@@ -201,7 +201,7 @@ def get_input(filename):
         _single_ggsw_variance,
         input_variance,
     ) = acquisition_samples
-    y_values = np.maximum(0.0, (exp_output_variance - input_variance))
+    y_values = np.maximum(0.0, (exp_output_variance - input_variance)) #TODO return a NaN if exp_output_variance <= input_variance ??
     x_values = parameters
     return x_values, y_values
 
@@ -391,10 +391,10 @@ def run_sampling_chunk(rust_toolchain, total_chunks, identity, input_args) -> bo
         return False
 
 
-def var_to_bit(variance):
+def log_var(variance):
     if variance <= 0:
         return np.nan
-    return 0.5 * np.log2(variance)
+    return np.log2(variance)  # was: np.ceil(0.5 * np.log2(variance)) ??
 
 
 def test(x_values, y_values, weights, fft_noise_fun):
@@ -405,21 +405,23 @@ def test(x_values, y_values, weights, fft_noise_fun):
         params = np.array([x_values[index, :]])
         real_out = y_values[index]
         pred_out = max(fft_noise_fun(params, *list(weights))[0], 0.000001)
-        mse += (var_to_bit(real_out) - var_to_bit(pred_out)) ** 2
+        mse += (log_var(real_out) - log_var(pred_out)) ** 2
         # print(
-        #     f"th: {var_to_bit(params[0, -1])}, pred_fft: {var_to_bit(pred_out)}, "
-        #     f"real: {var_to_bit(real_out)}"
+        #     f"th: {log_var(params[0, -1])}, pred_fft: {log_var(pred_out)}, "
+        #     f"real: {log_var(real_out)}"
         # )
-        mse_without_correction += (var_to_bit(real_out) - var_to_bit(params[0, -1])) ** 2
+        mse_without_correction += (log_var(real_out) - log_var(params[0, -1])) ** 2
         count += 1
-        # print(var_to_bit(params[0, -1]))
-        # mse_without_correction += (var_to_bit(real_out) ) ** 2
+        # print(log_var(params[0, -1]))
+        # mse_without_correction += (log_var(real_out) ) ** 2
 
     count = max(count, 1)
 
     mse /= count  # len(x_values)
+    mse = .5 * mse ** .5
     mse_without_correction /= count  # len(x_values)
-    print(f"mse: {mse} \nMSE without correction: {mse_without_correction}")
+    mse_without_correction = .5 * mse_without_correction ** .5
+    print(f"½ √mse: {mse} \n½ √MSE without correction: {mse_without_correction}")
     return mse, mse_without_correction
 
 
