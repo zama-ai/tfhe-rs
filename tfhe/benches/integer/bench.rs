@@ -1808,6 +1808,26 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: leading_zeros,
+        display_name: leading_zeros
+    );
+
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: leading_ones,
+        display_name: leading_ones
+    );
+
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: trailing_zeros,
+        display_name: trailing_zeros
+    );
+
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: trailing_ones,
+        display_name: trailing_ones
+    );
+
+    define_cuda_server_key_bench_clean_input_unary_fn!(
         method_name: ilog2,
         display_name: ilog2
     );
@@ -2022,6 +2042,10 @@ mod cuda {
         cuda_right_shift,
         cuda_rotate_left,
         cuda_rotate_right,
+        cuda_leading_zeros,
+        cuda_leading_ones,
+        cuda_trailing_zeros,
+        cuda_trailing_ones,
         cuda_ilog2,
     );
 
