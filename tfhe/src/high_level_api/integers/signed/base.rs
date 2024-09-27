@@ -42,6 +42,7 @@ pub struct FheInt<Id: FheIntId> {
     pub(crate) tag: Tag,
 }
 
+#[derive(Copy, Clone)]
 pub struct FheIntConformanceParams<Id: FheIntId> {
     pub(crate) params: RadixCiphertextConformanceParams,
     pub(crate) id: PhantomData<Id>,
