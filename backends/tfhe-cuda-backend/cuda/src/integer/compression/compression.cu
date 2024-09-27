@@ -58,13 +58,13 @@ void cuda_integer_compress_radix_ciphertext_64(
 }
 void cuda_integer_decompress_radix_ciphertext_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *glwe_in, void *indexes_array,
+    void *lwe_array_out, void *glwe_in, uint32_t *indexes_array,
     uint32_t indexes_array_size, void **bsks, int8_t *mem_ptr) {
 
   host_integer_decompress<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       static_cast<uint64_t *>(lwe_array_out), static_cast<uint64_t *>(glwe_in),
-      static_cast<uint32_t *>(indexes_array), indexes_array_size, bsks,
+      indexes_array, indexes_array_size, bsks,
       (int_decompression<uint64_t> *)mem_ptr);
 }
 

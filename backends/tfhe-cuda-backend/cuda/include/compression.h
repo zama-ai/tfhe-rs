@@ -28,7 +28,7 @@ void cuda_integer_compress_radix_ciphertext_64(
 
 void cuda_integer_decompress_radix_ciphertext_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *glwe_in, void *indexes_array,
+    void *lwe_array_out, void *glwe_in, uint32_t *indexes_array,
     uint32_t indexes_array_size, void **bsks, int8_t *mem_ptr);
 
 void cleanup_cuda_integer_compress_radix_ciphertext_64(void **streams,
