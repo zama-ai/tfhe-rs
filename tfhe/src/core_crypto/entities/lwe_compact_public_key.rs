@@ -2,6 +2,7 @@
 
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_compact_public_key::LweCompactPublicKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -181,5 +182,34 @@ impl<Scalar: UnsignedInteger> LweCompactPublicKeyOwned<Scalar> {
             lwe_dimension.0
         );
         Self::from_container(vec![fill_with; 2 * lwe_dimension.0], ciphertext_modulus)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct LweCompactPublicKeyEncryptionParameters<Scalar: UnsignedInteger> {
+    pub encryption_lwe_dimension: LweDimension,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+
+impl<C: Container> ParameterSetConformant for LweCompactPublicKey<C>
+where
+    C::Element: UnsignedInteger,
+{
+    type ParameterSet = LweCompactPublicKeyEncryptionParameters<C::Element>;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { glwe_ciphertext } = self;
+
+        if !parameter_set.encryption_lwe_dimension.0.is_power_of_two() {
+            return false;
+        }
+
+        let glwe_ciphertext_conformance_parameters = GlweCiphertextConformanceParameters {
+            glwe_dim: GlweDimension(1),
+            polynomial_size: PolynomialSize(parameter_set.encryption_lwe_dimension.0),
+            ct_modulus: parameter_set.ciphertext_modulus,
+        };
+
+        glwe_ciphertext.is_conformant(&glwe_ciphertext_conformance_parameters)
     }
 }
