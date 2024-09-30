@@ -13,11 +13,12 @@ use crate::core_crypto::commons::math::decomposition::{
     SignedDecomposerNonNative, TensorSignedDecompositionLendingIterNonNative,
 };
 use crate::core_crypto::commons::math::ntt::ntt64::{Ntt64, Ntt64View};
-use crate::core_crypto::commons::parameters::{GlweSize, MonomialDegree, PolynomialSize};
+use crate::core_crypto::commons::parameters::{
+    CiphertextModulus, GlweSize, MonomialDegree, PolynomialSize,
+};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::shortint::CiphertextModulus;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
@@ -231,7 +232,7 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
 
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
         let modulus = ntt.custom_modulus();
-        let ntt_modulus = CiphertextModulus::new(modulus as u128);
+        let ntt_modulus = CiphertextModulus::<u64>::new(modulus as u128);
 
         let lut_poly_size = lut.polynomial_size();
         let ciphertext_modulus = lut.ciphertext_modulus();
@@ -814,7 +815,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
 
         // Extract modswitch_requirement
         let modulus = ntt.custom_modulus();
-        let ntt_modulus = CiphertextModulus::new(modulus as u128);
+        let ntt_modulus = CiphertextModulus::<u64>::new(modulus as u128);
         let (req_ba, req_ms) =
             bitalign_modswitch_requirement(glwe.ciphertext_modulus(), ntt_modulus);
 
@@ -1055,9 +1056,9 @@ pub fn programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
 }
 
 /// Return the required bitalign/modswitch
-pub fn bitalign_modswitch_requirement(
-    from: CiphertextModulus,
-    to: CiphertextModulus,
+pub fn bitalign_modswitch_requirement<Scalar: UnsignedInteger>(
+    from: CiphertextModulus<Scalar>,
+    to: CiphertextModulus<Scalar>,
 ) -> (Option<u32>, Option<u32>) {
     if from != to {
         assert!(

@@ -210,7 +210,7 @@ fn hpu_noise_distribution(
     let pbs_decomp_base_log = params.pbs_base_log;
     let pbs_decomp_level_count = params.pbs_level;
     let ksk_modulus = CiphertextModulus::try_new_power_of_2(params.ksk_width).unwrap();
-    let ntt_modulus = CiphertextModulus::new(params.ntt_modulus as u128);
+    let ntt_modulus = CiphertextModulus::<u64>::new(params.ntt_modulus as u128);
 
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
     let ksk_encoding_with_padding = get_encoding_with_padding(ksk_modulus);
@@ -238,7 +238,7 @@ fn hpu_noise_distribution(
 
     let f = |x: u64| x.wrapping_rem(msg_modulus);
 
-    let accumulator = generate_accumulator(
+    let accumulator = generate_programmable_bootstrap_glwe_lut(
         polynomial_size,
         glwe_dimension.to_glwe_size(),
         msg_modulus.cast_into(),
@@ -267,7 +267,7 @@ fn hpu_noise_distribution(
         &lwe_sk,
         ks_decomp_base_log,
         ks_decomp_level_count,
-        lwe_modular_std_dev,
+        DynamicDistribution::new_gaussian_from_std_dev(lwe_modular_std_dev),
         ksk_modulus,
         &mut rsc.encryption_random_generator,
     );
@@ -286,38 +286,39 @@ fn hpu_noise_distribution(
         &lwe_sk,
         &glwe_sk,
         &mut bsk,
-        glwe_modular_std_dev,
+        DynamicDistribution::new_gaussian_from_std_dev(glwe_modular_std_dev),
         &mut rsc.encryption_random_generator,
     );
 
-    use crate::core_crypto::ntt_impl::ntt64::crypto::bootstrap::{
-        bootstrap_scratch, NttLweBootstrapKeyOwned,
-    };
-    use crate::core_crypto::ntt_impl::ntt64::math::ntt::Ntt;
+    use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
 
-    let mut nbsk = NttLweBootstrapKeyOwned::new(
+    let mut nbsk = NttLweBootstrapKeyOwned::<u64>::new(
+        0,
         bsk.input_lwe_dimension(),
         bsk.glwe_size(),
         bsk.polynomial_size(),
         bsk.decomposition_base_log(),
         bsk.decomposition_level_count(),
-        ciphertext_modulus,
         ntt_modulus
     );
 
     let mut buffers = ComputationBuffers::new();
 
-    let ntt = Ntt::new(ntt_modulus, nbsk.polynomial_size());
+    let ntt = Ntt64::new(ntt_modulus, nbsk.polynomial_size());
     let ntt = ntt.as_view();
 
-    let stack_size = bootstrap_scratch(glwe_dimension.to_glwe_size(), polynomial_size, ntt)
-        .unwrap()
-        .try_unaligned_bytes_required()
-        .unwrap();
+    let stack_size = programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        ntt,
+    )
+    .unwrap()
+    .try_unaligned_bytes_required()
+    .unwrap();
 
     buffers.resize(stack_size);
 
-    nbsk.as_mut_view().fill_with_forward_ntt(bsk.as_view(), ntt);
+    par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk);
 
     assert!(check_encrypted_content_respects_mod(
         &*bsk,
@@ -346,7 +347,7 @@ fn hpu_noise_distribution(
                 &blwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                DynamicDistribution::new_gaussian_from_std_dev(lwe_modular_std_dev),
                 &mut rsc.encryption_random_generator,
             );
 
@@ -430,11 +431,12 @@ fn hpu_noise_distribution(
 
                 noise_samples[2].push(torus_diff);
 
-                // Compute PBS with HW NTT
-                nbsk.as_view().bootstrap(
-                    ct.as_mut_view(),
-                    out_ks_ct.as_view(),
-                    accumulator.as_view(),
+                // Compute PBS with NTT
+                programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized(
+                    &out_ks_ct,
+                    &mut ct,
+                    &accumulator,
+                    &nbsk,
                     ntt,
                     buffers.stack(),
                 );
