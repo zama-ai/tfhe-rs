@@ -1,6 +1,7 @@
 use crate::high_level_api as hlapi;
 use crate::js_on_wasm_api::js_high_level_api::config::TfheConfig;
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, into_js_error};
+use crate::js_on_wasm_api::shortint::ShortintCompactPublicKeyEncryptionParameters;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -308,6 +309,20 @@ impl TfheCompactPublicKey {
                 .map_err(into_js_error)
         })
     }
+
+    #[wasm_bindgen]
+    pub fn safe_deserialize_conformant(
+        buffer: &[u8],
+        serialized_size_limit: u64,
+        conformance_params: &ShortintCompactPublicKeyEncryptionParameters,
+    ) -> Result<TfheCompactPublicKey, JsError> {
+        catch_panic_result(|| {
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+                .deserialize_from(buffer, &conformance_params.compact_pke_params)
+                .map(Self)
+                .map_err(into_js_error)
+        })
+    }
 }
 
 #[wasm_bindgen]
@@ -360,6 +375,20 @@ impl TfheCompressedCompactPublicKey {
             crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
+                .map(Self)
+                .map_err(into_js_error)
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn safe_deserialize_conformant(
+        buffer: &[u8],
+        serialized_size_limit: u64,
+        conformance_params: &ShortintCompactPublicKeyEncryptionParameters,
+    ) -> Result<TfheCompressedCompactPublicKey, JsError> {
+        catch_panic_result(|| {
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+                .deserialize_from(buffer, &conformance_params.compact_pke_params)
                 .map(Self)
                 .map_err(into_js_error)
         })
