@@ -49,16 +49,9 @@ __device__ inline double2 operator-(const double2 a, const double2 b) {
 }
 
 __device__ inline double2 operator*(const double2 a, const double2 b) {
-  double xx = a.x * b.x;
-  double xy = a.x * b.y;
-  double yx = a.y * b.x;
-  double yy = a.y * b.y;
-
   double2 res;
-  // asm volatile("fma.rn.f64 %0, %1, %2, %3;": "=d"(res.x) : "d"(a.x),
-  // "d"(b.x), "d"(yy));
-  res.x = xx - yy;
-  res.y = xy + yx;
+  res.x = (a.y * -b.y) + (a.x * b.x);
+  res.y = (a.x * b.y) + (a.y * b.x);
   return res;
 }
 

@@ -3,6 +3,7 @@
 
 #include "crypto/torus.cuh"
 #include "device.h"
+#include "parameters.cuh"
 
 // Return A if C == 0 and B if C == 1
 #define SEL(A, B, C) ((-(C) & ((A) ^ (B))) ^ (A))
@@ -162,35 +163,24 @@ __device__ void round_to_closest_multiple_inplace(T *rotated_acc, int base_log,
 template <typename Torus, class params>
 __device__ void add_to_torus(double2 *m_values, Torus *result,
                              bool init_torus = false) {
-  Torus mx = (sizeof(Torus) == 4) ? UINT32_MAX : UINT64_MAX;
   int tid = threadIdx.x;
 #pragma unroll
   for (int i = 0; i < params::opt / 2; i++) {
-    double v1 = m_values[tid].x;
-    double v2 = m_values[tid].y;
+    double double_real = m_values[tid].x;
+    double double_imag = m_values[tid].y;
 
-    double frac = v1 - floor(v1);
-    frac *= mx;
-    double carry = frac - floor(frac);
-    frac += (carry >= 0.5);
+    Torus torus_real = 0;
+    typecast_double_round_to_torus<Torus>(double_real, torus_real);
 
-    Torus V1 = 0;
-    typecast_double_to_torus<Torus>(frac, V1);
-
-    frac = v2 - floor(v2);
-    frac *= mx;
-    carry = frac - floor(v2);
-    frac += (carry >= 0.5);
-
-    Torus V2 = 0;
-    typecast_double_to_torus<Torus>(frac, V2);
+    Torus torus_imag = 0;
+    typecast_double_round_to_torus<Torus>(double_imag, torus_imag);
 
     if (init_torus) {
-      result[tid] = V1;
-      result[tid + params::degree / 2] = V2;
+      result[tid] = torus_real;
+      result[tid + params::degree / 2] = torus_imag;
     } else {
-      result[tid] += V1;
-      result[tid + params::degree / 2] += V2;
+      result[tid] += torus_real;
+      result[tid + params::degree / 2] += torus_imag;
     }
     tid = tid + params::degree / params::opt;
   }
