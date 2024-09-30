@@ -29,6 +29,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
     let log_message_modulus = param.message_modulus.0.ilog2() as usize;
 
     for bit_size in [
+        2,
         8,
         16,
         32,
@@ -114,6 +115,7 @@ mod cuda {
         let log_message_modulus = param.message_modulus.0.ilog2() as usize;
 
         for bit_size in [
+            2,
             8,
             16,
             32,
