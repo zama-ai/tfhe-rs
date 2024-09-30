@@ -9,6 +9,9 @@ use tfhe::core_crypto::gpu::CudaStreams;
 use tfhe::shortint::parameters::multi_bit::MultiBitPBSParameters;
 use tfhe::shortint::parameters::{CarryModulus, MessageModulus};
 use tfhe::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use tfhe::core_crypto::gpu::cuda_lwe_ciphertext_cleartext_mul_assign;
+use tfhe::core_crypto::gpu::vec::CudaVec;
+
 
 // p-fail = 2^-14.019, algorithmic cost ~ 33, 2-norm = 1
 pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M14: MultiBitPBSParameters =
@@ -1898,11 +1901,15 @@ pub fn main() {
     
     let fhe_params = PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M14;
 
-    let max_scalar_mul = fhe_params.max_noise_level.get() as u8;
+    let max_scalar_mul = fhe_params.max_noise_level.get() as u64;
+    let vec = vec![max_scalar_mul];
+    let mut d_vec: CudaVec<u64> = unsafe{CudaVec::<u64>::new_async(vec.len(), &streams, 0)};
+    unsafe{d_vec.copy_from_cpu_async(&vec, &streams, 0);}
+    streams.synchronize();
 
     let expected_fails = 100;
 
-    let num_pbs = (1 << 14) * expected_fails;
+    let num_pbs = 1;//(1 << 14) * expected_fails;
 
     let (cks, sks) = gen_keys_gpu(fhe_params, &mut streams);
     let lut = sks.generate_lookup_table(|x| x);
@@ -1921,12 +1928,14 @@ pub fn main() {
 
             // let lut = sks.generate_lookup_table(|x| x);
 
-            let ct = cks.encrypt_radix(0u32, 16);
+            let ct = cks.encrypt_radix(0u32, 1);
             let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
             let mut d_ct_out = d_ct.duplicate(&streams);
             // Get baseline noise after PBS
-            sks.unchecked_scalar_mul_assign(&mut d_ct, max_scalar_mul, &streams);
-            unsafe{sks.apply_lookup_table_async(d_ct_out.as_mut(),&d_ct.as_ref(), &lut, 0..16 , &streams);}
+            //sks.unchecked_scalar_mul_assign(&mut d_ct, max_scalar_mul, &streams);
+            cuda_lwe_ciphertext_cleartext_mul_assign(&mut d_ct.as_mut().d_blocks, &d_vec, &streams);
+            
+            unsafe{sks.apply_lookup_table_async(d_ct_out.as_mut(),&d_ct.as_ref(), &lut, 0..1 , &streams);}
             streams.synchronize();
 
             // // PBS with baseline noise as input
