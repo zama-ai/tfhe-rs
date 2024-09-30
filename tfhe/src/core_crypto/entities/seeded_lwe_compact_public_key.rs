@@ -2,6 +2,7 @@
 
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::decompress_seeded_lwe_compact_public_key;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_compact_public_key::SeededLweCompactPublicKeyVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
@@ -118,7 +119,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
         Self {
             seeded_glwe_ciphertext: SeededGlweCiphertext::from_container(
                 container,
-                GlweSize(1),
+                GlweDimension(1).to_glwe_size(),
                 compression_seed,
                 ciphertext_modulus,
             ),
@@ -227,5 +228,30 @@ impl<Scalar: UnsignedInteger> SeededLweCompactPublicKeyOwned<Scalar> {
             compression_seed,
             ciphertext_modulus,
         )
+    }
+}
+
+impl<C: Container> ParameterSetConformant for SeededLweCompactPublicKey<C>
+where
+    C::Element: UnsignedInteger,
+{
+    type ParameterSet = LweCompactPublicKeyEncryptionParameters<C::Element>;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            seeded_glwe_ciphertext,
+        } = self;
+
+        if !parameter_set.encryption_lwe_dimension.0.is_power_of_two() {
+            return false;
+        }
+
+        let glwe_ciphertext_conformance_parameters = GlweCiphertextConformanceParameters {
+            glwe_dim: GlweDimension(1),
+            polynomial_size: PolynomialSize(parameter_set.encryption_lwe_dimension.0),
+            ct_modulus: parameter_set.ciphertext_modulus,
+        };
+
+        seeded_glwe_ciphertext.is_conformant(&glwe_ciphertext_conformance_parameters)
     }
 }
