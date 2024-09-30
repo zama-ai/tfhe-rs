@@ -3,14 +3,16 @@
 //! A testcase simlpy bind a IOp to a closure describing it's behavior
 
 // WARN: Only one Hpu could be use at a time, thus all test must be run sequentially
+// #[cfg(feature = "hpu-xfer")]
+// mod hpu_test {
+
 pub use serial_test::serial;
 use std::str::FromStr;
 
-
+pub use hpu_asm::{strum::IntoEnumIterator, Asm, IOp, IOpName};
 pub use tfhe::prelude::*;
 pub use tfhe::*;
 pub use tfhe_hpu_backend::prelude::*;
-pub use hpu_asm::{strum::IntoEnumIterator, Asm, IOp, IOpName};
 
 pub use rand::Rng;
 
@@ -168,3 +170,4 @@ hpu_testcase!("CMP_EQ" => [(FheUint8, u8),(FheUint16, u16), (FheUint32, u32), (F
     |a, b| (a == b));
 hpu_testcase!("CMP_NEQ" => [(FheUint8, u8),(FheUint16, u16), (FheUint32, u32), (FheUint64, u64)]
     |a, b| (a != b));
+// }

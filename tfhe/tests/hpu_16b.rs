@@ -1,6 +1,9 @@
+#[cfg(feature = "hpu-xfer")]
 mod hpu_macro;
+#[cfg(feature = "hpu-xfer")]
 use hpu_macro::*;
 
+// #[cfg(feature = "hpu-xfer")]
 // NB: Currently Scalar operation arn't correctly supported due to offline code generation
 // TODO Fixme
 // crate::hpu_testbundle!("alus"::16 => [
@@ -10,18 +13,21 @@ use hpu_macro::*;
 //     "muls"
 // ]);
 
+#[cfg(feature = "hpu-xfer")]
 crate::hpu_testbundle!("alu"::16 => [
     "add",
     "sub",
     "mul"
 ]);
 
+#[cfg(feature = "hpu-xfer")]
 crate::hpu_testbundle!("bitwise"::16 => [
     "bw_and",
     "bw_or",
     "bw_xor"
 ]);
 
+#[cfg(feature = "hpu-xfer")]
 crate::hpu_testbundle!("cmp"::16 => [
     "cmp_gt",
     "cmp_gte",
