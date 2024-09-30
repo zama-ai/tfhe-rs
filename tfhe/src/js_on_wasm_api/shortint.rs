@@ -275,49 +275,6 @@ impl ShortintCompactPublicKeyEncryptionParameters {
     }
 }
 
-#[wasm_bindgen]
-pub struct ShortintCompactPublicKeyConformanceParameters {
-    pub(crate) compact_pke_params:
-        crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters,
-}
-
-#[wasm_bindgen]
-impl ShortintCompactPublicKeyConformanceParameters {
-    #[wasm_bindgen]
-    pub fn new(params: &ShortintCompactPublicKeyEncryptionParameters) -> Self {
-        Self {
-            compact_pke_params: params.compact_pke_params,
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn new_parameters(
-        encryption_lwe_dimension: usize,
-        encryption_noise_distribution: &ShortintNoiseDistribution,
-        message_modulus: usize,
-        carry_modulus: usize,
-        modulus_power_of_2_exponent: usize,
-    ) -> Result<ShortintCompactPublicKeyConformanceParameters, JsError> {
-        let ciphertext_modulus =
-            crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
-                modulus_power_of_2_exponent,
-            )
-            .map_err(into_js_error)?;
-
-        crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters::try_new(
-            LweDimension(encryption_lwe_dimension),
-            encryption_noise_distribution.0,
-            MessageModulus(message_modulus),
-            CarryModulus(carry_modulus),
-            ciphertext_modulus,
-            // If we are checking the conformance of the public key, it means
-            // we are using dedicated params for the public key, thus, casting is required
-            crate::shortint::parameters::CompactCiphertextListExpansionKind::RequiresCasting
-        ).map_err(into_js_error)
-            .map(|compact_pke_params| Self { compact_pke_params })
-    }
-}
-
 macro_rules! expose_predefined_parameters {
     (
         $(
