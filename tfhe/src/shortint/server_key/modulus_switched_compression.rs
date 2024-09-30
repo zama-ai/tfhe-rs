@@ -39,7 +39,7 @@ impl ServerKey {
                 }
 
                 match &self.bootstrapping_key {
-                    ShortintBootstrappingKey::Classic(_) 
+                    ShortintBootstrappingKey::Classic(_)
                     | ShortintBootstrappingKey::ClassicNtt(_) => {
                         InternalCompressedModulusSwitchedCiphertext::Classic(
                             CompressedModulusSwitchedLweCiphertext::compress(
@@ -133,8 +133,7 @@ impl ServerKey {
             let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
 
             match &self.bootstrapping_key {
-                ShortintBootstrappingKey::Classic(_)
-                | ShortintBootstrappingKey::ClassicNtt(_) => {
+                ShortintBootstrappingKey::Classic(_) | ShortintBootstrappingKey::ClassicNtt(_) => {
                     let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {
                         InternalCompressedModulusSwitchedCiphertext::Classic(a) => a.extract(),
                         InternalCompressedModulusSwitchedCiphertext::MultiBit(_) => {

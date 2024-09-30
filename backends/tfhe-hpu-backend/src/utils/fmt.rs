@@ -4,10 +4,6 @@
 
 use asm::strum::IntoEnumIterator;
 
-
-
-
-
 /// Define CLI arguments
 use clap::Parser;
 #[derive(clap::Parser, Debug, Clone)]

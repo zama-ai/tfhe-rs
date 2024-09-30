@@ -67,11 +67,11 @@ pub struct HpuNttParameters {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HpuNttCoreArch {
-    WmmCompact ,
-    WmmPipeline ,
-    WmmUnfold ,
-    WmmCompactPcg ,
-    WmmUnfoldPcg ,
+    WmmCompact,
+    WmmPipeline,
+    WmmUnfold,
+    WmmCompactPcg,
+    WmmUnfoldPcg,
     GF64(Vec<u8>),
 }
 

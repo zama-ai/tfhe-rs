@@ -1,12 +1,12 @@
 use core_crypto::entities::LweCiphertextOwned;
+use core_crypto::hpu::from_with::{FromWith, IntoWith};
+pub use hpu_asm::{strum::IntoEnumIterator, Asm};
 use integer::hpu::ciphertext::HpuRadixCiphertext;
 use shortint::parameters::{Degree, NoiseLevel};
 use shortint::{Ciphertext, ClassicPBSParameters};
 pub use tfhe::prelude::*;
 pub use tfhe::*;
 pub use tfhe_hpu_backend::prelude::*;
-use core_crypto::hpu::from_with::{FromWith, IntoWith};
-pub use hpu_asm::{strum::IntoEnumIterator, Asm};
 
 pub use rand::rngs::StdRng;
 pub use rand::{Rng, SeedableRng};
@@ -26,7 +26,11 @@ pub use clap_num::maybe_hex;
 pub struct Args {
     // Fpga configuration ------------------------------------------------------
     /// Toml top-level configuration file
-    #[clap(long, value_parser, default_value = "backends/tfhe-hpu-backend/config/hpu_config.toml")]
+    #[clap(
+        long,
+        value_parser,
+        default_value = "backends/tfhe-hpu-backend/config/hpu_config.toml"
+    )]
     pub config: String,
 
     // Exec configuration ----------------------------------------------------
@@ -50,7 +54,7 @@ pub struct Args {
     pub seed: Option<u128>,
 
     // Debug option ----------------------------------------------------------
-    #[cfg(feature="hpu-debug")]
+    #[cfg(feature = "hpu-debug")]
     /// Hpu io dump path
     #[clap(long, value_parser)]
     pub io_dump: Option<String>,
@@ -70,7 +74,6 @@ pub struct Report {
 }
 
 fn main() {
-
     let args = Args::parse();
     println!("User Options: {args:?}");
 
@@ -95,13 +98,12 @@ fn main() {
     };
 
     // Hpu io dump for debug  -------------------------------------------------
-    #[cfg(feature="seeder-manual")]
+    #[cfg(feature = "seeder-manual")]
     // Register seed inside tfhe-rs.
     tfhe::core_crypto::seeders::seeder_manual::set_manual_seed(args.seed);
 
-    #[cfg(feature="hpu-debug")]
-    if let Some(dump_path) = args.io_dump.as_ref()
-    {
+    #[cfg(feature = "hpu-debug")]
+    if let Some(dump_path) = args.io_dump.as_ref() {
         set_hpu_io_dump(dump_path);
     }
 
@@ -115,7 +117,10 @@ fn main() {
     // Extract pbs_configuration from Hpu and generate top-level config
     let mut pbs_params = tfhe::shortint::ClassicPBSParameters::from(hpu_device.params());
     // Modify parameters to force NTT-based PBS
-    pbs_params.encryption_key_choice = shortint::EncryptionKeyChoice::BigNtt(tfhe::shortint::CiphertextModulus::new(hpu_device.params().ntt_params.prime_modulus as u128));
+    pbs_params.encryption_key_choice =
+        shortint::EncryptionKeyChoice::BigNtt(tfhe::shortint::CiphertextModulus::new(
+            hpu_device.params().ntt_params.prime_modulus as u128,
+        ));
     // Generate shortint keys
     let (cks, sks) = tfhe::shortint::gen_keys(pbs_params);
 
@@ -163,7 +168,7 @@ fn main() {
         let b_hpu = {
             let hpu_ct = HpuLweCiphertextOwned::from_with(b_fhe.ct.as_view(), hpu_device.params());
             HpuRadixCiphertext::new(hpu_device.new_var_from(vec![hpu_ct]))
-            };
+        };
 
         println!("Start execution trace for IOp {iop} ...");
         let roi_start = Instant::now();
@@ -173,7 +178,7 @@ fn main() {
         } else {
             a_hpu.into_var().iop_ct(iop, b_hpu.into_var())
         };
-        
+
         let res_fhe = {
             let pbs_p = ClassicPBSParameters::from(hpu_device.params());
             let hpu_ct = res_hpu.into_ct();
@@ -193,12 +198,8 @@ fn main() {
         let op_duration = roi_duration;
         let res: u8 = cks.decrypt(&res_fhe) as u8;
         println!("Performance: {iop} -> {op_duration:?} [{roi_duration:?}]");
-        println!(
-            "Behavior         : {res} <- {a} [{iop} {b}]",
-        );
-        println!(
-            "Behavior (in hex): {res:x} <- {a:x} [{iop} {b:x}]",
-        );
+        println!("Behavior         : {res} <- {a} [{iop} {b}]",);
+        println!("Behavior (in hex): {res:x} <- {a:x} [{iop} {b:x}]",);
         perf_report.insert(iop.to_string(), op_duration);
     }
 

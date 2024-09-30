@@ -60,14 +60,14 @@ impl MultiBitPBSParameters {
 
     pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
         let (pbs_order, expected_dim) = match self.encryption_key_choice {
-            EncryptionKeyChoice::Big 
-            | EncryptionKeyChoice::BigNtt(_) => (
+            EncryptionKeyChoice::Big | EncryptionKeyChoice::BigNtt(_) => (
                 PBSOrder::KeyswitchBootstrap,
                 self.glwe_dimension
                     .to_equivalent_lwe_dimension(self.polynomial_size),
             ),
-            EncryptionKeyChoice::Small
-            | EncryptionKeyChoice::SmallNtt(_) => (PBSOrder::BootstrapKeyswitch, self.lwe_dimension),
+            EncryptionKeyChoice::Small | EncryptionKeyChoice::SmallNtt(_) => {
+                (PBSOrder::BootstrapKeyswitch, self.lwe_dimension)
+            }
         };
 
         let message_modulus = self.message_modulus;

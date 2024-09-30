@@ -81,13 +81,11 @@ impl ClientKey {
         &self,
     ) -> (LweSecretKeyView<'_, u64>, DynamicDistribution<u64>) {
         match self.parameters.encryption_key_choice() {
-            EncryptionKeyChoice::Big
-            | EncryptionKeyChoice::BigNtt(_) => (
+            EncryptionKeyChoice::Big | EncryptionKeyChoice::BigNtt(_) => (
                 self.glwe_secret_key.as_lwe_secret_key(),
                 self.parameters.glwe_noise_distribution(),
             ),
-            EncryptionKeyChoice::Small
-            | EncryptionKeyChoice::SmallNtt(_) => (
+            EncryptionKeyChoice::Small | EncryptionKeyChoice::SmallNtt(_) => (
                 self.lwe_secret_key.as_view(),
                 self.parameters.lwe_noise_distribution(),
             ),
@@ -419,7 +417,6 @@ impl ClientKey {
 
         ((decrypted_u64.wrapping_add(rounding)) / delta)
             % (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64
-
     }
 
     /// Decrypt a ciphertext encrypting a message using the client key.

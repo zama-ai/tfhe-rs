@@ -60,7 +60,7 @@ where
                         // -> Iterate over rectangles lby*lbz
                         for inner_y in 0..ks_p.lby {
                             let raw_y = outer_y + inner_y;
-                            let abs_y = if raw_y < (glwe_k*glwe_n) {
+                            let abs_y = if raw_y < (glwe_k * glwe_n) {
                                 // Hw-order expect y-dim to be in bitreverse
                                 // Compute it inflight
                                 // NB: raw_y represent the index over Y in [0; glwe_k*glwe_n] and

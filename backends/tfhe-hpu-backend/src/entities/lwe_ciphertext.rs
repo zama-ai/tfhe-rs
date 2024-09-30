@@ -173,6 +173,9 @@ impl<Scalar: std::clone::Clone> HpuLweCiphertextOwned<Scalar> {
     ///
     /// See [`HpuLweCiphertext::from_container`] for usage.
     pub fn new(fill_with: Scalar, params: HpuParameters) -> Self {
-        Self::from_container(vec![fill_with; hpu_big_lwe_ciphertext_size(&params)], params)
+        Self::from_container(
+            vec![fill_with; hpu_big_lwe_ciphertext_size(&params)],
+            params,
+        )
     }
 }

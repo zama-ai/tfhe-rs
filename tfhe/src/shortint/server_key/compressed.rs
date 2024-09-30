@@ -271,7 +271,7 @@ impl CompressedServerKey {
         let max_noise_level = *max_noise_level;
         let ciphertext_modulus = *ciphertext_modulus;
         let pbs_order = *pbs_order;
-        let pbs_mode= *pbs_mode;
+        let pbs_mode = *pbs_mode;
 
         ServerKey {
             key_switching_key,
@@ -298,7 +298,7 @@ impl CompressedServerKey {
         MaxNoiseLevel,
         CiphertextModulus,
         PBSOrder,
-        PBSMode
+        PBSMode,
     ) {
         let Self {
             key_switching_key,

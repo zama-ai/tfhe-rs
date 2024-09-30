@@ -42,7 +42,6 @@ impl HpuRadixCiphertext {
 
     /// Create a Cpu radix ciphertext copy from a Hpu one.
     pub fn to_radix_ciphertext(&self) -> RadixCiphertext {
-
         // NB: We clone the inner part of HpuRadixCiphertext but it is not costly since
         // it's wrapped inside an Arc
         let hpu_ct = self.0.clone().into_ct();

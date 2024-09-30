@@ -3,16 +3,16 @@ use crate::core_crypto::algorithms::misc::check_clear_content_respects_mod;
 use crate::core_crypto::commons::test_tools::{
     modular_distance, modular_distance_custom_mod, torus_modular_diff, variance,
 };
-use std::io;
 use csv::Writer;
+use std::io;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
-const NB_TESTS     : usize = 1000;
-const NB_HPU_TESTS : usize = 4;
-const NB_PBS       : usize = 10;
+const NB_TESTS: usize = 1000;
+const NB_HPU_TESTS: usize = 4;
+const NB_PBS: usize = 10;
 
 fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + CastInto<usize>>(
     params: ClassicTestParams<Scalar>,
@@ -182,22 +182,18 @@ pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64: HpuTestParams = HpuTestParams {
 };
 
 pub fn get_modulo_value<T: UnsignedInteger>(modulus: &CiphertextModulus<T>) -> u128 {
-    let mod_val : u128 = match modulus.is_native_modulus() {
+    let mod_val: u128 = match modulus.is_native_modulus() {
         true => {
             let converted: CiphertextModulus<u128> = modulus.try_to().unwrap();
             u128::cast_from(converted.get_custom_modulus())
-        },
-        false => {
-            u128::cast_from(modulus.get_custom_modulus())
         }
+        false => u128::cast_from(modulus.get_custom_modulus()),
     };
     mod_val
 }
 
 //fn lwe_noise_distribution_hpu<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64>>(
-fn hpu_noise_distribution(
-    params: HpuTestParams
-) {
+fn hpu_noise_distribution(params: HpuTestParams) {
     let lwe_dimension = params.lwe_dimension;
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
@@ -219,7 +215,7 @@ fn hpu_noise_distribution(
     let mut rsc = TestResources::new();
 
     let msg_modulus = 1 << message_modulus_log.0;
-    let mut msg : u64 = msg_modulus;
+    let mut msg: u64 = msg_modulus;
     let delta: u64 = encoding_with_padding / msg_modulus;
     let ks_delta: u64 = ksk_encoding_with_padding / msg_modulus;
     let norm2 = params.norm2;
@@ -299,7 +295,7 @@ fn hpu_noise_distribution(
         bsk.polynomial_size(),
         bsk.decomposition_base_log(),
         bsk.decomposition_level_count(),
-        ntt_modulus
+        ntt_modulus,
     );
 
     let mut buffers = ComputationBuffers::new();
@@ -330,16 +326,10 @@ fn hpu_noise_distribution(
     while msg != 0 {
         msg = msg.wrapping_sub(1);
         for i in 0..NB_HPU_TESTS {
-            let mut ct = LweCiphertext::new(
-                0,
-                blwe_sk.lwe_dimension().to_lwe_size(),
-                ciphertext_modulus,
-            );
-            let mut out_ks_ct = LweCiphertext::new(
-                0,
-                ksk_big_to_small.output_lwe_size(),
-                ksk_modulus,
-            );
+            let mut ct =
+                LweCiphertext::new(0, blwe_sk.lwe_dimension().to_lwe_size(), ciphertext_modulus);
+            let mut out_ks_ct =
+                LweCiphertext::new(0, ksk_big_to_small.output_lwe_size(), ksk_modulus);
 
             let plaintext = Plaintext(msg * delta);
 
@@ -363,9 +353,11 @@ fn hpu_noise_distribution(
             assert_eq!(msg, decoded);
 
             let torus_diff = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
-            println!("after decryption: plaintext {:?} decrypted {:?} torus_diff {:?}", plaintext.0, decrypted.0, torus_diff);
+            println!(
+                "after decryption: plaintext {:?} decrypted {:?} torus_diff {:?}",
+                plaintext.0, decrypted.0, torus_diff
+            );
             noise_samples[0].push(torus_diff);
-
 
             for j in 0..NB_PBS {
                 // b = b - (Delta * msg) to have an encryption of 0
@@ -389,7 +381,10 @@ fn hpu_noise_distribution(
                 let decode_prodnorm2 = round_decode(decrypted_prodnorm2.0, delta) % msg_modulus;
 
                 let torus_diff = torus_modular_diff(0, decrypted_prodnorm2.0, ciphertext_modulus);
-                println!("after by norm2: plaintext {:?} bynorm2 {:?} torus_diff {:?}", 0, decrypted_prodnorm2.0, torus_diff);
+                println!(
+                    "after by norm2: plaintext {:?} bynorm2 {:?} torus_diff {:?}",
+                    0, decrypted_prodnorm2.0, torus_diff
+                );
                 assert_eq!(0, decode_prodnorm2);
                 noise_samples[1].push(torus_diff);
                 // b = b + (Delta * msg) to have a noisy encryption of msg
@@ -417,16 +412,31 @@ fn hpu_noise_distribution(
                 assert_eq!(msg, decode_after_ks);
 
                 // do modulo switch on plaintext post KS only if necessary
-                let cm_f =  get_modulo_value(&ciphertext_modulus);
+                let cm_f = get_modulo_value(&ciphertext_modulus);
                 let ksm_f = get_modulo_value(&ksk_modulus);
-                let torus_diff : f64;
+                let torus_diff: f64;
                 if cm_f == ksm_f {
-                    torus_diff = torus_modular_diff(plaintext.0, decrypted_after_ks.0, ciphertext_modulus);
-                    println!("after ks {} / {} vs {}", torus_diff, plaintext.0, decrypted_after_ks.0);
+                    torus_diff =
+                        torus_modular_diff(plaintext.0, decrypted_after_ks.0, ciphertext_modulus);
+                    println!(
+                        "after ks {} / {} vs {}",
+                        torus_diff, plaintext.0, decrypted_after_ks.0
+                    );
                 } else {
-                    let decrypted_after_ks_modswitched = decrypted_after_ks.0 * ((cm_f/ksm_f) as u64);
-                    torus_diff = torus_modular_diff(plaintext.0, decrypted_after_ks_modswitched, ciphertext_modulus);
-                    println!("after ks {} / {} vs {}*CT_MOD/KS_MOD={}", torus_diff, plaintext.0, decrypted_after_ks.0, decrypted_after_ks_modswitched);
+                    let decrypted_after_ks_modswitched =
+                        decrypted_after_ks.0 * ((cm_f / ksm_f) as u64);
+                    torus_diff = torus_modular_diff(
+                        plaintext.0,
+                        decrypted_after_ks_modswitched,
+                        ciphertext_modulus,
+                    );
+                    println!(
+                        "after ks {} / {} vs {}*CT_MOD/KS_MOD={}",
+                        torus_diff,
+                        plaintext.0,
+                        decrypted_after_ks.0,
+                        decrypted_after_ks_modswitched
+                    );
                 }
 
                 noise_samples[2].push(torus_diff);
@@ -451,7 +461,8 @@ fn hpu_noise_distribution(
                 let decoded_pbs = round_decode(decrypted_pbs.0, delta) % msg_modulus;
 
                 assert_eq!(decoded_pbs, f(msg));
-                let torus_diff = torus_modular_diff(plaintext.0, decrypted_pbs.0, ciphertext_modulus);
+                let torus_diff =
+                    torus_modular_diff(plaintext.0, decrypted_pbs.0, ciphertext_modulus);
                 println!("after pbs (msg={msg},test_nb={i}/{NB_HPU_TESTS},pbs_nb={j}/{NB_PBS}): plaintext {:?} post pbs {:?} torus_diff {:?}", plaintext.0, decrypted_pbs.0, torus_diff);
                 noise_samples[3].push(torus_diff);
             }
@@ -462,34 +473,78 @@ fn hpu_noise_distribution(
     let bynorm2_variance = variance(&noise_samples[1]);
     let after_ks_variance = variance(&noise_samples[2]);
     let after_pbs_variance = variance(&noise_samples[3]);
-    println!("exp var {:?} encryp var {:?} bynorm2 var {} after_ks_variance {} after_pbs_variance {:?}", expected_variance.0, encryption_variance.0, bynorm2_variance.0, after_ks_variance.0, after_pbs_variance.0);
+    println!(
+        "exp var {:?} encryp var {:?} bynorm2 var {} after_ks_variance {} after_pbs_variance {:?}",
+        expected_variance.0,
+        encryption_variance.0,
+        bynorm2_variance.0,
+        after_ks_variance.0,
+        after_pbs_variance.0
+    );
 
     let mut wtr = csv::Writer::from_writer(io::stdout());
-    let _ = wtr.write_record(&["data type", "encrypt exp", "encrypt", "post *norm2", "post KS", "post KS Delta", "post PBS", "post PBS Delta"]);
-    let _ = wtr.write_record(&["variances",
+    let _ = wtr.write_record(&[
+        "data type",
+        "encrypt exp",
+        "encrypt",
+        "post *norm2",
+        "post KS",
+        "post KS Delta",
+        "post PBS",
+        "post PBS Delta",
+    ]);
+    let _ = wtr.write_record(&[
+        "variances",
         expected_variance.0.to_string().as_str(),
         encryption_variance.0.to_string().as_str(),
         bynorm2_variance.0.to_string().as_str(),
         after_ks_variance.0.to_string().as_str(),
-        (after_ks_variance.0-bynorm2_variance.0).to_string().as_str(),
+        (after_ks_variance.0 - bynorm2_variance.0)
+            .to_string()
+            .as_str(),
         after_pbs_variance.0.to_string().as_str(),
-        (bynorm2_variance.0-after_pbs_variance.0).to_string().as_str()]);
-    let _ = wtr.write_record(&["std_dev",
+        (bynorm2_variance.0 - after_pbs_variance.0)
+            .to_string()
+            .as_str(),
+    ]);
+    let _ = wtr.write_record(&[
+        "std_dev",
         expected_variance.get_standard_dev().to_string().as_str(),
         encryption_variance.get_standard_dev().to_string().as_str(),
         bynorm2_variance.get_standard_dev().to_string().as_str(),
         after_ks_variance.get_standard_dev().to_string().as_str(),
-        (after_ks_variance.get_standard_dev()-bynorm2_variance.get_standard_dev()).to_string().as_str(),
+        (after_ks_variance.get_standard_dev() - bynorm2_variance.get_standard_dev())
+            .to_string()
+            .as_str(),
         after_pbs_variance.get_standard_dev().to_string().as_str(),
-        (bynorm2_variance.get_standard_dev()-after_pbs_variance.get_standard_dev()).to_string().as_str()]);
-    let _ = wtr.write_record(&["log2 std_dev + ct_w",
-        (expected_variance.get_log_standard_dev() + params.ct_width as f64).to_string().as_str(),
-        (encryption_variance.get_log_standard_dev() + params.ct_width as f64).to_string().as_str(),
-        (bynorm2_variance.get_log_standard_dev() + params.ct_width as f64).to_string().as_str(),
-        (after_ks_variance.get_log_standard_dev() + params.ct_width as f64).to_string().as_str(),
-        (after_ks_variance.get_log_standard_dev()-bynorm2_variance.get_log_standard_dev()).to_string().as_str(),
-        (after_pbs_variance.get_log_standard_dev() + params.ct_width as f64).to_string().as_str(),
-        (bynorm2_variance.get_log_standard_dev()-after_pbs_variance.get_log_standard_dev()).to_string().as_str()]);
+        (bynorm2_variance.get_standard_dev() - after_pbs_variance.get_standard_dev())
+            .to_string()
+            .as_str(),
+    ]);
+    let _ = wtr.write_record(&[
+        "log2 std_dev + ct_w",
+        (expected_variance.get_log_standard_dev() + params.ct_width as f64)
+            .to_string()
+            .as_str(),
+        (encryption_variance.get_log_standard_dev() + params.ct_width as f64)
+            .to_string()
+            .as_str(),
+        (bynorm2_variance.get_log_standard_dev() + params.ct_width as f64)
+            .to_string()
+            .as_str(),
+        (after_ks_variance.get_log_standard_dev() + params.ct_width as f64)
+            .to_string()
+            .as_str(),
+        (after_ks_variance.get_log_standard_dev() - bynorm2_variance.get_log_standard_dev())
+            .to_string()
+            .as_str(),
+        (after_pbs_variance.get_log_standard_dev() + params.ct_width as f64)
+            .to_string()
+            .as_str(),
+        (bynorm2_variance.get_log_standard_dev() - after_pbs_variance.get_log_standard_dev())
+            .to_string()
+            .as_str(),
+    ]);
 
     // does not compare to expected encryption variance as it needs lots of sample to be valid
     // and has already been done in many other TFHErs tests

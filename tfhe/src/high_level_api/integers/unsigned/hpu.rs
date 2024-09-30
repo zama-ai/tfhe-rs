@@ -1,13 +1,13 @@
 //! Define explicit HPU FheUint type
 //! Purpose of this type is to use HPU computation power while keeping
 //! a global CPU key register in the HighLevelApi
-//! 
-//! By this way, user can easily and explicitly mixed computation between 
+//!
+//! By this way, user can easily and explicitly mixed computation between
 //! Cpu and Hpu.
 
-use tfhe_hpu_backend::prelude::*;
-use crate::{high_level_api::traits::HwXfer, integer::hpu::ciphertext::HpuRadixCiphertext, Tag};
 use super::*;
+use crate::{high_level_api::traits::HwXfer, integer::hpu::ciphertext::HpuRadixCiphertext, Tag};
+use tfhe_hpu_backend::prelude::*;
 
 /// An explicit Hpu FHE unsigned integer
 ///
@@ -25,21 +25,24 @@ pub struct HpuFheUint<Id: FheUintId> {
     pub(crate) tag: Tag,
 }
 
-impl<Id: FheUintId> HwXfer<HpuDevice>
-    for FheUint<Id> {
-        type Output = HpuFheUint<Id>;
+impl<Id: FheUintId> HwXfer<HpuDevice> for FheUint<Id> {
+    type Output = HpuFheUint<Id>;
 
-        fn clone_on(&self, device: &HpuDevice) -> Self::Output {
-            let hpu_ct = match &self.ciphertext {
-                inner::RadixCiphertext::Cpu(cpu_ct) => HpuRadixCiphertext::from_radix_ciphertext(cpu_ct, device),
-                _ => panic!("Only native movement are supported")
-            };
-            Self::Output{ ciphertext: hpu_ct, id: self.id, tag: self.tag.clone()}
-
+    fn clone_on(&self, device: &HpuDevice) -> Self::Output {
+        let hpu_ct = match &self.ciphertext {
+            inner::RadixCiphertext::Cpu(cpu_ct) => {
+                HpuRadixCiphertext::from_radix_ciphertext(cpu_ct, device)
+            }
+            _ => panic!("Only native movement are supported"),
+        };
+        Self::Output {
+            ciphertext: hpu_ct,
+            id: self.id,
+            tag: self.tag.clone(),
+        }
     }
 
-
-        fn mv_on(self, device: &HpuDevice) -> Self::Output {
+    fn mv_on(self, device: &HpuDevice) -> Self::Output {
         // Xfer with Hpu is always copy.
         // Thus rely on copy implementation but from rust PoV FheUint is consumed
         Self::clone_on(&self, device)
@@ -48,13 +51,17 @@ impl<Id: FheUintId> HwXfer<HpuDevice>
 
 impl<Id: FheUintId> From<HpuFheUint<Id>> for FheUint<Id> {
     fn from(value: HpuFheUint<Id>) -> Self {
-        let HpuFheUint{
+        let HpuFheUint {
             ciphertext,
             id,
-            tag } = value;
+            tag,
+        } = value;
         let cpu_ct = ciphertext.to_radix_ciphertext();
-        Self { ciphertext: inner::RadixCiphertext::Cpu(cpu_ct), id, tag}
-            
+        Self {
+            ciphertext: inner::RadixCiphertext::Cpu(cpu_ct),
+            id,
+            tag,
+        }
     }
 }
 
@@ -103,12 +110,17 @@ export_std_ops!("BitXor");
 // For bench purpose also expose iop_ct/iop_imm function
 impl<Id: FheUintId> HpuFheUint<Id> {
     pub fn iop_ct(self, name: hpu_asm::IOpName, rhs: Self) -> Self {
-        let Self{
+        let Self {
             ciphertext,
             id,
-            tag } = self;
+            tag,
+        } = self;
         let inner_dst_var = ciphertext.0.iop_ct(name, rhs.ciphertext.0);
-        Self{ciphertext: HpuRadixCiphertext(inner_dst_var), id, tag}
+        Self {
+            ciphertext: HpuRadixCiphertext(inner_dst_var),
+            id,
+            tag,
+        }
     }
 
     pub fn iop_ct_assign(&mut self, name: hpu_asm::IOpName, rhs: Self) {
@@ -116,12 +128,17 @@ impl<Id: FheUintId> HpuFheUint<Id> {
     }
 
     pub fn iop_imm(self, name: hpu_asm::IOpName, rhs: usize) -> Self {
-        let Self{
+        let Self {
             ciphertext,
             id,
-            tag } = self;
+            tag,
+        } = self;
         let inner_dst_var = ciphertext.0.iop_imm(name, rhs);
-        Self{ciphertext: HpuRadixCiphertext(inner_dst_var), id, tag}
+        Self {
+            ciphertext: HpuRadixCiphertext(inner_dst_var),
+            id,
+            tag,
+        }
     }
 
     pub fn iop_imm_assign(&mut self, name: hpu_asm::IOpName, rhs: usize) {

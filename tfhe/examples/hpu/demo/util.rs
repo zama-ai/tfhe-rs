@@ -1,4 +1,3 @@
-
 use std::time::Instant;
 
 pub struct Time {
@@ -41,4 +40,3 @@ impl std::fmt::Display for Time {
         )
     }
 }
-

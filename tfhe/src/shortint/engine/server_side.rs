@@ -11,7 +11,7 @@ use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{
-    CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey, PBSMode,
+    CiphertextModulus, ClientKey, CompressedServerKey, PBSMode, PBSParameters, ServerKey,
 };
 
 impl ShortintEngine {
@@ -105,33 +105,30 @@ impl ShortintEngine {
         out_key: &GlweSecretKey<OutKeyCont>,
     ) -> ShortintBootstrappingKey {
         match pbs_params_base {
-            PBSParameters::PBS(pbs_params) => {
-                match pbs_params.encryption_key_choice {
-                    EncryptionKeyChoice::Big
-                    | EncryptionKeyChoice::Small => {
-                        ShortintBootstrappingKey::Classic(self.new_classic_bootstrapping_key(
-                            in_key,
-                            out_key,
-                            pbs_params.glwe_noise_distribution,
-                            pbs_params.pbs_base_log,
-                            pbs_params.pbs_level,
-                            pbs_params.ciphertext_modulus,
-                        ))
-                    },
-                    EncryptionKeyChoice::BigNtt(ntt_modulus)
-                    | EncryptionKeyChoice::SmallNtt(ntt_modulus) => {
-                        ShortintBootstrappingKey::ClassicNtt(self.new_classic_ntt_bootstrapping_key(
-                            in_key,
-                            out_key,
-                            pbs_params.glwe_noise_distribution,
-                            pbs_params.pbs_base_log,
-                            pbs_params.pbs_level,
-                            pbs_params.ciphertext_modulus,
-                            ntt_modulus,
-                        ))
-                    },
+            PBSParameters::PBS(pbs_params) => match pbs_params.encryption_key_choice {
+                EncryptionKeyChoice::Big | EncryptionKeyChoice::Small => {
+                    ShortintBootstrappingKey::Classic(self.new_classic_bootstrapping_key(
+                        in_key,
+                        out_key,
+                        pbs_params.glwe_noise_distribution,
+                        pbs_params.pbs_base_log,
+                        pbs_params.pbs_level,
+                        pbs_params.ciphertext_modulus,
+                    ))
                 }
-            }
+                EncryptionKeyChoice::BigNtt(ntt_modulus)
+                | EncryptionKeyChoice::SmallNtt(ntt_modulus) => {
+                    ShortintBootstrappingKey::ClassicNtt(self.new_classic_ntt_bootstrapping_key(
+                        in_key,
+                        out_key,
+                        pbs_params.glwe_noise_distribution,
+                        pbs_params.pbs_base_log,
+                        pbs_params.pbs_level,
+                        pbs_params.ciphertext_modulus,
+                        ntt_modulus,
+                    ))
+                }
+            },
             PBSParameters::MultiBitPBS(pbs_params) => {
                 let fourier_bsk = self.new_multibit_bootstrapping_key(
                     in_key,
@@ -222,7 +219,8 @@ impl ShortintEngine {
             );
 
         // Creation of the bootstrapping key in the Ntt domain
-        let mut ntt_bsk = NttLweBootstrapKeyOwned::<u64>::new(0_u64,
+        let mut ntt_bsk = NttLweBootstrapKeyOwned::<u64>::new(
+            0_u64,
             bootstrap_key.input_lwe_dimension(),
             bootstrap_key.glwe_size(),
             bootstrap_key.polynomial_size(),
@@ -287,13 +285,11 @@ impl ShortintEngine {
         params: ShortintKeySwitchingParameters,
     ) -> LweKeyswitchKeyOwned<u64> {
         let (output_secret_key, encryption_noise) = match params.destination_key {
-            EncryptionKeyChoice::Big
-            | EncryptionKeyChoice::BigNtt(_) => (
+            EncryptionKeyChoice::Big | EncryptionKeyChoice::BigNtt(_) => (
                 output_client_key.large_lwe_secret_key(),
                 output_client_key.parameters.glwe_noise_distribution(),
             ),
-            EncryptionKeyChoice::Small
-            | EncryptionKeyChoice::SmallNtt(_) => (
+            EncryptionKeyChoice::Small | EncryptionKeyChoice::SmallNtt(_) => (
                 output_client_key.small_lwe_secret_key(),
                 output_client_key.parameters.lwe_noise_distribution(),
             ),
@@ -318,13 +314,11 @@ impl ShortintEngine {
         params: ShortintKeySwitchingParameters,
     ) -> SeededLweKeyswitchKeyOwned<u64> {
         let (output_secret_key, encryption_noise) = match params.destination_key {
-            EncryptionKeyChoice::Big
-            | EncryptionKeyChoice::BigNtt(_) => (
+            EncryptionKeyChoice::Big | EncryptionKeyChoice::BigNtt(_) => (
                 output_client_key.large_lwe_secret_key(),
                 output_client_key.parameters.glwe_noise_distribution(),
             ),
-            EncryptionKeyChoice::Small
-            | EncryptionKeyChoice::SmallNtt(_) => (
+            EncryptionKeyChoice::Small | EncryptionKeyChoice::SmallNtt(_) => (
                 output_client_key.small_lwe_secret_key(),
                 output_client_key.parameters.lwe_noise_distribution(),
             ),

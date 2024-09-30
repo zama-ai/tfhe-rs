@@ -143,22 +143,11 @@ impl Ciphertext {
     }
 
     fn delta(&self) -> u64 {
-        if self
-            .ct
-            .ciphertext_modulus()
-            .is_native_modulus()
-        {
-            (1_u64 << 63)
-                / (self.message_modulus.0
-                    * self.carry_modulus.0) as u64
+        if self.ct.ciphertext_modulus().is_native_modulus() {
+            (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64
         } else {
-            (self
-                .ct
-                .ciphertext_modulus()
-                .get_custom_modulus()
-                / 2) as u64
-                / (self.message_modulus.0
-                    * self.carry_modulus.0) as u64
+            (self.ct.ciphertext_modulus().get_custom_modulus() / 2) as u64
+                / (self.message_modulus.0 * self.carry_modulus.0) as u64
         }
     }
 

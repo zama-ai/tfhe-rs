@@ -2,8 +2,8 @@ pub(crate) mod traits;
 
 pub mod parameters;
 pub use parameters::{
-    HpuIscParameters, HpuKeyswitchParameters, HpuNttCoreArch, HpuNttParameters, HpuPBSParameters, HpuParameters,
-    HpuPcParameters, HpuRegfileParameters,
+    HpuIscParameters, HpuKeyswitchParameters, HpuNttCoreArch, HpuNttParameters, HpuPBSParameters,
+    HpuParameters, HpuPcParameters, HpuRegfileParameters,
 };
 
 pub mod glwe_ciphertext;
@@ -25,7 +25,8 @@ pub use lwe_bootstrap_key::{
 
 pub mod lwe_ciphertext;
 pub use lwe_ciphertext::{
-    hpu_big_lwe_ciphertext_size, HpuLweCiphertextMutView, HpuLweCiphertextOwned, HpuLweCiphertextView,
+    hpu_big_lwe_ciphertext_size, HpuLweCiphertextMutView, HpuLweCiphertextOwned,
+    HpuLweCiphertextView,
 };
 
 pub mod lwe_keyswitch_key;

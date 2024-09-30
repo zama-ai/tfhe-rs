@@ -103,7 +103,11 @@ struct CliArgs {
     // Fpga configuration -----------------------------------------------------
     #[arg(short, long, default_value_t = 0)]
     fpga_id: u32,
-    #[arg(short, long, default_value = "backends/tfhe-hpu-backend/config/hpu_config.toml")]
+    #[arg(
+        short,
+        long,
+        default_value = "backends/tfhe-hpu-backend/config/hpu_config.toml"
+    )]
     config: String,
 
     #[command(subcommand)]

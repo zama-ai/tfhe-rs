@@ -39,22 +39,20 @@ pub fn main() {
     // Init Hpu device with server key and firmware
     tfhe::integer::hpu::init_device(&hpu_device, sks_compressed.into());
 
-
     // Encryption/Decryption round-trip test
     // ------------------------------------------------------------------------
     let mut encdec_errors = 0;
     for i in 0..TEST_ITERATION {
         let clear = rand::thread_rng().gen_range(0..u16::MAX);
         let fhe = FheUint16::encrypt(clear, &cks);
-        let dec_fhe:u16 = fhe.decrypt(&cks);
-        if dec_fhe != clear { 
+        let dec_fhe: u16 = fhe.decrypt(&cks);
+        if dec_fhe != clear {
             println!("EncDec Error@{i}: get {dec_fhe} expect {clear}");
-            encdec_errors+= 1;}
-
+            encdec_errors += 1;
+        }
     }
     println!("Encryption/Decription test run {TEST_ITERATION} with {encdec_errors} errors.");
     assert_eq!(0, encdec_errors, "Encryption/Decryption test failed");
-
 
     // Mul/Add test
     // ------------------------------------------------------------------------
@@ -113,6 +111,12 @@ pub fn main() {
         }
     }
 
-    assert_eq!(0, cpu_errors, "Computation mismatch {cpu_errors} time between Cpu_fhe and clear");
-    assert_eq!(0, hpu_errors, "Computation mismatch {hpu_errors} time between Hpu_fhe and clear");
+    assert_eq!(
+        0, cpu_errors,
+        "Computation mismatch {cpu_errors} time between Cpu_fhe and clear"
+    );
+    assert_eq!(
+        0, hpu_errors,
+        "Computation mismatch {hpu_errors} time between Hpu_fhe and clear"
+    );
 }

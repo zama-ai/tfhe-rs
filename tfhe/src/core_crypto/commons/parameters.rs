@@ -291,10 +291,10 @@ pub enum EncryptionKeyChoice {
 impl From<EncryptionKeyChoice> for PBSOrder {
     fn from(value: EncryptionKeyChoice) -> Self {
         match value {
-            EncryptionKeyChoice::Big
-            | EncryptionKeyChoice::BigNtt(_) => Self::KeyswitchBootstrap,
-            EncryptionKeyChoice::Small
-            | EncryptionKeyChoice::SmallNtt(_) => Self::BootstrapKeyswitch,
+            EncryptionKeyChoice::Big | EncryptionKeyChoice::BigNtt(_) => Self::KeyswitchBootstrap,
+            EncryptionKeyChoice::Small | EncryptionKeyChoice::SmallNtt(_) => {
+                Self::BootstrapKeyswitch
+            }
         }
     }
 }
@@ -302,10 +302,10 @@ impl From<EncryptionKeyChoice> for PBSOrder {
 impl From<EncryptionKeyChoice> for PBSMode {
     fn from(value: EncryptionKeyChoice) -> Self {
         match value {
-            EncryptionKeyChoice::Big
-            | EncryptionKeyChoice::Small => Self::FFT,
-            EncryptionKeyChoice::BigNtt(modulus)
-            | EncryptionKeyChoice::SmallNtt(modulus) => Self::NTT(modulus),
+            EncryptionKeyChoice::Big | EncryptionKeyChoice::Small => Self::FFT,
+            EncryptionKeyChoice::BigNtt(modulus) | EncryptionKeyChoice::SmallNtt(modulus) => {
+                Self::NTT(modulus)
+            }
         }
     }
 }

@@ -340,7 +340,6 @@ impl InfoPePbs {
         ffi_pin.as_mut().write_reg(*reg.offset() as u64, 0);
     }
 
-
     #[allow(unused)]
     pub fn reset_seq_bpip_batch_cnt(
         &mut self,
@@ -817,7 +816,7 @@ impl InfoIsc {
 }
 
 #[derive(Debug)]
-pub struct ErrorHpu(#[allow(unused)]u16);
+pub struct ErrorHpu(#[allow(unused)] u16);
 
 impl FromRtl for ErrorHpu {
     fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {

@@ -56,7 +56,6 @@ impl FromRtl for HpuKeyswitchParameters {
 }
 impl FromRtl for HpuNttParameters {
     fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
-
         let core_arch = HpuNttCoreArch::from_rtl(ffi_pin, regmap);
 
         // Values extracted from NttInternal register
@@ -136,10 +135,9 @@ impl FromRtl for HpuNttParameters {
 
 impl FromRtl for HpuNttCoreArch {
     fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
-
         // Values extracted from NttModulo register
         // Modulus isn't directly expressed, instead used custom encoding
-        let ntt_core_arch= regmap
+        let ntt_core_arch = regmap
             .register()
             .get("Info::NttArch")
             .expect("Unknow register, check regmap definition");
@@ -161,17 +159,20 @@ impl FromRtl for HpuNttCoreArch {
             5 => {
                 // Extract associated radix split
 
-                let radix_cut= regmap
+                let radix_cut = regmap
                     .register()
                     .get("Info::NttRdxCut")
                     .expect("Unknow register, check regmap definition");
                 let radix_cut_val = ffi_pin.as_mut().read_reg(*radix_cut.offset() as u64);
-                let cut_l = (0..(u32::BITS/4)).map(|ofst| ((radix_cut_val >> (ofst*4)) & 0xf) as u8).filter(|x| *x!= 0).collect::<Vec<u8>>();
+                let cut_l = (0..(u32::BITS / 4))
+                    .map(|ofst| ((radix_cut_val >> (ofst * 4)) & 0xf) as u8)
+                    .filter(|x| *x != 0)
+                    .collect::<Vec<u8>>();
                 Self::GF64(cut_l)
-            },
+            }
             _ => panic!("Unknown NttCoreArch encoding"),
         }
-        }
+    }
 }
 
 impl FromRtl for HpuPcParameters {

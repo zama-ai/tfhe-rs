@@ -1,8 +1,7 @@
-
+pub use hpu_asm::{strum::IntoEnumIterator, Asm};
 pub use tfhe::prelude::*;
 pub use tfhe::*;
 pub use tfhe_hpu_backend::prelude::*;
-pub use hpu_asm::{strum::IntoEnumIterator, Asm};
 
 pub use rand::rngs::StdRng;
 pub use rand::{Rng, SeedableRng};
@@ -22,7 +21,11 @@ pub use clap_num::maybe_hex;
 pub struct Args {
     // Fpga configuration ------------------------------------------------------
     /// Toml top-level configuration file
-    #[clap(long, value_parser, default_value = "backends/tfhe-hpu-backend/config/hpu_config.toml")]
+    #[clap(
+        long,
+        value_parser,
+        default_value = "backends/tfhe-hpu-backend/config/hpu_config.toml"
+    )]
     pub config: String,
 
     // Exec configuration ----------------------------------------------------
@@ -54,7 +57,7 @@ pub struct Args {
     pub seed: Option<u128>,
 
     // Debug option ----------------------------------------------------------
-    #[cfg(feature="hpu-debug")]
+    #[cfg(feature = "hpu-debug")]
     /// Hpu io dump path
     #[clap(long, value_parser)]
     pub io_dump: Option<String>,

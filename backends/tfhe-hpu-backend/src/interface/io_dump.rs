@@ -1,14 +1,13 @@
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 /// Feature io_dump
 /// Enable to log hpu object in hex file for debug purpose
-
 use std::path::PathBuf;
-use std::fs::{OpenOptions, File};
-use std::io::Write;
 
 use crate::interface::memory::ciphertext::SlotId;
 
 /// Configure the line width in dumped files
-const LINE_WIDTH_BYTES:usize = 64_usize;
+const LINE_WIDTH_BYTES: usize = 64_usize;
 
 thread_local! {
     static HPU_IO_DUMP: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
@@ -23,7 +22,7 @@ pub enum DumpKind {
     BlweOut,
 }
 
-impl DumpKind{
+impl DumpKind {
     const FOLDER: [&'static str; 4] = ["key", "blwe/input", "blwe/output", "glwe"];
 }
 
@@ -72,22 +71,15 @@ pub fn dump<T: HexMem>(value: &T, kind: DumpKind, id: DumpId) {
                         sid.bid,
                     ),
                     _ => panic!("Unexpected DumpId {id:?} with kind {kind:?}"),
-                }
+                },
 
                 DumpId::Key(cut) => match kind {
-                    DumpKind::Bsk => format!(
-                        "{}/key/bsk_{cut:0>1x}.hex",
-                        path.display(),
-                    ),
-                    DumpKind::Ksk => format!(
-                        "{}/key/ksk_{cut:0>1x}.hex",
-                        path.display()),
+                    DumpKind::Bsk => format!("{}/key/bsk_{cut:0>1x}.hex", path.display(),),
+                    DumpKind::Ksk => format!("{}/key/ksk_{cut:0>1x}.hex", path.display()),
                     _ => panic!("Unexpected DumpId {id:?} with kind {kind:?}"),
                 },
                 DumpId::Lut(cut) => match kind {
-                    DumpKind::Glwe => format!(
-                        "{}/glwe/glwe_{cut:0>2x}.hex",
-                        path.display()),
+                    DumpKind::Glwe => format!("{}/glwe/glwe_{cut:0>2x}.hex", path.display()),
                     _ => panic!("Unexpected DumpId {id:?} with kind {kind:?}"),
                 },
             };

@@ -48,10 +48,8 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
             "Word width must divide MEM_CHUNK_SIZE_B"
         );
 
-        let all_chunks = usize::div_ceil(
-            props.cut_coefs * std::mem::size_of::<T>(),
-            MEM_CHUNK_SIZE_B,
-        );
+        let all_chunks =
+            usize::div_ceil(props.cut_coefs * std::mem::size_of::<T>(), MEM_CHUNK_SIZE_B);
 
         let mut cut_mem = Vec::new();
         for hbm_pc in props.hbm_cut.into_iter() {

@@ -54,7 +54,7 @@ use crate::shortint::engine::{
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
-use crate::shortint::{PBSOrder, PBSMode};
+use crate::shortint::{PBSMode, PBSOrder};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
@@ -282,7 +282,9 @@ impl<'a> From<&'a ShortintBootstrappingKey>
     fn from(value: &'a ShortintBootstrappingKey) -> Self {
         match value {
             ShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk.as_view()),
-            ShortintBootstrappingKey::ClassicNtt(_bsk) => todo!("Not supported. Serialization isn't implemented for ShortintNtt") ,
+            ShortintBootstrappingKey::ClassicNtt(_bsk) => {
+                todo!("Not supported. Serialization isn't implemented for ShortintNtt")
+            }
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk: bsk,
                 deterministic_execution,
@@ -301,7 +303,9 @@ impl From<ShortintBootstrappingKey>
     fn from(value: ShortintBootstrappingKey) -> Self {
         match value {
             ShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk),
-            ShortintBootstrappingKey::ClassicNtt(_bsk) => todo!("Not supported. Serialization isn't implemented for ShortintNtt") ,
+            ShortintBootstrappingKey::ClassicNtt(_bsk) => {
+                todo!("Not supported. Serialization isn't implemented for ShortintNtt")
+            }
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
@@ -555,7 +559,9 @@ impl ServerKey {
 
         let ms_decompression_method = match &self.bootstrapping_key {
             ShortintBootstrappingKey::Classic(_) => MsDecompressionType::ClassicPbs,
-            ShortintBootstrappingKey::ClassicNtt(_) => todo!("Conformance not implemented for ClassicNtt"),
+            ShortintBootstrappingKey::ClassicNtt(_) => {
+                todo!("Conformance not implemented for ClassicNtt")
+            }
             ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
                 MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
             }
@@ -582,20 +588,11 @@ impl ServerKey {
     /// Compute associated encoding delta.
     /// Used for scalar encoding
     pub(crate) fn delta(&self) -> u64 {
-        if self
-            .ciphertext_modulus
-            .is_native_modulus()
-        {
-            (1_u64 << 63)
-                / (self.message_modulus.0
-                    * self.carry_modulus.0) as u64
+        if self.ciphertext_modulus.is_native_modulus() {
+            (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64
         } else {
-            (self
-                .ciphertext_modulus
-                .get_custom_modulus()
-                / 2) as u64
-                / (self.message_modulus.0
-                    * self.carry_modulus.0) as u64
+            (self.ciphertext_modulus.get_custom_modulus() / 2) as u64
+                / (self.message_modulus.0 * self.carry_modulus.0) as u64
         }
     }
 }
@@ -1304,7 +1301,6 @@ impl ServerKey {
         value: u64,
         lwe_size: LweSize,
     ) -> Ciphertext {
-
         let shifted_value = value * self.delta();
 
         let encoded = Plaintext(shifted_value);
@@ -1342,7 +1338,6 @@ impl ServerKey {
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
         let modular_value = value as usize % self.message_modulus.0;
-
 
         let shifted_value = (modular_value as u64) * self.delta();
 
@@ -1677,14 +1672,13 @@ pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
             blind_rotate_assign_mem_optimized(in_buffer, acc, fourier_bsk, fft, stack);
         }
         ShortintBootstrappingKey::ClassicNtt(ntt_bsk) => {
-        
             // Get ciphertext modulus from bsk
             let ntt = Ntt64::new(ntt_bsk.ciphertext_modulus(), ntt_bsk.polynomial_size());
 
             let ntt_view = ntt.as_view();
 
             buffers.resize(
-        programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
+                programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
                     ntt_bsk.glwe_size(),
                     ntt_bsk.polynomial_size(),
                     ntt.as_view(),
@@ -1695,13 +1689,7 @@ pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
             let stack = buffers.stack();
 
             // Compute the blind rotate
-            blind_rotate_ntt64_assign_mem_optimized(
-                in_buffer,
-                acc,
-                ntt_bsk,
-                ntt_view,
-                stack,
-            );
+            blind_rotate_ntt64_assign_mem_optimized(in_buffer, acc, ntt_bsk, ntt_view, stack);
         }
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,

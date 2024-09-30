@@ -309,10 +309,12 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
             Ciphertext::Trivial(b) => *b,
             Ciphertext::Encrypted(ciphertext) => {
                 let lwe_sk = match cks.parameters.encryption_key_choice {
-                    EncryptionKeyChoice::Big
-                    | EncryptionKeyChoice::BigNtt(_) => cks.glwe_secret_key.as_lwe_secret_key(),
-                    EncryptionKeyChoice::Small 
-                    | EncryptionKeyChoice::SmallNtt(_) => cks.lwe_secret_key.as_view(),
+                    EncryptionKeyChoice::Big | EncryptionKeyChoice::BigNtt(_) => {
+                        cks.glwe_secret_key.as_lwe_secret_key()
+                    }
+                    EncryptionKeyChoice::Small | EncryptionKeyChoice::SmallNtt(_) => {
+                        cks.lwe_secret_key.as_view()
+                    }
                 };
 
                 let decrypted = decrypt_lwe_ciphertext(&lwe_sk, ciphertext);

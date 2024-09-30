@@ -72,7 +72,9 @@ impl Drop for CiphertextBundle {
     fn drop(&mut self) {
         let Self { slots, free_tx, .. } = self;
         while let Some(slot) = slots.pop() {
-            free_tx.send(slot).expect("CiphertextBundle: Issue with garbage collection");
+            free_tx
+                .send(slot)
+                .expect("CiphertextBundle: Issue with garbage collection");
         }
     }
 }
