@@ -1,3 +1,4 @@
+#![allow(clippy::use_self)]
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
@@ -231,6 +232,7 @@ impl ShortintCompactPublicKeyEncryptionParameters {
     }
 
     #[wasm_bindgen]
+    #[allow(clippy::too_many_arguments)]
     pub fn new_parameters(
         // Public Key Parameters
         encryption_lwe_dimension: usize,
@@ -266,7 +268,7 @@ impl ShortintCompactPublicKeyEncryptionParameters {
                 destination_key: encryption_key_choice.into(),
             };
 
-        Ok(ShortintCompactPublicKeyEncryptionParameters {
+        Ok(Self {
             compact_pke_params,
             casting_parameters,
         })
@@ -282,10 +284,8 @@ pub struct ShortintCompactPublicKeyConformanceParameters {
 #[wasm_bindgen]
 impl ShortintCompactPublicKeyConformanceParameters {
     #[wasm_bindgen]
-    pub fn new(
-        params: &ShortintCompactPublicKeyEncryptionParameters,
-    ) -> ShortintCompactPublicKeyConformanceParameters {
-        ShortintCompactPublicKeyConformanceParameters {
+    pub fn new(params: &ShortintCompactPublicKeyEncryptionParameters) -> Self {
+        Self {
             compact_pke_params: params.compact_pke_params,
         }
     }
@@ -314,7 +314,7 @@ impl ShortintCompactPublicKeyConformanceParameters {
             // we are using dedicated params for the public key, thus, casting is required
             crate::shortint::parameters::CompactCiphertextListExpansionKind::RequiresCasting
         ).map_err(into_js_error)
-            .map(|compact_pke_params| ShortintCompactPublicKeyConformanceParameters { compact_pke_params })
+            .map(|compact_pke_params| Self { compact_pke_params })
     }
 }
 
