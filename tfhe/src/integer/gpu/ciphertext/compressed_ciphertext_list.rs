@@ -94,7 +94,7 @@ impl CudaCompressedCiphertextList {
             .map(DataKind::num_blocks)
             .sum();
 
-        let end_block_index = start_block_index + current_info.num_blocks();
+        let end_block_index = start_block_index + current_info.num_blocks() - 1;
 
         Some((
             decomp_key.unpack(
