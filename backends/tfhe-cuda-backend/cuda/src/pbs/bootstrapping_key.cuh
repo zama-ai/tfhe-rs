@@ -95,6 +95,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
 
   double2 *d_bsk = (double2 *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
+  constexpr double two_pow_torus_bits = get_two_pow_torus_bits<T>();
   // compress real bsk to complex and divide it on DOUBLE_MAX
   for (int i = 0; i < total_polynomials; i++) {
     int complex_current_poly_idx = i * polynomial_size / 2;
@@ -103,10 +104,8 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
       h_bsk[complex_current_poly_idx + j].x = src[torus_current_poly_idx + j];
       h_bsk[complex_current_poly_idx + j].y =
           src[torus_current_poly_idx + j + polynomial_size / 2];
-      h_bsk[complex_current_poly_idx + j].x /=
-          (double)std::numeric_limits<T>::max();
-      h_bsk[complex_current_poly_idx + j].y /=
-          (double)std::numeric_limits<T>::max();
+      h_bsk[complex_current_poly_idx + j].x /= two_pow_torus_bits;
+      h_bsk[complex_current_poly_idx + j].y /= two_pow_torus_bits;
     }
   }
 
