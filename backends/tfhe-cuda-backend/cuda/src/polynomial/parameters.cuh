@@ -3,6 +3,10 @@
 
 constexpr int log2(int n) { return (n <= 2) ? 1 : 1 + log2(n / 2); }
 
+template <typename T>
+__host__ __device__ __forceinline__ constexpr double get_two_pow_torus_bits() {
+  return (sizeof(T) == 4) ? 4294967296.0 : 18446744073709551616.0;
+}
 constexpr int choose_opt_amortized(int degree) {
   if (degree <= 1024)
     return 4;
