@@ -146,7 +146,7 @@ jobs:
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --database tfhe_rs \
-          --hardware "L40x1" \
+          --hardware "n3-L40x1" \
           --backend gpu \
           --project-version "${{ env.COMMIT_HASH }}" \
           --branch ${{ github.ref_name }} \
