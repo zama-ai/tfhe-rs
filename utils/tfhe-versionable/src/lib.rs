@@ -222,8 +222,6 @@ macro_rules! impl_scalar_versionize {
         }
 
         impl NotVersioned for $t {}
-
-        impl NotVersioned for Vec<$t> {}
     };
 }
 
@@ -315,7 +313,35 @@ impl<T: UnversionizeVec + Clone> Unversionize for Box<[T]> {
     }
 }
 
-impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> NotVersioned for Box<[T]> {}
+impl<T: VersionizeVec + Clone> VersionizeVec for Box<[T]> {
+    type VersionedVec = Vec<T::VersionedVec>;
+
+    fn versionize_vec(vec: Vec<Self>) -> Self::VersionedVec {
+        vec.into_iter()
+            .map(|inner| inner.versionize_owned())
+            .collect()
+    }
+}
+
+impl<T: VersionizeSlice> VersionizeSlice for Box<[T]> {
+    type VersionedSlice<'vers> = Vec<T::VersionedSlice<'vers>> where T: 'vers;
+
+    fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
+        slice
+            .iter()
+            .map(|inner| T::versionize_slice(inner))
+            .collect()
+    }
+}
+
+impl<T: UnversionizeVec + Clone> UnversionizeVec for Box<[T]> {
+    fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, UnversionizeError> {
+        versioned
+            .into_iter()
+            .map(Box::<[T]>::unversionize)
+            .collect()
+    }
+}
 
 impl<T: VersionizeSlice> Versionize for Vec<T> {
     type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
@@ -330,6 +356,42 @@ impl<T: VersionizeVec> VersionizeOwned for Vec<T> {
 
     fn versionize_owned(self) -> Self::VersionedOwned {
         T::versionize_vec(self)
+    }
+}
+
+impl<T: UnversionizeVec> Unversionize for Vec<T> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        T::unversionize_vec(versioned)
+    }
+}
+
+impl<T: VersionizeVec> VersionizeVec for Vec<T> {
+    type VersionedVec = Vec<T::VersionedVec>;
+
+    fn versionize_vec(vec: Vec<Self>) -> Self::VersionedVec {
+        vec.into_iter()
+            .map(|inner| T::versionize_vec(inner))
+            .collect()
+    }
+}
+
+impl<T: VersionizeSlice> VersionizeSlice for Vec<T> {
+    type VersionedSlice<'vers> = Vec<T::VersionedSlice<'vers>> where T: 'vers;
+
+    fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
+        slice
+            .iter()
+            .map(|inner| T::versionize_slice(inner))
+            .collect()
+    }
+}
+
+impl<T: UnversionizeVec> UnversionizeVec for Vec<T> {
+    fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, UnversionizeError> {
+        versioned
+            .into_iter()
+            .map(|inner| T::unversionize_vec(inner))
+            .collect()
     }
 }
 
@@ -349,9 +411,24 @@ impl<T: VersionizeVec + Clone> VersionizeOwned for &[T] {
     }
 }
 
-impl<T: UnversionizeVec> Unversionize for Vec<T> {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        T::unversionize_vec(versioned)
+impl<T: VersionizeVec + Clone> VersionizeVec for &[T] {
+    type VersionedVec = Vec<T::VersionedVec>;
+
+    fn versionize_vec(vec: Vec<Self>) -> Self::VersionedVec {
+        vec.into_iter()
+            .map(|inner| T::versionize_vec(inner.to_vec()))
+            .collect()
+    }
+}
+
+impl<'a, T: VersionizeSlice> VersionizeSlice for &'a [T] {
+    type VersionedSlice<'vers> = Vec<T::VersionedSlice<'vers>> where T: 'vers, 'a: 'vers;
+
+    fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
+        slice
+            .iter()
+            .map(|inner| T::versionize_slice(inner))
+            .collect()
     }
 }
 
@@ -383,6 +460,33 @@ impl<const N: usize, T: UnversionizeVec + Clone> Unversionize for [T; N] {
                 expected_size: N,
                 found_size: slice.len(),
             })
+    }
+}
+
+impl<const N: usize, T: VersionizeVec + Clone> VersionizeVec for [T; N] {
+    type VersionedVec = Vec<T::VersionedVec>;
+
+    fn versionize_vec(vec: Vec<Self>) -> Self::VersionedVec {
+        vec.into_iter()
+            .map(|inner| inner.versionize_owned())
+            .collect()
+    }
+}
+
+impl<const N: usize, T: VersionizeSlice> VersionizeSlice for [T; N] {
+    type VersionedSlice<'vers> = Vec<T::VersionedSlice<'vers>> where T: 'vers;
+
+    fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
+        slice
+            .iter()
+            .map(|inner| T::versionize_slice(inner))
+            .collect()
+    }
+}
+
+impl<const N: usize, T: UnversionizeVec + Clone> UnversionizeVec for [T; N] {
+    fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, UnversionizeError> {
+        versioned.into_iter().map(<[T; N]>::unversionize).collect()
     }
 }
 
