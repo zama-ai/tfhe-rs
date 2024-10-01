@@ -37,6 +37,18 @@ pub struct MyStruct2<T, U> {
     field1: U,
 }
 
+#[derive(Versionize)]
+#[versionize(dispatch = MyStruct3Versions)]
+pub struct MyStruct3<T> {
+    field0: u64,
+    field1: T,
+}
+
+#[derive(VersionsDispatch)]
+pub enum MyStruct3Versions<T> {
+    V0(MyStruct3<T>),
+}
+
 fn main() {
     assert_impl_all!(MyEmptyStruct: Version);
     assert_impl_all!(MyEmptyStruct2: Version);
@@ -47,7 +59,9 @@ fn main() {
 
     assert_impl_all!(MyAnonStruct3<u64>: Version);
 
-    assert_impl_all!(MyStruct<u32>: Version);
+    assert_impl_all!(MyStruct<u32>: Versionize);
 
     assert_impl_all!(MyStruct2<usize, String>: Version);
+
+    assert_impl_all!(MyStruct3<u32>: Versionize);
 }
