@@ -65,9 +65,14 @@ pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_file: &Path) {
         let name_parts = full_name.split("_mean_").collect::<Vec<_>>();
         let bench_name = name_parts[0];
         let params: PBSParameters = params_from_name(name_parts[1]).into();
-        let value_in_ns = (val * 1_000_000_f32) as usize;
+        println!("{:?}", name_parts);
+        if bench_name.contains("_size") {
+            write_result(&mut file, &prefixed_full_name, *val as usize);
+        } else {
+            let value_in_ns = (val * 1_000_000_f32) as usize;
+            write_result(&mut file, &prefixed_full_name, value_in_ns);
+        }
 
-        write_result(&mut file, &prefixed_full_name, value_in_ns);
         write_to_json::<u64, _>(
             &prefixed_full_name,
             params,
