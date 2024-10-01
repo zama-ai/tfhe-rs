@@ -148,6 +148,12 @@ install_tfhe_lints:
 	(cd utils/cargo-tfhe-lints-inner && cargo install --path .) && \
 	cd utils/cargo-tfhe-lints && cargo install --path .
 
+.PHONY: install_typos_checker # Install typos checker
+install_typos_checker: install_rs_build_toolchain
+	@typos --version > /dev/null 2>&1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install typos-cli || \
+	( echo "Unable to install typos-cli, unknown error." && exit 1 )
+
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
 	python3 -m venv venv
@@ -239,6 +245,10 @@ check_fmt_js: check_nvm_installed
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests check_fmt
+
+.PHONY: check_typos # Check for typos in codebase
+check_typos: install_typos_checker
+	@typos && echo "No typos found"
 
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
@@ -1178,14 +1188,14 @@ sha256_bool: install_rs_check_toolchain
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
-pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc check_md_docs_are_tested check_intra_md_links \
+pcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_tested check_intra_md_links \
 clippy_all tfhe_lints check_compile_tests
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
-fpcc: no_tfhe_typo no_dbg_log check_fmt lint_doc check_md_docs_are_tested clippy_fast \
+fpcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_tested clippy_fast \
 check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
