@@ -7,7 +7,7 @@ use tfhe_versionable::{Unversionize, Upgrade, Version, Versionize, VersionsDispa
 // The inner struct is independently versioned
 #[derive(Versionize)]
 #[versionize(MyStructInnerVersions)]
-struct MyStructInner<T: Default> {
+struct MyStructInner<T> {
     attr: T,
     builtin: u32,
 }
@@ -30,7 +30,7 @@ impl<T: Default> Upgrade<MyStructInner<T>> for MyStructInnerV0 {
 
 #[derive(VersionsDispatch)]
 #[allow(unused)]
-enum MyStructInnerVersions<T: Default> {
+enum MyStructInnerVersions<T> {
     V0(MyStructInnerV0),
     V1(MyStructInner<T>),
 }
@@ -38,13 +38,13 @@ enum MyStructInnerVersions<T: Default> {
 // An upgrade of the inner struct does not require an upgrade of the outer struct
 #[derive(Versionize)]
 #[versionize(MyStructVersions)]
-struct MyStruct<T: Default> {
+struct MyStruct<T> {
     inner: MyStructInner<T>,
 }
 
 #[derive(VersionsDispatch)]
 #[allow(unused)]
-enum MyStructVersions<T: Default> {
+enum MyStructVersions<T> {
     V0(MyStruct<T>),
 }
 
