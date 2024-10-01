@@ -25,3 +25,9 @@ The following table shows the performance when the inputs of the benchmarked ope
 The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
 {% embed url="https://docs.google.com/spreadsheets/d/1nLPt_m1MbkSdhMop0iKDnSN_c605l_JdMpK5JC90N_Q/edit?usp=sharing" %}
+
+## Programmable bootstrapping
+
+The next table shows the execution time of a keyswitch followed by a programmable bootstrapping depending on the precision of the input message. The associated parameter set is given.
+
+{% embed url="https://docs.google.com/spreadsheets/d/1UrjB6MdwMmp6SL8nHx1uB4TKieT1OTei-hoSN5j-UzI/edit?gid=398722698#gid=398722698" %}
