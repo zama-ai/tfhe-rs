@@ -96,7 +96,7 @@ impl CompactFheBool {
     ///
     /// See [CompactFheBool] example.
     pub fn expand(mut self) -> Result<FheBool, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type
+        // This compact list might have been loaded from an homogeneous compact list without type
         // info
         self.list
             .info
@@ -130,7 +130,7 @@ pub struct CompactFheBoolList {
 impl CompactFheBoolList {
     /// Expand to a Vec<[FheBool]>
     pub fn expand(mut self) -> Result<Vec<FheBool>, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type
+        // This compact list might have been loaded from an homogeneous compact list without type
         // info
         self.list
             .info

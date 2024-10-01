@@ -311,39 +311,39 @@ pub mod test_tools {
             // q = 2^64
             let q = CiphertextModulus::<u64>::new_native();
             // Divide by 8 to get an exact division vs 10 or anything not a power of 2
-            let one_eigth = ((1u128 << 64) / 8) as u64;
-            let seven_eigth = 7 * one_eigth;
+            let one_eighth = ((1u128 << 64) / 8) as u64;
+            let seven_eighth = 7 * one_eighth;
 
-            let distance = torus_modular_diff(one_eigth, seven_eigth, q);
+            let distance = torus_modular_diff(one_eighth, seven_eighth, q);
             assert_eq!(distance, 0.25);
-            let distance = torus_modular_diff(seven_eigth, one_eigth, q);
+            let distance = torus_modular_diff(seven_eighth, one_eighth, q);
             assert_eq!(distance, -0.25);
         }
         {
             // q = 2^63
             let q = CiphertextModulus::<u64>::try_new_power_of_2(63).unwrap();
             // Divide by 8 to get an exact division vs 10 or anything not a power of 2
-            let one_eigth = q.get_custom_modulus() as u64 / 8;
-            let seven_eigth = 7 * one_eigth;
+            let one_eighth = q.get_custom_modulus() as u64 / 8;
+            let seven_eighth = 7 * one_eighth;
 
-            let distance = torus_modular_diff(one_eigth, seven_eigth, q);
+            let distance = torus_modular_diff(one_eighth, seven_eighth, q);
             assert_eq!(distance, 0.25);
-            let distance = torus_modular_diff(seven_eigth, one_eigth, q);
+            let distance = torus_modular_diff(seven_eighth, one_eighth, q);
             assert_eq!(distance, -0.25);
         }
         {
             // q = 2^64 - 2^32 + 1
             let q = CiphertextModulus::<u64>::try_new((1 << 64) - (1 << 32) + 1).unwrap();
             // Even though 8 does not divide q exactly, everything work ok for this example.
-            // This may not be the case for all moduli with enough LSBs set as then one_eigth would
+            // This may not be the case for all moduli with enough LSBs set as then one_eighth would
             // be the floor and not the rounding of q / 8, here they happen to match and that's good
             // enough
-            let one_eigth = q.get_custom_modulus() as u64 / 8;
-            let seven_eigth = 7 * one_eigth;
+            let one_eighth = q.get_custom_modulus() as u64 / 8;
+            let seven_eighth = 7 * one_eighth;
 
-            let distance = torus_modular_diff(one_eigth, seven_eigth, q);
+            let distance = torus_modular_diff(one_eighth, seven_eighth, q);
             assert_eq!(distance, 0.25);
-            let distance = torus_modular_diff(seven_eigth, one_eigth, q);
+            let distance = torus_modular_diff(seven_eighth, one_eighth, q);
             assert_eq!(distance, -0.25);
         }
     }

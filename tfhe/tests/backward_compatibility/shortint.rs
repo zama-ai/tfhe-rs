@@ -21,7 +21,7 @@ use tfhe_versionable::Unversionize;
 
 use crate::{load_and_unversionize, TestedModule};
 
-/// Converts test parameters metadata that are independant of any tfhe-rs version and use only
+/// Converts test parameters metadata that are independent of any tfhe-rs version and use only
 /// built-in types into parameters suitable for the currently tested version.
 pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
     ClassicPBSParameters {

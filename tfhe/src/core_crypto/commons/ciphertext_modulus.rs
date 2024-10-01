@@ -11,7 +11,7 @@ use std::fmt::Display;
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-/// Private enum to avoid end user mis-instantiating a CiphertextModulus
+/// Private enum to avoid end user instantiating a bad CiphertextModulus
 ///
 /// NonZeroU128 allows to always have a correct modulus and to have an enum that is no bigger than a
 /// u128 with the 0 optimization as the tag then corresponds to the Native variant.

@@ -85,7 +85,7 @@ You will find below a list of breaking changes and how to upgrade them.
 
 # 0.6 -> 0.7
 - `tfhe::integer::ciphertext::CompactCiphertextList`:
-  in 0.6, these lists of ciphertext were statically typed and homogenous. Since 0.7, they are heterogeneous. The new version stores for each element an information about its type (Signed, Unsigned or Boolean). Since this information were not stored before, the list is set to be made of `Unsigned` integers by default. If that is not the case, you can set its type using the following snippet:
+  in 0.6, these lists of ciphertext were statically typed and homogeneous. Since 0.7, they are heterogeneous. The new version stores for each element an information about its type (Signed, Unsigned or Boolean). Since this information were not stored before, the list is set to be made of `Unsigned` integers by default. If that is not the case, you can set its type using the following snippet:
 
 ```rust
 use std::io::Cursor;

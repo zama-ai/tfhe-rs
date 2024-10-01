@@ -2,7 +2,7 @@ use super::*;
 
 mod lwe_encryption_noise;
 mod lwe_keyswitch_noise;
-mod lwe_programmable_boostrapping_noise;
+mod lwe_programmable_bootstrapping_noise;
 
 #[allow(clippy::excessive_precision)]
 pub const NOISE_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: ClassicTestParams<u64> =

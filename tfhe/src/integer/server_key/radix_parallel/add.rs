@@ -789,7 +789,7 @@ impl ServerKey {
 
     /// Does lhs += (rhs + carry)
     ///
-    /// acts like the ADC assemby op, except, the flags have to be explicitely requested
+    /// acts like the ADC assembly op, except, the flags have to be explicitly requested
     /// as they incur additional PBSes
     ///
     /// - Parameters must have at least 2 bits of message, 2 bits of carry
@@ -807,7 +807,7 @@ impl ServerKey {
         // This is not made explicit in the docs as we have a
         // `propagate_single_carry_parallelized` function which wraps this special case
         if rhs.is_empty() {
-            // Techinically, CarryFlag is computable, but OverflowFlag is not
+            // Technically, CarryFlag is computable, but OverflowFlag is not
             assert_eq!(
                 requested_flag,
                 OutputFlag::None,

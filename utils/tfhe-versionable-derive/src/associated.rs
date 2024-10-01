@@ -87,7 +87,7 @@ pub(crate) enum AssociatedTypeKind {
 /// - A `ref` type, that holds a reference to the underlying data. This is used for faster
 ///   versioning using only references.
 /// - An owned type, that owns the underlying data. This is used for unversioning. The ownership of
-///   the data will be transfered during the unversioning process.
+///   the data will be transferred during the unversioning process.
 ///
 /// [`DispatchType`]: crate::dispatch_type::DispatchType
 /// [`VersionType`]: crate::dispatch_type::VersionType
@@ -151,7 +151,7 @@ pub(crate) trait AssociatedType: Sized {
     fn inner_types(&self) -> syn::Result<Vec<&Type>>;
 
     /// If the associating trait that uses this type needs a type parameter, this returns it.
-    /// For the `VersionsDispatch` trait this paramter is the name of the currently used version,
+    /// For the `VersionsDispatch` trait this parameter is the name of the currently used version,
     /// which is the latest variant of the dispatch enum. The `Version` trait does not need a
     /// parameter.
     fn as_trait_param(&self) -> Option<syn::Result<&Type>>;
@@ -245,7 +245,7 @@ impl<T: AssociatedType> AssociatingTrait<T> {
             // generate better errors in case of misuse of the macros. However in some cases
             // this may generate a warning, so we silence it.
             private_bounds,
-            // If these lints doesn't trigger on the orginal type, we don't want them to trigger
+            // If these lints doesn't trigger on the original type, we don't want them to trigger
             // on the generated one
             clippy::upper_case_acronyms,
             clippy::large_enum_variant,

@@ -23,7 +23,7 @@ use crate::{
 
 /// The types generated for a specific version of a given exposed type. These types are identical to
 /// the user written version types except that their subtypes are replaced by their "Versioned"
-/// form. This allows recursive versionning.
+/// form. This allows recursive versioning.
 pub(crate) struct VersionType {
     orig_type: DeriveInput,
     kind: AssociatedTypeKind,
@@ -681,7 +681,7 @@ fn is_unit(input: &DeriveInput) -> bool {
     }
 }
 
-/// Returns the fields of the input type. This is independant of the kind of type
+/// Returns the fields of the input type. This is independent of the kind of type
 /// (enum, struct, ...)
 fn derive_type_fields(input: &DeriveInput) -> Punctuated<&Field, Comma> {
     match &input.data {

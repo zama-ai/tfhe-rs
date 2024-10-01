@@ -177,7 +177,7 @@ pub struct ShortintCompactPublicKeyEncryptionParameters {
     pub modulus_power_of_2_exponent: usize,
     // Normally the CompactPublicKeyEncryptionParameters has an additional field expansion_kind,
     // but it's only used to manage different kind of parameters internally, for the C API
-    // these parameters will always require casting, as they alwasy require casting we add a field
+    // these parameters will always require casting, as they always require casting we add a field
     // for the casting parameters here.
     pub casting_parameters: ShortintCompactCiphertextListCastingParameters,
 }

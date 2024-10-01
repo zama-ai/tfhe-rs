@@ -35,9 +35,9 @@ impl Named for SerializableCompactPkePublicParams {
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ZkVerificationOutCome {
-    /// The proof ands its entity were valid
+    /// The proof and its entity were valid
     Valid,
-    /// The proof ands its entity were not
+    /// The proof and its entity were not
     Invalid,
 }
 
