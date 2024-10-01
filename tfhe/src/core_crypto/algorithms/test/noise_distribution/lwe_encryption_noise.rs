@@ -210,9 +210,9 @@ fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(
 
     let expected_variance = Variance(noise.gaussian_std_dev().get_variance());
 
-    let num_ouptuts = 100_000;
+    let num_outputs = 100_000;
 
-    let mut output: Vec<_> = vec![Scalar::ZERO; num_ouptuts];
+    let mut output: Vec<_> = vec![Scalar::ZERO; num_outputs];
 
     encryption_rng.fill_slice_with_random_noise_from_distribution_custom_mod(
         &mut output,

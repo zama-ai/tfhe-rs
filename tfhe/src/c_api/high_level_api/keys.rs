@@ -82,7 +82,7 @@ pub unsafe extern "C" fn set_server_key(server_key: *const ServerKey) -> c_int {
 /// Sets the cuda server key.
 ///
 /// Once a cuda server key is set in a thread, all computations done in
-/// that thread will actually happend on the Cuda GPU.
+/// that thread will actually happen on the Cuda GPU.
 ///
 /// Does not take ownership of the key
 #[cfg(feature = "gpu")]

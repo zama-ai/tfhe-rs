@@ -495,18 +495,18 @@ struct ScalingOperation {
 
 impl ScalingOperation {
     fn cleaned_inputs(self) -> usize {
-        let scaled_bootstapped_inplace =
+        let scaled_bootstrapped_inplace =
             matches!(self.scaled_behavior, ScaledBehavior::BootstrappedThenScaled);
 
-        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstapped_inplace)
+        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstrapped_inplace)
     }
     fn number_of_pbs(self) -> usize {
-        let scaled_bootstapped = matches!(
+        let scaled_bootstrapped = matches!(
             self.scaled_behavior,
             ScaledBehavior::BootstrappedThenScaled | ScaledBehavior::ScaledInBootstrap
         );
 
-        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstapped)
+        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstrapped)
     }
 }
 

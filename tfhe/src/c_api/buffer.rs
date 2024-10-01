@@ -122,7 +122,7 @@ impl From<Vec<u8>> for DynamicBuffer {
 /// This function is safe to call if `dynamic_buffer` is not aliased to avoid double frees.
 #[no_mangle]
 pub unsafe extern "C" fn destroy_dynamic_buffer(dynamic_buffer: *mut DynamicBuffer) -> c_int {
-    // Mimicks C for calls of free on NULL, nothing occurs
+    // Mimics C for calls of free on NULL, nothing occurs
     if dynamic_buffer.is_null() {
         return 0;
     }

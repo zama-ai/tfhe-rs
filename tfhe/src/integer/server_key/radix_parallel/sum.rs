@@ -65,7 +65,7 @@ impl ServerKey {
         let num_columns = columns.len();
         // Buffer in which we will store resulting columns after an iteration
         let mut columns_buffer = Vec::with_capacity(num_columns);
-        let mut colum_output_buffer =
+        let mut column_output_buffer =
             vec![Vec::<(Ciphertext, Option<Ciphertext>)>::new(); num_blocks];
 
         let at_least_one_column_has_enough_elements = |columns: &[Vec<Ciphertext>]| {
@@ -75,7 +75,7 @@ impl ServerKey {
         while at_least_one_column_has_enough_elements(&columns) {
             columns
                 .par_drain(..)
-                .zip(colum_output_buffer.par_iter_mut())
+                .zip(column_output_buffer.par_iter_mut())
                 .enumerate()
                 .map(|(column_index, (mut column, out_buf))| {
                     if column.len() < num_elements_to_fill_carry {
@@ -110,7 +110,7 @@ impl ServerKey {
             std::mem::swap(&mut columns, &mut columns_buffer);
 
             // Move resulting message and carry blocks where they belong
-            for (i, column_output) in colum_output_buffer.iter_mut().enumerate() {
+            for (i, column_output) in column_output_buffer.iter_mut().enumerate() {
                 for (msg, maybe_carry) in column_output.drain(..) {
                     columns[i].push(msg);
 

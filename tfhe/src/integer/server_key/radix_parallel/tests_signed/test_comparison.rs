@@ -374,7 +374,7 @@ macro_rules! define_signed_comparison_test_functions {
 
             create_parametrized_test!([<integer_signed_smart_ $comparison_name _ $clear_type>]
             {
-                // Non parallelized does not support 1_1ARRY_1_KS_PBS,
+                // Non parallelized does not support PARAM_MESSAGE_1_CARRY_1_KS_PBS,
 
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS,
                 // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,

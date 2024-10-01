@@ -537,7 +537,7 @@ impl ServerKey {
                         // add a bit that will absorb the potential overflow.
                         //
                         // Note that this bit may be the padding bit itself, and in that case its
-                        // still fine even if no borrow is actually subracted as the cleaning lut
+                        // still fine even if no borrow is actually subtracted as the cleaning lut
                         // would return 0, and since padding bit is set we would get -0, which is
                         // still 0.
                         let overflow_stopper = message_modulus << 2;

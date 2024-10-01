@@ -375,7 +375,7 @@ where
     }
 }
 
-pub struct OffsetedStridedIterMut<'a, T> {
+pub struct OffsettedStridedIterMut<'a, T> {
     flat_offset: usize,
     index_producer: StridedIndexProducer,
     current_count: usize,
@@ -383,7 +383,7 @@ pub struct OffsetedStridedIterMut<'a, T> {
     inner: ::std::slice::IterMut<'a, T>,
 }
 
-impl<'a, T> Iterator for OffsetedStridedIterMut<'a, T> {
+impl<'a, T> Iterator for OffsettedStridedIterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -407,7 +407,7 @@ impl<'a, T> Iterator for OffsetedStridedIterMut<'a, T> {
     }
 }
 
-impl<'a, T> DoubleEndedIterator for OffsetedStridedIterMut<'a, T> {
+impl<'a, T> DoubleEndedIterator for OffsettedStridedIterMut<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.current_count == 0 {
             None
@@ -427,21 +427,21 @@ impl<'a, T> DoubleEndedIterator for OffsetedStridedIterMut<'a, T> {
     }
 }
 
-impl<'a, T> ExactSizeIterator for OffsetedStridedIterMut<'a, T> {
+impl<'a, T> ExactSizeIterator for OffsettedStridedIterMut<'a, T> {
     fn len(&self) -> usize {
         ExactSizeIterator::len(&self.index_producer)
     }
 }
 
 pub struct ParStridedIterMut<'a, T> {
-    inner: OffsetedStridedIterMut<'a, T>,
+    inner: OffsettedStridedIterMut<'a, T>,
 }
 
 impl<'a, T> ParStridedIterMut<'a, T> {
     pub fn new(slice: &'a mut [T], dims: DynDimensions) -> Self {
         let max_count = dims.flattened_len();
         Self {
-            inner: OffsetedStridedIterMut {
+            inner: OffsettedStridedIterMut {
                 flat_offset: 0,
                 index_producer: StridedIndexProducer::new(dims),
                 current_count: 0,
@@ -503,10 +503,10 @@ where
     T: Send,
 {
     type Item = &'a mut T;
-    type IntoIter = OffsetedStridedIterMut<'a, T>;
+    type IntoIter = OffsettedStridedIterMut<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OffsetedStridedIterMut {
+        OffsettedStridedIterMut {
             flat_offset: self.flat_offset,
             index_producer: self.index_producer,
             current_count: self.current_count,

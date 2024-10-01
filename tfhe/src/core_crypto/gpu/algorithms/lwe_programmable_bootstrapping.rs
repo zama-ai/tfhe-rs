@@ -27,7 +27,7 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
     assert_eq!(
         input.lwe_dimension(),
         bsk.input_lwe_dimension(),
-        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_dimension(),
         bsk.input_lwe_dimension(),
@@ -36,7 +36,7 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
     assert_eq!(
         output.lwe_dimension(),
         bsk.output_lwe_dimension(),
-        "Mimatched output LweDimension. LweCiphertext output LweDimension {:?}. \
+        "Mismatched output LweDimension. LweCiphertext output LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey output LweDimension {:?}.",
         output.lwe_dimension(),
         bsk.output_lwe_dimension(),
@@ -45,7 +45,7 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
     assert_eq!(
         accumulator.glwe_dimension(),
         bsk.glwe_dimension(),
-        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
         FourierLweMultiBitBootstrapKey GlweSize {:?}.",
         accumulator.glwe_dimension(),
         bsk.glwe_dimension(),
@@ -54,7 +54,7 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
     assert_eq!(
         accumulator.polynomial_size(),
         bsk.polynomial_size(),
-        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
         FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         bsk.polynomial_size(),

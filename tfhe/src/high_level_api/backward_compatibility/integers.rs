@@ -263,7 +263,7 @@ where
 {
     /// Expand to a [FheInt]
     pub fn expand(mut self) -> Result<FheInt<Id>, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type
+        // This compact list might have been loaded from an homogeneous compact list without type
         // info
         self.list
             .info
@@ -299,7 +299,7 @@ where
 {
     /// Expand to a Vec<[FheInt]>
     pub fn expand(mut self) -> Result<Vec<FheInt<Id>>, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type
+        // This compact list might have been loaded from an homogeneous compact list without type
         // info
         self.list
             .info
@@ -342,7 +342,7 @@ where
 {
     /// Expand to a [FheUint]
     pub fn expand(mut self) -> Result<FheUint<Id>, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type
+        // This compact list might have been loaded from an homogeneous compact list without type
         // info
         self.list
             .info
@@ -378,7 +378,7 @@ where
 {
     /// Expand to a Vec<[FheUint]>
     pub fn expand(mut self) -> Result<Vec<FheUint<Id>>, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type
+        // This compact list might have been loaded from an homogeneous compact list without type
         // info
         self.list
             .info

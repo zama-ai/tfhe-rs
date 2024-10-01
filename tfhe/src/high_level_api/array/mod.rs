@@ -277,12 +277,12 @@ macro_rules! declare_concrete_array_types {
     ) => {
         ::paste::paste!{
             $(
-                // Instanciate Array Types for dyn backend
+                // Instantiate Array Types for dyn backend
                 pub type [<FheUint $num_bits Array>] = FheUintArray<crate::[<FheUint $num_bits Id>]>;
                 pub type [<FheUint $num_bits Slice>]<'a> = FheUintSlice<'a, crate::[<FheUint $num_bits Id>]>;
                 pub type [<FheUint $num_bits SliceMut>]<'a> = FheUintSliceMut<'a, crate::[<FheUint $num_bits Id>]>;
 
-                // Instanciate Array Types for Cpu backend
+                // Instantiate Array Types for Cpu backend
                 pub type [<CpuFheUint $num_bits Array>] = CpuFheUintArray<crate::[<FheUint $num_bits Id>]>;
                 pub type [<CpuFheUint $num_bits Slice>]<'a> = CpuFheUintSlice<'a, crate::[<FheUint $num_bits Id>]>;
                 pub type [<CpuFheUint $num_bits SliceMut>]<'a> = CpuFheUintSliceMut<'a, crate::[<FheUint $num_bits Id>]>;
@@ -296,12 +296,12 @@ macro_rules! declare_concrete_array_types {
     ) => {
         ::paste::paste!{
             $(
-                // Instanciate Array Types for dyn backend
+                // Instantiate Array Types for dyn backend
                 pub type [<FheInt $num_bits Array>] = FheIntArray<crate::[<FheInt $num_bits Id>]>;
                 pub type [<FheInt $num_bits Slice>]<'a> = FheIntSlice<'a, crate::[<FheInt $num_bits Id>]>;
                 pub type [<FheInt $num_bits SliceMut>]<'a> = FheIntSliceMut<'a, crate::[<FheInt $num_bits Id>]>;
 
-                // Instanciate Array Types for Cpu backend
+                // Instantiate Array Types for Cpu backend
                 pub type [<CpuFheInt $num_bits Array>] = CpuFheIntArray<crate::[<FheInt $num_bits Id>]>;
                 pub type [<CpuFheInt $num_bits Slice>]<'a> = CpuFheIntSlice<'a, crate::[<FheInt $num_bits Id>]>;
                 pub type [<CpuFheInt $num_bits SliceMut>]<'a> = CpuFheIntSliceMut<'a, crate::[<FheInt $num_bits Id>]>;

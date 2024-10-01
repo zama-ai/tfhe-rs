@@ -53,7 +53,7 @@ pub const PRECISION_4_FAST_KS: FastKSParam<u64> = FastKSParam {
 // AP:
 // DP -> Fast KS -> PBS
 // Fast KS =
-// - convert LWE to GLWE witout packing called "sample insertion"
+// - convert LWE to GLWE without packing called "sample insertion"
 // - GLWE fast KS
 // - sample extraction
 // - finalize the keyswitch

@@ -120,7 +120,7 @@ got version {versioning_version}"
             SerializationVersioningMode::Unversioned { crate_version } => {
                 if crate_version != CRATE_VERSION {
                     return Err(format!(
-                "This {} has been saved from TFHE-rs v{crate_version}, without versioning informations. \
+                "This {} has been saved from TFHE-rs v{crate_version}, without versioning information. \
 Please use the versioned serialization mode for backward compatibility.",
                 self.name
             ));

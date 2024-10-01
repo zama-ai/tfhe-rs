@@ -735,13 +735,13 @@ impl ServerKey {
         result
     }
     pub fn boolean_bitnot_assign(&self, boolean_block: &mut BooleanBlock) {
-        let orignal_modulus = boolean_block.0.message_modulus;
+        let original_modulus = boolean_block.0.message_modulus;
         // bitnot_assign uses the message modulus, which in the case of
-        // a boolean block is implicitely 2, not the actual message mod
+        // a boolean block is implicitly 2, not the actual message mod
         // of the parameters
         boolean_block.0.message_modulus.0 = 2;
         self.key.bitnot_assign(&mut boolean_block.0);
-        boolean_block.0.message_modulus = orignal_modulus;
+        boolean_block.0.message_modulus = original_modulus;
     }
 }
 
