@@ -92,7 +92,9 @@ pub use compact_list::ProvenCompactCiphertextList;
 pub use compact_list::{
     CompactCiphertextList, CompactCiphertextListBuilder, CompactCiphertextListExpander,
 };
-pub use compressed_ciphertext_list::{CompressedCiphertextList, CompressedCiphertextListBuilder};
+pub use compressed_ciphertext_list::{
+    CompressedCiphertextList, CompressedCiphertextListBuilder, HlCompressible, HlExpandable,
+};
 
 pub use tag::Tag;
 pub use traits::FheId;
