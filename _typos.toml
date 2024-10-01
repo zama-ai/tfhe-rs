@@ -1,0 +1,14 @@
+[default]
+extend-ignore-identifiers-re = [
+    # Related to serialized object
+    "ser.*",
+    # Used when dumping tfhe-rs parameters set into Sage format
+    "ND.*",
+    # Related to FHE strings example handling "banana"
+    "ba",
+    ".*_ba",
+    # Example with string replacing "hello" with "herlo"
+    "herlo",
+    # Example in trivium
+    "C9217BA0D762ACA1"
+]
