@@ -6,8 +6,9 @@ use tfhe_versionable::{Unversionize, Upgrade, Version, Versionize, VersionsDispa
 
 // The structure that should be versioned, as defined in your code
 #[derive(Versionize)]
-#[versionize(MyStructVersions)] // Link to the enum type that will holds all the versions of this
-                                // type
+// We have to link to the enum type that will holds all the versions of this
+// type. This can also be written `#[versionize(dispatch = MyStructVersions)]`.
+#[versionize(MyStructVersions)]
 struct MyStruct<T> {
     attr: T,
     builtin: u32,

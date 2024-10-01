@@ -106,7 +106,14 @@ impl VersionizeAttribute {
                             attribute_builder.into =
                                 Some(parse_path_ignore_quotes(&name_value.value)?);
                         }
-                        // parse versionize(bound = "Type: Bound")
+                        // parse versionize(dispatch = "Type")
+                    } else if name_value.path.is_ident("dispatch") {
+                        if attribute_builder.dispatch_enum.is_some() {
+                            return Err(Self::default_error(meta.span()));
+                        } else {
+                            attribute_builder.dispatch_enum =
+                                Some(parse_path_ignore_quotes(&name_value.value)?);
+                        }
                     } else {
                         return Err(Self::default_error(meta.span()));
                     }
