@@ -8,7 +8,7 @@ use tfhe_versionable::{Unversionize, Upgrade, Version, Versionize, VersionsDispa
 #[derive(Versionize)]
 #[versionize(MyStructVersions)] // Link to the enum type that will holds all the versions of this
                                 // type
-struct MyStruct<T: Default> {
+struct MyStruct<T> {
     attr: T,
     builtin: u32,
 }
@@ -38,7 +38,7 @@ impl<T: Default> Upgrade<MyStruct<T>> for MyStructV0 {
 // This enum is not directly used but serves as a template to generate a new enum that will be
 // serialized. This allows recursive versioning.
 #[allow(unused)]
-enum MyStructVersions<T: Default> {
+enum MyStructVersions<T> {
     V0(MyStructV0),
     V1(MyStruct<T>),
 }
