@@ -27,7 +27,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Encrypt two messages:
-    /// let mut ct_1 = cks.encrypt(3);
+    /// let ct_1 = cks.encrypt(3);
     /// let ct_2 = cks.encrypt(1);
     ///
     /// // Compute homomorphically a subtraction:
@@ -115,7 +115,6 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_sub(&ct_1, &ct_2);
     ///
     /// // Decrypt:
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_res), 2 - 1);
     /// ```
     pub fn unchecked_sub(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {

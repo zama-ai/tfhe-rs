@@ -1,3 +1,4 @@
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::traits::Container;
 use crate::integer::backward_compatibility::public_key::{
     CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
@@ -201,5 +202,25 @@ impl CompressedCompactPublicKey {
         CompactPublicKey {
             key: self.key.decompress(),
         }
+    }
+}
+
+impl ParameterSetConformant for CompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        key.is_conformant(parameter_set)
+    }
+}
+
+impl ParameterSetConformant for CompressedCompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        key.is_conformant(parameter_set)
     }
 }

@@ -2,18 +2,37 @@
 #![allow(non_snake_case)]
 
 use super::*;
+use crate::backward_compatibility::{
+    PKEv2CompressedProofVersions, PKEv2ProofVersions, SerializablePKEv2PublicParamsVersions,
+};
 use crate::four_squares::*;
+use crate::serialization::{
+    try_vec_to_array, InvalidSerializedAffineError, InvalidSerializedPublicParamsError,
+    SerializableGroupElements, SerializablePKEv2PublicParams,
+};
 use core::marker::PhantomData;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use tfhe_versionable::{UnversionizeError, VersionsDispatch};
 
 fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
-#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+/// The CRS of the zk scheme
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(
+    try_from = "SerializablePKEv2PublicParams",
+    into = "SerializablePKEv2PublicParams",
+    bound(
+        deserialize = "PublicParams<G>: TryFrom<SerializablePKEv2PublicParams, Error = InvalidSerializedPublicParamsError>",
+        serialize = "PublicParams<G>: Into<SerializablePKEv2PublicParams>"
+    )
+)]
 pub struct PublicParams<G: Curve> {
-    g_lists: GroupElements<G>,
-    D: usize,
+    pub(crate) g_lists: GroupElements<G>,
+    pub(crate) D: usize,
     pub n: usize,
     pub d: usize,
     pub k: usize,
@@ -23,16 +42,177 @@ pub struct PublicParams<G: Curve> {
     pub m_bound: usize,
     pub q: u64,
     pub t: u64,
-    hash: [u8; HASH_METADATA_LEN_BYTES],
-    hash_R: [u8; HASH_METADATA_LEN_BYTES],
-    hash_t: [u8; HASH_METADATA_LEN_BYTES],
-    hash_w: [u8; HASH_METADATA_LEN_BYTES],
-    hash_agg: [u8; HASH_METADATA_LEN_BYTES],
-    hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
-    hash_phi: [u8; HASH_METADATA_LEN_BYTES],
-    hash_xi: [u8; HASH_METADATA_LEN_BYTES],
-    hash_z: [u8; HASH_METADATA_LEN_BYTES],
-    hash_chi: [u8; HASH_METADATA_LEN_BYTES],
+    pub msbs_zero_padding_bit_count: u64,
+    pub(crate) hash: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_R: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_t: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_w: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_agg: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_phi: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_xi: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_z: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_chi: [u8; HASH_METADATA_LEN_BYTES],
+}
+
+// Manual impl of Versionize because TryFrom + generics is currently badly handled by the proc macro
+impl<G: Curve> Versionize for PublicParams<G>
+where
+    Self: Clone,
+    SerializablePKEv2PublicParamsVersions: VersionsDispatch<SerializablePKEv2PublicParams>,
+    GroupElements<G>: Into<SerializableGroupElements>,
+{
+    type Versioned<'vers> =
+        <SerializablePKEv2PublicParamsVersions as VersionsDispatch<
+            SerializablePKEv2PublicParams,
+            >>::Owned where G:'vers;
+    fn versionize(&self) -> Self::Versioned<'_> {
+        VersionizeOwned::versionize_owned(SerializablePKEv2PublicParams::from(self.to_owned()))
+    }
+}
+
+impl<G: Curve> VersionizeOwned for PublicParams<G>
+where
+    Self: Clone,
+    SerializablePKEv2PublicParamsVersions: VersionsDispatch<SerializablePKEv2PublicParams>,
+    GroupElements<G>: Into<SerializableGroupElements>,
+{
+    type VersionedOwned = <SerializablePKEv2PublicParamsVersions as VersionsDispatch<
+        SerializablePKEv2PublicParams,
+    >>::Owned;
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        VersionizeOwned::versionize_owned(SerializablePKEv2PublicParams::from(self.to_owned()))
+    }
+}
+
+impl<E, G: Curve> Unversionize for PublicParams<G>
+where
+    Self: Clone,
+    SerializablePKEv2PublicParamsVersions: VersionsDispatch<SerializablePKEv2PublicParams>,
+    GroupElements<G>: Into<SerializableGroupElements>,
+    Self: TryFrom<SerializablePKEv2PublicParams, Error = E>,
+    E: Error + Send + Sync + 'static,
+{
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        SerializablePKEv2PublicParams::unversionize(versioned).and_then(|value| {
+            TryInto::<Self>::try_into(value)
+                .map_err(|e| UnversionizeError::conversion("SerializablePublicParams", e))
+        })
+    }
+}
+
+impl<G: Curve> Compressible for PublicParams<G>
+where
+    GroupElements<G>: Compressible<
+        Compressed = SerializableGroupElements,
+        UncompressError = InvalidSerializedGroupElementsError,
+    >,
+{
+    type Compressed = SerializablePKEv2PublicParams;
+
+    type UncompressError = InvalidSerializedPublicParamsError;
+
+    fn compress(&self) -> Self::Compressed {
+        let PublicParams {
+            g_lists,
+            D,
+            n,
+            d,
+            k,
+            B,
+            B_r,
+            B_bound,
+            m_bound,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = self;
+        SerializablePKEv2PublicParams {
+            g_lists: g_lists.compress(),
+            D: *D,
+            n: *n,
+            d: *d,
+            k: *k,
+            B: *B,
+            B_r: *B_r,
+            B_bound: *B_bound,
+            m_bound: *m_bound,
+            q: *q,
+            t: *t,
+            msbs_zero_padding_bit_count: *msbs_zero_padding_bit_count,
+            hash: hash.to_vec(),
+            hash_R: hash_R.to_vec(),
+            hash_t: hash_t.to_vec(),
+            hash_w: hash_w.to_vec(),
+            hash_agg: hash_agg.to_vec(),
+            hash_lmap: hash_lmap.to_vec(),
+            hash_phi: hash_phi.to_vec(),
+            hash_xi: hash_xi.to_vec(),
+            hash_z: hash_z.to_vec(),
+            hash_chi: hash_chi.to_vec(),
+        }
+    }
+
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+        let SerializablePKEv2PublicParams {
+            g_lists,
+            D,
+            n,
+            d,
+            k,
+            B,
+            B_r,
+            B_bound,
+            m_bound,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = compressed;
+        Ok(Self {
+            g_lists: GroupElements::uncompress(g_lists)?,
+            D,
+            n,
+            d,
+            k,
+            B,
+            B_r,
+            B_bound,
+            m_bound,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash: try_vec_to_array(hash)?,
+            hash_R: try_vec_to_array(hash_R)?,
+            hash_t: try_vec_to_array(hash_t)?,
+            hash_w: try_vec_to_array(hash_w)?,
+            hash_agg: try_vec_to_array(hash_agg)?,
+            hash_lmap: try_vec_to_array(hash_lmap)?,
+            hash_phi: try_vec_to_array(hash_phi)?,
+            hash_xi: try_vec_to_array(hash_xi)?,
+            hash_z: try_vec_to_array(hash_z)?,
+            hash_chi: try_vec_to_array(hash_chi)?,
+        })
+    }
 }
 
 impl<G: Curve> PublicParams<G> {
@@ -45,6 +225,7 @@ impl<G: Curve> PublicParams<G> {
         B: u64,
         q: u64,
         t: u64,
+        msbs_zero_padding_bit_count: u64,
         bound: Bound,
         hash: [u8; HASH_METADATA_LEN_BYTES],
         hash_R: [u8; HASH_METADATA_LEN_BYTES],
@@ -57,7 +238,8 @@ impl<G: Curve> PublicParams<G> {
         hash_z: [u8; HASH_METADATA_LEN_BYTES],
         hash_chi: [u8; HASH_METADATA_LEN_BYTES],
     ) -> Self {
-        let (n, D, B_r, B_bound, m_bound) = compute_crs_params(d, k, B, q, t, bound);
+        let (n, D, B_r, B_bound, m_bound) =
+            compute_crs_params(d, k, B, q, t, msbs_zero_padding_bit_count, bound);
         Self {
             g_lists: GroupElements::<G>::from_vec(g_list, g_hat_list),
             D,
@@ -70,6 +252,7 @@ impl<G: Curve> PublicParams<G> {
             m_bound,
             q,
             t,
+            msbs_zero_padding_bit_count,
             hash,
             hash_R,
             hash_t,
@@ -88,11 +271,14 @@ impl<G: Curve> PublicParams<G> {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+/// This represents a proof that the given ciphertext is a valid encryptions of the input messages
+/// with the provided public key.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[serde(bound(
     deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
     serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
 ))]
+#[versionize(PKEv2ProofVersions)]
 pub struct Proof<G: Curve> {
     C_hat_e: G::G2,
     C_e: G::G1,
@@ -110,6 +296,116 @@ pub struct Proof<G: Curve> {
     C_hat_w: Option<G::G2>,
 }
 
+type CompressedG2<G> = <<G as Curve>::G2 as Compressible>::Compressed;
+type CompressedG1<G> = <<G as Curve>::G1 as Compressible>::Compressed;
+
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(bound(
+    deserialize = "G: Curve, CompressedG1<G>: serde::Deserialize<'de>, CompressedG2<G>: serde::Deserialize<'de>",
+    serialize = "G: Curve, CompressedG1<G>: serde::Serialize, CompressedG2<G>: serde::Serialize"
+))]
+#[versionize(PKEv2CompressedProofVersions)]
+pub struct CompressedProof<G: Curve>
+where
+    G::G1: Compressible,
+    G::G2: Compressible,
+{
+    C_hat_e: CompressedG2<G>,
+    C_e: CompressedG1<G>,
+    C_r_tilde: CompressedG1<G>,
+    C_R: CompressedG1<G>,
+    C_hat_bin: CompressedG2<G>,
+    C_y: CompressedG1<G>,
+    C_h1: CompressedG1<G>,
+    C_h2: CompressedG1<G>,
+    C_hat_t: CompressedG2<G>,
+    pi: CompressedG1<G>,
+    pi_kzg: CompressedG1<G>,
+
+    C_hat_h3: Option<CompressedG2<G>>,
+    C_hat_w: Option<CompressedG2<G>>,
+}
+
+impl<G: Curve> Compressible for Proof<G>
+where
+    G::G1: Compressible<UncompressError = InvalidSerializedAffineError>,
+    G::G2: Compressible<UncompressError = InvalidSerializedAffineError>,
+{
+    type Compressed = CompressedProof<G>;
+
+    type UncompressError = InvalidSerializedAffineError;
+
+    fn compress(&self) -> Self::Compressed {
+        let Proof {
+            C_hat_e,
+            C_e,
+            C_r_tilde,
+            C_R,
+            C_hat_bin,
+            C_y,
+            C_h1,
+            C_h2,
+            C_hat_t,
+            pi,
+            pi_kzg,
+            C_hat_h3,
+            C_hat_w,
+        } = self;
+
+        CompressedProof {
+            C_hat_e: C_hat_e.compress(),
+            C_e: C_e.compress(),
+            C_r_tilde: C_r_tilde.compress(),
+            C_R: C_R.compress(),
+            C_hat_bin: C_hat_bin.compress(),
+            C_y: C_y.compress(),
+            C_h1: C_h1.compress(),
+            C_h2: C_h2.compress(),
+            C_hat_t: C_hat_t.compress(),
+            pi: pi.compress(),
+            pi_kzg: pi_kzg.compress(),
+            C_hat_h3: C_hat_h3.map(|val| val.compress()),
+            C_hat_w: C_hat_w.map(|val| val.compress()),
+        }
+    }
+
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+        let CompressedProof {
+            C_hat_e,
+            C_e,
+            C_r_tilde,
+            C_R,
+            C_hat_bin,
+            C_y,
+            C_h1,
+            C_h2,
+            C_hat_t,
+            pi,
+            pi_kzg,
+            C_hat_h3,
+            C_hat_w,
+        } = compressed;
+
+        Ok(Proof {
+            C_hat_e: G::G2::uncompress(C_hat_e)?,
+            C_e: G::G1::uncompress(C_e)?,
+            C_r_tilde: G::G1::uncompress(C_r_tilde)?,
+            C_R: G::G1::uncompress(C_R)?,
+            C_hat_bin: G::G2::uncompress(C_hat_bin)?,
+            C_y: G::G1::uncompress(C_y)?,
+            C_h1: G::G1::uncompress(C_h1)?,
+            C_h2: G::G1::uncompress(C_h2)?,
+            C_hat_t: G::G2::uncompress(C_hat_t)?,
+            pi: G::G1::uncompress(pi)?,
+            pi_kzg: G::G1::uncompress(pi_kzg)?,
+            C_hat_h3: C_hat_h3.map(G::G2::uncompress).transpose()?,
+            C_hat_w: C_hat_w.map(G::G2::uncompress).transpose()?,
+        })
+    }
+}
+
+/// This is the public part of the commitment. `a` and `b` are the mask and body of the public key,
+/// `c1` and `c2` are the mask and body of the ciphertext.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PublicCommit<G: Curve> {
     a: Vec<i64>,
@@ -152,6 +448,7 @@ pub fn compute_crs_params(
     B: u64,
     _q: u64, // we keep q here to make sure the API is consistent with [crs_gen]
     t: u64,
+    msbs_zero_padding_bit_count: u64,
     bound: Bound,
 ) -> (usize, usize, u64, u64, usize) {
     let B_r = d as u64 / 2 + 1;
@@ -167,25 +464,31 @@ pub fn compute_crs_params(
     }
     .ceil() as u64;
 
+    // Formula is round_up(1 + B_bound.ilog2()) so we convert it to +2
     let m_bound = 2 + B_bound.ilog2() as usize;
 
-    let D = d + k * t.ilog2() as usize;
+    // This is also the effective t for encryption
+    let effective_t_for_decomposition = t >> msbs_zero_padding_bit_count;
+    let D = d + k * effective_t_for_decomposition.ilog2() as usize;
     let n = D + 128 * m_bound;
 
     (n, D, B_r, B_bound, m_bound)
 }
 
+/// Generates a CRS based on the bound the heuristic provided by the lemma 2 of the paper.
 pub fn crs_gen_ghl<G: Curve>(
     d: usize,
     k: usize,
     B: u64,
     q: u64,
     t: u64,
+    msbs_zero_padding_bit_count: u64,
     rng: &mut dyn RngCore,
 ) -> PublicParams<G> {
     let alpha = G::Zp::rand(rng);
     let B = B * (isqrt((d + k) as _) as u64 + 1);
-    let (n, D, B_r, B_bound, m_bound) = compute_crs_params(d, k, B, q, t, Bound::GHL);
+    let (n, D, B_r, B_bound, m_bound) =
+        compute_crs_params(d, k, B, q, t, msbs_zero_padding_bit_count, Bound::GHL);
     PublicParams {
         g_lists: GroupElements::<G>::new(n, alpha),
         D,
@@ -198,6 +501,7 @@ pub fn crs_gen_ghl<G: Curve>(
         m_bound,
         q,
         t,
+        msbs_zero_padding_bit_count,
         hash: core::array::from_fn(|_| rng.gen()),
         hash_R: core::array::from_fn(|_| rng.gen()),
         hash_t: core::array::from_fn(|_| rng.gen()),
@@ -211,17 +515,21 @@ pub fn crs_gen_ghl<G: Curve>(
     }
 }
 
+/// Generates a CRS based on the Cauchy-Schwartz inequality. This removes the need of a heuristic
+/// used by GHL (see section 3.5 of the reference paper), but the bound is less strict.
 pub fn crs_gen_cs<G: Curve>(
     d: usize,
     k: usize,
     B: u64,
     q: u64,
     t: u64,
+    msbs_zero_padding_bit_count: u64,
     rng: &mut dyn RngCore,
 ) -> PublicParams<G> {
     let alpha = G::Zp::rand(rng);
     let B = B * (isqrt((d + k) as _) as u64 + 1);
-    let (n, D, B_r, B_bound, m_bound) = compute_crs_params(d, k, B, q, t, Bound::CS);
+    let (n, D, B_r, B_bound, m_bound) =
+        compute_crs_params(d, k, B, q, t, msbs_zero_padding_bit_count, Bound::CS);
     PublicParams {
         g_lists: GroupElements::<G>::new(n, alpha),
         D,
@@ -234,6 +542,7 @@ pub fn crs_gen_cs<G: Curve>(
         m_bound,
         q,
         t,
+        msbs_zero_padding_bit_count,
         hash: core::array::from_fn(|_| rng.gen()),
         hash_R: core::array::from_fn(|_| rng.gen()),
         hash_t: core::array::from_fn(|_| rng.gen()),
@@ -247,15 +556,22 @@ pub fn crs_gen_cs<G: Curve>(
     }
 }
 
+/// Generates a new CRS. When applied to TFHE, the parameters are mapped like this:
+/// - d: lwe_dimension
+/// - k: max_num_cleartext
+/// - B: noise_bound
+/// - q: ciphertext_modulus
+/// - t: plaintext_modulus
 pub fn crs_gen<G: Curve>(
     d: usize,
     k: usize,
     B: u64,
     q: u64,
     t: u64,
+    msbs_zero_padding_bit_count: u64,
     rng: &mut dyn RngCore,
 ) -> PublicParams<G> {
-    crs_gen_cs(d, k, B, q, t, rng)
+    crs_gen_cs(d, k, B, q, t, msbs_zero_padding_bit_count, rng)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -293,6 +609,7 @@ pub fn commit<G: Curve>(
 pub fn prove<G: Curve>(
     public: (&PublicParams<G>, &PublicCommit<G>),
     private_commit: &PrivateCommit<G>,
+    metadata: &[u8],
     load: ComputeLoad,
     rng: &mut dyn RngCore,
 ) -> Proof<G> {
@@ -300,16 +617,17 @@ pub fn prove<G: Curve>(
     let (
         &PublicParams {
             ref g_lists,
-            D,
+            D: D_max,
             n,
             d,
-            k,
+            k: k_max,
             B,
             B_r: _,
             B_bound,
             m_bound,
             q,
             t: t_input,
+            msbs_zero_padding_bit_count,
             ref hash,
             ref hash_R,
             ref hash_t,
@@ -328,12 +646,20 @@ pub fn prove<G: Curve>(
 
     let PrivateCommit { r, e1, m, e2, .. } = private_commit;
 
-    assert!(c2.len() <= k);
-    let k = k.min(c2.len());
+    let k = c2.len();
+    assert!(k <= k_max);
+
+    let effective_cleartext_t = t_input >> msbs_zero_padding_bit_count;
+
+    // Recompute the D for our case if k is smaller than the k max
+    // formula in Prove_pp: 2.
+    let D = d + k * effective_cleartext_t.ilog2() as usize;
+    assert!(D <= D_max);
 
     // FIXME: div_round
     let delta = {
         let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+        // delta takes the encoding with the padding bit
         (q / t_input as i128) as u64
     };
 
@@ -346,7 +672,8 @@ pub fn prove<G: Curve>(
     let gamma_bin = G::Zp::rand(rng);
     let gamma_y = G::Zp::rand(rng);
 
-    // eq (10)
+    // eq (11)
+    // (phi is simply the function that maps a polynomial to its coeffs vector)
     // rot(a) * phi(bar(r)) - q phi(r1) + phi(e1) = phi(c1)
     // phi_[d - i](b).T * phi(bar(r)) + delta * m_i - q r2_i + e2_i = c2_i
 
@@ -421,7 +748,10 @@ pub fn prove<G: Curve>(
         .iter()
         .rev()
         .map(|&r| r != 0)
-        .chain(m.iter().flat_map(|&m| bit_iter(u64(m), t_input.ilog2())))
+        .chain(
+            m.iter()
+                .flat_map(|&m| bit_iter(u64(m), effective_cleartext_t.ilog2())),
+        )
         .collect::<Box<[_]>>();
 
     let e_sqr_norm = e1
@@ -490,6 +820,7 @@ pub fn prove<G: Curve>(
         d.to_le_bytes().as_slice(),
         B.to_le_bytes().as_slice(),
         t_input.to_le_bytes().as_slice(),
+        msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
         &*a.iter()
             .flat_map(|&x| x.to_le_bytes())
             .collect::<Box<[_]>>(),
@@ -515,10 +846,11 @@ pub fn prove<G: Curve>(
     let mut hasher = sha3::Shake256::default();
     for &data in &[
         hash_R,
+        metadata,
         x_bytes,
-        C_hat_e.to_bytes().as_ref(),
-        C_e.to_bytes().as_ref(),
-        C_r_tilde.to_bytes().as_ref(),
+        C_hat_e.to_le_bytes().as_ref(),
+        C_e.to_le_bytes().as_ref(),
+        C_r_tilde.to_le_bytes().as_ref(),
     ] {
         hasher.update(data);
     }
@@ -583,17 +915,18 @@ pub fn prove<G: Curve>(
         &mut phi,
         &[
             hash_phi,
+            metadata,
             x_bytes,
             R_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let phi_bytes = &*phi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let m = m_bound;
@@ -622,20 +955,21 @@ pub fn prove<G: Curve>(
         &mut xi,
         &[
             hash_xi,
+            metadata,
             x_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
             phi_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
 
     let xi_bytes = &*xi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut y = vec![G::Zp::ZERO; D + 128 * m];
@@ -643,20 +977,21 @@ pub fn prove<G: Curve>(
         &mut y,
         &[
             hash,
+            metadata,
             x_bytes,
             R_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let y_bytes = &*y
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     assert_eq!(y.len(), w_bin.len());
@@ -674,22 +1009,23 @@ pub fn prove<G: Curve>(
         &mut t,
         &[
             hash_t,
+            metadata,
             x_bytes,
             y_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let t_bytes = &*t
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut theta = vec![G::Zp::ZERO; d + k];
@@ -697,27 +1033,28 @@ pub fn prove<G: Curve>(
         &mut theta,
         &[
             hash_lmap,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let theta_bytes = &*theta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
-    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, t_input, delta);
+    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, effective_cleartext_t, delta);
 
     let t_theta = theta
         .iter()
@@ -731,24 +1068,25 @@ pub fn prove<G: Curve>(
         &mut w,
         &[
             hash_w,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
             phi_bytes,
             xi_bytes,
             theta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let w_bytes = &*w
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut delta = [G::Zp::ZERO; 7];
@@ -756,6 +1094,7 @@ pub fn prove<G: Curve>(
         &mut delta,
         &[
             hash_agg,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -763,19 +1102,19 @@ pub fn prove<G: Curve>(
             xi_bytes,
             theta_bytes,
             w_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
     let delta_bytes = &*delta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut poly_0_lhs = vec![G::Zp::ZERO; 1 + n];
@@ -1118,8 +1457,8 @@ pub fn prove<G: Curve>(
         ComputeLoad::Verify => (None, None),
     };
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_bytes);
+    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_le_bytes);
+    let C_hat_w_bytes = C_hat_w.map(G::G2::to_le_bytes);
     let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
     let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
 
@@ -1130,6 +1469,7 @@ pub fn prove<G: Curve>(
         core::slice::from_mut(&mut z),
         &[
             hash_z,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1137,16 +1477,16 @@ pub fn prove<G: Curve>(
             x_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
         ],
@@ -1262,6 +1602,7 @@ pub fn prove<G: Curve>(
         core::slice::from_mut(&mut chi),
         &[
             hash_chi,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1269,22 +1610,22 @@ pub fn prove<G: Curve>(
             xi_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
-            z.to_bytes().as_ref(),
-            p_h1.to_bytes().as_ref(),
-            p_h2.to_bytes().as_ref(),
-            p_t.to_bytes().as_ref(),
+            z.to_le_bytes().as_ref(),
+            p_h1.to_le_bytes().as_ref(),
+            p_h2.to_le_bytes().as_ref(),
+            p_t.to_le_bytes().as_ref(),
         ],
     );
 
@@ -1436,6 +1777,7 @@ fn compute_a_theta<G: Curve>(
 pub fn verify<G: Curve>(
     proof: &Proof<G>,
     public: (&PublicParams<G>, &PublicCommit<G>),
+    metadata: &[u8],
 ) -> Result<(), ()> {
     let &Proof {
         C_hat_e,
@@ -1456,16 +1798,17 @@ pub fn verify<G: Curve>(
 
     let &PublicParams {
         ref g_lists,
-        D,
+        D: D_max,
         n,
         d,
-        k,
+        k: k_max,
         B,
         B_r: _,
         B_bound: _,
         m_bound: m,
         q,
         t: t_input,
+        msbs_zero_padding_bit_count,
         ref hash,
         ref hash_R,
         ref hash_t,
@@ -1483,17 +1826,27 @@ pub fn verify<G: Curve>(
     // FIXME: div_round
     let delta = {
         let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+        // delta takes the encoding with the padding bit
         (q / t_input as i128) as u64
     };
 
     let PublicCommit { a, b, c1, c2, .. } = public.1;
-    if c2.len() > k {
+    let k = c2.len();
+    if k > k_max {
         return Err(());
     }
-    let k = k.min(c2.len());
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_bytes);
+    let effective_cleartext_t = t_input >> msbs_zero_padding_bit_count;
+
+    // Recompute the D for our case if k is smaller than the k max
+    // formula in Prove_pp: 2.
+    let D = d + k * effective_cleartext_t.ilog2() as usize;
+    if D > D_max {
+        return Err(());
+    }
+
+    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_le_bytes);
+    let C_hat_w_bytes = C_hat_w.map(G::G2::to_le_bytes);
     let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
     let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
 
@@ -1502,6 +1855,7 @@ pub fn verify<G: Curve>(
         d.to_le_bytes().as_slice(),
         B.to_le_bytes().as_slice(),
         t_input.to_le_bytes().as_slice(),
+        msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
         &*a.iter()
             .flat_map(|&x| x.to_le_bytes())
             .collect::<Box<[_]>>(),
@@ -1527,10 +1881,11 @@ pub fn verify<G: Curve>(
     let mut hasher = sha3::Shake256::default();
     for &data in &[
         hash_R,
+        metadata,
         x_bytes,
-        C_hat_e.to_bytes().as_ref(),
-        C_e.to_bytes().as_ref(),
-        C_r_tilde.to_bytes().as_ref(),
+        C_hat_e.to_le_bytes().as_ref(),
+        C_e.to_le_bytes().as_ref(),
+        C_r_tilde.to_le_bytes().as_ref(),
     ] {
         hasher.update(data);
     }
@@ -1563,17 +1918,18 @@ pub fn verify<G: Curve>(
         &mut phi,
         &[
             hash_phi,
+            metadata,
             x_bytes,
             R_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let phi_bytes = &*phi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut xi = vec![G::Zp::ZERO; 128];
@@ -1581,19 +1937,20 @@ pub fn verify<G: Curve>(
         &mut xi,
         &[
             hash_xi,
+            metadata,
             x_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
             phi_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let xi_bytes = &*xi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut y = vec![G::Zp::ZERO; D + 128 * m];
@@ -1601,20 +1958,21 @@ pub fn verify<G: Curve>(
         &mut y,
         &[
             hash,
+            metadata,
             x_bytes,
             R_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let y_bytes = &*y
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut t = vec![G::Zp::ZERO; n];
@@ -1622,22 +1980,23 @@ pub fn verify<G: Curve>(
         &mut t,
         &[
             hash_t,
+            metadata,
             x_bytes,
             y_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let t_bytes = &*t
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut theta = vec![G::Zp::ZERO; d + k];
@@ -1645,23 +2004,24 @@ pub fn verify<G: Curve>(
         &mut theta,
         &[
             hash_lmap,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let theta_bytes = &*theta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut w = vec![G::Zp::ZERO; n];
@@ -1669,28 +2029,29 @@ pub fn verify<G: Curve>(
         &mut w,
         &[
             hash_w,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
             phi_bytes,
             xi_bytes,
             theta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let w_bytes = &*w
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
-    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, t_input, delta);
+    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, effective_cleartext_t, delta);
 
     let t_theta = theta
         .iter()
@@ -1704,6 +2065,7 @@ pub fn verify<G: Curve>(
         &mut delta,
         &[
             hash_agg,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1711,19 +2073,19 @@ pub fn verify<G: Curve>(
             xi_bytes,
             theta_bytes,
             w_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
     let delta_bytes = &*delta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let g = G::G1::GENERATOR;
@@ -1797,6 +2159,7 @@ pub fn verify<G: Curve>(
         core::slice::from_mut(&mut z),
         &[
             hash_z,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1804,16 +2167,16 @@ pub fn verify<G: Curve>(
             x_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
         ],
@@ -1935,6 +2298,7 @@ pub fn verify<G: Curve>(
         core::slice::from_mut(&mut chi),
         &[
             hash_chi,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1942,22 +2306,22 @@ pub fn verify<G: Curve>(
             xi_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
-            z.to_bytes().as_ref(),
-            p_h1.to_bytes().as_ref(),
-            p_h2.to_bytes().as_ref(),
-            p_t.to_bytes().as_ref(),
+            z.to_le_bytes().as_ref(),
+            p_h1.to_le_bytes().as_ref(),
+            p_h2.to_le_bytes().as_ref(),
+            p_t.to_le_bytes().as_ref(),
         ],
     );
     let chi2 = chi * chi;
@@ -1994,8 +2358,27 @@ pub fn verify<G: Curve>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bincode::ErrorKind;
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
+
+    fn polymul_rev(a: &[i64], b: &[i64]) -> Vec<i64> {
+        assert_eq!(a.len(), b.len());
+        let d = a.len();
+        let mut c = vec![0i64; d];
+
+        for i in 0..d {
+            for j in 0..d {
+                if i + j < d {
+                    c[i + j] = c[i + j].wrapping_add(a[i].wrapping_mul(b[d - j - 1]));
+                } else {
+                    c[i + j - d] = c[i + j - d].wrapping_sub(a[i].wrapping_mul(b[d - j - 1]));
+                }
+            }
+        }
+
+        c
+    }
 
     #[test]
     fn test_pke() {
@@ -2004,6 +2387,385 @@ mod tests {
         let B = 1048576;
         let q = 0;
         let t = 1024;
+        let msbs_zero_padding_bit_count = 1;
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let delta = {
+            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+            // delta takes the encoding with the padding bit
+            (q / t as i128) as u64
+        };
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+        let s = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+        let e = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+        let e1 = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+        let fake_e1 = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+        let e2 = (0..k)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+        let fake_e2 = (0..k)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+
+        let r = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+        let fake_r = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+
+        let m = (0..k)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
+            .collect::<Vec<_>>();
+        let fake_m = (0..k)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
+            .collect::<Vec<_>>();
+
+        let b = polymul_rev(&a, &s)
+            .into_iter()
+            .zip(e.iter())
+            .map(|(x, e)| x.wrapping_add(*e))
+            .collect::<Vec<_>>();
+        let c1 = polymul_rev(&a, &r)
+            .into_iter()
+            .zip(e1.iter())
+            .map(|(x, e1)| x.wrapping_add(*e1))
+            .collect::<Vec<_>>();
+
+        let mut c2 = vec![0i64; k];
+
+        for i in 0..k {
+            let mut dot = 0i64;
+            for j in 0..d {
+                let b = if i + j < d {
+                    b[d - j - i - 1]
+                } else {
+                    b[2 * d - j - i - 1].wrapping_neg()
+                };
+
+                dot = dot.wrapping_add(r[d - j - 1].wrapping_mul(b));
+            }
+
+            c2[i] = dot
+                .wrapping_add(e2[i])
+                .wrapping_add((delta * m[i] as u64) as i64);
+        }
+
+        // One of our usecases uses 320 bits of additional metadata
+        const METADATA_LEN: usize = (320 / u8::BITS) as usize;
+
+        let mut metadata = [0u8; METADATA_LEN];
+        metadata.fill_with(|| rng.gen::<u8>());
+
+        let mut fake_metadata = [255u8; METADATA_LEN];
+        fake_metadata.fill_with(|| rng.gen::<u8>());
+
+        let mut m_roundtrip = vec![0i64; k];
+        for i in 0..k {
+            let mut dot = 0i128;
+            for j in 0..d {
+                let c = if i + j < d {
+                    c1[d - j - i - 1]
+                } else {
+                    c1[2 * d - j - i - 1].wrapping_neg()
+                };
+
+                dot += s[d - j - 1] as i128 * c as i128;
+            }
+
+            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+            let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
+            let div = val.div_euclid(q);
+            let rem = val.rem_euclid(q);
+            let result = div as i64 + (rem > (q / 2)) as i64;
+            let result = result.rem_euclid(effective_cleartext_t as i64);
+            m_roundtrip[i] = result;
+        }
+
+        type Curve = crate::curve_api::Bls12_446;
+
+        let serialize_then_deserialize = |public_param: &PublicParams<Curve>,
+                                          compress: bool|
+         -> bincode::Result<PublicParams<Curve>> {
+            match compress {
+                true => PublicParams::uncompress(bincode::deserialize(&bincode::serialize(
+                    &public_param.clone().compress(),
+                )?)?)
+                .map_err(|e| Box::new(ErrorKind::Custom(format!("Failed to uncompress: {}", e)))),
+                false => bincode::deserialize(&bincode::serialize(&public_param)?),
+            }
+        };
+
+        // To check management of bigger k_max from CRS during test
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let original_public_param =
+            crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
+        let public_param_that_was_compressed =
+            serialize_then_deserialize(&original_public_param, true).unwrap();
+        let public_param_that_was_not_compressed =
+            serialize_then_deserialize(&original_public_param, false).unwrap();
+
+        for (
+            public_param,
+            use_fake_r,
+            use_fake_e1,
+            use_fake_e2,
+            use_fake_m,
+            use_fake_metadata_verify,
+        ) in itertools::iproduct!(
+            [
+                original_public_param,
+                public_param_that_was_compressed,
+                public_param_that_was_not_compressed,
+            ],
+            [false, true],
+            [false, true],
+            [false, true],
+            [false, true],
+            [false, true]
+        ) {
+            let (public_commit, private_commit) = commit(
+                a.clone(),
+                b.clone(),
+                c1.clone(),
+                c2.clone(),
+                if use_fake_r {
+                    fake_r.clone()
+                } else {
+                    r.clone()
+                },
+                if use_fake_e1 {
+                    fake_e1.clone()
+                } else {
+                    e1.clone()
+                },
+                if use_fake_m {
+                    fake_m.clone()
+                } else {
+                    m.clone()
+                },
+                if use_fake_e2 {
+                    fake_e2.clone()
+                } else {
+                    e2.clone()
+                },
+                &public_param,
+                rng,
+            );
+
+            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+                let proof = prove(
+                    (&public_param, &public_commit),
+                    &private_commit,
+                    &metadata,
+                    load,
+                    rng,
+                );
+
+                let verify_metadata = if use_fake_metadata_verify {
+                    &fake_metadata
+                } else {
+                    &metadata
+                };
+
+                assert_eq!(
+                    verify(&proof, (&public_param, &public_commit), verify_metadata).is_err(),
+                    use_fake_e1
+                        || use_fake_e2
+                        || use_fake_r
+                        || use_fake_m
+                        || use_fake_metadata_verify
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_pke_w_padding_fail_verify() {
+        let d = 2048;
+        let k = 320;
+        let B = 1048576;
+        let q = 0;
+        let t = 1024;
+
+        let msbs_zero_padding_bit_count = 1;
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let delta = {
+            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+            // delta takes the encoding with the padding bit
+
+            (q / t as i128) as u64
+        };
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+        let s = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+        let e = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+        let e1 = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+        let e2 = (0..k)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+
+        let r = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+
+        // Generate messages with padding set to fail verification
+        let m = {
+            let mut tmp = (0..k)
+                .map(|_| (rng.gen::<u64>() % t) as i64)
+                .collect::<Vec<_>>();
+            while tmp.iter().all(|&x| (x as u64) < effective_cleartext_t) {
+                tmp.fill_with(|| (rng.gen::<u64>() % t) as i64);
+            }
+
+            tmp
+        };
+
+        let b = polymul_rev(&a, &s)
+            .into_iter()
+            .zip(e.iter())
+            .map(|(x, e)| x.wrapping_add(*e))
+            .collect::<Vec<_>>();
+        let c1 = polymul_rev(&a, &r)
+            .into_iter()
+            .zip(e1.iter())
+            .map(|(x, e1)| x.wrapping_add(*e1))
+            .collect::<Vec<_>>();
+
+        let mut c2 = vec![0i64; k];
+
+        for i in 0..k {
+            let mut dot = 0i64;
+            for j in 0..d {
+                let b = if i + j < d {
+                    b[d - j - i - 1]
+                } else {
+                    b[2 * d - j - i - 1].wrapping_neg()
+                };
+
+                dot = dot.wrapping_add(r[d - j - 1].wrapping_mul(b));
+            }
+
+            c2[i] = dot
+                .wrapping_add(e2[i])
+                .wrapping_add((delta * m[i] as u64) as i64);
+        }
+
+        // One of our usecases uses 320 bits of additional metadata
+        const METADATA_LEN: usize = (320 / u8::BITS) as usize;
+
+        let mut metadata = [0u8; METADATA_LEN];
+        metadata.fill_with(|| rng.gen::<u8>());
+
+        let mut m_roundtrip = vec![0i64; k];
+        for i in 0..k {
+            let mut dot = 0i128;
+            for j in 0..d {
+                let c = if i + j < d {
+                    c1[d - j - i - 1]
+                } else {
+                    c1[2 * d - j - i - 1].wrapping_neg()
+                };
+
+                dot += s[d - j - 1] as i128 * c as i128;
+            }
+
+            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+            let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
+            let div = val.div_euclid(q);
+            let rem = val.rem_euclid(q);
+            let result = div as i64 + (rem > (q / 2)) as i64;
+            let result = result.rem_euclid(effective_cleartext_t as i64);
+            m_roundtrip[i] = result;
+        }
+
+        type Curve = crate::curve_api::Bls12_446;
+
+        let serialize_then_deserialize = |public_param: &PublicParams<Curve>,
+                                          compress: bool|
+         -> bincode::Result<PublicParams<Curve>> {
+            match compress {
+                true => PublicParams::uncompress(bincode::deserialize(&bincode::serialize(
+                    &public_param.clone().compress(),
+                )?)?)
+                .map_err(|e| Box::new(ErrorKind::Custom(format!("Failed to uncompress: {}", e)))),
+                false => bincode::deserialize(&bincode::serialize(&public_param)?),
+            }
+        };
+
+        // To check management of bigger k_max from CRS during test
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let original_public_param =
+            crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
+        let public_param_that_was_compressed =
+            serialize_then_deserialize(&original_public_param, true).unwrap();
+        let public_param_that_was_not_compressed =
+            serialize_then_deserialize(&original_public_param, false).unwrap();
+
+        for public_param in [
+            original_public_param,
+            public_param_that_was_compressed,
+            public_param_that_was_not_compressed,
+        ] {
+            let (public_commit, private_commit) = commit(
+                a.clone(),
+                b.clone(),
+                c1.clone(),
+                c2.clone(),
+                r.clone(),
+                e1.clone(),
+                m.clone(),
+                e2.clone(),
+                &public_param,
+                rng,
+            );
+
+            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+                let proof = prove(
+                    (&public_param, &public_commit),
+                    &private_commit,
+                    &metadata,
+                    load,
+                    rng,
+                );
+
+                assert!(verify(&proof, (&public_param, &public_commit), &metadata).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn test_proof_compression() {
+        let d = 2048;
+        let k = 320;
+        let B = 1048576;
+        let q = 0;
+        let t = 1024;
+
+        let msbs_zero_padding_bit_count = 1;
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
         let delta = {
             let q = if q == 0 { 1i128 << 64 } else { q as i128 };
@@ -2040,28 +2802,16 @@ mod tests {
         let e1 = (0..d)
             .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
-        let fake_e1 = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
         let e2 = (0..k)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-        let fake_e2 = (0..k)
             .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
 
         let r = (0..d)
             .map(|_| (rng.gen::<u64>() % 2) as i64)
             .collect::<Vec<_>>();
-        let fake_r = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
-            .collect::<Vec<_>>();
 
         let m = (0..k)
-            .map(|_| (rng.gen::<u64>() % t) as i64)
-            .collect::<Vec<_>>();
-        let fake_m = (0..k)
-            .map(|_| (rng.gen::<u64>() % t) as i64)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
             .collect::<Vec<_>>();
 
         let b = polymul_rev(&a, &s)
@@ -2094,6 +2844,12 @@ mod tests {
                 .wrapping_add((delta * m[i] as u64) as i64);
         }
 
+        // One of our usecases uses 320 bits of additional metadata
+        const METADATA_LEN: usize = (320 / u8::BITS) as usize;
+
+        let mut metadata = [0u8; METADATA_LEN];
+        metadata.fill_with(|| rng.gen::<u8>());
+
         let mut m_roundtrip = vec![0i64; k];
         for i in 0..k {
             let mut dot = 0i128;
@@ -2112,83 +2868,43 @@ mod tests {
             let div = val.div_euclid(q);
             let rem = val.rem_euclid(q);
             let result = div as i64 + (rem > (q / 2)) as i64;
-            let result = result.rem_euclid(t as i64);
+            let result = result.rem_euclid(effective_cleartext_t as i64);
             m_roundtrip[i] = result;
         }
 
         type Curve = crate::curve_api::Bls12_446;
 
-        let serialize_then_deserialize =
-            |public_param: &PublicParams<Curve>,
-             compress: Compress|
-             -> Result<PublicParams<Curve>, SerializationError> {
-                let mut data = Vec::new();
-                public_param.serialize_with_mode(&mut data, compress)?;
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
 
-                PublicParams::deserialize_with_mode(data.as_slice(), compress, Validate::No)
-            };
+        let public_param = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
 
-        let original_public_param = crs_gen_ghl::<Curve>(d, k, B, q, t, rng);
-        let public_param_that_was_compressed =
-            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
-        let public_param_that_was_not_compressed =
-            serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
+        let (public_commit, private_commit) = commit(
+            a.clone(),
+            b.clone(),
+            c1.clone(),
+            c2.clone(),
+            r.clone(),
+            e1.clone(),
+            m.clone(),
+            e2.clone(),
+            &public_param,
+            rng,
+        );
 
-        for public_param in [
-            original_public_param,
-            public_param_that_was_compressed,
-            public_param_that_was_not_compressed,
-        ] {
-            for use_fake_e1 in [false, true] {
-                for use_fake_e2 in [false, true] {
-                    for use_fake_m in [false, true] {
-                        for use_fake_r in [false, true] {
-                            let (public_commit, private_commit) = commit(
-                                a.clone(),
-                                b.clone(),
-                                c1.clone(),
-                                c2.clone(),
-                                if use_fake_r {
-                                    fake_r.clone()
-                                } else {
-                                    r.clone()
-                                },
-                                if use_fake_e1 {
-                                    fake_e1.clone()
-                                } else {
-                                    e1.clone()
-                                },
-                                if use_fake_m {
-                                    fake_m.clone()
-                                } else {
-                                    m.clone()
-                                },
-                                if use_fake_e2 {
-                                    fake_e2.clone()
-                                } else {
-                                    e2.clone()
-                                },
-                                &public_param,
-                                rng,
-                            );
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            let proof = prove(
+                (&public_param, &public_commit),
+                &private_commit,
+                &metadata,
+                load,
+                rng,
+            );
 
-                            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-                                let proof = prove(
-                                    (&public_param, &public_commit),
-                                    &private_commit,
-                                    load,
-                                    rng,
-                                );
+            let compressed_proof = bincode::serialize(&proof.clone().compress()).unwrap();
+            let proof =
+                Proof::uncompress(bincode::deserialize(&compressed_proof).unwrap()).unwrap();
 
-                                assert_eq!(
-                                    verify(&proof, (&public_param, &public_commit)).is_err(),
-                                    use_fake_e1 || use_fake_e2 || use_fake_r || use_fake_m
-                                );
-                            }
-                        }
-                    }
-                }
-            }
+            verify(&proof, (&public_param, &public_commit), &metadata).unwrap()
         }
     }
 }

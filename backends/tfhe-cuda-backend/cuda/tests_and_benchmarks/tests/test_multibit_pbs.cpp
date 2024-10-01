@@ -92,8 +92,8 @@ public:
         &payload_modulus, &delta, number_of_inputs, repetitions, samples);
 
     scratch_cuda_multi_bit_programmable_bootstrap_64(
-        stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
-        polynomial_size, pbs_level, grouping_factor, number_of_inputs, true);
+        stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
+        pbs_level, number_of_inputs, true);
 
     lwe_ct_out_array =
         (uint64_t *)malloc((glwe_dimension * polynomial_size + 1) *
@@ -119,6 +119,8 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
                  (glwe_dimension + 1) * (glwe_dimension + 1) * polynomial_size *
                  (1 << grouping_factor);
 
+  uint32_t lut_count = 1;
+  uint32_t lut_stride = 0;
   for (int r = 0; r < repetitions; r++) {
     uint64_t *d_bsk = d_bsk_array + (ptrdiff_t)(bsk_size * r);
     uint64_t *lwe_sk_out =
@@ -135,7 +137,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
           (void *)d_lwe_input_indexes, (void *)d_bsk, pbs_buffer, lwe_dimension,
           glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
-          pbs_level, number_of_inputs);
+          pbs_level, number_of_inputs, lut_count, lut_stride);
 
       // Copy result to the host memory
       cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,

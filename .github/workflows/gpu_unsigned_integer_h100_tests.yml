@@ -31,10 +31,11 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Check for file changes
         id: changed-files
-        uses: tj-actions/changed-files@e9772d140489982e0e3704fea5ee93d536f1e275
+        uses: tj-actions/changed-files@48d8f15b2aaa3d255ca5af3eba4870f807ce6b3c
         with:
           since_last_remote_commit: true
           files_yaml: |
@@ -44,7 +45,7 @@ jobs:
               - backends/tfhe-cuda-backend/**
               - tfhe/src/core_crypto/gpu/**
               - tfhe/src/integer/gpu/**
-              - tfhe/shortint/parameters/**
+              - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
@@ -65,7 +66,7 @@ jobs:
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@c0e7168795bd78f61f61146951ed9d0c73c9b701
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -154,7 +155,7 @@ jobs:
     name: Slack Notification
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' }}
+    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
       - name: Send message
@@ -171,7 +172,7 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@c0e7168795bd78f61f61146951ed9d0c73c9b701
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}

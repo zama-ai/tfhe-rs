@@ -89,7 +89,7 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
     /// let seeder = seeder.as_mut();
     ///
     /// // Create a new SeededLweCiphertext
-    /// let mut seeded_lwe = SeededLweCiphertext::new(
+    /// let seeded_lwe = SeededLweCiphertext::new(
     ///     0u64,
     ///     lwe_dimension.to_lwe_size(),
     ///     seeder.seed().into(),

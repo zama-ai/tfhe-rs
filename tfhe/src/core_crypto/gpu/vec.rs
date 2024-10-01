@@ -1,12 +1,13 @@
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::{synchronize_device, CudaStreams};
 use crate::core_crypto::prelude::Numeric;
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use tfhe_cuda_backend::cuda_bind::{
-    cuda_drop, cuda_malloc_async, cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_async_to_cpu,
-    cuda_memcpy_async_to_gpu, cuda_memset_async,
+    cuda_drop, cuda_malloc, cuda_malloc_async, cuda_memcpy_async_gpu_to_gpu,
+    cuda_memcpy_async_to_cpu, cuda_memcpy_async_to_gpu, cuda_memcpy_gpu_to_gpu, cuda_memset_async,
+    cuda_synchronize_device,
 };
 
 /// A contiguous array type stored in the gpu memory.
@@ -27,6 +28,32 @@ pub struct CudaVec<T: Numeric> {
     pub len: usize,
     pub gpu_indexes: Vec<u32>,
     _phantom: PhantomData<T>,
+}
+
+impl<T: Numeric> Clone for CudaVec<T> {
+    fn clone(&self) -> Self {
+        let size = self.len as u64 * std::mem::size_of::<T>() as u64;
+        let mut cloned_vec = Vec::with_capacity(self.ptr.len());
+        for &index in self.gpu_indexes.iter() {
+            unsafe {
+                cuda_synchronize_device(index);
+                let ptr = cuda_malloc(size, self.gpu_indexes[index as usize]);
+                cuda_memcpy_gpu_to_gpu(
+                    ptr,
+                    self.ptr[index as usize],
+                    size,
+                    self.gpu_indexes[index as usize],
+                );
+                cloned_vec.push(ptr);
+            }
+        }
+        Self {
+            ptr: cloned_vec,
+            len: self.len,
+            gpu_indexes: self.gpu_indexes.clone(),
+            _phantom: self._phantom,
+        }
+    }
 }
 
 impl<T: Numeric> CudaVec<T> {
@@ -447,6 +474,8 @@ impl<T: Numeric> Drop for CudaVec<T> {
     /// Free memory for pointer `ptr` synchronously
     fn drop(&mut self) {
         for &gpu_index in self.gpu_indexes.iter() {
+            // Synchronizes the device to be sure no stream is still using this pointer
+            synchronize_device(gpu_index);
             unsafe { cuda_drop(self.get_mut_c_ptr(gpu_index), gpu_index) };
         }
     }

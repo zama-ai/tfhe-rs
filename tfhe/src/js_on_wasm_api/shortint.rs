@@ -1,6 +1,8 @@
+#![allow(clippy::use_self)]
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::js_on_wasm_api::js_high_level_api::into_js_error;
 use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -187,6 +189,22 @@ impl From<EncryptionKeyChoice> for ShortintEncryptionKeyChoice {
     }
 }
 
+#[derive(Copy, Clone)]
+#[wasm_bindgen]
+pub enum ShortintPBSOrder {
+    KeyswitchBootstrap,
+    BootstrapKeyswitch,
+}
+
+impl From<ShortintPBSOrder> for crate::shortint::parameters::PBSOrder {
+    fn from(value: ShortintPBSOrder) -> Self {
+        match value {
+            ShortintPBSOrder::KeyswitchBootstrap => Self::KeyswitchBootstrap,
+            ShortintPBSOrder::BootstrapKeyswitch => Self::BootstrapKeyswitch,
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub struct ShortintNoiseDistribution(
     pub(crate) crate::core_crypto::commons::math::random::DynamicDistribution<u64>,
@@ -211,6 +229,49 @@ impl ShortintCompactPublicKeyEncryptionParameters {
                 casting_parameters: PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             }
         }
+    }
+
+    #[wasm_bindgen]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_parameters(
+        // Public Key Parameters
+        encryption_lwe_dimension: usize,
+        encryption_noise_distribution: &ShortintNoiseDistribution,
+        message_modulus: usize,
+        carry_modulus: usize,
+        modulus_power_of_2_exponent: usize,
+        // Casting Parameters
+        ks_base_log: usize,
+        ks_level: usize,
+        encryption_key_choice: ShortintEncryptionKeyChoice,
+    ) -> Result<ShortintCompactPublicKeyEncryptionParameters, JsError> {
+        let ciphertext_modulus =
+            crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
+                modulus_power_of_2_exponent,
+            )
+            .map_err(into_js_error)?;
+
+        let compact_pke_params = crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters::try_new(
+            LweDimension(encryption_lwe_dimension),
+            encryption_noise_distribution.0,
+            MessageModulus(message_modulus),
+            CarryModulus(carry_modulus),
+            ciphertext_modulus,
+            // These parameters always requires casting
+            crate::shortint::parameters::CompactCiphertextListExpansionKind::RequiresCasting
+        ).map_err(into_js_error)?;
+
+        let casting_parameters =
+            crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters {
+                ks_base_log: DecompositionBaseLog(ks_base_log),
+                ks_level: DecompositionLevelCount(ks_level),
+                destination_key: encryption_key_choice.into(),
+            };
+
+        Ok(Self {
+            compact_pke_params,
+            casting_parameters,
+        })
     }
 }
 

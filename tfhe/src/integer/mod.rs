@@ -23,8 +23,7 @@
 //! let modulus = 1u64 << 8;
 //!
 //! // Generation of the client/server keys, using the default parameters:
-//! let (mut client_key, mut server_key) =
-//!     gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, number_of_blocks);
+//! let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, number_of_blocks);
 //!
 //! let msg1 = 153u64;
 //! let msg2 = 125u64;
@@ -64,7 +63,10 @@ pub mod parameters;
 pub mod prelude;
 pub mod public_key;
 pub mod server_key;
+#[cfg(feature = "experimental")]
 pub mod wopbs;
+#[cfg(not(feature = "experimental"))]
+pub(crate) mod wopbs;
 
 #[cfg(feature = "gpu")]
 pub mod gpu;

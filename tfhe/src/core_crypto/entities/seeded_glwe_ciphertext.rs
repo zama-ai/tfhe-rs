@@ -1,7 +1,9 @@
 //! Module containing the definition of the SeededGlweCiphertext.
 
+use misc::check_encrypted_content_respects_mod;
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_glwe_ciphertext::SeededGlweCiphertextVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
@@ -294,5 +296,30 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
             ciphertext_modulus,
         } = meta;
         Self::from_container(from, glwe_size, compression_seed, ciphertext_modulus)
+    }
+}
+
+impl<C: Container> ParameterSetConformant for SeededGlweCiphertext<C>
+where
+    C::Element: UnsignedInteger,
+{
+    type ParameterSet = GlweCiphertextConformanceParameters<C::Element>;
+
+    fn is_conformant(
+        &self,
+        glwe_ct_parameters: &GlweCiphertextConformanceParameters<C::Element>,
+    ) -> bool {
+        let Self {
+            compression_seed: _,
+            data,
+            ciphertext_modulus,
+            glwe_size,
+        } = self;
+
+        glwe_ct_parameters.polynomial_size.0.is_power_of_two()
+            && check_encrypted_content_respects_mod(self, glwe_ct_parameters.ct_modulus)
+            && data.container_len() == glwe_ct_parameters.polynomial_size.0
+            && *glwe_size == glwe_ct_parameters.glwe_dim.to_glwe_size()
+            && *ciphertext_modulus == glwe_ct_parameters.ct_modulus
     }
 }

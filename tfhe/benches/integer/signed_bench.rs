@@ -286,6 +286,8 @@ define_server_key_bench_unary_signed_clean_input_fn!(method_name: leading_ones_p
 define_server_key_bench_unary_signed_clean_input_fn!(method_name: trailing_zeros_parallelized, display_name: trailing_zeros);
 define_server_key_bench_unary_signed_clean_input_fn!(method_name: trailing_ones_parallelized, display_name: trailing_ones);
 define_server_key_bench_unary_signed_clean_input_fn!(method_name: ilog2_parallelized, display_name: ilog2);
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: count_zeros_parallelized, display_name: count_zeros);
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: count_ones_parallelized, display_name: count_ones);
 define_server_key_bench_unary_signed_clean_input_fn!(method_name: checked_ilog2_parallelized, display_name: checked_ilog2);
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
@@ -448,6 +450,8 @@ criterion_group!(
     trailing_ones_parallelized,
     ilog2_parallelized,
     checked_ilog2_parallelized,
+    count_ones_parallelized,
+    count_zeros_parallelized,
 );
 
 criterion_group!(
@@ -500,12 +504,12 @@ define_server_key_bench_binary_signed_clean_inputs_fn!(
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: unchecked_bitor_parallelized,
-    display_name: bitand
+    display_name: bitor
 );
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: unchecked_bitxor_parallelized,
-    display_name: bitand
+    display_name: bitxor
 );
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
@@ -1813,6 +1817,12 @@ mod cuda {
         rng_func: default_signed_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_signed_scalar_div_rem,
+        display_name: div_rem,
+        rng_func: div_scalar
+    );
+
     //===========================================
     // Default
     //===========================================
@@ -2035,6 +2045,12 @@ mod cuda {
         rng_func: default_signed_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: signed_scalar_div_rem,
+        display_name: div_rem,
+        rng_func: div_scalar
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_add,
@@ -2081,6 +2097,7 @@ mod cuda {
         cuda_unchecked_scalar_le,
         cuda_unchecked_scalar_min,
         cuda_unchecked_scalar_max,
+        cuda_unchecked_signed_scalar_div_rem,
     );
 
     criterion_group!(
@@ -2146,6 +2163,7 @@ mod cuda {
         cuda_scalar_max,
         cuda_signed_overflowing_scalar_add,
         cuda_signed_overflowing_scalar_sub,
+        cuda_signed_scalar_div_rem,
     );
 
     fn cuda_bench_server_key_signed_cast_function<F>(

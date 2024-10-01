@@ -1,6 +1,6 @@
 use crate::high_level_api::integers::signed::base::{FheInt, FheIntConformanceParams, FheIntId};
 use crate::high_level_api::integers::signed::compressed::CompressedFheInt;
-use crate::high_level_api::IntegerId;
+use crate::high_level_api::{FheId, IntegerId};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::NotVersioned;
 
@@ -24,6 +24,8 @@ macro_rules! static_int_type {
                     $num_bits
                 }
             }
+
+            impl FheId for [<FheInt $num_bits Id>] { }
 
             impl FheIntId for [<FheInt $num_bits Id>] { }
         }

@@ -21,6 +21,7 @@ mod shift;
 pub(crate) mod sub;
 mod sum;
 
+mod count_zeros_ones;
 pub(crate) mod ilog2;
 mod reverse_bits;
 mod slice;
@@ -61,7 +62,7 @@ impl ServerKey {
     ///
     /// // Compute homomorphically an addition:
     /// let mut ct_res = sks.unchecked_add(&ct1, &ct2);
-    /// sks.propagate_parallelized(&mut ct_res, 0);
+    /// let carry = sks.propagate_parallelized(&mut ct_res, 0);
     ///
     /// // Decrypt one block:
     /// let res: u64 = cks.decrypt_one_block(&ct_res.blocks()[1]);
@@ -193,8 +194,8 @@ impl ServerKey {
     ///
     /// let msg = 10u64;
     ///
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
     /// let mut ct_res = sks.unchecked_add(&ct1, &ct2);

@@ -64,6 +64,12 @@ pub enum CompactCiphertextListVersions {
     V1(CompactCiphertextList),
 }
 
+#[cfg(feature = "zk-pok")]
+#[derive(VersionsDispatch)]
+pub enum ProvenCompactCiphertextListVersions {
+    V0(ProvenCompactCiphertextList),
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedCiphertextVersions {
     V0(CompressedCiphertext),

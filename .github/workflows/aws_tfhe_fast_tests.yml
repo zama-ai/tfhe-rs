@@ -26,6 +26,7 @@ jobs:
     outputs:
       csprng_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.csprng_any_changed }}
       zk_pok_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.zk_pok_any_changed }}
+      versionable_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.versionable_any_changed }}
       core_crypto_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.core_crypto_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
@@ -56,7 +57,7 @@ jobs:
 
       - name: Check for file changes
         id: changed-files
-        uses: tj-actions/changed-files@e9772d140489982e0e3704fea5ee93d536f1e275
+        uses: tj-actions/changed-files@48d8f15b2aaa3d255ca5af3eba4870f807ce6b3c
         with:
           since_last_remote_commit: true
           files_yaml: |
@@ -64,10 +65,15 @@ jobs:
               - tfhe/Cargo.toml
               - concrete-csprng/**
               - tfhe-zk-pok/**
+              - utils/tfhe-versionable/**
+              - utils/tfhe-versionable-derive/**
             csprng:
               - concrete-csprng/**
             zk_pok:
               - tfhe-zk-pok/**
+            versionable:
+              - utils/tfhe-versionable/**
+              - utils/tfhe-versionable-derive/**
             core_crypto:
               - tfhe/src/core_crypto/**
             boolean:
@@ -103,6 +109,7 @@ jobs:
         if: ( steps.changed-files.outputs.dependencies_any_changed == 'true' ||
           steps.changed-files.outputs.csprng_any_changed == 'true' ||
           steps.changed-files.outputs.zk_pok_any_changed == 'true' ||
+          steps.changed-files.outputs.versionable_any_changed == 'true' ||
           steps.changed-files.outputs.core_crypto_any_changed == 'true' ||
           steps.changed-files.outputs.boolean_any_changed == 'true' ||
           steps.changed-files.outputs.shortint_any_changed == 'true' ||
@@ -124,7 +131,7 @@ jobs:
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@c0e7168795bd78f61f61146951ed9d0c73c9b701
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -147,6 +154,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: 'false'
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Set up home
         run: |
@@ -166,6 +174,11 @@ jobs:
         if: needs.should-run.outputs.zk_pok_test == 'true'
         run: |
           make test_zk_pok
+
+      - name: Run tfhe-versionable tests
+        if: needs.should-run.outputs.versionable_test == 'true'
+        run: |
+          make test_versionable
 
       - name: Run core tests
         if: needs.should-run.outputs.core_crypto_test == 'true'
@@ -213,7 +226,7 @@ jobs:
           make test_safe_deserialization
 
       - name: Slack Notification
-        if: ${{ always() }}
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
@@ -228,7 +241,7 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@c0e7168795bd78f61f61146951ed9d0c73c9b701
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}

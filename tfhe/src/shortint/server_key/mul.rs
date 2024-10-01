@@ -153,8 +153,8 @@ impl ServerKey {
     /// let clear_2 = 2;
     ///
     /// // Encrypt two messages
-    /// let mut ct_1 = cks.encrypt(clear_1);
-    /// let mut ct_2 = cks.encrypt(clear_2);
+    /// let ct_1 = cks.encrypt(clear_1);
+    /// let ct_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.unchecked_mul_msb(&ct_1, &ct_2);
@@ -174,8 +174,8 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt two messages
-    /// let mut ct_1 = cks.encrypt(clear_1);
-    /// let mut ct_2 = cks.encrypt(clear_2);
+    /// let ct_1 = cks.encrypt(clear_1);
+    /// let ct_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.unchecked_mul_msb(&ct_1, &ct_2);
@@ -497,8 +497,8 @@ impl ServerKey {
     /// let clear_2 = 1;
     ///
     /// // Encrypt two messages
-    /// let mut ct_1 = cks.encrypt(clear_1);
-    /// let mut ct_2 = cks.encrypt(clear_2);
+    /// let ct_1 = cks.encrypt(clear_1);
+    /// let ct_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.unchecked_mul_lsb_small_carry(&ct_1, &ct_2);
@@ -510,8 +510,8 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt two messages
-    /// let mut ct_1 = cks.encrypt(clear_1);
-    /// let mut ct_2 = cks.encrypt(clear_2);
+    /// let ct_1 = cks.encrypt(clear_1);
+    /// let ct_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.unchecked_mul_lsb_small_carry(&ct_1, &ct_2);
@@ -617,8 +617,8 @@ impl ServerKey {
     /// let msg_2 = 3;
     ///
     /// // Encrypt two messages:
-    /// let mut ct_1 = cks.encrypt(msg_1);
-    /// let mut ct_2 = cks.encrypt(msg_2);
+    /// let ct_1 = cks.encrypt(msg_1);
+    /// let ct_2 = cks.encrypt(msg_2);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.checked_mul_lsb_with_small_carry(&ct_1, &ct_2).unwrap();
@@ -630,8 +630,8 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt two messages:
-    /// let mut ct_1 = cks.encrypt(msg_1);
-    /// let mut ct_2 = cks.encrypt(msg_2);
+    /// let ct_1 = cks.encrypt(msg_1);
+    /// let ct_2 = cks.encrypt(msg_2);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.checked_mul_lsb_with_small_carry(&ct_1, &ct_2).unwrap();
@@ -986,7 +986,7 @@ impl ServerKey {
     /// let modulus = sks.message_modulus.0 as u64;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     ///
-    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt two messages:
     /// let mut ct_1 = cks.unchecked_encrypt(msg1);
@@ -1175,7 +1175,7 @@ impl ServerKey {
     /// let modulus = sks.message_modulus.0 as u64;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     ///
-    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt two messages:
     /// let mut ct_1 = cks.unchecked_encrypt(msg1);

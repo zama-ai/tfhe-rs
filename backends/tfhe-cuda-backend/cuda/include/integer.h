@@ -80,6 +80,11 @@ void cleanup_cuda_apply_bivariate_lut_kb_64(void **streams,
                                             uint32_t gpu_count,
                                             int8_t **mem_ptr_void);
 
+void cuda_apply_many_univariate_lut_kb_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *output_radix_lwe, void *input_radix_lwe, int8_t *mem_ptr, void **ksks,
+    void **bsks, uint32_t num_blocks, uint32_t num_luts, uint32_t lut_stride);
+
 void scratch_cuda_full_propagation_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
@@ -386,8 +391,8 @@ void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
 
 void cuda_integer_compute_prefix_sum_hillis_steele_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *output_radix_lwe, void *input_radix_lwe, int8_t *mem_ptr, void **ksks,
-    void **bsks, uint32_t num_blocks, uint32_t shift);
+    void *output_radix_lwe, void *generates_or_propagates, int8_t *mem_ptr,
+    void **ksks, void **bsks, uint32_t num_blocks, uint32_t shift);
 
 void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
@@ -971,28 +976,52 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
                                                 (params.big_lwe_dimension + 1) *
                                                 sizeof(Torus),
                                             streams[0], gpu_indexes[0]);
+      cuda_memset_async(tmp_bits, 0,
+                        bits_per_block * num_radix_blocks *
+                            (params.big_lwe_dimension + 1) * sizeof(Torus),
+                        streams[0], gpu_indexes[0]);
       tmp_shift_bits = (Torus *)cuda_malloc_async(
           max_num_bits_that_tell_shift * num_radix_blocks *
               (params.big_lwe_dimension + 1) * sizeof(Torus),
           streams[0], gpu_indexes[0]);
+      cuda_memset_async(tmp_shift_bits, 0,
+                        max_num_bits_that_tell_shift * num_radix_blocks *
+                            (params.big_lwe_dimension + 1) * sizeof(Torus),
+                        streams[0], gpu_indexes[0]);
 
       tmp_rotated = (Torus *)cuda_malloc_async(
           bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
               sizeof(Torus),
           streams[0], gpu_indexes[0]);
+      cuda_memset_async(tmp_rotated, 0,
+                        bits_per_block * num_radix_blocks *
+                            (params.big_lwe_dimension + 1) * sizeof(Torus),
+                        streams[0], gpu_indexes[0]);
 
       tmp_input_bits_a = (Torus *)cuda_malloc_async(
           bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
               sizeof(Torus),
           streams[0], gpu_indexes[0]);
+      cuda_memset_async(tmp_input_bits_a, 0,
+                        bits_per_block * num_radix_blocks *
+                            (params.big_lwe_dimension + 1) * sizeof(Torus),
+                        streams[0], gpu_indexes[0]);
       tmp_input_bits_b = (Torus *)cuda_malloc_async(
           bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
               sizeof(Torus),
           streams[0], gpu_indexes[0]);
+      cuda_memset_async(tmp_input_bits_b, 0,
+                        bits_per_block * num_radix_blocks *
+                            (params.big_lwe_dimension + 1) * sizeof(Torus),
+                        streams[0], gpu_indexes[0]);
       tmp_mux_inputs = (Torus *)cuda_malloc_async(
           bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
               sizeof(Torus),
           streams[0], gpu_indexes[0]);
+      cuda_memset_async(tmp_mux_inputs, 0,
+                        bits_per_block * num_radix_blocks *
+                            (params.big_lwe_dimension + 1) * sizeof(Torus),
+                        streams[0], gpu_indexes[0]);
 
       auto mux_lut_f = [](Torus x) -> Torus {
         // x is expected to be x = 0bcba
@@ -1152,6 +1181,11 @@ template <typename Torus> struct int_sc_prop_memory {
         num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
     step_output = (Torus *)cuda_malloc_async(
         num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(generates_or_propagates, 0,
+                      num_radix_blocks * big_lwe_size_bytes, streams[0],
+                      gpu_indexes[0]);
+    cuda_memset_async(step_output, 0, num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
 
     // declare functions for lut generation
     auto f_lut_does_block_generate_carry = [message_modulus](Torus x) -> Torus {
@@ -1268,6 +1302,11 @@ template <typename Torus> struct int_overflowing_sub_memory {
         num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
     step_output = (Torus *)cuda_malloc_async(
         num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(generates_or_propagates, 0,
+                      num_radix_blocks * big_lwe_size_bytes, streams[0],
+                      gpu_indexes[0]);
+    cuda_memset_async(step_output, 0, num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
 
     // declare functions for lut generation
     auto f_lut_does_block_generate_carry = [message_modulus](Torus x) -> Torus {
@@ -1357,6 +1396,7 @@ template <typename Torus> struct int_overflowing_sub_memory {
 
 template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   Torus *new_blocks;
+  Torus *new_blocks_copy;
   Torus *old_blocks;
   Torus *small_lwe_vector;
   int_radix_params params;
@@ -1384,17 +1424,40 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     new_blocks = (Torus *)cuda_malloc_async(
         max_pbs_count * (params.big_lwe_dimension + 1) * sizeof(Torus),
         streams[0], gpu_indexes[0]);
+    new_blocks_copy = (Torus *)cuda_malloc_async(
+        max_pbs_count * (params.big_lwe_dimension + 1) * sizeof(Torus),
+        streams[0], gpu_indexes[0]);
     old_blocks = (Torus *)cuda_malloc_async(
         max_pbs_count * (params.big_lwe_dimension + 1) * sizeof(Torus),
         streams[0], gpu_indexes[0]);
     small_lwe_vector = (Torus *)cuda_malloc_async(
         max_pbs_count * (params.small_lwe_dimension + 1) * sizeof(Torus),
         streams[0], gpu_indexes[0]);
+    cuda_memset_async(new_blocks, 0,
+                      max_pbs_count * (params.big_lwe_dimension + 1) *
+                          sizeof(Torus),
+                      streams[0], gpu_indexes[0]);
+    cuda_memset_async(new_blocks_copy, 0,
+                      max_pbs_count * (params.big_lwe_dimension + 1) *
+                          sizeof(Torus),
+                      streams[0], gpu_indexes[0]);
+    cuda_memset_async(old_blocks, 0,
+                      max_pbs_count * (params.big_lwe_dimension + 1) *
+                          sizeof(Torus),
+                      streams[0], gpu_indexes[0]);
+    cuda_memset_async(small_lwe_vector, 0,
+                      max_pbs_count * (params.small_lwe_dimension + 1) *
+                          sizeof(Torus),
+                      streams[0], gpu_indexes[0]);
 
     d_smart_copy_in = (int32_t *)cuda_malloc_async(
         max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0]);
     d_smart_copy_out = (int32_t *)cuda_malloc_async(
         max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0]);
+    cuda_memset_async(d_smart_copy_in, 0, max_pbs_count * sizeof(int32_t),
+                      streams[0], gpu_indexes[0]);
+    cuda_memset_async(d_smart_copy_out, 0, max_pbs_count * sizeof(int32_t),
+                      streams[0], gpu_indexes[0]);
   }
 
   int_sum_ciphertexts_vec_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
@@ -1415,11 +1478,22 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->new_blocks = new_blocks;
     this->old_blocks = old_blocks;
     this->small_lwe_vector = small_lwe_vector;
+    new_blocks_copy = (Torus *)cuda_malloc_async(
+        max_pbs_count * (params.big_lwe_dimension + 1) * sizeof(Torus),
+        streams[0], gpu_indexes[0]);
+    cuda_memset_async(new_blocks_copy, 0,
+                      max_pbs_count * (params.big_lwe_dimension + 1) *
+                          sizeof(Torus),
+                      streams[0], gpu_indexes[0]);
 
     d_smart_copy_in = (int32_t *)cuda_malloc_async(
         max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0]);
     d_smart_copy_out = (int32_t *)cuda_malloc_async(
         max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0]);
+    cuda_memset_async(d_smart_copy_in, 0, max_pbs_count * sizeof(int32_t),
+                      streams[0], gpu_indexes[0]);
+    cuda_memset_async(d_smart_copy_out, 0, max_pbs_count * sizeof(int32_t),
+                      streams[0], gpu_indexes[0]);
   }
 
   void release(cudaStream_t *streams, uint32_t *gpu_indexes,
@@ -1433,8 +1507,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       cuda_drop_async(small_lwe_vector, streams[0], gpu_indexes[0]);
     }
 
+    cuda_drop_async(new_blocks_copy, streams[0], gpu_indexes[0]);
     scp_mem->release(streams, gpu_indexes, gpu_count);
-
     delete scp_mem;
   }
 };
@@ -2088,7 +2162,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
 
     if (allocate_gpu_memory) {
       Torus total_modulus = params.message_modulus * params.carry_modulus;
-      uint32_t max_value = total_modulus - 1;
+      uint32_t max_value = (total_modulus - 1) / (params.message_modulus - 1);
 
       int max_chunks = (num_radix_blocks + max_value - 1) / max_value;
       tmp_block_accumulated = (Torus *)cuda_malloc_async(

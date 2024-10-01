@@ -1,11 +1,12 @@
 use std::path::Path;
 
+use tfhe::core_crypto::prelude::TUniform;
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
-    ShortintCiphertextTest, ShortintClientKeyTest, TestMetadata, TestParameterSet, TestType,
-    Testcase,
+    ShortintCiphertextTest, ShortintClientKeyTest, TestDistribution, TestMetadata,
+    TestParameterSet, TestType, Testcase,
 };
 
 use tfhe::shortint::parameters::{
@@ -27,12 +28,8 @@ pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
         lwe_dimension: LweDimension(test_params.lwe_dimension),
         glwe_dimension: GlweDimension(test_params.glwe_dimension),
         polynomial_size: PolynomialSize(test_params.polynomial_size),
-        lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-            test_params.lwe_noise_gaussian_stddev,
-        )),
-        glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-            test_params.glwe_noise_gaussian_stddev,
-        )),
+        lwe_noise_distribution: convert_distribution(&test_params.lwe_noise_distribution),
+        glwe_noise_distribution: convert_distribution(&test_params.glwe_noise_distribution),
         pbs_base_log: DecompositionBaseLog(test_params.pbs_base_log),
         pbs_level: DecompositionLevelCount(test_params.pbs_level),
         ks_base_log: DecompositionBaseLog(test_params.ks_base_log),
@@ -49,6 +46,17 @@ pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
                 _ => panic!("Invalid encryption key choice"),
             }
         },
+    }
+}
+
+fn convert_distribution(value: &TestDistribution) -> DynamicDistribution<u64> {
+    match value {
+        TestDistribution::Gaussian { stddev } => {
+            DynamicDistribution::new_gaussian_from_std_dev(StandardDev(*stddev))
+        }
+        TestDistribution::TUniform { bound_log2 } => {
+            DynamicDistribution::TUniform(TUniform::new(*bound_log2))
+        }
     }
 }
 

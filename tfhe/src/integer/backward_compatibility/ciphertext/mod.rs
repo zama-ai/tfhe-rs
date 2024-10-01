@@ -9,6 +9,8 @@ use crate::integer::ciphertext::{
     CompressedModulusSwitchedSignedRadixCiphertext, DataKind,
 };
 use crate::integer::BooleanBlock;
+#[cfg(feature = "zk-pok")]
+use crate::integer::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
 
 #[derive(VersionsDispatch)]
@@ -51,6 +53,12 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
 pub enum CompactCiphertextListVersions {
     V0(CompactCiphertextListV0),
     V1(CompactCiphertextList),
+}
+
+#[cfg(feature = "zk-pok")]
+#[derive(VersionsDispatch)]
+pub enum ProvenCompactCiphertextListVersions {
+    V0(ProvenCompactCiphertextList),
 }
 
 #[derive(VersionsDispatch)]

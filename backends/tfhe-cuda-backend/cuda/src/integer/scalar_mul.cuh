@@ -109,7 +109,7 @@ __host__ void host_integer_scalar_mul_radix(
     host_integer_partial_sum_ciphertexts_vec_kb<T, params>(
         streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer,
         terms_degree, bsks, ksks, mem->sum_ciphertexts_vec_mem,
-        num_radix_blocks, j);
+        num_radix_blocks, j, nullptr);
 
     auto scp_mem_ptr = mem->sum_ciphertexts_vec_mem->scp_mem;
     host_propagate_single_carry<T>(streams, gpu_indexes, gpu_count, lwe_array,

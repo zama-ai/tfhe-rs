@@ -14,6 +14,7 @@ pub mod computation_buffers;
 pub mod dispersion;
 pub mod generators;
 pub mod math;
+pub mod noise_formulas;
 pub mod numeric;
 pub mod parameters;
 pub mod utils;

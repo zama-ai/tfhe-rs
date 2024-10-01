@@ -8,20 +8,19 @@ mod crt_parallel;
 pub(crate) mod radix;
 pub(crate) mod radix_parallel;
 
-use crate::integer::client_key::ClientKey;
-use crate::shortint::ciphertext::MaxDegree;
-use serde::{Deserialize, Serialize};
-use tfhe_versionable::Versionize;
-
+use super::backward_compatibility::server_key::{CompressedServerKeyVersions, ServerKeyVersions};
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedInteger;
+use crate::integer::client_key::ClientKey;
+use crate::shortint::ciphertext::{Degree, MaxDegree};
 /// Error returned when the carry buffer is full.
 pub use crate::shortint::CheckError;
-use crate::shortint::{CarryModulus, MessageModulus};
+use crate::shortint::{CarryModulus, MessageModulus, PBSParameters};
 pub use radix::scalar_mul::ScalarMultiplier;
 pub use radix::scalar_sub::TwosComplementNegation;
 pub use radix_parallel::{MatchValues, MiniUnsignedInteger, Reciprocable};
-
-use super::backward_compatibility::server_key::{CompressedServerKeyVersions, ServerKeyVersions};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// A structure containing the server public key.
 ///
@@ -138,8 +137,6 @@ impl ServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::ServerKey as ShortintServerKey;
     ///
-    /// let size = 4;
-    ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -170,8 +167,6 @@ impl ServerKey {
     /// use tfhe::integer::{ClientKey, ServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::ServerKey as ShortintServerKey;
-    ///
-    /// let size = 4;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
@@ -216,20 +211,42 @@ impl ServerKey {
         self.key.carry_modulus
     }
 
+    pub fn num_bits_to_represent_unsigned_value<Clear>(&self, clear: Clear) -> usize
+    where
+        Clear: UnsignedInteger,
+    {
+        if clear == Clear::MAX {
+            Clear::BITS
+        } else {
+            (clear + Clear::ONE).ceil_ilog2() as usize
+        }
+    }
+
     /// Returns how many blocks a radix ciphertext should have to
     /// be able to represent the given unsigned integer
     pub fn num_blocks_to_represent_unsigned_value<Clear>(&self, clear: Clear) -> usize
     where
         Clear: UnsignedInteger,
     {
+        let num_bits_to_represent_output_value = self.num_bits_to_represent_unsigned_value(clear);
         let num_bits_in_message = self.message_modulus().0.ilog2();
-        let num_bits_to_represent_output_value = if clear == Clear::MAX {
-            Clear::BITS
-        } else {
-            (clear + Clear::ONE).ceil_ilog2() as usize
-        };
-
         num_bits_to_represent_output_value.div_ceil(num_bits_in_message as usize)
+    }
+
+    /// Returns how many ciphertext can be summed at once
+    ///
+    /// The number of ciphertext that can be added together depends on the degree
+    /// (in order not to go beyond the carry space and keep results correct) but also
+    /// on the noise level (in order to have the correct error probability and so correctness and
+    /// security)
+    ///
+    /// - `degree` is expected degree of all elements to be summed
+    pub(crate) fn max_sum_size(&self, degree: Degree) -> usize {
+        let max_degree =
+            MaxDegree::from_msg_carry_modulus(self.message_modulus(), self.carry_modulus());
+        let max_sum_to_full_carry = max_degree.get() / degree.get();
+
+        max_sum_to_full_carry.min(self.key.max_noise_level.get())
     }
 }
 
@@ -277,6 +294,36 @@ impl CompressedServerKey {
     /// Construct a [`CompressedServerKey`] from its constituents.
     pub fn from_raw_parts(key: crate::shortint::CompressedServerKey) -> Self {
         Self { key }
+    }
+}
+
+impl ParameterSetConformant for ServerKey {
+    type ParameterSet = PBSParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        let expected_max_degree = MaxDegree::integer_radix_server_key(
+            parameter_set.message_modulus(),
+            parameter_set.carry_modulus(),
+        );
+
+        key.is_conformant(&(*parameter_set, expected_max_degree))
+    }
+}
+
+impl ParameterSetConformant for CompressedServerKey {
+    type ParameterSet = PBSParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        let expected_max_degree = MaxDegree::integer_radix_server_key(
+            parameter_set.message_modulus(),
+            parameter_set.carry_modulus(),
+        );
+
+        key.is_conformant(&(*parameter_set, expected_max_degree))
     }
 }
 

@@ -61,7 +61,8 @@ macro_rules! hpu_testbundle {
             set_server_key(sks);
 
             // Init Hpu device with server key and firmware
-            tfhe::integer::hpu::init_device(&hpu_device, sks_compressed.into());
+            let (integer_sks_compressed, ..) = sks_compressed.into_raw_parts();
+            tfhe::integer::hpu::init_device(&hpu_device, integer_sks_compressed);
 
             // Run test-case ---------------------------------------------------------
             let mut acc_status = true;

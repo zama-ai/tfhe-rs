@@ -2,6 +2,11 @@
 //!
 //! TFHE-rs is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE.
 
+// Enable all warnings in doctests
+// https://doc.rust-lang.org/rustdoc/write-documentation/documentation-tests.html#showing-warnings-in-doctests
+#![doc(test(attr(warn(unused))))]
+#![doc(test(attr(allow(unused_variables))))]
+#![doc(test(attr(allow(unused_imports))))]
 // Enable pedantic lints
 #![warn(clippy::pedantic)]
 // The following lints have been temporarily allowed
@@ -33,6 +38,7 @@
 #![allow(clippy::unsafe_derive_deserialize)] // 1
 #![allow(clippy::cast_possible_wrap)] // 1
 #![allow(clippy::too_long_first_doc_paragraph)]
+#![allow(clippy::redundant_closure_for_method_calls)]
 // These pedantic lints are deemed to bring too little value therefore they are allowed (which are
 // their natural state anyways, being pedantic lints)
 
@@ -124,7 +130,7 @@ pub use high_level_api::*;
 /// cbindgen:ignore
 pub mod keycache;
 
-pub mod safe_deserialization;
+pub mod safe_serialization;
 
 pub mod conformance;
 

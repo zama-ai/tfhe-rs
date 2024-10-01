@@ -44,7 +44,8 @@ __global__ void device_programmable_bootstrap_tbc(
     const double2 *__restrict__ bootstrapping_key, double2 *join_buffer,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, int8_t *device_mem,
-    uint64_t device_memory_size_per_block, bool support_dsm) {
+    uint64_t device_memory_size_per_block, bool support_dsm, uint32_t lut_count,
+    uint32_t lut_stride) {
 
   cluster_group cluster = this_cluster();
 
@@ -155,8 +156,40 @@ __global__ void device_programmable_bootstrap_tbc(
     // we do the computation at block 0 to avoid waiting for extra blocks, in
     // case they're not synchronized
     sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+
+    if (lut_count > 1) {
+      for (int i = 1; i < lut_count; i++) {
+        auto next_lwe_array_out =
+            lwe_array_out +
+            (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+        auto next_block_lwe_array_out =
+            &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                                    (glwe_dimension * polynomial_size + 1) +
+                                blockIdx.y * polynomial_size];
+
+        sample_extract_mask<Torus, params>(next_block_lwe_array_out,
+                                           accumulator, glwe_dimension,
+                                           i * lut_stride);
+      }
+    }
   } else if (blockIdx.x == 0 && blockIdx.y == glwe_dimension) {
     sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+
+    if (lut_count > 1) {
+      for (int i = 1; i < lut_count; i++) {
+
+        auto next_lwe_array_out =
+            lwe_array_out +
+            (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+        auto next_block_lwe_array_out =
+            &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                                    (glwe_dimension * polynomial_size + 1) +
+                                blockIdx.y * polynomial_size];
+
+        sample_extract_body<Torus, params>(next_block_lwe_array_out,
+                                           accumulator, 0, i * lut_stride);
+      }
+    }
   }
 }
 
@@ -166,49 +199,6 @@ __host__ void scratch_programmable_bootstrap_tbc(
     pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
-
-  bool supports_dsm =
-      supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-          Torus>(polynomial_size);
-
-  uint64_t full_sm = get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
-      polynomial_size);
-  uint64_t partial_sm =
-      get_buffer_size_partial_sm_programmable_bootstrap_tbc<Torus>(
-          polynomial_size);
-  uint64_t minimum_sm_tbc = 0;
-  if (supports_dsm)
-    minimum_sm_tbc =
-        get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
-            polynomial_size);
-  int max_shared_memory = cuda_get_max_shared_memory(0);
-
-  if (max_shared_memory >= full_sm + minimum_sm_tbc) {
-    check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm + minimum_sm_tbc));
-    cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
-        cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  } else if (max_shared_memory >= partial_sm + minimum_sm_tbc) {
-    check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize,
-        partial_sm + minimum_sm_tbc));
-    cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
-        cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  } else {
-    check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_tbc<Torus, params, NOSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, minimum_sm_tbc));
-    cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_tbc<Torus, params, NOSM>,
-        cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  }
 
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
@@ -225,7 +215,8 @@ __host__ void host_programmable_bootstrap_tbc(
     Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count) {
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t lut_count, uint32_t lut_stride) {
 
   auto supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
@@ -281,7 +272,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, full_dm,
-        supports_dsm));
+        supports_dsm, lut_count, lut_stride));
   } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
     config.dynamicSmemBytes = partial_sm + minimum_sm_tbc;
 
@@ -290,7 +281,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem,
-        partial_dm, supports_dsm));
+        partial_dm, supports_dsm, lut_count, lut_stride));
   } else {
     config.dynamicSmemBytes = full_sm + minimum_sm_tbc;
 
@@ -299,7 +290,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, 0,
-        supports_dsm));
+        supports_dsm, lut_count, lut_stride));
   }
 }
 

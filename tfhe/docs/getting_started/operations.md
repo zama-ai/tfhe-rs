@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
     let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
-    let mut c = FheUint8::try_encrypt(clear_c, &keys)?;
+    let c = FheUint8::try_encrypt(clear_c, &keys)?;
     let mut d = FheInt8::try_encrypt(clear_d, &keys)?;
 
 
@@ -193,8 +193,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let clear_a: i8 = -121;
     let clear_b: i8 = 87;
 
-    let mut a = FheInt8::try_encrypt(clear_a, &keys)?;
-    let mut b = FheInt8::try_encrypt(clear_b, &keys)?;
+    let a = FheInt8::try_encrypt(clear_a, &keys)?;
+    let b = FheInt8::try_encrypt(clear_b, &keys)?;
 
     let greater = a.gt(&b);
     let greater_or_equal = a.ge(&b);
@@ -241,8 +241,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let clear_a:u8 = 164;
     let clear_b:u8 = 212;
 
-    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
-    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
+    let a = FheUint8::try_encrypt(clear_a, &keys)?;
+    let b = FheUint8::try_encrypt(clear_b, &keys)?;
 
     let min = a.min(&b);
     let max = a.max(&b);

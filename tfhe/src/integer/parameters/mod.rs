@@ -2,10 +2,8 @@
 use crate::conformance::ListSizeConstraint;
 use crate::integer::key_switching_key::KeySwitchingKeyView;
 use crate::integer::server_key::ServerKey;
-use crate::shortint::parameters::compact_public_key_only::CompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, EncryptionKeyChoice, MessageModulus,
-    ShortintCompactCiphertextListCastingMode,
 };
 pub use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
@@ -14,26 +12,13 @@ pub use crate::shortint::parameters::{
 use crate::shortint::PBSParameters;
 pub use crate::shortint::{CiphertextModulus, ClassicPBSParameters, WopbsParameters};
 
-pub type IntegerCompactCiphertextListCastingMode<'key> =
-    CompactCiphertextListCastingMode<KeySwitchingKeyView<'key>>;
-
-impl<'key> From<IntegerCompactCiphertextListCastingMode<'key>>
-    for ShortintCompactCiphertextListCastingMode<'key>
-{
-    fn from(value: IntegerCompactCiphertextListCastingMode<'key>) -> Self {
-        match value {
-            IntegerCompactCiphertextListCastingMode::CastIfNecessary(integer_key) => {
-                Self::CastIfNecessary(integer_key.key)
-            }
-            IntegerCompactCiphertextListCastingMode::NoCasting => Self::NoCasting,
-        }
-    }
-}
-
 #[derive(Clone, Copy)]
-pub enum IntegerCompactCiphertextListUnpackingMode<'key> {
-    UnpackIfNecessary(&'key ServerKey),
-    NoUnpacking,
+pub enum IntegerCompactCiphertextListExpansionMode<'key> {
+    /// The [`KeySwitchingKeyView`] has all the information to both cast and unpack.
+    CastAndUnpackIfNecessary(KeySwitchingKeyView<'key>),
+    /// This only allows to unpack.
+    UnpackAndSanitizeIfNecessary(&'key ServerKey),
+    NoCastingAndNoUnpacking,
 }
 
 pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [WopbsParameters; 2] = [
@@ -176,6 +161,7 @@ pub const PARAM_MESSAGE_1_CARRY_1_KS_PBS_32_BITS: WopbsParameters = WopbsParamet
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
+#[derive(Copy, Clone)]
 pub struct RadixCiphertextConformanceParams {
     pub shortint_params: CiphertextConformanceParams,
     pub num_blocks_per_integer: usize,
@@ -210,6 +196,7 @@ impl RadixCiphertextConformanceParams {
 /// Structure to store the expected properties of a ciphertext list
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
+#[derive(Copy, Clone)]
 pub struct CompactCiphertextListConformanceParams {
     pub shortint_params: CiphertextConformanceParams,
     pub num_elements_constraint: ListSizeConstraint,

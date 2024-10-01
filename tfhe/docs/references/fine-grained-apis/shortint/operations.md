@@ -172,7 +172,7 @@ fn main() {
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);
-    let mut ct_2 = client_key.encrypt(msg2);
+    let ct_2 = client_key.encrypt(msg2);
 
     server_key.scalar_mul_assign(&mut ct_1, scalar);
     server_key.sub_assign(&mut ct_1, &ct_2);
@@ -333,8 +333,6 @@ fn main() {
     let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 3;
-
-    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the private client key to encrypt a message:
     let ct_1 = client_key.encrypt(msg1);

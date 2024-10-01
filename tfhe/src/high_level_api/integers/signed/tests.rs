@@ -1,6 +1,6 @@
 use crate::integer::I256;
 use crate::prelude::*;
-use crate::safe_deserialization::safe_deserialize_conformant;
+use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use crate::{
     generate_keys, set_server_key, ClientKey, CompactCiphertextList, CompactPublicKey,
@@ -648,11 +648,14 @@ fn test_safe_deserialize_conformant_fhe_int32() {
     let clear_a = random::<i32>();
     let a = FheInt32::encrypt(clear_a, &client_key);
     let mut serialized = vec![];
-    assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+    SerializationConfig::new(1 << 20)
+        .serialize_into(&a, &mut serialized)
+        .unwrap();
 
     let params = FheInt32ConformanceParams::from(&server_key);
-    let deserialized_a =
-        safe_deserialize_conformant::<FheInt32>(serialized.as_slice(), 1 << 20, &params).unwrap();
+    let deserialized_a = DeserializationConfig::new(1 << 20)
+        .deserialize_from::<FheInt32>(serialized.as_slice(), &params)
+        .unwrap();
     let decrypted: i32 = deserialized_a.decrypt(&client_key);
     assert_eq!(decrypted, clear_a);
 
@@ -670,12 +673,14 @@ fn test_safe_deserialize_conformant_compressed_fhe_int32() {
     let clear_a = random::<i32>();
     let a = CompressedFheInt32::encrypt(clear_a, &client_key);
     let mut serialized = vec![];
-    assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+    SerializationConfig::new(1 << 20)
+        .serialize_into(&a, &mut serialized)
+        .unwrap();
 
     let params = FheInt32ConformanceParams::from(&server_key);
-    let deserialized_a =
-        safe_deserialize_conformant::<CompressedFheInt32>(serialized.as_slice(), 1 << 20, &params)
-            .unwrap();
+    let deserialized_a = DeserializationConfig::new(1 << 20)
+        .deserialize_from::<CompressedFheInt32>(serialized.as_slice(), &params)
+        .unwrap();
 
     let params = FheInt32ConformanceParams::from(block_params);
     assert!(deserialized_a.is_conformant(&params));

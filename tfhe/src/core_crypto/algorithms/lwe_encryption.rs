@@ -464,7 +464,7 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 /// let plaintext = Plaintext(msg << 60);
 ///
 /// // Create a new LweCiphertext
-/// let mut lwe = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+/// let lwe = allocate_and_trivially_encrypt_new_lwe_ciphertext(
 ///     lwe_dimension.to_lwe_size(),
 ///     plaintext,
 ///     ciphertext_modulus,
@@ -1018,8 +1018,6 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -1119,8 +1117,6 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -1349,8 +1345,6 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -1520,8 +1514,6 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -1770,7 +1762,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, NoiseSe
 /// let plaintext = Plaintext(msg << 60);
 ///
 /// // Create a new SeededLweCiphertext
-/// let mut lwe = allocate_and_encrypt_new_seeded_lwe_ciphertext(
+/// let lwe = allocate_and_encrypt_new_seeded_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
 ///     lwe_noise_distribution,
@@ -2142,6 +2134,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 /// ```rust
 /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
+/// use tfhe::zk::ZkMSBZeroPaddingBitCount;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -2149,9 +2142,12 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 /// let lwe_dimension = LweDimension(2048);
 /// let glwe_noise_distribution = TUniform::new(9);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
-/// let delta_log = 60;
+/// let delta_log = 59;
 /// let delta = 1u64 << delta_log;
-/// let plaintext_modulus = 1u64 << (64 - delta_log);
+/// let msb_zero_padding_bit_count = ZkMSBZeroPaddingBitCount(1);
+/// let plaintext_modulus = 1u64 << (64 - delta_log - msb_zero_padding_bit_count.0);
+/// // We need the padding bit in the plaintext modulus for the ZK
+/// let zk_plaintext_modulus = plaintext_modulus << msb_zero_padding_bit_count.0;
 ///
 /// // We can add custom metadata that will be required for verification, allowing to tie the proof
 /// // to some arbitrary data.
@@ -2182,7 +2178,8 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///     1,
 ///     glwe_noise_distribution,
 ///     ciphertext_modulus,
-///     plaintext_modulus,
+///     zk_plaintext_modulus,
+///     msb_zero_padding_bit_count,
 ///     &mut random_generator,
 /// )
 /// .unwrap();
@@ -2223,12 +2220,15 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///
 /// // Round and remove encoding
 /// // First create a decomposer working on the high 4 bits corresponding to our encoding.
-/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+/// let decomposer = SignedDecomposer::new(
+///     DecompositionBaseLog((64 - delta_log) as usize),
+///     DecompositionLevelCount(1),
+/// );
 ///
 /// let rounded = decomposer.closest_representable(decrypted_plaintext.0);
 ///
 /// // Remove the encoding
-/// let cleartext = rounded >> 60;
+/// let cleartext = rounded >> delta_log;
 ///
 /// // Check we recovered the original message
 /// assert_eq!(cleartext, msg.0);
@@ -2627,6 +2627,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// ```rust
 /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
+/// use tfhe::zk::ZkMSBZeroPaddingBitCount;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -2635,9 +2636,12 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// let lwe_ciphertext_count = LweCiphertextCount(4);
 /// let glwe_noise_distribution = TUniform::new(9);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
-/// let delta_log = 60;
+/// let delta_log = 59;
 /// let delta = 1u64 << delta_log;
-/// let plaintext_modulus = 1u64 << (64 - delta_log);
+/// let msb_zero_padding_bit_count = ZkMSBZeroPaddingBitCount(1);
+/// let plaintext_modulus = 1u64 << (64 - delta_log - msb_zero_padding_bit_count.0);
+/// // We need the padding bit in the plaintext modulus for the ZK
+/// let zk_plaintext_modulus = plaintext_modulus << msb_zero_padding_bit_count.0;
 ///
 /// // We can add custom metadata that will be required for verification, allowing to tie the proof
 /// // to some arbitrary data.
@@ -2657,7 +2661,8 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     lwe_ciphertext_count.0,
 ///     glwe_noise_distribution,
 ///     ciphertext_modulus,
-///     plaintext_modulus,
+///     zk_plaintext_modulus,
+///     msb_zero_padding_bit_count,
 ///     &mut random_generator,
 /// )
 /// .unwrap();
@@ -2720,13 +2725,15 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &mut output_plaintext_list,
 /// );
 ///
-/// let signed_decomposer =
-///     SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+/// let signed_decomposer = SignedDecomposer::new(
+///     DecompositionBaseLog((64 - delta_log) as usize),
+///     DecompositionLevelCount(1),
+/// );
 ///
 /// // Round the plaintexts
 /// output_plaintext_list
 ///     .iter_mut()
-///     .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0) >> 60);
+///     .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0) >> delta_log);
 ///
 /// // Check we recovered the original messages
 /// assert_eq!(&cleartexts, output_plaintext_list.as_ref());
@@ -3154,7 +3161,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// ```rust
 /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::zk::ZkComputeLoad;
+/// use tfhe::zk::{ZkComputeLoad, ZkMSBZeroPaddingBitCount};
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -3163,9 +3170,12 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// let lwe_ciphertext_count = LweCiphertextCount(4);
 /// let glwe_noise_distribution = TUniform::new(9);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
-/// let delta_log = 60;
+/// let delta_log = 59;
 /// let delta = 1u64 << delta_log;
-/// let plaintext_modulus = 1u64 << (64 - delta_log);
+/// let msb_zero_padding_bit_count = ZkMSBZeroPaddingBitCount(1);
+/// let plaintext_modulus = 1u64 << (64 - delta_log - msb_zero_padding_bit_count.0);
+/// // We need the padding bit in the plaintext modulus for the ZK
+/// let zk_plaintext_modulus = plaintext_modulus << msb_zero_padding_bit_count.0;
 ///
 /// // We can add custom metadata that will be required for verification, allowing to tie the proof
 /// // to some arbitrary data.
@@ -3185,7 +3195,8 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     lwe_ciphertext_count.0,
 ///     glwe_noise_distribution,
 ///     ciphertext_modulus,
-///     plaintext_modulus,
+///     zk_plaintext_modulus,
+///     msb_zero_padding_bit_count,
 ///     &mut random_generator,
 /// )
 /// .unwrap();
@@ -3248,13 +3259,15 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &mut output_plaintext_list,
 /// );
 ///
-/// let signed_decomposer =
-///     SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+/// let signed_decomposer = SignedDecomposer::new(
+///     DecompositionBaseLog((64 - delta_log) as usize),
+///     DecompositionLevelCount(1),
+/// );
 ///
 /// // Round the plaintexts
 /// output_plaintext_list
 ///     .iter_mut()
-///     .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0) >> 60);
+///     .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0) >> delta_log);
 ///
 /// // Check we recovered the original messages
 /// assert_eq!(&cleartexts, output_plaintext_list.as_ref());

@@ -331,15 +331,25 @@ impl CudaServerKey {
         ciphertexts: &[T],
         streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe {
-            self.unchecked_partial_sum_ciphertexts_async(ciphertexts, streams)
-                .unwrap()
-        };
-
-        unsafe {
-            self.propagate_single_carry_assign_async(&mut result, streams);
-        }
+        let result = unsafe { self.unchecked_sum_ciphertexts_async(ciphertexts, streams) };
         streams.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_sum_ciphertexts_async<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ciphertexts: &[T],
+        streams: &CudaStreams,
+    ) -> T {
+        let mut result = self
+            .unchecked_partial_sum_ciphertexts_async(ciphertexts, streams)
+            .unwrap();
+
+        self.propagate_single_carry_assign_async(&mut result, streams);
         assert!(result.block_carries_are_empty());
         result
     }
@@ -381,6 +391,20 @@ impl CudaServerKey {
 
     pub fn sum_ciphertexts<T: CudaIntegerRadixCiphertext>(
         &self,
+        ciphertexts: Vec<T>,
+        streams: &CudaStreams,
+    ) -> Option<T> {
+        let res = unsafe { self.sum_ciphertexts_async(ciphertexts, streams) };
+        streams.synchronize();
+        res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn sum_ciphertexts_async<T: CudaIntegerRadixCiphertext>(
+        &self,
         mut ciphertexts: Vec<T>,
         streams: &CudaStreams,
     ) -> Option<T> {
@@ -388,16 +412,14 @@ impl CudaServerKey {
             return None;
         }
 
-        unsafe {
-            ciphertexts
-                .iter_mut()
-                .filter(|ct| !ct.block_carries_are_empty())
-                .for_each(|ct| {
-                    self.full_propagate_assign_async(&mut *ct, streams);
-                });
-        }
+        ciphertexts
+            .iter_mut()
+            .filter(|ct| !ct.block_carries_are_empty())
+            .for_each(|ct| {
+                self.full_propagate_assign_async(&mut *ct, streams);
+            });
 
-        Some(self.unchecked_sum_ciphertexts(&ciphertexts, streams))
+        Some(self.unchecked_sum_ciphertexts_async(&ciphertexts, streams))
     }
 
     /// ```rust
@@ -655,7 +677,8 @@ impl CudaServerKey {
         unsafe {
             result = lhs.duplicate_async(streams);
         }
-        let carry_out: CudaSignedRadixCiphertext = self.create_trivial_zero_radix(1, streams);
+        let carry_out: CudaSignedRadixCiphertext =
+            unsafe { self.create_trivial_zero_radix_async(1, streams) };
         let mut overflowed = CudaBooleanBlock::from_cuda_radix_ciphertext(carry_out.ciphertext);
 
         unsafe {
@@ -666,8 +689,8 @@ impl CudaServerKey {
                 signed_operation,
                 streams,
             );
-            streams.synchronize();
         }
+        streams.synchronize();
 
         (result, overflowed)
     }

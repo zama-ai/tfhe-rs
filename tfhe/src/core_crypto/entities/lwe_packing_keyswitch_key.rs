@@ -2,6 +2,7 @@
 
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_packing_keyswitch_key::LwePackingKeyswitchKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -395,4 +396,40 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
     type SelfMutView<'this> = DummyCreateFrom
     where
         Self: 'this;
+}
+
+pub struct PackingKeyswitchConformanceParams {
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub input_lwe_dimension: LweDimension,
+    pub output_glwe_size: GlweSize,
+    pub output_polynomial_size: PolynomialSize,
+    pub ciphertext_modulus: CiphertextModulus<u64>,
+}
+
+impl<C: Container<Element = u64>> ParameterSetConformant for LwePackingKeyswitchKey<C> {
+    type ParameterSet = PackingKeyswitchConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            data,
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
+        data.container_len()
+            == lwe_packing_keyswitch_key_input_key_element_encrypted_size(
+                *decomp_level_count,
+                *output_glwe_size,
+                *output_polynomial_size,
+            ) * parameter_set.input_lwe_dimension.0
+            && *decomp_base_log == parameter_set.decomp_base_log
+            && *decomp_level_count == parameter_set.decomp_level_count
+            && *output_glwe_size == parameter_set.output_glwe_size
+            && *output_polynomial_size == parameter_set.output_polynomial_size
+            && *ciphertext_modulus == parameter_set.ciphertext_modulus
+    }
 }

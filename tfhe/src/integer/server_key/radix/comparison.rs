@@ -2,6 +2,7 @@ use super::ServerKey;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::comparator::Comparator;
+use crate::shortint::ciphertext::Degree;
 
 impl ServerKey {
     /// Compares for equality 2 ciphertexts
@@ -53,30 +54,27 @@ impl ServerKey {
                     .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
             });
 
-        let message_modulus = self.key.message_modulus.0;
-        let carry_modulus = self.key.carry_modulus.0;
-        let total_modulus = message_modulus * carry_modulus;
-        let max_value = total_modulus - 1;
+        let max_sum_size = self.max_sum_size(Degree::new(1));
 
         let is_max_value = self
             .key
-            .generate_lookup_table(|x| u64::from((x & max_value as u64) == max_value as u64));
+            .generate_lookup_table(|x| u64::from(x == max_sum_size as u64));
 
         while block_comparisons.len() > 1 {
             block_comparisons = block_comparisons
-                .chunks(max_value)
+                .chunks(max_sum_size)
                 .map(|blocks| {
                     let mut sum = blocks[0].clone();
                     for other_block in &blocks[1..] {
                         self.key.unchecked_add_assign(&mut sum, other_block);
                     }
 
-                    if blocks.len() == max_value {
+                    if blocks.len() == max_sum_size {
                         self.key.apply_lookup_table(&sum, &is_max_value)
                     } else {
-                        let is_equal_to_num_blocks = self.key.generate_lookup_table(|x| {
-                            u64::from((x & max_value as u64) == blocks.len() as u64)
-                        });
+                        let is_equal_to_num_blocks = self
+                            .key
+                            .generate_lookup_table(|x| u64::from(x == blocks.len() as u64));
                         self.key.apply_lookup_table(&sum, &is_equal_to_num_blocks)
                     }
                 })
@@ -112,15 +110,12 @@ impl ServerKey {
                     .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
             });
 
-        let message_modulus = self.key.message_modulus.0;
-        let carry_modulus = self.key.carry_modulus.0;
-        let total_modulus = message_modulus * carry_modulus;
-        let max_value = total_modulus - 1;
+        let max_sum_size = self.max_sum_size(Degree::new(1));
         let is_non_zero = self.key.generate_lookup_table(|x| u64::from(x != 0));
 
         while block_comparisons.len() > 1 {
             block_comparisons = block_comparisons
-                .chunks(max_value)
+                .chunks(max_sum_size)
                 .map(|blocks| {
                     let mut sum = blocks[0].clone();
                     for other_block in &blocks[1..] {

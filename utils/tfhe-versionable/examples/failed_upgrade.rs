@@ -90,3 +90,8 @@ fn main() {
 
     assert!(v1::MyStruct::unversionize(bincode::deserialize(&serialized_empty).unwrap()).is_err());
 }
+
+#[test]
+fn test() {
+    main()
+}

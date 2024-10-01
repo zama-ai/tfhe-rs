@@ -169,16 +169,15 @@ impl ServerKeyDefaultCMux<&BooleanBlock, &BooleanBlock> for ServerKey {
         });
 
         let negated_cond = self.boolean_bitnot(condition);
-
         let (mut lhs, rhs) = rayon::join(
             || {
-                let mut block = self.key.scalar_mul(&condition.0, 2);
+                let mut block = self.key.unchecked_scalar_mul(&condition.0, 2);
                 self.key.unchecked_add_assign(&mut block, &true_ct.0);
                 self.key.apply_lookup_table_assign(&mut block, &zero_lut);
                 block
             },
             || {
-                let mut block = self.key.scalar_mul(&negated_cond.0, 2);
+                let mut block = self.key.unchecked_scalar_mul(&negated_cond.0, 2);
                 self.key.unchecked_add_assign(&mut block, &false_ct.0);
                 self.key.apply_lookup_table_assign(&mut block, &zero_lut);
                 block

@@ -27,7 +27,7 @@ jobs:
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@c0e7168795bd78f61f61146951ed9d0c73c9b701
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -48,6 +48,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: 'false'
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Set up home
         run: |
@@ -58,9 +59,11 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install Node
+      - name: Install web resources
         run: |
           make install_node
+          make install_chrome_browser
+          make install_chrome_web_driver
 
       - name: Run fmt checks
         run: |
@@ -71,13 +74,11 @@ jobs:
           make test_nodejs_wasm_api_in_docker
 
       - name: Run parallel wasm tests
-        # test timeouts are at 60 but if we want a log we need to give time to the step to log stuff
-        timeout-minutes: 65
         run: |
-          make test_web_js_api_parallel_ci
+          make test_web_js_api_parallel_chrome_ci
 
       - name: Slack Notification
-        if: ${{ always() }}
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
@@ -92,7 +93,7 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@c0e7168795bd78f61f61146951ed9d0c73c9b701
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}

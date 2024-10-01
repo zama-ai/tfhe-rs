@@ -74,7 +74,7 @@ __host__ void are_all_comparisons_block_true(
   auto tmp_out = are_all_block_true_buffer->tmp_out;
 
   uint32_t total_modulus = message_modulus * carry_modulus;
-  uint32_t max_value = total_modulus - 1;
+  uint32_t max_value = (total_modulus - 1) / (message_modulus - 1);
 
   cuda_memcpy_async_gpu_to_gpu(tmp_out, lwe_array_in,
                                num_radix_blocks * (big_lwe_dimension + 1) *
@@ -121,9 +121,8 @@ __host__ void are_all_comparisons_block_true(
             new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
                                      max_value, num_radix_blocks, true);
 
-        auto is_equal_to_num_blocks_lut_f = [max_value,
-                                             chunk_length](Torus x) -> Torus {
-          return (x & max_value) == chunk_length;
+        auto is_equal_to_num_blocks_lut_f = [chunk_length](Torus x) -> Torus {
+          return x == chunk_length;
         };
         generate_device_accumulator<Torus>(
             streams[0], gpu_indexes[0], new_lut->get_lut(gpu_indexes[0], 0),
@@ -173,7 +172,7 @@ __host__ void is_at_least_one_comparisons_block_true(
   auto buffer = mem_ptr->eq_buffer->are_all_block_true_buffer;
 
   uint32_t total_modulus = message_modulus * carry_modulus;
-  uint32_t max_value = total_modulus - 1;
+  uint32_t max_value = (total_modulus - 1) / (message_modulus - 1);
 
   cuda_memcpy_async_gpu_to_gpu(mem_ptr->tmp_lwe_array_out, lwe_array_in,
                                num_radix_blocks * (big_lwe_dimension + 1) *

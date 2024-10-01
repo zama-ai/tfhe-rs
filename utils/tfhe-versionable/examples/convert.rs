@@ -48,3 +48,8 @@ fn main() {
 
     assert_eq!(stru.val, stru_decoded.val)
 }
+
+#[test]
+fn test() {
+    main()
+}

@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 #[path = "../utilities.rs"]
 mod utilities;
 
@@ -8,11 +6,8 @@ use rand::prelude::*;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use tfhe::core_crypto::prelude::*;
 use tfhe::integer::key_switching_key::KeySwitchingKey;
-use tfhe::integer::parameters::{
-    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
-};
+use tfhe::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -55,7 +50,7 @@ fn pke_zk_proof(c: &mut Criterion) {
         let mut rng = rand::thread_rng();
         metadata.fill_with(|| rng.gen());
 
-        for bits in [640usize, 1280, 4096] {
+        for bits in [64usize, 640, 1280, 4096] {
             assert_eq!(bits % 64, 0);
             // Packing, so we take the message and carry modulus to compute our block count
             let num_block = 64usize.div_ceil(
@@ -140,7 +135,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
         let mut rng = rand::thread_rng();
         metadata.fill_with(|| rng.gen());
 
-        for bits in [640usize, 1280, 4096] {
+        for bits in [64usize, 640, 1280, 4096] {
             assert_eq!(bits % 64, 0);
             // Packing, so we take the message and carry modulus to compute our block count
             let num_block = 64usize.div_ceil(
@@ -159,10 +154,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
             let shortint_params: PBSParameters = param_fhe.into();
 
-            let mut crs_data = vec![];
-            public_params
-                .serialize_with_mode(&mut crs_data, Compress::No)
-                .unwrap();
+            let crs_data = bincode::serialize(&public_params).unwrap();
 
             println!("CRS size: {}", crs_data.len());
 
@@ -253,8 +245,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 public_params,
                                 &pk,
                                 &metadata,
-                                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks),
-                                IntegerCompactCiphertextListCastingMode::CastIfNecessary(
+                                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
                                     casting_key.as_view(),
                                 ),
                             )

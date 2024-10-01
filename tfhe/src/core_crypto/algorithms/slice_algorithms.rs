@@ -15,7 +15,7 @@ use crate::core_crypto::entities::Polynomial;
 ///
 /// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
-/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
 /// let dot_product = slice_wrapping_dot_product(&first, &second);
 /// assert_eq!(dot_product, 26);
@@ -74,7 +74,7 @@ where
 ///
 /// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
-/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
 /// let mut add = vec![0_u8; 6];
 /// slice_wrapping_add(&mut add, &first, &second);
@@ -229,7 +229,7 @@ pub fn slice_wrapping_add_scalar_mul_assign<Scalar>(
 ///
 /// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
-/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
 /// let mut add = vec![0_u8; 6];
 /// slice_wrapping_sub(&mut add, &first, &second);

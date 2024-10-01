@@ -258,28 +258,6 @@ __host__ void scratch_programmable_bootstrap_amortized(
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
-  uint64_t full_sm =
-      get_buffer_size_full_sm_programmable_bootstrap_amortized<Torus>(
-          polynomial_size, glwe_dimension);
-  uint64_t partial_sm =
-      get_buffer_size_partial_sm_programmable_bootstrap_amortized<Torus>(
-          polynomial_size);
-  int max_shared_memory = cuda_get_max_shared_memory(0);
-  if (max_shared_memory >= partial_sm && max_shared_memory < full_sm) {
-    cudaFuncSetAttribute(
-        device_programmable_bootstrap_amortized<Torus, params, PARTIALSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm);
-    cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_amortized<Torus, params, PARTIALSM>,
-        cudaFuncCachePreferShared);
-  } else if (max_shared_memory >= partial_sm) {
-    check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_amortized<Torus, params, FULLSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
-    check_cuda_error(cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_amortized<Torus, params, FULLSM>,
-        cudaFuncCachePreferShared));
-  }
   if (allocate_gpu_memory) {
     uint64_t buffer_size =
         get_buffer_size_programmable_bootstrap_amortized<Torus>(

@@ -99,7 +99,7 @@ impl CompressedCiphertextListBuilder {
 #[versionize(CompressedCiphertextListVersions)]
 pub struct CompressedCiphertextList {
     pub(crate) packed_list: ShortintCompressedCiphertextList,
-    info: Vec<DataKind>,
+    pub(crate) info: Vec<DataKind>,
 }
 
 impl CompressedCiphertextList {

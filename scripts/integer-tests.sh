@@ -130,11 +130,11 @@ fi
 # Override test-threads number to avoid Out-of-memory issues on GPU instances
 if [[ "${backend}" == "gpu" ]]; then
     if [[ "${BIG_TESTS_INSTANCE}" == TRUE ]]; then
-        test_threads=8
-        doctest_threads=8
+        test_threads=1
+        doctest_threads=1
     else
-        test_threads=3
-        doctest_threads=3
+        test_threads=1
+        doctest_threads=1
     fi
 fi
 
@@ -155,7 +155,7 @@ cargo "${RUST_TOOLCHAIN}" nextest run \
     --cargo-profile "${cargo_profile}" \
     --package "${tfhe_package}" \
     --profile ci \
-    --features="${ARCH_FEATURE}",integer,internal-keycache,zk-pok,"${avx512_feature}","${gpu_feature}" \
+    --features="${ARCH_FEATURE}",integer,internal-keycache,zk-pok,experimental,"${avx512_feature}","${gpu_feature}" \
     --test-threads "${test_threads}" \
     -E "$filter_expression"
 
@@ -163,7 +163,7 @@ if [[ -z ${multi_bit_argument} ]]; then
     cargo "${RUST_TOOLCHAIN}" test \
         --profile "${cargo_profile}" \
         --package "${tfhe_package}" \
-        --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}","${gpu_feature}" \
+        --features="${ARCH_FEATURE}",integer,internal-keycache,experimental,"${avx512_feature}","${gpu_feature}" \
         --doc \
         -- --test-threads="${doctest_threads}" integer::"${gpu_feature}"
 fi

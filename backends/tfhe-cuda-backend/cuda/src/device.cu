@@ -137,6 +137,30 @@ void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
   }
 }
 
+/// Copy memory within a GPU
+void cuda_memcpy_gpu_to_gpu(void *dest, void *src, uint64_t size,
+                            uint32_t gpu_index) {
+  if (size == 0)
+    return;
+  cudaPointerAttributes attr_dest;
+  check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
+  if (attr_dest.type != cudaMemoryTypeDevice) {
+    PANIC("Cuda error: invalid dest device pointer in copy from GPU to GPU.")
+  }
+  cudaPointerAttributes attr_src;
+  check_cuda_error(cudaPointerGetAttributes(&attr_src, src));
+  if (attr_src.type != cudaMemoryTypeDevice) {
+    PANIC("Cuda error: invalid src device pointer in copy from GPU to GPU.")
+  }
+  check_cuda_error(cudaSetDevice(gpu_index));
+  if (attr_src.device == attr_dest.device) {
+    check_cuda_error(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToDevice));
+  } else {
+    check_cuda_error(
+        cudaMemcpyPeer(dest, attr_dest.device, src, attr_src.device, size));
+  }
+}
+
 /// Synchronizes device
 void cuda_synchronize_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
@@ -247,14 +271,5 @@ int cuda_get_max_shared_memory(uint32_t gpu_index) {
   cudaDeviceGetAttribute(&max_shared_memory, cudaDevAttrMaxSharedMemoryPerBlock,
                          gpu_index);
   check_cuda_error(cudaGetLastError());
-#if CUDA_ARCH == 900
-  max_shared_memory = 226000;
-#elif CUDA_ARCH == 890
-  max_shared_memory = 127000;
-#elif CUDA_ARCH == 800
-  max_shared_memory = 163000;
-#elif CUDA_ARCH == 700
-  max_shared_memory = 95000;
-#endif
   return max_shared_memory;
 }

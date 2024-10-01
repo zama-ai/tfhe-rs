@@ -1006,6 +1006,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     u64: CastFrom<Scalar> + CastInto<Scalar::Signed>,
     rand_distr::Standard: rand_distr::Distribution<Scalar>,
 {
+    use crate::zk::ZkMSBZeroPaddingBitCount;
     let lwe_dimension = LweDimension(params.polynomial_size.0);
     let glwe_noise_distribution = TUniform::new(9);
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -1027,6 +1028,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
         glwe_noise_distribution,
         ciphertext_modulus,
         msg_modulus * Scalar::TWO,
+        ZkMSBZeroPaddingBitCount(1),
         &mut random_generator,
     )
     .unwrap();
@@ -1109,6 +1111,7 @@ create_parametrized_test!(lwe_compact_public_encrypt_prove_verify_decrypt_custom
 #[cfg(feature = "zk-pok")]
 #[test]
 fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
+    use crate::zk::ZkMSBZeroPaddingBitCount;
     use rand::Rng;
 
     let lwe_dimension = LweDimension(2048);
@@ -1119,7 +1122,8 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
 
     let delta_log = 59;
     let delta = 1u64 << delta_log;
-    let message_modulus = 1u64 << (64 - (delta_log + 1));
+    let msb_zero_padding_bit_count = ZkMSBZeroPaddingBitCount(1);
+    let message_modulus = 1u64 << (64 - (delta_log + msb_zero_padding_bit_count.0));
     let plaintext_modulus = 1u64 << (64 - delta_log);
     let mut thread_rng = rand::thread_rng();
 
@@ -1130,6 +1134,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
         glwe_noise_distribution,
         ciphertext_modulus,
         plaintext_modulus,
+        msb_zero_padding_bit_count,
         &mut thread_rng,
     )
     .unwrap();

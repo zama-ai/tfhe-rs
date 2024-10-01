@@ -1,6 +1,8 @@
 use tfhe_versionable::Versionize;
 
 use crate::backward_compatibility::compact_list::CompactCiphertextListVersions;
+#[cfg(feature = "zk-pok")]
+use crate::backward_compatibility::compact_list::ProvenCompactCiphertextListVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::prelude::Numeric;
@@ -10,10 +12,10 @@ use crate::high_level_api::traits::Tagged;
 use crate::integer::ciphertext::{Compactable, DataKind, Expandable};
 use crate::integer::encryption::KnowsMessageModulus;
 use crate::integer::parameters::{
-    CompactCiphertextListConformanceParams, IntegerCompactCiphertextListCastingMode,
-    IntegerCompactCiphertextListUnpackingMode,
+    CompactCiphertextListConformanceParams, IntegerCompactCiphertextListExpansionMode,
 };
 use crate::named::Named;
+use crate::prelude::CiphertextList;
 use crate::shortint::MessageModulus;
 #[cfg(feature = "zk-pok")]
 pub use zk::ProvenCompactCiphertextList;
@@ -108,10 +110,7 @@ impl CompactCiphertextList {
         sks: &crate::ServerKey,
     ) -> crate::Result<CompactCiphertextListExpander> {
         self.inner
-            .expand(
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
-                IntegerCompactCiphertextListCastingMode::NoCasting,
-            )
+            .expand(sks.integer_compact_ciphertext_list_expansion_mode())
             .map(|inner| CompactCiphertextListExpander {
                 inner,
                 tag: self.tag.clone(),
@@ -123,44 +122,22 @@ impl CompactCiphertextList {
         if !self.inner.is_packed() && !self.inner.needs_casting() {
             // No ServerKey required, short-circuit to avoid the global state call
             return Ok(CompactCiphertextListExpander {
-                inner: self.inner.expand(
-                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
-                    IntegerCompactCiphertextListCastingMode::NoCasting,
-                )?,
+                inner: self
+                    .inner
+                    .expand(IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking)?,
                 tag: self.tag.clone(),
             });
         }
 
         global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
             None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-            Some(InternalServerKey::Cpu(cpu_key)) => {
-                let unpacking_mode = if self.inner.is_packed() {
-                    IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(cpu_key.pbs_key())
-                } else {
-                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking
-                };
-
-                let casting_mode = if self.inner.needs_casting() {
-                    IntegerCompactCiphertextListCastingMode::CastIfNecessary(
-                        cpu_key.cpk_casting_key().ok_or_else(|| {
-                            crate::Error::new(
-                                "No casting key found in ServerKey, \
-                                required to expand this CompactCiphertextList"
-                                    .to_string(),
-                            )
-                        })?,
-                    )
-                } else {
-                    IntegerCompactCiphertextListCastingMode::NoCasting
-                };
-
-                self.inner
-                    .expand(unpacking_mode, casting_mode)
-                    .map(|inner| CompactCiphertextListExpander {
-                        inner,
-                        tag: self.tag.clone(),
-                    })
-            }
+            Some(InternalServerKey::Cpu(cpu_key)) => self
+                .inner
+                .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
+                .map(|inner| CompactCiphertextListExpander {
+                    inner,
+                    tag: self.tag.clone(),
+                }),
             #[cfg(feature = "gpu")]
             Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
         })
@@ -190,8 +167,11 @@ impl ParameterSetConformant for CompactCiphertextList {
 #[cfg(feature = "zk-pok")]
 mod zk {
     use super::*;
+    use crate::conformance::ParameterSetConformant;
+    use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
 
-    #[derive(Clone, Serialize, Deserialize)]
+    #[derive(Clone, Serialize, Deserialize, Versionize)]
+    #[versionize(ProvenCompactCiphertextListVersions)]
     pub struct ProvenCompactCiphertextList {
         pub(crate) inner: crate::integer::ciphertext::ProvenCompactCiphertextList,
         pub(crate) tag: Tag,
@@ -229,6 +209,15 @@ mod zk {
             })
         }
 
+        pub fn verify(
+            &self,
+            public_params: &CompactPkePublicParams,
+            pk: &CompactPublicKey,
+            metadata: &[u8],
+        ) -> crate::zk::ZkVerificationOutCome {
+            self.inner.verify(public_params, &pk.key.key, metadata)
+        }
+
         pub fn verify_and_expand(
             &self,
             public_params: &CompactPkePublicParams,
@@ -243,8 +232,7 @@ mod zk {
                         public_params,
                         &pk.key.key,
                         metadata,
-                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
-                        IntegerCompactCiphertextListCastingMode::NoCasting,
+                        IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
                     )?,
                     tag: self.tag.clone(),
                 });
@@ -252,45 +240,143 @@ mod zk {
 
             global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
                 None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-                Some(InternalServerKey::Cpu(cpu_key)) => {
-                    let unpacking_mode = if self.inner.is_packed() {
-                        IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(
-                            cpu_key.pbs_key(),
-                        )
-                    } else {
-                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking
-                    };
-
-                    let casting_mode = if self.inner.needs_casting() {
-                        IntegerCompactCiphertextListCastingMode::CastIfNecessary(
-                            cpu_key.cpk_casting_key().ok_or_else(|| {
-                                crate::Error::new(
-                                    "No casting key found in ServerKey, \
-                                required to expand this CompactCiphertextList"
-                                        .to_string(),
-                                )
-                            })?,
-                        )
-                    } else {
-                        IntegerCompactCiphertextListCastingMode::NoCasting
-                    };
-
-                    self.inner
-                        .verify_and_expand(
-                            public_params,
-                            &pk.key.key,
-                            metadata,
-                            unpacking_mode,
-                            casting_mode,
-                        )
-                        .map(|expander| CompactCiphertextListExpander {
-                            inner: expander,
-                            tag: self.tag.clone(),
-                        })
-                }
+                Some(InternalServerKey::Cpu(cpu_key)) => self
+                    .inner
+                    .verify_and_expand(
+                        public_params,
+                        &pk.key.key,
+                        metadata,
+                        cpu_key.integer_compact_ciphertext_list_expansion_mode(),
+                    )
+                    .map(|expander| CompactCiphertextListExpander {
+                        inner: expander,
+                        tag: self.tag.clone(),
+                    }),
                 #[cfg(feature = "gpu")]
                 Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
             })
+        }
+
+        #[doc(hidden)]
+        /// This function allows to expand a ciphertext without verifying the associated proof.
+        ///
+        /// If you are here you were probably looking for it: use at your own risks.
+        pub fn expand_without_verification(&self) -> crate::Result<CompactCiphertextListExpander> {
+            // For WASM
+            if !self.inner.is_packed() && !self.inner.needs_casting() {
+                // No ServerKey required, short circuit to avoid the global state call
+                return Ok(CompactCiphertextListExpander {
+                    inner: self.inner.expand_without_verification(
+                        IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
+                    )?,
+                    tag: self.tag.clone(),
+                });
+            }
+
+            global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
+                None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
+                Some(InternalServerKey::Cpu(cpu_key)) => self
+                    .inner
+                    .expand_without_verification(
+                        cpu_key.integer_compact_ciphertext_list_expansion_mode(),
+                    )
+                    .map(|expander| CompactCiphertextListExpander {
+                        inner: expander,
+                        tag: self.tag.clone(),
+                    }),
+                #[cfg(feature = "gpu")]
+                Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
+            })
+        }
+    }
+
+    impl ParameterSetConformant for ProvenCompactCiphertextList {
+        type ParameterSet = IntegerProvenCompactCiphertextListConformanceParams;
+
+        fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+            let Self { inner, tag: _ } = self;
+
+            inner.is_conformant(parameter_set)
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+        use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
+        use crate::zk::CompactPkeCrs;
+        use rand::{thread_rng, Rng};
+
+        #[test]
+        fn conformance_zk_compact_ciphertext_list() {
+            let mut rng = thread_rng();
+
+            let params: crate::shortint::ClassicPBSParameters =
+                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let config = crate::ConfigBuilder::with_custom_parameters(params);
+
+            let client_key = crate::ClientKey::generate(config.clone());
+            // This is done in an offline phase and the CRS is shared to all clients and the server
+            let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
+            let public_zk_params = crs.public_params();
+            let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
+            // This can be left empty, but if provided allows to tie the proof to arbitrary data
+            let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+
+            let clear_a = rng.gen::<u64>();
+            let clear_b = rng.gen::<bool>();
+
+            let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
+                .push(clear_a)
+                .push(clear_b)
+                .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            let params =
+                IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+                    params.try_into().unwrap(),
+                    &crs,
+                );
+
+            assert!(proven_compact_list.is_conformant(&params));
+        }
+
+        #[test]
+        fn conformance_zk_compact_ciphertext_list_casting() {
+            let mut rng = thread_rng();
+
+            let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let cpk_params = crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let config = crate::ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+
+            let client_key = crate::ClientKey::generate(config.clone());
+
+            let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
+            let public_zk_params = crs.public_params();
+            let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
+
+            let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+
+            let clear_a = rng.gen::<u64>();
+            let clear_b = rng.gen::<bool>();
+
+            let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
+                .push(clear_a)
+                .push(clear_b)
+                .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            let params =
+                IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+                    cpk_params, &crs,
+                );
+
+            assert!(proven_compact_list.is_conformant(&params));
         }
     }
 }
@@ -300,27 +386,27 @@ pub struct CompactCiphertextListExpander {
     tag: Tag,
 }
 
-impl CompactCiphertextListExpander {
-    pub fn len(&self) -> usize {
+impl CiphertextList for CompactCiphertextListExpander {
+    fn len(&self) -> usize {
         self.inner.len()
     }
 
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
+    fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
         self.inner.get_kind_of(index).and_then(|data_kind| {
             crate::FheTypes::from_data_kind(data_kind, self.inner.message_modulus())
         })
     }
 
-    pub fn get<T>(&self, index: usize) -> Option<crate::Result<T>>
+    fn get<T>(&self, index: usize) -> crate::Result<Option<T>>
     where
         T: Expandable + Tagged,
     {
         let mut expanded = self.inner.get::<T>(index);
-        if let Some(Ok(inner)) = &mut expanded {
+        if let Ok(Some(inner)) = &mut expanded {
             inner.tag_mut().set_data(self.tag.data());
         }
         expanded
@@ -474,15 +560,77 @@ mod tests {
             let e: u8 = e.decrypt(&ck);
             assert_eq!(e, 3);
 
-            assert!(expander.get::<FheBool>(5).is_none());
+            assert!(expander.get::<FheBool>(5).unwrap().is_none());
         }
 
         {
             // Incorrect type
-            assert!(expander.get::<FheInt64>(0).unwrap().is_err());
+            assert!(expander.get::<FheInt64>(0).is_err());
 
             // Correct type but wrong number of bits
-            assert!(expander.get::<FheUint16>(0).unwrap().is_err());
+            assert!(expander.get::<FheUint16>(0).is_err());
+        }
+    }
+
+    #[test]
+    fn test_compact_list_with_casting() {
+        use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ))
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::ServerKey::new(&ck);
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push(17u32)
+            .push(-1i64)
+            .push(false)
+            .push(true)
+            .push_with_num_bits(3u8, 2)
+            .unwrap()
+            .build_packed();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+        let expander = compact_list.expand_with_key(&sk).unwrap();
+
+        {
+            let a: FheUint32 = expander.get(0).unwrap().unwrap();
+            let b: FheInt64 = expander.get(1).unwrap().unwrap();
+            let c: FheBool = expander.get(2).unwrap().unwrap();
+            let d: FheBool = expander.get(3).unwrap().unwrap();
+            let e: FheUint2 = expander.get(4).unwrap().unwrap();
+
+            let a: u32 = a.decrypt(&ck);
+            assert_eq!(a, 17);
+            let b: i64 = b.decrypt(&ck);
+            assert_eq!(b, -1);
+            let c = c.decrypt(&ck);
+            assert!(!c);
+            let d = d.decrypt(&ck);
+            assert!(d);
+            let e: u8 = e.decrypt(&ck);
+            assert_eq!(e, 3);
+
+            assert!(expander.get::<FheBool>(5).unwrap().is_none());
+        }
+
+        {
+            // Incorrect type
+            assert!(expander.get::<FheInt64>(0).is_err());
+
+            // Correct type but wrong number of bits
+            assert!(expander.get::<FheUint16>(0).is_err());
         }
     }
 
@@ -537,15 +685,35 @@ mod tests {
             let d: u8 = d.decrypt(&ck);
             assert_eq!(d, 3);
 
-            assert!(expander.get::<FheBool>(4).is_none());
+            assert!(expander.get::<FheBool>(4).unwrap().is_none());
         }
 
         {
             // Incorrect type
-            assert!(expander.get::<FheInt64>(0).unwrap().is_err());
+            assert!(expander.get::<FheInt64>(0).is_err());
 
             // Correct type but wrong number of bits
-            assert!(expander.get::<FheUint16>(0).unwrap().is_err());
+            assert!(expander.get::<FheUint16>(0).is_err());
+        }
+
+        let unverified_expander = compact_list.expand_without_verification().unwrap();
+
+        {
+            let a: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
+            let b: FheInt64 = unverified_expander.get(1).unwrap().unwrap();
+            let c: FheBool = unverified_expander.get(2).unwrap().unwrap();
+            let d: FheUint2 = unverified_expander.get(3).unwrap().unwrap();
+
+            let a: u32 = a.decrypt(&ck);
+            assert_eq!(a, 17);
+            let b: i64 = b.decrypt(&ck);
+            assert_eq!(b, -1);
+            let c = c.decrypt(&ck);
+            assert!(!c);
+            let d: u8 = d.decrypt(&ck);
+            assert_eq!(d, 3);
+
+            assert!(unverified_expander.get::<FheBool>(4).unwrap().is_none());
         }
     }
 
@@ -606,15 +774,35 @@ mod tests {
             let d: u8 = d.decrypt(&ck);
             assert_eq!(d, 3);
 
-            assert!(expander.get::<FheBool>(4).is_none());
+            assert!(expander.get::<FheBool>(4).unwrap().is_none());
         }
 
         {
             // Incorrect type
-            assert!(expander.get::<FheInt64>(0).unwrap().is_err());
+            assert!(expander.get::<FheInt64>(0).is_err());
 
             // Correct type but wrong number of bits
-            assert!(expander.get::<FheUint16>(0).unwrap().is_err());
+            assert!(expander.get::<FheUint16>(0).is_err());
+        }
+
+        let unverified_expander = compact_list.expand_without_verification().unwrap();
+
+        {
+            let a: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
+            let b: FheInt64 = unverified_expander.get(1).unwrap().unwrap();
+            let c: FheBool = unverified_expander.get(2).unwrap().unwrap();
+            let d: FheUint2 = unverified_expander.get(3).unwrap().unwrap();
+
+            let a: u32 = a.decrypt(&ck);
+            assert_eq!(a, 17);
+            let b: i64 = b.decrypt(&ck);
+            assert_eq!(b, -1);
+            let c = c.decrypt(&ck);
+            assert!(!c);
+            let d: u8 = d.decrypt(&ck);
+            assert_eq!(d, 3);
+
+            assert!(unverified_expander.get::<FheBool>(4).unwrap().is_none());
         }
     }
 }

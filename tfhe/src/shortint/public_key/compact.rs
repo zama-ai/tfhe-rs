@@ -1,8 +1,10 @@
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_lwe_secret_key,
     allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
-    Container, LweCiphertextCount, LweCompactCiphertextListOwned, LweCompactPublicKeyOwned,
-    LweSecretKey, Plaintext, PlaintextList, SeededLweCompactPublicKeyOwned,
+    Container, LweCiphertextCount, LweCompactCiphertextListOwned,
+    LweCompactPublicKeyEncryptionParameters, LweCompactPublicKeyOwned, LweSecretKey, Plaintext,
+    PlaintextList, SeededLweCompactPublicKeyOwned,
 };
 use crate::shortint::backward_compatibility::public_key::{
     CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
@@ -558,5 +560,35 @@ impl CompressedCompactPublicKey {
             key: decompressed_key,
             parameters: self.parameters,
         }
+    }
+}
+
+impl ParameterSetConformant for CompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key, parameters } = self;
+
+        let core_params = LweCompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension: parameter_set.encryption_lwe_dimension,
+            ciphertext_modulus: parameter_set.ciphertext_modulus,
+        };
+
+        parameters == parameter_set && key.is_conformant(&core_params)
+    }
+}
+
+impl ParameterSetConformant for CompressedCompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key, parameters } = self;
+
+        let core_params = LweCompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension: parameter_set.encryption_lwe_dimension,
+            ciphertext_modulus: parameter_set.ciphertext_modulus,
+        };
+
+        parameters == parameter_set && key.is_conformant(&core_params)
     }
 }

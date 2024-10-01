@@ -24,6 +24,7 @@ use std::fmt::Debug;
 mod client_side;
 mod public_side;
 mod server_side;
+#[cfg(feature = "experimental")]
 mod wopbs;
 
 thread_local! {
@@ -164,30 +165,27 @@ pub(crate) fn fill_accumulator_no_encoding<F, C>(
 /// Fills a GlweCiphertext for use in a ManyLookupTable setting
 pub(crate) fn fill_many_lut_accumulator<C>(
     accumulator: &mut GlweCiphertext<C>,
-    server_key: &ServerKey,
+    polynomial_size: PolynomialSize,
+    glwe_size: GlweSize,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
     functions: &[&dyn Fn(u64) -> u64],
 ) -> (MaxDegree, usize, Vec<Degree>)
 where
     C: ContainerMut<Element = u64>,
 {
-    assert_eq!(
-        accumulator.polynomial_size(),
-        server_key.bootstrapping_key.polynomial_size()
-    );
-    assert_eq!(
-        accumulator.glwe_size(),
-        server_key.bootstrapping_key.glwe_size()
-    );
+    assert_eq!(accumulator.polynomial_size(), polynomial_size);
+    assert_eq!(accumulator.glwe_size(), glwe_size);
 
     let mut accumulator_view = accumulator.as_mut_view();
 
     accumulator_view.get_mut_mask().as_mut().fill(0);
 
     // Modulus of the msg contained in the msg bits and operations buffer
-    let modulus_sup = server_key.message_modulus.0 * server_key.carry_modulus.0;
+    let modulus_sup = message_modulus.0 * carry_modulus.0;
 
     // N/(p/2) = size of each block
-    let box_size = server_key.bootstrapping_key.polynomial_size().0 / modulus_sup;
+    let box_size = polynomial_size.0 / modulus_sup;
 
     // Value of the delta we multiply our messages by
     let delta = (1_u64 << 63) / (modulus_sup as u64);
@@ -267,8 +265,6 @@ impl std::fmt::Display for EngineError {
         write!(f, "{}", &self.error)
     }
 }
-
-pub(crate) type EngineResult<T> = Result<T, EngineError>;
 
 /// ShortintEngine
 ///

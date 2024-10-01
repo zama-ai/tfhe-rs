@@ -2,12 +2,14 @@
 
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_bootstrap_key::SeededLweBootstrapKeyVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 
 /// A [`seeded LWE bootstrap key`](`SeededLweBootstrapKey`).
 ///
@@ -318,5 +320,17 @@ impl<Scalar: UnsignedInteger> SeededLweBootstrapKeyOwned<Scalar> {
                 ciphertext_modulus,
             ),
         }
+    }
+}
+
+impl<C: Container<Element = u64>> ParameterSetConformant for SeededLweBootstrapKey<C> {
+    type ParameterSet = BootstrapKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { ggsw_list } = self;
+
+        let params = parameter_set.into();
+
+        ggsw_list.is_conformant(&params)
     }
 }

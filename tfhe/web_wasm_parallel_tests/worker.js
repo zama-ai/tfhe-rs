@@ -353,7 +353,7 @@ async function compressedCompactPublicKeyWithCastingTest256Bit() {
   assert_eq(expander.get_uint256(3).decrypt(clientKey), clear_u256);
 }
 
-async function compactPublicKeyZeroKnowledge() {
+async function compactPublicKeyZeroKnowledgeTest() {
   let block_params = new ShortintParameters(
     ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
   );
@@ -411,6 +411,10 @@ async function compactPublicKeyZeroKnowledge() {
     );
 
     assert_eq(expander.get_uint64(0).decrypt(clientKey), input);
+
+    let unverified_expander = deserialized.expand_without_verification();
+
+    assert_eq(unverified_expander.get_uint64(0).decrypt(clientKey), input);
   }
 
   {
@@ -450,6 +454,16 @@ async function compactPublicKeyZeroKnowledge() {
     assert_eq(expander.get_uint64(2).decrypt(clientKey), inputs[2]);
 
     assert_eq(expander.get_uint64(3).decrypt(clientKey), inputs[3]);
+
+    let unverified_expander = encrypted.expand_without_verification();
+
+    assert_eq(unverified_expander.get_uint64(0).decrypt(clientKey), inputs[0]);
+
+    assert_eq(unverified_expander.get_uint64(1).decrypt(clientKey), inputs[1]);
+
+    assert_eq(unverified_expander.get_uint64(2).decrypt(clientKey), inputs[2]);
+
+    assert_eq(unverified_expander.get_uint64(3).decrypt(clientKey), inputs[3]);
   }
 }
 
@@ -655,7 +669,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
       [ZkComputeLoad.Verify]: "compute_load_verify",
     };
 
-    let bits_to_encrypt = [640, 1280, 4096];
+    let bits_to_encrypt = [64, 640, 1280, 4096];
 
     let encrypt_counts = bits_to_encrypt.map((v) => v / 64);
 
@@ -723,7 +737,7 @@ async function main() {
     compressedPublicKeyTest,
     compressedCompactPublicKeyTest256BitSmall,
     compressedCompactPublicKeyTest256BitBig,
-    compactPublicKeyZeroKnowledge,
+    compactPublicKeyZeroKnowledgeTest,
     compactPublicKeyBench32BitBig,
     compactPublicKeyBench32BitSmall,
     compactPublicKeyBench256BitBig,

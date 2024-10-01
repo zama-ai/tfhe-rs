@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert').strict;
-const { performance } = require('perf_hooks');
+const {performance} = require('perf_hooks');
 const {
     init_panic_hook,
     ShortintParametersName,
@@ -8,6 +8,9 @@ const {
     TfheClientKey,
     TfhePublicKey,
     TfheCompressedPublicKey,
+    TfheCompressedCompactPublicKey,
+    ShortintCompactPublicKeyEncryptionParametersName,
+    ShortintCompactPublicKeyEncryptionParameters,
     TfheCompactPublicKey,
     TfheConfigBuilder,
     CompressedFheInt8,
@@ -23,6 +26,8 @@ const {
     CompactPkePublicParams,
     CompactPkeCrs,
     ZkComputeLoad,
+    Shortint,
+    ShortintEncryptionKeyChoice,
 } = require("../pkg/tfhe.js");
 const {
     randomBytes,
@@ -522,3 +527,62 @@ test('hlapi_compact_ciphertext_list_with_proof', (t) => {
 
     // Verifying and expanding is too slow for single threaded node tests.
 });
+
+
+test('hlapi_compact_pk_conformance', (t) => {
+
+    const limit = BigInt(1 << 20);
+
+    let blockParams = new ShortintParameters(
+        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    );
+    let publicKeyParams = new ShortintCompactPublicKeyEncryptionParameters(
+        ShortintCompactPublicKeyEncryptionParametersName.SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    );
+
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(blockParams)
+        .use_dedicated_compact_public_key_parameters(publicKeyParams)
+        .build();
+
+    let clientKey = TfheClientKey.generate(config);
+    let compressedPublicKey = TfheCompressedCompactPublicKey.new(clientKey);
+
+    let serializedCompressedPublicKey = compressedPublicKey.safe_serialize(limit);
+    let _compressedPublicKey = TfheCompressedCompactPublicKey.safe_deserialize_conformant(
+        serializedCompressedPublicKey, limit, publicKeyParams);
+
+    let publicKey = compressedPublicKey.decompress();
+    let serializedPublicKey = publicKey.safe_serialize(limit);
+    let _publicKey = TfheCompactPublicKey.safe_deserialize_conformant(serializedPublicKey, limit, publicKeyParams);
+
+    const message_modulus = 4;
+    const carry_modulus = 4;
+    const modulus_pow_2_exponent = 64;
+    const ks_level = 5;
+    const ks_base_log = 3;
+    let incorrectPublicKeyParams = ShortintCompactPublicKeyEncryptionParameters.new_parameters(
+        512,
+        Shortint.try_new_t_uniform(42),
+        message_modulus,
+        carry_modulus,
+        modulus_pow_2_exponent,
+        ks_base_log,
+        ks_level,
+        ShortintEncryptionKeyChoice.Small,
+    );
+
+    assert.throws(
+        () => {
+            let _compressedPublicKey = TfheCompressedCompactPublicKey.safe_deserialize_conformant(
+                serializedCompressedPublicKey, limit, incorrectPublicKeyParams);
+        },
+    )
+
+    assert.throws(
+        () => {
+            let _publicKey = TfheCompactPublicKey.safe_deserialize_conformant(
+                serializedPublicKey, limit, incorrectPublicKeyParams);
+        },
+    )
+})

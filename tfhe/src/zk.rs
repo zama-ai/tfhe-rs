@@ -1,16 +1,37 @@
 use crate::core_crypto::commons::math::random::BoundedDistribution;
 use crate::core_crypto::prelude::*;
+use crate::named::Named;
 use rand_core::RngCore;
 use std::cmp::Ordering;
 use std::collections::Bound;
 use std::fmt::Debug;
 use tfhe_zk_pok::proofs::pke::crs_gen;
 
+pub use tfhe_zk_pok::curve_api::Compressible;
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
-pub use tfhe_zk_pok::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 pub type CompactPkeProof = tfhe_zk_pok::proofs::pke::Proof<Curve>;
+
+impl Named for CompactPkeProof {
+    const NAME: &'static str = "zk::CompactPkeProof";
+}
+
 pub type CompactPkePublicParams = tfhe_zk_pok::proofs::pke::PublicParams<Curve>;
+pub type SerializableCompactPkePublicParams =
+    tfhe_zk_pok::serialization::SerializablePKEv1PublicParams;
+
+impl Named for CompactPkePublicParams {
+    const NAME: &'static str = "zk::CompactPkePublicParams";
+}
+
+// If we call `CompactPkePublicParams::compress` we end up with a
+// `SerializableCompactPkePublicParams` that should also impl Named to be serializable with
+// `safe_serialization`. Since the `CompactPkePublicParams` is transformed into a
+// `SerializableCompactPkePublicParams` anyways before serialization, their impl of `Named` should
+// return the same string.
+impl Named for SerializableCompactPkePublicParams {
+    const NAME: &'static str = CompactPkePublicParams::NAME;
+}
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ZkVerificationOutCome {
@@ -33,6 +54,9 @@ impl ZkVerificationOutCome {
 pub struct CompactPkeCrs {
     public_params: CompactPkePublicParams,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ZkMSBZeroPaddingBitCount(pub u64);
 
 impl CompactPkeCrs {
     /// Prepare and check the CRS parameters.
@@ -133,12 +157,14 @@ impl CompactPkeCrs {
         ))
     }
 
+    /// Generates a new zk CRS from the tfhe parameters.
     pub fn new<Scalar, NoiseDistribution>(
         lwe_dim: LweDimension,
         max_num_cleartext: usize,
         noise_distribution: NoiseDistribution,
         ciphertext_modulus: CiphertextModulus<Scalar>,
         plaintext_modulus: Scalar,
+        msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
         rng: &mut impl RngCore,
     ) -> crate::Result<Self>
     where
@@ -152,7 +178,15 @@ impl CompactPkeCrs {
             ciphertext_modulus,
             plaintext_modulus,
         )?;
-        let public_params = crs_gen(d.0, k, b.cast_into(), q, t.cast_into(), rng);
+        let public_params = crs_gen(
+            d.0,
+            k,
+            b.cast_into(),
+            q,
+            t.cast_into(),
+            msbs_zero_padding_bit_count.0,
+            rng,
+        );
 
         Ok(Self { public_params })
     }

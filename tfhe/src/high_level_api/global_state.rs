@@ -39,10 +39,9 @@ thread_local! {
 ///
 /// ```rust
 /// use std::thread;
-/// use tfhe;
 /// use tfhe::ConfigBuilder;
 ///
-/// let config = tfhe::ConfigBuilder::default().build();
+/// let config = ConfigBuilder::default().build();
 /// let (client_key, server_key) = tfhe::generate_keys(config);
 /// let server_key_2 = server_key.clone();
 ///

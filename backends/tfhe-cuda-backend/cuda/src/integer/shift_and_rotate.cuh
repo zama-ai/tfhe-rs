@@ -135,8 +135,6 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
     // host_pack bits into one block so that we have
     // control_bit|b|a
-    cuda_memset_async(mux_inputs, 0, total_nb_bits * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]); // Do we need this?
     pack_bivariate_blocks<Torus>(streams, gpu_indexes, gpu_count, mux_inputs,
                                  mux_lut->lwe_indexes_out, rotated_input,
                                  input_bits_a, mux_lut->lwe_indexes_in,

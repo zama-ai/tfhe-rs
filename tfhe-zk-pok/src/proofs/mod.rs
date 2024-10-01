@@ -1,44 +1,47 @@
-use crate::curve_api::{Curve, CurveGroupOps, FieldOps, PairingGroupOps};
-use ark_serialize::{
-    CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError, Valid, Validate,
+use crate::backward_compatibility::GroupElementsVersions;
+use crate::curve_api::{Compressible, Curve, CurveGroupOps, FieldOps, PairingGroupOps};
+use crate::serialization::{
+    InvalidSerializedGroupElementsError, SerializableG1Affine, SerializableG2Affine,
+    SerializableGroupElements,
 };
 use core::ops::{Index, IndexMut};
 use rand::{Rng, RngCore};
+use tfhe_versionable::{Unversionize, Versionize, VersionizeOwned};
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 #[repr(transparent)]
-struct OneBased<T: ?Sized>(T);
+pub(crate) struct OneBased<T: ?Sized>(T);
 
-impl<T: Valid> Valid for OneBased<T> {
-    fn check(&self) -> Result<(), SerializationError> {
-        self.0.check()
+// TODO: these impl could be removed by adding support for `repr(transparent)` in tfhe-versionable
+impl<T: Versionize> Versionize for OneBased<T> {
+    type Versioned<'vers> = T::Versioned<'vers>
+    where
+        T: 'vers,
+    ;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.0.versionize()
     }
 }
 
-impl<T: CanonicalDeserialize> CanonicalDeserialize for OneBased<T> {
-    fn deserialize_with_mode<R: ark_serialize::Read>(
-        reader: R,
-        compress: Compress,
-        validate: Validate,
-    ) -> Result<Self, SerializationError> {
-        T::deserialize_with_mode(reader, compress, validate).map(Self)
+impl<T: VersionizeOwned> VersionizeOwned for OneBased<T> {
+    type VersionedOwned = T::VersionedOwned;
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        self.0.versionize_owned()
     }
 }
 
-impl<T: CanonicalSerialize> CanonicalSerialize for OneBased<T> {
-    fn serialize_with_mode<W: ark_serialize::Write>(
-        &self,
-        writer: W,
-        compress: Compress,
-    ) -> Result<(), SerializationError> {
-        self.0.serialize_with_mode(writer, compress)
-    }
-
-    fn serialized_size(&self, compress: Compress) -> usize {
-        self.0.serialized_size(compress)
+impl<T: Unversionize> Unversionize for OneBased<T> {
+    fn unversionize(
+        versioned: Self::VersionedOwned,
+    ) -> Result<Self, tfhe_versionable::UnversionizeError> {
+        Ok(Self(T::unversionize(versioned)?))
     }
 }
 
+/// The proving scheme is available in 2 versions, one that puts more load on the prover and one
+/// that puts more load on the verifier
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ComputeLoad {
     Proof,
@@ -76,17 +79,16 @@ impl<T: ?Sized + IndexMut<usize>> IndexMut<usize> for OneBased<T> {
 
 pub type Affine<Zp, Group> = <Group as CurveGroupOps<Zp>>::Affine;
 
-#[derive(
-    Clone, Debug, serde::Serialize, serde::Deserialize, CanonicalSerialize, CanonicalDeserialize,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[serde(bound(
     deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
     serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
 ))]
-struct GroupElements<G: Curve> {
-    g_list: OneBased<Vec<Affine<G::Zp, G::G1>>>,
-    g_hat_list: OneBased<Vec<Affine<G::Zp, G::G2>>>,
-    message_len: usize,
+#[versionize(GroupElementsVersions)]
+pub(crate) struct GroupElements<G: Curve> {
+    pub(crate) g_list: OneBased<Vec<Affine<G::Zp, G::G1>>>,
+    pub(crate) g_hat_list: OneBased<Vec<Affine<G::Zp, G::G2>>>,
+    pub(crate) message_len: usize,
 }
 
 impl<G: Curve> GroupElements<G> {
@@ -133,6 +135,34 @@ impl<G: Curve> GroupElements<G> {
             g_hat_list: OneBased::new(g_hat_list),
             message_len,
         }
+    }
+}
+
+impl<G: Curve> Compressible for GroupElements<G>
+where
+    GroupElements<G>:
+        TryFrom<SerializableGroupElements, Error = InvalidSerializedGroupElementsError>,
+    <G::G1 as CurveGroupOps<G::Zp>>::Affine: Compressible<Compressed = SerializableG1Affine>,
+    <G::G2 as CurveGroupOps<G::Zp>>::Affine: Compressible<Compressed = SerializableG2Affine>,
+{
+    type Compressed = SerializableGroupElements;
+
+    type UncompressError = InvalidSerializedGroupElementsError;
+
+    fn compress(&self) -> Self::Compressed {
+        let mut g_list = Vec::new();
+        let mut g_hat_list = Vec::new();
+        for idx in 0..self.message_len {
+            g_list.push(self.g_list[(idx * 2) + 1].compress());
+            g_list.push(self.g_list[(idx * 2) + 2].compress());
+            g_hat_list.push(self.g_hat_list[idx + 1].compress())
+        }
+
+        SerializableGroupElements { g_list, g_hat_list }
+    }
+
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+        Self::try_from(compressed)
     }
 }
 

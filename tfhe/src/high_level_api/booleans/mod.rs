@@ -8,5 +8,6 @@ mod base;
 mod compressed;
 mod encrypt;
 mod inner;
+mod oprf;
 #[cfg(test)]
 mod tests;

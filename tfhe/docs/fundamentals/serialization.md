@@ -29,7 +29,7 @@ use tfhe::prelude::*;
 fn main() -> Result<(), Box<dyn std::error::Error>>{
     let config = ConfigBuilder::default().build();
 
-    let ( client_key, server_key) = generate_keys(config);
+    let (client_key, server_key) = generate_keys(config);
 
     let msg1 = 1;
     let msg2 = 0;
@@ -78,7 +78,7 @@ When dealing with sensitive types, it's important to implement safe serializatio
 The safe deserialization must take the output of a safe-serialization as input. During the process, the following validation occurs:
 
 * **Type match**: deserializing `type A` from a serialized `type B` raises an error indicating "On deserialization, expected type A, got type B".
-* **Version compatibility**: deserializing `type A` of a newer version (for example, version 0.2) from a serialized `type A` of an older version (for example, version 0.1) raises an error indicating "On deserialization, expected serialization version 0.2, got version 0.1".
+* **Version compatibility**: data serialized in previous versions of **TFHE-rs** are automatically upgraded to the latest version using the [data versioning](../guides/data\_versioning.md) feature.
 * **Parameter compatibility**: deserializing an object of `type A` with one set of crypto parameters from an object of `type A` with another set of crypto parameters raises an error indicating "Deserialized object of type A not conformant with given parameter set"
   * If both parameter sets have the same LWE dimension for ciphertexts, a ciphertext from param 1 may not fail this deserialization check with param 2.
   * This check can't distinguish ciphertexts/server keys from independent client keys with the same parameters.
@@ -96,9 +96,8 @@ Here is an example:
 // main.rs
 
 use tfhe::conformance::ParameterSetConformant;
-use tfhe::integer::parameters::RadixCiphertextConformanceParams;
 use tfhe::prelude::*;
-use tfhe::safe_deserialization::{safe_deserialize_conformant, safe_serialize};
+use tfhe::safe_serialization::{SerializationConfig, DeserializationConfig};
 use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS};
 use tfhe::conformance::ListSizeConstraint;
 use tfhe::{
@@ -107,14 +106,12 @@ use tfhe::{
 };
 
 fn main() {
-    let config = ConfigBuilder::default().build();
-
     let params_1 = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     let params_2 = PARAM_MESSAGE_2_CARRY_2_PBS_KS;
     
-    let (client_key, server_key) = generate_keys(
-        ConfigBuilder::with_custom_parameters(params_1).build()
-    );
+    let config = ConfigBuilder::with_custom_parameters(params_1).build();
+    
+    let (client_key, server_key) = generate_keys(config);
     
     let conformance_params_1 = FheUint8ConformanceParams::from(params_1);
     let conformance_params_2 = FheUint8ConformanceParams::from(params_2);
@@ -130,19 +127,15 @@ fn main() {
 
     let mut buffer = vec![];
 
-    safe_serialize(&ct, &mut buffer, 1 << 40).unwrap();
+    SerializationConfig::new(1 << 20).serialize_into(&ct, &mut buffer).unwrap();
     
-    assert!(safe_deserialize_conformant::<FheUint8>(
-        buffer.as_slice(),
-        1 << 20,
-        &conformance_params_2
-    ).is_err());
+    assert!(DeserializationConfig::new(1 << 20)
+        .deserialize_from::<FheUint8>(buffer.as_slice(), &conformance_params_2)
+        .is_err());
 
-    let ct2 = safe_deserialize_conformant::<FheUint8>(
-        buffer.as_slice(),
-        1 << 20,
-        &conformance_params_1
-    ).unwrap();
+    let ct2 = DeserializationConfig::new(1 << 20)
+        .deserialize_from::<FheUint8>(buffer.as_slice(), &conformance_params_1)
+        .unwrap();
 
     let dec: u8 = ct2.decrypt(&client_key);
     assert_eq!(msg, dec);
@@ -155,18 +148,14 @@ fn main() {
     let compact_list = builder.build();
 
     let mut buffer = vec![];
-    safe_serialize(&compact_list, &mut buffer, 1 << 40).unwrap();
+    SerializationConfig::new(1 << 20).serialize_into(&compact_list, &mut buffer).unwrap();
     
     let conformance_params = CompactCiphertextListConformanceParams {
         shortint_params: params_1.to_shortint_conformance_param(),
         num_elements_constraint: ListSizeConstraint::exact_size(2),
     };
-    assert!(safe_deserialize_conformant::<CompactCiphertextList>(
-        buffer.as_slice(),
-        1 << 20,
-        &conformance_params
-    ).is_ok());
+    DeserializationConfig::new(1 << 20)
+        .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &conformance_params)
+        .unwrap();
 }
 ```
-
-You can combine this serialization/deserialization feature with the [data versioning](../guides/data\_versioning.md) feature by using the `safe_serialize_versioned` and `safe_deserialize_conformant_versioned` functions.

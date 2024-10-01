@@ -27,7 +27,7 @@ async function setup() {
     "compressedPublicKeyTest",
     "compressedCompactPublicKeyTest256BitBig",
     "compressedCompactPublicKeyTest256BitSmall",
-    "compactPublicKeyZeroKnowledge",
+    "compactPublicKeyZeroKnowledgeTest",
     "compactPublicKeyBench32BitBig",
     "compactPublicKeyBench32BitSmall",
     "compactPublicKeyBench256BitBig",

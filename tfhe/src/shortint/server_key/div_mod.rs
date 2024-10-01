@@ -320,7 +320,7 @@ impl ServerKey {
     ///
     /// // Encrypt two messages
     /// let mut ct_1 = cks.encrypt(clear_1);
-    /// let mut ct_2 = cks.encrypt(clear_2);
+    /// let ct_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
     /// sks.unchecked_div_assign(&mut ct_1, &ct_2);
@@ -333,7 +333,7 @@ impl ServerKey {
     ///
     /// // Encrypt two messages
     /// let mut ct_1 = cks.encrypt(clear_1);
-    /// let mut ct_2 = cks.encrypt(clear_2);
+    /// let ct_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
     /// sks.unchecked_div_assign(&mut ct_1, &ct_2);

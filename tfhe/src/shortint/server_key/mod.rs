@@ -19,8 +19,7 @@ mod shift;
 mod sub;
 
 pub mod compressed;
-use ::tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
-use aligned_vec::ABox;
+
 pub use bivariate_pbs::{
     BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,
 };
@@ -30,6 +29,7 @@ pub(crate) use scalar_mul::unchecked_scalar_mul_assign;
 #[cfg(test)]
 pub(crate) mod tests;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::{
     FourierLweMultiBitBootstrapKeyVersioned, FourierLweMultiBitBootstrapKeyVersionedOwned,
@@ -39,11 +39,12 @@ use crate::core_crypto::backward_compatibility::fft_impl::{
 };
 use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, LweSize, MonomialDegree,
-    PolynomialSize, ThreadCount,
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, GlweSize, LweBskGroupingFactor,
+    LweDimension, LweSize, MonomialDegree, PolynomialSize, ThreadCount,
 };
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::core_crypto::prelude::ComputationBuffers;
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
@@ -54,7 +55,9 @@ use crate::shortint::engine::{
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
-use crate::shortint::{PBSMode, PBSOrder};
+use crate::shortint::{EncryptionKeyChoice, PBSMode, PBSOrder};
+use ::tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
@@ -79,6 +82,7 @@ use super::backward_compatibility::server_key::{
     SerializableShortintBootstrappingKeyVersioned,
     SerializableShortintBootstrappingKeyVersionedOwned, ServerKeyVersions,
 };
+use super::PBSParameters;
 
 /// Error returned when the carry buffer is full.
 #[derive(Debug)]
@@ -923,7 +927,14 @@ impl ServerKey {
             self.ciphertext_modulus,
         );
         let (input_max_degree, sample_extraction_stride, per_function_output_degree) =
-            fill_many_lut_accumulator(&mut acc, self, functions);
+            fill_many_lut_accumulator(
+                &mut acc,
+                self.bootstrapping_key.polynomial_size(),
+                self.bootstrapping_key.glwe_size(),
+                self.message_modulus,
+                self.carry_modulus,
+                functions,
+            );
 
         ManyLookupTableOwned {
             acc,
@@ -1748,5 +1759,104 @@ where
     LookupTableOwned {
         acc,
         degree: Degree::new(max_value as usize),
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct PBSConformanceParameters {
+    pub in_lwe_dimension: LweDimension,
+    pub out_glwe_dimension: GlweDimension,
+    pub out_polynomial_size: PolynomialSize,
+    pub base_log: DecompositionBaseLog,
+    pub level: DecompositionLevelCount,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub multi_bit: Option<LweBskGroupingFactor>,
+}
+
+impl From<&PBSParameters> for PBSConformanceParameters {
+    fn from(value: &PBSParameters) -> Self {
+        Self {
+            in_lwe_dimension: value.lwe_dimension(),
+            out_glwe_dimension: value.glwe_dimension(),
+            out_polynomial_size: value.polynomial_size(),
+            base_log: value.pbs_base_log(),
+            level: value.pbs_level(),
+            ciphertext_modulus: value.ciphertext_modulus(),
+            multi_bit: match value {
+                PBSParameters::PBS(_) => None,
+                PBSParameters::MultiBitPBS(multi_bit_pbs_parameters) => {
+                    Some(multi_bit_pbs_parameters.grouping_factor)
+                }
+            },
+        }
+    }
+}
+
+impl ParameterSetConformant for ShortintBootstrappingKey {
+    type ParameterSet = PBSConformanceParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        match (self, parameter_set.multi_bit) {
+            (Self::Classic(a), None) => {
+                let param: BootstrapKeyConformanceParams = parameter_set.into();
+
+                a.is_conformant(&param)
+            }
+            (
+                Self::MultiBit {
+                    fourier_bsk,
+                    thread_count: _,
+                    deterministic_execution: _,
+                },
+                Some(_grouping_factor),
+            ) => {
+                let param: MultiBitBootstrapKeyConformanceParams =
+                    parameter_set.try_into().unwrap();
+
+                fourier_bsk.is_conformant(&param)
+            }
+            _ => false,
+        }
+    }
+}
+
+impl ParameterSetConformant for ServerKey {
+    type ParameterSet = (PBSParameters, MaxDegree);
+
+    fn is_conformant(&self, (parameter_set, expected_max_degree): &Self::ParameterSet) -> bool {
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+            pbs_order,
+            ..
+        } = self;
+
+        let params: PBSConformanceParameters = parameter_set.into();
+
+        let pbs_key_ok = bootstrapping_key.is_conformant(&params);
+
+        let param: KeyswitchKeyConformanceParams = parameter_set.into();
+
+        let ks_key_ok = key_switching_key.is_conformant(&param);
+
+        let pbs_order_ok = matches!(
+            (*pbs_order, parameter_set.encryption_key_choice()),
+            (PBSOrder::KeyswitchBootstrap, EncryptionKeyChoice::Big)
+                | (PBSOrder::BootstrapKeyswitch, EncryptionKeyChoice::Small)
+        );
+
+        pbs_key_ok
+            && ks_key_ok
+            && pbs_order_ok
+            && *max_degree == *expected_max_degree
+            && *message_modulus == parameter_set.message_modulus()
+            && *carry_modulus == parameter_set.carry_modulus()
+            && *max_noise_level == parameter_set.max_noise_level()
+            && *ciphertext_modulus == parameter_set.ciphertext_modulus()
     }
 }

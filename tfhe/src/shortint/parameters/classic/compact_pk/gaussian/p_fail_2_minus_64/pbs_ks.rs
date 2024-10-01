@@ -1,4 +1,7 @@
-// p-fail = 2^-64.829, algorithmic cost ~ 74, 2-norm = 3
+use crate::core_crypto::prelude::*;
+use crate::shortint::ciphertext::MaxNoiseLevel;
+use crate::shortint::parameters::{CarryModulus, ClassicPBSParameters, MessageModulus};
+// p-fail = 2^-66.538, algorithmic cost ~ 74, 2-norm = 3
 pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(1024),
@@ -10,18 +13,18 @@ pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS_GAUSSIAN_2M64: ClassicPBSPar
         glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
             2.845267479601915e-15,
         )),
-        pbs_base_log: DecompositionBaseLog(19),
+        pbs_base_log: DecompositionBaseLog(26),
         pbs_level: DecompositionLevelCount(1),
-        ks_base_log: DecompositionBaseLog(7),
+        ks_base_log: DecompositionBaseLog(8),
         ks_level: DecompositionLevelCount(2),
         message_modulus: MessageModulus(2),
         carry_modulus: CarryModulus(2),
         max_noise_level: MaxNoiseLevel::new(3),
-        log2_p_fail: -64.829,
+        log2_p_fail: -66.538,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
-// p-fail = 2^-68.524, algorithmic cost ~ 130, 2-norm = 5
+// p-fail = 2^-68.803, algorithmic cost ~ 130, 2-norm = 5
 pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(1024),
@@ -40,11 +43,11 @@ pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64: ClassicPBSPar
         message_modulus: MessageModulus(4),
         carry_modulus: CarryModulus(4),
         max_noise_level: MaxNoiseLevel::new(5),
-        log2_p_fail: -68.524,
+        log2_p_fail: -68.803,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
-// p-fail = 2^-87.517, algorithmic cost ~ 3355, 2-norm = 9
+// p-fail = 2^-87.969, algorithmic cost ~ 3355, 2-norm = 9
 pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(2048),
@@ -56,14 +59,14 @@ pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS_GAUSSIAN_2M64: ClassicPBSPar
         glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
             2.168404344971009e-19,
         )),
-        pbs_base_log: DecompositionBaseLog(16),
+        pbs_base_log: DecompositionBaseLog(14),
         pbs_level: DecompositionLevelCount(2),
         ks_base_log: DecompositionBaseLog(20),
         ks_level: DecompositionLevelCount(1),
         message_modulus: MessageModulus(8),
         carry_modulus: CarryModulus(8),
         max_noise_level: MaxNoiseLevel::new(9),
-        log2_p_fail: -87.517,
+        log2_p_fail: -87.969,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
@@ -90,6 +93,3 @@ pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS_GAUSSIAN_2M64: ClassicPBSPar
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
-use crate::core_crypto::prelude::*;
-use crate::shortint::ciphertext::MaxNoiseLevel;
-use crate::shortint::parameters::{CarryModulus, ClassicPBSParameters, MessageModulus};

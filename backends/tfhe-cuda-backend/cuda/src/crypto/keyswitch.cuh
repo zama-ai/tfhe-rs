@@ -280,6 +280,12 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
     uint32_t lwe_dimension_in, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_lwes) {
+
+  if (num_lwes > polynomial_size)
+    PANIC("Cuda error: too many LWEs to pack. The number of LWEs should be "
+          "smaller than "
+          "polynomial_size.")
+
   cudaSetDevice(gpu_index);
   int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
 

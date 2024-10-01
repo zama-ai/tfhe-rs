@@ -23,6 +23,8 @@ extern "C" {
         gpu_index: u32,
     );
 
+    pub fn cuda_memcpy_gpu_to_gpu(dest: *mut c_void, src: *const c_void, size: u64, gpu_index: u32);
+
     pub fn cuda_memcpy_async_gpu_to_gpu(
         dest: *mut c_void,
         src: *const c_void,
@@ -141,7 +143,7 @@ extern "C" {
         gpu_count: u32,
         lwe_array_out: *mut c_void,
         glwe_in: *const c_void,
-        indexes_array: *const c_void,
+        indexes_array: *const u32,
         indexes_array_size: u32,
         bsks: *const *mut c_void,
         mem_ptr: *mut i8,
@@ -194,6 +196,20 @@ extern "C" {
         ksks: *const *mut c_void,
         bsks: *const *mut c_void,
         num_blocks: u32,
+    );
+
+    pub fn cuda_apply_many_univariate_lut_kb_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output_radix_lwe: *mut c_void,
+        input_radix_lwe: *const c_void,
+        mem_ptr: *mut i8,
+        ksks: *const *mut c_void,
+        bsks: *const *mut c_void,
+        num_blocks: u32,
+        num_luts: u32,
+        lut_stride: u32,
     );
 
     pub fn cleanup_cuda_apply_univariate_lut_kb_64(
@@ -747,7 +763,7 @@ extern "C" {
         gpu_indexes: *const u32,
         gpu_count: u32,
         radix_lwe_out: *mut c_void,
-        radix_lwe_vec: *const c_void,
+        radix_lwe_vec: *mut c_void,
         num_radix_in_vec: u32,
         mem_ptr: *mut i8,
         bsks: *const *mut c_void,
@@ -959,7 +975,7 @@ extern "C" {
         gpu_indexes: *const u32,
         gpu_count: u32,
         output_radix_lwe: *mut c_void,
-        input_radix_lwe: *const c_void,
+        generates_or_propagates: *mut c_void,
         mem_ptr: *mut i8,
         ksks: *const *mut c_void,
         bsks: *const *mut c_void,
@@ -1152,6 +1168,8 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
+        lut_count: u32,
+        lut_stride: u32,
     );
 
     pub fn cleanup_cuda_programmable_bootstrap(
@@ -1176,11 +1194,9 @@ extern "C" {
         stream: *mut c_void,
         gpu_index: u32,
         pbs_buffer: *mut *mut i8,
-        lwe_dimension: u32,
         glwe_dimension: u32,
         polynomial_size: u32,
         level_count: u32,
-        grouping_factor: u32,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
     );
@@ -1203,6 +1219,8 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
+        lut_count: u32,
+        lut_stride: u32,
     );
 
     pub fn cleanup_cuda_multi_bit_programmable_bootstrap(

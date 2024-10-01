@@ -104,3 +104,8 @@ fn main() {
 
     let _unserialized = MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap());
 }
+
+#[test]
+fn test() {
+    main()
+}

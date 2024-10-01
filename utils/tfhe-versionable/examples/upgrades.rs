@@ -147,3 +147,8 @@ fn main() {
     assert_eq!(v0.0, v2.count);
     assert_eq!(v2.attr, u64::default());
 }
+
+#[test]
+fn test() {
+    main()
+}

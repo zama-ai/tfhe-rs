@@ -462,8 +462,6 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -647,8 +645,6 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///

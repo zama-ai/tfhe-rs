@@ -20,8 +20,11 @@ use crate::backward_compatibility::keys::{
     CompactPublicKeyVersions, CompressedCompactPublicKeyVersions, CompressedPublicKeyVersions,
     PublicKeyVersions,
 };
+use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::keys::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
+use crate::named::Named;
 use crate::prelude::Tagged;
+use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
 use crate::shortint::MessageModulus;
 use crate::{Error, Tag};
 
@@ -66,6 +69,10 @@ impl Tagged for PublicKey {
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
     }
+}
+
+impl Named for PublicKey {
+    const NAME: &'static str = "high_level_api::PublicKey";
 }
 
 /// Compressed classical public key.
@@ -113,6 +120,10 @@ impl Tagged for CompressedPublicKey {
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
     }
+}
+
+impl Named for CompressedPublicKey {
+    const NAME: &'static str = "high_level_api::CompressedPublicKey";
 }
 
 /// A more compact public key
@@ -168,6 +179,10 @@ impl Tagged for CompactPublicKey {
     }
 }
 
+impl Named for CompactPublicKey {
+    const NAME: &'static str = "high_level_api::CompactPublicKey";
+}
+
 /// Compressed variant of [CompactPublicKey]
 ///
 /// The compression of [CompactPublicKey] allows to save disk space
@@ -221,5 +236,112 @@ impl Tagged for CompressedCompactPublicKey {
 
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
+    }
+}
+
+impl Named for CompressedCompactPublicKey {
+    const NAME: &'static str = "high_level_api::CompressedCompactPublicKey";
+}
+
+impl ParameterSetConformant for CompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key, tag: _ } = self;
+
+        key.is_conformant(parameter_set)
+    }
+}
+
+impl ParameterSetConformant for CompressedCompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key, tag: _ } = self;
+
+        key.is_conformant(parameter_set)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::conformance::ParameterSetConformant;
+    use crate::shortint::parameters::{
+        CompactPublicKeyEncryptionParameters, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+    };
+    use crate::{
+        generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, ConfigBuilder,
+    };
+
+    #[test]
+    fn conformance_compact_public_key() {
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
+
+        let config = ConfigBuilder::default()
+            .use_custom_parameters(params)
+            .build();
+
+        let (client_key, _) = generate_keys(config);
+
+        let public_key = CompactPublicKey::new(&client_key);
+
+        let compact_encryption_parameters: CompactPublicKeyEncryptionParameters =
+            params.try_into().unwrap();
+
+        assert!(public_key.is_conformant(&compact_encryption_parameters));
+    }
+
+    #[test]
+    fn conformance_compact_public_key_casting() {
+        let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let cpk_params = crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let config = ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+
+        let client_key = ClientKey::generate(config);
+
+        let public_key = CompactPublicKey::new(&client_key);
+
+        assert!(public_key.is_conformant(&cpk_params));
+    }
+
+    #[test]
+    fn conformance_compressed_compact_public_key() {
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
+
+        let config = ConfigBuilder::default()
+            .use_custom_parameters(params)
+            .build();
+
+        let (client_key, _) = generate_keys(config);
+
+        let public_key = CompressedCompactPublicKey::new(&client_key);
+
+        let compact_encryption_parameters: CompactPublicKeyEncryptionParameters =
+            params.try_into().unwrap();
+
+        assert!(public_key.is_conformant(&compact_encryption_parameters));
+    }
+
+    #[test]
+    fn conformance_compressed_compact_public_key_casting() {
+        let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let cpk_params = crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let config = ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+
+        let client_key = ClientKey::generate(config);
+
+        let public_key = CompressedCompactPublicKey::new(&client_key);
+
+        assert!(public_key.is_conformant(&cpk_params));
     }
 }

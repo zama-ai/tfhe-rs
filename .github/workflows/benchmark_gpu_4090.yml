@@ -42,6 +42,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Get benchmark details
         run: |
@@ -94,7 +95,7 @@ jobs:
           --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification
-        if: ${{ always() }}
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
@@ -176,7 +177,7 @@ jobs:
           ${{ secrets.SLAB_URL }}
 
       - name: Slack Notification
-        if: ${{ !success() && !cancelled() }}
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:

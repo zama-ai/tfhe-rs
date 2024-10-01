@@ -1,6 +1,8 @@
 //! Module with the definition of the CompressedServerKey.
 
-use super::MaxDegree;
+use super::{MaxDegree, PBSConformanceParameters};
+use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
 use crate::shortint::backward_compatibility::server_key::{
     CompressedServerKeyVersions, ShortintCompressedBootstrappingKeyVersions,
@@ -9,7 +11,7 @@ use crate::shortint::ciphertext::MaxNoiseLevel;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, CiphertextModulus, MessageModulus};
 use crate::shortint::server_key::ShortintBootstrappingKey;
-use crate::shortint::{ClientKey, ServerKey};
+use crate::shortint::{ClientKey, PBSParameters, ServerKey};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -410,5 +412,73 @@ impl CompressedServerKey {
             PBSOrder::KeyswitchBootstrap => self.key_switching_key.input_key_lwe_dimension(),
             PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_dimension(),
         }
+    }
+}
+
+impl ParameterSetConformant for ShortintCompressedBootstrappingKey {
+    type ParameterSet = PBSConformanceParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        match (self, parameter_set.multi_bit) {
+            (Self::Classic(a), None) => {
+                let param: BootstrapKeyConformanceParams = parameter_set.into();
+
+                a.is_conformant(&param)
+            }
+            (
+                Self::MultiBit {
+                    seeded_bsk,
+                    deterministic_execution: _,
+                },
+                Some(_grouping_factor),
+            ) => {
+                let param: MultiBitBootstrapKeyConformanceParams =
+                    parameter_set.try_into().unwrap();
+
+                seeded_bsk.is_conformant(&param)
+            }
+            _ => false,
+        }
+    }
+}
+
+impl ParameterSetConformant for CompressedServerKey {
+    type ParameterSet = (PBSParameters, MaxDegree);
+
+    fn is_conformant(&self, (parameter_set, expected_max_degree): &Self::ParameterSet) -> bool {
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+            pbs_order,
+            ..
+        } = self;
+
+        let params: PBSConformanceParameters = parameter_set.into();
+
+        let pbs_key_ok = bootstrapping_key.is_conformant(&params);
+
+        let param: KeyswitchKeyConformanceParams = parameter_set.into();
+
+        let ks_key_ok = key_switching_key.is_conformant(&param);
+
+        let pbs_order_ok = matches!(
+            (*pbs_order, parameter_set.encryption_key_choice()),
+            (PBSOrder::KeyswitchBootstrap, EncryptionKeyChoice::Big)
+                | (PBSOrder::BootstrapKeyswitch, EncryptionKeyChoice::Small)
+        );
+
+        pbs_key_ok
+            && ks_key_ok
+            && pbs_order_ok
+            && *max_degree == *expected_max_degree
+            && *message_modulus == parameter_set.message_modulus()
+            && *carry_modulus == parameter_set.carry_modulus()
+            && *max_noise_level == parameter_set.max_noise_level()
+            && *ciphertext_modulus == parameter_set.ciphertext_modulus()
     }
 }

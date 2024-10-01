@@ -21,10 +21,12 @@ BENCH_OP_FLAVOR?=DEFAULT
 NODE_VERSION=22.6
 FORWARD_COMPAT?=OFF
 BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.git
-BACKWARD_COMPAT_DATA_BRANCH?=v0.1
+BACKWARD_COMPAT_DATA_BRANCH?=v0.2
 BACKWARD_COMPAT_DATA_PROJECT=tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_DIR=$(BACKWARD_COMPAT_DATA_PROJECT)
 TFHE_SPEC:=tfhe
+WEB_RUNNER_DIR=web-test-runner
+WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -146,6 +148,37 @@ install_tfhe_lints:
 	(cd utils/cargo-tfhe-lints-inner && cargo install --path .) && \
 	cd utils/cargo-tfhe-lints && cargo install --path .
 
+.PHONY: setup_venv # Setup Python virtualenv for wasm tests
+setup_venv:
+	python3 -m venv venv
+	@source venv/bin/activate && \
+	pip3 install -r ci/webdriver_requirements.txt
+
+# This is an internal target, not meant to be called on its own.
+install_web_resource:
+	wget -P $(dest) $(url)
+	@cd $(dest) && \
+	echo "$(checksum) $(filename)" > checksum && \
+	sha256sum -c checksum && \
+	rm checksum && \
+	unzip $(filename)
+
+install_chrome_browser: url = "https://storage.googleapis.com/chrome-for-testing-public/128.0.6613.137/linux64/chrome-linux64.zip"
+install_chrome_browser: checksum = "c5d7da679f3a353ae4e4420ab113de06d4bd459152f5b17558390c02d9520566"
+install_chrome_browser: dest = "$(WEB_RUNNER_DIR)/chrome"
+install_chrome_browser: filename = "chrome-linux64.zip"
+
+.PHONY: install_chrome_browser # Install Chrome browser for Linux
+install_chrome_browser: install_web_resource
+
+install_chrome_web_driver: url = "https://storage.googleapis.com/chrome-for-testing-public/128.0.6613.137/linux64/chromedriver-linux64.zip"
+install_chrome_web_driver: checksum = "f041092f403fb7455a6da2871070b6587c32814a3e3c2b0a794d3d4aa4739151"
+install_chrome_web_driver: dest = "$(WEB_RUNNER_DIR)/chrome"
+install_chrome_web_driver: filename = "chromedriver-linux64.zip"
+
+.PHONY: install_chrome_web_driver # Install Chrome web driver for Linux
+install_chrome_web_driver: install_web_resource
+
 .PHONY: check_linelint_installed # Check if linelint newline linter is installed
 check_linelint_installed:
 	@printf "\n" | linelint - > /dev/null 2>&1 || \
@@ -214,6 +247,13 @@ clippy_gpu: install_rs_check_toolchain
 		--all-targets \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
+.PHONY: check_gpu # Run check on tfhe with "gpu" enabled
+check_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" check \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,gpu \
+		--all-targets \
+		-p $(TFHE_SPEC)
+
 .PHONY: fix_newline # Fix newline at end of file issues to be UNIX compliant
 fix_newline: check_linelint_installed
 	linelint -a .
@@ -252,11 +292,17 @@ clippy_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),shortint \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=$(TARGET_ARCH_FEATURE),shortint,experimental \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_integer # Run clippy lints enabling the integer features
 clippy_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),integer \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=$(TARGET_ARCH_FEATURE),integer,experimental \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
@@ -306,6 +352,9 @@ clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok,experimental \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
 clippy_concrete_csprng: install_rs_check_toolchain
@@ -318,9 +367,17 @@ clippy_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-zk-pok -- --no-deps -D warnings
 
+.PHONY: clippy_versionable # Run clippy lints on tfhe-versionable
+clippy_versionable: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-versionable-derive -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-versionable -- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
-clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_zk_pok clippy_trivium
+clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_zk_pok clippy_trivium \
+clippy_versionable
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
@@ -334,7 +391,7 @@ clippy_cuda_backend: install_rs_check_toolchain
 .PHONY: tfhe_lints # Run custom tfhe-rs lints
 tfhe_lints: install_tfhe_lints
 	cd tfhe && RUSTFLAGS="$(RUSTFLAGS)" cargo tfhe-lints \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -- -D warnings
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,zk-pok -- -D warnings
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
@@ -422,6 +479,7 @@ build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok \
 		-Z build-std=panic_abort,std && \
 	find pkg/snippets -type f -iname workerHelpers.worker.js -exec sed -i "s|from '..\/..\/..\/';|from '..\/..\/..\/tfhe.js';|" {} \;
+	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
 
 .PHONY: build_node_js_api # Build the js API targeting nodejs
 build_node_js_api: install_rs_build_toolchain install_wasm_pack
@@ -473,23 +531,23 @@ test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend
 .PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
 test_core_crypto_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
+		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu:: --test-threads=1
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
+		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu:: --test-threads=1
 
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
 test_integer_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key:: --test-threads=6
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key:: --test-threads=1
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
 
 .PHONY: test_integer_compression_gpu
 test_integer_compression_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compressed_ciphertext_list::tests::test_gpu_ciphertext_compression
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compressed_ciphertext_list::tests:: --test-threads=1
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compress
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compress --test-threads=1
 
 .PHONY: test_integer_gpu_ci # Run the tests for integer ci on gpu backend
 test_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
@@ -744,7 +802,7 @@ test_zk_pok: install_rs_build_toolchain
 .PHONY: test_versionable # Run tests for tfhe-versionable subcrate
 test_versionable: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		-p tfhe-versionable
+		--all-targets -p tfhe-versionable
 
 # The backward compat data repo holds historical binary data but also rust code to generate and load them.
 # Here we use the "patch" functionality of Cargo to make sure the repo used for the data is the same as the one used for the code.
@@ -752,7 +810,7 @@ test_versionable: install_rs_build_toolchain
 test_backward_compatibility_ci: install_rs_build_toolchain
 	TFHE_BACKWARD_COMPAT_DATA_DIR="$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).path=\"tfhe/$(BACKWARD_COMPAT_DATA_DIR)\"" \
-		--features=$(TARGET_ARCH_FEATURE),shortint,integer -p $(TFHE_SPEC) test_backward_compatibility -- --nocapture
+		--features=$(TARGET_ARCH_FEATURE),shortint,integer,zk-pok -p $(TFHE_SPEC) test_backward_compatibility -- --nocapture
 
 .PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
 test_backward_compatibility: tfhe/$(BACKWARD_COMPAT_DATA_DIR) test_backward_compatibility_ci
@@ -843,18 +901,35 @@ test_nodejs_wasm_api_in_docker: build_nodejs_test_docker
 
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api: build_node_js_api
-	cd tfhe/js_on_wasm_tests && npm run test
+	cd tfhe/js_on_wasm_tests && npm install && npm run test
 
-.PHONY: test_web_js_api_parallel # Run tests for the web wasm api
-test_web_js_api_parallel: build_web_js_api_parallel
-	$(MAKE) -C tfhe/web_wasm_parallel_tests test
 
-.PHONY: test_web_js_api_parallel_ci # Run tests for the web wasm api
-test_web_js_api_parallel_ci: build_web_js_api_parallel
+# This is an internal target, not meant to be called on its own.
+run_web_js_api_parallel: build_web_js_api_parallel setup_venv
+	cd $(WEB_SERVER_DIR) && npm install && npm run build
+	source venv/bin/activate && \
+	python ci/webdriver.py \
+	--browser-path $(browser_path) \
+	--driver-path $(driver_path) \
+	--browser-kind  $(browser_kind) \
+	--server-cmd "npm run server" \
+	--server-workdir "$(WEB_SERVER_DIR)" \
+	--id-pattern $(filter)
+
+test_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
+test_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
+test_web_js_api_parallel_chrome: browser_kind = chrome
+test_web_js_api_parallel_chrome: filter = Test
+
+.PHONY: test_web_js_api_parallel_chrome # Run tests for the web wasm api
+test_web_js_api_parallel_chrome: run_web_js_api_parallel
+
+.PHONY: test_web_js_api_parallel_chrome_ci # Run tests for the web wasm api
+test_web_js_api_parallel_chrome_ci: setup_venv
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C tfhe/web_wasm_parallel_tests test-ci
+	$(MAKE) test_web_js_api_parallel_chrome
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
 no_tfhe_typo:
@@ -892,6 +967,12 @@ bench_integer_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+
+.PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
+bench_integer_compression: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench	glwe_packing_compression-integer-bench \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_compression_gpu
 bench_integer_compression_gpu: install_rs_check_toolchain
@@ -997,15 +1078,20 @@ bench_ks_gpu: install_rs_check_toolchain
 	--bench ks-bench \
 	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
-.PHONY: bench_web_js_api_parallel # Run benchmarks for the web wasm api
-bench_web_js_api_parallel: build_web_js_api_parallel
-	$(MAKE) -C tfhe/web_wasm_parallel_tests bench
+bench_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
+bench_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
+bench_web_js_api_parallel_chrome: browser_kind = chrome
+bench_web_js_api_parallel_chrome: filter = Bench
 
-.PHONY: bench_web_js_api_parallel_ci # Run benchmarks for the web wasm api
-bench_web_js_api_parallel_ci: build_web_js_api_parallel
+.PHONY: bench_web_js_api_parallel_chrome # Run benchmarks for the web wasm api
+bench_web_js_api_parallel_chrome: run_web_js_api_parallel
+
+.PHONY: bench_web_js_api_parallel_chrome_ci # Run benchmarks for the web wasm api
+bench_web_js_api_parallel_chrome_ci: setup_venv
 	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C tfhe/web_wasm_parallel_tests bench-ci
+	$(MAKE) bench_web_js_api_parallel_chrome
 
 #
 # Utility tools
@@ -1053,7 +1139,7 @@ parse_wasm_benchmarks: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 	--example wasm_benchmarks_parser \
 	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache \
-	-- web_wasm_parallel_tests/test/benchmark_results
+	-- wasm_benchmark_results.json
 
 .PHONY: write_params_to_file # Gather all crypto parameters into a file with a Sage readable format.
 write_params_to_file: install_rs_check_toolchain

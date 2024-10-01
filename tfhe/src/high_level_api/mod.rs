@@ -23,6 +23,29 @@ macro_rules! expand_pub_use_fhe_type(
     }
 );
 
+macro_rules! export_concrete_array_types {
+    (
+        pub use $module_path:path { $($fhe_type_name:ident),* $(,)? };
+
+    ) => {
+          ::paste::paste! {
+            pub use $module_path::{
+                $(
+                    // DynBackend
+                    [<$fhe_type_name Array>],
+                    [<$fhe_type_name Slice>],
+                    [<$fhe_type_name SliceMut>],
+
+                    // CpuBackend
+                    [<Cpu $fhe_type_name Array>],
+                    [<Cpu $fhe_type_name Slice>],
+                    [<Cpu $fhe_type_name SliceMut>],
+                )*
+            };
+        }
+    };
+}
+
 pub use crate::core_crypto::commons::math::random::Seed;
 pub use crate::integer::server_key::MatchValues;
 pub use config::{Config, ConfigBuilder};
@@ -49,17 +72,30 @@ expand_pub_use_fhe_type!(
         FheInt32, FheInt64, FheInt128, FheInt160, FheInt256
     };
 );
+pub use array::{
+    ClearArray, CpuFheIntArray, CpuFheIntSlice, CpuFheIntSliceMut, CpuFheUintArray,
+    CpuFheUintSlice, CpuFheUintSliceMut, FheBoolId, FheIntArray, FheIntSlice, FheIntSliceMut,
+    FheUintArray, FheUintSlice, FheUintSliceMut,
+};
+export_concrete_array_types!(
+    pub use array{
+        FheBool,
+        FheUint2, FheUint4, FheUint8, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+        FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256,
+    };
+);
 
 pub use crate::integer::parameters::CompactCiphertextListConformanceParams;
+pub use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 #[cfg(feature = "zk-pok")]
 pub use compact_list::ProvenCompactCiphertextList;
 pub use compact_list::{
     CompactCiphertextList, CompactCiphertextListBuilder, CompactCiphertextListExpander,
 };
 pub use compressed_ciphertext_list::{CompressedCiphertextList, CompressedCiphertextListBuilder};
-pub use safe_serialize::{safe_serialize, safe_serialize_versioned};
 
 pub use tag::Tag;
+pub use traits::FheId;
 
 mod booleans;
 mod compressed_ciphertext_list;
@@ -122,34 +158,4 @@ pub enum FheTypes {
     Int128,
     Int160,
     Int256,
-}
-
-pub mod safe_serialize {
-    use crate::named::Named;
-    use serde::Serialize;
-    use tfhe_versionable::Versionize;
-
-    pub fn safe_serialize<T>(
-        a: &T,
-        writer: impl std::io::Write,
-        serialized_size_limit: u64,
-    ) -> Result<(), String>
-    where
-        T: Named + Serialize,
-    {
-        crate::safe_deserialization::safe_serialize(a, writer, serialized_size_limit)
-            .map_err(|err| err.to_string())
-    }
-
-    pub fn safe_serialize_versioned<T>(
-        a: &T,
-        writer: impl std::io::Write,
-        serialized_size_limit: u64,
-    ) -> Result<(), String>
-    where
-        T: Named + Versionize,
-    {
-        crate::safe_deserialization::safe_serialize_versioned(a, writer, serialized_size_limit)
-            .map_err(|err| err.to_string())
-    }
 }

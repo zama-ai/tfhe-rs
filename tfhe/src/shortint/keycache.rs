@@ -6,6 +6,7 @@ use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::P
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
 use crate::shortint::parameters::key_switching::*;
+use crate::shortint::parameters::list_compression::*;
 use crate::shortint::parameters::multi_bit::*;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::*;
@@ -287,6 +288,33 @@ impl NamedParam for ShortintKeySwitchingParameters {
     }
 }
 
+impl NamedParam for CompressionParameters {
+    fn name(&self) -> String {
+        named_params_impl!(expose
+            COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+        );
+        named_params_impl!(
+            {
+                *self;
+                Self
+            } == (COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+        );
+
+        named_params_impl!(
+            {
+                *self;
+                Self
+            } == (COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+        );
+
+        format!(
+            "COMP_PARAM_CUSTOM_BR_LEVEL_{}_NOISE_DISTRIB_{}",
+            self.br_level.0, self.packing_ks_key_noise_distribution
+        )
+    }
+}
+
 impl From<PBSParameters> for (ClientKey, ServerKey) {
     fn from(param: PBSParameters) -> Self {
         let param_set = ShortintParameterSet::from(param);
@@ -385,55 +413,60 @@ impl Keycache {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct WopbsParamPair(pub PBSParameters, pub WopbsParameters);
+#[cfg(feature = "experimental")]
+mod wopbs {
+    use super::*;
 
-impl<P> From<(P, WopbsParameters)> for WopbsParamPair
-where
-    P: Into<PBSParameters>,
-{
-    fn from(tuple: (P, WopbsParameters)) -> Self {
-        Self(tuple.0.into(), tuple.1)
-    }
-}
+    #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub struct WopbsParamPair(pub PBSParameters, pub WopbsParameters);
 
-impl NamedParam for WopbsParamPair {
-    fn name(&self) -> String {
-        self.1.name()
-    }
-}
-
-/// The KeyCache struct for shortint.
-///
-/// You should not create an instance yourself,
-/// but rather use the global variable defined: [static@KEY_CACHE_WOPBS]
-pub struct KeycacheWopbsV0 {
-    inner: ImplKeyCache<WopbsParamPair, WopbsKey, FileStorage>,
-}
-
-impl Default for KeycacheWopbsV0 {
-    fn default() -> Self {
-        Self {
-            inner: ImplKeyCache::new(FileStorage::new("../keys/shortint/wopbs_v0".to_string())),
-        }
-    }
-}
-
-impl KeycacheWopbsV0 {
-    pub fn get_from_param<T: Into<WopbsParamPair>>(&self, params: T) -> SharedWopbsKey {
-        let params = params.into();
-        let key = KEY_CACHE.get_from_param(params.0);
-        let wk = self.inner.get_with_closure(params, &mut |_| {
-            WopbsKey::new_wopbs_key(&key.inner.0, &key.inner.1, &params.1)
-        });
-        SharedWopbsKey {
-            inner: key.inner,
-            wopbs: wk,
+    impl<P> From<(P, WopbsParameters)> for WopbsParamPair
+    where
+        P: Into<PBSParameters>,
+    {
+        fn from(tuple: (P, WopbsParameters)) -> Self {
+            Self(tuple.0.into(), tuple.1)
         }
     }
 
-    pub fn clear_in_memory_cache(&self) {
-        self.inner.clear_in_memory_cache();
+    impl NamedParam for WopbsParamPair {
+        fn name(&self) -> String {
+            self.1.name()
+        }
+    }
+
+    /// The KeyCache struct for shortint.
+    ///
+    /// You should not create an instance yourself,
+    /// but rather use the global variable defined: [static@KEY_CACHE_WOPBS]
+    pub struct KeycacheWopbsV0 {
+        inner: ImplKeyCache<WopbsParamPair, WopbsKey, FileStorage>,
+    }
+
+    impl Default for KeycacheWopbsV0 {
+        fn default() -> Self {
+            Self {
+                inner: ImplKeyCache::new(FileStorage::new("../keys/shortint/wopbs_v0".to_string())),
+            }
+        }
+    }
+
+    impl KeycacheWopbsV0 {
+        pub fn get_from_param<T: Into<WopbsParamPair>>(&self, params: T) -> SharedWopbsKey {
+            let params = params.into();
+            let key = KEY_CACHE.get_from_param(params.0);
+            let wk = self.inner.get_with_closure(params, &mut |_| {
+                WopbsKey::new_wopbs_key(&key.inner.0, &key.inner.1, &params.1)
+            });
+            SharedWopbsKey {
+                inner: key.inner,
+                wopbs: wk,
+            }
+        }
+
+        pub fn clear_in_memory_cache(&self) {
+            self.inner.clear_in_memory_cache();
+        }
     }
 }
 
@@ -504,6 +537,10 @@ impl KeycacheKeySwitchingKey {
 
 lazy_static! {
     pub static ref KEY_CACHE: Keycache = Keycache::default();
-    pub static ref KEY_CACHE_WOPBS: KeycacheWopbsV0 = KeycacheWopbsV0::default();
     pub static ref KEY_CACHE_KSK: KeycacheKeySwitchingKey = KeycacheKeySwitchingKey::default();
+}
+
+#[cfg(feature = "experimental")]
+lazy_static! {
+    pub static ref KEY_CACHE_WOPBS: wopbs::KeycacheWopbsV0 = wopbs::KeycacheWopbsV0::default();
 }

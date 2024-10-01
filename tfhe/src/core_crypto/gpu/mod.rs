@@ -109,6 +109,8 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     level: DecompositionLevelCount,
     num_samples: u32,
 ) {
+    let lut_count = 1u32;
+    let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
     scratch_cuda_programmable_bootstrap_64(
         streams.ptr[0],
@@ -137,6 +139,8 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         base_log.0 as u32,
         level.0 as u32,
         num_samples,
+        lut_count,
+        lut_stride,
     );
     cleanup_cuda_programmable_bootstrap(
         streams.ptr[0],
@@ -169,16 +173,16 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
     grouping_factor: LweBskGroupingFactor,
     num_samples: u32,
 ) {
+    let lut_count = 1u32;
+    let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
     scratch_cuda_multi_bit_programmable_bootstrap_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
         std::ptr::addr_of_mut!(pbs_buffer),
-        lwe_dimension.0 as u32,
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
         level.0 as u32,
-        grouping_factor.0 as u32,
         num_samples,
         true,
     );
@@ -200,6 +204,8 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         base_log.0 as u32,
         level.0 as u32,
         num_samples,
+        lut_count,
+        lut_stride,
     );
     cleanup_cuda_multi_bit_programmable_bootstrap(
         streams.ptr[0],
@@ -634,7 +640,7 @@ pub struct CudaLweList<T: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<T>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CudaGlweList<T: UnsignedInteger> {
     // Pointer to GPU data
     pub d_vec: CudaVec<T>,

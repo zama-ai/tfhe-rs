@@ -333,6 +333,7 @@ pub type LweCompactCiphertextListMutView<'data, Scalar> =
 /// Structure to store the expected properties of a ciphertext
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
+#[derive(Copy, Clone)]
 pub struct LweCiphertextListParameters<T: UnsignedInteger> {
     pub lwe_dim: LweDimension,
     pub lwe_ciphertext_count_constraint: ListSizeConstraint,
