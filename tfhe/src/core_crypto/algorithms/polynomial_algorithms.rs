@@ -334,6 +334,30 @@ pub fn polynomial_wrapping_add_mul_assign_custom_mod<Scalar, OutputCont, InputCo
     }
 }
 
+/// Multiply a polynomial by a scalar modulo a custom modulus.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::entities::*;
+/// let mut pol = Polynomial::from_container(vec![1u8, 2, 3, 4, 5, 6]);
+/// let scalar = 127u8;
+/// let custom_modulus = 249u8;
+/// polynomial_wrapping_scalar_mul_assign_custom_mod(&mut pol, scalar, custom_modulus);
+/// assert_eq!(pol.as_ref(), &[127u8, 5, 132, 10, 137, 15]);
+/// ```
+pub fn polynomial_wrapping_scalar_mul_assign_custom_mod<Scalar, PolyCont>(
+    output: &mut Polynomial<PolyCont>,
+    scalar: Scalar,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    PolyCont: ContainerMut<Element = Scalar>,
+{
+    slice_wrapping_scalar_mul_assign_custom_mod(output.as_mut(), scalar, custom_modulus)
+}
+
 /// Divides (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
 /// $X^{degree}$.
 ///
@@ -916,6 +940,63 @@ pub fn polynomial_wrapping_sub_mul_assign_custom_mod<Scalar, OutputCont, InputCo
         polynomial_wrapping_sub_assign_custom_mod(output, &tmp, custom_modulus);
     } else {
         polynomial_wrapping_sub_mul_schoolbook_assign_custom_mod(output, lhs, rhs, custom_modulus)
+    }
+}
+
+pub fn polynomial_list_wrapping_sub_scalar_mul_assign<Scalar, InputCont, OutputCont, PolyCont>(
+    output_poly_list: &mut PolynomialList<OutputCont>,
+    input_poly_list: &PolynomialList<InputCont>,
+    scalar_poly: &Polynomial<PolyCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        output_poly_list.polynomial_size(),
+        input_poly_list.polynomial_size()
+    );
+    assert_eq!(
+        output_poly_list.polynomial_count(),
+        input_poly_list.polynomial_count()
+    );
+    for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip(input_poly_list.iter()) {
+        polynomial_wrapping_sub_mul_assign(&mut output_poly, &input_poly, scalar_poly)
+    }
+}
+
+pub fn polynomial_list_wrapping_sub_scalar_mul_assign_custom_mod<
+    Scalar,
+    InputCont,
+    OutputCont,
+    PolyCont,
+>(
+    output_poly_list: &mut PolynomialList<OutputCont>,
+    input_poly_list: &PolynomialList<InputCont>,
+    scalar_poly: &Polynomial<PolyCont>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        output_poly_list.polynomial_size(),
+        input_poly_list.polynomial_size()
+    );
+    assert_eq!(
+        output_poly_list.polynomial_count(),
+        input_poly_list.polynomial_count()
+    );
+    for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip(input_poly_list.iter()) {
+        polynomial_wrapping_sub_mul_assign_custom_mod(
+            &mut output_poly,
+            &input_poly,
+            scalar_poly,
+            custom_modulus,
+        )
     }
 }
 
