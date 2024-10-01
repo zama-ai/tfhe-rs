@@ -1,6 +1,6 @@
 use crate::high_level_api::integers::signed::base::{FheInt, FheIntConformanceParams, FheIntId};
 use crate::high_level_api::integers::signed::compressed::CompressedFheInt;
-use crate::high_level_api::IntegerId;
+use crate::high_level_api::{FheId, IntegerId};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::NotVersioned;
 
@@ -25,6 +25,8 @@ macro_rules! static_int_type {
                 }
             }
 
+            impl FheId for [<FheInt $num_bits Id>] { }
+
             impl FheIntId for [<FheInt $num_bits Id>] { }
         }
 
@@ -34,15 +36,12 @@ macro_rules! static_int_type {
             #[doc = ""]
             #[doc = "See [FheInt]"]
             $(#[$outer])*
-            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<FheInt $num_bits>] = FheInt<[<FheInt $num_bits Id>]>;
 
             #[doc = concat!("A compressed signed integer type with ", stringify!($num_bits), " bits")]
-            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<Compressed FheInt $num_bits>] = CompressedFheInt<[<FheInt $num_bits Id>]>;
 
             // Conformance Params
-            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<FheInt $num_bits ConformanceParams>] = FheIntConformanceParams<[<FheInt $num_bits Id>]>;
         }
     };

@@ -34,11 +34,10 @@ fn pbs_128(c: &mut Criterion) {
     let mut boxed_seeder = new_seeder();
     let seeder = boxed_seeder.as_mut();
 
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 
     let input_lwe_secret_key =
         LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_generator);

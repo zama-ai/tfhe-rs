@@ -13,14 +13,22 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 jobs:
+  verify_tag:
+    uses: ./.github/workflows/verify_tagged_commit.yml
+    secrets:
+      RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+
   publish_release:
     name: Publish tfhe-zk-pok Release
+    needs: verify_tag
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Publish crate.io package
         env:
@@ -32,7 +40,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

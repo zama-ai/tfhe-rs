@@ -101,7 +101,7 @@ impl PublicKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// use tfhe::shortint::{ClientKey, PublicKey, ServerKey};
+    /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
@@ -120,7 +120,7 @@ impl PublicKey {
     /// let ct = pk.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt(&self, message: u64) -> Ciphertext {
@@ -241,7 +241,7 @@ impl PublicKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus.0 as u64);
+    /// assert_eq!(msg, dec % modulus.0);
     /// ```
     pub fn encrypt_native_crt(&self, message: u64, message_modulus: MessageModulus) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {

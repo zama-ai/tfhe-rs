@@ -7,16 +7,17 @@ use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::bootstrap_scratch;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
+    batch_bootstrap_scratch, blind_rotate_assign_scratch, bootstrap_scratch,
+};
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign as impl_add_external_product_assign,
     add_external_product_assign_scratch as impl_add_external_product_assign_scratch, cmux,
     cmux_scratch,
 };
-use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::blind_rotate_assign_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
-use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use tfhe_fft::c64;
 
 /// Perform a blind rotation given an input [`LWE ciphertext`](`LweCiphertext`), modifying a look-up
 /// table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
@@ -54,13 +55,12 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///
@@ -232,7 +232,7 @@ pub fn blind_rotate_assign_mem_optimized<
     lut: &mut GlweCiphertext<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     InputScalar: UnsignedTorus + CastInto<usize>,
@@ -260,7 +260,7 @@ pub fn blind_rotate_assign_mem_optimized<
     // modulus is not the native one
     fourier_bsk
         .as_view()
-        .blind_rotate_assign(lut.as_mut_view(), input.as_ref(), fft, stack);
+        .blind_rotate_assign(lut.as_mut_view(), input.as_view(), fft, stack);
 }
 
 /// Return the required memory for [`blind_rotate_assign_mem_optimized`].
@@ -342,9 +342,8 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -454,7 +453,7 @@ pub fn add_external_product_assign_mem_optimized<Scalar, OutputGlweCont, InputGl
     ggsw: &FourierGgswCiphertext<GgswCont>,
     glwe: &GlweCiphertext<InputGlweCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     OutputGlweCont: ContainerMut<Element = Scalar>,
@@ -578,9 +577,8 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -745,7 +743,7 @@ pub fn cmux_assign_mem_optimized<Scalar, Cont0, Cont1, GgswCont>(
     ct1: &mut GlweCiphertext<Cont1>,
     ggsw: &FourierGgswCiphertext<GgswCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     Cont0: ContainerMut<Element = Scalar>,
@@ -823,13 +821,12 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///
@@ -1019,7 +1016,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
     accumulator: &GlweCiphertext<AccCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     InputScalar: UnsignedTorus + CastInto<usize>,
@@ -1070,4 +1067,92 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<OutputSca
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, fft)
+}
+
+/// This function takes list as input and output and computes the programmable bootstrap for each
+/// slot progressively loading the bootstrapping key only once. The caller must provide
+/// a properly configured [`FftView`] object and a `PodStack` used as a memory buffer having a
+/// capacity at least as large as the result of
+/// [`batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement`].
+pub fn batch_programmable_bootstrap_lwe_ciphertext_mem_optimized<
+    InputScalar,
+    OutputScalar,
+    InputCont,
+    OutputCont,
+    AccCont,
+    KeyCont,
+>(
+    input: &LweCiphertextList<InputCont>,
+    output: &mut LweCiphertextList<OutputCont>,
+    accumulator: &GlweCiphertextList<AccCont>,
+    fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
+    fft: FftView<'_>,
+    stack: &mut PodStack,
+) where
+    // CastInto required for PBS modulus switch which returns a usize
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
+    KeyCont: Container<Element = c64>,
+{
+    assert_eq!(
+        accumulator.ciphertext_modulus(),
+        output.ciphertext_modulus(),
+        "Mismatched moduli between accumulator ({:?}) and output ({:?})",
+        accumulator.ciphertext_modulus(),
+        output.ciphertext_modulus()
+    );
+
+    assert_eq!(
+        fourier_bsk.input_lwe_dimension(),
+        input.lwe_size().to_lwe_dimension(),
+        "Mismatched input LweDimension. \
+        FourierLweBootstrapKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        fourier_bsk.input_lwe_dimension(),
+        input.lwe_size().to_lwe_dimension(),
+    );
+    assert_eq!(
+        fourier_bsk.output_lwe_dimension(),
+        output.lwe_size().to_lwe_dimension(),
+        "Mismatched output LweDimension. \
+        FourierLweBootstrapKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        fourier_bsk.output_lwe_dimension(),
+        output.lwe_size().to_lwe_dimension(),
+    );
+    assert_eq!(
+        input.lwe_ciphertext_count().0,
+        output.lwe_ciphertext_count().0,
+        "Mismatched list length. \
+     input LweCiphertextList length: {:?}, output LweCiphertextList length {:?}.",
+        input.lwe_ciphertext_count().0,
+        output.lwe_ciphertext_count().0,
+    );
+    assert_eq!(
+        input.lwe_ciphertext_count().0,
+        accumulator.glwe_ciphertext_count().0,
+        "Mismatched list length. \
+     input LweCiphertextList length: {:?}, accumulator GlweCiphertextList length {:?}.",
+        input.lwe_ciphertext_count().0,
+        accumulator.glwe_ciphertext_count().0,
+    );
+
+    fourier_bsk.as_view().batch_bootstrap(
+        output.as_mut_view(),
+        input.as_view(),
+        &accumulator.as_view(),
+        fft,
+        stack,
+    );
+}
+
+/// Return the required memory for [`batch_programmable_bootstrap_lwe_ciphertext_mem_optimized`].
+pub fn batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<OutputScalar>(
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    ciphertext_count: CiphertextCount,
+    fft: FftView<'_>,
+) -> Result<StackReq, SizeOverflow> {
+    batch_bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, ciphertext_count, fft)
 }

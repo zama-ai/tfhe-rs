@@ -1,14 +1,15 @@
 use super::Ciphertext;
+use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, LweCiphertext, LweSize,
-    Plaintext,
+    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, CiphertextModulusLog,
+    LweCiphertext, LweSize, Plaintext,
 };
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
 use crate::shortint::{PBSOrder, ServerKey};
-use concrete_csprng::seeders::Seed;
+use tfhe_csprng::seeders::Seed;
 
 pub fn sha3_hash(values: &mut [u64], seed: Seed) {
     use sha3::digest::{ExtendableOutput, Update, XofReader};
@@ -37,6 +38,21 @@ impl ServerKey {
         let mut ct = LweCiphertext::new(0, lwe_size, self.ciphertext_modulus);
 
         sha3_hash(ct.get_mut_mask().as_mut(), seed);
+
+        ct
+    }
+
+    pub(crate) fn create_random_from_seed_modulus_switched(
+        &self,
+        seed: Seed,
+        lwe_size: LweSize,
+        log_modulus: CiphertextModulusLog,
+    ) -> LweCiphertext<Vec<u64>> {
+        let mut ct = self.create_random_from_seed(seed, lwe_size);
+
+        for i in ct.as_mut() {
+            *i = modulus_switch(*i, log_modulus) << (64 - log_modulus.0);
+        }
 
         ct
     }
@@ -107,7 +123,13 @@ impl ServerKey {
 
         let in_lwe_size = self.bootstrapping_key.input_lwe_dimension().to_lwe_size();
 
-        let seeded = self.create_random_from_seed(seed, in_lwe_size);
+        let seeded = self.create_random_from_seed_modulus_switched(
+            seed,
+            in_lwe_size,
+            self.bootstrapping_key
+                .polynomial_size()
+                .to_blind_rotation_input_modulus_log(),
+        );
 
         let p = 1 << random_bits_count;
 
@@ -149,7 +171,7 @@ impl ServerKey {
 
         Ciphertext {
             ct,
-            degree: Degree::new(p as usize - 1),
+            degree: Degree::new(p - 1),
             noise_level: NoiseLevel::NOMINAL,
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
@@ -160,53 +182,26 @@ impl ServerKey {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use crate::core_crypto::commons::generators::DeterministicSeeder;
-    use crate::core_crypto::prelude::{
-        decrypt_lwe_ciphertext, ActivatedRandomGenerator, GlweSecretKey, LweSecretKey,
-    };
-    use crate::shortint::engine::ShortintEngine;
+    use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
     use crate::shortint::{ClientKey, ServerKey};
-    use concrete_csprng::seeders::Seed;
-    use itertools::Itertools;
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
+    use tfhe_csprng::seeders::Seed;
 
     fn square(a: f64) -> f64 {
         a * a
     }
 
     #[test]
-    // This test is seeded which prevents flakiness
-    // The noise added by the KS and the MS before the PRF LUT evaluation can make this test fail
-    // if the seeded input is close to a boundary between 2 encoded values
-    // Using another KS key can, with a non-neglibgible probability,
-    // change the output of the PRF after decoding
     fn oprf_compare_plain_ci_run_filter() {
-        let parameters = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        use crate::shortint::gen_keys;
+        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let (ck, sk) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
-        let glwe_sk = (0..parameters.glwe_dimension.0 * parameters.polynomial_size.0)
-            .map(|i| if i % 2 == 0 { 0 } else { 1 })
-            .collect_vec();
-
-        let lwe_sk = (0..parameters.lwe_dimension.0)
-            .map(|i| if i % 2 == 0 { 0 } else { 1 })
-            .collect_vec();
-
-        let ck = ClientKey {
-            glwe_secret_key: GlweSecretKey::from_container(glwe_sk, parameters.polynomial_size),
-            lwe_secret_key: LweSecretKey::from_container(lwe_sk),
-            parameters: parameters.into(),
-        };
-
-        let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(0));
-
-        let mut engine = ShortintEngine::new_from_seeder(&mut deterministic_seeder);
-
-        let sk = engine.new_server_key(&ck);
-
-        oprf_compare_plain_from_seed(Seed(0), &ck, &sk);
+        for seed in 0..1000 {
+            oprf_compare_plain_from_seed(Seed(seed), &ck, &sk);
+        }
     }
 
     fn oprf_compare_plain_from_seed(seed: Seed, ck: &ClientKey, sk: &ServerKey) {
@@ -220,7 +215,7 @@ pub(crate) mod test {
 
         let p_prime = 1 << random_bits_count;
 
-        let output_p = (2 * params.carry_modulus().0 * params.message_modulus().0) as u64;
+        let output_p = 2 * params.carry_modulus().0 * params.message_modulus().0;
 
         let poly_delta = 2 * params.polynomial_size().0 as u64 / p_prime;
 
@@ -228,7 +223,13 @@ pub(crate) mod test {
 
         let lwe_size = sk.bootstrapping_key.input_lwe_dimension().to_lwe_size();
 
-        let ct = sk.create_random_from_seed(seed, lwe_size);
+        let ct = sk.create_random_from_seed_modulus_switched(
+            seed,
+            lwe_size,
+            sk.bootstrapping_key
+                .polynomial_size()
+                .to_blind_rotation_input_modulus_log(),
+        );
 
         let sk = ck.small_lwe_secret_key();
 
@@ -265,7 +266,7 @@ pub(crate) mod test {
     fn oprf_test_uniformity_ci_run_filter() {
         let sample_count: usize = 100_000;
 
-        let p_value_limit: f64 = 0.001;
+        let p_value_limit: f64 = 0.000_01;
 
         use crate::shortint::gen_keys;
         use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;

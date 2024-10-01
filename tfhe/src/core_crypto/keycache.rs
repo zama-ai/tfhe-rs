@@ -4,11 +4,11 @@ use crate::core_crypto::algorithms::test::{
     PackingKeySwitchTestParams,
 };
 use crate::keycache::*;
-use lazy_static::*;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 #[cfg(feature = "internal-keycache")]
 use std::fmt::Debug;
+use std::sync::LazyLock;
 
 pub struct KeyCacheCoreImpl<P, K>
 where
@@ -177,9 +177,7 @@ impl KeyCacheAccess for PackingKeySwitchTestParams<u64> {
     }
 }
 
-lazy_static! {
-    pub static ref KEY_CACHE: KeyCache = KeyCache::default();
-}
+pub static KEY_CACHE: LazyLock<KeyCache> = LazyLock::new(KeyCache::default);
 
 #[cfg(feature = "internal-keycache")]
 #[test]

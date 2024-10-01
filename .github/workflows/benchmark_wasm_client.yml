@@ -33,19 +33,20 @@ jobs:
       wasm_bench: ${{ steps.changed-files.outputs.wasm_bench_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Check for file changes
         id: changed-files
-        uses: tj-actions/changed-files@e9772d140489982e0e3704fea5ee93d536f1e275
+        uses: tj-actions/changed-files@d6e91a2266cdb9d62096cebf1e8546899c6aa18f
         with:
           since_last_remote_commit: true
           files_yaml: |
             wasm_bench:
               - tfhe/Cargo.toml
-              - concrete-csprng/**
+              - tfhe-csprng/**
               - tfhe-zk-pok/**
               - tfhe/src/**
               - '!tfhe/src/c_api/**'
@@ -64,7 +65,7 @@ jobs:
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -78,11 +79,16 @@ jobs:
     needs: setup-instance
     if: needs.setup-instance.result != 'skipped'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        browser: [ chrome, firefox ]
     steps:
       - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Get benchmark details
         run: |
@@ -92,22 +98,46 @@ jobs:
             echo "COMMIT_HASH=$(git describe --tags --dirty)";
           } >> "${GITHUB_ENV}"
 
-      - name: Set up home
-        # "Install rust" step require root user to have a HOME directory which is not set.
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-
       - name: Install rust
-        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: nightly
 
-      - name: Run benchmarks
-        # test timeouts are at 60 but if we want a log we need to give time to the step to log stuff
-        timeout-minutes: 65
+      - name: Get Node version
+        run: |
+          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
+
+      - name: Node cache restoration
+        id: node-cache
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 #v4.2.0
+        with:
+          path: |
+            ~/.nvm
+            ~/.npm
+          key: node-${{ env.NODE_VERSION }}
+
+      - name: Install Node
+        if: steps.node-cache.outputs.cache-hit != 'true'
         run: |
           make install_node
-          make bench_web_js_api_parallel_ci
+
+      - name: Node cache save
+        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 #v4.2.0
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.nvm
+            ~/.npm
+          key: node-${{ env.NODE_VERSION }}
+
+      - name: Install web resources
+        run: |
+          make install_${{ matrix.browser }}_browser
+          make install_${{ matrix.browser }}_web_driver
+
+      - name: Run benchmarks
+        run: |
+          make bench_web_js_api_parallel_${{ matrix.browser }}_ci
 
       - name: Parse results
         run: |
@@ -120,25 +150,29 @@ jobs:
           --commit-date "${{ env.COMMIT_DATE }}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --key-gen
+          rm tfhe/wasm_pk_gen.csv
 
+      # Run these benchmarks only once
       - name: Measure public key and ciphertext sizes in HL Api
+        if:  matrix.browser == 'chrome'
         run: |
           make measure_hlapi_compact_pk_ct_sizes
 
       - name: Parse key and ciphertext sizes results
+        if:  matrix.browser == 'chrome'
         run: |
           python3 ./ci/benchmark_parser.py tfhe/hlapi_cpk_and_cctl_sizes.csv ${{ env.RESULTS_FILENAME }} \
           --key-gen \
           --append-results
 
       - name: Upload parsed results artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b
         with:
-          name: ${{ github.sha }}_wasm
+          name: ${{ github.sha }}_wasm_${{ matrix.browser }}
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: zama-ai/slab
           path: slab
@@ -153,10 +187,10 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "WASM benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "WASM benchmarks (${{ matrix.browser }}) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (wasm-client-benchmarks)
@@ -166,7 +200,7 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -177,7 +211,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Instance teardown (wasm-client-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

@@ -2,37 +2,167 @@
 #![allow(non_snake_case)]
 
 use super::*;
+use crate::backward_compatibility::pke_v2::*;
+use crate::backward_compatibility::BoundVersions;
+use crate::curve_api::{CompressedG1, CompressedG2};
 use crate::four_squares::*;
+use crate::serialization::{
+    try_vec_to_array, InvalidSerializedAffineError, InvalidSerializedPublicParamsError,
+    SerializableGroupElements, SerializablePKEv2PublicParams,
+};
+
 use core::marker::PhantomData;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
-#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+/// The CRS of the zk scheme
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[serde(
+    try_from = "SerializablePKEv2PublicParams",
+    into = "SerializablePKEv2PublicParams",
+    bound(
+        deserialize = "PublicParams<G>: TryFrom<SerializablePKEv2PublicParams, Error = InvalidSerializedPublicParamsError>",
+        serialize = "PublicParams<G>: Into<SerializablePKEv2PublicParams>"
+    )
+)]
+#[versionize(try_convert = SerializablePKEv2PublicParams)]
 pub struct PublicParams<G: Curve> {
-    g_lists: GroupElements<G>,
-    D: usize,
+    pub(crate) g_lists: GroupElements<G>,
+    pub(crate) D: usize,
     pub n: usize,
     pub d: usize,
     pub k: usize,
-    pub B: u64,
-    pub B_r: u64,
-    pub B_bound: u64,
-    pub m_bound: usize,
+    // We store the square of the bound to avoid rounding on sqrt operations
+    pub B_bound_squared: u128,
+    pub B_inf: u64,
     pub q: u64,
     pub t: u64,
-    hash: [u8; HASH_METADATA_LEN_BYTES],
-    hash_R: [u8; HASH_METADATA_LEN_BYTES],
-    hash_t: [u8; HASH_METADATA_LEN_BYTES],
-    hash_w: [u8; HASH_METADATA_LEN_BYTES],
-    hash_agg: [u8; HASH_METADATA_LEN_BYTES],
-    hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
-    hash_phi: [u8; HASH_METADATA_LEN_BYTES],
-    hash_xi: [u8; HASH_METADATA_LEN_BYTES],
-    hash_z: [u8; HASH_METADATA_LEN_BYTES],
-    hash_chi: [u8; HASH_METADATA_LEN_BYTES],
+    pub msbs_zero_padding_bit_count: u64,
+    pub bound_type: Bound,
+    pub(crate) hash: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_R: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_t: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_w: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_agg: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_phi: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_xi: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_z: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) hash_chi: [u8; HASH_METADATA_LEN_BYTES],
+}
+
+impl<G: Curve> Compressible for PublicParams<G>
+where
+    GroupElements<G>: Compressible<
+        Compressed = SerializableGroupElements,
+        UncompressError = InvalidSerializedGroupElementsError,
+    >,
+{
+    type Compressed = SerializablePKEv2PublicParams;
+
+    type UncompressError = InvalidSerializedPublicParamsError;
+
+    fn compress(&self) -> Self::Compressed {
+        let PublicParams {
+            g_lists,
+            D,
+            n,
+            d,
+            k,
+            B_bound_squared,
+            B_inf,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            bound_type,
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = self;
+        SerializablePKEv2PublicParams {
+            g_lists: g_lists.compress(),
+            D: *D,
+            n: *n,
+            d: *d,
+            k: *k,
+            B_inf: *B_inf,
+            B_bound_squared: *B_bound_squared,
+            q: *q,
+            t: *t,
+            msbs_zero_padding_bit_count: *msbs_zero_padding_bit_count,
+            bound_type: *bound_type,
+            hash: hash.to_vec(),
+            hash_R: hash_R.to_vec(),
+            hash_t: hash_t.to_vec(),
+            hash_w: hash_w.to_vec(),
+            hash_agg: hash_agg.to_vec(),
+            hash_lmap: hash_lmap.to_vec(),
+            hash_phi: hash_phi.to_vec(),
+            hash_xi: hash_xi.to_vec(),
+            hash_z: hash_z.to_vec(),
+            hash_chi: hash_chi.to_vec(),
+        }
+    }
+
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+        let SerializablePKEv2PublicParams {
+            g_lists,
+            D,
+            n,
+            d,
+            k,
+            B_bound_squared,
+            B_inf,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            bound_type,
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = compressed;
+        Ok(Self {
+            g_lists: GroupElements::uncompress(g_lists)?,
+            D,
+            n,
+            d,
+            k,
+            B_bound_squared,
+            B_inf,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            bound_type,
+            hash: try_vec_to_array(hash)?,
+            hash_R: try_vec_to_array(hash_R)?,
+            hash_t: try_vec_to_array(hash_t)?,
+            hash_w: try_vec_to_array(hash_w)?,
+            hash_agg: try_vec_to_array(hash_agg)?,
+            hash_lmap: try_vec_to_array(hash_lmap)?,
+            hash_phi: try_vec_to_array(hash_phi)?,
+            hash_xi: try_vec_to_array(hash_xi)?,
+            hash_z: try_vec_to_array(hash_z)?,
+            hash_chi: try_vec_to_array(hash_chi)?,
+        })
+    }
 }
 
 impl<G: Curve> PublicParams<G> {
@@ -42,10 +172,11 @@ impl<G: Curve> PublicParams<G> {
         g_hat_list: Vec<Affine<G::Zp, G::G2>>,
         d: usize,
         k: usize,
-        B: u64,
+        B_inf: u64,
         q: u64,
         t: u64,
-        bound: Bound,
+        msbs_zero_padding_bit_count: u64,
+        bound_type: Bound,
         hash: [u8; HASH_METADATA_LEN_BYTES],
         hash_R: [u8; HASH_METADATA_LEN_BYTES],
         hash_t: [u8; HASH_METADATA_LEN_BYTES],
@@ -57,19 +188,21 @@ impl<G: Curve> PublicParams<G> {
         hash_z: [u8; HASH_METADATA_LEN_BYTES],
         hash_chi: [u8; HASH_METADATA_LEN_BYTES],
     ) -> Self {
-        let (n, D, B_r, B_bound, m_bound) = compute_crs_params(d, k, B, q, t, bound);
+        let B_squared = inf_norm_bound_to_euclidean_squared(B_inf, d + k);
+        let (n, D, B_bound_squared, _) =
+            compute_crs_params(d, k, B_squared, t, msbs_zero_padding_bit_count, bound_type);
         Self {
             g_lists: GroupElements::<G>::from_vec(g_list, g_hat_list),
             D,
             n,
             d,
             k,
-            B,
-            B_r,
-            B_bound,
-            m_bound,
+            B_bound_squared,
+            B_inf,
             q,
             t,
+            msbs_zero_padding_bit_count,
+            bound_type,
             hash,
             hash_R,
             hash_t,
@@ -84,37 +217,238 @@ impl<G: Curve> PublicParams<G> {
     }
 
     pub fn exclusive_max_noise(&self) -> u64 {
-        self.B
+        // Here we return the bound without slack because users aren't supposed to generate noise
+        // inside the slack
+        self.B_inf + 1
+    }
+
+    /// Check if the crs can be used to generate or verify a proof
+    ///
+    /// This means checking that the points are:
+    /// - valid points of the curve
+    /// - in the correct subgroup
+    pub fn is_usable(&self) -> bool {
+        self.g_lists.is_valid()
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+/// This represents a proof that the given ciphertext is a valid encryptions of the input messages
+/// with the provided public key.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[serde(bound(
     deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
     serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
 ))]
+#[versionize(ProofVersions)]
 pub struct Proof<G: Curve> {
-    C_hat_e: G::G2,
-    C_e: G::G1,
-    C_r_tilde: G::G1,
-    C_R: G::G1,
-    C_hat_bin: G::G2,
-    C_y: G::G1,
-    C_h1: G::G1,
-    C_h2: G::G1,
-    C_hat_t: G::G2,
-    pi: G::G1,
-    pi_kzg: G::G1,
+    pub(crate) C_hat_e: G::G2,
+    pub(crate) C_e: G::G1,
+    pub(crate) C_r_tilde: G::G1,
+    pub(crate) C_R: G::G1,
+    pub(crate) C_hat_bin: G::G2,
+    pub(crate) C_y: G::G1,
+    pub(crate) C_h1: G::G1,
+    pub(crate) C_h2: G::G1,
+    pub(crate) C_hat_t: G::G2,
+    pub(crate) pi: G::G1,
+    pub(crate) pi_kzg: G::G1,
 
-    C_hat_h3: Option<G::G2>,
-    C_hat_w: Option<G::G2>,
+    pub(crate) compute_load_proof_fields: Option<ComputeLoadProofFields<G>>,
 }
 
+impl<G: Curve> Proof<G> {
+    /// Check if the proof can be used by the Verifier.
+    ///
+    /// This means checking that the points in the proof are:
+    /// - valid points of the curve
+    /// - in the correct subgroup
+    pub fn is_usable(&self) -> bool {
+        let &Proof {
+            C_hat_e,
+            C_e,
+            C_r_tilde,
+            C_R,
+            C_hat_bin,
+            C_y,
+            C_h1,
+            C_h2,
+            C_hat_t,
+            pi,
+            pi_kzg,
+            ref compute_load_proof_fields,
+        } = self;
+
+        C_hat_e.validate_projective()
+            && C_e.validate_projective()
+            && C_r_tilde.validate_projective()
+            && C_R.validate_projective()
+            && C_hat_bin.validate_projective()
+            && C_y.validate_projective()
+            && C_h1.validate_projective()
+            && C_h2.validate_projective()
+            && C_hat_t.validate_projective()
+            && pi.validate_projective()
+            && pi_kzg.validate_projective()
+            && compute_load_proof_fields.as_ref().is_none_or(
+                |&ComputeLoadProofFields { C_hat_h3, C_hat_w }| {
+                    C_hat_h3.validate_projective() && C_hat_w.validate_projective()
+                },
+            )
+    }
+}
+
+/// These fields can be pre-computed on the prover side in the faster Verifier scheme. If that's the
+/// case, they should be included in the proof.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(ComputeLoadProofFieldsVersions)]
+pub(crate) struct ComputeLoadProofFields<G: Curve> {
+    pub(crate) C_hat_h3: G::G2,
+    pub(crate) C_hat_w: G::G2,
+}
+
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(bound(
+    deserialize = "G: Curve, CompressedG1<G>: serde::Deserialize<'de>, CompressedG2<G>: serde::Deserialize<'de>",
+    serialize = "G: Curve, CompressedG1<G>: serde::Serialize, CompressedG2<G>: serde::Serialize"
+))]
+#[versionize(CompressedProofVersions)]
+pub struct CompressedProof<G: Curve>
+where
+    G::G1: Compressible,
+    G::G2: Compressible,
+{
+    pub(crate) C_hat_e: CompressedG2<G>,
+    pub(crate) C_e: CompressedG1<G>,
+    pub(crate) C_r_tilde: CompressedG1<G>,
+    pub(crate) C_R: CompressedG1<G>,
+    pub(crate) C_hat_bin: CompressedG2<G>,
+    pub(crate) C_y: CompressedG1<G>,
+    pub(crate) C_h1: CompressedG1<G>,
+    pub(crate) C_h2: CompressedG1<G>,
+    pub(crate) C_hat_t: CompressedG2<G>,
+    pub(crate) pi: CompressedG1<G>,
+    pub(crate) pi_kzg: CompressedG1<G>,
+
+    pub(crate) compute_load_proof_fields: Option<CompressedComputeLoadProofFields<G>>,
+}
+
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(bound(
+    deserialize = "G: Curve, CompressedG1<G>: serde::Deserialize<'de>, CompressedG2<G>: serde::Deserialize<'de>",
+    serialize = "G: Curve, CompressedG1<G>: serde::Serialize, CompressedG2<G>: serde::Serialize"
+))]
+#[versionize(CompressedComputeLoadProofFieldsVersions)]
+pub(crate) struct CompressedComputeLoadProofFields<G: Curve>
+where
+    G::G1: Compressible,
+    G::G2: Compressible,
+{
+    pub(crate) C_hat_h3: CompressedG2<G>,
+    pub(crate) C_hat_w: CompressedG2<G>,
+}
+
+impl<G: Curve> Compressible for Proof<G>
+where
+    G::G1: Compressible<UncompressError = InvalidSerializedAffineError>,
+    G::G2: Compressible<UncompressError = InvalidSerializedAffineError>,
+{
+    type Compressed = CompressedProof<G>;
+
+    type UncompressError = InvalidSerializedAffineError;
+
+    fn compress(&self) -> Self::Compressed {
+        let Proof {
+            C_hat_e,
+            C_e,
+            C_r_tilde,
+            C_R,
+            C_hat_bin,
+            C_y,
+            C_h1,
+            C_h2,
+            C_hat_t,
+            pi,
+            pi_kzg,
+            compute_load_proof_fields,
+        } = self;
+
+        CompressedProof {
+            C_hat_e: C_hat_e.compress(),
+            C_e: C_e.compress(),
+            C_r_tilde: C_r_tilde.compress(),
+            C_R: C_R.compress(),
+            C_hat_bin: C_hat_bin.compress(),
+            C_y: C_y.compress(),
+            C_h1: C_h1.compress(),
+            C_h2: C_h2.compress(),
+            C_hat_t: C_hat_t.compress(),
+            pi: pi.compress(),
+            pi_kzg: pi_kzg.compress(),
+
+            compute_load_proof_fields: compute_load_proof_fields.as_ref().map(
+                |ComputeLoadProofFields { C_hat_h3, C_hat_w }| CompressedComputeLoadProofFields {
+                    C_hat_h3: C_hat_h3.compress(),
+                    C_hat_w: C_hat_w.compress(),
+                },
+            ),
+        }
+    }
+
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+        let CompressedProof {
+            C_hat_e,
+            C_e,
+            C_r_tilde,
+            C_R,
+            C_hat_bin,
+            C_y,
+            C_h1,
+            C_h2,
+            C_hat_t,
+            pi,
+            pi_kzg,
+            compute_load_proof_fields,
+        } = compressed;
+
+        Ok(Proof {
+            C_hat_e: G::G2::uncompress(C_hat_e)?,
+            C_e: G::G1::uncompress(C_e)?,
+            C_r_tilde: G::G1::uncompress(C_r_tilde)?,
+            C_R: G::G1::uncompress(C_R)?,
+            C_hat_bin: G::G2::uncompress(C_hat_bin)?,
+            C_y: G::G1::uncompress(C_y)?,
+            C_h1: G::G1::uncompress(C_h1)?,
+            C_h2: G::G1::uncompress(C_h2)?,
+            C_hat_t: G::G2::uncompress(C_hat_t)?,
+            pi: G::G1::uncompress(pi)?,
+            pi_kzg: G::G1::uncompress(pi_kzg)?,
+
+            compute_load_proof_fields: if let Some(CompressedComputeLoadProofFields {
+                C_hat_h3,
+                C_hat_w,
+            }) = compute_load_proof_fields
+            {
+                Some(ComputeLoadProofFields {
+                    C_hat_h3: G::G2::uncompress(C_hat_h3)?,
+                    C_hat_w: G::G2::uncompress(C_hat_w)?,
+                })
+            } else {
+                None
+            },
+        })
+    }
+}
+
+/// This is the public part of the commitment.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PublicCommit<G: Curve> {
+    /// Mask of the public key
     a: Vec<i64>,
+    /// Body of the public key
     b: Vec<i64>,
+    /// Mask of the ciphertexts
     c1: Vec<i64>,
+    /// Bodies of the ciphertexts
     c2: Vec<i64>,
     __marker: PhantomData<G>,
 }
@@ -133,71 +467,123 @@ impl<G: Curve> PublicCommit<G> {
 
 #[derive(Clone, Debug)]
 pub struct PrivateCommit<G: Curve> {
+    /// Public key sampling vector
     r: Vec<i64>,
+    /// Error vector associated with the masks
     e1: Vec<i64>,
+    /// Input messages
     m: Vec<i64>,
+    /// Error vector associated with the bodies
     e2: Vec<i64>,
     __marker: PhantomData<G>,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(BoundVersions)]
 pub enum Bound {
     GHL,
     CS,
 }
 
+fn ceil_ilog2(value: u128) -> u64 {
+    value.ilog2() as u64 + if value.is_power_of_two() { 0 } else { 1 }
+}
+
 pub fn compute_crs_params(
     d: usize,
     k: usize,
-    B: u64,
-    _q: u64, // we keep q here to make sure the API is consistent with [crs_gen]
+    B_squared: u128,
     t: u64,
-    bound: Bound,
-) -> (usize, usize, u64, u64, usize) {
-    let B_r = d as u64 / 2 + 1;
-    let B_bound = {
-        let B = B as f64;
-        let d = d as f64;
-        let k = k as f64;
+    msbs_zero_padding_bit_count: u64,
+    bound_type: Bound,
+) -> (usize, usize, u128, usize) {
+    assert!(
+        k <= d,
+        "Invalid parameters for zk_pok, the maximum number of messages k should be smaller \
+than the lwe dimension d. Please pick a smaller k: k = {k}, d = {d}"
+    );
 
-        (match bound {
-            Bound::GHL => 9.75,
-            Bound::CS => f64::sqrt(2.0 * (d + k) + 4.0),
-        }) * f64::sqrt(sqr(B) + (sqr(d + 2.0) * (d + k)) / 4.0)
+    let mut B_bound_squared = {
+        (match bound_type {
+            // GHL factor is 9.75, 9.75**2 = 95.0625
+            // Result is multiplied and divided by 10000 to avoid floating point operations.
+            // This could be avoided if one day we need to support bigger params.
+            Bound::GHL => 950625,
+            Bound::CS => 2 * (d as u128 + k as u128) + 4,
+        })
+        .checked_mul(B_squared + (sqr((d + 2) as u128) * (d + k) as u128) / 4)
+        .unwrap_or_else(|| {
+            panic!(
+                "Invalid parameters for zk_pok, B_squared: {B_squared}, d: {d}, k: {k}. \
+Please select a smaller B, d and/or k"
+            )
+        })
+    };
+
+    if bound_type == Bound::GHL {
+        B_bound_squared = B_bound_squared.div_ceil(10000);
     }
-    .ceil() as u64;
 
-    let m_bound = 2 + B_bound.ilog2() as usize;
+    // Formula is round_up(1 + B_bound.ilog2()).
+    // Since we use B_bound_square, the log is divided by 2
+    let m_bound = 1 + ceil_ilog2(B_bound_squared).div_ceil(2) as usize;
 
-    let D = d + k * t.ilog2() as usize;
+    // m_bound is used to do the bit decomposition of a u64 integer, so we check that it can be
+    // safely used for this
+    assert!(
+        m_bound <= 64,
+        "Invalid parameters for zk_pok, we only support 64 bits integer. \
+The computed m parameter is {m_bound} > 64. Please select a smaller B, d and/or k"
+    );
+
+    // This is also the effective t for encryption
+    let effective_t_for_decomposition = t >> msbs_zero_padding_bit_count;
+
+    // formula in Prove_pp: 2.
+    let D = d + k * (effective_t_for_decomposition.ilog2() as usize);
     let n = D + 128 * m_bound;
 
-    (n, D, B_r, B_bound, m_bound)
+    (n, D, B_bound_squared, m_bound)
 }
 
+/// Convert a bound on the infinite norm  of a vector into a bound on the square of the euclidean
+/// norm.
+///
+/// Use the relationship: `||x||_2 <= sqrt(dim)*||x||_inf`. Since we are only interested in the
+/// squared bound, we avoid the sqrt by returning dim*(||x||_inf)^2.
+fn inf_norm_bound_to_euclidean_squared(B_inf: u64, dim: usize) -> u128 {
+    checked_sqr(B_inf as u128)
+        .and_then(|norm_squared| norm_squared.checked_mul(dim as u128))
+        .unwrap_or_else(|| panic!("Invalid parameters for zk_pok, B_inf: {B_inf}, d+k: {dim}"))
+}
+
+/// Generates a CRS based on the bound the heuristic provided by the lemma 2 of the paper.
 pub fn crs_gen_ghl<G: Curve>(
     d: usize,
     k: usize,
-    B: u64,
+    B_inf: u64,
     q: u64,
     t: u64,
+    msbs_zero_padding_bit_count: u64,
     rng: &mut dyn RngCore,
 ) -> PublicParams<G> {
+    let bound_type = Bound::GHL;
     let alpha = G::Zp::rand(rng);
-    let B = B * (isqrt((d + k) as _) as u64 + 1);
-    let (n, D, B_r, B_bound, m_bound) = compute_crs_params(d, k, B, q, t, Bound::GHL);
+    let B_squared = inf_norm_bound_to_euclidean_squared(B_inf, d + k);
+    let (n, D, B_bound_squared, _) =
+        compute_crs_params(d, k, B_squared, t, msbs_zero_padding_bit_count, bound_type);
     PublicParams {
         g_lists: GroupElements::<G>::new(n, alpha),
         D,
         n,
         d,
         k,
-        B,
-        B_r,
-        B_bound,
-        m_bound,
+        B_inf,
+        B_bound_squared,
         q,
         t,
+        msbs_zero_padding_bit_count,
+        bound_type,
         hash: core::array::from_fn(|_| rng.gen()),
         hash_R: core::array::from_fn(|_| rng.gen()),
         hash_t: core::array::from_fn(|_| rng.gen()),
@@ -211,29 +597,34 @@ pub fn crs_gen_ghl<G: Curve>(
     }
 }
 
+/// Generates a CRS based on the Cauchy-Schwartz inequality. This removes the need of a heuristic
+/// used by GHL (see section 3.5 of the reference paper), but the bound is less strict.
 pub fn crs_gen_cs<G: Curve>(
     d: usize,
     k: usize,
-    B: u64,
+    B_inf: u64,
     q: u64,
     t: u64,
+    msbs_zero_padding_bit_count: u64,
     rng: &mut dyn RngCore,
 ) -> PublicParams<G> {
+    let bound_type = Bound::CS;
     let alpha = G::Zp::rand(rng);
-    let B = B * (isqrt((d + k) as _) as u64 + 1);
-    let (n, D, B_r, B_bound, m_bound) = compute_crs_params(d, k, B, q, t, Bound::CS);
+    let B_squared = inf_norm_bound_to_euclidean_squared(B_inf, d + k);
+    let (n, D, B_bound_squared, _) =
+        compute_crs_params(d, k, B_squared, t, msbs_zero_padding_bit_count, bound_type);
     PublicParams {
         g_lists: GroupElements::<G>::new(n, alpha),
         D,
         n,
         d,
         k,
-        B,
-        B_r,
-        B_bound,
-        m_bound,
+        B_bound_squared,
+        B_inf,
         q,
         t,
+        msbs_zero_padding_bit_count,
+        bound_type,
         hash: core::array::from_fn(|_| rng.gen()),
         hash_R: core::array::from_fn(|_| rng.gen()),
         hash_t: core::array::from_fn(|_| rng.gen()),
@@ -247,15 +638,22 @@ pub fn crs_gen_cs<G: Curve>(
     }
 }
 
+/// Generates a new CRS. When applied to TFHE, the parameters are mapped like this:
+/// - d: lwe_dimension
+/// - k: max_num_cleartext
+/// - B: noise_bound
+/// - q: ciphertext_modulus
+/// - t: plaintext_modulus
 pub fn crs_gen<G: Curve>(
     d: usize,
     k: usize,
     B: u64,
     q: u64,
     t: u64,
+    msbs_zero_padding_bit_count: u64,
     rng: &mut dyn RngCore,
 ) -> PublicParams<G> {
-    crs_gen_cs(d, k, B, q, t, rng)
+    crs_gen_cs(d, k, B, q, t, msbs_zero_padding_bit_count, rng)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -293,23 +691,42 @@ pub fn commit<G: Curve>(
 pub fn prove<G: Curve>(
     public: (&PublicParams<G>, &PublicCommit<G>),
     private_commit: &PrivateCommit<G>,
+    metadata: &[u8],
     load: ComputeLoad,
     rng: &mut dyn RngCore,
+) -> Proof<G> {
+    prove_impl(
+        public,
+        private_commit,
+        metadata,
+        load,
+        rng,
+        ProofSanityCheckMode::Panic,
+    )
+}
+
+fn prove_impl<G: Curve>(
+    public: (&PublicParams<G>, &PublicCommit<G>),
+    private_commit: &PrivateCommit<G>,
+    metadata: &[u8],
+    load: ComputeLoad,
+    rng: &mut dyn RngCore,
+    sanity_check_mode: ProofSanityCheckMode,
 ) -> Proof<G> {
     _ = load;
     let (
         &PublicParams {
             ref g_lists,
-            D,
+            D: D_max,
             n,
             d,
-            k,
-            B,
-            B_r: _,
-            B_bound,
-            m_bound,
+            k: k_max,
+            B_bound_squared,
+            B_inf,
             q,
             t: t_input,
+            msbs_zero_padding_bit_count,
+            bound_type,
             ref hash,
             ref hash_R,
             ref hash_t,
@@ -328,13 +745,41 @@ pub fn prove<G: Curve>(
 
     let PrivateCommit { r, e1, m, e2, .. } = private_commit;
 
-    assert!(c2.len() <= k);
-    let k = k.min(c2.len());
+    let k = c2.len();
+
+    let effective_cleartext_t = t_input >> msbs_zero_padding_bit_count;
+
+    let decoded_q = decode_q(q);
+
+    // Recompute some params for our case if k is smaller than the k max
+    let B_squared = inf_norm_bound_to_euclidean_squared(B_inf, d + k);
+    let (_, D, _, m_bound) = compute_crs_params(
+        d,
+        k,
+        B_squared,
+        t_input,
+        msbs_zero_padding_bit_count,
+        bound_type,
+    );
+
+    let e_sqr_norm = e1
+        .iter()
+        .chain(e2)
+        .map(|x| sqr(x.unsigned_abs() as u128))
+        .sum::<u128>();
+
+    if sanity_check_mode == ProofSanityCheckMode::Panic {
+        assert_pke_proof_preconditions(c1, e1, c2, e2, d, k_max, D, D_max);
+        assert!(
+            B_squared >= e_sqr_norm,
+            "squared norm of error ({e_sqr_norm}) exceeds threshold ({B_squared})",
+        );
+    }
 
     // FIXME: div_round
     let delta = {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-        (q / t_input as i128) as u64
+        // delta takes the encoding with the padding bit
+        (decoded_q / t_input as u128) as u64
     };
 
     let g = G::G1::GENERATOR;
@@ -346,74 +791,8 @@ pub fn prove<G: Curve>(
     let gamma_bin = G::Zp::rand(rng);
     let gamma_y = G::Zp::rand(rng);
 
-    // eq (10)
-    // rot(a) * phi(bar(r)) - q phi(r1) + phi(e1) = phi(c1)
-    // phi_[d - i](b).T * phi(bar(r)) + delta * m_i - q r2_i + e2_i = c2_i
-
-    // implies
-    // phi(r1) = (rot(a) * phi(bar(r)) + phi(e1) - phi(c1)) / q
-    // r2_i = (phi_[d - i](b).T * phi(bar(r)) + delta * m_i + e2_i - c2_i) / q
-
-    let mut r1 = e1
-        .iter()
-        .zip(c1.iter())
-        .map(|(&e1, &c1)| e1 as i128 - c1 as i128)
-        .collect::<Box<[_]>>();
-
-    for i in 0..d {
-        for j in 0..d {
-            if i + j < d {
-                r1[i + j] += a[i] as i128 * r[d - j - 1] as i128;
-            } else {
-                r1[i + j - d] -= a[i] as i128 * r[d - j - 1] as i128;
-            }
-        }
-    }
-
-    {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-        for r1 in &mut *r1 {
-            *r1 /= q;
-        }
-    }
-
-    let mut r2 = m
-        .iter()
-        .zip(e2)
-        .zip(c2)
-        .map(|((&m, &e2), &c2)| delta as i128 * m as i128 + e2 as i128 - c2 as i128)
-        .collect::<Box<[_]>>();
-
-    {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-        for (i, r2) in r2.iter_mut().enumerate() {
-            let mut dot = 0i128;
-            for j in 0..d {
-                let b = if i + j < d {
-                    b[d - j - i - 1] as i128
-                } else {
-                    -(b[2 * d - j - i - 1] as i128)
-                };
-
-                dot += r[d - j - 1] as i128 * b;
-            }
-
-            *r2 += dot;
-            *r2 /= q;
-        }
-    }
-
-    let r1 = &*r1
-        .into_vec()
-        .into_iter()
-        .map(|r1| r1 as i64)
-        .collect::<Box<[_]>>();
-
-    let r2 = &*r2
-        .into_vec()
-        .into_iter()
-        .map(|r2| r2 as i64)
-        .collect::<Box<[_]>>();
+    let r1 = compute_r1(e1, c1, a, r, d, decoded_q);
+    let r2 = compute_r2(e2, c2, m, b, r, d, delta, decoded_q);
 
     let u64 = |x: i64| x as u64;
 
@@ -421,22 +800,13 @@ pub fn prove<G: Curve>(
         .iter()
         .rev()
         .map(|&r| r != 0)
-        .chain(m.iter().flat_map(|&m| bit_iter(u64(m), t_input.ilog2())))
+        .chain(
+            m.iter()
+                .flat_map(|&m| bit_iter(u64(m), effective_cleartext_t.ilog2())),
+        )
         .collect::<Box<[_]>>();
 
-    let e_sqr_norm = e1
-        .iter()
-        .chain(e2)
-        .map(|x| sqr(x.unsigned_abs() as u128))
-        .sum::<u128>();
-
-    assert!(
-        sqr(B as u128) >= e_sqr_norm,
-        "squared norm of error ({e_sqr_norm}) exceeds threshold ({})",
-        sqr(B as u128)
-    );
-
-    let v = four_squares(sqr(B as u128) - e_sqr_norm).map(|v| v as i64);
+    let v = four_squares(B_squared - e_sqr_norm).map(|v| v as i64);
 
     let e1_zp = &*e1
         .iter()
@@ -487,9 +857,10 @@ pub fn prove<G: Curve>(
 
     let x_bytes = &*[
         q.to_le_bytes().as_slice(),
-        d.to_le_bytes().as_slice(),
-        B.to_le_bytes().as_slice(),
+        (d as u64).to_le_bytes().as_slice(),
+        B_squared.to_le_bytes().as_slice(),
         t_input.to_le_bytes().as_slice(),
+        msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
         &*a.iter()
             .flat_map(|&x| x.to_le_bytes())
             .collect::<Box<[_]>>(),
@@ -515,10 +886,11 @@ pub fn prove<G: Curve>(
     let mut hasher = sha3::Shake256::default();
     for &data in &[
         hash_R,
+        metadata,
         x_bytes,
-        C_hat_e.to_bytes().as_ref(),
-        C_e.to_bytes().as_ref(),
-        C_r_tilde.to_bytes().as_ref(),
+        C_hat_e.to_le_bytes().as_ref(),
+        C_e.to_le_bytes().as_ref(),
+        C_r_tilde.to_le_bytes().as_ref(),
     ] {
         hasher.update(data);
     }
@@ -554,8 +926,8 @@ pub fn prove<G: Curve>(
             e1.iter()
                 .chain(e2)
                 .chain(&v)
-                .chain(r1)
-                .chain(r2)
+                .chain(&r1)
+                .chain(&r2)
                 .copied()
                 .enumerate()
                 .for_each(|(j, x)| match R(j) {
@@ -564,7 +936,13 @@ pub fn prove<G: Curve>(
                     -1 => acc -= x as i128,
                     _ => unreachable!(),
                 });
-            assert!(acc.unsigned_abs() <= B_bound as u128);
+            if sanity_check_mode == ProofSanityCheckMode::Panic {
+                assert!(
+                    checked_sqr(acc.unsigned_abs()).unwrap() <= B_bound_squared,
+                    "sqr(acc) ({}) > B_bound_squared ({B_bound_squared})",
+                    sqr(acc as u128)
+                );
+            }
             acc as i64
         })
         .collect::<Box<[_]>>();
@@ -583,17 +961,18 @@ pub fn prove<G: Curve>(
         &mut phi,
         &[
             hash_phi,
+            metadata,
             x_bytes,
             R_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let phi_bytes = &*phi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let m = m_bound;
@@ -622,20 +1001,21 @@ pub fn prove<G: Curve>(
         &mut xi,
         &[
             hash_xi,
+            metadata,
             x_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
             phi_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
 
     let xi_bytes = &*xi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut y = vec![G::Zp::ZERO; D + 128 * m];
@@ -643,23 +1023,26 @@ pub fn prove<G: Curve>(
         &mut y,
         &[
             hash,
+            metadata,
             x_bytes,
             R_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let y_bytes = &*y
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
-    assert_eq!(y.len(), w_bin.len());
+    if sanity_check_mode == ProofSanityCheckMode::Panic {
+        assert_eq!(y.len(), w_bin.len());
+    }
     let scalars = y
         .iter()
         .zip(w_bin.iter())
@@ -674,22 +1057,23 @@ pub fn prove<G: Curve>(
         &mut t,
         &[
             hash_t,
+            metadata,
             x_bytes,
             y_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let t_bytes = &*t
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut theta = vec![G::Zp::ZERO; d + k];
@@ -697,27 +1081,28 @@ pub fn prove<G: Curve>(
         &mut theta,
         &[
             hash_lmap,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let theta_bytes = &*theta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
-    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, t_input, delta);
+    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, effective_cleartext_t, delta);
 
     let t_theta = theta
         .iter()
@@ -731,24 +1116,25 @@ pub fn prove<G: Curve>(
         &mut w,
         &[
             hash_w,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
             phi_bytes,
             xi_bytes,
             theta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let w_bytes = &*w
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut delta = [G::Zp::ZERO; 7];
@@ -756,6 +1142,7 @@ pub fn prove<G: Curve>(
         &mut delta,
         &[
             hash_agg,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -763,19 +1150,19 @@ pub fn prove<G: Curve>(
             xi_bytes,
             theta_bytes,
             w_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
     let delta_bytes = &*delta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut poly_0_lhs = vec![G::Zp::ZERO; 1 + n];
@@ -891,8 +1278,7 @@ pub fn prove<G: Curve>(
         *p = r2_zp[j];
     }
 
-    let delta_theta_q =
-        delta_theta * G::Zp::from_u128(if q == 0 { 1u128 << 64 } else { q as u128 });
+    let delta_theta_q = delta_theta * G::Zp::from_u128(decoded_q);
     for j in 0..d + k {
         let p = &mut poly_2_rhs[n - j];
 
@@ -1020,7 +1406,7 @@ pub fn prove<G: Curve>(
     }
     let mut P_pi = poly_0;
     if P_pi.len() > n + 1 {
-        P_pi[n + 1] -= delta_theta * t_theta + delta_l * sqr(G::Zp::from_u64(B));
+        P_pi[n + 1] -= delta_theta * t_theta + delta_l * G::Zp::from_u128(B_squared);
     }
 
     let pi = if P_pi.is_empty() {
@@ -1086,42 +1472,50 @@ pub fn prove<G: Curve>(
         .collect::<Box<[_]>>();
     scalars.reverse();
     let C_h2 = G::G1::multi_mul_scalar(&g_list[..n], &scalars);
-    let (C_hat_h3, C_hat_w) = match load {
-        ComputeLoad::Proof => rayon::join(
-            || {
-                Some(G::G2::multi_mul_scalar(
-                    &g_hat_list[n - (d + k)..n],
-                    &(0..d + k)
-                        .rev()
-                        .map(|j| {
-                            let mut acc = G::Zp::ZERO;
-                            for (i, &phi) in phi.iter().enumerate() {
-                                match R(i, d + k + 4 + j) {
-                                    0 => {}
-                                    1 => acc += phi,
-                                    -1 => acc -= phi,
-                                    _ => unreachable!(),
+    let compute_load_proof_fields = match load {
+        ComputeLoad::Proof => {
+            let (C_hat_h3, C_hat_w) = rayon::join(
+                || {
+                    G::G2::multi_mul_scalar(
+                        &g_hat_list[n - (d + k)..n],
+                        &(0..d + k)
+                            .rev()
+                            .map(|j| {
+                                let mut acc = G::Zp::ZERO;
+                                for (i, &phi) in phi.iter().enumerate() {
+                                    match R(i, d + k + 4 + j) {
+                                        0 => {}
+                                        1 => acc += phi,
+                                        -1 => acc -= phi,
+                                        _ => unreachable!(),
+                                    }
                                 }
-                            }
-                            delta_r * acc - delta_theta_q * theta[j]
-                        })
-                        .collect::<Box<[_]>>(),
-                ))
-            },
-            || {
-                Some(G::G2::multi_mul_scalar(
-                    &g_hat_list[..d + k + 4],
-                    &w[..d + k + 4],
-                ))
-            },
-        ),
-        ComputeLoad::Verify => (None, None),
+                                delta_r * acc - delta_theta_q * theta[j]
+                            })
+                            .collect::<Box<[_]>>(),
+                    )
+                },
+                || G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &w[..d + k + 4]),
+            );
+
+            Some(ComputeLoadProofFields { C_hat_h3, C_hat_w })
+        }
+        ComputeLoad::Verify => None,
     };
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_bytes);
-    let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
-    let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
+    let byte_generators =
+        if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) = compute_load_proof_fields {
+            Some((G::G2::to_le_bytes(C_hat_h3), G::G2::to_le_bytes(C_hat_w)))
+        } else {
+            None
+        };
+
+    let (C_hat_h3_bytes, C_hat_w_bytes): (&[u8], &[u8]) =
+        if let Some((C_hat_h3_bytes_owner, C_hat_w_bytes_owner)) = byte_generators.as_ref() {
+            (C_hat_h3_bytes_owner.as_ref(), C_hat_w_bytes_owner.as_ref())
+        } else {
+            (&[], &[])
+        };
 
     let C_hat_t = G::G2::multi_mul_scalar(g_hat_list, &t);
 
@@ -1130,6 +1524,7 @@ pub fn prove<G: Curve>(
         core::slice::from_mut(&mut z),
         &[
             hash_z,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1137,16 +1532,16 @@ pub fn prove<G: Curve>(
             x_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
         ],
@@ -1262,6 +1657,7 @@ pub fn prove<G: Curve>(
         core::slice::from_mut(&mut chi),
         &[
             hash_chi,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1269,22 +1665,22 @@ pub fn prove<G: Curve>(
             xi_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
-            z.to_bytes().as_ref(),
-            p_h1.to_bytes().as_ref(),
-            p_h2.to_bytes().as_ref(),
-            p_t.to_bytes().as_ref(),
+            z.to_le_bytes().as_ref(),
+            p_h1.to_le_bytes().as_ref(),
+            p_h2.to_le_bytes().as_ref(),
+            p_t.to_le_bytes().as_ref(),
         ],
     );
 
@@ -1323,10 +1719,9 @@ pub fn prove<G: Curve>(
         C_h1,
         C_h2,
         C_hat_t,
-        C_hat_h3,
-        C_hat_w,
         pi,
         pi_kzg,
+        compute_load_proof_fields,
     }
 }
 
@@ -1436,6 +1831,7 @@ fn compute_a_theta<G: Curve>(
 pub fn verify<G: Curve>(
     proof: &Proof<G>,
     public: (&PublicParams<G>, &PublicCommit<G>),
+    metadata: &[u8],
 ) -> Result<(), ()> {
     let &Proof {
         C_hat_e,
@@ -1447,25 +1843,25 @@ pub fn verify<G: Curve>(
         C_h1,
         C_h2,
         C_hat_t,
-        C_hat_h3,
-        C_hat_w,
         pi,
         pi_kzg,
+        ref compute_load_proof_fields,
     } = proof;
+
     let pairing = G::Gt::pairing;
 
     let &PublicParams {
         ref g_lists,
-        D,
+        D: D_max,
         n,
         d,
-        k,
-        B,
-        B_r: _,
-        B_bound: _,
-        m_bound: m,
+        k: k_max,
+        B_bound_squared: _,
+        B_inf,
         q,
         t: t_input,
+        msbs_zero_padding_bit_count,
+        bound_type,
         ref hash,
         ref hash_R,
         ref hash_t,
@@ -1480,28 +1876,58 @@ pub fn verify<G: Curve>(
     let g_list = &*g_lists.g_list.0;
     let g_hat_list = &*g_lists.g_hat_list.0;
 
+    let decoded_q = decode_q(q);
+
     // FIXME: div_round
     let delta = {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-        (q / t_input as i128) as u64
+        // delta takes the encoding with the padding bit
+        (decoded_q / t_input as u128) as u64
     };
 
     let PublicCommit { a, b, c1, c2, .. } = public.1;
-    if c2.len() > k {
+    let k = c2.len();
+    if k > k_max {
         return Err(());
     }
-    let k = k.min(c2.len());
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_bytes);
-    let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
-    let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
+    let effective_cleartext_t = t_input >> msbs_zero_padding_bit_count;
+    let B_squared = inf_norm_bound_to_euclidean_squared(B_inf, d + k);
+    let (_, D, _, m_bound) = compute_crs_params(
+        d,
+        k,
+        B_squared,
+        t_input,
+        msbs_zero_padding_bit_count,
+        bound_type,
+    );
+
+    let m = m_bound;
+
+    if D > D_max {
+        return Err(());
+    }
+
+    let byte_generators = if let Some(&ComputeLoadProofFields { C_hat_h3, C_hat_w }) =
+        compute_load_proof_fields.as_ref()
+    {
+        Some((G::G2::to_le_bytes(C_hat_h3), G::G2::to_le_bytes(C_hat_w)))
+    } else {
+        None
+    };
+
+    let (C_hat_h3_bytes, C_hat_w_bytes): (&[u8], &[u8]) =
+        if let Some((C_hat_h3_bytes_owner, C_hat_w_bytes_owner)) = byte_generators.as_ref() {
+            (C_hat_h3_bytes_owner.as_ref(), C_hat_w_bytes_owner.as_ref())
+        } else {
+            (&[], &[])
+        };
 
     let x_bytes = &*[
         q.to_le_bytes().as_slice(),
-        d.to_le_bytes().as_slice(),
-        B.to_le_bytes().as_slice(),
+        (d as u64).to_le_bytes().as_slice(),
+        B_squared.to_le_bytes().as_slice(),
         t_input.to_le_bytes().as_slice(),
+        msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
         &*a.iter()
             .flat_map(|&x| x.to_le_bytes())
             .collect::<Box<[_]>>(),
@@ -1527,10 +1953,11 @@ pub fn verify<G: Curve>(
     let mut hasher = sha3::Shake256::default();
     for &data in &[
         hash_R,
+        metadata,
         x_bytes,
-        C_hat_e.to_bytes().as_ref(),
-        C_e.to_bytes().as_ref(),
-        C_r_tilde.to_bytes().as_ref(),
+        C_hat_e.to_le_bytes().as_ref(),
+        C_e.to_le_bytes().as_ref(),
+        C_r_tilde.to_le_bytes().as_ref(),
     ] {
         hasher.update(data);
     }
@@ -1563,17 +1990,18 @@ pub fn verify<G: Curve>(
         &mut phi,
         &[
             hash_phi,
+            metadata,
             x_bytes,
             R_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let phi_bytes = &*phi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut xi = vec![G::Zp::ZERO; 128];
@@ -1581,19 +2009,20 @@ pub fn verify<G: Curve>(
         &mut xi,
         &[
             hash_xi,
+            metadata,
             x_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
             phi_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let xi_bytes = &*xi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut y = vec![G::Zp::ZERO; D + 128 * m];
@@ -1601,20 +2030,21 @@ pub fn verify<G: Curve>(
         &mut y,
         &[
             hash,
+            metadata,
             x_bytes,
             R_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let y_bytes = &*y
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut t = vec![G::Zp::ZERO; n];
@@ -1622,22 +2052,23 @@ pub fn verify<G: Curve>(
         &mut t,
         &[
             hash_t,
+            metadata,
             x_bytes,
             y_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let t_bytes = &*t
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut theta = vec![G::Zp::ZERO; d + k];
@@ -1645,23 +2076,24 @@ pub fn verify<G: Curve>(
         &mut theta,
         &[
             hash_lmap,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let theta_bytes = &*theta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut w = vec![G::Zp::ZERO; n];
@@ -1669,28 +2101,29 @@ pub fn verify<G: Curve>(
         &mut w,
         &[
             hash_w,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
             phi_bytes,
             xi_bytes,
             theta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let w_bytes = &*w
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
-    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, t_input, delta);
+    compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, effective_cleartext_t, delta);
 
     let t_theta = theta
         .iter()
@@ -1704,6 +2137,7 @@ pub fn verify<G: Curve>(
         &mut delta,
         &[
             hash_agg,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1711,26 +2145,25 @@ pub fn verify<G: Curve>(
             xi_bytes,
             theta_bytes,
             w_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
     let delta_bytes = &*delta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let g = G::G1::GENERATOR;
     let g_hat = G::G2::GENERATOR;
 
-    let delta_theta_q =
-        delta_theta * G::Zp::from_u128(if q == 0 { 1u128 << 64 } else { q as u128 });
+    let delta_theta_q = delta_theta * G::Zp::from_u128(decoded_q);
 
     let rhs = pairing(pi, g_hat);
     let lhs = {
@@ -1739,8 +2172,11 @@ pub fn verify<G: Curve>(
 
         let lhs2 = pairing(
             C_r_tilde,
-            match C_hat_h3 {
-                Some(C_hat_h3) => C_hat_h3,
+            match compute_load_proof_fields.as_ref() {
+                Some(&ComputeLoadProofFields {
+                    C_hat_h3,
+                    C_hat_w: _,
+                }) => C_hat_h3,
                 None => G::G2::multi_mul_scalar(
                     &g_hat_list[n - (d + k)..n],
                     &(0..d + k)
@@ -1773,8 +2209,11 @@ pub fn verify<G: Curve>(
         );
         let lhs4 = pairing(
             C_e.mul_scalar(delta_e),
-            match C_hat_w {
-                Some(C_hat_w) => C_hat_w,
+            match compute_load_proof_fields.as_ref() {
+                Some(&ComputeLoadProofFields {
+                    C_hat_h3: _,
+                    C_hat_w,
+                }) => C_hat_w,
                 None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &w[..d + k + 4]),
             },
         );
@@ -1783,7 +2222,7 @@ pub fn verify<G: Curve>(
             G::G1::projective(g_list[0]),
             G::G2::projective(g_hat_list[n - 1]),
         )
-        .mul_scalar(delta_theta * t_theta + delta_l * sqr(G::Zp::from_u64(B)));
+        .mul_scalar(delta_theta * t_theta + delta_l * G::Zp::from_u128(B_squared));
 
         lhs0 + lhs1 + lhs2 - lhs3 - lhs4 - lhs5 - lhs6
     };
@@ -1797,6 +2236,7 @@ pub fn verify<G: Curve>(
         core::slice::from_mut(&mut z),
         &[
             hash_z,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1804,22 +2244,22 @@ pub fn verify<G: Curve>(
             x_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
         ],
     );
 
-    let load = if C_hat_h3.is_some() && C_hat_w.is_some() {
+    let load = if compute_load_proof_fields.is_some() {
         ComputeLoad::Proof
     } else {
         ComputeLoad::Verify
@@ -1935,6 +2375,7 @@ pub fn verify<G: Curve>(
         core::slice::from_mut(&mut chi),
         &[
             hash_chi,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1942,22 +2383,22 @@ pub fn verify<G: Curve>(
             xi_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
-            z.to_bytes().as_ref(),
-            p_h1.to_bytes().as_ref(),
-            p_h2.to_bytes().as_ref(),
-            p_t.to_bytes().as_ref(),
+            z.to_le_bytes().as_ref(),
+            p_h1.to_le_bytes().as_ref(),
+            p_h2.to_le_bytes().as_ref(),
+            p_t.to_le_bytes().as_ref(),
         ],
     );
     let chi2 = chi * chi;
@@ -1971,10 +2412,8 @@ pub fn verify<G: Curve>(
         g,
         {
             let mut C_hat = C_hat_t.mul_scalar(chi2);
-            if let Some(C_hat_h3) = C_hat_h3 {
+            if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) = compute_load_proof_fields {
                 C_hat += C_hat_h3.mul_scalar(chi3);
-            }
-            if let Some(C_hat_w) = C_hat_w {
                 C_hat += C_hat_w.mul_scalar(chi4);
             }
             C_hat
@@ -1993,200 +2432,1038 @@ pub fn verify<G: Curve>(
 
 #[cfg(test)]
 mod tests {
+    use crate::curve_api::{self, bls12_446};
+
+    use super::super::test::*;
     use super::*;
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
 
+    type Curve = curve_api::Bls12_446;
+
+    /// Compact key params used with pkev2
+    pub(super) const PKEV2_TEST_PARAMS: PkeTestParameters = PkeTestParameters {
+        d: 2048,
+        k: 320,
+        B: 131072, // 2**17
+        q: 0,
+        t: 32, // 2b msg, 2b carry, 1b padding
+        msbs_zero_padding_bit_count: 1,
+    };
+
+    /// Compact key params used with pkve2 to encrypt a single message
+    pub(super) const PKEV2_TEST_PARAMS_SINGLE: PkeTestParameters = PkeTestParameters {
+        d: 2048,
+        k: 1,
+        B: 131072, // 2**17
+        q: 0,
+        t: 32, // 2b msg, 2b carry, 1b padding
+        msbs_zero_padding_bit_count: 1,
+    };
+
+    /// Compact key params with limits values to test that there is no overflow, using a GHL bound
+    pub(super) const BIG_TEST_PARAMS_CS: PkeTestParameters = PkeTestParameters {
+        d: 2048,
+        k: 2048,
+        B: 1125899906842624, // 2**50
+        q: 0,
+        t: 4, // 1b message, 1b padding
+        msbs_zero_padding_bit_count: 1,
+    };
+
+    /// Compact key params with limits values to test that there is no overflow, using a
+    /// Cauchy-Schwarz bound
+    pub(super) const BIG_TEST_PARAMS_GHL: PkeTestParameters = PkeTestParameters {
+        d: 2048,
+        k: 2048,
+        B: 281474976710656, // 2**48
+        q: 0,
+        t: 4, // 1b message, 1b padding
+        msbs_zero_padding_bit_count: 1,
+    };
+
+    /// Test that the proof is rejected if we use a different value between encryption and proof
     #[test]
     fn test_pke() {
-        let d = 2048;
-        let k = 320;
-        let B = 1048576;
-        let q = 0;
-        let t = 1024;
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
 
-        let delta = {
-            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-            (q / t as i128) as u64
-        };
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
         let rng = &mut StdRng::seed_from_u64(0);
 
-        let polymul_rev = |a: &[i64], b: &[i64]| -> Vec<i64> {
-            assert_eq!(a.len(), b.len());
-            let d = a.len();
-            let mut c = vec![0i64; d];
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
 
-            for i in 0..d {
-                for j in 0..d {
-                    if i + j < d {
-                        c[i + j] = c[i + j].wrapping_add(a[i].wrapping_mul(b[d - j - 1]));
-                    } else {
-                        c[i + j - d] = c[i + j - d].wrapping_sub(a[i].wrapping_mul(b[d - j - 1]));
-                    }
-                }
-            }
-
-            c
-        };
-
-        let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
-        let s = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
-            .collect::<Vec<_>>();
-        let e = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-        let e1 = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
         let fake_e1 = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-        let e2 = (0..k)
             .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
         let fake_e2 = (0..k)
             .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
 
-        let r = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
-            .collect::<Vec<_>>();
         let fake_r = (0..d)
             .map(|_| (rng.gen::<u64>() % 2) as i64)
             .collect::<Vec<_>>();
 
-        let m = (0..k)
-            .map(|_| (rng.gen::<u64>() % t) as i64)
-            .collect::<Vec<_>>();
         let fake_m = (0..k)
-            .map(|_| (rng.gen::<u64>() % t) as i64)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
             .collect::<Vec<_>>();
 
-        let b = polymul_rev(&a, &s)
-            .into_iter()
-            .zip(e.iter())
-            .map(|(x, e)| x.wrapping_add(*e))
-            .collect::<Vec<_>>();
-        let c1 = polymul_rev(&a, &r)
-            .into_iter()
-            .zip(e1.iter())
-            .map(|(x, e1)| x.wrapping_add(*e1))
-            .collect::<Vec<_>>();
+        let mut fake_metadata = [255u8; METADATA_LEN];
+        fake_metadata.fill_with(|| rng.gen::<u8>());
 
-        let mut c2 = vec![0i64; k];
+        // To check management of bigger k_max from CRS during test
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
 
-        for i in 0..k {
-            let mut dot = 0i64;
-            for j in 0..d {
-                let b = if i + j < d {
-                    b[d - j - i - 1]
+        let original_public_param =
+            crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
+        let public_param_that_was_compressed =
+            serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
+        let public_param_that_was_not_compressed =
+            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
+
+        for (
+            public_param,
+            use_fake_r,
+            use_fake_e1,
+            use_fake_e2,
+            use_fake_m,
+            use_fake_metadata_verify,
+        ) in itertools::iproduct!(
+            [
+                original_public_param,
+                public_param_that_was_compressed,
+                public_param_that_was_not_compressed,
+            ],
+            [false, true],
+            [false, true],
+            [false, true],
+            [false, true],
+            [false, true]
+        ) {
+            let (public_commit, private_commit) = commit(
+                testcase.a.clone(),
+                testcase.b.clone(),
+                ct.c1.clone(),
+                ct.c2.clone(),
+                if use_fake_r {
+                    fake_r.clone()
                 } else {
-                    b[2 * d - j - i - 1].wrapping_neg()
+                    testcase.r.clone()
+                },
+                if use_fake_e1 {
+                    fake_e1.clone()
+                } else {
+                    testcase.e1.clone()
+                },
+                if use_fake_m {
+                    fake_m.clone()
+                } else {
+                    testcase.m.clone()
+                },
+                if use_fake_e2 {
+                    fake_e2.clone()
+                } else {
+                    testcase.e2.clone()
+                },
+                &public_param,
+                rng,
+            );
+
+            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+                let proof = prove(
+                    (&public_param, &public_commit),
+                    &private_commit,
+                    &testcase.metadata,
+                    load,
+                    rng,
+                );
+
+                let verify_metadata = if use_fake_metadata_verify {
+                    &fake_metadata
+                } else {
+                    &testcase.metadata
                 };
 
-                dot = dot.wrapping_add(r[d - j - 1].wrapping_mul(b));
+                assert_eq!(
+                    verify(&proof, (&public_param, &public_commit), verify_metadata).is_err(),
+                    use_fake_e1
+                        || use_fake_e2
+                        || use_fake_r
+                        || use_fake_m
+                        || use_fake_metadata_verify
+                );
             }
+        }
+    }
 
-            c2[i] = dot
-                .wrapping_add(e2[i])
-                .wrapping_add((delta * m[i] as u64) as i64);
+    fn prove_and_verify(
+        testcase: &PkeTestcase,
+        ct: &PkeTestCiphertext,
+        crs: &PublicParams<Curve>,
+        load: ComputeLoad,
+        sanity_check_mode: ProofSanityCheckMode,
+        rng: &mut StdRng,
+    ) -> VerificationResult {
+        let (public_commit, private_commit) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            crs,
+            rng,
+        );
+
+        let proof = prove_impl(
+            (crs, &public_commit),
+            &private_commit,
+            &testcase.metadata,
+            load,
+            rng,
+            sanity_check_mode,
+        );
+
+        if verify(&proof, (crs, &public_commit), &testcase.metadata).is_ok() {
+            VerificationResult::Accept
+        } else {
+            VerificationResult::Reject
+        }
+    }
+
+    fn assert_prove_and_verify(
+        testcase: &PkeTestcase,
+        ct: &PkeTestCiphertext,
+        testcase_name: &str,
+        crs: &PublicParams<Curve>,
+        sanity_check_mode: ProofSanityCheckMode,
+        expected_result: VerificationResult,
+        rng: &mut StdRng,
+    ) {
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            assert_eq!(
+                prove_and_verify(testcase, ct, crs, load, sanity_check_mode, rng),
+                expected_result,
+                "Testcase {testcase_name} with load {load} failed"
+            )
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    enum BoundTestSlackMode {
+        /// Generate test noise vectors with all coeffs at 0 except one
+        // Here ||e||inf == ||e||2 so the slack is the biggest, since B is multiplied by
+        // sqrt(d+k) anyways
+        Max,
+        /// Generate test noise vectors with random coeffs and one just around the bound
+        // Here the slack should be "average"
+        Avg,
+        /// Generate test noise vectors with all coeffs equals to B except one at +/-1
+        // Here the slack should be minimal since ||e||_2 = sqrt(d+k)*||e||_inf, which is exactly
+        // what we are proving.
+        Min,
+    }
+
+    impl Display for BoundTestSlackMode {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                BoundTestSlackMode::Min => write!(f, "min_slack"),
+                BoundTestSlackMode::Avg => write!(f, "avg_slack"),
+                BoundTestSlackMode::Max => write!(f, "max_slack"),
+            }
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    enum TestedCoeffOffsetType {
+        /// Noise term is after the bound, the proof should be refused
+        After,
+        /// Noise term is right on the bound, the proof should be accepted
+        On,
+        /// Noise term is before the bound, the proof should be accepted
+        Before,
+    }
+
+    impl Display for TestedCoeffOffsetType {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                TestedCoeffOffsetType::After => write!(f, "after_bound"),
+                TestedCoeffOffsetType::On => write!(f, "on_bound"),
+                TestedCoeffOffsetType::Before => write!(f, "before_bound"),
+            }
+        }
+    }
+
+    impl TestedCoeffOffsetType {
+        fn offset(self) -> i64 {
+            match self {
+                TestedCoeffOffsetType::After => 1,
+                TestedCoeffOffsetType::On => 0,
+                TestedCoeffOffsetType::Before => -1,
+            }
         }
 
-        let mut m_roundtrip = vec![0i64; k];
-        for i in 0..k {
-            let mut dot = 0i128;
-            for j in 0..d {
-                let c = if i + j < d {
-                    c1[d - j - i - 1]
-                } else {
-                    c1[2 * d - j - i - 1].wrapping_neg()
-                };
-
-                dot += s[d - j - 1] as i128 * c as i128;
+        fn expected_result(self) -> VerificationResult {
+            match self {
+                TestedCoeffOffsetType::After => VerificationResult::Reject,
+                TestedCoeffOffsetType::On => VerificationResult::Accept,
+                TestedCoeffOffsetType::Before => VerificationResult::Accept,
             }
-
-            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-            let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
-            let div = val.div_euclid(q);
-            let rem = val.rem_euclid(q);
-            let result = div as i64 + (rem > (q / 2)) as i64;
-            let result = result.rem_euclid(t as i64);
-            m_roundtrip[i] = result;
         }
+    }
 
-        type Curve = crate::curve_api::Bls12_446;
+    #[derive(Clone, Copy)]
+    enum TestedCoeffType {
+        E1,
+        E2,
+    }
 
-        let serialize_then_deserialize =
-            |public_param: &PublicParams<Curve>,
-             compress: Compress|
-             -> Result<PublicParams<Curve>, SerializationError> {
-                let mut data = Vec::new();
-                public_param.serialize_with_mode(&mut data, compress)?;
+    impl Display for TestedCoeffType {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                TestedCoeffType::E1 => write!(f, "e1"),
+                TestedCoeffType::E2 => write!(f, "e2"),
+            }
+        }
+    }
 
-                PublicParams::deserialize_with_mode(data.as_slice(), compress, Validate::No)
+    struct PkeBoundTestcase {
+        name: String,
+        testcase: PkeTestcase,
+        expected_result: VerificationResult,
+    }
+
+    impl PkeBoundTestcase {
+        fn new(
+            ref_testcase: &PkeTestcase,
+            B: u64,
+            slack_mode: BoundTestSlackMode,
+            offset_type: TestedCoeffOffsetType,
+            coeff_type: TestedCoeffType,
+            rng: &mut StdRng,
+        ) -> Self {
+            let mut testcase = ref_testcase.clone();
+
+            let d = testcase.e1.len();
+            let k = testcase.e2.len();
+
+            // Select a random index for the tested term
+            let tested_idx = match coeff_type {
+                TestedCoeffType::E1 => rng.gen::<usize>() % d,
+                TestedCoeffType::E2 => rng.gen::<usize>() % k,
             };
 
-        let original_public_param = crs_gen_ghl::<Curve>(d, k, B, q, t, rng);
+            // Initialize the "good" terms of the error, that are not above the bound
+            match slack_mode {
+                BoundTestSlackMode::Max => {
+                    // In this mode, all the terms are 0 except the tested one
+                    testcase.e1 = vec![0; d];
+                    testcase.e2 = vec![0; k];
+                }
+                BoundTestSlackMode::Avg => {
+                    // In this mode we keep the original random vector
+                }
+                BoundTestSlackMode::Min => {
+                    // In this mode all the terms are exactly at the bound
+                    let good_term = B as i64;
+                    testcase.e1 = (0..d)
+                        .map(|_| if rng.gen() { good_term } else { -good_term })
+                        .collect();
+                    testcase.e2 = (0..k)
+                        .map(|_| if rng.gen() { good_term } else { -good_term })
+                        .collect();
+                }
+            };
+
+            let B_with_slack_squared = inf_norm_bound_to_euclidean_squared(B, d + k);
+            let B_with_slack = isqrt(B_with_slack_squared) as u64;
+
+            let bound = match slack_mode {
+                // The slack is maximal, any term above B+slack should be refused
+                BoundTestSlackMode::Max => B_with_slack as i64,
+                // The actual accepted bound depends on the content of the test vector
+                BoundTestSlackMode::Avg => {
+                    let e_sqr_norm = testcase
+                        .e1
+                        .iter()
+                        .chain(&testcase.e2)
+                        .map(|x| sqr(x.unsigned_abs() as u128))
+                        .sum::<u128>();
+
+                    let orig_value = match coeff_type {
+                        TestedCoeffType::E1 => testcase.e1[tested_idx],
+                        TestedCoeffType::E2 => testcase.e2[tested_idx],
+                    };
+
+                    let bound_squared =
+                        B_with_slack_squared - (e_sqr_norm - sqr(orig_value as u128));
+                    isqrt(bound_squared) as i64
+                }
+                // There is no slack effect, any term above B should be refused
+                BoundTestSlackMode::Min => B as i64,
+            };
+
+            let tested_term = bound + offset_type.offset();
+
+            match coeff_type {
+                TestedCoeffType::E1 => testcase.e1[tested_idx] = tested_term,
+                TestedCoeffType::E2 => testcase.e2[tested_idx] = tested_term,
+            };
+
+            Self {
+                name: format!("test_{slack_mode}_{offset_type}_{coeff_type}"),
+                testcase,
+                expected_result: offset_type.expected_result(),
+            }
+        }
+    }
+
+    /// Test that the proof is rejected if we use a noise outside of the bounds, taking the slack
+    /// into account
+    #[test]
+    fn test_pke_bad_noise() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+        let crs_max_k = crs_gen::<Curve>(d, d, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        let B_with_slack_squared = inf_norm_bound_to_euclidean_squared(B, d + k);
+        let B_with_slack_upper = isqrt(B_with_slack_squared) as u64 + 1;
+
+        // Generate test noise vectors with random coeffs and one completely out of bounds
+
+        let mut testcases = Vec::new();
+        let mut testcase_bad_e1 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % d;
+        let bad_term =
+            (rng.gen::<u64>() % (i64::MAX as u64 - B_with_slack_upper)) + B_with_slack_upper;
+        let bad_term = bad_term as i64;
+
+        testcase_bad_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        testcases.push(PkeBoundTestcase {
+            name: "testcase_bad_e1".to_string(),
+            testcase: testcase_bad_e1,
+            expected_result: VerificationResult::Reject,
+        });
+
+        let mut testcase_bad_e2 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % k;
+
+        testcase_bad_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        testcases.push(PkeBoundTestcase {
+            name: "testcase_bad_e2".to_string(),
+            testcase: testcase_bad_e2,
+            expected_result: VerificationResult::Reject,
+        });
+
+        // Generate test vectors with a noise term right around the bound
+
+        testcases.extend(
+            itertools::iproduct!(
+                [
+                    BoundTestSlackMode::Min,
+                    BoundTestSlackMode::Avg,
+                    BoundTestSlackMode::Max
+                ],
+                [
+                    TestedCoeffOffsetType::Before,
+                    TestedCoeffOffsetType::On,
+                    TestedCoeffOffsetType::After
+                ],
+                [TestedCoeffType::E1, TestedCoeffType::E2]
+            )
+            .map(|(slack_mode, offset_type, coeff_type)| {
+                PkeBoundTestcase::new(&testcase, B, slack_mode, offset_type, coeff_type, rng)
+            }),
+        );
+
+        for PkeBoundTestcase {
+            name,
+            testcase,
+            expected_result,
+        } in testcases
+        {
+            let ct = testcase.encrypt_unchecked(PKEV2_TEST_PARAMS);
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                &format!("{name}_crs"),
+                &crs,
+                ProofSanityCheckMode::Ignore,
+                expected_result,
+                rng,
+            );
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                &format!("{name}_crs_max_k"),
+                &crs_max_k,
+                ProofSanityCheckMode::Ignore,
+                expected_result,
+                rng,
+            );
+        }
+    }
+
+    /// Compare the computed params with manually calculated ones to check the formula
+    #[test]
+    fn test_compute_crs_params() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q: _,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let B_squared = inf_norm_bound_to_euclidean_squared(B, d + k);
+        assert_eq!(B_squared, 40681930227712);
+
+        let (n, D, B_bound_squared, m_bound) =
+            compute_crs_params(d, k, B_squared, t, msbs_zero_padding_bit_count, Bound::GHL);
+        assert_eq!(n, 6784);
+        assert_eq!(D, 3328);
+        assert_eq!(B_bound_squared, 3867562496364372);
+        assert_eq!(m_bound, 27);
+
+        let (n, D, B_bound_squared, m_bound) =
+            compute_crs_params(d, k, B_squared, t, msbs_zero_padding_bit_count, Bound::CS);
+        assert_eq!(n, 7168);
+        assert_eq!(D, 3328);
+        assert_eq!(B_bound_squared, 192844141830554880);
+        assert_eq!(m_bound, 30);
+    }
+
+    /// Test that the proof is rejected if we don't have the padding bit set to 0
+    #[test]
+    fn test_pke_w_padding_fail_verify() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let mut testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+        // Generate messages with padding set to fail verification
+        testcase.m = {
+            let mut tmp = (0..k)
+                .map(|_| (rng.gen::<u64>() % t) as i64)
+                .collect::<Vec<_>>();
+            while tmp.iter().all(|&x| (x as u64) < effective_cleartext_t) {
+                tmp.fill_with(|| (rng.gen::<u64>() % t) as i64);
+            }
+
+            tmp
+        };
+
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
+
+        // To check management of bigger k_max from CRS during test
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let original_public_param =
+            crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
         let public_param_that_was_compressed =
-            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
-        let public_param_that_was_not_compressed =
             serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
+        let public_param_that_was_not_compressed =
+            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
 
-        for public_param in [
-            original_public_param,
-            public_param_that_was_compressed,
-            public_param_that_was_not_compressed,
+        for (public_param, test_name) in [
+            (original_public_param, "original_params"),
+            (
+                public_param_that_was_compressed,
+                "serialized_compressed_params",
+            ),
+            (public_param_that_was_not_compressed, "serialize_params"),
         ] {
-            for use_fake_e1 in [false, true] {
-                for use_fake_e2 in [false, true] {
-                    for use_fake_m in [false, true] {
-                        for use_fake_r in [false, true] {
-                            let (public_commit, private_commit) = commit(
-                                a.clone(),
-                                b.clone(),
-                                c1.clone(),
-                                c2.clone(),
-                                if use_fake_r {
-                                    fake_r.clone()
-                                } else {
-                                    r.clone()
-                                },
-                                if use_fake_e1 {
-                                    fake_e1.clone()
-                                } else {
-                                    e1.clone()
-                                },
-                                if use_fake_m {
-                                    fake_m.clone()
-                                } else {
-                                    m.clone()
-                                },
-                                if use_fake_e2 {
-                                    fake_e2.clone()
-                                } else {
-                                    e2.clone()
-                                },
-                                &public_param,
-                                rng,
-                            );
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                test_name,
+                &public_param,
+                ProofSanityCheckMode::Panic,
+                VerificationResult::Reject,
+                rng,
+            );
+        }
+    }
 
-                            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-                                let proof = prove(
-                                    (&public_param, &public_commit),
-                                    &private_commit,
-                                    load,
-                                    rng,
-                                );
+    /// Test verification with modified ciphertexts
+    #[test]
+    fn test_bad_ct() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
 
-                                assert_eq!(
-                                    verify(&proof, (&public_param, &public_commit)).is_err(),
-                                    use_fake_e1 || use_fake_e2 || use_fake_r || use_fake_m
-                                );
-                            }
-                        }
-                    }
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS_SINGLE);
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS_SINGLE);
+
+        let ct_zero = testcase.sk_encrypt_zero(PKEV2_TEST_PARAMS_SINGLE, rng);
+
+        let c1_plus_zero = ct
+            .c1
+            .iter()
+            .zip(ct_zero.iter())
+            .map(|(a1, az)| a1.wrapping_add(*az))
+            .collect();
+        let c2_plus_zero = vec![ct.c2[0].wrapping_add(*ct_zero.last().unwrap())];
+
+        let ct_plus_zero = PkeTestCiphertext {
+            c1: c1_plus_zero,
+            c2: c2_plus_zero,
+        };
+
+        let m_plus_zero = testcase.decrypt(&ct_plus_zero, PKEV2_TEST_PARAMS_SINGLE);
+        assert_eq!(testcase.m, m_plus_zero);
+
+        let delta = {
+            let q = decode_q(q) as i128;
+            // delta takes the encoding with the padding bit
+            (q / t as i128) as u64
+        };
+
+        let trivial = rng.gen::<u64>() % effective_cleartext_t;
+        let trivial_pt = trivial * delta;
+        let c2_plus_trivial = vec![ct.c2[0].wrapping_add(trivial_pt as i64)];
+
+        let ct_plus_trivial = PkeTestCiphertext {
+            c1: ct.c1.clone(),
+            c2: c2_plus_trivial,
+        };
+
+        let m_plus_trivial = testcase.decrypt(&ct_plus_trivial, PKEV2_TEST_PARAMS_SINGLE);
+        assert_eq!(testcase.m[0] + trivial as i64, m_plus_trivial[0]);
+
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        // Test proving with one ct and verifying another
+        let (public_commit_proof, private_commit) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &crs,
+            rng,
+        );
+
+        let (public_commit_verify_zero, _) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct_plus_zero.c1.clone(),
+            ct_plus_zero.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &crs,
+            rng,
+        );
+
+        let (public_commit_verify_trivial, _) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct_plus_trivial.c1.clone(),
+            ct_plus_trivial.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &crs,
+            rng,
+        );
+
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            let proof = prove(
+                (&crs, &public_commit_proof),
+                &private_commit,
+                &testcase.metadata,
+                load,
+                rng,
+            );
+
+            assert!(verify(
+                &proof,
+                (&crs, &public_commit_verify_zero),
+                &testcase.metadata
+            )
+            .is_err());
+
+            assert!(verify(
+                &proof,
+                (&crs, &public_commit_verify_trivial),
+                &testcase.metadata
+            )
+            .is_err());
+        }
+    }
+
+    /// Test encryption of a message where the delta used for encryption is not the one used for
+    /// proof/verify
+    #[test]
+    fn test_bad_delta() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+        let mut testcase_bad_delta = testcase.clone();
+
+        // Make sure that the messages lower bit is set so the change of delta has an impact on the
+        // validity of the ct
+        testcase_bad_delta.m = (0..k)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64 | 1)
+            .collect::<Vec<_>>();
+
+        let mut params_bad_delta = PKEV2_TEST_PARAMS;
+        params_bad_delta.t *= 2; // Multiply t by 2 to "spill" 1 bit of message into the noise
+
+        // Encrypt using wrong delta
+        let ct_bad_delta = testcase_bad_delta.encrypt(params_bad_delta);
+
+        // Prove using a crs built using the "right" delta
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        assert_prove_and_verify(
+            &testcase,
+            &ct_bad_delta,
+            "testcase_bad_delta",
+            &crs,
+            ProofSanityCheckMode::Panic,
+            VerificationResult::Reject,
+            rng,
+        );
+    }
+
+    /// Test encryption of a message with params that are at the limits of what is supported
+    #[test]
+    fn test_big_params() {
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        for bound in [Bound::CS, Bound::GHL] {
+            let params = match bound {
+                Bound::GHL => BIG_TEST_PARAMS_GHL,
+                Bound::CS => BIG_TEST_PARAMS_CS,
+            };
+            let PkeTestParameters {
+                d,
+                k,
+                B,
+                q,
+                t,
+                msbs_zero_padding_bit_count,
+            } = params;
+
+            let testcase = PkeTestcase::gen(rng, params);
+            let ct = testcase.encrypt(params);
+
+            // Check that there is no overflow with both bounds
+            let crs = match bound {
+                Bound::GHL => crs_gen_ghl::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng),
+                Bound::CS => crs_gen_cs::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng),
+            };
+
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                &format!("testcase_big_params_{bound:?}"),
+                &crs,
+                ProofSanityCheckMode::Panic,
+                VerificationResult::Accept,
+                rng,
+            );
+        }
+    }
+
+    /// Test compression of proofs
+    #[test]
+    fn test_proof_compression() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
+
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let public_param = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        let (public_commit, private_commit) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &public_param,
+            rng,
+        );
+
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            let proof = prove(
+                (&public_param, &public_commit),
+                &private_commit,
+                &testcase.metadata,
+                load,
+                rng,
+            );
+
+            let compressed_proof = bincode::serialize(&proof.compress()).unwrap();
+            let proof =
+                Proof::uncompress(bincode::deserialize(&compressed_proof).unwrap()).unwrap();
+
+            verify(&proof, (&public_param, &public_commit), &testcase.metadata).unwrap()
+        }
+    }
+
+    /// Test the `is_usable` method, that checks the correctness of the EC points in the proof
+    #[test]
+    fn test_proof_usable() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
+
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let public_param = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        let (public_commit, private_commit) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &public_param,
+            rng,
+        );
+
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            let valid_proof = prove(
+                (&public_param, &public_commit),
+                &private_commit,
+                &testcase.metadata,
+                load,
+                rng,
+            );
+
+            let compressed_proof = bincode::serialize(&valid_proof.compress()).unwrap();
+            let proof_that_was_compressed: Proof<Curve> =
+                Proof::uncompress(bincode::deserialize(&compressed_proof).unwrap()).unwrap();
+
+            assert!(valid_proof.is_usable());
+            assert!(proof_that_was_compressed.is_usable());
+
+            let not_on_curve_g1 = bls12_446::G1::projective(bls12_446::G1Affine {
+                inner: point_not_on_curve(rng),
+            });
+
+            let not_on_curve_g2 = bls12_446::G2::projective(bls12_446::G2Affine {
+                inner: point_not_on_curve(rng),
+            });
+
+            let not_in_group_g1 = bls12_446::G1::projective(bls12_446::G1Affine {
+                inner: point_on_curve_wrong_subgroup(rng),
+            });
+
+            let not_in_group_g2 = bls12_446::G2::projective(bls12_446::G2Affine {
+                inner: point_on_curve_wrong_subgroup(rng),
+            });
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.C_hat_e = not_on_curve_g2;
+                assert!(!proof.is_usable());
+                proof.C_hat_e = not_in_group_g2;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.C_e = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.C_e = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.C_r_tilde = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.C_r_tilde = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.C_R = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.C_R = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.C_hat_bin = not_on_curve_g2;
+                assert!(!proof.is_usable());
+                proof.C_hat_bin = not_in_group_g2;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.C_y = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.C_y = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.C_h1 = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.C_h1 = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.C_h2 = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.C_h2 = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.C_hat_t = not_on_curve_g2;
+                assert!(!proof.is_usable());
+                proof.C_hat_t = not_in_group_g2;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.pi = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.pi = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.pi_kzg = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.pi_kzg = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            if let Some(ref valid_compute_proof_fields) = valid_proof.compute_load_proof_fields {
+                {
+                    let mut proof = valid_proof.clone();
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        C_hat_h3: not_on_curve_g2,
+                        C_hat_w: valid_compute_proof_fields.C_hat_w,
+                    });
+
+                    assert!(!proof.is_usable());
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        C_hat_h3: not_in_group_g2,
+                        C_hat_w: valid_compute_proof_fields.C_hat_w,
+                    });
+
+                    assert!(!proof.is_usable());
+                }
+
+                {
+                    let mut proof = valid_proof.clone();
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        C_hat_h3: valid_compute_proof_fields.C_hat_h3,
+                        C_hat_w: not_on_curve_g2,
+                    });
+
+                    assert!(!proof.is_usable());
+
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        C_hat_h3: valid_compute_proof_fields.C_hat_h3,
+                        C_hat_w: not_in_group_g2,
+                    });
+
+                    assert!(!proof.is_usable());
                 }
             }
         }

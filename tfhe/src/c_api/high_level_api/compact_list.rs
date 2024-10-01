@@ -13,8 +13,9 @@ use crate::c_api::high_level_api::utils::{
     impl_destroy_on_type, impl_serialize_deserialize_on_type, CApiIntegerType,
 };
 #[cfg(feature = "zk-pok")]
-use crate::c_api::high_level_api::zk::{CompactPkePublicParams, ZkComputeLoad};
+use crate::c_api::high_level_api::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::c_api::utils::{catch_panic, get_mut_checked, get_ref_checked};
+use crate::prelude::CiphertextList;
 use std::ffi::c_int;
 
 pub struct CompactCiphertextListBuilder(crate::high_level_api::CompactCiphertextListBuilder);
@@ -77,7 +78,7 @@ pub unsafe extern "C" fn compact_ciphertext_list_builder_build_packed(
 #[no_mangle]
 pub unsafe extern "C" fn compact_ciphertext_list_builder_build_with_proof_packed(
     builder: *const CompactCiphertextListBuilder,
-    public_params: *const CompactPkePublicParams,
+    crs: *const CompactPkeCrs,
     metadata: *const u8,
     metadata_len: usize,
     compute_load: ZkComputeLoad,
@@ -85,7 +86,7 @@ pub unsafe extern "C" fn compact_ciphertext_list_builder_build_with_proof_packed
 ) -> c_int {
     catch_panic(|| {
         let builder = get_ref_checked(builder).unwrap();
-        let public_params = get_ref_checked(public_params).unwrap();
+        let crs = get_ref_checked(crs).unwrap();
 
         let metadata = if metadata.is_null() {
             &[]
@@ -96,7 +97,7 @@ pub unsafe extern "C" fn compact_ciphertext_list_builder_build_with_proof_packed
 
         let inner = builder
             .0
-            .build_with_proof_packed(&public_params.0, metadata, compute_load.into())
+            .build_with_proof_packed(&crs.0, metadata, compute_load.into())
             .unwrap();
 
         *list = Box::into_raw(Box::new(ProvenCompactCiphertextList(inner)));
@@ -181,7 +182,7 @@ pub unsafe extern "C" fn compact_ciphertext_list_expand(
 #[no_mangle]
 pub unsafe extern "C" fn proven_compact_ciphertext_list_verify_and_expand(
     compact_list: *const ProvenCompactCiphertextList,
-    public_params: *const CompactPkePublicParams,
+    crs: *const CompactPkeCrs,
     public_key: *const CompactPublicKey,
     metadata: *const u8,
     metadata_len: usize,
@@ -189,7 +190,7 @@ pub unsafe extern "C" fn proven_compact_ciphertext_list_verify_and_expand(
 ) -> c_int {
     catch_panic(|| {
         let list = get_ref_checked(compact_list).unwrap();
-        let public_params = get_ref_checked(public_params).unwrap();
+        let crs = get_ref_checked(crs).unwrap();
         let public_key = get_ref_checked(public_key).unwrap();
 
         let metadata = if metadata.is_null() {
@@ -201,8 +202,23 @@ pub unsafe extern "C" fn proven_compact_ciphertext_list_verify_and_expand(
 
         let inner = list
             .0
-            .verify_and_expand(&public_params.0, &public_key.0, metadata)
+            .verify_and_expand(&crs.0, &public_key.0, metadata)
             .unwrap();
+
+        *expander = Box::into_raw(Box::new(CompactCiphertextListExpander(inner)));
+    })
+}
+
+#[cfg(feature = "zk-pok")]
+#[no_mangle]
+pub unsafe extern "C" fn proven_compact_ciphertext_list_expand_without_verification(
+    compact_list: *const ProvenCompactCiphertextList,
+    expander: *mut *mut CompactCiphertextListExpander,
+) -> c_int {
+    catch_panic(|| {
+        let list = get_ref_checked(compact_list).unwrap();
+
+        let inner = list.0.expand_without_verification().unwrap();
 
         *expander = Box::into_raw(Box::new(CompactCiphertextListExpander(inner)));
     })

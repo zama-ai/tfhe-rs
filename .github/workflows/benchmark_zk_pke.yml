@@ -3,6 +3,16 @@ name: PKE ZK benchmarks
 
 on:
   workflow_dispatch:
+    inputs:
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
+          - both
+
   push:
     branches:
       - main
@@ -30,19 +40,21 @@ jobs:
       zk_pok_changed: ${{ steps.changed-files.outputs.zk_pok_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Check for file changes
         id: changed-files
-        uses: tj-actions/changed-files@e9772d140489982e0e3704fea5ee93d536f1e275
+        uses: tj-actions/changed-files@d6e91a2266cdb9d62096cebf1e8546899c6aa18f
         with:
           since_last_remote_commit: true
           files_yaml: |
             zk_pok:
               - tfhe/Cargo.toml
-              - concrete-csprng/**
+              - tfhe-csprng/**
+              - tfhe-fft/**
               - tfhe-zk-pok/**
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**
@@ -51,10 +63,37 @@ jobs:
               - tfhe/benches/integer/zk_pke.rs
               - .github/workflows/zk_pke_benchmark.yml
 
+  prepare-matrix:
+    name: Prepare operations matrix
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
+    outputs:
+      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+    steps:
+      - name: Set benchmark types
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ "${{ inputs.bench_type }}" == "both" ]]; then
+            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+          else
+            echo "BENCH_TYPE=[\"${{ inputs.bench_type }}\"]" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Default benchmark type
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
+
+      - name: Set benchmark types output
+        id: set_bench_type
+        run: |
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
   setup-instance:
     name: Setup instance (pke-zk-benchmarks)
     runs-on: ubuntu-latest
-    needs: should-run
+    needs: [ should-run, prepare-matrix ]
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
       (github.event_name == 'push' &&
@@ -65,7 +104,7 @@ jobs:
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -77,16 +116,21 @@ jobs:
   pke-zk-benchmarks:
     name: Execute PKE ZK benchmarks
     if: needs.setup-instance.result != 'skipped'
-    needs: setup-instance
+    needs: [ prepare-matrix, setup-instance ]
     concurrency:
       group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Get benchmark details
         run: |
@@ -96,18 +140,13 @@ jobs:
             echo "COMMIT_HASH=$(git describe --tags --dirty)";
           } >> "${GITHUB_ENV}"
 
-      - name: Set up home
-        # "Install rust" step require root user to have a HOME directory which is not set.
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-
       - name: Install rust
-        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: nightly
 
       - name: Checkout Slab repo
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: zama-ai/slab
           path: slab
@@ -115,7 +154,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make bench_integer_zk
+          make BENCH_TYPE=${{ matrix.bench_type }} bench_integer_zk
 
       - name: Parse results
         run: |
@@ -129,22 +168,22 @@ jobs:
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --throughput
+          --bench-type ${{ matrix.bench_type }}
 
       - name: Parse CRS sizes results
         run: |
           python3 ./ci/benchmark_parser.py tfhe/pke_zk_crs_sizes.csv ${{ env.RESULTS_FILENAME }} \
-          --key-sizes \
+          --object-sizes \
           --append-results
 
       - name: Upload parsed results artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b
         with:
           name: ${{ github.sha }}_integer_zk
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: zama-ai/slab
           path: slab
@@ -157,9 +196,9 @@ jobs:
           --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification
-        if: ${{ !success() && !cancelled() }}
+        if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "PKE ZK benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
@@ -172,7 +211,7 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -183,7 +222,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Instance teardown (pke-zk-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

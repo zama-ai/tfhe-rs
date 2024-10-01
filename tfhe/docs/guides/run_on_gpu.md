@@ -10,22 +10,16 @@ This guide explains how to update your existing program to leverage GPU accelera
 * Compute Capability >= 3.0
 * [gcc](https://gcc.gnu.org/) >= 8.0 - check this [page](https://gist.github.com/ax3l/9489132) for more details about nvcc/gcc compatible versions
 * [cmake](https://cmake.org/) >= 3.24
+* libclang, to match Rust bingen [requirements](https://rust-lang.github.io/rust-bindgen/requirements.html) >= 9.0
 * Rust version - check this [page](rust\_configuration.md)
 
 ## Importing to your project
 
 To use the **TFHE-rs** GPU backend in your project, add the following dependency in your `Cargo.toml`.
 
-If you are using an `x86` machine:
 
 ```toml
-tfhe = { version = "0.8.0", features = [ "boolean", "shortint", "integer", "x86_64-unix", "gpu" ] }
-```
-
-If you are using an `ARM` machine:
-
-```toml
-tfhe = { version = "0.8.0", features = [ "boolean", "shortint", "integer", "aarch64-unix", "gpu" ] }
+tfhe = { version = "0.11.0", features = ["boolean", "shortint", "integer", "gpu"] }
 ```
 
 {% hint style="success" %}
@@ -36,11 +30,11 @@ For optimal performance when using **TFHE-rs**, run your code in release mode wi
 
 **TFHE-rs** GPU backend is supported on Linux (x86, aarch64).
 
-| OS      | x86           | aarch64          |
-| ------- | ------------- | ---------------- |
-| Linux   | `x86_64-unix` | `aarch64-unix`\* |
-| macOS   | Unsupported   | Unsupported\*    |
-| Windows | Unsupported   | Unsupported      |
+| OS      | x86         | aarch64       |
+|---------|-------------|---------------|
+| Linux   | Supported   | Supported\*   |
+| macOS   | Unsupported | Unsupported\* |
+| Windows | Unsupported | Unsupported   |
 
 ## A first example
 
@@ -178,70 +172,155 @@ Depending on the platform, this can restrict the number of GPUs used to perform 
 There is **nothing to change in the code to execute on multiple GPUs**, when 
 they are available and have peer access to GPU 0 via NVLink. To keep the API as user-friendly as possible, the configuration is automatically set, i.e., the user has no fine-grained control over the number of GPUs to be used.
 
-## Benchmarks
+## Benchmark 
+Please refer to the [GPU benchmarks](../getting_started/benchmarks/gpu_benchmarks.md) for detailed performance benchmark results.
 
-All GPU benchmarks presented here were obtained on H100 GPUs, and rely on the multithreaded PBS algorithm. The cryptographic parameters `PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS` were used.
+## Warning
+When measuring GPU times on your own on Linux, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution.
 
-### 1xH100
-Below come the results for the execution on a single H100.
-The following table shows the performance when the inputs of the benchmarked operation are encrypted:
+## Compressing ciphertexts after some homomorphic computation on the GPU
 
-| Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
-|--------------------------------------------------------|------------|-------------|-------------|-------------|--------------|--------------|
-| Negation (`-`)                                         | 18.6 ms    | 24.9 ms     | 34.9 ms     | 52.4 ms     | 101 ms       | 197 ms       |
-| Add / Sub (`+`,`-`)                                    | 18.7 ms    | 25.0 ms     | 35.0 ms     | 52.4 ms     | 101 ms       | 197 ms       |
-| Mul (`x`)                                              | 35.0 ms    | 59.7 ms     | 124 ms      | 378 ms      | 1.31 s       | 5.01 s       |
-| Equal / Not Equal (`eq`, `ne`)                         | 10.5 ms    | 11.1 ms     | 17.2 ms     | 19.5 ms     | 27.9 ms      | 45.2 ms      |
-| Comparisons  (`ge`, `gt`, `le`, `lt`)                  | 19.8 ms    | 25.0 ms     | 31.3 ms     | 40.2 ms     | 53.2 ms      | 85.2 ms      |
-| Max / Min   (`max`,`min`)                              | 30.2 ms    | 37.1 ms     | 46.6 ms     | 61.4 ms     | 91.8 ms      | 154 ms       |
-| Bitwise operations (`&`, `\|`, `^`)                    | 4.83 ms    | 5.3 ms      | 6.36 ms     | 8.26 ms     | 15.3 ms      | 25.4 ms      |
-| Div / Rem  (`/`, `%`)                                  | 221 ms     | 528 ms      | 1.31 s      | 3.6 s       | 11.0 s       | 40.0 s       |
-| Left / Right Shifts (`<<`, `>>`)                       | 30.4 ms    | 41.4 ms     | 60.0 ms     | 119 ms      | 221 ms       | 435 ms       |
-| Left / Right Rotations (`left_rotate`, `right_rotate`) | 30.4 ms    | 41.4 ms     | 60.1 ms     | 119 ms      | 221 ms       | 435 ms       |
+You can compress ciphertexts using the GPU, even after computations, just like on the [CPU](../fundamentals/compress.md#compression-ciphertexts-after-some-homomorphic-computation).
 
-The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
+The way to do it is very similar to how it's done on the CPU.
+The following example shows how to compress and decompress a list containing 4 messages:
+- One 32-bits integer
+- One 64-bit integer
+- One Boolean
+- One 2-bit integer
 
-| Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
-|--------------------------------------------------------|------------|-------------|-------------|-------------|--------------|--------------|
-| Add / Sub (`+`,`-`)                                    | 19.0 ms    | 25.0 ms     | 35.0 ms     | 52.4 ms     | 101 ms       | 197 ms       |
-| Mul (`x`)                                              | 28.1 ms    | 43.9 ms     | 75.4 ms     | 177 ms      | 544 ms       | 1.92 s       |
-| Equal / Not Equal (`eq`, `ne`)                         | 11.5 ms    | 11.9 ms     | 12.5 ms     | 18.9 ms     | 21.7 ms      | 30.6 ms      |
-| Comparisons  (`ge`, `gt`, `le`, `lt`)                  | 12.5 ms    | 17.4 ms     | 22.7 ms     | 29.9 ms     | 39.1 ms      | 57.2 ms      |
-| Max / Min   (`max`,`min`)                              | 22.5 ms    | 28.9 ms     | 37.4 ms     | 50.6 ms     | 77.4 ms      | 126 ms       |
-| Bitwise operations (`&`, `\|`, `^`)                    | 4.92 ms    | 5.51 ms     | 6.47 ms     | 8.37 ms     | 15.5 ms      | 25.6 ms      |
-| Div (`/`)                                              | 46.8 ms    | 70.0 ms     | 138 ms      | 354 ms      | 1.10 s       | 3.83 s       |
-| Rem (`%`)                                              | 90.0 ms    | 140 ms      | 250 ms      | 592 ms      | 1.75 s       | 6.06 s       |
-| Left / Right Shifts (`<<`, `>>`)                       | 4.82 ms    | 5.36 ms     | 6.38 ms     | 8.26 ms     | 15.3 ms      | 25.4 ms      |
-| Left / Right Rotations (`left_rotate`, `right_rotate`) | 4.81 ms    | 5.36 ms     | 6.30 ms     | 8.19 ms     | 15.3 ms      | 25.3 ms      |
+```rust
+use tfhe::prelude::*;
+use tfhe::shortint::parameters::{
+    COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_2_CARRY_2,
+};
+use tfhe::{
+    set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
+    FheInt64, FheUint16, FheUint2, FheUint32,
+};
 
-### 2xH100
+fn main() {
+    let config =
+        tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2)
+            .build();
 
-Below come the results for the execution on two H100's.
-The following table shows the performance when the inputs of the benchmarked operation are encrypted:
+    let ck = tfhe::ClientKey::generate(config);
+    let compressed_server_key = tfhe::CompressedServerKey::new(&ck);
+    let gpu_key = compressed_server_key.decompress_to_gpu();
 
-| Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
-| ------------------------------------------------------ | ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
-| Negation (`-`)                                         | 16.1 ms    | 20.3 ms     | 27.7 ms     | 38.2 ms     | 54.7 ms      | 83.0 ms      |
-| Add / Sub (`+`,`-`)                                    | 16.1 ms    | 20.4 ms     | 27.8 ms     | 38.3 ms     | 54.9 ms      | 83.2 ms      |
-| Mul (`x`)                                              | 31.0 ms    | 49.6 ms     | 92.4 ms     | 267 ms      | 892 ms       | 3.45 s       |
-| Equal / Not Equal (`eq`, `ne`)                         | 11.2 ms    | 12.9 ms     | 20.4 ms     | 27.3 ms     | 38.8 ms      | 67.0 ms      |
-| Max / Min   (`max`,`min`)                              | 53.4 ms    | 59.3 ms     | 70.4 ms     | 89.6 ms     | 120 ms       | 177 ms       |
-| Bitwise operations (`&`, `\|`, `^`)                    | 4.16 ms    | 4.62 ms     | 5.61 ms     | 7.52 ms     | 10.2 ms      | 15.7 ms      |
-| Div / Rem  (`/`, `%`)                                  | 299 ms     | 595 ms      | 1.36 s      | 3.12 s      | 7.8 s        | 21.1 s       |
-| Left / Right Shifts (`<<`, `>>`)                       | 26.9 ms    | 34.5 ms     | 48.7 ms     | 70.2 ms     | 108 ms       | 220 ms       |
-| Left / Right Rotations (`left_rotate`, `right_rotate`) | 26.8 ms    | 34.5 ms     | 48.7 ms     | 70.1 ms     | 108 ms       | 220 ms       |
+    set_server_key(gpu_key);
 
+    let ct1 = FheUint32::encrypt(17_u32, &ck);
 
-The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
+    let ct2 = FheInt64::encrypt(-1i64, &ck);
 
-| Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
-| ------------------------------------------------------ |------------|-------------|-------------|-------------|--------------|--------------|
-| Add / Sub (`+`,`-`)                                    | 16.4 ms    | 20.5 ms     | 28.0 ms     | 38.4 ms     | 54.9 ms      | 83.1 ms      |
-| Mul (`x`)                                              | 25.3 ms    | 36.8 ms     | 62.0 ms     | 130 ms      | 377 ms       | 1.35 s       |
-| Equal / Not Equal (`eq`, `ne`)                         | 36.4 ms    | 36.5 ms     | 39.3 ms     | 47.1 ms     | 58.0 ms      | 78.0 ms      |
-| Max / Min   (`max`,`min`)                              | 53.6 ms    | 60.8 ms     | 71.9 ms     | 89.4 ms     | 119 ms       | 173 ms       |
-| Bitwise operations (`&`, `\|`, `^`)                    | 4.33 ms    | 4.76 ms     | 6.4 ms      | 7.65 ms     | 10.4 ms      | 15.7 ms      |
-| Div (`/`)                                              | 40.9 ms    | 59.7 ms     | 109.0 ms    | 248.5 ms    | 806.1 ms     | 2.9 s        |
-| Rem (`%`)                                              | 80.6 ms    | 116.1 ms    | 199.9 ms    | 412.9 ms    | 1.2 s        | 4.3 s        |
-| Left / Right Shifts (`<<`, `>>`)                       | 4.15 ms    | 4.57 ms     | 6.19 ms     | 7.48 ms     | 10.3 ms      | 15.7 ms      |
-| Left / Right Rotations (`left_rotate`, `right_rotate`) | 4.15 ms    | 4.57 ms     | 6.18 ms     | 7.46 ms     | 10.2 ms      | 15.6 ms      |
+    let ct3 = FheBool::encrypt(false, &ck);
+
+    let ct4 = FheUint2::encrypt(3u8, &ck);
+
+    let compressed_list = CompressedCiphertextListBuilder::new()
+        .push(ct1)
+        .push(ct2)
+        .push(ct3)
+        .push(ct4)
+        .build()
+        .unwrap();
+
+    let serialized = bincode::serialize(&compressed_list).unwrap();
+
+    println!("Serialized size: {} bytes", serialized.len());
+
+    let compressed_list: CompressedCiphertextList = bincode::deserialize(&serialized).unwrap();
+
+    let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
+    let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
+    let c: FheBool = compressed_list.get(2).unwrap().unwrap();
+    let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
+
+    let a: u32 = a.decrypt(&ck);
+    assert_eq!(a, 17);
+    let b: i64 = b.decrypt(&ck);
+    assert_eq!(b, -1);
+    let c = c.decrypt(&ck);
+    assert!(!c);
+    let d: u8 = d.decrypt(&ck);
+    assert_eq!(d, 3);
+
+}
+```
+
+## Array types
+
+It is possible to use array types on GPU, just as [on CPU](array.md). Here is an example showing how to do it:
+```rust
+use tfhe::{ConfigBuilder, set_server_key, ClearArray, ClientKey, CompressedServerKey};
+use tfhe::array::GpuFheUint32Array;
+use tfhe::prelude::*;
+
+fn main() {
+    let config = ConfigBuilder::default().build();
+
+    let cks = ClientKey::generate(config);
+    let compressed_server_key = CompressedServerKey::new(&cks);
+
+    let gpu_key = compressed_server_key.decompress_to_gpu();
+    set_server_key(gpu_key);
+
+    let num_elems = 4 * 4;
+    let clear_xs = (0..num_elems as u32).collect::<Vec<_>>();
+    let clear_ys = vec![1u32; num_elems];
+
+    // Encrypted 2D array with values
+    // [[  0,  1,  2,  3]
+    //  [  4,  5,  6,  7]
+    //  [  8,  9, 10, 11]
+    //  [ 12, 13, 14, 15]]
+    let xs = GpuFheUint32Array::try_encrypt((clear_xs.as_slice(), vec![4, 4]), &cks).unwrap();
+    // Encrypted 2D array with values
+    // [[  1,  1,  1,  1]
+    //  [  1,  1,  1,  1]
+    //  [  1,  1,  1,  1]
+    //  [  1,  1,  1,  1]]
+    let ys = GpuFheUint32Array::try_encrypt((clear_ys.as_slice(), vec![4, 4]), &cks).unwrap();
+
+    assert_eq!(xs.num_dim(), 2);
+    assert_eq!(xs.shape(), &[4, 4]);
+    assert_eq!(ys.num_dim(), 2);
+    assert_eq!(ys.shape(), &[4, 4]);
+
+    // Take a sub slice
+    //  [[ 10, 11]
+    //   [ 14, 15]]
+    let xss = xs.slice(&[2..4, 2..4]);
+    // Take a sub slice
+    //  [[  1,  1]
+    //   [  1,  1]]
+    let yss = ys.slice(&[2..4, 2..4]);
+
+    assert_eq!(xss.num_dim(), 2);
+    assert_eq!(xss.shape(), &[2, 2]);
+    assert_eq!(yss.num_dim(), 2);
+    assert_eq!(yss.shape(), &[2, 2]);
+
+    let r = &xss + &yss;
+
+    // Result is
+    //  [[ 11, 12]
+    //   [ 15, 16]]
+    let result: Vec<u32> = r.decrypt(&cks);
+    assert_eq!(result, vec![11, 12, 15, 16]);
+
+    // Clear 2D array with values
+    //  [[  10,  20]
+    //   [  30,  40]]
+    let clear_array = ClearArray::new(vec![10u32, 20u32, 30u32, 40u32], vec![2, 2]);
+    let r = &xss + &clear_array;
+
+    // Result is
+    //  [[ 20, 31]
+    //   [ 44, 55]]
+    let r: Vec<u32> = r.decrypt(&cks);
+    assert_eq!(r, vec![20, 31, 44, 55]);
+}
+```

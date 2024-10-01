@@ -1,8 +1,11 @@
 mod modulus_switch_compression;
+pub(crate) mod test_abs;
 pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
+mod test_count_zeros_ones;
+pub(crate) mod test_div_rem;
 pub(crate) mod test_ilog2;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
@@ -10,6 +13,7 @@ pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_comparison;
+pub(crate) mod test_scalar_div_mod;
 pub(crate) mod test_scalar_mul;
 pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;
@@ -20,117 +24,24 @@ pub(crate) mod test_vector_comparisons;
 
 use crate::core_crypto::prelude::SignedInteger;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor, MAX_NB_CTXT, NB_CTXT,
+    nb_tests_for_params, MAX_NB_CTXT, NB_CTXT,
 };
-use crate::integer::tests::create_parametrized_test;
-use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
-};
+use crate::integer::tests::create_parameterized_test;
+use crate::integer::IntegerKeyKind;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use itertools::{iproduct, izip};
 use rand::prelude::ThreadRng;
 use rand::Rng;
-use std::sync::Arc;
-
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, (SignedRadixCiphertext, BooleanBlock)>
-    for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &SignedRadixCiphertext) -> (SignedRadixCiphertext, BooleanBlock),
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(
-        &mut self,
-        input: &'a SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, BooleanBlock) {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>
-    for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &SignedRadixCiphertext) -> SignedRadixCiphertext,
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> SignedRadixCiphertext {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, (RadixCiphertext, BooleanBlock)>
-    for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &SignedRadixCiphertext) -> (RadixCiphertext, BooleanBlock),
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> (RadixCiphertext, BooleanBlock) {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext> for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &SignedRadixCiphertext) -> RadixCiphertext,
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> RadixCiphertext {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-impl<'a, F> FunctionExecutor<&'a mut SignedRadixCiphertext, ()> for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &'a mut SignedRadixCiphertext),
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a mut SignedRadixCiphertext) {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input);
-    }
-}
-
-impl<'a, F> FunctionExecutor<&'a mut SignedRadixCiphertext, SignedRadixCiphertext>
-    for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &mut SignedRadixCiphertext) -> SignedRadixCiphertext,
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a mut SignedRadixCiphertext) -> SignedRadixCiphertext {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
 
 //================================================================================
 //     Encrypt/Decrypt Tests
 //================================================================================
 
-create_parametrized_test!(integer_signed_encrypt_decrypt);
-create_parametrized_test!(integer_signed_encrypt_decrypt_128_bits);
+create_parameterized_test!(integer_signed_encrypt_decrypt);
+create_parameterized_test!(integer_signed_encrypt_decrypt_128_bits);
 
 fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
     let param = param.into();
@@ -186,455 +97,9 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
 }
 
 //================================================================================
-//     Unchecked Tests
-//================================================================================
-
-create_parametrized_test!(
-    integer_signed_unchecked_div_rem {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // Does not support 1_1
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
-    }
-);
-create_parametrized_test!(
-    integer_signed_unchecked_div_rem_floor {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // Does not support 1_1
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
-    }
-);
-create_parametrized_test!(integer_signed_unchecked_absolute_value);
-
-fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
-    let param = param.into();
-    let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    // For signed integers, the range of value is [-modulus..modulus[
-    // e.g.: for i8, the range is [-128..128[ <=> [-128..127]
-    // which means -modulus cannot be represented.
-    //
-    // In Rust, .abs() / .wrapping_abs() returns MIN (-modulus)
-    // https://doc.rust-lang.org/std/primitive.i8.html#method.wrapping_abs
-    //
-    // Here we test we have same behaviour
-    //
-    // (Conveniently, when using Two's complement, casting the result of abs to
-    // an unsigned to will give correct value for -modulus
-    // e.g.:(-128i8).wrapping_abs() as u8 == 128
-    {
-        let clear_0 = -modulus;
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ct_res = sks.unchecked_abs_parallelized(&ctxt_0);
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        assert_eq!(dec_res, -modulus);
-    }
-
-    for _ in 0..nb_tests {
-        let clear_0 = rng.gen::<i64>() % modulus;
-
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-
-        let ct_res = sks.unchecked_abs_parallelized(&ctxt_0);
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = absolute_value_under_modulus(clear_0, modulus);
-        assert_eq!(clear_res, dec_res);
-    }
-}
-
-fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    // Test case of division by 0
-    // This is mainly to show we know the behaviour of division by 0
-    // using the current algorithm
-    for clear_0 in [0i64, rng.gen::<i64>() % modulus] {
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ctxt_1 = cks.encrypt_signed_radix(0, NB_CTXT);
-
-        let (q_res, r_res) = sks.unchecked_div_rem_parallelized(&ctxt_0, &ctxt_1);
-        let q: i64 = cks.decrypt_signed_radix(&q_res);
-        let r: i64 = cks.decrypt_signed_radix(&r_res);
-
-        assert_eq!(r, clear_0);
-        assert_eq!(q, if clear_0 >= 0 { -1 } else { 1 });
-    }
-
-    // Div is the slowest operation
-    for _ in 0..nb_tests_smaller {
-        let clear_0 = rng.gen::<i64>() % modulus;
-        let clear_1 = loop {
-            let value = rng.gen::<i64>() % modulus;
-            if value != 0 {
-                break value;
-            }
-        };
-
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
-
-        let (q_res, r_res) = sks.unchecked_div_rem_parallelized(&ctxt_0, &ctxt_1);
-        let q: i64 = cks.decrypt_signed_radix(&q_res);
-        let r: i64 = cks.decrypt_signed_radix(&r_res);
-        let expected_q = signed_div_under_modulus(clear_0, clear_1, modulus);
-        assert_eq!(
-            q, expected_q,
-            "Invalid division result, for {clear_0} / {clear_1} \
-            expected quotient: {expected_q} got: {q}"
-        );
-        let expected_r = signed_rem_under_modulus(clear_0, clear_1, modulus);
-        assert_eq!(
-            r, expected_r,
-            "Invalid remainder result, for {clear_0} % {clear_1} \
-            expected quotient: {expected_r} got: {r}"
-        );
-    }
-}
-
-fn integer_signed_unchecked_div_rem_floor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    if modulus > 8 {
-        // Some hard coded test for flooring div
-        // For example, truncating_div(-7, 3) would give q = -2 and r = -1
-        // truncating div is the default in rust (and many other languages)
-        // Python does use a flooring div, so you can try these values in you local
-        // interpreter.
-        let values = [
-            (-8, 3, -3, 1),
-            (8, -3, -3, -1),
-            (7, 3, 2, 1),
-            (-7, 3, -3, 2),
-            (7, -3, -3, -2),
-            (-7, -3, 2, -1),
-        ];
-        for (clear_0, clear_1, expected_q, expected_r) in values {
-            let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-            let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
-
-            let (q_res, r_res) = sks.unchecked_div_rem_floor_parallelized(&ctxt_0, &ctxt_1);
-            let q: i64 = cks.decrypt_signed_radix(&q_res);
-            let r: i64 = cks.decrypt_signed_radix(&r_res);
-
-            // Uses the hardcoded values to also test our clear function
-            let (q2, r2) = signed_div_rem_floor_under_modulus(clear_0, clear_1, modulus);
-
-            assert_eq!(q2, expected_q);
-            assert_eq!(r2, expected_r);
-            assert_eq!(q, expected_q);
-            assert_eq!(r, expected_r);
-        }
-    }
-
-    // A test where the division is whole, aka remainder is zero
-    {
-        let ctxt_0 = cks.encrypt_signed_radix(4, NB_CTXT);
-        let ctxt_1 = cks.encrypt_signed_radix(-2, NB_CTXT);
-
-        let (q_res, r_res) = sks.unchecked_div_rem_floor_parallelized(&ctxt_0, &ctxt_1);
-        let q: i64 = cks.decrypt_signed_radix(&q_res);
-        let r: i64 = cks.decrypt_signed_radix(&r_res);
-
-        // Uses the hardcoded values to also test our clear function
-        let (q2, r2) = signed_div_rem_floor_under_modulus(4, -2, modulus);
-
-        assert_eq!(q2, -2);
-        assert_eq!(r2, 0);
-        assert_eq!(q, -2);
-        assert_eq!(r, 0);
-    }
-
-    // Div is the slowest operation
-    for _ in 0..5 {
-        let clear_0 = rng.gen::<i64>() % modulus;
-        let clear_1 = loop {
-            let value = rng.gen::<i64>() % modulus;
-            if value != 0 {
-                break value;
-            }
-        };
-
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
-
-        let (q_res, r_res) = sks.unchecked_div_rem_floor_parallelized(&ctxt_0, &ctxt_1);
-        let q: i64 = cks.decrypt_signed_radix(&q_res);
-        let r: i64 = cks.decrypt_signed_radix(&r_res);
-        let (expected_q, expected_r) =
-            signed_div_rem_floor_under_modulus(clear_0, clear_1, modulus);
-
-        println!("{clear_0} / {clear_1} -> ({q}, {r})");
-        assert_eq!(q, expected_q);
-        assert_eq!(r, expected_r);
-    }
-}
-
-//================================================================================
-//     Smart Tests
-//================================================================================
-
-create_parametrized_test!(integer_signed_smart_absolute_value);
-
-fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
-    let param = param.into();
-    let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    {
-        let clear_0 = -modulus;
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ct_res = sks.abs_parallelized(&ctxt_0);
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        assert_eq!(dec_res, -modulus);
-    }
-
-    for _ in 0..nb_tests {
-        let mut clear_0 = rng.gen::<i64>() % modulus;
-        let clear_to_add = rng.gen::<i64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_to_add);
-        clear_0 = signed_add_under_modulus(clear_0, clear_to_add, modulus);
-
-        let ct_res = sks.abs_parallelized(&ctxt_0);
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = absolute_value_under_modulus(clear_0, modulus);
-        assert_eq!(clear_res, dec_res);
-    }
-}
-
-//================================================================================
-//     Default Tests
-//================================================================================
-
-create_parametrized_test!(integer_signed_default_absolute_value);
-
-fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    sks.set_deterministic_pbs_execution(true);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    {
-        let clear_0 = -modulus;
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ct_res = sks.abs_parallelized(&ctxt_0);
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        assert_eq!(dec_res, -modulus);
-    }
-
-    for _ in 0..nb_tests_smaller {
-        let mut clear_0 = rng.gen::<i64>() % modulus;
-        let clear_to_add = rng.gen::<i64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_to_add);
-        clear_0 = signed_add_under_modulus(clear_0, clear_to_add, modulus);
-
-        let ct_res = sks.abs_parallelized(&ctxt_0);
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = absolute_value_under_modulus(clear_0, modulus);
-        assert_eq!(clear_res, dec_res);
-
-        let ct_res2 = sks.abs_parallelized(&ctxt_0);
-        assert_eq!(ct_res2, ct_res);
-    }
-}
-
-//================================================================================
 //     Unchecked Scalar Tests
 //================================================================================
-create_parametrized_test!(integer_signed_unchecked_scalar_div_rem);
-create_parametrized_test!(integer_signed_unchecked_scalar_div_rem_floor);
-
-fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    {
-        let clear_0 = rng.gen::<i64>() % modulus;
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-
-        let result = std::panic::catch_unwind(|| {
-            let _ = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, 0);
-        });
-        assert!(result.is_err(), "Division by zero did not panic");
-    }
-
-    // check when scalar is out of ciphertext MIN..=MAX
-    for d in [
-        rng.gen_range(i64::MIN..-modulus),
-        rng.gen_range(modulus..=i64::MAX),
-    ] {
-        for numerator in [rng.gen_range(-modulus..=0), rng.gen_range(0..modulus)] {
-            let ctxt_0 = cks.encrypt_signed_radix(numerator, NB_CTXT);
-
-            let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
-            let q: i64 = cks.decrypt_signed_radix(&q_res);
-            let r: i64 = cks.decrypt_signed_radix(&r_res);
-            assert_eq!(q, signed_div_under_modulus(numerator, d, modulus));
-            assert_eq!(r, signed_rem_under_modulus(numerator, d, modulus));
-        }
-    }
-
-    // The algorithm has a special case for when divisor is 1 or -1
-    for d in [1i64, -1i64] {
-        let clear_0 = rng.gen::<i64>() % modulus;
-
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-
-        let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
-        let q: i64 = cks.decrypt_signed_radix(&q_res);
-        let r: i64 = cks.decrypt_signed_radix(&r_res);
-        assert_eq!(q, signed_div_under_modulus(clear_0, d, modulus));
-        assert_eq!(r, signed_rem_under_modulus(clear_0, d, modulus));
-    }
-
-    // 3 / -3 takes the second branch in the if else if series
-    for d in [3, -3] {
-        {
-            let neg_clear_0 = rng.gen_range(-modulus..=0);
-            let ctxt_0 = cks.encrypt_signed_radix(neg_clear_0, NB_CTXT);
-            println!("{neg_clear_0} / {d}");
-            let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
-            let q: i64 = cks.decrypt_signed_radix(&q_res);
-            let r: i64 = cks.decrypt_signed_radix(&r_res);
-            assert_eq!(q, signed_div_under_modulus(neg_clear_0, d, modulus));
-            assert_eq!(r, signed_rem_under_modulus(neg_clear_0, d, modulus));
-        }
-
-        {
-            let pos_clear_0 = rng.gen_range(0..modulus);
-            let ctxt_0 = cks.encrypt_signed_radix(pos_clear_0, NB_CTXT);
-            println!("{pos_clear_0} / {d}");
-            let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
-            let q: i64 = cks.decrypt_signed_radix(&q_res);
-            let r: i64 = cks.decrypt_signed_radix(&r_res);
-            assert_eq!(q, signed_div_under_modulus(pos_clear_0, d, modulus));
-            assert_eq!(r, signed_rem_under_modulus(pos_clear_0, d, modulus));
-        }
-    }
-
-    // Param 1_1 cannot do this, with our NB_CTXT
-    if modulus >= 43 {
-        // For param_2_2 this will take the third branch in the if else if series
-        for d in [-89, 89] {
-            {
-                let neg_clear_0 = rng.gen_range(-modulus..=0);
-                let ctxt_0 = cks.encrypt_signed_radix(neg_clear_0, NB_CTXT);
-                let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
-                let q: i64 = cks.decrypt_signed_radix(&q_res);
-                let r: i64 = cks.decrypt_signed_radix(&r_res);
-                assert_eq!(q, signed_div_under_modulus(neg_clear_0, d, modulus));
-                assert_eq!(r, signed_rem_under_modulus(neg_clear_0, d, modulus));
-            }
-
-            {
-                let pos_clear_0 = rng.gen_range(0..modulus);
-                let ctxt_0 = cks.encrypt_signed_radix(pos_clear_0, NB_CTXT);
-                println!("{pos_clear_0} / {d}");
-                let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
-                let q: i64 = cks.decrypt_signed_radix(&q_res);
-                let r: i64 = cks.decrypt_signed_radix(&r_res);
-                assert_eq!(q, signed_div_under_modulus(pos_clear_0, d, modulus));
-                assert_eq!(r, signed_rem_under_modulus(pos_clear_0, d, modulus));
-            }
-        }
-
-        // For param_2_2 this will take the first branch
-        for (clear_0, clear_1) in [(43, 8), (43, -8), (-43, 8), (-43, -8)] {
-            let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-
-            let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, clear_1);
-            let q: i64 = cks.decrypt_signed_radix(&q_res);
-            let r: i64 = cks.decrypt_signed_radix(&r_res);
-            assert_eq!(q, signed_div_under_modulus(clear_0, clear_1, modulus));
-            assert_eq!(r, signed_rem_under_modulus(clear_0, clear_1, modulus));
-        }
-    }
-
-    for d in [-modulus, modulus - 1] {
-        {
-            let neg_clear_0 = rng.gen_range(-modulus..=0);
-            let ctxt_0 = cks.encrypt_signed_radix(neg_clear_0, NB_CTXT);
-            let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
-            let q: i64 = cks.decrypt_signed_radix(&q_res);
-            let r: i64 = cks.decrypt_signed_radix(&r_res);
-            assert_eq!(q, signed_div_under_modulus(neg_clear_0, d, modulus));
-            assert_eq!(r, signed_rem_under_modulus(neg_clear_0, d, modulus));
-        }
-
-        {
-            let pos_clear_0 = rng.gen_range(0..modulus);
-            let ctxt_0 = cks.encrypt_signed_radix(pos_clear_0, NB_CTXT);
-            let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
-            let q: i64 = cks.decrypt_signed_radix(&q_res);
-            let r: i64 = cks.decrypt_signed_radix(&r_res);
-            assert_eq!(q, signed_div_under_modulus(pos_clear_0, d, modulus));
-            assert_eq!(r, signed_rem_under_modulus(pos_clear_0, d, modulus));
-        }
-    }
-
-    let lhs_values = random_signed_value_under_modulus::<6>(&mut rng, modulus);
-    let rhs_values = random_non_zero_signed_value_under_modulus::<6>(&mut rng, modulus);
-
-    for (clear_lhs, clear_rhs) in iproduct!(lhs_values, rhs_values) {
-        let ctxt_0 = cks.encrypt_signed_radix(clear_lhs, NB_CTXT);
-
-        let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, clear_rhs);
-        let q: i64 = cks.decrypt_signed_radix(&q_res);
-        let r: i64 = cks.decrypt_signed_radix(&r_res);
-        assert_eq!(q, signed_div_under_modulus(clear_lhs, clear_rhs, modulus));
-        assert_eq!(r, signed_rem_under_modulus(clear_lhs, clear_rhs, modulus));
-    }
-}
+create_parameterized_test!(integer_signed_unchecked_scalar_div_rem_floor);
 
 fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -740,14 +205,10 @@ fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>
 }
 
 //================================================================================
-//     Smart Scalar Tests
-//================================================================================
-
-//================================================================================
 //     Default Scalar Tests
 //================================================================================
 
-create_parametrized_test!(integer_signed_default_scalar_div_rem);
+create_parameterized_test!(integer_signed_default_scalar_div_rem);
 
 fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -799,8 +260,8 @@ fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
         );
 
         let (q2_res, r2_res) = sks.signed_scalar_div_rem_parallelized(&ctxt_0, clear_rhs);
-        assert_eq!(q2_res, q_res, "Failed determinism check");
-        assert_eq!(r2_res, r_res, "Failed determinism check");
+        assert_eq!(q2_res, q_res, "Failed determinism check, \n\n\n msg0: {clear_lhs}, msg1: {clear_rhs}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {clear_rhs:?}\n\n\n");
+        assert_eq!(r2_res, r_res, "Failed determinism check, \n\n\n msg0: {clear_lhs}, msg1: {clear_rhs}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {clear_rhs:?}\n\n\n");
     }
 }
 
@@ -863,19 +324,19 @@ pub(crate) fn signed_neg_under_modulus(lhs: i64, modulus: i64) -> i64 {
 // This is to 'simulate' i8, i16, ixy using i64 integers
 //
 // lhs and rhs must be in [-modulus..modulus[
-pub(crate) fn signed_sub_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> i64 {
+pub(crate) fn signed_sub_under_modulus<T: SignedInteger>(lhs: T, rhs: T, modulus: T) -> T {
     signed_overflowing_sub_under_modulus(lhs, rhs, modulus).0
 }
 
-pub(crate) fn signed_overflowing_sub_under_modulus(
-    lhs: i64,
-    rhs: i64,
-    modulus: i64,
-) -> (i64, bool) {
+pub(crate) fn signed_overflowing_sub_under_modulus<T: SignedInteger>(
+    lhs: T,
+    rhs: T,
+    modulus: T,
+) -> (T, bool) {
     // Technically we should be able to call overflowing_add_under_modulus(lhs, -rhs, ...)
     // but due to -rhs being a 'special case' when rhs == -modulus, we have to
     // so the impl here
-    assert!(modulus > 0);
+    assert!(modulus > T::ZERO);
     assert!((-modulus..modulus).contains(&lhs));
 
     // The code below requires rhs and lhs to be in range -modulus..modulus
@@ -885,14 +346,14 @@ pub(crate) fn signed_overflowing_sub_under_modulus(
         (lhs - rhs, false)
     } else {
         // 2*modulus to get all the bits
-        (lhs - (rhs % (2 * modulus)), true)
+        (lhs - (rhs % (T::TWO * modulus)), true)
     };
 
     if res < -modulus {
         // rem_euclid(modulus) would also work
         res = modulus + (res - -modulus);
         overflowed = true;
-    } else if res > modulus - 1 {
+    } else if res > modulus - T::ONE {
         res = -modulus + (res - modulus);
         overflowed = true;
     }

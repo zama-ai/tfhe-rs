@@ -17,17 +17,19 @@ pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
 pub(crate) mod test_sub;
+pub(crate) mod test_vector_comparisons;
+pub(crate) mod test_vector_find;
 
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
+pub use crate::integer::server_key::radix_parallel::MatchValues;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U256};
 use std::sync::Arc;
-
 // Macro to generate tests for all parameter sets
-macro_rules! create_gpu_parametrized_test{
+macro_rules! create_gpu_parameterized_test{
     ($name:ident { $($param:ident),* $(,)? }) => {
         ::paste::paste! {
             $(
@@ -39,19 +41,18 @@ macro_rules! create_gpu_parametrized_test{
         }
     };
     ($name:ident)=> {
-        create_gpu_parametrized_test!($name
+        create_gpu_parameterized_test!($name
         {
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_GPU_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-            PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_GPU_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         });
     };
 }
 
-pub(crate) use create_gpu_parametrized_test;
+pub(crate) use create_gpu_parameterized_test;
 
 pub(crate) struct GpuContext {
     pub(crate) streams: CudaStreams,
@@ -601,5 +602,307 @@ where
         );
 
         d_res.to_radix_ciphertext(&context.streams)
+    }
+}
+
+impl<'a, F>
+    FunctionExecutor<(&'a RadixCiphertext, &'a MatchValues<u64>), (RadixCiphertext, BooleanBlock)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        &MatchValues<u64>,
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a RadixCiphertext, &'a MatchValues<u64>),
+    ) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+
+        let (d_res, d_block) = (self.func)(&context.sks, &d_ctxt, input.1, &context.streams);
+
+        let res = d_res.to_radix_ciphertext(&context.streams);
+        let block = d_block.to_boolean_block(&context.streams);
+        (res, block)
+    }
+}
+
+impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, &'a MatchValues<u64>, u64), RadixCiphertext>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        &MatchValues<u64>,
+        u64,
+        &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a RadixCiphertext, &'a MatchValues<u64>, u64),
+    ) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+
+        let d_res = (self.func)(&context.sks, &d_ctxt, input.1, input.2, &context.streams);
+
+        d_res.to_radix_ciphertext(&context.streams)
+    }
+}
+
+impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), BooleanBlock>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, &[u64], &CudaStreams) -> CudaBooleanBlock,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a RadixCiphertext, &'a [u64])) -> BooleanBlock {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+
+        let d_block = (self.func)(&context.sks, &d_ctxt, input.1, &context.streams);
+        d_block.to_boolean_block(&context.streams)
+    }
+}
+
+impl<'a, F> FunctionExecutor<(&'a [RadixCiphertext], &'a RadixCiphertext), BooleanBlock>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &[CudaUnsignedRadixCiphertext],
+        &CudaUnsignedRadixCiphertext,
+        &CudaStreams,
+    ) -> CudaBooleanBlock,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a [RadixCiphertext], &'a RadixCiphertext)) -> BooleanBlock {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let mut d_ctxs = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(input.0.len());
+        for ctx in input.0 {
+            d_ctxs.push(CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                ctx,
+                &context.streams,
+            ));
+        }
+        let d_ctxt2: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.streams);
+
+        let d_block = (self.func)(&context.sks, &d_ctxs, &d_ctxt2, &context.streams);
+        d_block.to_boolean_block(&context.streams)
+    }
+}
+
+impl<'a, F> FunctionExecutor<(&'a [RadixCiphertext], u64), BooleanBlock> for GpuFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, &[CudaUnsignedRadixCiphertext], u64, &CudaStreams) -> CudaBooleanBlock,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a [RadixCiphertext], u64)) -> BooleanBlock {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let mut d_ctxs = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(input.0.len());
+        for ctx in input.0 {
+            d_ctxs.push(CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                ctx,
+                &context.streams,
+            ));
+        }
+
+        let d_block = (self.func)(&context.sks, &d_ctxs, input.1, &context.streams);
+        d_block.to_boolean_block(&context.streams)
+    }
+}
+
+impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), (RadixCiphertext, BooleanBlock)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        &[u64],
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a RadixCiphertext, &'a [u64]),
+    ) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+
+        let (d_res, d_block) = (self.func)(&context.sks, &d_ctxt, input.1, &context.streams);
+        let res = d_res.to_radix_ciphertext(&context.streams);
+        let block = d_block.to_boolean_block(&context.streams);
+        (res, block)
+    }
+}
+
+impl<'a, F>
+    FunctionExecutor<(&'a [RadixCiphertext], &'a RadixCiphertext), (RadixCiphertext, BooleanBlock)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &[CudaUnsignedRadixCiphertext],
+        &CudaUnsignedRadixCiphertext,
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a [RadixCiphertext], &'a RadixCiphertext),
+    ) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let mut d_ctxs = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(input.0.len());
+        for ctx in input.0 {
+            d_ctxs.push(CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                ctx,
+                &context.streams,
+            ));
+        }
+        let d_ctxt2: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.streams);
+
+        let (d_res, d_block) = (self.func)(&context.sks, &d_ctxs, &d_ctxt2, &context.streams);
+        let res = d_res.to_radix_ciphertext(&context.streams);
+        let block = d_block.to_boolean_block(&context.streams);
+        (res, block)
+    }
+}
+
+impl<'a, F> FunctionExecutor<(&'a [RadixCiphertext], u64), (RadixCiphertext, BooleanBlock)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &[CudaUnsignedRadixCiphertext],
+        u64,
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a [RadixCiphertext], u64)) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let mut d_ctxs = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(input.0.len());
+        for ctx in input.0 {
+            d_ctxs.push(CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                ctx,
+                &context.streams,
+            ));
+        }
+
+        let (d_res, d_block) = (self.func)(&context.sks, &d_ctxs, input.1, &context.streams);
+        let res = d_res.to_radix_ciphertext(&context.streams);
+        let block = d_block.to_boolean_block(&context.streams);
+        (res, block)
+    }
+}
+
+impl<'a, F> FunctionExecutor<(&'a [RadixCiphertext], &'a [RadixCiphertext]), BooleanBlock>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &[CudaUnsignedRadixCiphertext],
+        &[CudaUnsignedRadixCiphertext],
+        &CudaStreams,
+    ) -> CudaBooleanBlock,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a [RadixCiphertext], &'a [RadixCiphertext])) -> BooleanBlock {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let mut d_ctxs1 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(input.0.len());
+        for ctx in input.0 {
+            d_ctxs1.push(CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                ctx,
+                &context.streams,
+            ));
+        }
+        let mut d_ctxs2 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(input.0.len());
+        for ctx in input.1 {
+            d_ctxs2.push(CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                ctx,
+                &context.streams,
+            ));
+        }
+
+        let d_block = (self.func)(&context.sks, &d_ctxs1, &d_ctxs2, &context.streams);
+        d_block.to_boolean_block(&context.streams)
     }
 }

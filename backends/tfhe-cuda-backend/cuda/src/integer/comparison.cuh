@@ -4,8 +4,8 @@
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.cuh"
-#include "integer.h"
 #include "integer/cmux.cuh"
+#include "integer/integer_utilities.h"
 #include "integer/negation.cuh"
 #include "integer/scalar_addition.cuh"
 #include "pbs/programmable_bootstrap_classic.cuh"
@@ -16,9 +16,9 @@
 // lwe_dimension + 1 threads
 // todo: This kernel MUST be refactored to a binary reduction
 template <typename Torus>
-__global__ void device_accumulate_all_blocks(Torus *output, Torus *input_block,
-                                             uint32_t lwe_dimension,
-                                             uint32_t num_blocks) {
+__global__ void
+device_accumulate_all_blocks(Torus *output, Torus const *input_block,
+                             uint32_t lwe_dimension, uint32_t num_blocks) {
   int idx = threadIdx.x + blockIdx.x * blockDim.x;
   if (idx < lwe_dimension + 1) {
     auto block = &input_block[idx];
@@ -34,7 +34,7 @@ __global__ void device_accumulate_all_blocks(Torus *output, Torus *input_block,
 
 template <typename Torus>
 __host__ void accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
-                                    Torus *output, Torus *input,
+                                    Torus *output, Torus const *input,
                                     uint32_t lwe_dimension,
                                     uint32_t num_radix_blocks) {
 
@@ -57,10 +57,10 @@ __host__ void accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
  */
 template <typename Torus>
 __host__ void are_all_comparisons_block_true(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in,
-    int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
-    uint32_t num_radix_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -74,7 +74,7 @@ __host__ void are_all_comparisons_block_true(
   auto tmp_out = are_all_block_true_buffer->tmp_out;
 
   uint32_t total_modulus = message_modulus * carry_modulus;
-  uint32_t max_value = total_modulus - 1;
+  uint32_t max_value = (total_modulus - 1) / (message_modulus - 1);
 
   cuda_memcpy_async_gpu_to_gpu(tmp_out, lwe_array_in,
                                num_radix_blocks * (big_lwe_dimension + 1) *
@@ -85,16 +85,19 @@ __host__ void are_all_comparisons_block_true(
 
   while (remaining_blocks > 0) {
     // Split in max_value chunks
-    uint32_t chunk_length = std::min(max_value, remaining_blocks);
-    int num_chunks = remaining_blocks / chunk_length;
+    int num_chunks = (remaining_blocks + max_value - 1) / max_value;
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
     auto input_blocks = tmp_out;
     auto accumulator = are_all_block_true_buffer->tmp_block_accumulated;
-    auto is_equal_to_num_blocks_map =
-        &are_all_block_true_buffer->is_equal_to_lut_map;
+    auto is_max_value_lut = are_all_block_true_buffer->is_max_value;
+    uint32_t chunk_lengths[num_chunks];
+    auto begin_remaining_blocks = remaining_blocks;
     for (int i = 0; i < num_chunks; i++) {
+      uint32_t chunk_length =
+          std::min(max_value, begin_remaining_blocks - i * max_value);
+      chunk_lengths[i] = chunk_length;
       accumulate_all_blocks<Torus>(streams[0], gpu_indexes[0], accumulator,
                                    input_blocks, big_lwe_dimension,
                                    chunk_length);
@@ -111,30 +114,33 @@ __host__ void are_all_comparisons_block_true(
       // is_non_zero_lut_buffer LUT
       lut = mem_ptr->eq_buffer->is_non_zero_lut;
     } else {
-      if ((*is_equal_to_num_blocks_map).find(chunk_length) !=
-          (*is_equal_to_num_blocks_map).end()) {
-        // The LUT is already computed
-        lut = (*is_equal_to_num_blocks_map)[chunk_length];
-      } else {
+      if (chunk_lengths[num_chunks - 1] != max_value) {
         // LUT needs to be computed
-        auto new_lut =
-            new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
-                                     max_value, num_radix_blocks, true);
-
-        auto is_equal_to_num_blocks_lut_f = [max_value,
-                                             chunk_length](Torus x) -> Torus {
-          return (x & max_value) == chunk_length;
+        uint32_t chunk_length = chunk_lengths[num_chunks - 1];
+        auto is_equal_to_num_blocks_lut_f = [chunk_length](Torus x) -> Torus {
+          return x == chunk_length;
         };
         generate_device_accumulator<Torus>(
-            streams[0], gpu_indexes[0], new_lut->get_lut(gpu_indexes[0], 0),
+            streams[0], gpu_indexes[0], is_max_value_lut->get_lut(0, 1),
             glwe_dimension, polynomial_size, message_modulus, carry_modulus,
             is_equal_to_num_blocks_lut_f);
 
-        new_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
-
-        (*is_equal_to_num_blocks_map)[chunk_length] = new_lut;
-        lut = new_lut;
+        Torus *h_lut_indexes = (Torus *)malloc(num_chunks * sizeof(Torus));
+        for (int index = 0; index < num_chunks; index++) {
+          if (index == num_chunks - 1) {
+            h_lut_indexes[index] = 1;
+          } else {
+            h_lut_indexes[index] = 0;
+          }
+        }
+        cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
+                                 h_lut_indexes, num_chunks * sizeof(Torus),
+                                 streams[0], gpu_indexes[0]);
+        is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
+        cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+        free(h_lut_indexes);
       }
+      lut = is_max_value_lut;
     }
 
     // Applies the LUT
@@ -160,10 +166,10 @@ __host__ void are_all_comparisons_block_true(
  */
 template <typename Torus>
 __host__ void is_at_least_one_comparisons_block_true(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in,
-    int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
-    uint32_t num_radix_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -173,7 +179,7 @@ __host__ void is_at_least_one_comparisons_block_true(
   auto buffer = mem_ptr->eq_buffer->are_all_block_true_buffer;
 
   uint32_t total_modulus = message_modulus * carry_modulus;
-  uint32_t max_value = total_modulus - 1;
+  uint32_t max_value = (total_modulus - 1) / (message_modulus - 1);
 
   cuda_memcpy_async_gpu_to_gpu(mem_ptr->tmp_lwe_array_out, lwe_array_in,
                                num_radix_blocks * (big_lwe_dimension + 1) *
@@ -183,14 +189,18 @@ __host__ void is_at_least_one_comparisons_block_true(
   uint32_t remaining_blocks = num_radix_blocks;
   while (remaining_blocks > 0) {
     // Split in max_value chunks
-    uint32_t chunk_length = std::min(max_value, remaining_blocks);
-    int num_chunks = remaining_blocks / chunk_length;
+    int num_chunks = (remaining_blocks + max_value - 1) / max_value;
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
     auto input_blocks = mem_ptr->tmp_lwe_array_out;
     auto accumulator = buffer->tmp_block_accumulated;
+    uint32_t chunk_lengths[num_chunks];
+    auto begin_remaining_blocks = remaining_blocks;
     for (int i = 0; i < num_chunks; i++) {
+      uint32_t chunk_length =
+          std::min(max_value, begin_remaining_blocks - i * max_value);
+      chunk_lengths[i] = chunk_length;
       accumulate_all_blocks<Torus>(streams[0], gpu_indexes[0], accumulator,
                                    input_blocks, big_lwe_dimension,
                                    chunk_length);
@@ -240,10 +250,11 @@ __host__ void is_at_least_one_comparisons_block_true(
 // are_all_comparisons_block_true
 template <typename Torus>
 __host__ void host_compare_with_zero_equality(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in,
-    int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
-    int32_t num_radix_blocks, int_radix_lut<Torus> *zero_comparison) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks, int32_t num_radix_blocks,
+    int_radix_lut<Torus> *zero_comparison) {
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -302,10 +313,10 @@ __host__ void host_compare_with_zero_equality(
 
 template <typename Torus>
 __host__ void host_integer_radix_equality_check_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_1, Torus *lwe_array_2,
-    int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
-    uint32_t num_radix_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_1,
+    Torus const *lwe_array_2, int_comparison_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks) {
 
   auto eq_buffer = mem_ptr->eq_buffer;
 
@@ -326,12 +337,11 @@ __host__ void host_integer_radix_equality_check_kb(
 }
 
 template <typename Torus>
-__host__ void
-compare_radix_blocks_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
-                        uint32_t gpu_count, Torus *lwe_array_out,
-                        Torus *lwe_array_left, Torus *lwe_array_right,
-                        int_comparison_buffer<Torus> *mem_ptr, void **bsks,
-                        Torus **ksks, uint32_t num_radix_blocks) {
+__host__ void compare_radix_blocks_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_left,
+    Torus const *lwe_array_right, int_comparison_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks) {
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -375,13 +385,12 @@ compare_radix_blocks_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 // (inferior, equal, superior) to one single shortint block containing the
 // final sign
 template <typename Torus>
-__host__ void
-tree_sign_reduction(cudaStream_t *streams, uint32_t *gpu_indexes,
-                    uint32_t gpu_count, Torus *lwe_array_out,
-                    Torus *lwe_block_comparisons,
-                    int_tree_sign_reduction_buffer<Torus> *tree_buffer,
-                    std::function<Torus(Torus)> sign_handler_f, void **bsks,
-                    Torus **ksks, uint32_t num_radix_blocks) {
+__host__ void tree_sign_reduction(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus *lwe_block_comparisons,
+    int_tree_sign_reduction_buffer<Torus> *tree_buffer,
+    std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   auto params = tree_buffer->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -451,9 +460,9 @@ tree_sign_reduction(cudaStream_t *streams, uint32_t *gpu_indexes,
     f = sign_handler_f;
   }
   generate_device_accumulator<Torus>(
-      streams[0], gpu_indexes[0], last_lut->get_lut(gpu_indexes[0], 0),
-      glwe_dimension, polynomial_size, message_modulus, carry_modulus, f);
-  last_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+      streams[0], gpu_indexes[0], last_lut->get_lut(0, 0), glwe_dimension,
+      polynomial_size, message_modulus, carry_modulus, f);
+  last_lut->broadcast_lut(streams, gpu_indexes, 0);
 
   // Last leaf
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
@@ -463,11 +472,11 @@ tree_sign_reduction(cudaStream_t *streams, uint32_t *gpu_indexes,
 
 template <typename Torus>
 __host__ void host_integer_radix_difference_check_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_left, Torus *lwe_array_right,
-    int_comparison_buffer<Torus> *mem_ptr,
-    std::function<Torus(Torus)> reduction_lut_f, void **bsks, Torus **ksks,
-    uint32_t num_radix_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_left,
+    Torus const *lwe_array_right, int_comparison_buffer<Torus> *mem_ptr,
+    std::function<Torus(Torus)> reduction_lut_f, void *const *bsks,
+    Torus *const *ksks, uint32_t num_radix_blocks) {
 
   auto diff_buffer = mem_ptr->diff_buffer;
 
@@ -478,13 +487,14 @@ __host__ void host_integer_radix_difference_check_kb(
   auto carry_modulus = params.carry_modulus;
 
   uint32_t packed_num_radix_blocks = num_radix_blocks;
-  auto lhs = lwe_array_left;
-  auto rhs = lwe_array_right;
+  Torus *lhs = (Torus *)lwe_array_left;
+  Torus *rhs = (Torus *)lwe_array_right;
   if (carry_modulus >= message_modulus) {
     // Packing is possible
     // Pack inputs
-    Torus *packed_left = diff_buffer->tmp_packed_left;
-    Torus *packed_right = diff_buffer->tmp_packed_right;
+    Torus *packed_left = diff_buffer->tmp_packed;
+    Torus *packed_right =
+        diff_buffer->tmp_packed + num_radix_blocks / 2 * big_lwe_size;
     // In case the ciphertext is signed, the sign block and the one before it
     // are handled separately
     if (mem_ptr->is_signed) {
@@ -503,10 +513,7 @@ __host__ void host_integer_radix_difference_check_kb(
     auto identity_lut = mem_ptr->identity_lut;
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, packed_left, packed_left, bsks, ksks,
-        packed_num_radix_blocks, identity_lut);
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, packed_right, packed_right, bsks, ksks,
-        packed_num_radix_blocks, identity_lut);
+        2 * packed_num_radix_blocks, identity_lut);
 
     lhs = packed_left;
     rhs = packed_right;
@@ -535,11 +542,13 @@ __host__ void host_integer_radix_difference_check_kb(
 
       // Compare the last block before the sign block separately
       auto identity_lut = mem_ptr->identity_lut;
+      Torus *packed_left = diff_buffer->tmp_packed;
+      Torus *packed_right =
+          diff_buffer->tmp_packed + num_radix_blocks / 2 * big_lwe_size;
       Torus *last_left_block_before_sign_block =
-          diff_buffer->tmp_packed_left + packed_num_radix_blocks * big_lwe_size;
+          packed_left + packed_num_radix_blocks * big_lwe_size;
       Torus *last_right_block_before_sign_block =
-          diff_buffer->tmp_packed_right +
-          packed_num_radix_blocks * big_lwe_size;
+          packed_right + packed_num_radix_blocks * big_lwe_size;
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, last_left_block_before_sign_block,
           lwe_array_left + (num_radix_blocks - 2) * big_lwe_size, bsks, ksks, 1,
@@ -587,10 +596,10 @@ __host__ void host_integer_radix_difference_check_kb(
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_comparison_check_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_comparison_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
-    int_radix_params params, COMPARISON_TYPE op, bool is_signed,
-    bool allocate_gpu_memory) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_comparison_buffer<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, int_radix_params params, COMPARISON_TYPE op,
+    bool is_signed, bool allocate_gpu_memory) {
 
   *mem_ptr = new int_comparison_buffer<Torus>(streams, gpu_indexes, gpu_count,
                                               op, params, num_radix_blocks,
@@ -598,12 +607,11 @@ __host__ void scratch_cuda_integer_radix_comparison_check_kb(
 }
 
 template <typename Torus>
-__host__ void
-host_integer_radix_maxmin_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
-                             uint32_t gpu_count, Torus *lwe_array_out,
-                             Torus *lwe_array_left, Torus *lwe_array_right,
-                             int_comparison_buffer<Torus> *mem_ptr, void **bsks,
-                             Torus **ksks, uint32_t total_num_radix_blocks) {
+__host__ void host_integer_radix_maxmin_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_left,
+    Torus const *lwe_array_right, int_comparison_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t total_num_radix_blocks) {
 
   // Compute the sign
   host_integer_radix_difference_check_kb<Torus>(
@@ -618,4 +626,35 @@ host_integer_radix_maxmin_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
       mem_ptr->cmux_buffer, bsks, ksks, total_num_radix_blocks);
 }
 
+template <typename Torus>
+__host__ void host_integer_are_all_comparisons_block_true_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks, uint32_t num_radix_blocks) {
+
+  auto eq_buffer = mem_ptr->eq_buffer;
+
+  // It returns a block encrypting 1 if all input blocks are 1
+  // otherwise the block encrypts 0
+  are_all_comparisons_block_true<Torus>(streams, gpu_indexes, gpu_count,
+                                        lwe_array_out, lwe_array_in, mem_ptr,
+                                        bsks, ksks, num_radix_blocks);
+}
+
+template <typename Torus>
+__host__ void host_integer_is_at_least_one_comparisons_block_true_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks, uint32_t num_radix_blocks) {
+
+  auto eq_buffer = mem_ptr->eq_buffer;
+
+  // It returns a block encrypting 1 if all input blocks are 1
+  // otherwise the block encrypts 0
+  is_at_least_one_comparisons_block_true<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in, mem_ptr,
+      bsks, ksks, num_radix_blocks);
+}
 #endif

@@ -1,18 +1,17 @@
-use super::add::SignedOperation;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
-use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{
-    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
-    CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::server_key::CudaServerKey;
+
+use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async, PBSType,
 };
+use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::NoiseLevel;
+use crate::shortint::parameters::{Degree, LweBskGroupingFactor};
 
 impl CudaServerKey {
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
@@ -26,16 +25,17 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, num_blocks, &streams);
     ///
     /// let msg_1 = 12;
     /// let msg_2 = 10;
@@ -108,17 +108,18 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, num_blocks, &streams);
     ///
     /// let msg_1 = 128;
     /// let msg_2 = 99;
@@ -167,16 +168,17 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg_1 = 120u8;
     /// let msg_2 = 181u8;
@@ -271,8 +273,14 @@ impl CudaServerKey {
             }
         };
 
-        self.unchecked_sub_assign_async(lhs, rhs, streams);
-        let _carry = self.propagate_single_carry_assign_async(lhs, streams);
+        let neg_rhs = self.unchecked_neg_async(rhs, streams);
+        let _carry = self.add_and_propagate_single_carry_assign_async(
+            lhs,
+            &neg_rhs,
+            streams,
+            None,
+            OutputFlag::None,
+        );
     }
 
     pub fn unsigned_overflowing_sub(
@@ -353,87 +361,102 @@ impl CudaServerKey {
         rhs: &CudaUnsignedRadixCiphertext,
         stream: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
-        let num_blocks = lhs.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-        let mut tmp: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(1, stream);
-        if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
-            && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
-        {
-            tmp.as_mut().info = tmp.as_ref().info.boolean_info(NoiseLevel::ZERO);
-        } else {
-            tmp.as_mut().info = tmp.as_ref().info.boolean_info(NoiseLevel::NOMINAL);
-        }
         let mut ct_res = lhs.duplicate_async(stream);
-        let block = CudaLweCiphertextList::new(
-            tmp.as_ref().d_blocks.lwe_dimension(),
-            LweCiphertextCount(1),
-            CiphertextModulus::new_native(),
-            stream,
-        );
-        let block_info = tmp.as_ref().info.blocks[0];
-        let ct_info = vec![block_info];
-        let ct_info = CudaRadixCiphertextInfo { blocks: ct_info };
 
-        let mut ct_overflowed =
-            CudaBooleanBlock::from_cuda_radix_ciphertext(CudaRadixCiphertext::new(block, ct_info));
+        let compute_overflow = true;
+        const INPUT_BORROW: Option<&CudaBooleanBlock> = None;
+
+        let mut overflow_block: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(1, stream);
+        let ciphertext = ct_res.as_mut();
+        let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
+        let uses_input_borrow = INPUT_BORROW.map_or(0u32, |_block| 1u32);
+
+        let mut aux_block: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(1, stream);
+        let in_carry_dvec = INPUT_BORROW.map_or_else(
+            || &aux_block.as_mut().d_blocks.0.d_vec,
+            |block| &block.0.ciphertext.d_blocks.0.d_vec,
+        );
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async(
                     stream,
-                    &mut ct_res.as_mut().d_blocks.0.d_vec,
-                    &mut ct_overflowed.as_mut().ciphertext.d_blocks.0.d_vec,
-                    &lhs.as_ref().d_blocks.0.d_vec,
+                    &mut ciphertext.d_blocks.0.d_vec,
                     &rhs.as_ref().d_blocks.0.d_vec,
+                    &mut overflow_block.as_mut().d_blocks.0.d_vec,
+                    in_carry_dvec,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
+                    d_bsk.input_lwe_dimension(),
+                    d_bsk.glwe_dimension(),
+                    d_bsk.polynomial_size(),
                     self.key_switching_key.decomposition_level_count(),
                     self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
+                    d_bsk.decomp_level_count(),
+                    d_bsk.decomp_base_log(),
                     num_blocks,
+                    ciphertext.info.blocks.first().unwrap().message_modulus,
+                    ciphertext.info.blocks.first().unwrap().carry_modulus,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
+                    compute_overflow,
+                    uses_input_borrow,
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async(
                     stream,
-                    &mut ct_res.as_mut().d_blocks.0.d_vec,
-                    &mut ct_overflowed.as_mut().ciphertext.d_blocks.0.d_vec,
-                    &lhs.as_ref().d_blocks.0.d_vec,
+                    &mut ciphertext.d_blocks.0.d_vec,
                     &rhs.as_ref().d_blocks.0.d_vec,
+                    &mut overflow_block.as_mut().d_blocks.0.d_vec,
+                    in_carry_dvec,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
+                    d_multibit_bsk.input_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension(),
+                    d_multibit_bsk.polynomial_size(),
                     self.key_switching_key.decomposition_level_count(),
                     self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.decomp_level_count(),
+                    d_multibit_bsk.decomp_base_log(),
                     num_blocks,
+                    ciphertext.info.blocks.first().unwrap().message_modulus,
+                    ciphertext.info.blocks.first().unwrap().carry_modulus,
                     PBSType::MultiBit,
                     d_multibit_bsk.grouping_factor,
+                    compute_overflow,
+                    uses_input_borrow,
                 );
             }
         };
+        ciphertext.info.blocks.iter_mut().for_each(|b| {
+            b.degree = Degree::new(b.message_modulus.0 - 1);
+            b.noise_level = NoiseLevel::NOMINAL;
+        });
+        overflow_block
+            .as_mut()
+            .info
+            .blocks
+            .iter_mut()
+            .for_each(|b| {
+                b.degree = Degree::new(1);
+                b.noise_level = NoiseLevel::ZERO;
+            });
+
+        if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
+            && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
+        {
+            overflow_block.as_mut().info =
+                overflow_block.as_ref().info.boolean_info(NoiseLevel::ZERO);
+        } else {
+            overflow_block.as_mut().info = overflow_block
+                .as_ref()
+                .info
+                .boolean_info(NoiseLevel::NOMINAL);
+        }
+
+        let ct_overflowed = CudaBooleanBlock::from_cuda_radix_ciphertext(overflow_block.ciphertext);
 
         ct_res.as_mut().info = ct_res
             .as_ref()
@@ -445,16 +468,17 @@ impl CudaServerKey {
 
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, num_blocks, &streams);
     /// let total_bits = num_blocks * cks.parameters().message_modulus().0.ilog2() as usize;
     /// let modulus = 1 << total_bits;
     ///
@@ -541,11 +565,34 @@ impl CudaServerKey {
             ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 > 0,
             "inputs cannot be empty"
         );
+        let result;
+        let overflowed;
+        unsafe {
+            (result, overflowed) =
+                self.unchecked_signed_overflowing_sub_async(ct_left, ct_right, stream);
+        };
+        stream.synchronize();
+        (result, overflowed)
+    }
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_signed_overflowing_sub_async(
+        &self,
+        ct_left: &CudaSignedRadixCiphertext,
+        ct_right: &CudaSignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock) {
+        let flipped_rhs = self.bitnot(ct_right, stream);
+        let ct_input_carry: CudaUnsignedRadixCiphertext =
+            self.create_trivial_radix_async(1, 1, stream);
+        let input_carry = CudaBooleanBlock::from_cuda_radix_ciphertext(ct_input_carry.ciphertext);
 
-        self.unchecked_signed_overflowing_add_or_sub(
+        self.unchecked_signed_overflowing_add_async(
             ct_left,
-            ct_right,
-            SignedOperation::Subtraction,
+            &flipped_rhs,
+            Some(&input_carry),
             stream,
         )
     }

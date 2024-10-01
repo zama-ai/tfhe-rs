@@ -16,7 +16,7 @@ This example shows how to compress a ciphertext encrypting messages over 16 bits
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, generate_keys, set_server_key, CompressedFheUint16};
+use tfhe::{ConfigBuilder, generate_keys, CompressedFheUint16};
 
 fn main() {
     let config = ConfigBuilder::default().build();
@@ -59,16 +59,19 @@ The following example shows how to compress and decompress a list containing 4 m
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::{COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_2_CARRY_2};
+use tfhe::shortint::parameters::{
+    COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_2_CARRY_2,
+};
 use tfhe::{
     set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
     FheInt64, FheUint16, FheUint2, FheUint32,
 };
 
 fn main() {
-    let config = tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2)
-        .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2)
-        .build();
+    let config =
+        tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2)
+            .build();
 
     let ck = tfhe::ClientKey::generate(config);
     let sk = tfhe::ServerKey::new(&ck);
@@ -131,7 +134,7 @@ This example shows how to compress the server keys:
 ```rust
 use tfhe::prelude::*;
 use tfhe::{
-    generate_keys, set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheUint8,
+    set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheUint8,
 };
 
 fn main() {
@@ -176,7 +179,7 @@ This issue has been identified and will be addressed in future releases.
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, CompressedPublicKey};
+use tfhe::{ConfigBuilder, generate_keys, FheUint8, CompressedPublicKey};
 
 fn main() {
     let config = ConfigBuilder::default().build();
@@ -204,14 +207,14 @@ This example shows how to use compressed compact public keys:
 ```rust
 use tfhe::prelude::*;
 use tfhe::{
-    generate_keys, set_server_key, CompactCiphertextList, CompressedCompactPublicKey,
+    generate_keys, CompactCiphertextList, CompressedCompactPublicKey,
     ConfigBuilder, FheUint8,
 };
 
 fn main() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-            tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+            tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
         )
         .build();
     let (client_key, _) = generate_keys(config);

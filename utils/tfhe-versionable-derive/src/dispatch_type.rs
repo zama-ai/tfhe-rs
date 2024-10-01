@@ -10,10 +10,10 @@ use syn::{
 
 use crate::associated::{
     generate_from_trait_impl, generate_try_from_trait_impl, AssociatedType, AssociatedTypeKind,
+    ConversionDirection,
 };
 use crate::{
-    add_lifetime_bound, add_trait_bound, add_trait_where_clause, parse_const_str, LIFETIME_NAME,
-    UNVERSIONIZE_ERROR_NAME, VERSIONIZE_TRAIT_NAME, VERSION_TRAIT_NAME,
+    parse_const_str, LIFETIME_NAME, UNVERSIONIZE_ERROR_NAME, UPGRADE_TRAIT_NAME, VERSION_TRAIT_NAME,
 };
 
 /// This is the enum that holds all the versions of a specific type. Each variant of the enum is
@@ -47,6 +47,14 @@ fn derive_input_to_enum(input: &DeriveInput) -> syn::Result<ItemEnum> {
 }
 
 impl AssociatedType for DispatchType {
+    fn ref_bounds(&self) -> &'static [&'static str] {
+        &[VERSION_TRAIT_NAME]
+    }
+
+    fn owned_bounds(&self) -> &'static [&'static str] {
+        &[VERSION_TRAIT_NAME]
+    }
+
     fn new_ref(orig_type: &DeriveInput) -> syn::Result<Self> {
         for lt in orig_type.generics.lifetimes() {
             // check for collision with other lifetimes in `orig_type`
@@ -93,7 +101,7 @@ impl AssociatedType for DispatchType {
 
         Ok(ItemEnum {
             ident: self.ident(),
-            generics: self.generics()?,
+            generics: self.type_generics()?,
             attrs: vec![parse_quote! { #[automatically_derived] }],
             variants: variants?,
             ..self.orig_type.clone()
@@ -101,13 +109,45 @@ impl AssociatedType for DispatchType {
         .into())
     }
 
-    fn generate_conversion(&self) -> syn::Result<Vec<ItemImpl>> {
-        let generics = self.generics()?;
-        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    fn kind(&self) -> &AssociatedTypeKind {
+        &self.kind
+    }
 
+    fn is_transparent(&self) -> bool {
+        false
+    }
+
+    fn orig_type_generics(&self) -> &Generics {
+        &self.orig_type.generics
+    }
+
+    fn conversion_generics(&self, direction: ConversionDirection) -> syn::Result<Generics> {
+        let mut generics = self.type_generics()?;
+        let preds = &mut generics.make_where_clause().predicates;
+
+        let upgrade_trait: Path = parse_const_str(UPGRADE_TRAIT_NAME);
+
+        if let ConversionDirection::AssociatedToOrig = direction {
+            if let AssociatedTypeKind::Owned = &self.kind {
+                // Add a bound for each version to be upgradable into the next one
+                for src_idx in 0..(self.versions_count() - 1) {
+                    let src_ty = self.version_type_at(src_idx)?;
+                    let next_ty = self.version_type_at(src_idx + 1)?;
+                    preds.push(parse_quote! { #src_ty: #upgrade_trait<#next_ty> })
+                }
+            }
+        }
+
+        Ok(generics)
+    }
+
+    fn generate_conversion(&self) -> syn::Result<Vec<ItemImpl>> {
         match &self.kind {
             AssociatedTypeKind::Ref(lifetime) => {
                 // Wraps the highest version into the dispatch enum
+                let generics = self.conversion_generics(ConversionDirection::OrigToAssociated)?;
+                let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
                 let src_type = self.latest_version_type()?;
                 let src = parse_quote! { &#lifetime #src_type };
                 let dest_ident = self.ident();
@@ -126,6 +166,9 @@ impl AssociatedType for DispatchType {
             }
             AssociatedTypeKind::Owned => {
                 // Upgrade to the highest version the convert to the main type
+                let generics = self.conversion_generics(ConversionDirection::AssociatedToOrig)?;
+                let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
                 let src_ident = self.ident();
                 let src = parse_quote! { #src_ident #ty_generics };
                 let dest_type = self.latest_version_type()?;
@@ -144,6 +187,9 @@ impl AssociatedType for DispatchType {
                 )?;
 
                 // Wraps the highest version into the dispatch enum
+                let generics = self.conversion_generics(ConversionDirection::OrigToAssociated)?;
+                let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
                 let src_type = self.latest_version_type()?;
                 let src = parse_quote! { #src_type };
                 let dest_ident = self.ident();
@@ -182,12 +228,12 @@ impl AssociatedType for DispatchType {
         }
     }
 
-    fn as_trait_param(&self) -> Option<syn::Result<&Type>> {
-        Some(self.latest_version_type())
-    }
-
     fn inner_types(&self) -> syn::Result<Vec<&Type>> {
         self.version_types()
+    }
+
+    fn as_trait_param(&self) -> Option<syn::Result<&Type>> {
+        Some(self.latest_version_type())
     }
 }
 
@@ -198,19 +244,6 @@ impl DispatchType {
             self.orig_type.span(),
             "VersionsDispatch should be used on a enum with single anonymous field variants",
         )
-    }
-
-    fn generics(&self) -> syn::Result<Generics> {
-        let mut generics = self.orig_type.generics.clone();
-        if let AssociatedTypeKind::Ref(Some(lifetime)) = &self.kind {
-            add_lifetime_bound(&mut generics, lifetime);
-        }
-
-        add_trait_where_clause(&mut generics, self.inner_types()?, &[VERSION_TRAIT_NAME])?;
-
-        add_trait_bound(&mut generics, VERSIONIZE_TRAIT_NAME)?;
-
-        Ok(generics)
     }
 
     /// Returns the number of versions in this dispatch enum
@@ -311,6 +344,7 @@ impl DispatchType {
     fn generate_conversion_constructor_owned(&self, arg_name: &str) -> syn::Result<TokenStream> {
         let arg_ident = Ident::new(arg_name, Span::call_site());
         let error_ty: Type = parse_const_str(UNVERSIONIZE_ERROR_NAME);
+        let upgrade_trait: Path = parse_const_str(UPGRADE_TRAIT_NAME);
 
         let match_cases =
             self.orig_type
@@ -329,12 +363,12 @@ impl DispatchType {
                     // Add chained calls to the upgrade method, with error handling
                     let upgrades_chain = (0..upgrades_needed).map(|upgrade_idx| {
                         // Here we can unwrap because src_idx + upgrade_idx < version_count or we wouldn't need to upgrade
+                        let src_type = self.version_type_at(src_idx + upgrade_idx).unwrap();
                         let src_variant = self.variant_at(src_idx + upgrade_idx).unwrap().ident.to_string();
                         let dest_variant = self.variant_at(src_idx + upgrade_idx + 1).unwrap().ident.to_string();
                         quote! {
-                            .and_then(|value| {
-                                value
-                                .upgrade()
+                            .and_then(|value: #src_type| {
+                                #upgrade_trait::upgrade(value)
                                 .map_err(|e|
                                     #error_ty::upgrade(#src_variant, #dest_variant, e)
                                 )

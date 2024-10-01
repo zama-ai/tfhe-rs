@@ -85,6 +85,8 @@ pub trait UnsignedInteger:
     #[must_use]
     fn overflowing_add(self, rhs: Self) -> (Self, bool);
     #[must_use]
+    fn overflowing_sub(self, rhs: Self) -> (Self, bool);
+    #[must_use]
     fn is_power_of_two(self) -> bool;
     #[must_use]
     fn next_power_of_two(self) -> Self;
@@ -219,6 +221,10 @@ macro_rules! implement {
             #[inline]
             fn overflowing_add(self, rhs: Self) -> (Self, bool) {
                 self.overflowing_add(rhs)
+            }
+            #[inline]
+            fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
+                self.overflowing_sub(rhs)
             }
             #[inline]
             fn is_power_of_two(self) -> bool {

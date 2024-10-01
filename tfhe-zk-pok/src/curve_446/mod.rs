@@ -1,4 +1,5 @@
-#![allow(non_local_definitions)]
+#![allow(unexpected_cfgs)]
+// This is a bug/unwanted behavior from ark-ff macro, for now warn instead of erroring
 
 use ark_ec::bls12::{Bls12, Bls12Config, TwistType};
 use ark_ff::fields::*;
@@ -221,8 +222,6 @@ impl Fp12Config for Fq12Config {
 }
 
 pub type Bls12_446 = Bls12<Config>;
-use g1::G1Affine;
-use g2::G2Affine;
 
 pub struct Config;
 
@@ -239,236 +238,17 @@ impl Bls12Config for Config {
 }
 
 pub mod util {
-    use ark_ec::short_weierstrass::Affine;
-    use ark_ec::AffineRepr;
-    use ark_ff::{BigInteger448, PrimeField};
-    use ark_serialize::SerializationError;
-
-    use super::g1::Config as G1Config;
-    use super::g2::Config as G2Config;
-    use super::{Fq, Fq2, G1Affine, G2Affine};
-
     pub const G1_SERIALIZED_SIZE: usize = 57;
     pub const G2_SERIALIZED_SIZE: usize = 114;
-
-    pub struct EncodingFlags {
-        pub is_compressed: bool,
-        pub is_infinity: bool,
-        pub is_lexographically_largest: bool,
-    }
-
-    impl EncodingFlags {
-        pub fn get_flags(bytes: &[u8]) -> Self {
-            let compression_flag_set = (bytes[0] >> 7) & 1;
-            let infinity_flag_set = (bytes[0] >> 6) & 1;
-            let sort_flag_set = (bytes[0] >> 5) & 1;
-
-            Self {
-                is_compressed: compression_flag_set == 1,
-                is_infinity: infinity_flag_set == 1,
-                is_lexographically_largest: sort_flag_set == 1,
-            }
-        }
-        pub fn encode_flags(&self, bytes: &mut [u8]) {
-            if self.is_compressed {
-                bytes[0] |= 1 << 7;
-            }
-
-            if self.is_infinity {
-                bytes[0] |= 1 << 6;
-            }
-
-            if self.is_compressed && !self.is_infinity && self.is_lexographically_largest {
-                bytes[0] |= 1 << 5;
-            }
-        }
-    }
-
-    pub(crate) fn deserialize_fq(bytes: [u8; 56]) -> Option<Fq> {
-        let mut tmp = BigInteger448::new([0, 0, 0, 0, 0, 0, 0]);
-
-        // Note: The following unwraps are if the compiler cannot convert
-        // the byte slice into [u8;8], we know this is infallible since we
-        // are providing the indices at compile time and bytes has a fixed size
-        tmp.0[6] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[0..8]).unwrap());
-        tmp.0[5] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[8..16]).unwrap());
-        tmp.0[4] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[16..24]).unwrap());
-        tmp.0[3] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[24..32]).unwrap());
-        tmp.0[2] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[32..40]).unwrap());
-        tmp.0[1] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[40..48]).unwrap());
-        tmp.0[0] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[48..56]).unwrap());
-
-        Fq::from_bigint(tmp)
-    }
-
-    pub(crate) fn serialize_fq(field: Fq) -> [u8; 56] {
-        let mut result = [0u8; 56];
-
-        let rep = field.into_bigint();
-
-        result[0..8].copy_from_slice(&rep.0[6].to_be_bytes());
-        result[8..16].copy_from_slice(&rep.0[5].to_be_bytes());
-        result[16..24].copy_from_slice(&rep.0[4].to_be_bytes());
-        result[24..32].copy_from_slice(&rep.0[3].to_be_bytes());
-        result[32..40].copy_from_slice(&rep.0[2].to_be_bytes());
-        result[40..48].copy_from_slice(&rep.0[1].to_be_bytes());
-        result[48..56].copy_from_slice(&rep.0[0].to_be_bytes());
-
-        result
-    }
-
-    pub(crate) fn read_fq_with_offset(
-        bytes: &[u8],
-        offset: usize,
-    ) -> Result<Fq, ark_serialize::SerializationError> {
-        let mut tmp = [0; G1_SERIALIZED_SIZE - 1];
-        // read `G1_SERIALIZED_SIZE` bytes
-        tmp.copy_from_slice(
-            &bytes[offset * G1_SERIALIZED_SIZE + 1..G1_SERIALIZED_SIZE * (offset + 1)],
-        );
-
-        deserialize_fq(tmp).ok_or(SerializationError::InvalidData)
-    }
-
-    pub(crate) fn read_g1_compressed<R: ark_serialize::Read>(
-        mut reader: R,
-    ) -> Result<Affine<G1Config>, ark_serialize::SerializationError> {
-        let mut bytes = [0u8; G1_SERIALIZED_SIZE];
-        reader
-            .read_exact(&mut bytes)
-            .ok()
-            .ok_or(SerializationError::InvalidData)?;
-
-        // Obtain the three flags from the start of the byte sequence
-        let flags = EncodingFlags::get_flags(&bytes[..]);
-
-        // we expect to be deserializing a compressed point
-        if !flags.is_compressed {
-            return Err(SerializationError::UnexpectedFlags);
-        }
-
-        if flags.is_infinity {
-            return Ok(G1Affine::zero());
-        }
-
-        // Attempt to obtain the x-coordinate
-        let x = read_fq_with_offset(&bytes, 0)?;
-
-        let p = G1Affine::get_point_from_x_unchecked(x, flags.is_lexographically_largest)
-            .ok_or(SerializationError::InvalidData)?;
-
-        Ok(p)
-    }
-
-    pub(crate) fn read_g1_uncompressed<R: ark_serialize::Read>(
-        mut reader: R,
-    ) -> Result<Affine<G1Config>, ark_serialize::SerializationError> {
-        let mut bytes = [0u8; 2 * G1_SERIALIZED_SIZE];
-        reader
-            .read_exact(&mut bytes)
-            .map_err(|_| SerializationError::InvalidData)?;
-
-        // Obtain the three flags from the start of the byte sequence
-        let flags = EncodingFlags::get_flags(&bytes[..]);
-
-        // we expect to be deserializing an uncompressed point
-        if flags.is_compressed {
-            return Err(SerializationError::UnexpectedFlags);
-        }
-
-        if flags.is_infinity {
-            return Ok(G1Affine::zero());
-        }
-
-        // Attempt to obtain the x-coordinate
-        let x = read_fq_with_offset(&bytes, 0)?;
-        // Attempt to obtain the y-coordinate
-        let y = read_fq_with_offset(&bytes, 1)?;
-
-        let p = G1Affine::new_unchecked(x, y);
-
-        Ok(p)
-    }
-
-    pub(crate) fn read_g2_compressed<R: ark_serialize::Read>(
-        mut reader: R,
-    ) -> Result<Affine<G2Config>, ark_serialize::SerializationError> {
-        let mut bytes = [0u8; G2_SERIALIZED_SIZE];
-        reader
-            .read_exact(&mut bytes)
-            .map_err(|_| SerializationError::InvalidData)?;
-
-        // Obtain the three flags from the start of the byte sequence
-        let flags = EncodingFlags::get_flags(&bytes);
-
-        // we expect to be deserializing a compressed point
-        if !flags.is_compressed {
-            return Err(SerializationError::UnexpectedFlags);
-        }
-
-        if flags.is_infinity {
-            return Ok(G2Affine::zero());
-        }
-
-        // Attempt to obtain the x-coordinate
-        let xc1 = read_fq_with_offset(&bytes, 0)?;
-        let xc0 = read_fq_with_offset(&bytes, 1)?;
-
-        let x = Fq2::new(xc0, xc1);
-
-        let p = G2Affine::get_point_from_x_unchecked(x, flags.is_lexographically_largest)
-            .ok_or(SerializationError::InvalidData)?;
-
-        Ok(p)
-    }
-
-    pub(crate) fn read_g2_uncompressed<R: ark_serialize::Read>(
-        mut reader: R,
-    ) -> Result<Affine<G2Config>, ark_serialize::SerializationError> {
-        let mut bytes = [0u8; 2 * G2_SERIALIZED_SIZE];
-        reader
-            .read_exact(&mut bytes)
-            .map_err(|_| SerializationError::InvalidData)?;
-
-        // Obtain the three flags from the start of the byte sequence
-        let flags = EncodingFlags::get_flags(&bytes);
-
-        // we expect to be deserializing an uncompressed point
-        if flags.is_compressed {
-            return Err(SerializationError::UnexpectedFlags);
-        }
-
-        if flags.is_infinity {
-            return Ok(G2Affine::zero());
-        }
-
-        // Attempt to obtain the x-coordinate
-        let xc1 = read_fq_with_offset(&bytes, 0)?;
-        let xc0 = read_fq_with_offset(&bytes, 1)?;
-        let x = Fq2::new(xc0, xc1);
-
-        // Attempt to obtain the y-coordinate
-        let yc1 = read_fq_with_offset(&bytes, 2)?;
-        let yc0 = read_fq_with_offset(&bytes, 3)?;
-        let y = Fq2::new(yc0, yc1);
-
-        let p = G2Affine::new_unchecked(x, y);
-
-        Ok(p)
-    }
 }
 
 pub mod g1 {
-    use super::util::{
-        read_g1_compressed, read_g1_uncompressed, serialize_fq, EncodingFlags, G1_SERIALIZED_SIZE,
-    };
     use super::{Fq, Fr};
     use ark_ec::bls12::Bls12Config;
     use ark_ec::models::CurveConfig;
     use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
     use ark_ec::{bls12, AdditiveGroup, AffineRepr, PrimeGroup};
     use ark_ff::{MontFp, One, PrimeField, Zero};
-    use ark_serialize::{Compress, SerializationError};
     use core::ops::Neg;
 
     #[derive(Clone, Default, PartialEq, Eq)]
@@ -533,68 +313,6 @@ pub mod g1 {
             let h_eff = one_minus_x().into_bigint();
             Config::mul_affine(p, h_eff.as_ref()).into()
         }
-
-        fn deserialize_with_mode<R: ark_serialize::Read>(
-            mut reader: R,
-            compress: ark_serialize::Compress,
-            validate: ark_serialize::Validate,
-        ) -> Result<Affine<Self>, ark_serialize::SerializationError> {
-            let p = if compress == ark_serialize::Compress::Yes {
-                read_g1_compressed(&mut reader)?
-            } else {
-                read_g1_uncompressed(&mut reader)?
-            };
-
-            if validate == ark_serialize::Validate::Yes
-                && !p.is_in_correct_subgroup_assuming_on_curve()
-            {
-                return Err(SerializationError::InvalidData);
-            }
-            Ok(p)
-        }
-
-        fn serialize_with_mode<W: ark_serialize::Write>(
-            item: &Affine<Self>,
-            mut writer: W,
-            compress: ark_serialize::Compress,
-        ) -> Result<(), SerializationError> {
-            let encoding = EncodingFlags {
-                is_compressed: compress == ark_serialize::Compress::Yes,
-                is_infinity: item.is_zero(),
-                is_lexographically_largest: item.y > -item.y,
-            };
-            let mut p = *item;
-            if encoding.is_infinity {
-                p = G1Affine::zero();
-            }
-            // need to access the field struct `x` directly, otherwise we get None from xy()
-            // method
-            let x_bytes = serialize_fq(p.x);
-            if encoding.is_compressed {
-                let mut bytes = [0u8; G1_SERIALIZED_SIZE];
-                bytes[1..].copy_from_slice(&x_bytes);
-
-                encoding.encode_flags(&mut bytes);
-                writer.write_all(&bytes)?;
-            } else {
-                let mut bytes = [0u8; 2 * G1_SERIALIZED_SIZE];
-                bytes[1..G1_SERIALIZED_SIZE].copy_from_slice(&x_bytes[..]);
-                bytes[1 + G1_SERIALIZED_SIZE..].copy_from_slice(&serialize_fq(p.y)[..]);
-
-                encoding.encode_flags(&mut bytes);
-                writer.write_all(&bytes)?;
-            };
-
-            Ok(())
-        }
-
-        fn serialized_size(compress: Compress) -> usize {
-            if compress == Compress::Yes {
-                G1_SERIALIZED_SIZE
-            } else {
-                G1_SERIALIZED_SIZE * 2
-            }
-        }
     }
 
     fn one_minus_x() -> Fr {
@@ -624,15 +342,11 @@ pub mod g1 {
 }
 
 pub mod g2 {
-    use super::util::{
-        read_g2_compressed, read_g2_uncompressed, serialize_fq, EncodingFlags, G2_SERIALIZED_SIZE,
-    };
     use super::*;
+    use ark_ec::bls12;
     use ark_ec::models::CurveConfig;
-    use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
-    use ark_ec::{bls12, AffineRepr};
+    use ark_ec::short_weierstrass::SWCurveConfig;
     use ark_ff::MontFp;
-    use ark_serialize::{Compress, SerializationError};
 
     pub type G2Affine = bls12::G2Affine<super::Config>;
     pub type G2Projective = bls12::G2Projective<super::Config>;
@@ -680,76 +394,6 @@ pub mod g2 {
         #[inline(always)]
         fn mul_by_a(_: Self::BaseField) -> Self::BaseField {
             Self::BaseField::zero()
-        }
-
-        fn deserialize_with_mode<R: ark_serialize::Read>(
-            mut reader: R,
-            compress: ark_serialize::Compress,
-            validate: ark_serialize::Validate,
-        ) -> Result<Affine<Self>, ark_serialize::SerializationError> {
-            let p = if compress == ark_serialize::Compress::Yes {
-                read_g2_compressed(&mut reader)?
-            } else {
-                read_g2_uncompressed(&mut reader)?
-            };
-
-            if validate == ark_serialize::Validate::Yes
-                && !p.is_in_correct_subgroup_assuming_on_curve()
-            {
-                return Err(SerializationError::InvalidData);
-            }
-            Ok(p)
-        }
-
-        fn serialize_with_mode<W: ark_serialize::Write>(
-            item: &Affine<Self>,
-            mut writer: W,
-            compress: ark_serialize::Compress,
-        ) -> Result<(), SerializationError> {
-            let encoding = EncodingFlags {
-                is_compressed: compress == ark_serialize::Compress::Yes,
-                is_infinity: item.is_zero(),
-                is_lexographically_largest: item.y > -item.y,
-            };
-            let mut p = *item;
-            if encoding.is_infinity {
-                p = G2Affine::zero();
-            }
-
-            let mut x_bytes = [0u8; G2_SERIALIZED_SIZE];
-            let c1_bytes = serialize_fq(p.x.c1);
-            let c0_bytes = serialize_fq(p.x.c0);
-            x_bytes[1..56 + 1].copy_from_slice(&c1_bytes[..]);
-            x_bytes[56 + 2..114].copy_from_slice(&c0_bytes[..]);
-            if encoding.is_compressed {
-                let mut bytes: [u8; G2_SERIALIZED_SIZE] = x_bytes;
-
-                encoding.encode_flags(&mut bytes);
-                writer.write_all(&bytes)?;
-            } else {
-                let mut bytes = [0u8; 2 * G2_SERIALIZED_SIZE];
-
-                let mut y_bytes = [0u8; G2_SERIALIZED_SIZE];
-                let c1_bytes = serialize_fq(p.y.c1);
-                let c0_bytes = serialize_fq(p.y.c0);
-                y_bytes[1..56 + 1].copy_from_slice(&c1_bytes[..]);
-                y_bytes[56 + 2..114].copy_from_slice(&c0_bytes[..]);
-                bytes[0..G2_SERIALIZED_SIZE].copy_from_slice(&x_bytes);
-                bytes[G2_SERIALIZED_SIZE..].copy_from_slice(&y_bytes);
-
-                encoding.encode_flags(&mut bytes);
-                writer.write_all(&bytes)?;
-            };
-
-            Ok(())
-        }
-
-        fn serialized_size(compress: ark_serialize::Compress) -> usize {
-            if compress == Compress::Yes {
-                G2_SERIALIZED_SIZE
-            } else {
-                2 * G2_SERIALIZED_SIZE
-            }
         }
     }
 

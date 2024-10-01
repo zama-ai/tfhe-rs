@@ -1,13 +1,13 @@
 //! Module containing the definition of the [`SeededLweKeyswitchKey`].
 
-use tfhe_versionable::Versionize;
-
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_keyswitch_key::SeededLweKeyswitchKeyVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use tfhe_versionable::Versionize;
 
 /// A [`seeded LWE keyswitch key`](`SeededLweKeyswitchKey`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
@@ -251,7 +251,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
             self.output_key_lwe_dimension(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_lwe_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ksk,
             &self,
         );
@@ -272,7 +272,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
             self.output_key_lwe_dimension(),
             self.ciphertext_modulus(),
         );
-        par_decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
+        par_decompress_seeded_lwe_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ksk,
             &self,
         );
@@ -371,7 +371,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = SeededLweCiphertextListCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = SeededLweCiphertextListView<'this, Self::Element>
+    type EntityView<'this>
+        = SeededLweCiphertextListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -379,7 +380,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     // At the moment it does not make sense to return "sub" keyswitch keys. So we use a dummy
     // placeholder type here.
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 
@@ -410,13 +412,40 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for SeededLweKeyswitchKey<C>
 {
-    type EntityMutView<'this> = SeededLweCiphertextListMutView<'this, Self::Element>
+    type EntityMutView<'this>
+        = SeededLweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
 
     // At the moment it does not make sense to return "sub" keyswitch keys. So we use a dummy
     // placeholder type here.
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
+}
+
+impl<C: Container<Element = u64>> ParameterSetConformant for SeededLweKeyswitchKey<C> {
+    type ParameterSet = KeyswitchKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            data,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+            compression_seed: _,
+        } = self;
+
+        *ciphertext_modulus == parameter_set.ciphertext_modulus
+            && data.container_len()
+                == parameter_set.input_lwe_dimension.0
+                    * seeded_lwe_keyswitch_key_input_key_element_encrypted_size(
+                        parameter_set.decomp_level_count,
+                    )
+            && *decomp_base_log == parameter_set.decomp_base_log
+            && *decomp_level_count == parameter_set.decomp_level_count
+            && *output_lwe_size == parameter_set.output_lwe_size
+    }
 }

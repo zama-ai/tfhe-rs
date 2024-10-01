@@ -53,7 +53,7 @@ pub const PRECISION_4_FAST_KS: FastKSParam<u64> = FastKSParam {
 // AP:
 // DP -> Fast KS -> PBS
 // Fast KS =
-// - convert LWE to GLWE witout packing called "sample insertion"
+// - convert LWE to GLWE without packing called "sample insertion"
 // - GLWE fast KS
 // - sample extraction
 // - finalize the keyswitch
@@ -374,6 +374,6 @@ fn lwe_encrypt_fast_ks_decrypt_custom_mod<
     }
 }
 
-create_parametrized_test!(lwe_encrypt_fast_ks_decrypt_custom_mod {
+create_parameterized_test!(lwe_encrypt_fast_ks_decrypt_custom_mod {
     PRECISION_4_FAST_KS
 });

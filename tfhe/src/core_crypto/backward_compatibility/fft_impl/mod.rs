@@ -1,15 +1,10 @@
-use tfhe_versionable::{UnversionizeError, VersionsDispatch};
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+use tfhe_versionable::VersionsDispatch;
 
 use aligned_vec::ABox;
-use concrete_fft::c64;
 use serde::{Deserialize, Serialize};
+use tfhe_fft::c64;
 
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
-    FourierLweBootstrapKeyVersion, FourierLweBootstrapKeyVersionOwned,
-};
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
-    FourierGgswCiphertextVersion, FourierGgswCiphertextVersionOwned,
-};
 use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
 use crate::core_crypto::prelude::{
     Container, Fourier128GgswCiphertext, Fourier128LweBootstrapKey, FourierGgswCiphertext,
@@ -66,92 +61,46 @@ impl<C: IntoContainerOwned<Element = c64>> From<FourierPolynomialListVersionedOw
     }
 }
 
-#[derive(Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum FourierLweBootstrapKeyVersioned<'vers> {
-    V0(FourierLweBootstrapKeyVersion<'vers>),
+impl<C: Container<Element = c64>> Deprecable for FourierLweBootstrapKey<C> {
+    const TYPE_NAME: &'static str = "FourierLweBootstrapKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
-impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweBootstrapKey<C>>
-    for FourierLweBootstrapKeyVersioned<'vers>
-{
-    fn from(value: &'vers FourierLweBootstrapKey<C>) -> Self {
-        Self::V0(value.into())
-    }
+#[derive(VersionsDispatch)]
+pub enum FourierLweBootstrapKeyVersions<C: Container<Element = c64>> {
+    V0(Deprecated<FourierLweBootstrapKey<C>>),
+    V1(FourierLweBootstrapKey<C>),
 }
 
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum FourierLweBootstrapKeyVersionedOwned {
-    V0(FourierLweBootstrapKeyVersionOwned),
+impl<C: Container<Element = c64>> Deprecable for FourierGgswCiphertext<C> {
+    const TYPE_NAME: &'static str = "FourierGgswCiphertext";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
-impl<C: Container<Element = c64>> From<FourierLweBootstrapKey<C>>
-    for FourierLweBootstrapKeyVersionedOwned
-{
-    fn from(value: FourierLweBootstrapKey<C>) -> Self {
-        Self::V0(value.into())
-    }
+#[derive(VersionsDispatch)]
+pub enum FourierGgswCiphertextVersions<C: Container<Element = c64>> {
+    V0(Deprecated<FourierGgswCiphertext<C>>),
+    V1(FourierGgswCiphertext<C>),
 }
 
-impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierLweBootstrapKeyVersionedOwned>
-    for FourierLweBootstrapKey<C>
-{
-    type Error = UnversionizeError;
-
-    fn try_from(value: FourierLweBootstrapKeyVersionedOwned) -> Result<Self, Self::Error> {
-        match value {
-            FourierLweBootstrapKeyVersionedOwned::V0(v0) => Self::try_from(v0),
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum FourierGgswCiphertextVersioned<'vers> {
-    V0(FourierGgswCiphertextVersion<'vers>),
-}
-
-impl<'vers, C: Container<Element = c64>> From<&'vers FourierGgswCiphertext<C>>
-    for FourierGgswCiphertextVersioned<'vers>
-{
-    fn from(value: &'vers FourierGgswCiphertext<C>) -> Self {
-        Self::V0(value.into())
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum FourierGgswCiphertextVersionedOwned {
-    V0(FourierGgswCiphertextVersionOwned),
-}
-
-impl<C: Container<Element = c64>> From<FourierGgswCiphertext<C>>
-    for FourierGgswCiphertextVersionedOwned
-{
-    fn from(value: FourierGgswCiphertext<C>) -> Self {
-        Self::V0(value.into())
-    }
-}
-
-impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierGgswCiphertextVersionedOwned>
-    for FourierGgswCiphertext<C>
-{
-    type Error = UnversionizeError;
-
-    fn try_from(value: FourierGgswCiphertextVersionedOwned) -> Result<Self, Self::Error> {
-        match value {
-            FourierGgswCiphertextVersionedOwned::V0(v0) => Self::try_from(v0),
-        }
-    }
+impl<C: Container<Element = f64>> Deprecable for Fourier128LweBootstrapKey<C> {
+    const TYPE_NAME: &'static str = "Fourier128LweBootstrapKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum Fourier128LweBootstrapKeyVersions<C: Container<Element = f64>> {
-    V0(Fourier128LweBootstrapKey<C>),
+    V0(Deprecated<Fourier128LweBootstrapKey<C>>),
+    V1(Fourier128LweBootstrapKey<C>),
+}
+
+impl<C: Container<Element = f64>> Deprecable for Fourier128GgswCiphertext<C> {
+    const TYPE_NAME: &'static str = "Fourier128GgswCiphertext";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum Fourier128GgswCiphertextVersions<C: Container<Element = f64>> {
-    V0(Fourier128GgswCiphertext<C>),
+    V0(Deprecated<Fourier128GgswCiphertext<C>>),
+    V1(Fourier128GgswCiphertext<C>),
 }

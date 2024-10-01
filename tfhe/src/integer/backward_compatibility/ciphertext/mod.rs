@@ -9,6 +9,8 @@ use crate::integer::ciphertext::{
     CompressedModulusSwitchedSignedRadixCiphertext, DataKind,
 };
 use crate::integer::BooleanBlock;
+#[cfg(feature = "zk-pok")]
+use crate::integer::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
 
 #[derive(VersionsDispatch)]
@@ -53,6 +55,12 @@ pub enum CompactCiphertextListVersions {
     V1(CompactCiphertextList),
 }
 
+#[cfg(feature = "zk-pok")]
+#[derive(VersionsDispatch)]
+pub enum ProvenCompactCiphertextListVersions {
+    V0(ProvenCompactCiphertextList),
+}
+
 #[derive(VersionsDispatch)]
 pub enum DataKindVersions {
     V0(DataKind),
@@ -69,8 +77,8 @@ pub enum CompressedModulusSwitchedRadixCiphertextVersions {
 }
 
 #[derive(VersionsDispatch)]
-#[allow(dead_code)]
 pub(crate) enum CompressedModulusSwitchedRadixCiphertextGenericVersions {
+    #[allow(dead_code)]
     V0(CompressedModulusSwitchedRadixCiphertextGeneric),
 }
 

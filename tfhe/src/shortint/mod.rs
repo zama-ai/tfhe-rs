@@ -31,7 +31,7 @@
 //! use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 //!
 //! // We generate a set of client/server keys, using the default parameters:
-//! let (mut client_key, mut server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+//! let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 //!
 //! let msg1 = 1;
 //! let msg2 = 0;
@@ -50,6 +50,7 @@
 pub mod backward_compatibility;
 pub mod ciphertext;
 pub mod client_key;
+pub(crate) mod encoding;
 pub mod engine;
 pub mod key_switching_key;
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
@@ -60,10 +61,14 @@ pub mod parameters;
 pub mod prelude;
 pub mod public_key;
 pub mod server_key;
+#[cfg(feature = "experimental")]
 pub mod wopbs;
+#[cfg(not(feature = "experimental"))]
+pub(crate) mod wopbs;
 
 pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSMode, PBSOrder};
 pub use client_key::ClientKey;
+pub(crate) use encoding::{PaddingBit, ShortintEncoding};
 pub use key_switching_key::{CompressedKeySwitchingKey, KeySwitchingKey, KeySwitchingKeyView};
 pub use parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel,

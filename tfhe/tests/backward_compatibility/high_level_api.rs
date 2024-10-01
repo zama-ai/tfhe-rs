@@ -1,32 +1,26 @@
-#![allow(deprecated)]
+use super::shortint::load_params;
+use crate::{load_and_unversionize, TestedModule};
 use std::path::Path;
-
-use tfhe::backward_compatibility::booleans::{CompactFheBool, CompactFheBoolList};
-use tfhe::backward_compatibility::integers::{
-    CompactFheInt8, CompactFheInt8List, CompactFheUint8, CompactFheUint8List,
-};
-
-use tfhe::prelude::{FheDecrypt, FheEncrypt};
+use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt};
 use tfhe::shortint::PBSParameters;
+#[cfg(feature = "zk-pok")]
+use tfhe::zk::CompactPkeCrs;
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
     CompressedPublicKey, CompressedServerKey, FheBool, FheInt8, FheUint8,
 };
+#[cfg(feature = "zk-pok")]
+use tfhe::{CompactPublicKey, ProvenCompactCiphertextList};
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
-    DataKind, HlBoolCiphertextListTest, HlBoolCiphertextTest, HlCiphertextListTest,
-    HlCiphertextTest, HlClientKeyTest, HlHeterogeneousCiphertextListTest, HlPublicKeyTest,
-    HlServerKeyTest, HlSignedCiphertextListTest, HlSignedCiphertextTest, TestMetadata,
-    TestParameterSet, TestType, Testcase,
+    DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
+    HlHeterogeneousCiphertextListTest, HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest,
+    TestMetadata, TestParameterSet, TestType, Testcase, ZkPkePublicParamsTest,
 };
 use tfhe_versionable::Unversionize;
-
-use crate::{load_and_unversionize, TestedModule};
-
-use super::shortint::load_params;
 
 fn load_hl_params(test_params: &TestParameterSet) -> PBSParameters {
     let pbs_params = load_params(test_params);
@@ -53,9 +47,6 @@ pub fn test_hl_ciphertext(
     let ct = if test.compressed {
         let compressed: CompressedFheUint8 = load_and_unversionize(dir, test, format)?;
         compressed.decompress()
-    } else if test.compact {
-        let compact: CompactFheUint8 = load_and_unversionize(dir, test, format)?;
-        compact.expand().unwrap()
     } else {
         load_and_unversionize(dir, test, format)?
     };
@@ -94,9 +85,6 @@ pub fn test_hl_signed_ciphertext(
     let ct = if test.compressed {
         let compressed: CompressedFheInt8 = load_and_unversionize(dir, test, format)?;
         compressed.decompress()
-    } else if test.compact {
-        let compact: CompactFheInt8 = load_and_unversionize(dir, test, format)?;
-        compact.expand().unwrap()
     } else {
         load_and_unversionize(dir, test, format)?
     };
@@ -135,9 +123,6 @@ pub fn test_hl_bool_ciphertext(
     let ct = if test.compressed {
         let compressed: CompressedFheBool = load_and_unversionize(dir, test, format)?;
         compressed.decompress()
-    } else if test.compact {
-        let compact: CompactFheBool = load_and_unversionize(dir, test, format)?;
-        compact.expand().unwrap()
     } else {
         load_and_unversionize(dir, test, format)?
     };
@@ -157,106 +142,19 @@ pub fn test_hl_bool_ciphertext(
     }
 }
 
-/// Test HL ciphertext list: loads the ciphertext list and compare the decrypted values to the ones
-///  in the metadata.
-pub fn test_hl_ciphertext_list(
+/// Test Zk Public params
+pub fn test_zk_params(
     dir: &Path,
-    test: &HlCiphertextListTest,
+    test: &ZkPkePublicParamsTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    #[cfg(feature = "zk-pok")]
+    let _loaded_crs: CompactPkeCrs = load_and_unversionize(dir, test, format)?;
 
-    let server_key = key.generate_server_key();
-    set_server_key(server_key);
+    #[cfg(not(feature = "zk-pok"))]
+    let _ = dir;
 
-    let compact: CompactFheUint8List = load_and_unversionize(dir, test, format)?;
-    let ct_list = compact.expand().unwrap();
-
-    let clear_list: Vec<u8> = ct_list.into_iter().map(|ct| ct.decrypt(&key)).collect();
-    let ref_values: Vec<u8> = test.clear_values.iter().map(|v| *v as u8).collect();
-    if clear_list != ref_values {
-        Err(test.failure(
-            format!(
-                "Invalid {} decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
-                format, clear_list, ref_values
-            ),
-            format,
-        ))
-    } else {
-        Ok(test.success(format))
-    }
-}
-
-/// Test HL signed ciphertext list: loads the ciphertext list and compare the decrypted values to
-/// the ones  in the metadata.
-pub fn test_hl_signed_ciphertext_list(
-    dir: &Path,
-    test: &HlSignedCiphertextListTest,
-    format: DataFormat,
-) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
-
-    let server_key = key.generate_server_key();
-    set_server_key(server_key);
-
-    let compact: CompactFheInt8List = load_and_unversionize(dir, test, format)?;
-    let ct_list = compact.expand().unwrap();
-
-    let clear_list: Vec<i8> = ct_list.into_iter().map(|ct| ct.decrypt(&key)).collect();
-    let ref_values: Vec<i8> = test.clear_values.iter().map(|v| *v as i8).collect();
-    if clear_list != ref_values {
-        Err(test.failure(
-            format!(
-                "Invalid {} decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
-                format, clear_list, ref_values
-            ),
-            format,
-        ))
-    } else {
-        Ok(test.success(format))
-    }
-}
-
-/// Test HL bool ciphertext list: loads the ciphertext list and compare the decrypted values to the
-/// ones  in the metadata.
-pub fn test_hl_bool_ciphertext_list(
-    dir: &Path,
-    test: &HlBoolCiphertextListTest,
-    format: DataFormat,
-) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
-
-    let server_key = key.generate_server_key();
-    set_server_key(server_key);
-
-    let compact: CompactFheBoolList = load_and_unversionize(dir, test, format)?;
-    let ct_list = compact.expand().unwrap();
-
-    let clear_list: Vec<bool> = ct_list.into_iter().map(|ct| ct.decrypt(&key)).collect();
-    let ref_values: Vec<bool> = test.clear_values.iter().copied().collect();
-    if clear_list != ref_values {
-        Err(test.failure(
-            format!(
-                "Invalid {} decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
-                format, clear_list, ref_values
-            ),
-            format,
-        ))
-    } else {
-        Ok(test.success(format))
-    }
+    Ok(test.success(format))
 }
 
 /// Test HL ciphertext list: loads the ciphertext list and compare the decrypted values to the ones
@@ -276,14 +174,40 @@ pub fn test_hl_heterogeneous_ciphertext_list(
     set_server_key(server_key);
 
     if test.compressed {
-        test_hl_heterogeneous_ciphertext_list_compressed(
-            load_and_unversionize(dir, test, format)?,
-            &key,
-            test,
-        )
+        let list: CompressedCiphertextList = load_and_unversionize(dir, test, format)?;
+        test_hl_heterogeneous_ciphertext_list_elements(list, &key, test)
+    } else if let Some(zk_info) = &test.proof_info {
+        #[cfg(feature = "zk-pok")]
+        {
+            let crs_file = dir.join(&*zk_info.params_filename);
+            let crs = CompactPkeCrs::unversionize(
+                load_versioned_auxiliary(crs_file).map_err(|e| test.failure(e, format))?,
+            )
+            .map_err(|e| test.failure(e, format))?;
+
+            let pubkey_file = dir.join(&*zk_info.public_key_filename);
+            let pubkey = CompactPublicKey::unversionize(
+                load_versioned_auxiliary(pubkey_file).map_err(|e| test.failure(e, format))?,
+            )
+            .map_err(|e| test.failure(e, format))?;
+
+            let list: ProvenCompactCiphertextList = load_and_unversionize(dir, test, format)?;
+            test_hl_heterogeneous_ciphertext_list_elements(
+                list.verify_and_expand(&crs, &pubkey, zk_info.metadata.as_bytes())
+                    .map_err(|msg| test.failure(msg, format))?,
+                &key,
+                test,
+            )
+        }
+        #[cfg(not(feature = "zk-pok"))]
+        {
+            let _ = zk_info;
+            Ok(())
+        }
     } else {
-        test_hl_heterogeneous_ciphertext_list_compact(
-            load_and_unversionize(dir, test, format)?,
+        let list: CompactCiphertextList = load_and_unversionize(dir, test, format)?;
+        test_hl_heterogeneous_ciphertext_list_elements(
+            list.expand().map_err(|msg| test.failure(msg, format))?,
             &key,
             test,
         )
@@ -292,17 +216,15 @@ pub fn test_hl_heterogeneous_ciphertext_list(
     .map_err(|msg| test.failure(msg, format))
 }
 
-pub fn test_hl_heterogeneous_ciphertext_list_compact(
-    list: CompactCiphertextList,
+pub fn test_hl_heterogeneous_ciphertext_list_elements<CtList: CiphertextList>(
+    list: CtList,
     key: &ClientKey,
     test: &HlHeterogeneousCiphertextListTest,
 ) -> Result<(), String> {
-    let ct_list = list.expand().unwrap();
-
-    for idx in 0..(ct_list.len()) {
+    for idx in 0..(list.len()) {
         match test.data_kinds[idx] {
             DataKind::Bool => {
-                let ct: FheBool = ct_list.get(idx).unwrap().unwrap();
+                let ct: FheBool = list.get(idx).unwrap().unwrap();
                 let clear = ct.decrypt(key);
                 if clear != (test.clear_values[idx] != 0) {
                     return Err(format!(
@@ -312,7 +234,7 @@ pub fn test_hl_heterogeneous_ciphertext_list_compact(
                 }
             }
             DataKind::Signed => {
-                let ct: FheInt8 = ct_list.get(idx).unwrap().unwrap();
+                let ct: FheInt8 = list.get(idx).unwrap().unwrap();
                 let clear: i8 = ct.decrypt(key);
                 if clear != test.clear_values[idx] as i8 {
                     return Err(format!(
@@ -323,52 +245,7 @@ pub fn test_hl_heterogeneous_ciphertext_list_compact(
                 }
             }
             DataKind::Unsigned => {
-                let ct: FheUint8 = ct_list.get(idx).unwrap().unwrap();
-                let clear: u8 = ct.decrypt(key);
-                if clear != test.clear_values[idx] as u8 {
-                    return Err(format!(
-                        "Invalid decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
-                        clear, test.clear_values[idx]
-                    ));
-                }
-            }
-        };
-    }
-    Ok(())
-}
-
-pub fn test_hl_heterogeneous_ciphertext_list_compressed(
-    list: CompressedCiphertextList,
-    key: &ClientKey,
-    test: &HlHeterogeneousCiphertextListTest,
-) -> Result<(), String> {
-    let ct_list = list;
-
-    for idx in 0..(ct_list.len()) {
-        match test.data_kinds[idx] {
-            DataKind::Bool => {
-                let ct: FheBool = ct_list.get(idx).unwrap().unwrap();
-                let clear = ct.decrypt(key);
-                if clear != (test.clear_values[idx] != 0) {
-                    return Err(format!(
-                        "Invalid decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
-                        clear, test.clear_values[idx]
-                    ));
-                }
-            }
-            DataKind::Signed => {
-                let ct: FheInt8 = ct_list.get(idx).unwrap().unwrap();
-                let clear: i8 = ct.decrypt(key);
-                if clear != test.clear_values[idx] as i8 {
-                    return Err(format!(
-                        "Invalid decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
-                        clear,
-                        (test.clear_values[idx] as i8)
-                    ));
-                }
-            }
-            DataKind::Unsigned => {
-                let ct: FheUint8 = ct_list.get(idx).unwrap().unwrap();
+                let ct: FheUint8 = list.get(idx).unwrap().unwrap();
                 let clear: u8 = ct.decrypt(key);
                 if clear != test.clear_values[idx] as u8 {
                     return Err(format!(
@@ -522,15 +399,6 @@ impl TestedModule for Hl {
             TestMetadata::HlBoolCiphertext(test) => {
                 test_hl_bool_ciphertext(test_dir.as_ref(), test, format).into()
             }
-            TestMetadata::HlBoolCiphertextList(test) => {
-                test_hl_bool_ciphertext_list(test_dir.as_ref(), test, format).into()
-            }
-            TestMetadata::HlCiphertextList(test) => {
-                test_hl_ciphertext_list(test_dir.as_ref(), test, format).into()
-            }
-            TestMetadata::HlSignedCiphertextList(test) => {
-                test_hl_signed_ciphertext_list(test_dir.as_ref(), test, format).into()
-            }
             TestMetadata::HlHeterogeneousCiphertextList(test) => {
                 test_hl_heterogeneous_ciphertext_list(test_dir.as_ref(), test, format).into()
             }
@@ -542,6 +410,9 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlServerKey(test) => {
                 test_hl_serverkey(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::ZkPkePublicParams(test) => {
+                test_zk_params(test_dir.as_ref(), test, format).into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);

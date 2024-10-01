@@ -1,6 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::smart_add_test;
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_comparison::test_unchecked_minmax;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::smart_neg_test;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_slice::{
     default_scalar_bitslice_assign_test, default_scalar_bitslice_test,
@@ -12,7 +13,9 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::{
     default_overflowing_sub_test, smart_sub_test,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::tests::{create_parametrized_test, create_parametrized_test_classical_params};
+use crate::integer::tests::{
+    create_parameterized_test, create_parameterized_test_classical_params,
+};
 use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -39,14 +42,14 @@ const NB_CTXT: usize = 4;
 #[cfg(tarpaulin)]
 const NB_CTXT: usize = 2;
 
-create_parametrized_test_classical_params!(integer_encrypt_decrypt);
-create_parametrized_test_classical_params!(integer_encrypt_decrypt_128_bits);
-create_parametrized_test_classical_params!(integer_encrypt_decrypt_128_bits_specific_values);
-create_parametrized_test_classical_params!(integer_encrypt_decrypt_256_bits_specific_values);
-create_parametrized_test_classical_params!(integer_encrypt_decrypt_256_bits);
-create_parametrized_test_classical_params!(integer_unchecked_add);
-create_parametrized_test_classical_params!(integer_smart_add);
-create_parametrized_test!(
+create_parameterized_test_classical_params!(integer_encrypt_decrypt);
+create_parameterized_test_classical_params!(integer_encrypt_decrypt_128_bits);
+create_parameterized_test_classical_params!(integer_encrypt_decrypt_128_bits_specific_values);
+create_parameterized_test_classical_params!(integer_encrypt_decrypt_256_bits_specific_values);
+create_parameterized_test_classical_params!(integer_encrypt_decrypt_256_bits);
+create_parameterized_test_classical_params!(integer_unchecked_add);
+create_parameterized_test_classical_params!(integer_smart_add);
+create_parameterized_test!(
     integer_smart_add_128_bits {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
@@ -54,76 +57,86 @@ create_parametrized_test!(
         no_coverage => {
             // Skip the 1_1 params for the smart add 128 bits which proved to be the slowest test in our test
             // suite
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
         }
     }
 );
-create_parametrized_test_classical_params!(integer_unchecked_bitand);
-create_parametrized_test_classical_params!(integer_unchecked_bitor);
-create_parametrized_test_classical_params!(integer_unchecked_bitxor);
-create_parametrized_test_classical_params!(integer_smart_bitand);
-create_parametrized_test_classical_params!(integer_smart_bitor);
-create_parametrized_test_classical_params!(integer_smart_bitxor);
-create_parametrized_test_classical_params!(integer_unchecked_small_scalar_mul);
-create_parametrized_test_classical_params!(integer_smart_small_scalar_mul);
-create_parametrized_test_classical_params!(integer_blockshift);
-create_parametrized_test_classical_params!(integer_blockshift_right);
-create_parametrized_test_classical_params!(integer_smart_scalar_mul);
-create_parametrized_test_classical_params!(integer_unchecked_scalar_left_shift);
-create_parametrized_test_classical_params!(integer_unchecked_scalar_right_shift);
-create_parametrized_test_classical_params!(integer_unchecked_neg);
-create_parametrized_test_classical_params!(integer_smart_neg);
-create_parametrized_test_classical_params!(integer_unchecked_sub);
-create_parametrized_test_classical_params!(integer_smart_sub);
+create_parameterized_test_classical_params!(integer_unchecked_bitand);
+create_parameterized_test_classical_params!(integer_unchecked_bitor);
+create_parameterized_test_classical_params!(integer_unchecked_bitxor);
+create_parameterized_test_classical_params!(integer_smart_bitand);
+create_parameterized_test_classical_params!(integer_smart_bitor);
+create_parameterized_test_classical_params!(integer_smart_bitxor);
+create_parameterized_test_classical_params!(integer_unchecked_small_scalar_mul);
+create_parameterized_test_classical_params!(integer_smart_small_scalar_mul);
+create_parameterized_test_classical_params!(integer_blockshift);
+create_parameterized_test_classical_params!(integer_blockshift_right);
+create_parameterized_test_classical_params!(integer_smart_scalar_mul);
+create_parameterized_test_classical_params!(integer_unchecked_scalar_left_shift);
+create_parameterized_test_classical_params!(integer_unchecked_scalar_right_shift);
+create_parameterized_test_classical_params!(integer_unchecked_neg);
+create_parameterized_test_classical_params!(integer_smart_neg);
+create_parameterized_test_classical_params!(integer_unchecked_sub);
+create_parameterized_test_classical_params!(integer_smart_sub);
 #[cfg(not(tarpaulin))]
-create_parametrized_test_classical_params!(integer_default_overflowing_sub);
-create_parametrized_test_classical_params!(integer_unchecked_block_mul);
-create_parametrized_test_classical_params!(integer_smart_block_mul);
-create_parametrized_test_classical_params!(integer_smart_mul);
-create_parametrized_test_classical_params!(integer_unchecked_mul);
+create_parameterized_test_classical_params!(integer_default_overflowing_sub);
+create_parameterized_test_classical_params!(integer_unchecked_block_mul);
+create_parameterized_test_classical_params!(integer_smart_block_mul);
+create_parameterized_test_classical_params!(integer_smart_mul);
+create_parameterized_test_classical_params!(integer_unchecked_mul);
 
-create_parametrized_test_classical_params!(integer_smart_scalar_sub);
-create_parametrized_test_classical_params!(integer_smart_scalar_add);
-create_parametrized_test_classical_params!(integer_unchecked_scalar_sub);
-create_parametrized_test_classical_params!(integer_unchecked_scalar_add);
+create_parameterized_test_classical_params!(integer_smart_scalar_sub);
+create_parameterized_test_classical_params!(integer_smart_scalar_add);
+create_parameterized_test_classical_params!(integer_unchecked_scalar_sub);
+create_parameterized_test_classical_params!(integer_unchecked_scalar_add);
 
-create_parametrized_test_classical_params!(integer_unchecked_scalar_decomposition_overflow);
+create_parameterized_test_classical_params!(integer_unchecked_scalar_decomposition_overflow);
 
-create_parametrized_test!(
+create_parameterized_test!(
     integer_full_propagate {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
         },
         no_coverage => {
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64, // Test case where carry_modulus > message_modulus
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
         }
     }
 );
 
-create_parametrized_test_classical_params!(integer_create_trivial_min_max);
-create_parametrized_test_classical_params!(integer_signed_decryption_correctly_sign_extend);
-create_parametrized_test_classical_params!(integer_scalar_blockslice);
-create_parametrized_test_classical_params!(integer_scalar_blockslice_assign);
-create_parametrized_test_classical_params!(integer_unchecked_scalar_slice);
-create_parametrized_test_classical_params!(integer_unchecked_scalar_slice_assign);
-create_parametrized_test_classical_params!(integer_default_scalar_slice);
-create_parametrized_test_classical_params!(integer_default_scalar_slice_assign);
-create_parametrized_test_classical_params!(integer_smart_scalar_slice);
-create_parametrized_test_classical_params!(integer_smart_scalar_slice_assign);
+create_parameterized_test_classical_params!(integer_create_trivial_min_max);
+create_parameterized_test_classical_params!(integer_signed_decryption_correctly_sign_extend);
+create_parameterized_test_classical_params!(integer_scalar_blockslice);
+create_parameterized_test_classical_params!(integer_scalar_blockslice_assign);
+create_parameterized_test_classical_params!(integer_unchecked_scalar_slice);
+create_parameterized_test_classical_params!(integer_unchecked_scalar_slice_assign);
+create_parameterized_test_classical_params!(integer_default_scalar_slice);
+create_parameterized_test_classical_params!(integer_default_scalar_slice_assign);
+create_parameterized_test_classical_params!(integer_smart_scalar_slice);
+create_parameterized_test_classical_params!(integer_smart_scalar_slice_assign);
+create_parameterized_test!(integer_unchecked_min {
+    coverage => {
+        COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
+    },
+    no_coverage => {
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+    }
+});
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -264,13 +277,13 @@ fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
         // add the two ciphertexts
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
 
-        let mut clear_result = clear_0 + clear_1;
+        let mut clear_result = clear_0.wrapping_add(clear_1);
 
         // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
         //add multiple times to raise the degree
         for _ in 0..2 {
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
-            clear_result += clear_0;
+            clear_result = clear_result.wrapping_add(clear_0);
 
             let dec_res: u128 = cks.decrypt_radix(&ct_res);
             // println!("clear = {}, dec_res = {}", clear, dec_res);
@@ -343,9 +356,9 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
-    let scalar_modulus = param.message_modulus.0 as u64;
+    let scalar_modulus = param.message_modulus.0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -369,9 +382,9 @@ fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
-    let scalar_modulus = param.message_modulus.0 as u64;
+    let scalar_modulus = param.message_modulus.0;
 
     let mut clear_res;
     for _ in 0..NB_TESTS_SMALLER {
@@ -402,7 +415,7 @@ fn integer_blockshift(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -429,7 +442,7 @@ fn integer_blockshift_right(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -456,7 +469,7 @@ fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -530,9 +543,9 @@ fn integer_smart_block_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
-    let block_modulus = param.message_modulus.0 as u64;
+    let block_modulus = param.message_modulus.0;
 
     for _ in 0..5 {
         // Define the cleartexts
@@ -629,7 +642,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
     let ct_res = sks.unchecked_scalar_add(&ct_0, scalar);
     let dec_res = cks.decrypt_radix(&ct_res);
 
-    assert_eq!((clear_0 + scalar as u128), dec_res);
+    assert_eq!(clear_0.wrapping_add(scalar as u128), dec_res);
 
     // Check subtraction
     // -----------------
@@ -640,7 +653,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
     let ct_res = sks.unchecked_scalar_sub(&ct_0, scalar);
     let dec_res = cks.decrypt_radix(&ct_res);
 
-    assert_eq!((clear_0 - scalar as u128), dec_res);
+    assert_eq!(clear_0.wrapping_sub(scalar as u128), dec_res);
 }
 
 #[test]
@@ -653,7 +666,7 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
 
     let mut rng = rand::thread_rng();
 
-    let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let param = V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 
     let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
@@ -666,7 +679,7 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
     let ct_res = sks.smart_scalar_mul(&mut ct_0, scalar);
     let dec_res = cks.decrypt_radix(&ct_res);
 
-    assert_eq!((clear_0 * scalar as u128), dec_res);
+    assert_eq!(clear_0.wrapping_mul(scalar as u128), dec_res);
 }
 
 fn integer_default_overflowing_sub<P>(param: P)
@@ -696,6 +709,9 @@ fn integer_create_trivial_min_max(param: impl Into<PBSParameters>) {
         // If num_bits_in_one_block is not a multiple of bit_size, then
         // the actual number of bits is not the same as bit size (we end up with more)
         let actual_num_bits = num_blocks * num_bits_in_one_block;
+        if actual_num_bits >= i128::BITS {
+            break;
+        }
 
         // Unsigned
         {
@@ -796,4 +812,9 @@ fn integer_smart_scalar_slice(param: ClassicPBSParameters) {
 fn integer_smart_scalar_slice_assign(param: ClassicPBSParameters) {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice_assign);
     smart_scalar_bitslice_assign_test(param, executor);
+}
+
+fn integer_unchecked_min(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_min);
+    test_unchecked_minmax(param, 2, executor, std::cmp::min::<u64>);
 }

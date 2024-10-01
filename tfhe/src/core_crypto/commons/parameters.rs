@@ -25,7 +25,9 @@ pub struct CleartextCount(pub usize);
 pub struct CiphertextCount(pub usize);
 
 /// The number of ciphertexts in an lwe ciphertext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize, Versionize,
+)]
 #[versionize(LweCiphertextCountVersions)]
 pub struct LweCiphertextCount(pub usize);
 
@@ -137,8 +139,9 @@ pub struct PolynomialSize(pub usize);
 
 impl PolynomialSize {
     /// Return the associated [`PolynomialSizeLog`].
+    /// If the polynomial size is not a power of 2, returns the floor of its log2
     pub fn log2(&self) -> PolynomialSizeLog {
-        PolynomialSizeLog((self.0 as f64).log2().ceil() as usize)
+        PolynomialSizeLog(self.0.ilog2() as usize)
     }
 
     pub fn to_fourier_polynomial_size(&self) -> FourierPolynomialSize {

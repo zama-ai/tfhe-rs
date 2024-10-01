@@ -7,7 +7,7 @@ using multithreading to accelerate the computation.
 
 
 Quite similarly, the function `TriviumStream::<FheBool>::new` will return a very similar object running in FHE space. Its arguments are
-2 arrays of 80 FheBool representing the encrypted Trivium key, and the encrypted IV. It also requires a reference to the the server key of the 
+2 arrays of 80 FheBool representing the encrypted Trivium key, and the encrypted IV. It also requires a reference to the server key of the 
 current scheme. This means that any user of this feature must also have the `tfhe-rs` crate as a dependency.
 
 

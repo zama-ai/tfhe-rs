@@ -22,6 +22,10 @@
   </style>
 
   <div>
+    <!-- Use input `max` attribute to specify a custom timeout in seconds for a test/bench
+         Default timeout is available in ci/webdriver.py under variable name `case_timeout_seconds`
+    -->
+
     <input type="button" id="publicKeyTest" value="Public Key Test" disabled />
     <input
       type="button"
@@ -36,18 +40,36 @@
       value="Compressed Compact Public Key Test 256 Bits Small"
       disabled
     />
+
     <input
       type="button"
       id="compressedCompactPublicKeyTest256BitBig"
       value="Compressed Compact Public Key Test 256 Bits Big"
       disabled
     />
+
     <input
       type="button"
-      id="compactPublicKeyZeroKnowledge"
+      id="compactPublicKeyZeroKnowledgeTest"
       value="Compact Public Key Test 64 Bits Big With Zero Knowledge Proof"
+      max="3600"
       disabled
     />
+
+    <input
+      type="button"
+      id="compactPublicKeyWithCastingTest256Bit"
+      value="Compact Public Key With Casting Test 256 Bit"
+      disabled
+    />
+
+    <input
+      type="button"
+      id="compressedCompactPublicKeyWithCastingTest256Bit"
+      value="Compressed Compact Public Key With Casting Test 256 Bit"
+      disabled
+    />
+
     <input type="checkbox" id="testSuccess" disabled />
     <label for="testSuccess"> TestSuccess </label><br />
 
@@ -78,32 +100,23 @@
     />
     <input
       type="button"
-      id="compactPublicKeyWithCastingTest256Bit"
-      value="Compact Public Key With Casting Test 256 Bit"
-      disabled
-    />
-    <input
-      type="button"
-      id="compressedCompactPublicKeyWithCastingTest256Bit"
-      value="Compressed Compact Public Key With Casting Test 256 Bit"
-      disabled
-    />
-    <input
-      type="button"
       id="compressedServerKeyBenchMessage1Carry1"
       value="Compressed Server Key Bench 1_1"
+      max="600"
       disabled
     />
     <input
       type="button"
       id="compressedServerKeyBenchMessage2Carry2"
       value="Compressed Server Key Bench 2_2"
+      max="600"
       disabled
     />
     <input
       type="button"
       id="compactPublicKeyZeroKnowledgeBench"
       value="Compact ZK Bench"
+      max="3600"
       disabled
     />
 

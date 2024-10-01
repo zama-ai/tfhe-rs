@@ -3,9 +3,12 @@
 pub(crate) mod secret_encryption_key;
 use tfhe_versionable::Versionize;
 
-use super::PBSOrder;
+use super::{PBSOrder, PaddingBit, ShortintEncoding};
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
+use crate::core_crypto::prelude::{
+    allocate_and_generate_new_binary_glwe_secret_key,
+    allocate_and_generate_new_binary_lwe_secret_key, decrypt_lwe_ciphertext,
+};
 use crate::shortint::backward_compatibility::client_key::ClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
@@ -15,7 +18,7 @@ use crate::shortint::parameters::{
 use crate::shortint::CarryModulus;
 use secret_encryption_key::SecretEncryptionKeyView;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 /// A structure containing the client key, which must be kept secret.
 ///
@@ -89,6 +92,74 @@ impl ClientKey {
                 self.lwe_secret_key.as_view(),
                 self.parameters.lwe_noise_distribution(),
             ),
+        }
+    }
+
+    pub fn try_from_lwe_encryption_key<P>(
+        encryption_key: LweSecretKeyOwned<u64>,
+        parameters: P,
+    ) -> crate::Result<Self>
+    where
+        P: TryInto<ShortintParameterSet>,
+        <P as TryInto<ShortintParameterSet>>::Error: Display,
+    {
+        let parameters = parameters
+            .try_into()
+            .map_err(|err| crate::Error::new(format!("{err}")))?;
+
+        let expected_lwe_dimension = parameters.encryption_lwe_dimension();
+        if encryption_key.lwe_dimension() != expected_lwe_dimension {
+            return Err(
+                crate::Error::new(
+                    format!(
+                        "The given encryption key does not have the correct LweDimension, expected: {:?}, got: {:?}",
+                        encryption_key.lwe_dimension(),
+                        expected_lwe_dimension)));
+        }
+
+        // The key we got is the one used to encrypt,
+        // we have to generate the other key
+        match parameters.encryption_key_choice() {
+            EncryptionKeyChoice::Big => {
+                // We have to generate the small lwe key
+                let small_key = ShortintEngine::with_thread_local_mut(|engine| {
+                    allocate_and_generate_new_binary_lwe_secret_key(
+                        parameters.lwe_dimension(),
+                        &mut engine.secret_generator,
+                    )
+                });
+
+                Ok(Self {
+                    glwe_secret_key: GlweSecretKeyOwned::from_container(
+                        encryption_key.into_container(),
+                        parameters.polynomial_size(),
+                    ),
+                    lwe_secret_key: small_key,
+                    parameters,
+                })
+            }
+            EncryptionKeyChoice::Small => {
+                // We have to generate the big lwe key
+                let glwe_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
+                    allocate_and_generate_new_binary_glwe_secret_key(
+                        parameters.glwe_dimension(),
+                        parameters.polynomial_size(),
+                        &mut engine.secret_generator,
+                    )
+                });
+
+                Ok(Self {
+                    glwe_secret_key,
+                    lwe_secret_key: encryption_key,
+                    parameters,
+                })
+            }
+            EncryptionKeyChoice::BigNtt(_) => {
+                todo!()
+            }
+            EncryptionKeyChoice::SmallNtt(_) => {
+                todo!()
+            }
         }
     }
 
@@ -177,6 +248,28 @@ impl ClientKey {
         }
     }
 
+    #[cfg(test)]
+    pub fn create_trivial(&self, value: u64) -> Ciphertext {
+        let modular_value = value % self.parameters.message_modulus().0;
+        self.unchecked_create_trivial(modular_value)
+    }
+
+    #[cfg(test)]
+    pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
+        let params = self.parameters;
+
+        let lwe_size = params.encryption_lwe_dimension().to_lwe_size();
+
+        super::ciphertext::unchecked_create_trivial_with_lwe_size(
+            Cleartext(value),
+            lwe_size,
+            params.message_modulus(),
+            params.carry_modulus(),
+            PBSOrder::from(params.encryption_key_choice()),
+            params.ciphertext_modulus(),
+        )
+    }
+
     /// Encrypt a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus
@@ -201,7 +294,7 @@ impl ClientKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt(&self, message: u64) -> Ciphertext {
@@ -236,7 +329,7 @@ impl ClientKey {
     /// let ct = ct.decompress();
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt_compressed(&self, message: u64) -> CompressedCiphertext {
@@ -379,7 +472,7 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// use tfhe::shortint::ClientKey;
     ///
@@ -395,7 +488,7 @@ impl ClientKey {
     /// let dec = cks.decrypt_message_and_carry(&ct);
     /// assert_eq!(msg, dec);
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt(msg);
@@ -405,18 +498,11 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
-        let decrypted_u64: u64 = self.decrypt_no_decode(ct);
+        let decrypted_u64 = self.decrypt_no_decode(ct);
 
-        let delta = self.parameters.delta();
-
-        //The bit before the message
-        let rounding_bit = delta >> 1;
-
-        //compute the rounding bit
-        let rounding = (decrypted_u64 & rounding_bit) << 1;
-
-        ((decrypted_u64.wrapping_add(rounding)) / delta)
-            % (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64
+        ShortintEncoding::from_parameters(self.parameters, PaddingBit::Yes)
+            .decode(decrypted_u64)
+            .0
     }
 
     /// Decrypt a ciphertext encrypting a message using the client key.
@@ -425,7 +511,7 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// use tfhe::shortint::ClientKey;
     ///
@@ -441,7 +527,7 @@ impl ClientKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg, dec);
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt(msg);
@@ -451,15 +537,15 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt(&self, ct: &Ciphertext) -> u64 {
-        self.decrypt_message_and_carry(ct) % ct.message_modulus.0 as u64
+        self.decrypt_message_and_carry(ct) % ct.message_modulus.0
     }
 
-    pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> u64 {
+    pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> Plaintext<u64> {
         let lwe_decryption_key = match ct.pbs_order {
             PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
             PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
         };
-        decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct).0
+        decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct)
     }
 
     /// Encrypt a small integer message using the client key without padding bit.
@@ -522,12 +608,13 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_1_CARRY_1_PBS_KS,
+    ///     V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    ///     V0_11_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// use tfhe::shortint::ClientKey;
     ///
     /// // Generate the client key
-    /// let cks = ClientKey::new(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let msg = 3;
     ///
@@ -538,7 +625,7 @@ impl ClientKey {
     /// let dec = cks.decrypt_message_and_carry_without_padding(&ct);
     /// assert_eq!(msg, dec);
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_1_CARRY_1_PBS_KS);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt_without_padding(msg);
@@ -550,16 +637,9 @@ impl ClientKey {
     pub fn decrypt_message_and_carry_without_padding(&self, ct: &Ciphertext) -> u64 {
         let decrypted_u64 = self.decrypt_no_decode(ct);
 
-        //Multiply by 2 to reshift and exclude the padding bit
-        let delta = self.parameters.delta() << 1;
-
-        //The bit before the message
-        let rounding_bit = delta >> 1;
-
-        //compute the rounding bit
-        let rounding = (decrypted_u64 & rounding_bit) << 1;
-
-        (decrypted_u64.wrapping_add(rounding)) / delta
+        ShortintEncoding::from_parameters(self.parameters, PaddingBit::No)
+            .decode(decrypted_u64)
+            .0
     }
 
     /// Decrypt a ciphertext encrypting an integer message using the client key,
@@ -569,7 +649,7 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// use tfhe::shortint::ClientKey;
     ///
@@ -586,7 +666,7 @@ impl ClientKey {
     /// let dec = cks.decrypt_without_padding(&ct);
     /// assert_eq!(msg % modulus, dec);
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt_without_padding(msg);
@@ -596,7 +676,7 @@ impl ClientKey {
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn decrypt_without_padding(&self, ct: &Ciphertext) -> u64 {
-        self.decrypt_message_and_carry_without_padding(ct) % ct.message_modulus.0 as u64
+        self.decrypt_message_and_carry_without_padding(ct) % ct.message_modulus.0
     }
 
     /// Encrypt a small integer message using the client key without padding bit with some modulus.
@@ -620,7 +700,7 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus.0 as u64);
+    /// assert_eq!(msg, dec % modulus.0);
     /// ```
     pub fn encrypt_native_crt(&self, message: u64, message_modulus: MessageModulus) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -652,7 +732,7 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus.0 as u64);
+    /// assert_eq!(msg, dec % modulus.0);
     /// ```
     pub fn encrypt_native_crt_compressed(
         &self,
@@ -671,7 +751,8 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{
-    ///     MessageModulus, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     MessageModulus, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     /// use tfhe::shortint::ClientKey;
     ///
@@ -686,26 +767,26 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus.0 as u64);
+    /// assert_eq!(msg, dec % modulus.0);
     ///
     /// // Generate the client key
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt_native_crt(msg, modulus);
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus.0 as u64);
+    /// assert_eq!(msg, dec % modulus.0);
     /// ```
     pub fn decrypt_message_native_crt(
         &self,
         ct: &Ciphertext,
         message_modulus: MessageModulus,
     ) -> u64 {
-        let basis = message_modulus.0 as u64;
+        let basis = message_modulus.0;
 
-        let decrypted_u64: u64 = self.decrypt_no_decode(ct);
+        let decrypted_u64: u64 = self.decrypt_no_decode(ct).0;
 
         let mut result = decrypted_u64 as u128 * basis as u128;
         result = result.wrapping_add((result & 1 << 63) << 1) / (1 << 64);

@@ -7,10 +7,11 @@ use crate::high_level_api::backward_compatibility::keys::ClientKeyVersions;
 use crate::high_level_api::config::Config;
 use crate::high_level_api::keys::{CompactPrivateKey, IntegerClientKey};
 use crate::integer::compression_keys::CompressionPrivateKeys;
+use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
 use crate::Tag;
-use concrete_csprng::seeders::Seed;
+use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
 /// Key of the client
@@ -67,6 +68,10 @@ impl ClientKey {
             key: IntegerClientKey::with_seed(config.inner, seed),
             tag: Tag::default(),
         }
+    }
+
+    pub fn computation_parameters(&self) -> crate::shortint::PBSParameters {
+        self.key.block_parameters()
     }
 
     pub fn into_raw_parts(
@@ -132,4 +137,8 @@ impl AsRef<crate::integer::ClientKey> for ClientKey {
     fn as_ref(&self) -> &crate::integer::ClientKey {
         &self.key.key
     }
+}
+
+impl Named for ClientKey {
+    const NAME: &'static str = "high_level_api::ClientKey";
 }

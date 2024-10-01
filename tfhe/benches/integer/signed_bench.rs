@@ -1,9 +1,13 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, EnvConfig, OperatorType, ParamsAndNumBlocksIter};
-use criterion::{criterion_group, Criterion};
+use crate::utilities::{
+    throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType,
+    ParamsAndNumBlocksIter, BENCH_TYPE,
+};
+use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
+use rayon::prelude::*;
 use std::env;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
@@ -26,7 +30,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
     binary_op: F,
     sample_size: usize,
 ) where
-    F: Fn(&ServerKey, &SignedRadixCiphertext, &SignedRadixCiphertext),
+    F: Fn(&ServerKey, &SignedRadixCiphertext, &SignedRadixCiphertext) + Sync,
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -37,25 +41,55 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let bench_id;
 
-            let encrypt_two_values = || {
-                let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-                let ct_1 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+        match BENCH_TYPE.get().unwrap() {
+            BenchmarkType::Latency => {
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                (ct_0, ct_1)
-            };
+                    let encrypt_two_values = || {
+                        let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                        let ct_1 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
 
-            b.iter_batched(
-                encrypt_two_values,
-                |(ct_0, ct_1)| {
-                    binary_op(&sks, &ct_0, &ct_1);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
+                        (ct_0, ct_1)
+                    };
+
+                    b.iter_batched(
+                        encrypt_two_values,
+                        |(ct_0, ct_1)| {
+                            binary_op(&sks, &ct_0, &ct_1);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+            }
+            BenchmarkType::Throughput => {
+                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                let elements = throughput_num_threads(num_block);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                    let mut cts_0 = (0..elements)
+                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+                    let mut cts_1 = (0..elements)
+                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+
+                    b.iter(|| {
+                        cts_0
+                            .par_iter_mut()
+                            .zip(cts_1.par_iter_mut())
+                            .for_each(|(ct_0, ct_1)| {
+                                binary_op(&sks, ct_0, ct_1);
+                            })
+                    })
+                });
+            }
+        }
 
         write_to_json::<u64, _>(
             &bench_id,
@@ -79,7 +113,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
     display_name: &str,
     binary_op: F,
 ) where
-    F: Fn(&ServerKey, &SignedRadixCiphertext, &RadixCiphertext),
+    F: Fn(&ServerKey, &SignedRadixCiphertext, &RadixCiphertext) + Sync,
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -90,27 +124,59 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let bench_id;
 
-            let encrypt_two_values = || {
-                let clear_1 = rng.gen_range(0u128..bit_size as u128);
+        match BENCH_TYPE.get().unwrap() {
+            BenchmarkType::Latency => {
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-                let ct_1 = cks.encrypt_radix(clear_1, num_block);
+                    let encrypt_two_values = || {
+                        let clear_1 = rng.gen_range(0u128..bit_size as u128);
 
-                (ct_0, ct_1)
-            };
+                        let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                        let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
-            b.iter_batched(
-                encrypt_two_values,
-                |(ct_0, ct_1)| {
-                    binary_op(&sks, &ct_0, &ct_1);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
+                        (ct_0, ct_1)
+                    };
+
+                    b.iter_batched(
+                        encrypt_two_values,
+                        |(ct_0, ct_1)| {
+                            binary_op(&sks, &ct_0, &ct_1);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+            }
+            BenchmarkType::Throughput => {
+                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                let elements = throughput_num_threads(num_block);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                    let mut cts_0 = (0..elements)
+                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+                    let mut cts_1 = (0..elements)
+                        .map(|_| {
+                            cks.encrypt_radix(rng.gen_range(0u128..bit_size as u128), num_block)
+                        })
+                        .collect::<Vec<_>>();
+
+                    b.iter(|| {
+                        cts_0
+                            .par_iter_mut()
+                            .zip(cts_1.par_iter_mut())
+                            .for_each(|(ct_0, ct_1)| {
+                                binary_op(&sks, ct_0, ct_1);
+                            })
+                    })
+                });
+            }
+        }
 
         write_to_json::<u64, _>(
             &bench_id,
@@ -134,7 +200,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
     display_name: &str,
     unary_fn: F,
 ) where
-    F: Fn(&ServerKey, &SignedRadixCiphertext),
+    F: Fn(&ServerKey, &SignedRadixCiphertext) + Sync,
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -146,21 +212,45 @@ fn bench_server_key_unary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let bench_id;
 
-            let encrypt_one_value =
-                || cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+        match BENCH_TYPE.get().unwrap() {
+            BenchmarkType::Latency => {
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-            b.iter_batched(
-                encrypt_one_value,
-                |ct_0| {
-                    unary_fn(&sks, &ct_0);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
+                    let encrypt_one_value =
+                        || cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
+                    b.iter_batched(
+                        encrypt_one_value,
+                        |ct_0| {
+                            unary_fn(&sks, &ct_0);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+            }
+            BenchmarkType::Throughput => {
+                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                let elements = throughput_num_threads(num_block);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                    let mut cts_0 = (0..elements)
+                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+
+                    b.iter(|| {
+                        cts_0.par_iter_mut().for_each(|ct_0| {
+                            unary_fn(&sks, ct_0);
+                        })
+                    })
+                });
+            }
+        }
 
         write_to_json::<u64, _>(
             &bench_id,
@@ -189,27 +279,63 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let bench_id;
 
-            let encrypt_tree_values = || {
-                let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-                let ct_1 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+        match BENCH_TYPE.get().unwrap() {
+            BenchmarkType::Latency => {
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                let cond = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                    let encrypt_tree_values = || {
+                        let cond = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                        let ct_then =
+                            cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                        let ct_else =
+                            cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
 
-                (cond, ct_0, ct_1)
-            };
+                        (cond, ct_then, ct_else)
+                    };
 
-            b.iter_batched(
-                encrypt_tree_values,
-                |(condition, true_ct, false_ct)| {
-                    sks.if_then_else_parallelized(&condition, &true_ct, &false_ct)
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
+                    b.iter_batched(
+                        encrypt_tree_values,
+                        |(condition, true_ct, false_ct)| {
+                            sks.if_then_else_parallelized(&condition, &true_ct, &false_ct)
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+            }
+            BenchmarkType::Throughput => {
+                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                let elements = throughput_num_threads(num_block);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                    let cts_cond = (0..elements)
+                        .map(|_| sks.create_trivial_boolean_block(rng.gen_bool(0.5)))
+                        .collect::<Vec<_>>();
+
+                    let cts_then = (0..elements)
+                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+                    let cts_else = (0..elements)
+                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+
+                    b.iter(|| {
+                        cts_cond
+                            .par_iter()
+                            .zip(cts_then.par_iter())
+                            .zip(cts_else.par_iter())
+                            .for_each(|((condition, true_ct), false_ct)| {
+                                sks.if_then_else_parallelized(condition, true_ct, false_ct);
+                            })
+                    })
+                });
+            }
+        }
 
         write_to_json::<u64, _>(
             &bench_id,
@@ -286,6 +412,8 @@ define_server_key_bench_unary_signed_clean_input_fn!(method_name: leading_ones_p
 define_server_key_bench_unary_signed_clean_input_fn!(method_name: trailing_zeros_parallelized, display_name: trailing_zeros);
 define_server_key_bench_unary_signed_clean_input_fn!(method_name: trailing_ones_parallelized, display_name: trailing_ones);
 define_server_key_bench_unary_signed_clean_input_fn!(method_name: ilog2_parallelized, display_name: ilog2);
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: count_zeros_parallelized, display_name: count_zeros);
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: count_ones_parallelized, display_name: count_ones);
 define_server_key_bench_unary_signed_clean_input_fn!(method_name: checked_ilog2_parallelized, display_name: checked_ilog2);
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
@@ -448,6 +576,8 @@ criterion_group!(
     trailing_ones_parallelized,
     ilog2_parallelized,
     checked_ilog2_parallelized,
+    count_ones_parallelized,
+    count_zeros_parallelized,
 );
 
 criterion_group!(
@@ -500,12 +630,12 @@ define_server_key_bench_binary_signed_clean_inputs_fn!(
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: unchecked_bitor_parallelized,
-    display_name: bitand
+    display_name: bitor
 );
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: unchecked_bitxor_parallelized,
-    display_name: bitand
+    display_name: bitxor
 );
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
@@ -651,7 +781,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     binary_op: F,
     rng_func: G,
 ) where
-    F: Fn(&ServerKey, &mut SignedRadixCiphertext, ScalarType),
+    F: Fn(&ServerKey, &mut SignedRadixCiphertext, ScalarType) + Sync,
     G: Fn(&mut ThreadRng, usize) -> ScalarType,
 {
     let mut bench_group = c.benchmark_group(bench_name);
@@ -668,32 +798,71 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
         let range = range_for_signed_bit_size(bit_size);
 
-        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let bench_id;
 
-            let encrypt_one_value = || {
-                let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+        match BENCH_TYPE.get().unwrap() {
+            BenchmarkType::Latency => {
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                let clear_1 = rng_func(&mut rng, bit_size);
-                assert!(
-                    range.contains(&clear_1),
-                    "{:?} is not within the range {:?}",
-                    clear_1,
-                    range
-                );
+                    let encrypt_one_value = || {
+                        let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
 
-                (ct_0, clear_1)
-            };
+                        let clear_1 = rng_func(&mut rng, bit_size);
+                        assert!(
+                            range.contains(&clear_1),
+                            "{:?} is not within the range {:?}",
+                            clear_1,
+                            range
+                        );
 
-            b.iter_batched(
-                encrypt_one_value,
-                |(mut ct_0, clear_1)| {
-                    binary_op(&sks, &mut ct_0, clear_1);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
+                        (ct_0, clear_1)
+                    };
+
+                    b.iter_batched(
+                        encrypt_one_value,
+                        |(mut ct_0, clear_1)| {
+                            binary_op(&sks, &mut ct_0, clear_1);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+            }
+            BenchmarkType::Throughput => {
+                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                let elements = throughput_num_threads(num_block);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                    let mut cts_0 = (0..elements)
+                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+                    let clears_1 = (0..elements)
+                        .map(|_| {
+                            let clear_1 = rng_func(&mut rng, bit_size);
+                            assert!(
+                                range.contains(&clear_1),
+                                "{:?} is not within the range {:?}",
+                                clear_1,
+                                range
+                            );
+                            clear_1
+                        })
+                        .collect::<Vec<_>>();
+
+                    b.iter(|| {
+                        cts_0
+                            .par_iter_mut()
+                            .zip(clears_1.par_iter())
+                            .for_each(|(ct_0, clear_1)| {
+                                binary_op(&sks, ct_0, *clear_1);
+                            })
+                    })
+                });
+            }
+        }
 
         write_to_json::<u64, _>(
             &bench_id,
@@ -1158,6 +1327,7 @@ criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
 mod cuda {
     use super::*;
     use criterion::criterion_group;
+    use rayon::iter::IntoParallelRefIterator;
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
@@ -1172,11 +1342,11 @@ mod cuda {
         binary_op: F,
     ) where
         F: Fn(
-            &CudaServerKey,
-            &mut CudaSignedRadixCiphertext,
-            &mut CudaSignedRadixCiphertext,
-            &CudaStreams,
-        ),
+                &CudaServerKey,
+                &mut CudaSignedRadixCiphertext,
+                &mut CudaSignedRadixCiphertext,
+                &CudaStreams,
+            ) + Sync,
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -1189,39 +1359,91 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+            let bench_id;
 
-            bench_group.bench_function(&bench_id, |b| {
-                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                let gpu_sks = CudaServerKey::new(&cks, &stream);
+            match BENCH_TYPE.get().unwrap() {
+                BenchmarkType::Latency => {
+                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
-                let encrypt_two_values = || {
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
-                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
 
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear_1 = tfhe::integer::I256::from((clearlow, clearhigh));
-                    let ct_1 = cks.encrypt_signed_radix(clear_1, num_block);
+                        let encrypt_two_values = || {
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                            let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                    let d_ctxt_1 =
-                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_0, &stream);
-                    let d_ctxt_2 =
-                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_1, &stream);
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_1 = tfhe::integer::I256::from((clearlow, clearhigh));
+                            let ct_1 = cks.encrypt_signed_radix(clear_1, num_block);
 
-                    (d_ctxt_1, d_ctxt_2)
-                };
+                            let d_ctxt_1 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                &ct_0, &stream,
+                            );
+                            let d_ctxt_2 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                &ct_1, &stream,
+                            );
 
-                b.iter_batched(
-                    encrypt_two_values,
-                    |(mut ct_0, mut ct_1)| {
-                        binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &stream);
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            });
+                            (d_ctxt_1, d_ctxt_2)
+                        };
+
+                        b.iter_batched(
+                            encrypt_two_values,
+                            |(mut ct_0, mut ct_1)| {
+                                binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &stream);
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    let elements = throughput_num_threads(num_block);
+                    bench_group.throughput(Throughput::Elements(elements));
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                        let mut cts_0 = (0..elements)
+                            .map(|_| {
+                                let clearlow = rng.gen::<u128>();
+                                let clearhigh = rng.gen::<u128>();
+                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+
+                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                    &ct_0, &stream,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        let mut cts_1 = (0..elements)
+                            .map(|_| {
+                                let clearlow = rng.gen::<u128>();
+                                let clearhigh = rng.gen::<u128>();
+                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+
+                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                    &ct_0, &stream,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+
+                        b.iter(|| {
+                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
+                                |(ct_0, ct_1)| {
+                                    binary_op(&gpu_sks, ct_0, ct_1, &stream);
+                                },
+                            )
+                        })
+                    });
+                }
+            }
 
             write_to_json::<u64, _>(
                 &bench_id,
@@ -1262,7 +1484,7 @@ mod cuda {
         display_name: &str,
         unary_op: F,
     ) where
-        F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, &CudaStreams),
+        F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, &CudaStreams) + Sync,
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -1275,29 +1497,65 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+            let bench_id;
 
-            bench_group.bench_function(&bench_id, |b| {
-                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                let gpu_sks = CudaServerKey::new(&cks, &stream);
+            match BENCH_TYPE.get().unwrap() {
+                BenchmarkType::Latency => {
+                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
-                let encrypt_one_value = || {
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear = tfhe::integer::I256::from((clearlow, clearhigh));
-                    let ct = cks.encrypt_signed_radix(clear, num_block);
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
 
-                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &stream)
-                };
+                        let encrypt_one_value = || {
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                            let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                b.iter_batched(
-                    encrypt_one_value,
-                    |mut ct| {
-                        unary_op(&gpu_sks, &mut ct, &stream);
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            });
+                            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_0, &stream)
+                        };
+
+                        b.iter_batched(
+                            encrypt_one_value,
+                            |mut ct_0| {
+                                unary_op(&gpu_sks, &mut ct_0, &stream);
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    let elements = throughput_num_threads(num_block);
+                    bench_group.throughput(Throughput::Elements(elements));
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                        let mut cts_0 = (0..elements)
+                            .map(|_| {
+                                let clearlow = rng.gen::<u128>();
+                                let clearhigh = rng.gen::<u128>();
+                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+
+                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                    &ct_0, &stream,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+
+                        b.iter(|| {
+                            cts_0.par_iter_mut().for_each(|ct_0| {
+                                unary_op(&gpu_sks, ct_0, &stream);
+                            })
+                        })
+                    });
+                }
+            }
 
             write_to_json::<u64, _>(
                 &bench_id,
@@ -1337,7 +1595,7 @@ mod cuda {
         binary_op: F,
         rng_func: G,
     ) where
-        F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, ScalarType, &CudaStreams),
+        F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, ScalarType, &CudaStreams) + Sync,
         G: Fn(&mut ThreadRng, usize) -> ScalarType,
     {
         let mut bench_group = c.benchmark_group(bench_name);
@@ -1356,32 +1614,78 @@ mod cuda {
 
             let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
 
-            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
-            bench_group.bench_function(&bench_id, |b| {
-                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                let gpu_sks = CudaServerKey::new(&cks, &stream);
+            let bench_id;
 
-                let encrypt_one_value = || {
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
-                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
-                    let d_ct_0 =
-                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_0, &stream);
+            match BENCH_TYPE.get().unwrap() {
+                BenchmarkType::Latency => {
+                    bench_id =
+                        format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
 
-                    let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+                        let encrypt_one_value = || {
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                            let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                    (d_ct_0, clear_1)
-                };
+                            let d_ctxt_1 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                &ct_0, &stream,
+                            );
 
-                b.iter_batched(
-                    encrypt_one_value,
-                    |(mut ct_0, clear_1)| {
-                        binary_op(&gpu_sks, &mut ct_0, clear_1, &stream);
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            });
+                            let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+
+                            (d_ctxt_1, clear_1)
+                        };
+
+                        b.iter_batched(
+                            encrypt_one_value,
+                            |(mut ct_0, clear_1)| {
+                                binary_op(&gpu_sks, &mut ct_0, clear_1, &stream);
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    bench_id = format!(
+                        "{bench_name}::throughput::{param_name}::{bit_size}_bits_scalar_{bit_size}"
+                    );
+                    let elements = throughput_num_threads(num_block);
+                    bench_group.throughput(Throughput::Elements(elements));
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                        let mut cts_0 = (0..elements)
+                            .map(|_| {
+                                let clearlow = rng.gen::<u128>();
+                                let clearhigh = rng.gen::<u128>();
+                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+
+                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                    &ct_0, &stream,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        let clears_1 = (0..elements)
+                            .map(|_| rng_func(&mut rng, bit_size) & max_value_for_bit_size)
+                            .collect::<Vec<_>>();
+
+                        b.iter(|| {
+                            cts_0.par_iter_mut().zip(clears_1.par_iter()).for_each(
+                                |(ct_0, clear_1)| {
+                                    binary_op(&gpu_sks, ct_0, *clear_1, &stream);
+                                },
+                            )
+                        })
+                    });
+                }
+            }
 
             write_to_json::<u64, _>(
                 &bench_id,
@@ -1424,11 +1728,11 @@ mod cuda {
         binary_op: F,
     ) where
         F: Fn(
-            &CudaServerKey,
-            &mut CudaSignedRadixCiphertext,
-            &mut CudaUnsignedRadixCiphertext,
-            &CudaStreams,
-        ),
+                &CudaServerKey,
+                &mut CudaSignedRadixCiphertext,
+                &mut CudaUnsignedRadixCiphertext,
+                &CudaStreams,
+            ) + Sync,
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -1441,39 +1745,88 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+            let bench_id;
 
-            bench_group.bench_function(&bench_id, |b| {
-                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                let gpu_sks = CudaServerKey::new(&cks, &stream);
+            match BENCH_TYPE.get().unwrap() {
+                BenchmarkType::Latency => {
+                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
-                let encrypt_two_values = || {
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
-                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
 
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
-                    let ct_1 = cks.encrypt_radix(clear_1, num_block);
+                        let encrypt_two_values = || {
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                            let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                    let d_ctxt_1 =
-                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_0, &stream);
-                    let d_ctxt_2 =
-                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &stream);
+                            let clearlow = rng.gen::<u128>();
+                            let clearhigh = rng.gen::<u128>();
+                            let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                            let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
-                    (d_ctxt_1, d_ctxt_2)
-                };
+                            let d_ctxt_1 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                &ct_0, &stream,
+                            );
+                            let d_ctxt_2 =
+                                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &stream);
 
-                b.iter_batched(
-                    encrypt_two_values,
-                    |(mut ct_0, mut ct_1)| {
-                        binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &stream);
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            });
+                            (d_ctxt_1, d_ctxt_2)
+                        };
+
+                        b.iter_batched(
+                            encrypt_two_values,
+                            |(mut ct_0, mut ct_1)| {
+                                binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &stream);
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    let elements = throughput_num_threads(num_block);
+                    bench_group.throughput(Throughput::Elements(elements));
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                        let mut cts_0 = (0..elements)
+                            .map(|_| {
+                                let clearlow = rng.gen::<u128>();
+                                let clearhigh = rng.gen::<u128>();
+                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+
+                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                    &ct_0, &stream,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        let mut cts_1 = (0..elements)
+                            .map(|_| {
+                                let clearlow = rng.gen::<u128>();
+                                let clearhigh = rng.gen::<u128>();
+                                let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                                let ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &stream)
+                            })
+                            .collect::<Vec<_>>();
+
+                        b.iter(|| {
+                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
+                                |(ct_0, ct_1)| {
+                                    binary_op(&gpu_sks, ct_0, ct_1, &stream);
+                                },
+                            )
+                        })
+                    });
+                }
+            }
 
             write_to_json::<u64, _>(
                 &bench_id,
@@ -1507,7 +1860,8 @@ mod cuda {
     );
 
     fn cuda_if_then_else(c: &mut Criterion) {
-        let mut bench_group = c.benchmark_group("integer::cuda::signed::if_then_else");
+        let bench_name = "integer::cuda::signed::if_then_else";
+        let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -1522,34 +1876,92 @@ mod cuda {
 
             let param_name = param.name();
 
-            let bench_id = format!("if_then_else:{param_name}::{bit_size}_bits_scalar_{bit_size}");
-            bench_group.bench_function(&bench_id, |b| {
-                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                let gpu_sks = CudaServerKey::new(&cks, &stream);
+            let bench_id;
 
-                let encrypt_tree_values = || {
-                    let clear_cond = rng.gen::<bool>();
-                    let ct_then = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-                    let ct_else = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-                    let ct_cond = cks.encrypt_bool(clear_cond);
+            match BENCH_TYPE.get().unwrap() {
+                BenchmarkType::Latency => {
+                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
-                    let d_ct_cond = CudaBooleanBlock::from_boolean_block(&ct_cond, &stream);
-                    let d_ct_then =
-                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_then, &stream);
-                    let d_ct_else =
-                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_else, &stream);
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
 
-                    (d_ct_cond, d_ct_then, d_ct_else)
-                };
+                        let encrypt_tree_values = || {
+                            let clear_cond = rng.gen::<bool>();
+                            let ct_then =
+                                cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                            let ct_else =
+                                cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                            let ct_cond = cks.encrypt_bool(clear_cond);
 
-                b.iter_batched(
-                    encrypt_tree_values,
-                    |(ct_cond, ct_then, ct_else)| {
-                        let _ = gpu_sks.if_then_else(&ct_cond, &ct_then, &ct_else, &stream);
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            });
+                            let d_ct_cond = CudaBooleanBlock::from_boolean_block(&ct_cond, &stream);
+                            let d_ct_then = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                &ct_then, &stream,
+                            );
+                            let d_ct_else = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                &ct_else, &stream,
+                            );
+
+                            (d_ct_cond, d_ct_then, d_ct_else)
+                        };
+
+                        b.iter_batched(
+                            encrypt_tree_values,
+                            |(ct_cond, ct_then, ct_else)| {
+                                let _ = gpu_sks.if_then_else(&ct_cond, &ct_then, &ct_else, &stream);
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    let elements = throughput_num_threads(num_block);
+                    bench_group.throughput(Throughput::Elements(elements));
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                        let cts_cond = (0..elements)
+                            .map(|_| {
+                                let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
+                                CudaBooleanBlock::from_boolean_block(&ct_cond, &stream)
+                            })
+                            .collect::<Vec<_>>();
+                        let cts_then = (0..elements)
+                            .map(|_| {
+                                let ct_then =
+                                    cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                    &ct_then, &stream,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        let cts_else = (0..elements)
+                            .map(|_| {
+                                let ct_else =
+                                    cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                    &ct_else, &stream,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+
+                        b.iter(|| {
+                            cts_cond
+                                .par_iter()
+                                .zip(cts_then.par_iter())
+                                .zip(cts_else.par_iter())
+                                .for_each(|((ct_cond, ct_then), ct_else)| {
+                                    let _ =
+                                        gpu_sks.if_then_else(ct_cond, ct_then, ct_else, &stream);
+                                })
+                        })
+                    });
+                }
+            }
 
             write_to_json::<u64, _>(
                 &bench_id,
@@ -1598,9 +2010,19 @@ mod cuda {
         display_name: neg
     );
 
+    define_cuda_server_key_bench_clean_input_signed_unary_fn!(
+        method_name: unchecked_abs,
+        display_name: abs
+    );
+
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_mul,
         display_name: mul
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_div_rem,
+        display_name: div_mod
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
@@ -1813,6 +2235,12 @@ mod cuda {
         rng_func: default_signed_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_signed_scalar_div_rem,
+        display_name: div_rem,
+        rng_func: div_scalar
+    );
+
     //===========================================
     // Default
     //===========================================
@@ -1832,9 +2260,19 @@ mod cuda {
         display_name: neg
     );
 
+    define_cuda_server_key_bench_clean_input_signed_unary_fn!(
+        method_name: abs,
+        display_name: abs
+    );
+
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: mul,
         display_name: mul
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: div_rem,
+        display_name: div_mod
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
@@ -2035,12 +2473,20 @@ mod cuda {
         rng_func: default_signed_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: signed_scalar_div_rem,
+        display_name: div_rem,
+        rng_func: div_scalar
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_add,
         cuda_unchecked_sub,
         cuda_unchecked_neg,
+        cuda_unchecked_abs,
         cuda_unchecked_mul,
+        cuda_unchecked_div_rem,
         cuda_unchecked_bitand,
         cuda_unchecked_bitnot,
         cuda_unchecked_bitor,
@@ -2081,6 +2527,7 @@ mod cuda {
         cuda_unchecked_scalar_le,
         cuda_unchecked_scalar_min,
         cuda_unchecked_scalar_max,
+        cuda_unchecked_signed_scalar_div_rem,
     );
 
     criterion_group!(
@@ -2088,7 +2535,9 @@ mod cuda {
         cuda_add,
         cuda_sub,
         cuda_neg,
+        cuda_abs,
         cuda_mul,
+        cuda_div_rem,
         cuda_bitand,
         cuda_bitnot,
         cuda_bitor,
@@ -2114,6 +2563,7 @@ mod cuda {
         default_cuda_dedup_ops,
         cuda_add,
         cuda_mul,
+        cuda_div_rem,
         cuda_bitand,
         cuda_bitnot,
         cuda_left_shift,
@@ -2146,6 +2596,7 @@ mod cuda {
         cuda_scalar_max,
         cuda_signed_overflowing_scalar_add,
         cuda_signed_overflowing_scalar_sub,
+        cuda_signed_scalar_div_rem,
     );
 
     fn cuda_bench_server_key_signed_cast_function<F>(
@@ -2290,6 +2741,8 @@ fn go_through_cpu_bench_groups(val: &str) {
 }
 
 fn main() {
+    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
+
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
             #[cfg(feature = "gpu")]

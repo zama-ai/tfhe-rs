@@ -48,7 +48,7 @@ Take a deep dive into TFHE-rs, exploring APIs from the highest to the lowest lev
 Ask technical questions and discuss with the community. Our team of experts usually answers within 24 hours during working days.
 
 * [Community forum](https://community.zama.ai/)
-* [Discord channel](https://discord.com/invite/fhe-org)
+* [Discord channel](https://discord.com/invite/zama)
 
 ### Developers
 
@@ -61,4 +61,8 @@ Collaborate with us to advance the FHE spaces and drive innovation together.
 
 ***
 
-We value your feedback! [Take a 5-question developer survey](https://www.zama.ai/developer-survey) to improve the TFHE-rs library and the documentation and help other developers use FHE.
+{% hint style="success" %}
+**Zama 5-Question Developer Survey**
+
+We want to hear from you! Take 1 minute to share your thoughts and helping us enhance our documentation and libraries. **👉** [**Click here**](https://www.zama.ai/developer-survey) to participate.
+{% endhint %}

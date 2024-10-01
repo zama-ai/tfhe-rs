@@ -7,24 +7,24 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::math::torus::{UnsignedInteger, UnsignedTorus};
 use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint};
 use crate::core_crypto::commons::parameters::CiphertextModulus;
-use concrete_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 use rayon::prelude::*;
+use tfhe_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 
-pub use concrete_csprng::generators::{
+pub use tfhe_csprng::generators::{
     ParallelRandomGenerator as ParallelByteRandomGenerator, RandomGenerator as ByteRandomGenerator,
 };
-pub use concrete_csprng::seeders::{Seed, Seeder};
+pub use tfhe_csprng::seeders::{Seed, Seeder};
 
-/// Module to proxy the serialization for `concrete-csprng::Seed` to avoid adding serde as a
-/// dependency to `concrete-csprng`
+/// Module to proxy the serialization for `tfhe-csprng::Seed` to avoid adding serde as a
+/// dependency to `tfhe-csprng`
 pub mod serialization_proxy {
-    pub(crate) use concrete_csprng::seeders::Seed;
     pub(crate) use serde::{Deserialize, Serialize};
+    pub(crate) use tfhe_csprng::seeders::Seed;
 
     // See https://serde.rs/remote-derive.html
     // Serde calls this the definition of the remote type. It is just a copy of the remote data
     // structure. The `remote` attribute gives the path to the actual type we intend to derive code
-    // for. This avoids having to introduce serde in concrete-csprng
+    // for. This avoids having to introduce serde in tfhe-csprng
     #[derive(Serialize, Deserialize)]
     #[serde(remote = "Seed")]
     pub(crate) struct SeedSerdeDef(pub u128);
@@ -86,9 +86,9 @@ impl From<Seed> for CompressionSeed {
 /// used by the different threads safely:
 ///
 /// ```rust
-/// use concrete_csprng::generators::SoftwareRandomGenerator;
-/// use concrete_csprng::seeders::Seed;
 /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+/// use tfhe_csprng::generators::SoftwareRandomGenerator;
+/// use tfhe_csprng::seeders::Seed;
 /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
 /// assert_eq!(generator.remaining_bytes(), None); // The generator is unbounded.
 /// let children = generator
@@ -117,10 +117,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
+    /// let generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// ```
     pub fn new(seed: Seed) -> Self {
         Self(G::new(seed))
@@ -131,12 +131,12 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// assert_eq!(generator.remaining_bytes(), None);
-    /// let mut generator = generator.try_fork(1, 50).unwrap().next().unwrap();
+    /// let generator = generator.try_fork(1, 50).unwrap().next().unwrap();
     /// assert_eq!(generator.remaining_bytes(), Some(50));
     /// ```
     pub fn remaining_bytes(&self) -> Option<usize> {
@@ -150,9 +150,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let children = generator.try_fork(5, 50).unwrap().collect::<Vec<_>>();
     /// ```
@@ -171,9 +171,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     ///
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
@@ -198,10 +198,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
     /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     ///
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
@@ -241,9 +241,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     ///
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
@@ -277,10 +277,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
     /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     ///
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
@@ -328,9 +328,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     ///
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
@@ -365,10 +365,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
     /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     ///
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
@@ -424,9 +424,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
     /// let random = generator.random_uniform::<u8>();
@@ -454,10 +454,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     ///
     /// let random =
@@ -494,9 +494,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0u32; 1000];
     /// generator.fill_slice_with_random_uniform(&mut vec);
@@ -514,10 +514,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// use tfhe::core_crypto::commons::parameters::CiphertextModulus;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0u32; 1000];
     /// generator.fill_slice_with_random_uniform_custom_mod(
@@ -548,9 +548,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let random: u32 = generator.random_uniform_binary();
     /// ```
@@ -566,9 +566,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0u32; 1000];
     /// generator.fill_slice_with_random_uniform_binary(&mut vec);
@@ -586,9 +586,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let random: u32 = generator.random_uniform_ternary();
     /// ```
@@ -605,9 +605,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// // for f32
     /// let (g1, g2): (f32, f32) = generator.random_gaussian(0_f32, 1_f32);
@@ -633,9 +633,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0f32; 1000];
     /// generator.fill_slice_with_random_gaussian(&mut vec, 0., 1.);
@@ -666,10 +666,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// use tfhe::core_crypto::commons::parameters::CiphertextModulus;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0u64; 1000];
     /// generator.fill_slice_with_random_gaussian_custom_mod(
@@ -717,9 +717,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0u32; 1000];
     /// generator.unsigned_torus_slice_wrapping_add_random_gaussian_assign(&mut vec, 0., 1.);
@@ -751,10 +751,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// use tfhe::core_crypto::commons::parameters::CiphertextModulus;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0u32; 1000];
     /// generator.unsigned_torus_slice_wrapping_add_random_gaussian_custom_mod_assign(
@@ -808,9 +808,9 @@ impl<G: ParallelByteRandomGenerator> RandomGenerator<G> {
     /// # Example
     ///
     /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe_csprng::generators::SoftwareRandomGenerator;
+    /// use tfhe_csprng::seeders::Seed;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let children = generator.try_fork(5, 50).unwrap().collect::<Vec<_>>();
     /// ```

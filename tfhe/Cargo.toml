@@ -1,6 +1,6 @@
 [package]
 name = "tfhe"
-version = "0.8.0-alpha.5"
+version = "0.11.0"
 edition = "2021"
 readme = "../README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
@@ -17,14 +17,13 @@ exclude = [
     "/js_on_wasm_tests/",
     "/web_wasm_parallel_tests/",
 ]
-rust-version = "1.76"
+rust-version = "1.83"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = { workspace = true }
 rand_distr = "0.4.3"
-lazy_static = { version = "1.4.0" }
 criterion = "0.5.1"
 doc-comment = "0.3.3"
 serde_json = "1.0.94"
@@ -33,7 +32,6 @@ serde_json = "1.0.94"
 clap = { version = "=4.4.4", features = ["derive"] }
 # Used in user documentation
 fs2 = { version = "0.4.3" }
-itertools = "0.11.0"
 statrs = "0.16"
 # For erf and normality test
 libm = "0.2.6"
@@ -47,7 +45,7 @@ hex = "0.4.3"
 # Begin hpu-demo deps
 # Enable to have hpu execution trace
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-clap-num = {version = "1.1.1"}
+clap-num = { version = "1.1.1" }
 # End hpu-demo deps
 # Begin hpu-tests deps
 # Only one Hpu device -> Tests have to be executed in series
@@ -55,48 +53,48 @@ serial_test = "3.1.1"
 # End hpu-tests deps
 # Used for backward compatibility test metadata
 ron = "0.8"
-tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-compat-data.git", branch = "v0.1", default-features = false, features = [
+tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-compat-data.git", branch = "v0.4", default-features = false, features = [
     "load",
 ] }
+strum = { version = "0.26", features = ["derive"] }
 
 [build-dependencies]
 cbindgen = { version = "0.26.0", optional = true }
 
 [dependencies]
-concrete-csprng = { version = "0.4.1", path = "../concrete-csprng", features = [
-    "generator_fallback",
-    "parallel",
-] }
-lazy_static = { version = "1.4.0", optional = true }
-serde = { version = "1.0", features = ["derive"] }
-rayon = { version = "1.5.0" }
+tfhe-csprng = { version = "0.5.0", path = "../tfhe-csprng", features = ["parallel"] }
+serde = { workspace = true, features = ["default", "derive"] }
+rayon = { workspace = true }
 bincode = "1.3.3"
-concrete-fft = { version = "0.5.1", features = ["serde", "fft128"] }
-concrete-ntt = { git = "https://github.com/zama-ai/concrete-ntt", branch="hw-team/gf64" }
-pulp = "0.18.22"
-tfhe-cuda-backend = { version = "0.4.0-alpha.0", path = "../backends/tfhe-cuda-backend", optional = true }
-aligned-vec = { version = "0.5", features = ["serde"] }
-dyn-stack = { version = "0.10" }
+#concrete-ntt = { git = "https://github.com/zama-ai/concrete-ntt", branch="hw-team/gf64" }
+tfhe-fft = { version = "0.7.0", path = "../tfhe-fft", features = [
+    "serde",
+    "fft128",
+] }
+tfhe-ntt = { version = "0.4.0", path = "../tfhe-ntt" }
+pulp = { workspace = true, features = ["default"] }
+tfhe-cuda-backend = { version = "0.7.0", path = "../backends/tfhe-cuda-backend", optional = true }
+aligned-vec = { workspace = true, features = ["default", "serde"] }
+dyn-stack = { workspace = true, features = ["default"] }
 paste = "1.0.7"
 fs2 = { version = "0.4.3", optional = true }
 # Used for OPRF in shortint
 sha3 = { version = "0.10", optional = true }
-# While we wait for repeat_n in rust standard library
-itertools = "0.11.0"
+itertools = { workspace = true }
 rand_core = { version = "0.6.4", features = ["std"] }
-tfhe-zk-pok = { version = "0.3.0-alpha.1", path = "../tfhe-zk-pok", optional = true }
-tfhe-versionable = { version = "0.2.1", path = "../utils/tfhe-versionable" }
+tfhe-zk-pok = { version = "0.4.0", path = "../tfhe-zk-pok", optional = true }
+tfhe-versionable = { version = "0.4.0", path = "../utils/tfhe-versionable" }
 
 # wasm deps
-wasm-bindgen = { version = "0.2.86", features = [
+wasm-bindgen = { workspace = true, features = [
     "serde-serialize",
 ], optional = true }
-wasm-bindgen-rayon = { version = "1.0", optional = true }
+wasm-bindgen-rayon = { version = "=1.2.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 serde-wasm-bindgen = { version = "0.6.0", optional = true }
 getrandom = { version = "0.2.8", optional = true }
-bytemuck = "1.14.3"
+bytemuck = { workspace = true }
 
 tfhe-hpu-backend = { version = "0.1", path = "../backends/tfhe-hpu-backend", optional = true }
 
@@ -106,7 +104,8 @@ csv = "1.3.0"
 boolean = []
 shortint = ["dep:sha3"]
 integer = ["shortint"]
-internal-keycache = ["dep:lazy_static", "dep:fs2"]
+strings = ["integer"]
+internal-keycache = ["dep:fs2"]
 gpu = ["dep:tfhe-cuda-backend"]
 zk-pok = ["dep:tfhe-zk-pok"]
 # Start Fpga Hpu features
@@ -116,10 +115,11 @@ hpu-xfer = ["hpu-hw"]
 hpu-debug = ["tfhe-hpu-backend/io-dump"]
 # Start Fpga simulation features
 ntt-bnf = []
-seeder-manual = ["seeder_unix"]
+seeder-manual = []
 # End Fpga Hpu features
 
 pbs-stats = []
+noise-asserts = []
 
 # Experimental section
 experimental = []
@@ -127,7 +127,7 @@ experimental-force_fft_algo_dif4 = []
 # End experimental section
 
 __c_api = ["dep:cbindgen"]
-# For the semver trick to skip the build.rs
+# Can be used in some situations to reduce build time with GPU
 __force_skip_cbindgen = []
 boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
@@ -147,39 +147,23 @@ integer-client-js-wasm-api = ["integer", "__wasm_api"]
 high-level-client-js-wasm-api = ["boolean", "shortint", "integer", "__wasm_api"]
 parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
-nightly-avx512 = [
-    "concrete-fft/nightly",
-    "concrete-ntt/nightly",
-    "pulp/nightly",
-]
-
-# Enable the x86_64 specific accelerated implementation of the random generator for the default
-# backend
-generator_x86_64_aesni = ["concrete-csprng/generator_x86_64_aesni"]
-
-# Enable the aarch64 specific accelerated implementation of the random generator for the default
-# backend
-generator_aarch64_aes = ["concrete-csprng/generator_aarch64_aes"]
+nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
 
 # Private features
 __profiling = []
 
-seeder_unix = ["concrete-csprng/seeder_unix"]
-seeder_x86_64_rdseed = ["concrete-csprng/seeder_x86_64_rdseed"]
+software-prng = ["tfhe-csprng/software-prng"]
 
-# These target_arch features enable a set of public features for tfhe if users want a known
-# good/working configuration for tfhe.
-# For a target_arch that does not yet have such a feature, one can still enable features manually or
-# create a feature for said target_arch to make its use simpler.
-x86_64 = ["generator_x86_64_aesni", "seeder_x86_64_rdseed"]
-x86_64-unix = ["x86_64", "seeder_unix"]
+# Cover several profiles as we cannot have a wildcard it seems
+[package.metadata.wasm-pack.profile.dev.wasm-bindgen]
+split-linked-modules = true
 
-aarch64 = ["generator_aarch64_aes"]
-aarch64-unix = ["aarch64", "seeder_unix"]
+[package.metadata.wasm-pack.profile.release.wasm-bindgen]
+split-linked-modules = true
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
-features = ["x86_64-unix", "boolean", "shortint", "integer", "gpu", "zk-pok", "hpu"]
+features = ["boolean", "shortint", "integer", "gpu", "zk-pok", "software-prng", "hpu"]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 ###########
@@ -269,6 +253,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "hlapi-erc20"
+path = "benches/high_level_api/erc20.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "keygen"
 path = "benches/keygen/bench.rs"
 harness = false
@@ -317,11 +307,12 @@ name = "write_params_to_file"
 path = "examples/utilities/params_to_file.rs"
 required-features = ["boolean", "shortint", "internal-keycache"]
 
-# Real use-case examples
-
 [[example]]
-name = "fhe_strings"
-required-features = ["integer"]
+name = "print_doc_bench_parameters"
+path = "examples/utilities/print_doc_bench_parameters.rs"
+required-features = ["shortint", "internal-keycache"]
+
+# Real use-case examples
 
 [[example]]
 name = "dark_market"
@@ -391,7 +382,8 @@ crate-type = ["lib", "staticlib", "cdylib"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(bench)',
     'cfg(tarpaulin)',
     'cfg(tfhe_lints)',
+    # This is a bug/unwanted behavior from wasm_bindgen macro, for now warn instead of erroring
+    'cfg(wasm_bindgen_unstable_test_coverage)',
 ] }

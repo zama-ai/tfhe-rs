@@ -41,11 +41,11 @@ pub mod shortint_utils {
     #[cfg(feature = "gpu")]
     use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
     #[cfg(not(feature = "gpu"))]
-    use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
+    use tfhe::shortint::parameters::V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     use tfhe::shortint::parameters::{
-        ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     };
-    use tfhe::shortint::PBSParameters;
+    use tfhe::shortint::{ClassicPBSParameters, PBSParameters, ShortintParameterSet};
 
     /// An iterator that yields a succession of combinations
     /// of parameters and a num_block to achieve a certain bit_size ciphertext
@@ -63,7 +63,9 @@ pub mod shortint_utils {
                 #[cfg(feature = "gpu")]
                 let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
                 #[cfg(not(feature = "gpu"))]
-                let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
+                let params = vec![
+                    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into(),
+                ];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {
@@ -72,7 +74,7 @@ pub mod shortint_utils {
             } else {
                 // FIXME One set of parameter is tested since we want to benchmark only quickest
                 // operations.
-                let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
+                let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into()];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {
@@ -140,9 +142,25 @@ pub mod shortint_utils {
         }
     }
 
-    impl From<CompressionParameters> for CryptoParametersRecord<u64> {
-        fn from(_params: CompressionParameters) -> Self {
+    impl From<(CompressionParameters, ClassicPBSParameters)> for CryptoParametersRecord<u64> {
+        fn from((comp_params, pbs_params): (CompressionParameters, ClassicPBSParameters)) -> Self {
+            let pbs_params = ShortintParameterSet::new_pbs_param_set(pbs_params.into());
+            let lwe_dimension = pbs_params.encryption_lwe_dimension();
             CryptoParametersRecord {
+                lwe_dimension: Some(lwe_dimension),
+                br_level: Some(comp_params.br_level),
+                br_base_log: Some(comp_params.br_base_log),
+                packing_ks_level: Some(comp_params.packing_ks_level),
+                packing_ks_base_log: Some(comp_params.packing_ks_base_log),
+                packing_ks_polynomial_size: Some(comp_params.packing_ks_polynomial_size),
+                packing_ks_glwe_dimension: Some(comp_params.packing_ks_glwe_dimension),
+                lwe_per_glwe: Some(comp_params.lwe_per_glwe),
+                storage_log_modulus: Some(comp_params.storage_log_modulus),
+                lwe_noise_distribution: Some(pbs_params.encryption_noise_distribution()),
+                packing_ks_key_noise_distribution: Some(
+                    comp_params.packing_ks_key_noise_distribution,
+                ),
+                ciphertext_modulus: Some(pbs_params.ciphertext_modulus()),
                 ..Default::default()
             }
         }
@@ -157,11 +175,15 @@ pub use shortint_utils::*;
 pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub lwe_dimension: Option<LweDimension>,
     pub glwe_dimension: Option<GlweDimension>,
+    pub packing_ks_glwe_dimension: Option<GlweDimension>,
     pub polynomial_size: Option<PolynomialSize>,
+    pub packing_ks_polynomial_size: Option<PolynomialSize>,
     #[serde(serialize_with = "CryptoParametersRecord::serialize_distribution")]
     pub lwe_noise_distribution: Option<DynamicDistribution<Scalar>>,
     #[serde(serialize_with = "CryptoParametersRecord::serialize_distribution")]
     pub glwe_noise_distribution: Option<DynamicDistribution<Scalar>>,
+    #[serde(serialize_with = "CryptoParametersRecord::serialize_distribution")]
+    pub packing_ks_key_noise_distribution: Option<DynamicDistribution<Scalar>>,
     pub pbs_base_log: Option<DecompositionBaseLog>,
     pub pbs_level: Option<DecompositionLevelCount>,
     pub ks_base_log: Option<DecompositionBaseLog>,
@@ -171,9 +193,15 @@ pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub pfks_std_dev: Option<StandardDev>,
     pub cbs_level: Option<DecompositionLevelCount>,
     pub cbs_base_log: Option<DecompositionBaseLog>,
-    pub message_modulus: Option<usize>,
-    pub carry_modulus: Option<usize>,
+    pub br_level: Option<DecompositionLevelCount>,
+    pub br_base_log: Option<DecompositionBaseLog>,
+    pub packing_ks_level: Option<DecompositionLevelCount>,
+    pub packing_ks_base_log: Option<DecompositionBaseLog>,
+    pub message_modulus: Option<u64>,
+    pub carry_modulus: Option<u64>,
     pub ciphertext_modulus: Option<CiphertextModulus<Scalar>>,
+    pub lwe_per_glwe: Option<LweCiphertextCount>,
+    pub storage_log_modulus: Option<CiphertextModulusLog>,
 }
 
 impl<Scalar: UnsignedInteger> CryptoParametersRecord<Scalar> {
@@ -240,8 +268,8 @@ struct BenchmarkParametersRecord<Scalar: UnsignedInteger> {
     display_name: String,
     crypto_parameters_alias: String,
     crypto_parameters: CryptoParametersRecord<Scalar>,
-    message_modulus: Option<usize>,
-    carry_modulus: Option<usize>,
+    message_modulus: Option<u64>,
+    carry_modulus: Option<u64>,
     ciphertext_modulus: usize,
     bit_size: u32,
     polynomial_multiplication: PolynomialMultiplication,
@@ -323,7 +351,7 @@ pub struct EnvConfig {
 impl EnvConfig {
     #[allow(dead_code)]
     pub fn new() -> Self {
-        let is_multi_bit = match env::var("__TFHE_RS_BENCH_TYPE") {
+        let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
             Ok(val) => val.to_lowercase() == "multi_bit",
             Err(_) => false,
         };
@@ -355,6 +383,60 @@ impl EnvConfig {
         }
     }
 }
+
+#[cfg(feature = "integer")]
+pub mod integer_utils {
+    use super::*;
+    use std::sync::OnceLock;
+    #[cfg(feature = "gpu")]
+    use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
+
+    /// Generate a number of threads to use to saturate current machine for throughput measurements.
+    #[allow(dead_code)]
+    pub fn throughput_num_threads(num_block: usize) -> u64 {
+        let ref_block_count = 32; // Represent a ciphertext of 64 bits for 2_2 parameters set
+        let block_multiplicator = (ref_block_count as f64 / num_block as f64).ceil();
+
+        #[cfg(feature = "gpu")]
+        {
+            // This value is for Nvidia H100 GPU
+            let streaming_multiprocessors = 132;
+            let num_gpus = unsafe { cuda_get_number_of_gpus() };
+            ((streaming_multiprocessors * num_gpus) as f64 * block_multiplicator) as u64
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            let num_threads = rayon::current_num_threads() as f64;
+            // Add 20% more to maximum threads available.
+            ((num_threads + (num_threads * 0.2)) * block_multiplicator) as u64
+        }
+    }
+
+    #[allow(dead_code)]
+    pub static BENCH_TYPE: OnceLock<BenchmarkType> = OnceLock::new();
+
+    #[allow(dead_code)]
+    pub enum BenchmarkType {
+        Latency,
+        Throughput,
+    }
+
+    #[allow(dead_code)]
+    impl BenchmarkType {
+        pub fn from_env() -> Result<Self, String> {
+            let raw_value = env::var("__TFHE_RS_BENCH_TYPE").unwrap_or("latency".to_string());
+            match raw_value.to_lowercase().as_str() {
+                "latency" => Ok(BenchmarkType::Latency),
+                "throughput" => Ok(BenchmarkType::Throughput),
+                _ => Err(format!("benchmark type '{raw_value}' is not supported")),
+            }
+        }
+    }
+}
+
+#[allow(unused_imports)]
+#[cfg(feature = "integer")]
+pub use integer_utils::*;
 
 // Empty main to please clippy.
 #[allow(dead_code)]

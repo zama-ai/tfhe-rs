@@ -2,12 +2,14 @@
 
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_bootstrap_key::SeededLweBootstrapKeyVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 
 /// A [`seeded LWE bootstrap key`](`SeededLweBootstrapKey`).
 ///
@@ -215,7 +217,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweBootstrap
             self.input_lwe_dimension(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_lwe_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_lwe_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,
             &self,
         );
@@ -237,7 +239,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweBootstrap
             self.input_lwe_dimension(),
             self.ciphertext_modulus(),
         );
-        par_decompress_seeded_lwe_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+        par_decompress_seeded_lwe_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,
             &self,
         );
@@ -318,5 +320,17 @@ impl<Scalar: UnsignedInteger> SeededLweBootstrapKeyOwned<Scalar> {
                 ciphertext_modulus,
             ),
         }
+    }
+}
+
+impl<C: Container<Element = u64>> ParameterSetConformant for SeededLweBootstrapKey<C> {
+    type ParameterSet = BootstrapKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { ggsw_list } = self;
+
+        let params = parameter_set.into();
+
+        ggsw_list.is_conformant(&params)
     }
 }

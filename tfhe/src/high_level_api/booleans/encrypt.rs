@@ -94,6 +94,7 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
                 let inner: CudaUnsignedRadixCiphertext =
                     cuda_key
                         .key
+                        .key
                         .create_trivial_radix(u64::from(value), 1, streams);
                 let ct = InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
                     inner.into_inner(),

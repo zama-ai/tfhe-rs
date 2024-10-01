@@ -1,6 +1,9 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
+use crate::integer::server_key::radix_parallel::add::CarryPropagationAlgorithm;
 use crate::integer::server_key::radix_parallel::OutputFlag;
-use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::integer::{
+    BooleanBlock, IntegerCiphertext, RadixCiphertext, ServerKey, SignedRadixCiphertext,
+};
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 
@@ -11,11 +14,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg_1 = 120u8;
     /// let msg_2 = 181u8;
@@ -62,11 +65,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg_1 = 120u8;
     /// let msg_2 = 181u8;
@@ -118,11 +121,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg_1 = 120u8;
     /// let msg_2 = 181u8;
@@ -162,11 +165,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg_1 = 120u8;
     /// let msg_2 = 181u8;
@@ -218,6 +221,7 @@ impl ServerKey {
             neg.blocks(),
             None,
             OutputFlag::None,
+            CarryPropagationAlgorithm::Automatic,
         );
     }
 
@@ -227,11 +231,14 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///     num_blocks,
+    /// );
     ///
     /// let msg_1 = 1u8;
     /// let msg_2 = 255u8;
@@ -386,7 +393,8 @@ impl ServerKey {
 
         // Just in case we compare with max noise level, but it should always be num_bits_in_blocks
         // with the parameters we provide
-        let grouping_size = (num_bits_in_block as usize).min(self.key.max_noise_level.get());
+        let grouping_size =
+            (num_bits_in_block as usize).min(self.key.max_noise_level.get() as usize);
 
         // Second step
         let (mut prepared_blocks, resolved_borrows) = {
@@ -418,7 +426,10 @@ impl ServerKey {
                         &mut block.ct,
                         &simulator.ct,
                     );
-                    block.set_noise_level(block.noise_level() + simulator.noise_level());
+                    block.set_noise_level(
+                        block.noise_level() + simulator.noise_level(),
+                        self.key.max_noise_level,
+                    );
                     self.key.unchecked_scalar_add_assign(block, 1);
                 });
 
@@ -435,7 +446,7 @@ impl ServerKey {
         let mut subtract_borrow_and_cleanup_prepared_blocks = || {
             let message_extract_lut = self
                 .key
-                .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0 as u64);
+                .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0);
 
             prepared_blocks
                 .par_iter_mut()
@@ -447,7 +458,10 @@ impl ServerKey {
                         &mut block.ct,
                         &borrow.ct,
                     );
-                    block.set_noise_level(block.noise_level() + borrow.noise_level());
+                    block.set_noise_level(
+                        block.noise_level() + borrow.noise_level(),
+                        self.key.max_noise_level,
+                    );
 
                     self.key
                         .apply_lookup_table_assign(block, &message_extract_lut)
@@ -486,7 +500,7 @@ impl ServerKey {
     ) -> (Vec<Ciphertext>, Vec<Ciphertext>) {
         let num_blocks = blocks.len();
 
-        let message_modulus = self.message_modulus().0 as u64;
+        let message_modulus = self.message_modulus().0;
 
         let block_modulus = self.message_modulus().0 * self.carry_modulus().0;
         let num_bits_in_block = block_modulus.ilog2();
@@ -614,7 +628,7 @@ impl ServerKey {
             rhs.blocks.len()
         );
 
-        let modulus = self.key.message_modulus.0 as u64;
+        let modulus = self.key.message_modulus.0;
 
         // If the block does not have a carry after the subtraction, it means it needs to
         // borrow from the next block
@@ -633,7 +647,10 @@ impl ServerKey {
                 &mut lhs_block.ct,
                 &borrow.ct,
             );
-            lhs_block.set_noise_level(lhs_block.noise_level() + borrow.noise_level());
+            lhs_block.set_noise_level(
+                lhs_block.noise_level() + borrow.noise_level(),
+                self.key.max_noise_level,
+            );
             let (msg, new_borrow) = rayon::join(
                 || self.key.message_extract(lhs_block),
                 || self.key.apply_lookup_table(lhs_block, &compute_borrow_lut),
@@ -655,6 +672,19 @@ impl ServerKey {
         lhs: &SignedRadixCiphertext,
         rhs: &SignedRadixCiphertext,
     ) -> (SignedRadixCiphertext, BooleanBlock) {
+        self.unchecked_signed_overflowing_sub_parallelized_with_choice(
+            lhs,
+            rhs,
+            CarryPropagationAlgorithm::Automatic,
+        )
+    }
+
+    pub(crate) fn unchecked_signed_overflowing_sub_parallelized_with_choice(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        rhs: &SignedRadixCiphertext,
+        algorithm: CarryPropagationAlgorithm,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
         assert_eq!(
             lhs.blocks.len(),
             rhs.blocks.len(),
@@ -675,8 +705,15 @@ impl ServerKey {
         let flipped_rhs = self.bitnot(rhs);
         let input_carry = self.create_trivial_boolean_block(true);
         let mut result = lhs.clone();
-        let overflowed =
-            self.overflowing_add_assign_with_carry(&mut result, &flipped_rhs, Some(&input_carry));
+        let overflowed = self
+            .advanced_add_assign_with_carry_parallelized(
+                result.blocks_mut(),
+                flipped_rhs.blocks(),
+                Some(&input_carry),
+                OutputFlag::Overflow,
+                algorithm,
+            )
+            .expect("internal error, overflow computation was not returned as was requested");
         (result, overflowed)
     }
 
@@ -686,11 +723,14 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///     num_blocks,
+    /// );
     ///
     /// let msg_1 = i8::MIN;
     /// let msg_2 = 1;
@@ -714,6 +754,19 @@ impl ServerKey {
         &self,
         ctxt_left: &SignedRadixCiphertext,
         ctxt_right: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
+        self.signed_overflowing_sub_parallelized_with_choice(
+            ctxt_left,
+            ctxt_right,
+            CarryPropagationAlgorithm::Automatic,
+        )
+    }
+
+    pub(crate) fn signed_overflowing_sub_parallelized_with_choice(
+        &self,
+        ctxt_left: &SignedRadixCiphertext,
+        ctxt_right: &SignedRadixCiphertext,
+        algorithm: CarryPropagationAlgorithm,
     ) -> (SignedRadixCiphertext, BooleanBlock) {
         let mut tmp_lhs;
         let mut tmp_rhs;
@@ -744,6 +797,6 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_signed_overflowing_sub_parallelized(lhs, rhs)
+        self.unchecked_signed_overflowing_sub_parallelized_with_choice(lhs, rhs, algorithm)
     }
 }

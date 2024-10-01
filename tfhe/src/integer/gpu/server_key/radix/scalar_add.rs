@@ -8,6 +8,7 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::scalar_addition_integer_radix_assign_async;
 use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NoiseLevel;
 
@@ -23,26 +24,27 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 4;
     /// let scalar = 40;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically an addition:
-    /// let d_ct_res = sks.unchecked_scalar_add(&d_ct, scalar, &mut streams);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let d_ct_res = sks.unchecked_scalar_add(&d_ct, scalar, &streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -133,26 +135,27 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 4;
     /// let scalar = 40;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically an addition:
-    /// let d_ct_res = sks.scalar_add(&d_ct, scalar, &mut streams);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let d_ct_res = sks.scalar_add(&d_ct, scalar, &streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -186,7 +189,7 @@ impl CudaServerKey {
         };
 
         self.unchecked_scalar_add_assign_async(ct, scalar, streams);
-        let _carry = self.propagate_single_carry_assign_async(ct, streams);
+        let _carry = self.propagate_single_carry_assign_async(ct, streams, None, OutputFlag::None);
     }
 
     pub fn scalar_add_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
@@ -264,8 +267,11 @@ impl CudaServerKey {
         self.unchecked_scalar_add_assign(ct_left, scalar, stream);
         let mut carry_out;
         unsafe {
-            carry_out = self.propagate_single_carry_assign_async(ct_left, stream);
+            carry_out =
+                self.propagate_single_carry_assign_async(ct_left, stream, None, OutputFlag::Carry);
         }
+        stream.synchronize();
+        ct_left.as_mut().info = ct_left.as_ref().info.after_overflowing_scalar_add_sub();
 
         let num_scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(scalar, self.message_modulus.0.ilog2())
@@ -285,16 +291,17 @@ impl CudaServerKey {
 
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, num_blocks, &streams);
     ///
     /// let msg: i8 = 120;
     /// let scalar: i8 = 8;
@@ -339,7 +346,8 @@ impl CudaServerKey {
             ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0,
             streams,
         );
-        let (result, overflowed) = self.signed_overflowing_add(&tmp_lhs, &trivial, streams);
+        let (mut result, overflowed) = self.signed_overflowing_add(&tmp_lhs, &trivial, streams);
+        result.as_mut().info = tmp_lhs.as_ref().info.after_overflowing_scalar_add_sub();
 
         let mut extra_scalar_block_iter =
             BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
@@ -347,7 +355,7 @@ impl CudaServerKey {
                 .skip(ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0);
 
         let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
-            extra_scalar_block_iter.all(|block| block == (self.message_modulus.0 as u64 - 1))
+            extra_scalar_block_iter.all(|block| block == (self.message_modulus.0 - 1))
         } else {
             extra_scalar_block_iter.all(|block| block == 0)
         };

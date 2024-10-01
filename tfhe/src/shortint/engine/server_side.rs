@@ -11,7 +11,7 @@ use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{
-    CiphertextModulus, ClientKey, CompressedServerKey, PBSMode, PBSParameters, ServerKey,
+    CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey,
 };
 
 impl ShortintEngine {

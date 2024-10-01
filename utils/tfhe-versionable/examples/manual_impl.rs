@@ -2,11 +2,10 @@
 
 use std::convert::Infallible;
 
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::{Unversionize, UnversionizeError, Upgrade, Versionize, VersionizeOwned};
 
-struct MyStruct<T: Default> {
+struct MyStruct<T> {
     attr: T,
     builtin: u32,
 }
@@ -28,19 +27,20 @@ impl<T: Default> Upgrade<MyStruct<T>> for MyStructV0 {
 }
 
 #[derive(Serialize)]
-struct MyStructVersion<'vers, T: 'vers + Default + Versionize> {
+struct MyStructVersion<'vers, T: 'vers + Versionize> {
     attr: T::Versioned<'vers>,
     builtin: u32,
 }
 
 #[derive(Serialize, Deserialize)]
-struct MyStructVersionOwned<T: Default + VersionizeOwned> {
+struct MyStructVersionOwned<T: VersionizeOwned> {
     attr: T::VersionedOwned,
     builtin: u32,
 }
 
-impl<T: Default + Versionize + Serialize + DeserializeOwned> Versionize for MyStruct<T> {
-    type Versioned<'vers> = MyStructVersionsDispatch<'vers, T>
+impl<T: Versionize + Serialize> Versionize for MyStruct<T> {
+    type Versioned<'vers>
+        = MyStructVersionsDispatch<'vers, T>
     where
         Self: 'vers;
 
@@ -53,7 +53,7 @@ impl<T: Default + Versionize + Serialize + DeserializeOwned> Versionize for MySt
     }
 }
 
-impl<T: Default + VersionizeOwned + Serialize + DeserializeOwned> VersionizeOwned for MyStruct<T> {
+impl<T: VersionizeOwned + Serialize + for<'de> Deserialize<'de>> VersionizeOwned for MyStruct<T> {
     type VersionedOwned = MyStructVersionsDispatchOwned<T>;
 
     fn versionize_owned(self) -> Self::VersionedOwned {
@@ -65,7 +65,7 @@ impl<T: Default + VersionizeOwned + Serialize + DeserializeOwned> VersionizeOwne
     }
 }
 
-impl<T: Default + VersionizeOwned + Unversionize + Serialize + DeserializeOwned> Unversionize
+impl<T: Unversionize + Serialize + for<'de> Deserialize<'de> + Default> Unversionize
     for MyStruct<T>
 {
     fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
@@ -81,26 +81,84 @@ impl<T: Default + VersionizeOwned + Unversionize + Serialize + DeserializeOwned>
     }
 }
 
+// Since MyStructV0 is only composed of built-in types, it does not need recursive versioning and
+// can be used as its own "version type".
 #[derive(Serialize)]
-#[allow(dead_code)]
-enum MyStructVersionsDispatch<'vers, T: 'vers + Default + Versionize> {
+enum MyStructVersionsDispatch<'vers, T: 'vers + Versionize> {
+    #[allow(dead_code)]
     V0(MyStructV0),
+    #[allow(dead_code)]
     V1(MyStructVersion<'vers, T>),
 }
 
 #[derive(Serialize, Deserialize)]
-enum MyStructVersionsDispatchOwned<T: Default + VersionizeOwned> {
+enum MyStructVersionsDispatchOwned<T: VersionizeOwned> {
     V0(MyStructV0),
     V1(MyStructVersionOwned<T>),
 }
 
+mod v0 {
+    use serde::{Deserialize, Serialize};
+    use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+
+    #[derive(Serialize, Deserialize)]
+    pub(super) struct MyStruct {
+        pub(super) builtin: u32,
+    }
+
+    impl Versionize for MyStruct {
+        type Versioned<'vers> = MyStructVersionsDispatch;
+
+        fn versionize(&self) -> Self::Versioned<'_> {
+            let ver = MyStruct {
+                builtin: self.builtin,
+            };
+            MyStructVersionsDispatch::V0(ver)
+        }
+    }
+
+    impl VersionizeOwned for MyStruct {
+        type VersionedOwned = MyStructVersionsDispatchOwned;
+
+        fn versionize_owned(self) -> Self::VersionedOwned {
+            MyStructVersionsDispatchOwned::V0(self)
+        }
+    }
+
+    impl Unversionize for MyStruct {
+        fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+            match versioned {
+                MyStructVersionsDispatchOwned::V0(v0) => Ok(v0),
+            }
+        }
+    }
+
+    #[derive(Serialize)]
+    #[allow(dead_code)]
+    pub(super) enum MyStructVersionsDispatch {
+        V0(MyStruct),
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub(super) enum MyStructVersionsDispatchOwned {
+        V0(MyStruct),
+    }
+}
+
 fn main() {
-    let ms = MyStruct {
-        attr: 37u64,
-        builtin: 1234,
-    };
+    let value = 1234;
+    let ms = v0::MyStruct { builtin: value };
 
     let serialized = bincode::serialize(&ms.versionize()).unwrap();
 
-    let _unserialized = MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap());
+    let unserialized =
+        MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
+
+    assert_eq!(unserialized.builtin, value);
+    assert_eq!(unserialized.attr, u64::default());
+}
+
+#[test]
+fn test() {
+    main()
 }

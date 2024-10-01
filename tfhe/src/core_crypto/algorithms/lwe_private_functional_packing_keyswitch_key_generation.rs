@@ -105,6 +105,7 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
         // We fill the buffer with the powers of the key bits
         for (level, mut message) in (1..=decomp_level_count.0)
             .map(DecompositionLevel)
+            .rev()
             .zip(messages.chunks_exact_mut(polynomial_size.0))
         {
             slice_wrapping_add_scalar_mul_assign(
@@ -219,6 +220,7 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
                 // We fill the buffer with the powers of the key bits
                 for (level, mut message) in (1..=decomp_level_count.0)
                     .map(DecompositionLevel)
+                    .rev()
                     .zip(messages.chunks_exact_mut(polynomial_size.0))
                 {
                     slice_wrapping_add_scalar_mul_assign(
@@ -281,7 +283,7 @@ mod test {
             // Create the PRNG
             let mut seeder = new_seeder();
             let mut secret_generator =
-                SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+                SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
             let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
                 glwe_dimension,
@@ -291,12 +293,11 @@ mod test {
             let lwe_big_sk = glwe_sk.clone().into_lwe_secret_key();
 
             let mut seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(common_encryption_seed);
-            let mut encryption_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-                    seeder.seed(),
-                    &mut seeder,
-                );
+                DeterministicSeeder::<DefaultRandomGenerator>::new(common_encryption_seed);
+            let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+                seeder.seed(),
+                &mut seeder,
+            );
 
             let par_cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
                 &lwe_big_sk,
@@ -309,12 +310,11 @@ mod test {
             );
 
             let mut seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(common_encryption_seed);
-            let mut encryption_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-                    seeder.seed(),
-                    &mut seeder,
-                );
+                DeterministicSeeder::<DefaultRandomGenerator>::new(common_encryption_seed);
+            let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+                seeder.seed(),
+                &mut seeder,
+            );
 
             let ser_cbs_pfpksk = allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
                 &lwe_big_sk,

@@ -1,16 +1,18 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{
-    parse_quote, DeriveInput, ImplGenerics, Item, ItemImpl, Lifetime, Path, Type, WhereClause,
+    parse_quote, DeriveInput, Generics, ImplGenerics, Item, ItemImpl, Lifetime, Path, Type,
+    WhereClause,
 };
 
 use crate::{
-    add_lifetime_bound, add_trait_bound, add_trait_where_clause, add_where_lifetime_bound,
-    parse_const_str, DESERIALIZE_TRAIT_NAME, LIFETIME_NAME, SERIALIZE_TRAIT_NAME,
+    add_lifetime_param, add_trait_where_clause, add_where_lifetime_bound_to_generics,
+    extend_where_clause, filter_unsized_bounds, parse_const_str, DESERIALIZE_TRAIT_NAME,
+    LIFETIME_NAME, SERIALIZE_TRAIT_NAME,
 };
 
 /// Generates an impl block for the From trait. This will be:
-/// ```
+/// ```ignore
 /// impl From<Src> for Dest  {
 ///    fn from(value: Src) -> Self {
 ///        ...[constructor]...
@@ -37,7 +39,7 @@ pub(crate) fn generate_from_trait_impl(
 }
 
 /// Generates an impl block for the TryFrom trait. This will be:
-/// ```
+/// ```ignore
 /// impl TryFrom<Src> for Dest  {
 ///    type Error = ErrorType;
 ///    fn from(value: Src) -> Self {
@@ -86,11 +88,16 @@ pub(crate) enum AssociatedTypeKind {
 /// - A `ref` type, that holds a reference to the underlying data. This is used for faster
 ///   versioning using only references.
 /// - An owned type, that owns the underlying data. This is used for unversioning. The ownership of
-///   the data will be transfered during the unversioning process.
+///   the data will be transferred during the unversioning process.
 ///
 /// [`DispatchType`]: crate::dispatch_type::DispatchType
 /// [`VersionType`]: crate::dispatch_type::VersionType
 pub(crate) trait AssociatedType: Sized {
+    /// Bounds that will be added on the fields of the ref type definition
+    fn ref_bounds(&self) -> &'static [&'static str];
+    /// Bounds that will be added on the fields of the owned type definition
+    fn owned_bounds(&self) -> &'static [&'static str];
+
     /// This will create the alternative of the type that holds a reference to the underlying data
     fn new_ref(orig_type: &DeriveInput) -> syn::Result<Self>;
     /// This will create the alternative of the type that owns the underlying data
@@ -98,6 +105,34 @@ pub(crate) trait AssociatedType: Sized {
 
     /// Generates the type declaration for this type
     fn generate_type_declaration(&self) -> syn::Result<Item>;
+
+    /// Returns the kind of associated type, a ref or an owned type
+    fn kind(&self) -> &AssociatedTypeKind;
+
+    /// Returns true if the type is transparent and trait implementation is actually deferred to the
+    /// inner type
+    fn is_transparent(&self) -> bool;
+
+    /// Returns the generics found in the original type definition
+    fn orig_type_generics(&self) -> &Generics;
+
+    /// Returns the generics and bounds that should be added to the type
+    fn type_generics(&self) -> syn::Result<Generics> {
+        let mut generics = filter_unsized_bounds(self.orig_type_generics());
+        if let AssociatedTypeKind::Ref(opt_lifetime) = &self.kind() {
+            if let Some(lifetime) = opt_lifetime {
+                add_lifetime_param(&mut generics, lifetime);
+            }
+            add_trait_where_clause(&mut generics, self.inner_types()?, self.ref_bounds())?;
+        } else {
+            add_trait_where_clause(&mut generics, self.inner_types()?, self.owned_bounds())?;
+        }
+
+        Ok(generics)
+    }
+
+    /// Generics needed for conversions between the original type and associated types
+    fn conversion_generics(&self, direction: ConversionDirection) -> syn::Result<Generics>;
 
     /// Generates conversion methods between the origin type and the associated type. If the version
     /// type is a ref, the conversion is `From<&'vers OrigType> for Associated<'vers>` because this
@@ -108,10 +143,6 @@ pub(crate) trait AssociatedType: Sized {
     /// [`Dispatch`]: crate::dispatch_type::DispatchType
     /// [`Version`]: crate::dispatch_type::VersionType
     fn generate_conversion(&self) -> syn::Result<Vec<ItemImpl>>;
-
-    /// The lifetime added for this type, if it is a "ref" type. It also returns None if the type is
-    /// a unit type (no data)
-    //fn lifetime(&self) -> Option<&Lifetime>;
 
     /// The identifier used to name this type
     fn ident(&self) -> Ident;
@@ -125,7 +156,7 @@ pub(crate) trait AssociatedType: Sized {
     fn inner_types(&self) -> syn::Result<Vec<&Type>>;
 
     /// If the associating trait that uses this type needs a type parameter, this returns it.
-    /// For the `VersionsDispatch` trait this paramter is the name of the currently used version,
+    /// For the `VersionsDispatch` trait this parameter is the name of the currently used version,
     /// which is the latest variant of the dispatch enum. The `Version` trait does not need a
     /// parameter.
     fn as_trait_param(&self) -> Option<syn::Result<&Type>>;
@@ -144,40 +175,19 @@ pub(crate) struct AssociatingTrait<T> {
     owned_type: T,
     orig_type: DeriveInput,
     trait_path: Path,
-    /// Bounds that should be added to the generics for the impl
-    generics_bounds: Vec<String>,
-    /// Bounds that should be added on the struct attributes
-    attributes_bounds: Vec<String>,
 }
 
 impl<T: AssociatedType> AssociatingTrait<T> {
-    pub(crate) fn new(
-        orig_type: &DeriveInput,
-        name: &str,
-        generics_bounds: &[&str],
-        attributes_bounds: &[&str],
-    ) -> syn::Result<Self> {
+    pub(crate) fn new(orig_type: &DeriveInput, name: &str) -> syn::Result<Self> {
         let ref_type = T::new_ref(orig_type)?;
         let owned_type = T::new_owned(orig_type)?;
         let trait_path = syn::parse_str(name)?;
-
-        let generics_bounds = generics_bounds
-            .iter()
-            .map(|bound| bound.to_string())
-            .collect();
-
-        let attributes_bounds = attributes_bounds
-            .iter()
-            .map(|bound| bound.to_string())
-            .collect();
 
         Ok(Self {
             ref_type,
             owned_type,
             orig_type: orig_type.clone(),
             trait_path,
-            generics_bounds,
-            attributes_bounds,
         })
     }
 
@@ -189,26 +199,28 @@ impl<T: AssociatedType> AssociatingTrait<T> {
         let ref_ident = self.ref_type.ident();
         let owned_ident = self.owned_type.ident();
 
-        let mut generics = self.orig_type.generics.clone();
-
-        for bound in &self.generics_bounds {
-            add_trait_bound(&mut generics, bound)?;
-        }
-
         let trait_param = self.ref_type.as_trait_param().transpose()?;
 
-        let mut ref_type_generics = generics.clone();
+        // AssociatedToOrig conversion always has a stricter bound than the other side so we use it
+        let mut generics = self
+            .owned_type
+            .conversion_generics(ConversionDirection::AssociatedToOrig)?;
 
-        add_trait_where_clause(
-            &mut generics,
-            self.ref_type.inner_types()?,
-            &self.attributes_bounds,
-        )?;
+        // Merge the where clause for the reference type with the one from the owned type
+        let owned_where_clause = generics.make_where_clause();
+        if let Some(ref_where_clause) = self
+            .ref_type
+            .conversion_generics(ConversionDirection::AssociatedToOrig)?
+            .where_clause
+        {
+            extend_where_clause(owned_where_clause, &ref_where_clause);
+        }
 
+        let mut ref_type_generics = self.ref_type.orig_type_generics().clone();
         // If the original type has some generics, we need to add a lifetime bound on them
         if let Some(lifetime) = self.ref_type.lifetime() {
-            add_lifetime_bound(&mut ref_type_generics, lifetime);
-            add_where_lifetime_bound(&mut ref_type_generics, lifetime);
+            add_lifetime_param(&mut ref_type_generics, lifetime);
+            add_where_lifetime_bound_to_generics(&mut ref_type_generics, lifetime);
         }
 
         let (impl_generics, orig_generics, where_clause) = generics.split_for_impl();
@@ -238,7 +250,7 @@ impl<T: AssociatedType> AssociatingTrait<T> {
             // generate better errors in case of misuse of the macros. However in some cases
             // this may generate a warning, so we silence it.
             private_bounds,
-            // If these lints doesn't trigger on the orginal type, we don't want them to trigger
+            // If these lints doesn't trigger on the original type, we don't want them to trigger
             // on the generated one
             clippy::upper_case_acronyms,
             clippy::large_enum_variant,
@@ -246,9 +258,27 @@ impl<T: AssociatedType> AssociatingTrait<T> {
         )
         ]};
 
+        let owned_attributes = if self.owned_type.is_transparent() {
+            quote! {
+                #[derive(#serialize_trait, #deserialize_trait)]
+                #[repr(transparent)]
+                #[serde(bound = "")]
+                #ignored_lints
+            }
+        } else {
+            quote! {
+                #[derive(#serialize_trait, #deserialize_trait)]
+                #[serde(bound = "")]
+                #ignored_lints
+            }
+        };
+
+        // Creates the type declaration. These types are the output of the versioning process, so
+        // they should be serializable. Serde might try to add automatic bounds on the type generics
+        // even if we don't need them, so we use `#[serde(bound = "")]` to disable this. The bounds
+        // on the generated types should be sufficient.
         let owned_tokens = quote! {
-            #[derive(#serialize_trait, #deserialize_trait)]
-            #ignored_lints
+            #owned_attributes
             #owned_decla
 
             #(#owned_conversion)*
@@ -258,9 +288,23 @@ impl<T: AssociatedType> AssociatingTrait<T> {
 
         let ref_conversion = self.ref_type.generate_conversion()?;
 
+        let ref_attributes = if self.ref_type.is_transparent() {
+            quote! {
+                #[derive(#serialize_trait)]
+                #[repr(transparent)]
+                #[serde(bound = "")]
+                #ignored_lints
+            }
+        } else {
+            quote! {
+                #[derive(#serialize_trait)]
+                #[serde(bound = "")]
+                #ignored_lints
+            }
+        };
+
         let ref_tokens = quote! {
-            #[derive(#serialize_trait)]
-            #ignored_lints
+            #ref_attributes
             #ref_decla
 
             #(#ref_conversion)*

@@ -27,8 +27,7 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
 
     let main_seed = seeder.seed();
 
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for _ in 0..NB_TESTS {
         // Create the LweSecretKey
@@ -48,8 +47,8 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
-        let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             deterministic_seeder.seed(),
             &mut deterministic_seeder,
         );
@@ -69,8 +68,8 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
-        let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             deterministic_seeder.seed(),
             &mut deterministic_seeder,
         );
@@ -85,7 +84,7 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
         assert_eq!(par_lwe_list, ser_lwe_list);
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
         // Create a new LweCiphertextList
         let mut par_seeded_lwe_list = SeededLweCiphertextList::new(
             Scalar::ZERO,
@@ -104,7 +103,7 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
 
         let mut ser_seeded_lwe_list = SeededLweCiphertextList::new(
             Scalar::ZERO,
@@ -135,7 +134,7 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
     }
 }
 
-create_parametrized_test!(parallel_and_seeded_lwe_list_encryption_equivalence {
+create_parameterized_test!(parallel_and_seeded_lwe_list_encryption_equivalence {
     TEST_PARAMS_4_BITS_NATIVE_U64,
     TEST_PARAMS_3_BITS_63_U64,
     DUMMY_NATIVE_U32,
@@ -204,7 +203,7 @@ fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPara
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_encrypt_decrypt_custom_mod);
 
 fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -258,7 +257,7 @@ fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_allocate_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_allocate_encrypt_decrypt_custom_mod);
 
 fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -310,7 +309,7 @@ fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
         break;
     }
 }
-create_parametrized_test_with_non_native_parameters!(lwe_trivial_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_trivial_encrypt_decrypt_custom_mod);
 
 fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -361,7 +360,7 @@ fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(
+create_parameterized_test_with_non_native_parameters!(
     lwe_allocate_trivial_encrypt_decrypt_custom_mod
 );
 
@@ -432,7 +431,7 @@ fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTes
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_list_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_list_encrypt_decrypt_custom_mod);
 
 fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -503,7 +502,7 @@ fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_list_par_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_list_par_encrypt_decrypt_custom_mod);
 
 fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -569,7 +568,7 @@ fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_public_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_public_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -644,7 +643,7 @@ fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_seeded_public_encrypt_decrypt_custom_mod);
+create_parameterized_test!(lwe_seeded_public_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -727,7 +726,7 @@ fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync +
     }
 }
 
-create_parametrized_test!(lwe_seeded_list_par_encrypt_decrypt_custom_mod);
+create_parameterized_test!(lwe_seeded_list_par_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -793,7 +792,7 @@ fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_seeded_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_seeded_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -854,7 +853,7 @@ fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(
+create_parameterized_test_with_non_native_parameters!(
     lwe_seeded_allocate_encrypt_decrypt_custom_mod
 );
 
@@ -871,9 +870,8 @@ fn test_u128_encryption() {
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     const MSG_BITS: u32 = 4;
 
@@ -992,7 +990,7 @@ fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_compact_public_encrypt_decrypt_custom_mod {
+create_parameterized_test!(lwe_compact_public_encrypt_decrypt_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
@@ -1006,6 +1004,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     u64: CastFrom<Scalar> + CastInto<Scalar::Signed>,
     rand_distr::Standard: rand_distr::Distribution<Scalar>,
 {
+    use crate::zk::ZkMSBZeroPaddingBitCount;
     let lwe_dimension = LweDimension(params.polynomial_size.0);
     let glwe_noise_distribution = TUniform::new(9);
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -1015,100 +1014,111 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     let metadata = [b'c', b'o', b'r', b'e'];
 
     let mut rsc = TestResources::new();
-    let mut random_generator = RandomGenerator::<ActivatedRandomGenerator>::new(rsc.seeder.seed());
+    let mut random_generator = RandomGenerator::<DefaultRandomGenerator>::new(rsc.seeder.seed());
 
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
-    let crs = CompactPkeCrs::new(
+    // Test zk scheme v1 and v2
+    let crs_v2 = CompactPkeCrs::new(
         lwe_dimension,
-        1,
+        LweCiphertextCount(1),
         glwe_noise_distribution,
         ciphertext_modulus,
         msg_modulus * Scalar::TWO,
+        ZkMSBZeroPaddingBitCount(1),
         &mut random_generator,
     )
     .unwrap();
 
-    while msg != Scalar::ZERO {
-        msg = msg.wrapping_sub(Scalar::ONE);
-        for _ in 0..NB_TESTS {
-            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
-                lwe_dimension,
-                &mut rsc.secret_random_generator,
-            );
+    let crs_v1 = CompactPkeCrs::new_legacy_v1(
+        lwe_dimension,
+        LweCiphertextCount(1),
+        glwe_noise_distribution,
+        ciphertext_modulus,
+        msg_modulus * Scalar::TWO,
+        ZkMSBZeroPaddingBitCount(1),
+        &mut random_generator,
+    )
+    .unwrap();
 
-            let pk = allocate_and_generate_new_lwe_compact_public_key(
-                &lwe_sk,
-                glwe_noise_distribution,
-                ciphertext_modulus,
-                &mut rsc.encryption_random_generator,
-            );
+    for crs in [&crs_v2, &crs_v1] {
+        while msg != Scalar::ZERO {
+            msg = msg.wrapping_sub(Scalar::ONE);
+            for _ in 0..NB_TESTS {
+                let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
+                    lwe_dimension,
+                    &mut rsc.secret_random_generator,
+                );
 
-            let mut ct = LweCiphertext::new(
-                Scalar::ZERO,
-                lwe_dimension.to_lwe_size(),
-                ciphertext_modulus,
-            );
+                let pk = allocate_and_generate_new_lwe_compact_public_key(
+                    &lwe_sk,
+                    glwe_noise_distribution,
+                    ciphertext_modulus,
+                    &mut rsc.encryption_random_generator,
+                );
 
-            let proof = encrypt_and_prove_lwe_ciphertext_with_compact_public_key(
-                &pk,
-                &mut ct,
-                Cleartext(msg),
-                delta,
-                glwe_noise_distribution,
-                glwe_noise_distribution,
-                &mut rsc.secret_random_generator,
-                &mut rsc.encryption_random_generator,
-                &mut random_generator,
-                crs.public_params(),
-                &metadata,
-                ZkComputeLoad::Proof,
-            )
-            .unwrap();
+                let mut ct = LweCiphertext::new(
+                    Scalar::ZERO,
+                    lwe_dimension.to_lwe_size(),
+                    ciphertext_modulus,
+                );
 
-            assert!(check_encrypted_content_respects_mod(
-                &ct,
-                ciphertext_modulus,
-            ));
+                let proof = encrypt_and_prove_lwe_ciphertext_with_compact_public_key(
+                    &pk,
+                    &mut ct,
+                    Cleartext(msg),
+                    delta,
+                    glwe_noise_distribution,
+                    glwe_noise_distribution,
+                    &mut rsc.secret_random_generator,
+                    &mut rsc.encryption_random_generator,
+                    &mut random_generator,
+                    crs,
+                    &metadata,
+                    ZkComputeLoad::Proof,
+                )
+                .unwrap();
 
-            let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
+                assert!(check_encrypted_content_respects_mod(
+                    &ct,
+                    ciphertext_modulus,
+                ));
 
-            let decoded = round_decode(decrypted.0, delta) % msg_modulus;
+                let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
 
-            assert_eq!(msg, decoded);
+                let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
-            // Verify the proof
-            assert!(
-                verify_lwe_ciphertext(&ct, &pk, &proof, crs.public_params(), &metadata).is_valid()
-            );
+                assert_eq!(msg, decoded);
 
-            // verify proof with invalid ciphertext
-            let index = random_generator.gen::<usize>() % ct.as_ref().len();
-            let value_to_add = random_generator.gen::<Scalar>();
-            ct.as_mut()[index] = ct.as_mut()[index].wrapping_add(value_to_add);
-            assert!(
-                verify_lwe_ciphertext(&ct, &pk, &proof, crs.public_params(), &metadata)
-                    .is_invalid()
-            );
+                // Verify the proof
+                assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, &metadata).is_valid());
+
+                // verify proof with invalid ciphertext
+                let index = random_generator.gen::<usize>() % ct.as_ref().len();
+                let value_to_add = random_generator.gen::<Scalar>();
+                ct.as_mut()[index] = ct.as_mut()[index].wrapping_add(value_to_add);
+                assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, &metadata).is_invalid());
+            }
+
+            // In coverage, we break after one while loop iteration, changing message values does
+            // not yield higher coverage
+            #[cfg(tarpaulin)]
+            break;
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
 #[cfg(feature = "zk-pok")]
-create_parametrized_test!(lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod {
+create_parameterized_test!(lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
 #[cfg(feature = "zk-pok")]
 #[test]
 fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
+    use crate::zk::ZkMSBZeroPaddingBitCount;
     use rand::Rng;
 
     let lwe_dimension = LweDimension(2048);
@@ -1119,17 +1129,19 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
 
     let delta_log = 59;
     let delta = 1u64 << delta_log;
-    let message_modulus = 1u64 << (64 - (delta_log + 1));
+    let msb_zero_padding_bit_count = ZkMSBZeroPaddingBitCount(1);
+    let message_modulus = 1u64 << (64 - (delta_log + msb_zero_padding_bit_count.0));
     let plaintext_modulus = 1u64 << (64 - delta_log);
     let mut thread_rng = rand::thread_rng();
 
     let max_num_body = 512;
     let crs = CompactPkeCrs::new(
         lwe_dimension,
-        max_num_body,
+        LweCiphertextCount(max_num_body),
         glwe_noise_distribution,
         ciphertext_modulus,
         plaintext_modulus,
+        msb_zero_padding_bit_count,
         &mut thread_rng,
     )
     .unwrap();
@@ -1146,14 +1158,13 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
             .collect::<Vec<_>>();
 
         let par_lwe_ct_list = {
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+            let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
             let mut random_generator =
-                RandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+                RandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
             let mut secret_random_generator =
-                SecretRandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+                SecretRandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
             let mut encryption_random_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+                EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
                     deterministic_seeder.seed(),
                     &mut deterministic_seeder,
                 );
@@ -1188,7 +1199,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &mut secret_random_generator,
                 &mut encryption_random_generator,
                 &mut random_generator,
-                crs.public_params(),
+                &crs,
                 &metadata,
                 ZkComputeLoad::Proof,
             )
@@ -1198,7 +1209,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &output_compact_ct_list,
                 &compact_lwe_pk,
                 &proof,
-                crs.public_params(),
+                &crs,
                 &metadata
             )
             .is_valid());
@@ -1229,7 +1240,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &output_compact_ct_list,
                 &compact_lwe_pk,
                 &proof,
-                crs.public_params(),
+                &crs,
                 &metadata
             )
             .is_invalid());
@@ -1238,14 +1249,13 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
         };
 
         let ser_lwe_ct_list = {
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+            let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
             let mut random_generator =
-                RandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+                RandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
             let mut secret_random_generator =
-                SecretRandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+                SecretRandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
             let mut encryption_random_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+                EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
                     deterministic_seeder.seed(),
                     &mut deterministic_seeder,
                 );
@@ -1280,7 +1290,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &mut secret_random_generator,
                 &mut encryption_random_generator,
                 &mut random_generator,
-                crs.public_params(),
+                &crs,
                 &metadata,
                 ZkComputeLoad::Proof,
             )
@@ -1290,7 +1300,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &output_compact_ct_list,
                 &compact_lwe_pk,
                 &proof,
-                crs.public_params(),
+                &crs,
                 &metadata
             )
             .is_valid());
@@ -1321,7 +1331,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &output_compact_ct_list,
                 &compact_lwe_pk,
                 &proof,
-                crs.public_params(),
+                &crs,
                 &metadata
             )
             .is_invalid());

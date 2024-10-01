@@ -8,6 +8,14 @@ on:
         description: "Run all precisions"
         type: boolean
         default: false
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
+          - both
 
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 1a.m.
@@ -36,10 +44,10 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
       op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
+      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
     steps:
       - name: Weekly benchmarks
-        if: github.event_name == 'workflow_dispatch' ||
-          github.event.schedule == '0 1 * * 6'
+        if: github.event.schedule == '0 1 * * 6'
         run: |
           echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
 
@@ -48,10 +56,30 @@ jobs:
         run: |
           echo "OP_FLAVOR=[\"default\", \"unchecked\"]" >> "${GITHUB_ENV}"
 
+      - name: Set benchmark types
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
+          if [[ "${{ inputs.bench_type }}" == "both" ]]; then
+            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+          else
+            echo "BENCH_TYPE=[\"${{ inputs.bench_type }}\"]" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Default benchmark type
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
+
       - name: Set operation flavor output
         id: set_op_flavor
         run: |
           echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set benchmark types output
+        id: set_bench_type
+        run: |
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
     name: Setup instance (signed-integer-benchmarks)
@@ -62,7 +90,7 @@ jobs:
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -84,12 +112,14 @@ jobs:
       max-parallel: 1
       matrix:
         command: [ integer, integer_multi_bit ]
-        op_flavor: [ default, unchecked ]
+        op_flavor: ${{ fromJSON(needs.prepare-matrix.outputs.op_flavor) }}
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Get benchmark details
         run: |
@@ -99,18 +129,13 @@ jobs:
             echo "COMMIT_HASH=$(git describe --tags --dirty)";
           } >> "${GITHUB_ENV}"
 
-      - name: Set up home
-        # "Install rust" step require root user to have a HOME directory which is not set.
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-
       - name: Install rust
-        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: nightly
 
       - name: Checkout Slab repo
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: zama-ai/slab
           path: slab
@@ -123,7 +148,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_signed_${{ matrix.command }}
+          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} BENCH_TYPE=${{ matrix.bench_type }} bench_signed_${{ matrix.command }}
 
       - name: Parse results
         run: |
@@ -136,12 +161,12 @@ jobs:
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --throughput
+          --bench-type ${{ matrix.bench_type }}
 
       - name: Upload parsed results artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b
         with:
-          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}
+          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.bench_type }}
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Send data to Slab
@@ -153,7 +178,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Signed integer full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
@@ -166,7 +191,7 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -177,7 +202,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Instance teardown (signed-integer-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

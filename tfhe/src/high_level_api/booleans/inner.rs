@@ -168,18 +168,6 @@ impl InnerBoolean {
         }
     }
 
-    /// Returns the inner cpu ciphertext if self is on the CPU, otherwise, returns a copy
-    /// that is on the CPU
-    pub(crate) fn into_cpu(self) -> BooleanBlock {
-        match self {
-            Self::Cpu(ct) => ct,
-            #[cfg(feature = "gpu")]
-            Self::Cuda(ct) => {
-                with_thread_local_cuda_streams(|streams| ct.to_boolean_block(streams))
-            }
-        }
-    }
-
     #[cfg(feature = "gpu")]
     pub(crate) fn into_gpu(
         self,

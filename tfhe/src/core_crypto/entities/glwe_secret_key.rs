@@ -9,6 +9,7 @@ use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::named::Named;
 
 /// A [`GLWE secret key`](`GlweSecretKey`)
 ///
@@ -26,6 +27,10 @@ use crate::core_crypto::entities::*;
 pub struct GlweSecretKey<C: Container> {
     data: C,
     polynomial_size: PolynomialSize,
+}
+
+impl<C: Container> Named for GlweSecretKey<C> {
+    const NAME: &'static str = "core_crypto::GlweSecretKey";
 }
 
 impl<T, C: Container<Element = T>> AsRef<[T]> for GlweSecretKey<C> {
@@ -201,8 +206,7 @@ where
     /// // Create the PRNG
     /// let mut seeder = new_seeder();
     /// let seeder = seeder.as_mut();
-    /// let mut secret_generator =
-    ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    /// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
     ///
     /// let glwe_secret_key: GlweSecretKeyOwned<u64> = GlweSecretKey::generate_new_binary(
     ///     glwe_size.to_glwe_dimension(),

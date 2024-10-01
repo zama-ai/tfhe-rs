@@ -21,7 +21,7 @@ const NB_SUB_TEST: usize = 5;
 
 // Macro to generate tests for all parameter sets
 #[cfg(not(tarpaulin))]
-macro_rules! create_parametrized_test{
+macro_rules! create_parameterized_test{
     ($name:ident { $($param:ident),* }) => {
         ::paste::paste! {
             $(
@@ -33,47 +33,47 @@ macro_rules! create_parametrized_test{
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
-            PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS,
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-            PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS,
-            PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS
+            V0_11_PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS_GAUSSIAN_2M64
         });
     };
 }
 
 // Test against a small subset of parameters to speed up coverage tests
 #[cfg(tarpaulin)]
-macro_rules! create_parametrized_test{
+macro_rules! create_parameterized_test{
     ($name:ident { $($param:ident),* }) => {
         ::paste::paste! {
             $(
@@ -85,15 +85,15 @@ macro_rules! create_parametrized_test{
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS
+            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64
         });
     };
 }
 
-create_parametrized_test!(shortint_compact_public_key_base_smart_add);
+create_parameterized_test!(shortint_compact_public_key_base_smart_add);
 
 fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
     let keys = KEY_CACHE.get_from_param(params);
@@ -102,7 +102,7 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0 as u64;
+    let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -147,7 +147,7 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
     }
 }
 
-create_parametrized_test!(shortint_compact_public_key_base_list_smart_sub);
+create_parameterized_test!(shortint_compact_public_key_base_list_smart_sub);
 
 fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters) {
     let keys = KEY_CACHE.get_from_param(params);
@@ -156,7 +156,7 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0 as u64;
+    let modulus = cks.parameters.message_modulus().0;
 
     let max_ct: usize = 5;
 

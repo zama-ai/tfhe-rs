@@ -4,7 +4,7 @@
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.cuh"
-#include "integer.h"
+#include "integer/integer_utilities.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
 #include "polynomial/functions.cuh"
@@ -12,12 +12,11 @@
 #include <omp.h>
 
 template <typename Torus>
-__host__ void
-host_integer_radix_bitop_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
-                            uint32_t gpu_count, Torus *lwe_array_out,
-                            Torus *lwe_array_1, Torus *lwe_array_2,
-                            int_bitop_buffer<Torus> *mem_ptr, void **bsks,
-                            Torus **ksks, uint32_t num_radix_blocks) {
+__host__ void host_integer_radix_bitop_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_1,
+    Torus const *lwe_array_2, int_bitop_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks) {
 
   auto lut = mem_ptr->lut;
 
@@ -28,9 +27,10 @@ host_integer_radix_bitop_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_bitop_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_bitop_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
-    int_radix_params params, BITOP_TYPE op, bool allocate_gpu_memory) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_bitop_buffer<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, int_radix_params params, BITOP_TYPE op,
+    bool allocate_gpu_memory) {
 
   *mem_ptr =
       new int_bitop_buffer<Torus>(streams, gpu_indexes, gpu_count, op, params,

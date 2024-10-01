@@ -1,21 +1,25 @@
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_lwe_secret_key,
     allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
-    Container, LweCiphertextCount, LweCompactCiphertextListOwned, LweCompactPublicKeyOwned,
-    LweSecretKey, Plaintext, PlaintextList, SeededLweCompactPublicKeyOwned,
+    Cleartext, Container, LweCiphertextCount, LweCompactCiphertextListOwned,
+    LweCompactPublicKeyEncryptionParameters, LweCompactPublicKeyOwned, LweSecretKey, Plaintext,
+    PlaintextList, SeededLweCompactPublicKeyOwned,
 };
 use crate::shortint::backward_compatibility::public_key::{
     CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
 };
 #[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextList;
-use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
+use crate::shortint::ciphertext::{CompactCiphertextList, Degree};
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
-use crate::shortint::{CarryModulus, ClientKey, MessageModulus};
+use crate::shortint::ClientKey;
 #[cfg(feature = "zk-pok")]
-use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
+use crate::shortint::ShortintEncoding;
+#[cfg(feature = "zk-pok")]
+use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -133,11 +137,10 @@ pub struct CompactPublicKey {
 fn to_plaintext_iterator(
     message_iter: impl Iterator<Item = u64>,
     encryption_modulus: u64,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
+    parameters: &CompactPublicKeyEncryptionParameters,
 ) -> impl Iterator<Item = Plaintext<u64>> {
-    let message_modulus = message_modulus.0 as u64;
-    let carry_modulus = carry_modulus.0 as u64;
+    let message_modulus = parameters.message_modulus.0;
+    let carry_modulus = parameters.carry_modulus.0;
 
     let full_modulus = message_modulus * carry_modulus;
 
@@ -146,16 +149,10 @@ fn to_plaintext_iterator(
         "Encryption modulus cannot exceed the plaintext modulus"
     );
 
+    let encoding = parameters.encoding();
     message_iter.map(move |message| {
-        //The delta is the one defined by the parameters
-        // TODO fixme -> Must properly support ct_w != 64b
-        let delta = (1_u64 << 63) / (full_modulus);
-
         let m = message % encryption_modulus;
-
-        let shifted_message = m * delta;
-        // encode the message
-        Plaintext(shifted_message)
+        encoding.encode(Cleartext(m))
     })
 }
 
@@ -255,25 +252,19 @@ impl CompactPublicKey {
     pub fn encrypt_and_prove(
         &self,
         message: u64,
-        public_params: &CompactPkePublicParams,
+        crs: &CompactPkeCrs,
         metadata: &[u8],
         load: ZkComputeLoad,
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
-        self.encrypt_and_prove_slice(
-            &[message],
-            public_params,
-            metadata,
-            load,
-            encryption_modulus,
-        )
+        self.encrypt_and_prove_slice(&[message], crs, metadata, load, encryption_modulus)
     }
 
     /// Encrypts the messages contained in the slice into a compact ciphertext list
     ///
     /// See [Self::encrypt_iter] for more details
     pub fn encrypt_slice(&self, messages: &[u64]) -> CompactCiphertextList {
-        self.encrypt_slice_with_modulus(messages, self.parameters.message_modulus.0 as u64)
+        self.encrypt_slice_with_modulus(messages, self.parameters.message_modulus.0)
     }
 
     /// Encrypts the messages coming from the iterator into a compact ciphertext list
@@ -281,7 +272,7 @@ impl CompactPublicKey {
     /// Values of the messages should be in range [0..message_modulus[
     /// (a modulo operation is applied to each input)
     pub fn encrypt_iter(&self, messages: impl Iterator<Item = u64>) -> CompactCiphertextList {
-        self.encrypt_iter_with_modulus(messages, self.parameters.message_modulus.0 as u64)
+        self.encrypt_iter_with_modulus(messages, self.parameters.message_modulus.0)
     }
 
     /// Encrypts the messages contained in the slice into a compact ciphertext list
@@ -308,14 +299,10 @@ impl CompactPublicKey {
         messages: impl Iterator<Item = u64>,
         encryption_modulus: u64,
     ) -> CompactCiphertextList {
-        let plaintext_container = to_plaintext_iterator(
-            messages,
-            encryption_modulus,
-            self.parameters.message_modulus,
-            self.parameters.carry_modulus,
-        )
-        .map(|plaintext| plaintext.0)
-        .collect::<Vec<_>>();
+        let plaintext_container =
+            to_plaintext_iterator(messages, encryption_modulus, &self.parameters)
+                .map(|plaintext| plaintext.0)
+                .collect::<Vec<_>>();
 
         let plaintext_list = PlaintextList::from_container(plaintext_container);
         let mut ct_list = LweCompactCiphertextListOwned::new(
@@ -364,11 +351,10 @@ impl CompactPublicKey {
         let message_modulus = self.parameters.message_modulus;
         CompactCiphertextList {
             ct_list,
-            degree: Degree::new(encryption_modulus as usize - 1),
+            degree: Degree::new(encryption_modulus - 1),
             message_modulus,
             carry_modulus: self.parameters.carry_modulus,
             expansion_kind: self.parameters.expansion_kind,
-            noise_level: NoiseLevel::NOMINAL,
         }
     }
 
@@ -376,23 +362,22 @@ impl CompactPublicKey {
     pub fn encrypt_and_prove_slice(
         &self,
         messages: &[u64],
-        public_params: &CompactPkePublicParams,
+        crs: &CompactPkeCrs,
         metadata: &[u8],
         load: ZkComputeLoad,
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
-        let plaintext_modulus =
-            (self.parameters.message_modulus.0 * self.parameters.carry_modulus.0) as u64;
-        let delta = (1u64 << 63) / plaintext_modulus;
+        let plaintext_modulus = self.parameters.message_modulus.0 * self.parameters.carry_modulus.0;
         assert!(encryption_modulus <= plaintext_modulus);
+        let delta = self.encoding().delta();
 
         // This is the maximum number of lwe that can share the same mask in lwe compact pk
         // encryption
         let max_ciphertext_per_bin = self.key.lwe_dimension().0;
         // This is the maximum of lwe message a single proof can prove
-        let max_num_message = public_params.k;
+        let max_num_messages = crs.max_num_messages().0;
         // One of the two is the limiting factor for how much we can pack messages
-        let message_chunk_size = max_num_message.min(max_ciphertext_per_bin);
+        let message_chunk_size = max_num_messages.min(max_ciphertext_per_bin);
 
         let num_lists = messages.len().div_ceil(message_chunk_size);
         let mut proved_lists = Vec::with_capacity(num_lists);
@@ -421,7 +406,7 @@ impl CompactPublicKey {
                         &mut engine.secret_generator,
                         &mut engine.encryption_generator,
                         &mut engine.random_generator,
-                        public_params,
+                        crs,
                         metadata,
                         load,
                     )
@@ -443,7 +428,7 @@ impl CompactPublicKey {
                         &mut engine.secret_generator,
                         &mut engine.encryption_generator,
                         &mut engine.random_generator,
-                        public_params,
+                        crs,
                         metadata,
                         load,
                     )
@@ -453,11 +438,10 @@ impl CompactPublicKey {
             let message_modulus = self.parameters.message_modulus;
             let ciphertext = CompactCiphertextList {
                 ct_list,
-                degree: Degree::new(encryption_modulus as usize - 1),
+                degree: Degree::new(encryption_modulus - 1),
                 message_modulus,
                 carry_modulus: self.parameters.carry_modulus,
                 expansion_kind: self.parameters.expansion_kind,
-                noise_level: NoiseLevel::NOMINAL,
             };
 
             proved_lists.push((ciphertext, proof));
@@ -472,6 +456,15 @@ impl CompactPublicKey {
 
     pub fn size_bytes(&self) -> usize {
         self.key.size_bytes()
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.parameters
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub(crate) fn encoding(&self) -> ShortintEncoding {
+        self.parameters.encoding()
     }
 }
 
@@ -558,5 +551,39 @@ impl CompressedCompactPublicKey {
             key: decompressed_key,
             parameters: self.parameters,
         }
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.parameters
+    }
+}
+
+impl ParameterSetConformant for CompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key, parameters } = self;
+
+        let core_params = LweCompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension: parameter_set.encryption_lwe_dimension,
+            ciphertext_modulus: parameter_set.ciphertext_modulus,
+        };
+
+        parameters == parameter_set && key.is_conformant(&core_params)
+    }
+}
+
+impl ParameterSetConformant for CompressedCompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key, parameters } = self;
+
+        let core_params = LweCompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension: parameter_set.encryption_lwe_dimension,
+            ciphertext_modulus: parameter_set.ciphertext_modulus,
+        };
+
+        parameters == parameter_set && key.is_conformant(&core_params)
     }
 }

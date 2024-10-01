@@ -2,10 +2,10 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
-use crate::shortint::engine::{EngineResult, ShortintEngine};
+use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::wopbs::{WopbsKey, WopbsKeyCreationError};
-use crate::shortint::{ClientKey, PBSMode, ServerKey, WopbsParameters};
+use crate::shortint::{ClientKey, ServerKey, WopbsParameters};
 
 impl ShortintEngine {
     // Creates a key when ONLY a wopbs is used.
@@ -13,12 +13,15 @@ impl ShortintEngine {
         &mut self,
         cks: &ClientKey,
         sks: &ServerKey,
-    ) -> EngineResult<WopbsKey> {
+    ) -> crate::Result<WopbsKey> {
         if matches!(
             sks.bootstrapping_key,
             ShortintBootstrappingKey::MultiBit { .. }
         ) {
-            return Err(WopbsKeyCreationError::UnsupportedMultiBit.into());
+            return Err(crate::Error::new(format!(
+                "{}",
+                WopbsKeyCreationError::UnsupportedMultiBit
+            )));
         }
 
         let wop_params = cks.parameters.wopbs_parameters().unwrap();

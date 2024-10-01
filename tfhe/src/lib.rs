@@ -2,8 +2,19 @@
 //!
 //! TFHE-rs is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE.
 
+// Enable all warnings in doctests
+// https://doc.rust-lang.org/rustdoc/write-documentation/documentation-tests.html#showing-warnings-in-doctests
+#![doc(test(attr(warn(unused))))]
+#![doc(test(attr(allow(unused_variables))))]
+#![doc(test(attr(allow(unused_imports))))]
+// Enable all warnings first as it may break the "allow" priority/activation as some lints gets
+// moved around in clippy categories
+
 // Enable pedantic lints
 #![warn(clippy::pedantic)]
+// Nursery lints
+#![warn(clippy::nursery)]
+#![warn(rustdoc::broken_intra_doc_links)]
 // The following lints have been temporarily allowed
 // They are expected to be fixed progressively
 #![allow(clippy::unreadable_literal)] // 830
@@ -33,6 +44,7 @@
 #![allow(clippy::unsafe_derive_deserialize)] // 1
 #![allow(clippy::cast_possible_wrap)] // 1
 #![allow(clippy::too_long_first_doc_paragraph)]
+#![allow(clippy::redundant_closure_for_method_calls)]
 // These pedantic lints are deemed to bring too little value therefore they are allowed (which are
 // their natural state anyways, being pedantic lints)
 
@@ -44,8 +56,6 @@
 #![allow(clippy::explicit_iter_loop)]
 // End allowed pedantic lints
 
-// Nursery lints
-#![warn(clippy::nursery)]
 // The following lints have been temporarily allowed
 // They are expected to be fixed progressively
 #![allow(clippy::missing_const_for_fn)] // 243
@@ -65,7 +75,8 @@
 )]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_auto_cfg))]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
-#![warn(rustdoc::broken_intra_doc_links)]
+// Weird clippy lint triggering without any code location
+#![cfg_attr(test, allow(clippy::large_stack_arrays))]
 
 #[cfg(feature = "__c_api")]
 pub mod c_api;
@@ -113,6 +124,9 @@ mod js_on_wasm_api;
 ))]
 mod test_user_docs;
 
+#[cfg(feature = "strings")]
+pub mod strings;
+
 #[cfg(feature = "integer")]
 /// cbindgen:ignore
 pub(crate) mod high_level_api;
@@ -124,7 +138,7 @@ pub use high_level_api::*;
 /// cbindgen:ignore
 pub mod keycache;
 
-pub mod safe_deserialization;
+pub mod safe_serialization;
 
 pub mod conformance;
 

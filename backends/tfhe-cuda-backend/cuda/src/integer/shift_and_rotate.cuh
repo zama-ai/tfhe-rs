@@ -4,7 +4,7 @@
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.cuh"
-#include "integer.h"
+#include "integer/integer_utilities.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
 #include "scalar_mul.cuh"
@@ -14,10 +14,10 @@
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_shift_and_rotate_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_shift_and_rotate_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
-    int_radix_params params, SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
-    bool allocate_gpu_memory) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_shift_and_rotate_buffer<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, int_radix_params params,
+    SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed, bool allocate_gpu_memory) {
   *mem_ptr = new int_shift_and_rotate_buffer<Torus>(
       streams, gpu_indexes, gpu_count, shift_type, is_signed, params,
       num_radix_blocks, allocate_gpu_memory);
@@ -25,10 +25,11 @@ __host__ void scratch_cuda_integer_radix_shift_and_rotate_kb(
 
 template <typename Torus>
 __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array, Torus *lwe_shift, int_shift_and_rotate_buffer<Torus> *mem,
-    void **bsks, Torus **ksks, uint32_t num_radix_blocks) {
-  uint32_t bits_per_block = std::log2(mem->params.message_modulus);
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, Torus const *lwe_shift,
+    int_shift_and_rotate_buffer<Torus> *mem, void *const *bsks,
+    Torus *const *ksks, uint32_t num_radix_blocks) {
+  uint32_t bits_per_block = log2_int(mem->params.message_modulus);
   uint32_t total_nb_bits = bits_per_block * num_radix_blocks;
   if (total_nb_bits == 0)
     return;
@@ -54,14 +55,15 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   // then the behaviour of shifting won't be the same
   // if shift >= total_nb_bits compared to when total_nb_bits
   // is a power of two, as will 'capture' more bits in `shift_bits`
-  uint32_t max_num_bits_that_tell_shift = std::log2(total_nb_bits);
+  uint32_t max_num_bits_that_tell_shift = log2_int(total_nb_bits);
   if (!is_power_of_two(total_nb_bits))
     max_num_bits_that_tell_shift += 1;
   // Extracts bits and put them in the bit index 2 (=> bit number 3)
   // so that it is already aligned to the correct position of the cmux input
   // and we reduce noise growth
-  extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, shift_bits, lwe_shift,
-                        bsks, ksks, 1, max_num_bits_that_tell_shift,
+  extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, shift_bits,
+                        (Torus *)lwe_shift, bsks, ksks, 1,
+                        max_num_bits_that_tell_shift,
                         mem->bit_extract_luts_with_offset_2);
 
   // If signed, do an "arithmetic shift" by padding with the sign bit
@@ -135,8 +137,6 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
     // host_pack bits into one block so that we have
     // control_bit|b|a
-    cuda_memset_async(mux_inputs, 0, total_nb_bits * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]); // Do we need this?
     pack_bivariate_blocks<Torus>(streams, gpu_indexes, gpu_count, mux_inputs,
                                  mux_lut->lwe_indexes_out, rotated_input,
                                  input_bits_a, mux_lut->lwe_indexes_in,

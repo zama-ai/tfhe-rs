@@ -5,9 +5,9 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params, overflowing_sub_under_modulus,
     panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
     panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
-    CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels,
+    unsigned_modulus_u128, CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -17,26 +17,28 @@ use std::sync::Arc;
 
 use super::MAX_NB_CTXT;
 
-create_parametrized_test!(integer_unchecked_sub);
-create_parametrized_test!(integer_smart_sub);
-create_parametrized_test!(integer_default_sub);
-create_parametrized_test!(integer_default_overflowing_sub);
-create_parametrized_test!(integer_advanced_sub_assign_with_borrow_at_least_4_bits {
+create_parameterized_test!(integer_unchecked_sub);
+create_parameterized_test!(integer_smart_sub);
+create_parameterized_test!(integer_default_sub);
+create_parameterized_test!(integer_extensive_trivial_default_sub);
+create_parameterized_test!(integer_default_overflowing_sub);
+create_parameterized_test!(integer_extensive_trivial_default_overflowing_sub);
+create_parameterized_test!(integer_advanced_sub_assign_with_borrow_at_least_4_bits {
     coverage => {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
     },
     no_coverage => {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
     }
 });
-create_parametrized_test!(integer_advanced_sub_assign_with_borrow_sequential);
+create_parameterized_test!(integer_advanced_sub_assign_with_borrow_sequential);
 
 fn integer_unchecked_sub<P>(param: P)
 where
@@ -62,12 +64,28 @@ where
     default_sub_test(param, executor);
 }
 
+fn integer_extensive_trivial_default_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
+    extensive_trivial_default_sub_test(param, executor);
+}
+
 fn integer_default_overflowing_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
     default_overflowing_sub_test(param, executor);
+}
+
+fn integer_extensive_trivial_default_overflowing_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
+    extensive_trivial_default_overflowing_sub_test(param, executor);
 }
 
 fn integer_advanced_sub_assign_with_borrow_at_least_4_bits<P>(param: P)
@@ -293,33 +311,84 @@ where
 
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
     executor.setup(&cks, sks);
 
-    for _ in 0..nb_tests_smaller {
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
 
-        let ctxt_1 = cks.encrypt(clear1);
-        let ctxt_2 = cks.encrypt(clear2);
-
-        let mut res = ctxt_1.clone();
-        let mut clear = clear1;
-
-        // Subtract multiple times to raise the degree
         for _ in 0..nb_tests_smaller {
-            let tmp = executor.execute((&res, &ctxt_2));
-            res = executor.execute((&res, &ctxt_2));
-            assert!(res.block_carries_are_empty());
-            assert_eq!(res, tmp);
+            let clear1 = rng.gen::<u64>() % modulus;
+            let clear2 = rng.gen::<u64>() % modulus;
 
-            panic_if_any_block_is_not_clean(&res, &cks);
+            let ctxt_1 = cks.as_ref().encrypt_radix(clear1, num_blocks);
+            let ctxt_2 = cks.as_ref().encrypt_radix(clear2, num_blocks);
 
-            clear = (clear.wrapping_sub(clear2)) % modulus;
-            let dec: u64 = cks.decrypt(&res);
-            assert_eq!(clear, dec);
+            let mut res = ctxt_1.clone();
+            let mut clear = clear1;
+
+            // Subtract multiple times to raise the degree
+            for _ in 0..nb_tests_smaller {
+                let tmp = executor.execute((&res, &ctxt_2));
+                res = executor.execute((&res, &ctxt_2));
+                assert!(res.block_carries_are_empty());
+                assert_eq!(res, tmp);
+
+                panic_if_any_block_is_not_clean(&res, &cks);
+
+                clear = (clear.wrapping_sub(clear2)) % modulus;
+                let dec: u64 = cks.decrypt(&res);
+                assert_eq!(clear, dec);
+            }
+        }
+    }
+}
+
+/// Although this uses the executor pattern and could be plugged in other backends,
+/// It is not recommended to do so unless the backend is extremely fast on trivial ciphertexts
+/// or extremely extremely fast in general, or if its plugged just as a one time thing.
+pub(crate) fn extensive_trivial_default_sub_test<P, T>(param: P, mut sub_executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let param = param.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((
+        cks,
+        crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT,
+    ));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    sub_executor.setup(&cks, sks.clone());
+
+    let message_modulus = cks.parameters().message_modulus();
+    let block_num_bits = message_modulus.0.ilog2();
+
+    for bit_size in (1..=64u32).step_by(block_num_bits as usize) {
+        let num_blocks = bit_size.div_ceil(block_num_bits);
+        let modulus = unsigned_modulus_u128(cks.parameters().message_modulus(), num_blocks);
+
+        for _ in 0..50 {
+            let clear_0 = rng.gen::<u128>() % modulus;
+            let clear_1 = rng.gen::<u128>() % modulus;
+
+            let ctxt_0 = sks.create_trivial_radix(clear_0, num_blocks as usize);
+            let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);
+
+            let ct_res = sub_executor.execute((&ctxt_0, &ctxt_1));
+            let dec_res: u128 = cks.decrypt(&ct_res);
+
+            let expected_clear = clear_0.wrapping_sub(clear_1) % modulus;
+            assert_eq!(
+                expected_clear, dec_res,
+                "Invalid result for {clear_0} - {clear_1}, expected: {expected_clear}, got: {dec_res}\n\
+                    num_blocks={num_blocks}, modulus={modulus}"
+            );
         }
     }
 }
@@ -348,7 +417,7 @@ where
 
     for num_blocks in 1..MAX_NB_CTXT {
         // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
 
         for _ in 0..nb_tests_smaller {
             let clear_0 = rng.gen::<u64>() % modulus;
@@ -360,8 +429,8 @@ where
             let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
             let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp_ct, "Failed determinism check");
-            assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+            assert_eq!(ct_res, tmp_ct, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
+            assert_eq!(tmp_o, result_overflowed, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
 
             let (expected_result, expected_overflowed) =
                 overflowing_sub_under_modulus(clear_0, clear_1, modulus);
@@ -376,7 +445,7 @@ where
             assert_eq!(
                 decrypted_overflowed,
                 expected_overflowed,
-                "Invalid overflow flag result for overflowing_suv for ({clear_0} - {clear_1}) % {modulus} ({num_blocks} blocks) \
+                "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} ({num_blocks} blocks) \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
             assert_eq!(result_overflowed.0.degree.get(), 1);
@@ -426,8 +495,8 @@ where
         for _ in 0..4 {
             // Reduce maximum value of random number such that at least the last block is a trivial
             // 0 (This is how the reproducing case was found)
-            let clear_0 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0 as u64);
-            let clear_1 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0 as u64);
+            let clear_0 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0);
+            let clear_1 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0);
 
             let a: RadixCiphertext = sks.create_trivial_radix(clear_0, num_blocks);
             let b: RadixCiphertext = sks.create_trivial_radix(clear_1, num_blocks);
@@ -455,6 +524,66 @@ where
             );
             assert_eq!(encrypted_overflow.0.degree.get(), 1);
             assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+        }
+    }
+}
+
+/// Although this uses the executor pattern and could be plugged in other backends,
+/// It is not recommended to do so unless the backend is extremely fast on trivial ciphertexts
+/// or extremely extremely fast in general, or if its plugged just as a one time thing.
+pub(crate) fn extensive_trivial_default_overflowing_sub_test<P, T>(
+    param: P,
+    mut overflowing_sub_executor: T,
+) where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext),
+        (RadixCiphertext, BooleanBlock),
+    >,
+{
+    let param = param.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((
+        cks,
+        crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT,
+    ));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    overflowing_sub_executor.setup(&cks, sks.clone());
+
+    let message_modulus = cks.parameters().message_modulus();
+    let block_num_bits = message_modulus.0.ilog2();
+    for bit_size in 1..=64u32 {
+        let num_blocks = bit_size.div_ceil(block_num_bits);
+        let modulus = unsigned_modulus_u128(cks.parameters().message_modulus(), num_blocks);
+
+        for _ in 0..50 {
+            let clear_0 = rng.gen::<u128>() % modulus;
+            let clear_1 = rng.gen::<u128>() % modulus;
+
+            let ctxt_0 = sks.create_trivial_radix(clear_0, num_blocks as usize);
+            let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);
+
+            let (ct_res, o_res) = overflowing_sub_executor.execute((&ctxt_0, &ctxt_1));
+            let dec_res: u128 = cks.decrypt(&ct_res);
+            let dec_overflow = cks.decrypt_bool(&o_res);
+
+            let (expected_clear, expected_overflow) =
+                overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+            assert_eq!(
+                expected_clear, dec_res,
+                "Invalid result for {clear_0} - {clear_1}, expected: {expected_clear}, got: {dec_res}\n\
+                    num_blocks={num_blocks}, modulus={modulus}"
+            );
+            assert_eq!(
+                expected_overflow, dec_overflow,
+                "Invalid overflow result for {clear_0} - {clear_1}, expected: {expected_overflow}, got: {dec_overflow}\n\
+                    num_blocks={num_blocks}, modulus={modulus}"
+            );
         }
     }
 }

@@ -8,6 +8,9 @@ const {
     TfheClientKey,
     TfhePublicKey,
     TfheCompressedPublicKey,
+    TfheCompressedCompactPublicKey,
+    ShortintCompactPublicKeyEncryptionParametersName,
+    ShortintCompactPublicKeyEncryptionParameters,
     TfheCompactPublicKey,
     TfheConfigBuilder,
     CompressedFheInt8,
@@ -20,9 +23,10 @@ const {
     FheInt256,
     CompactCiphertextList,
     ProvenCompactCiphertextList,
-    CompactPkePublicParams,
     CompactPkeCrs,
     ZkComputeLoad,
+    Shortint,
+    ShortintEncryptionKeyChoice,
 } = require("../pkg/tfhe.js");
 const {
     randomBytes,
@@ -83,7 +87,9 @@ test('hlapi_compressed_public_client_int8_big', (t) => {
 });
 
 test('hlapi_public_key_encrypt_decrypt_int32_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption()
+    let params_name_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
         .build();
 
     let clientKey = TfheClientKey.generate(config);
@@ -105,7 +111,9 @@ test('hlapi_public_key_encrypt_decrypt_int32_small', (t) => {
 });
 
 test('hlapi_decompress_public_key_then_encrypt_decrypt_int32_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption()
+    let params_name_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
         .build();
 
 
@@ -176,7 +184,9 @@ test('hlapi_client_key_encrypt_decrypt_int128_big', (t) => {
 });
 
 test('hlapi_client_key_encrypt_decrypt_int128_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption()
+    let params_name_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
         .build();
 
     let clientKey = TfheClientKey.generate(config);
@@ -262,7 +272,9 @@ test('hlapi_client_key_encrypt_decrypt_int256_big', (t) => {
 });
 
 test('hlapi_client_key_encrypt_decrypt_int256_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption()
+    let params_name_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
         .build();
 
 
@@ -309,7 +321,9 @@ test('hlapi_client_key_encrypt_decrypt_int256_small', (t) => {
 });
 
 test('hlapi_decompress_public_key_then_encrypt_decrypt_int256_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption()
+    let params_name_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
         .build();
 
 
@@ -334,7 +348,10 @@ test('hlapi_decompress_public_key_then_encrypt_decrypt_int256_small', (t) => {
 });
 
 test('hlapi_public_key_encrypt_decrypt_int256_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption().build();
+    let params_name_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
+        .build();
 
     let clientKey = TfheClientKey.generate(config);
     let publicKey = TfhePublicKey.new(clientKey);
@@ -384,7 +401,7 @@ function hlapi_compact_public_key_encrypt_decrypt_int32_single(config) {
 }
 
 test('hlapi_compact_public_key_encrypt_decrypt_int32_big_single', (t) => {
-    const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
+    const block_params = new ShortintParameters(ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64);
     let config = TfheConfigBuilder.default()
         .use_custom_parameters(block_params)
         .build();
@@ -393,7 +410,7 @@ test('hlapi_compact_public_key_encrypt_decrypt_int32_big_single', (t) => {
 });
 
 test('hlapi_compact_public_key_encrypt_decrypt_int32_small_single', (t) => {
-    const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
+    const block_params = new ShortintParameters(ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
     let config = TfheConfigBuilder.default()
         .use_custom_parameters(block_params)
         .build();
@@ -483,20 +500,24 @@ test('hlapi_compact_ciphertext_list', (t) => {
 
 test('hlapi_compact_ciphertext_list_with_proof', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+		let publicKeyParams = new ShortintCompactPublicKeyEncryptionParameters(
+        ShortintCompactPublicKeyEncryptionParametersName.SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    );
+
     let config = TfheConfigBuilder.default()
         .use_custom_parameters(block_params)
+				.use_dedicated_compact_public_key_parameters(publicKeyParams)
         .build();
 
     let clientKey = TfheClientKey.generate(config);
     let publicKey = TfheCompactPublicKey.new(clientKey);
 
-    let crs = CompactPkeCrs.from_parameters(block_params, 2 + 32 + 1 + 256);
-    let public_params = crs.public_params();
+    let crs = CompactPkeCrs.from_config(config, 2 + 32 + 1 + 256);
 
     const compress = false; // We don't compress as it's too slow on wasm
-    let serialized_pke_params = public_params.serialize(compress);
+    let serialized_pke_crs = crs.serialize(compress);
     let validate = false; // Also too slow on wasm
-    public_params = CompactPkePublicParams.deserialize(serialized_pke_params, compress, validate);
+    crs = CompactPkeCrs.deserialize(serialized_pke_crs, compress, validate);
 
     let clear_u2 = 3;
     let clear_i32 = -3284;
@@ -508,7 +529,7 @@ test('hlapi_compact_ciphertext_list_with_proof', (t) => {
     builder.push_i32(clear_i32);
     builder.push_boolean(clear_bool);
     builder.push_u256(clear_u256);
-    let list = builder.build_with_proof_packed(public_params, ZkComputeLoad.Proof);
+    let list = builder.build_with_proof_packed(crs, ZkComputeLoad.Proof);
 
     let serialized = list.safe_serialize(BigInt(10000000));
     let deserialized = ProvenCompactCiphertextList.safe_deserialize(serialized, BigInt(10000000));
@@ -522,3 +543,62 @@ test('hlapi_compact_ciphertext_list_with_proof', (t) => {
 
     // Verifying and expanding is too slow for single threaded node tests.
 });
+
+
+test('hlapi_compact_pk_conformance', (t) => {
+
+    const limit = BigInt(1 << 20);
+
+    let blockParams = new ShortintParameters(
+        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    );
+    let publicKeyParams = new ShortintCompactPublicKeyEncryptionParameters(
+        ShortintCompactPublicKeyEncryptionParametersName.SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    );
+
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(blockParams)
+        .use_dedicated_compact_public_key_parameters(publicKeyParams)
+        .build();
+
+    let clientKey = TfheClientKey.generate(config);
+    let compressedPublicKey = TfheCompressedCompactPublicKey.new(clientKey);
+
+    let serializedCompressedPublicKey = compressedPublicKey.safe_serialize(limit);
+    let _compressedPublicKey = TfheCompressedCompactPublicKey.safe_deserialize_conformant(
+        serializedCompressedPublicKey, limit, publicKeyParams);
+
+    let publicKey = compressedPublicKey.decompress();
+    let serializedPublicKey = publicKey.safe_serialize(limit);
+    let _publicKey = TfheCompactPublicKey.safe_deserialize_conformant(serializedPublicKey, limit, publicKeyParams);
+
+    const message_modulus = BigInt(4);
+    const carry_modulus = BigInt(4);
+    const modulus_pow_2_exponent = 64;
+    const ks_level = 5;
+    const ks_base_log = 3;
+    let incorrectPublicKeyParams = ShortintCompactPublicKeyEncryptionParameters.new_parameters(
+        512,
+        Shortint.try_new_t_uniform(42),
+        message_modulus,
+        carry_modulus,
+        modulus_pow_2_exponent,
+        ks_base_log,
+        ks_level,
+        ShortintEncryptionKeyChoice.Small,
+    );
+
+    assert.throws(
+        () => {
+            let _compressedPublicKey = TfheCompressedCompactPublicKey.safe_deserialize_conformant(
+                serializedCompressedPublicKey, limit, incorrectPublicKeyParams);
+        },
+    )
+
+    assert.throws(
+        () => {
+            let _publicKey = TfheCompactPublicKey.safe_deserialize_conformant(
+                serializedPublicKey, limit, incorrectPublicKeyParams);
+        },
+    )
+})

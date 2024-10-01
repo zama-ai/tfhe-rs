@@ -8,7 +8,7 @@ use crate::core_crypto::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
 use crate::core_crypto::commons::math::random::{
-    ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
+    CompressionSeed, DefaultRandomGenerator, Distribution, RandomGenerable,
 };
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -67,7 +67,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     /// let seeder = seeder.as_mut();
     ///
     /// // Create a new SeededLweCiphertextList
-    /// let mut seeded_lwe_list = SeededLweCiphertextList::new(
+    /// let seeded_lwe_list = SeededLweCiphertextList::new(
     ///     0u64,
     ///     lwe_dimension.to_lwe_size(),
     ///     lwe_ciphertext_count,
@@ -164,7 +164,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
             self.lwe_ciphertext_count(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_lwe_ciphertext_list::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_lwe_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
             &self,
         );
@@ -183,7 +183,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
             self.lwe_ciphertext_count(),
             self.ciphertext_modulus(),
         );
-        par_decompress_seeded_lwe_ciphertext_list::<_, _, _, ActivatedRandomGenerator>(
+        par_decompress_seeded_lwe_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
             &self,
         );
@@ -332,13 +332,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = LweBodyCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = LweBodyRef<'this, Self::Element>
+    type EntityView<'this>
+        = LweBodyRef<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = ();
 
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 
@@ -365,11 +367,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for SeededLweCiphertextList<C>
 {
-    type EntityMutView<'this> = LweBodyRefMut<'this, Self::Element>
+    type EntityMutView<'this>
+        = LweBodyRefMut<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 }

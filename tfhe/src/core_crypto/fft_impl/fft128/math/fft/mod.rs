@@ -2,12 +2,12 @@ use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::PolynomialSize;
 use crate::core_crypto::commons::utils::izip;
-use concrete_fft::fft128::{f128, Plan};
 use core::any::TypeId;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
+use tfhe_fft::fft128::{f128, Plan};
 
 #[derive(Clone)]
 pub(crate) struct PlanWrapper(Plan);
@@ -346,7 +346,7 @@ fn convert_backward_torus<Scalar: UnsignedTorus>(
     }
 }
 
-impl<'a> Fft128View<'a> {
+impl Fft128View<'_> {
     pub fn polynomial_size(self) -> PolynomialSize {
         PolynomialSize(2 * self.plan.fft_size())
     }
@@ -437,7 +437,7 @@ impl<'a> Fft128View<'a> {
         fourier_re1: &[f64],
         fourier_im0: &[f64],
         fourier_im1: &[f64],
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         self.backward_with_conv(
             standard,
@@ -463,7 +463,7 @@ impl<'a> Fft128View<'a> {
         fourier_re1: &[f64],
         fourier_im0: &[f64],
         fourier_im1: &[f64],
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         self.backward_with_conv(
             standard,
@@ -487,7 +487,7 @@ impl<'a> Fft128View<'a> {
         fourier_im0: &[f64],
         fourier_im1: &[f64],
         conv_fn: F,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         let n = standard.len();
         debug_assert_eq!(n, 2 * fourier_re0.len());

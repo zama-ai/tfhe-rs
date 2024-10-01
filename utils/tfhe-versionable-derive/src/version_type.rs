@@ -15,22 +15,43 @@ use crate::associated::{
     generate_from_trait_impl, generate_try_from_trait_impl, AssociatedType, AssociatedTypeKind,
     ConversionDirection,
 };
+use crate::versionize_attribute::is_transparent;
 use crate::{
-    add_lifetime_bound, add_trait_where_clause, parse_const_str, parse_trait_bound,
-    punctuated_from_iter_result, LIFETIME_NAME, UNVERSIONIZE_ERROR_NAME, UNVERSIONIZE_TRAIT_NAME,
-    VERSIONIZE_OWNED_TRAIT_NAME, VERSIONIZE_TRAIT_NAME,
+    add_trait_where_clause, parse_const_str, parse_trait_bound, punctuated_from_iter_result,
+    INTO_TRAIT_NAME, LIFETIME_NAME, TRY_INTO_TRAIT_NAME, UNVERSIONIZE_ERROR_NAME,
+    UNVERSIONIZE_TRAIT_NAME, VERSIONIZE_OWNED_TRAIT_NAME, VERSIONIZE_TRAIT_NAME,
+    VERSION_TRAIT_NAME,
 };
 
 /// The types generated for a specific version of a given exposed type. These types are identical to
 /// the user written version types except that their subtypes are replaced by their "Versioned"
-/// form. This allows recursive versionning.
+/// form. This allows recursive versioning.
 pub(crate) struct VersionType {
     orig_type: DeriveInput,
     kind: AssociatedTypeKind,
+    is_transparent: bool,
 }
 
 impl AssociatedType for VersionType {
+    fn ref_bounds(&self) -> &'static [&'static str] {
+        if self.is_transparent {
+            &[VERSION_TRAIT_NAME]
+        } else {
+            &[VERSIONIZE_TRAIT_NAME]
+        }
+    }
+
+    fn owned_bounds(&self) -> &'static [&'static str] {
+        if self.is_transparent {
+            &[VERSION_TRAIT_NAME]
+        } else {
+            &[VERSIONIZE_OWNED_TRAIT_NAME]
+        }
+    }
+
     fn new_ref(orig_type: &DeriveInput) -> syn::Result<VersionType> {
+        let is_transparent = is_transparent(&orig_type.attrs)?;
+
         let lifetime = if is_unit(orig_type) {
             None
         } else {
@@ -51,13 +72,17 @@ impl AssociatedType for VersionType {
         Ok(Self {
             orig_type: orig_type.clone(),
             kind: AssociatedTypeKind::Ref(lifetime),
+            is_transparent,
         })
     }
 
     fn new_owned(orig_type: &DeriveInput) -> syn::Result<Self> {
+        let is_transparent = is_transparent(&orig_type.attrs)?;
+
         Ok(Self {
             orig_type: orig_type.clone(),
             kind: AssociatedTypeKind::Owned,
+            is_transparent,
         })
     }
 
@@ -173,15 +198,45 @@ impl AssociatedType for VersionType {
         }
     }
 
-    fn as_trait_param(&self) -> Option<syn::Result<&Type>> {
-        None
-    }
-
     fn inner_types(&self) -> syn::Result<Vec<&Type>> {
         self.orig_type_fields()
             .iter()
             .map(|field| Ok(&field.ty))
             .collect()
+    }
+
+    fn as_trait_param(&self) -> Option<syn::Result<&Type>> {
+        None
+    }
+
+    fn kind(&self) -> &AssociatedTypeKind {
+        &self.kind
+    }
+
+    fn is_transparent(&self) -> bool {
+        self.is_transparent
+    }
+
+    fn orig_type_generics(&self) -> &Generics {
+        &self.orig_type.generics
+    }
+
+    fn conversion_generics(&self, direction: ConversionDirection) -> syn::Result<Generics> {
+        let mut generics = self.type_generics()?;
+
+        if !self.is_transparent {
+            if let ConversionDirection::AssociatedToOrig = direction {
+                if let AssociatedTypeKind::Owned = &self.kind {
+                    add_trait_where_clause(
+                        &mut generics,
+                        self.inner_types()?,
+                        &[UNVERSIONIZE_TRAIT_NAME],
+                    )?;
+                }
+            }
+        }
+
+        Ok(generics)
     }
 }
 
@@ -189,40 +244,6 @@ impl VersionType {
     /// Returns the fields of the original declaration.
     fn orig_type_fields(&self) -> Punctuated<&Field, Comma> {
         derive_type_fields(&self.orig_type)
-    }
-
-    fn type_generics(&self) -> syn::Result<Generics> {
-        let mut generics = self.orig_type.generics.clone();
-        if let AssociatedTypeKind::Ref(opt_lifetime) = &self.kind {
-            if let Some(lifetime) = opt_lifetime {
-                add_lifetime_bound(&mut generics, lifetime);
-            }
-            add_trait_where_clause(&mut generics, self.inner_types()?, &[VERSIONIZE_TRAIT_NAME])?;
-        } else {
-            add_trait_where_clause(
-                &mut generics,
-                self.inner_types()?,
-                &[VERSIONIZE_OWNED_TRAIT_NAME],
-            )?;
-        }
-
-        Ok(generics)
-    }
-
-    fn conversion_generics(&self, direction: ConversionDirection) -> syn::Result<Generics> {
-        let mut generics = self.type_generics()?;
-
-        if let ConversionDirection::AssociatedToOrig = direction {
-            if let AssociatedTypeKind::Owned = &self.kind {
-                add_trait_where_clause(
-                    &mut generics,
-                    self.inner_types()?,
-                    &[UNVERSIONIZE_TRAIT_NAME],
-                )?;
-            }
-        }
-
-        Ok(generics)
     }
 
     /// Generates the declaration for the Version equivalent of the input struct
@@ -330,25 +351,46 @@ impl VersionType {
         fields_iter: I,
     ) -> impl IntoIterator<Item = syn::Result<Field>> + 'a {
         let kind = self.kind.clone();
+        let is_transparent = self.is_transparent;
+
         fields_iter.into_iter().map(move |field| {
             let unver_ty = field.ty.clone();
 
-            let versionize_trait = parse_trait_bound(VERSIONIZE_TRAIT_NAME)?;
-            let versionize_owned_trait = parse_trait_bound(VERSIONIZE_OWNED_TRAIT_NAME)?;
+            if is_transparent {
+                // If the type is transparent, we reuse the "Version" impl of the inner type
+                let version_trait = parse_trait_bound(VERSION_TRAIT_NAME)?;
 
-            let ty: Type = match &kind {
-                AssociatedTypeKind::Ref(lifetime) => parse_quote! {
-                    <#unver_ty as #versionize_trait>::Versioned<#lifetime>
-                },
-                AssociatedTypeKind::Owned => parse_quote! {
-                    <#unver_ty as #versionize_owned_trait>::VersionedOwned
-                },
-            };
+                let ty: Type = match &kind {
+                    AssociatedTypeKind::Ref(lifetime) => parse_quote! {
+                        <#unver_ty as #version_trait>::Ref<#lifetime>
+                    },
+                    AssociatedTypeKind::Owned => parse_quote! {
+                        <#unver_ty as #version_trait>::Owned
+                    },
+                };
 
-            Ok(Field {
-                ty,
-                ..field.clone()
-            })
+                Ok(Field {
+                    ty,
+                    ..field.clone()
+                })
+            } else {
+                let versionize_trait = parse_trait_bound(VERSIONIZE_TRAIT_NAME)?;
+                let versionize_owned_trait = parse_trait_bound(VERSIONIZE_OWNED_TRAIT_NAME)?;
+
+                let ty: Type = match &kind {
+                    AssociatedTypeKind::Ref(lifetime) => parse_quote! {
+                        <#unver_ty as #versionize_trait>::Versioned<#lifetime>
+                    },
+                    AssociatedTypeKind::Owned => parse_quote! {
+                        <#unver_ty as #versionize_owned_trait>::VersionedOwned
+                    },
+                };
+
+                Ok(Field {
+                    ty,
+                    ..field.clone()
+                })
+            }
         })
     }
 
@@ -527,7 +569,11 @@ impl VersionType {
         let ty = &field.ty;
         let param = quote! { #arg_ident.#field_ident };
 
-        let rhs = self.generate_constructor_field_rhs(ty, param, false, direction)?;
+        let rhs = if self.is_transparent() {
+            self.generate_constructor_transparent_rhs(param, direction)?
+        } else {
+            self.generate_constructor_field_rhs(ty, param, false, direction)?
+        };
 
         Ok(quote! {
             #field_ident: #rhs
@@ -549,12 +595,16 @@ impl VersionType {
             .map(move |(arg_name, field)| {
                 // Ok to unwrap because the field is named so field.ident is Some
                 let field_ident = field.ident.as_ref().unwrap();
-                let rhs = self.generate_constructor_field_rhs(
-                    &field.ty,
-                    quote! {#arg_name},
-                    true,
-                    direction,
-                )?;
+                let rhs = if self.is_transparent() {
+                    self.generate_constructor_transparent_rhs(quote! {#arg_name}, direction)?
+                } else {
+                    self.generate_constructor_field_rhs(
+                        &field.ty,
+                        quote! {#arg_name},
+                        true,
+                        direction,
+                    )?
+                };
                 Ok(quote! {
                     #field_ident: #rhs
                 })
@@ -603,7 +653,11 @@ impl VersionType {
         let ty = &field.ty;
         let param = quote! { #arg_ident.#idx };
 
-        self.generate_constructor_field_rhs(ty, param, false, direction)
+        if self.is_transparent {
+            self.generate_constructor_transparent_rhs(param, direction)
+        } else {
+            self.generate_constructor_field_rhs(ty, param, false, direction)
+        }
     }
 
     /// Generates the constructor for the fields of an unnamed enum variant.
@@ -619,7 +673,16 @@ impl VersionType {
     ) -> syn::Result<TokenStream> {
         let fields: syn::Result<Vec<TokenStream>> = zip(arg_names, fields)
             .map(move |(arg_name, field)| {
-                self.generate_constructor_field_rhs(&field.ty, quote! {#arg_name}, true, direction)
+                if self.is_transparent {
+                    self.generate_constructor_transparent_rhs(quote! {#arg_name}, direction)
+                } else {
+                    self.generate_constructor_field_rhs(
+                        &field.ty,
+                        quote! {#arg_name},
+                        true,
+                        direction,
+                    )
+                }
             })
             .collect();
         let fields = fields?;
@@ -671,6 +734,41 @@ panic!("No conversion should be generated between associated ref type to origina
         };
         Ok(field_constructor)
     }
+
+    fn generate_constructor_transparent_rhs(
+        &self,
+        field_param: TokenStream,
+        direction: ConversionDirection,
+    ) -> syn::Result<TokenStream> {
+        let into_trait: Path = parse_const_str(INTO_TRAIT_NAME);
+        let try_into_trait: Path = parse_const_str(TRY_INTO_TRAIT_NAME);
+
+        let field_constructor = match direction {
+            ConversionDirection::OrigToAssociated => match self.kind {
+                AssociatedTypeKind::Ref(_) => {
+                    quote! {
+                        #into_trait::into(&#field_param)
+                    }
+                }
+                AssociatedTypeKind::Owned => {
+                    quote! {
+                        #into_trait::into(#field_param)
+                    }
+                }
+            },
+            ConversionDirection::AssociatedToOrig => match self.kind {
+                AssociatedTypeKind::Ref(_) => {
+                    panic!("No conversion should be generated between associated ref type to original type");
+                }
+                AssociatedTypeKind::Owned => {
+                    quote! {
+                        #try_into_trait::try_into(#field_param)?
+                    }
+                }
+            },
+        };
+        Ok(field_constructor)
+    }
 }
 
 /// Generates a list of argument names. This is used to create a pattern matching of a
@@ -688,7 +786,7 @@ fn is_unit(input: &DeriveInput) -> bool {
     }
 }
 
-/// Returns the fields of the input type. This is independant of the kind of type
+/// Returns the fields of the input type. This is independent of the kind of type
 /// (enum, struct, ...)
 fn derive_type_fields(input: &DeriveInput) -> Punctuated<&Field, Comma> {
     match &input.data {

@@ -33,7 +33,11 @@ pub struct ConfigBuilder {
 
 impl Default for ConfigBuilder {
     fn default() -> Self {
-        Self::default_with_big_encryption()
+        Self {
+            config: Config {
+                inner: IntegerConfig::default(),
+            },
+        }
     }
 }
 
@@ -42,30 +46,6 @@ impl ConfigBuilder {
         self.config.inner.enable_compression(compression_parameters);
 
         self
-    }
-
-    /// Use default parameters with big encryption
-    /// The returned parameters are specialized for the GPU
-    /// in case the gpu feature is activated
-    ///
-    /// For more information see [crate::core_crypto::prelude::PBSOrder::KeyswitchBootstrap]
-    pub fn default_with_big_encryption() -> Self {
-        Self {
-            config: Config {
-                inner: IntegerConfig::default_big(),
-            },
-        }
-    }
-
-    /// Use default parameters with small encryption
-    ///
-    /// For more information see [crate::core_crypto::prelude::PBSOrder::BootstrapKeyswitch]
-    pub fn default_with_small_encryption() -> Self {
-        Self {
-            config: Config {
-                inner: IntegerConfig::default_small(),
-            },
-        }
     }
 
     pub fn with_custom_parameters<P>(block_parameters: P) -> Self

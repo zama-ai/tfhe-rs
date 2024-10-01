@@ -1,3 +1,4 @@
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::traits::Container;
 use crate::integer::backward_compatibility::public_key::{
     CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
@@ -32,6 +33,10 @@ impl<C: Container<Element = u64>> CompactPrivateKey<C> {
 
     pub fn key(&self) -> &ShortintCompactPrivateKey<C> {
         &self.key
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
     }
 }
 
@@ -157,6 +162,10 @@ impl CompactPublicKey {
     pub fn size_bytes(&self) -> usize {
         self.key.size_bytes()
     }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
@@ -201,5 +210,29 @@ impl CompressedCompactPublicKey {
         CompactPublicKey {
             key: self.key.decompress(),
         }
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
+    }
+}
+
+impl ParameterSetConformant for CompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        key.is_conformant(parameter_set)
+    }
+}
+
+impl ParameterSetConformant for CompressedCompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        key.is_conformant(parameter_set)
     }
 }

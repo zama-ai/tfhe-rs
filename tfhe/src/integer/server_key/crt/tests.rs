@@ -1,21 +1,22 @@
+use super::make_basis;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::tests::create_parametrized_test_classical_params;
+use crate::integer::tests::create_parameterized_test_classical_params;
 use crate::integer::IntegerKeyKind;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
 
-create_parametrized_test_classical_params!(integer_unchecked_crt_mul);
-create_parametrized_test_classical_params!(integer_smart_crt_add);
-create_parametrized_test_classical_params!(integer_smart_crt_mul);
-create_parametrized_test_classical_params!(integer_smart_crt_neg);
+create_parameterized_test_classical_params!(integer_unchecked_crt_mul);
+create_parameterized_test_classical_params!(integer_smart_crt_add);
+create_parameterized_test_classical_params!(integer_smart_crt_mul);
+create_parameterized_test_classical_params!(integer_smart_crt_neg);
 
-create_parametrized_test_classical_params!(integer_smart_crt_scalar_add);
+create_parameterized_test_classical_params!(integer_smart_crt_scalar_add);
 
-create_parametrized_test_classical_params!(integer_smart_crt_scalar_mul);
-create_parametrized_test_classical_params!(integer_smart_crt_scalar_sub);
-create_parametrized_test_classical_params!(integer_smart_crt_sub);
+create_parameterized_test_classical_params!(integer_smart_crt_scalar_mul);
+create_parameterized_test_classical_params!(integer_smart_crt_scalar_sub);
+create_parameterized_test_classical_params!(integer_smart_crt_sub);
 
 /// Number of loop iteration within randomized tests
 #[cfg(not(tarpaulin))]
@@ -33,19 +34,9 @@ const NB_TESTS: usize = 1;
 const NB_TESTS_SMALLER: usize = 1;
 
 #[cfg(not(tarpaulin))]
-const PARAM: ClassicPBSParameters = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
+const PARAM: ClassicPBSParameters = V0_11_PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64;
 #[cfg(tarpaulin)]
 const PARAM: ClassicPBSParameters = COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS;
-
-fn make_basis(message_modulus: usize) -> Vec<u64> {
-    match message_modulus {
-        2 => vec![2],
-        3 => vec![2],
-        n if n < 8 => vec![2, 3],
-        n if n < 16 => vec![2, 5, 7],
-        _ => vec![3, 7, 13],
-    }
-}
 
 #[test]
 fn integer_unchecked_crt_add_32_bits() {

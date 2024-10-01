@@ -25,7 +25,7 @@ impl Gaussian<f64> {
 
     pub fn from_dispersion_parameter(dispersion: impl DispersionParameter, mean: f64) -> Self {
         Self {
-            std: dispersion.get_standard_dev(),
+            std: dispersion.get_standard_dev().0,
             mean,
         }
     }
@@ -127,7 +127,7 @@ where
         distribution: Gaussian<f64>,
         _modulus: Option<Self::CustomModulus>,
     ) -> f64 {
-        // Here the CustomModulus is a Torus and not f64 and is therefore not comaptible, so
+        // Here the CustomModulus is a Torus and not f64 and is therefore not compatible, so
         // we cannot forward it, thankully the modulus does not impact gaussian generation success
         <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_success_probability(
             distribution,
@@ -139,7 +139,7 @@ where
         distribution: Gaussian<f64>,
         _modulus: Option<Self::CustomModulus>,
     ) -> usize {
-        // Here the CustomModulus is a Torus and not f64 and is therefore not comaptible, so
+        // Here the CustomModulus is a Torus and not f64 and is therefore not compatible, so
         // we cannot forward it, thankully the modulus does not impact gaussian generation success
         <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_required_random_byte_count(
             distribution,
@@ -175,7 +175,7 @@ where
         distribution: Gaussian<f64>,
         _modulus: Option<Self::CustomModulus>,
     ) -> f64 {
-        // Here the CustomModulus is a Torus and not f64 and is therefore not comaptible, so
+        // Here the CustomModulus is a Torus and not f64 and is therefore not compatible, so
         // we cannot forward it, thankully the modulus does not impact gaussian generation success
         <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_success_probability(
             distribution,
@@ -187,7 +187,7 @@ where
         distribution: Gaussian<f64>,
         _modulus: Option<Self::CustomModulus>,
     ) -> usize {
-        // Here the CustomModulus is a Torus and not f64 and is therefore not comaptible, so
+        // Here the CustomModulus is a Torus and not f64 and is therefore not compatible, so
         // we cannot forward it, thankully the modulus does not impact gaussian generation success
         <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_required_random_byte_count(
             distribution,

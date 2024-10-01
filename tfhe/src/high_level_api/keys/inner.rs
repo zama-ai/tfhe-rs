@@ -1,5 +1,6 @@
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::core_crypto::prelude::{DefaultRandomGenerator, KeyswitchKeyConformanceParams};
 use crate::high_level_api::backward_compatibility::keys::*;
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
@@ -7,11 +8,15 @@ use crate::integer::compression_keys::{
 };
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
+use crate::shortint::key_switching_key::KeySwitchingKeyConformanceParams;
 use crate::shortint::parameters::list_compression::CompressionParameters;
-use crate::shortint::MessageModulus;
-use crate::Error;
-use concrete_csprng::seeders::Seed;
+use crate::shortint::parameters::{
+    CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
+};
+use crate::shortint::{EncryptionKeyChoice, MessageModulus, PBSParameters};
+use crate::{Config, Error};
 use serde::{Deserialize, Serialize};
+use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
 // Clippy complained that fields end in _parameters, :roll_eyes:
@@ -42,28 +47,6 @@ impl IntegerConfig {
         }
     }
 
-    pub(in crate::high_level_api) fn default_big() -> Self {
-        #[cfg(not(feature = "gpu"))]
-        let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS.into();
-        #[cfg(feature = "gpu")]
-        let params =
-            crate::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS
-                .into();
-        Self {
-            block_parameters: params,
-            dedicated_compact_public_key_parameters: None,
-            compression_parameters: None,
-        }
-    }
-
-    pub(in crate::high_level_api) fn default_small() -> Self {
-        Self {
-            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS.into(),
-            dedicated_compact_public_key_parameters: None,
-            compression_parameters: None,
-        }
-    }
-
     pub fn enable_compression(&mut self, compression_parameters: CompressionParameters) {
         self.compression_parameters = Some(compression_parameters);
     }
@@ -76,6 +59,23 @@ impl IntegerConfig {
             Ok(p.0)
         } else {
             Ok(self.block_parameters.try_into()?)
+        }
+    }
+}
+
+impl Default for IntegerConfig {
+    fn default() -> Self {
+        #[cfg(not(feature = "gpu"))]
+        let params =
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
+        #[cfg(feature = "gpu")]
+        let params =
+            crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+                .into();
+        Self {
+            block_parameters: params,
+            dedicated_compact_public_key_parameters: None,
+            compression_parameters: None,
         }
     }
 }
@@ -99,7 +99,7 @@ impl IntegerClientKey {
             (config.block_parameters.message_modulus().0) == 2 || config.block_parameters.message_modulus().0 == 4,
             "This API only supports parameters for which the MessageModulus is 2 or 4 (1 or 2 bits per block)",
         );
-        let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
         let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
             .new_client_key(config.block_parameters.into());
 
@@ -275,6 +275,15 @@ impl IntegerServerKey {
     }
 }
 
+#[cfg(feature = "gpu")]
+pub struct IntegerCudaServerKey {
+    pub(crate) key: crate::integer::gpu::CudaServerKey,
+    pub(crate) compression_key:
+        Option<crate::integer::gpu::list_compression::server_keys::CudaCompressionKey>,
+    pub(crate) decompression_key:
+        Option<crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey>,
+}
+
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(IntegerCompressedServerKeyVersions)]
 pub struct IntegerCompressedServerKey {
@@ -407,6 +416,10 @@ impl IntegerCompactPublicKey {
     pub fn from_raw_parts(key: CompactPublicKey) -> Self {
         Self { key }
     }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
@@ -445,5 +458,188 @@ impl IntegerCompressedCompactPublicKey {
         IntegerCompactPublicKey {
             key: CompressedCompactPublicKey::decompress(&self.key),
         }
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
+    }
+}
+
+#[allow(clippy::struct_field_names)]
+pub struct IntegerServerKeyConformanceParams {
+    pub sk_param: PBSParameters,
+    pub cpk_param: Option<(
+        CompactPublicKeyEncryptionParameters,
+        ShortintKeySwitchingParameters,
+    )>,
+    pub compression_param: Option<CompressionParameters>,
+}
+
+impl From<Config> for IntegerServerKeyConformanceParams {
+    fn from(value: Config) -> Self {
+        Self {
+            sk_param: value.inner.block_parameters,
+            cpk_param: value.inner.dedicated_compact_public_key_parameters,
+            compression_param: value.inner.compression_parameters,
+        }
+    }
+}
+
+impl
+    TryFrom<(
+        PBSParameters,
+        CompactPublicKeyEncryptionParameters,
+        ShortintKeySwitchingParameters,
+    )> for KeySwitchingKeyConformanceParams
+{
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(
+        (sk_params, cpk_params, ks_params): (
+            PBSParameters,
+            CompactPublicKeyEncryptionParameters,
+            ShortintKeySwitchingParameters,
+        ),
+    ) -> Result<Self, std::num::TryFromIntError> {
+        let output_lwe_size = match ks_params.destination_key {
+            EncryptionKeyChoice::Big | EncryptionKeyChoice::BigNtt(_) => sk_params
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(sk_params.polynomial_size()),
+
+            EncryptionKeyChoice::Small | EncryptionKeyChoice::SmallNtt(_) => {
+                sk_params.lwe_dimension()
+            }
+        }
+        .to_lwe_size();
+
+        let cast_rshift = (sk_params.carry_modulus().0.ilog2()
+            + sk_params.message_modulus().0.ilog2()
+            - cpk_params.carry_modulus.0.ilog2()
+            - cpk_params.message_modulus.0.ilog2())
+        .try_into()?;
+
+        Ok(Self {
+            keyswitch_key_conformance_params: KeyswitchKeyConformanceParams {
+                decomp_base_log: ks_params.ks_base_log,
+                decomp_level_count: ks_params.ks_level,
+                output_lwe_size,
+                input_lwe_dimension: cpk_params.encryption_lwe_dimension,
+                ciphertext_modulus: sk_params.ciphertext_modulus(),
+            },
+            cast_rshift,
+            destination_key: ks_params.destination_key,
+        })
+    }
+}
+
+impl ParameterSetConformant for IntegerServerKey {
+    type ParameterSet = IntegerServerKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+        } = self;
+
+        let cpk_key_switching_key_material_is_ok = match (
+            parameter_set.cpk_param.as_ref(),
+            cpk_key_switching_key_material.as_ref(),
+        ) {
+            (None, None) => true,
+            (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
+                let cpk_param = (parameter_set.sk_param, *cpk_params, *ks_params)
+                    .try_into()
+                    .unwrap();
+                cpk_key_switching_key_material.is_conformant(&cpk_param)
+            }
+            _ => return false,
+        };
+
+        let compression_is_ok = match (
+            compression_key.as_ref(),
+            decompression_key.as_ref(),
+            parameter_set.compression_param.as_ref(),
+        ) {
+            (None, None, None) => true,
+            (Some(compression_key), Some(decompression_key), Some(compression_param)) => {
+                let compression_param = (parameter_set.sk_param, *compression_param).into();
+
+                compression_key.is_conformant(&compression_param)
+                    && decompression_key.is_conformant(&compression_param)
+            }
+            _ => return false,
+        };
+
+        key.is_conformant(&parameter_set.sk_param)
+            && cpk_key_switching_key_material_is_ok
+            && compression_is_ok
+    }
+}
+
+impl ParameterSetConformant for IntegerCompressedServerKey {
+    type ParameterSet = IntegerServerKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+        } = self;
+
+        let cpk_key_switching_key_material_is_ok = match (
+            parameter_set.cpk_param.as_ref(),
+            cpk_key_switching_key_material.as_ref(),
+        ) {
+            (None, None) => true,
+            (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
+                let cpk_param = (parameter_set.sk_param, *cpk_params, *ks_params)
+                    .try_into()
+                    .unwrap();
+                cpk_key_switching_key_material.is_conformant(&cpk_param)
+            }
+            _ => return false,
+        };
+
+        let compression_is_ok = match (
+            compression_key.as_ref(),
+            decompression_key.as_ref(),
+            parameter_set.compression_param.as_ref(),
+        ) {
+            (None, None, None) => true,
+            (Some(compression_key), Some(decompression_key), Some(compression_param)) => {
+                let compression_param = (parameter_set.sk_param, *compression_param).into();
+
+                compression_key.is_conformant(&compression_param)
+                    && decompression_key.is_conformant(&compression_param)
+            }
+            _ => return false,
+        };
+
+        key.is_conformant(&parameter_set.sk_param)
+            && cpk_key_switching_key_material_is_ok
+            && compression_is_ok
+    }
+}
+
+impl ParameterSetConformant for IntegerCompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        key.is_conformant(parameter_set)
+    }
+}
+
+impl ParameterSetConformant for IntegerCompressedCompactPublicKey {
+    type ParameterSet = CompactPublicKeyEncryptionParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        key.is_conformant(parameter_set)
     }
 }

@@ -41,7 +41,7 @@ use crate::core_crypto::entities::*;
 /// below -- each encrypting the same plaintext times an element of the secret key) .
 ///
 /// ## Levels and decomposition base
-/// A GGSW ciphertext contains GLev ciphertexts that are parametrized with an
+/// A GGSW ciphertext contains GLev ciphertexts that are parameterized with an
 /// integer $\ell$ called level and an integer $\beta$ (generally a power of 2) called
 /// decomposition base.
 ///
@@ -119,8 +119,8 @@ use crate::core_crypto::entities::*;
 /// each encrypting the same plaintext times a different scaling factor).
 ///
 /// ## Decomposition base
-/// A GLev ciphertext is parametrized with a decomposition base $\beta$, generally chosen as a power
-/// of 2.
+/// A GLev ciphertext is parameterized with a decomposition base $\beta$, generally chosen as a
+/// power of 2.
 ///
 /// ## Levels
 /// A GLev ciphertext contains a number of levels $\ell$ from level $0$ to level $\ell-1$.
@@ -780,13 +780,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = GgswLevelMatrixCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = GgswLevelMatrix<&'this [Self::Element]>
+    type EntityView<'this>
+        = GgswLevelMatrix<&'this [Self::Element]>
     where
         Self: 'this;
 
     type SelfViewMetadata = ();
 
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 
@@ -815,11 +817,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for GgswCiphertext<C>
 {
-    type EntityMutView<'this> = GgswLevelMatrix<&'this mut [Self::Element]>
+    type EntityMutView<'this>
+        = GgswLevelMatrix<&'this mut [Self::Element]>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 }

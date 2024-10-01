@@ -34,3 +34,23 @@ pub unsafe fn cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_async<Scal
         input_lwe_ciphertext_list.lwe_ciphertext_count(),
     );
 }
+
+pub fn cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<Scalar>(
+    lwe_pksk: &CudaLwePackingKeyswitchKey<Scalar>,
+    input_lwe_ciphertext_list: &CudaLweCiphertextList<Scalar>,
+    output_glwe_ciphertext: &mut CudaGlweCiphertextList<Scalar>,
+    streams: &CudaStreams,
+) where
+    // CastInto required for PBS modulus switch which returns a usize
+    Scalar: UnsignedTorus + CastInto<usize>,
+{
+    unsafe {
+        cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_async(
+            lwe_pksk,
+            input_lwe_ciphertext_list,
+            output_glwe_ciphertext,
+            streams,
+        );
+    }
+    streams.synchronize();
+}

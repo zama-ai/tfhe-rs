@@ -34,7 +34,7 @@ mod v1 {
 
     #[derive(Serialize, Deserialize, Versionize)]
     #[versionize(MyStructVersions)]
-    pub struct MyStruct<T: Default>(pub u32, pub T);
+    pub struct MyStruct<T>(pub u32, pub T);
 
     mod backward_compat {
         use std::convert::Infallible;
@@ -56,7 +56,7 @@ mod v1 {
 
         #[derive(VersionsDispatch)]
         #[allow(unused)]
-        pub enum MyStructVersions<T: Default> {
+        pub enum MyStructVersions<T> {
             V0(MyStructV0),
             V1(MyStruct<T>),
         }
@@ -71,7 +71,7 @@ mod v2 {
 
     #[derive(Serialize, Deserialize, Versionize)]
     #[versionize(MyEnumVersions)]
-    pub enum MyEnum<T: Default> {
+    pub enum MyEnum<T> {
         Variant0,
         Variant1 { count: u64 },
         Variant2(T),
@@ -79,7 +79,7 @@ mod v2 {
 
     #[derive(Serialize, Deserialize, Versionize)]
     #[versionize(MyStructVersions)]
-    pub struct MyStruct<T: Default> {
+    pub struct MyStruct<T> {
         pub count: u32,
         pub attr: T,
     }
@@ -118,7 +118,7 @@ mod v2 {
 
         #[derive(VersionsDispatch)]
         #[allow(unused)]
-        pub enum MyStructVersions<T: Default> {
+        pub enum MyStructVersions<T> {
             V0(MyStructV0),
             V1(MyStructV1<T>),
             V2(MyStruct<T>),
@@ -126,7 +126,7 @@ mod v2 {
 
         #[derive(VersionsDispatch)]
         #[allow(unused)]
-        pub enum MyEnumVersions<T: Default> {
+        pub enum MyEnumVersions<T> {
             V0(MyEnum<T>),
         }
     }
@@ -146,4 +146,9 @@ fn main() {
 
     assert_eq!(v0.0, v2.count);
     assert_eq!(v2.attr, u64::default());
+}
+
+#[test]
+fn test() {
+    main()
 }

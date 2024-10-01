@@ -1,9 +1,9 @@
 use super::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::core_crypto::prelude::DefaultRandomGenerator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
-pub use concrete_csprng::seeders::{Seed, Seeder};
+pub use tfhe_csprng::seeders::{Seed, Seeder};
 
 impl ServerKey {
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -13,13 +13,13 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let ct_res = sks.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64);
     ///
@@ -41,7 +41,7 @@ impl ServerKey {
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
-        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
         let seeds: Vec<Seed> = (0..num_blocks)
             .map(|_| deterministic_seeder.seed())
@@ -83,13 +83,13 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let random_bits_count = 3;
     ///
@@ -120,7 +120,7 @@ impl ServerKey {
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
-        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
         let seeds: Vec<Seed> = (0..num_blocks)
             .map(|_| deterministic_seeder.seed())
@@ -164,13 +164,13 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let ct_res = sks.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64);
     ///
@@ -187,7 +187,7 @@ impl ServerKey {
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
-        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
         let seeds: Vec<Seed> = (0..num_blocks)
             .map(|_| deterministic_seeder.seed())
@@ -211,7 +211,7 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
@@ -219,7 +219,7 @@ impl ServerKey {
     /// let random_bits_count = 3;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let ct_res = sks.par_generate_oblivious_pseudo_random_signed_integer_bounded(
     ///     Seed(0),
@@ -253,7 +253,7 @@ impl ServerKey {
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
-        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
         let seeds: Vec<Seed> = (0..num_blocks)
             .map(|_| deterministic_seeder.seed())
@@ -293,21 +293,24 @@ impl ServerKey {
 pub(crate) mod test {
 
     use crate::shortint::oprf::test::test_uniformity;
-    use concrete_csprng::seeders::Seed;
+    use tfhe_csprng::seeders::Seed;
 
     #[test]
     fn oprf_test_uniformity_ci_run_filter() {
         let sample_count: usize = 10_000;
 
-        let p_value_limit: f64 = 0.001;
+        let p_value_limit: f64 = 0.000_01;
 
         let random_bits_count = 3;
 
         let num_blocks = 2;
 
         use crate::integer::gen_keys_radix;
-        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let (ck, sk) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+        use crate::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+        let (ck, sk) = gen_keys_radix(
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            num_blocks,
+        );
 
         let test_uniformity = |distinct_values: u64, f: &(dyn Fn(usize) -> u64 + Sync)| {
             test_uniformity(sample_count, p_value_limit, distinct_values, f)

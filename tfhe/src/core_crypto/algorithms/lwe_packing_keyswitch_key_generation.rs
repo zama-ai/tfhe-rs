@@ -7,7 +7,7 @@ use crate::core_crypto::algorithms::{
 };
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::{
@@ -38,9 +38,8 @@ use crate::core_crypto::entities::{
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let input_lwe_secret_key =
@@ -134,8 +133,8 @@ pub fn generate_lwe_packing_keyswitch_key<
     {
         // We fill the buffer with the powers of the key elements
         for (level, mut messages) in (1..=decomp_level_count.0)
-            .rev()
             .map(DecompositionLevel)
+            .rev()
             .zip(decomposition_plaintexts_buffer.chunks_exact_mut(polynomial_size.0))
         {
             // Here  we take the decomposition term from the native torus, bring it to the torus we
@@ -228,10 +227,7 @@ where
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let input_lwe_secret_key =
@@ -319,7 +315,7 @@ pub fn generate_seeded_lwe_packing_keyswitch_key<
         PlaintextCount(decomp_level_count.0 * polynomial_size.0),
     );
 
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         lwe_packing_keyswitch_key.compression_seed().seed,
         noise_seeder,
     );
@@ -332,8 +328,8 @@ pub fn generate_seeded_lwe_packing_keyswitch_key<
     {
         // We fill the buffer with the powers of the key elements
         for (level, mut messages) in (1..=decomp_level_count.0)
-            .rev()
             .map(DecompositionLevel)
+            .rev()
             .zip(decomposition_plaintexts_buffer.chunks_exact_mut(polynomial_size.0))
         {
             // Here  we take the decomposition term from the native torus, bring it to the torus we

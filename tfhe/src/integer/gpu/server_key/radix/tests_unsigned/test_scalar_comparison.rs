@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
-    create_gpu_parametrized_test, GpuFunctionExecutor,
+    create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_scalar_comparison::{
@@ -44,15 +44,15 @@ macro_rules! define_gpu_scalar_comparison_test_functions {
                 )
             }
 
-            create_gpu_parametrized_test!([<integer_unchecked_scalar_ $comparison_name _ $clear_type:lower>]{
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            create_gpu_parameterized_test!([<integer_unchecked_scalar_ $comparison_name _ $clear_type:lower>]{
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             });
-            create_gpu_parametrized_test!([<integer_default_scalar_ $comparison_name$clear_type:lower>]{
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            create_gpu_parameterized_test!([<integer_default_scalar_ $comparison_name$clear_type:lower>]{
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             });
         }
     };
@@ -223,25 +223,25 @@ where
     }
 }
 
-create_gpu_parametrized_test!(integer_unchecked_scalar_min_u256 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+create_gpu_parameterized_test!(integer_unchecked_scalar_min_u256 {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 });
-create_gpu_parametrized_test!(integer_unchecked_scalar_max_u256 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+create_gpu_parameterized_test!(integer_unchecked_scalar_max_u256 {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 });
-create_gpu_parametrized_test!(integer_scalar_min_u256 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+create_gpu_parameterized_test!(integer_scalar_min_u256 {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 });
-create_gpu_parametrized_test!(integer_scalar_max_u256 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+create_gpu_parameterized_test!(integer_scalar_max_u256 {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 });
 
 define_gpu_scalar_comparison_test_functions!(eq, U256);
@@ -251,4 +251,8 @@ define_gpu_scalar_comparison_test_functions!(le, U256);
 define_gpu_scalar_comparison_test_functions!(gt, U256);
 define_gpu_scalar_comparison_test_functions!(ge, U256);
 
-create_gpu_parametrized_test!(integer_unchecked_scalar_comparisons_edge);
+create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+});

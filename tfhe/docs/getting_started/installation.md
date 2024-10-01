@@ -6,26 +6,12 @@ This document provides instructions to set up **TFHE-rs** in your project.
 
 First, add **TFHE-rs** as a dependency in your `Cargo.toml`.
 
-**For `x86_64` machine running a Unix-like OS:**
-
 ```toml
-tfhe = { version = "0.8.0", features = [ "boolean", "shortint", "integer", "x86_64-unix" ] }
-```
-
-**For `ARM` machine running a Unix-like OS:**
-
-```toml
-tfhe = { version = "0.8.0", features = [ "boolean", "shortint", "integer", "aarch64-unix" ] }
-```
-
-**For `x86_64` machines with the** [**`rdseed instruction`**](https://en.wikipedia.org/wiki/RDRAND) **running Windows:**
-
-```toml
-tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] }
+tfhe = { version = "0.11.0", features = ["boolean", "shortint", "integer"] }
 ```
 
 {% hint style="info" %}
-**Rust version**: a minimum Rust version of 1.73 is required to compile **TFHE-rs**.
+**Rust version**: a minimum Rust version of 1.81 is required to compile **TFHE-rs**.
 {% endhint %}
 
 {% hint style="success" %}
@@ -36,8 +22,18 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] 
 
 **TFHE-rs** currently supports the following platforms:
 
-| OS      | x86                                | aarch64          |
-| ------- | ---------------------------------- | ---------------- |
-| Linux   | `x86_64-unix`                      | `aarch64-unix`\* |
-| macOS   | `x86_64-unix`                      | `aarch64-unix`\* |
-| Windows | `x86_64` with `RDSEED` instruction | Unsupported      |
+| OS      | x86_64                              | aarch64     |
+|---------|-------------------------------------|-------------|
+| Linux   | Supported                           | Supported\* |
+| macOS   | Supported                           | Supported\* |
+| Windows | Supported with `RDSEED` instruction | Unsupported |
+
+By default, **TFHE-rs** makes the assumption that hardware AES features are enabled on the target CPU. The required CPU features are:
+- x86_64: sse2, aesni
+- aarch64: aes, neon
+
+To add support for older CPU, import **TFHE-rs** with the `software-prng` feature in your `Cargo.toml`:
+
+```toml
+tfhe = { version = "0.11.0", features = ["boolean", "shortint", "integer", "software-prng"] }
+```

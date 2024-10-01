@@ -13,26 +13,14 @@ use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 
-const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 19] = [
-    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_2_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_3_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_4_PBS_KS,
+const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 1] =
+    [PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64];
+
+const SHORTINT_BENCH_PARAMS_GAUSSIAN: [ClassicPBSParameters; 4] = [
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
 ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
@@ -44,8 +32,9 @@ const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
 ];
 
 fn benchmark_parameters_64bits() -> Vec<(String, CryptoParametersRecord<u64>)> {
-    SHORTINT_BENCH_PARAMS
+    SHORTINT_BENCH_PARAMS_TUNIFORM
         .iter()
+        .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter())
         .map(|params| {
             (
                 params.name(),
@@ -67,16 +56,18 @@ fn benchmark_parameters_32bits() -> Vec<(String, CryptoParametersRecord<u32>)> {
 fn throughput_benchmark_parameters_64bits() -> Vec<(String, CryptoParametersRecord<u64>)> {
     let parameters = if cfg!(feature = "gpu") {
         vec![
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         ]
     } else {
         vec![
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
         ]
     };
 
@@ -104,17 +95,19 @@ fn multi_bit_benchmark_parameters_64bits(
 ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
     let parameters = if cfg!(feature = "gpu") {
         vec![
-            PARAM_GPU_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-            PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         ]
     } else {
         vec![
-            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         ]
     };
 
@@ -146,9 +139,8 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params) in parameters.iter() {
         // Create the LweSecretKey
@@ -241,6 +233,126 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     }
 }
 
+fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
+    c: &mut Criterion,
+    parameters: &[(String, CryptoParametersRecord<Scalar>)],
+) {
+    let bench_name = "core_crypto::batched_pbs_mem_optimized";
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(10));
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+
+    for (name, params) in parameters.iter() {
+        // Create the LweSecretKey
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension.unwrap(),
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension.unwrap(),
+                params.polynomial_size.unwrap(),
+                &mut secret_generator,
+            );
+        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension.unwrap(),
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+        );
+
+        let count = 10; // FIXME Is it a representative value (big enough?)
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let mut lwe_ciphertext_in = LweCiphertextListOwned::<Scalar>::new(
+            Scalar::ZERO,
+            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(count),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        encrypt_lwe_ciphertext_list(
+            &input_lwe_secret_key,
+            &mut lwe_ciphertext_in,
+            &PlaintextList::from_container(vec![Scalar::ZERO; count]),
+            params.lwe_noise_distribution.unwrap(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertextList::new(
+            Scalar::ZERO,
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            GlweCiphertextCount(count),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_pbs_ct = LweCiphertextList::new(
+            Scalar::ZERO,
+            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(count),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                CiphertextCount(count),
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+
+        let id = format!("{bench_name}::{name}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    batch_programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                        &lwe_ciphertext_in,
+                        &mut out_pbs_ct,
+                        &accumulator,
+                        &fourier_bsk,
+                        fft,
+                        buffers.stack(),
+                    );
+                    black_box(&mut out_pbs_ct);
+                })
+            });
+        }
+
+        let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "pbs",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
 fn multi_bit_pbs<
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default + Sync + Serialize,
 >(
@@ -257,9 +369,8 @@ fn multi_bit_pbs<
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params, grouping_factor) in parameters.iter() {
         // Create the LweSecretKey
@@ -351,9 +462,8 @@ fn multi_bit_deterministic_pbs<
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params, grouping_factor) in parameters.iter() {
         // Create the LweSecretKey
@@ -440,14 +550,28 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     let custom_ciphertext_modulus =
         tfhe::core_crypto::prelude::CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
 
     for (name, params) in throughput_benchmark_parameters_64bits().iter_mut() {
+        if let (Some(lwe_noise), Some(glwe_noise)) = (
+            params.lwe_noise_distribution,
+            params.glwe_noise_distribution,
+        ) {
+            match (lwe_noise, glwe_noise) {
+                (DynamicDistribution::Gaussian(_), DynamicDistribution::Gaussian(_)) => (),
+                _ => {
+                    println!(
+                        "Skip {name} parameters set: custom modulus generation is not supported"
+                    );
+                    continue;
+                }
+            }
+        };
+
         let name = format!("{name}_PLACEHOLDER_NTT");
 
         params.ciphertext_modulus = Some(custom_ciphertext_modulus);
@@ -580,9 +704,8 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params) in parameters.iter() {
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -701,7 +824,7 @@ mod cuda {
     use tfhe::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
-    use tfhe::core_crypto::gpu::vec::CudaVec;
+    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
     use tfhe::core_crypto::gpu::{
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext,
         cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams,
@@ -709,30 +832,40 @@ mod cuda {
     use tfhe::core_crypto::prelude::*;
     use tfhe::keycache::NamedParam;
     use tfhe::shortint::parameters::{
-        PARAM_MESSAGE_1_CARRY_0_KS_PBS, PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-        PARAM_MESSAGE_2_CARRY_0_KS_PBS, PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_4_CARRY_0_KS_PBS, PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_5_CARRY_0_KS_PBS, PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-        PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M64,
     };
     use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
 
-    const SHORTINT_CUDA_BENCH_PARAMS: [ClassicPBSParameters; 13] = [
-        PARAM_MESSAGE_1_CARRY_0_KS_PBS,
-        PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-        PARAM_MESSAGE_2_CARRY_0_KS_PBS,
-        PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_4_CARRY_0_KS_PBS,
-        PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_5_CARRY_0_KS_PBS,
-        PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-        PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+    const SHORTINT_CUDA_BENCH_PARAMS: [ClassicPBSParameters; 14] = [
+        // TUniform
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        // Gaussian
+        V0_11_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M64,
     ];
 
     fn cuda_benchmark_parameters_64bits() -> Vec<(String, CryptoParametersRecord<u64>)> {
@@ -763,12 +896,12 @@ mod cuda {
         let mut seeder = new_seeder();
         let seeder = seeder.as_mut();
         let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
         let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(gpu_index);
+        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params) in parameters.iter() {
             // Create the LweSecretKey
@@ -884,12 +1017,12 @@ mod cuda {
         let mut seeder = new_seeder();
         let seeder = seeder.as_mut();
         let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
         let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(gpu_index);
+        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params, grouping_factor) in parameters.iter() {
             // Create the LweSecretKey
@@ -1006,12 +1139,12 @@ mod cuda {
         let mut seeder = new_seeder();
         let seeder = seeder.as_mut();
         let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
         let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(gpu_index);
+        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params) in parameters.iter() {
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1146,12 +1279,12 @@ mod cuda {
         let mut seeder = new_seeder();
         let seeder = seeder.as_mut();
         let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
         let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(gpu_index);
+        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params, grouping_factor) in parameters.iter() {
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1309,6 +1442,7 @@ pub fn pbs_group() {
     mem_optimized_pbs(&mut criterion, &benchmark_parameters_64bits());
     mem_optimized_pbs(&mut criterion, &benchmark_parameters_32bits());
     mem_optimized_pbs_ntt(&mut criterion);
+    mem_optimized_batched_pbs(&mut criterion, &benchmark_parameters_64bits());
 }
 
 pub fn multi_bit_pbs_group() {

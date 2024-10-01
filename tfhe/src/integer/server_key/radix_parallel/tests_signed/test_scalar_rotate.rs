@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -15,10 +15,10 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_unchecked_scalar_rotate_left);
-create_parametrized_test!(integer_signed_default_scalar_rotate_left);
-create_parametrized_test!(integer_signed_unchecked_scalar_rotate_right);
-create_parametrized_test!(integer_signed_default_scalar_rotate_right);
+create_parameterized_test!(integer_signed_unchecked_scalar_rotate_left);
+create_parameterized_test!(integer_signed_default_scalar_rotate_left);
+create_parameterized_test!(integer_signed_unchecked_scalar_rotate_right);
+create_parameterized_test!(integer_signed_default_scalar_rotate_right);
 
 fn integer_signed_unchecked_scalar_rotate_left<P>(param: P)
 where
@@ -188,7 +188,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
 
         // case when shift >= nb_bits
@@ -206,7 +206,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
     }
 }
@@ -255,7 +255,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
 
         // case when shift >= nb_bits
@@ -273,7 +273,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
     }
 }

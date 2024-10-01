@@ -1,57 +1,35 @@
-use concrete_fft::c64;
-use serde::{Deserialize, Serialize};
-use tfhe_versionable::{UnversionizeError, VersionsDispatch};
+use tfhe_fft::c64;
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+use tfhe_versionable::VersionsDispatch;
 
 use crate::core_crypto::prelude::{
-    Container, FourierLweMultiBitBootstrapKey, FourierLweMultiBitBootstrapKeyVersion,
-    FourierLweMultiBitBootstrapKeyVersionOwned, IntoContainerOwned, LweMultiBitBootstrapKey,
-    UnsignedInteger,
+    Container, FourierLweMultiBitBootstrapKey, LweMultiBitBootstrapKey, UnsignedInteger,
 };
+
+impl<C: Container> Deprecable for LweMultiBitBootstrapKey<C>
+where
+    C::Element: UnsignedInteger,
+{
+    const TYPE_NAME: &'static str = "LweMultiBitBootstrapKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
+}
 
 #[derive(VersionsDispatch)]
 pub enum LweMultiBitBootstrapKeyVersions<C: Container>
 where
     C::Element: UnsignedInteger,
 {
-    V0(LweMultiBitBootstrapKey<C>),
+    V0(Deprecated<LweMultiBitBootstrapKey<C>>),
+    V1(LweMultiBitBootstrapKey<C>),
 }
 
-#[derive(Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum FourierLweMultiBitBootstrapKeyVersioned<'vers> {
-    V0(FourierLweMultiBitBootstrapKeyVersion<'vers>),
+impl<C: Container<Element = c64>> Deprecable for FourierLweMultiBitBootstrapKey<C> {
+    const TYPE_NAME: &'static str = "FourierLweMultiBitBootstrapKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
-impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweMultiBitBootstrapKey<C>>
-    for FourierLweMultiBitBootstrapKeyVersioned<'vers>
-{
-    fn from(value: &'vers FourierLweMultiBitBootstrapKey<C>) -> Self {
-        Self::V0(value.into())
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum FourierLweMultiBitBootstrapKeyVersionedOwned {
-    V0(FourierLweMultiBitBootstrapKeyVersionOwned),
-}
-
-impl<C: Container<Element = c64>> From<FourierLweMultiBitBootstrapKey<C>>
-    for FourierLweMultiBitBootstrapKeyVersionedOwned
-{
-    fn from(value: FourierLweMultiBitBootstrapKey<C>) -> Self {
-        Self::V0(value.into())
-    }
-}
-
-impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierLweMultiBitBootstrapKeyVersionedOwned>
-    for FourierLweMultiBitBootstrapKey<C>
-{
-    type Error = UnversionizeError;
-
-    fn try_from(value: FourierLweMultiBitBootstrapKeyVersionedOwned) -> Result<Self, Self::Error> {
-        match value {
-            FourierLweMultiBitBootstrapKeyVersionedOwned::V0(v0) => Self::try_from(v0),
-        }
-    }
+#[derive(VersionsDispatch)]
+pub enum FourierLweMultiBitBootstrapKeyVersions<C: Container<Element = c64>> {
+    V0(Deprecated<FourierLweMultiBitBootstrapKey<C>>),
+    V1(FourierLweMultiBitBootstrapKey<C>),
 }

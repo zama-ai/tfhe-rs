@@ -4,7 +4,7 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::packed_integers::PackedIntegersVersions;
 use crate::core_crypto::prelude::*;
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(PackedIntegersVersions)]
 pub struct PackedIntegers<Scalar: UnsignedInteger> {
     pub(crate) packed_coeffs: Vec<Scalar>,

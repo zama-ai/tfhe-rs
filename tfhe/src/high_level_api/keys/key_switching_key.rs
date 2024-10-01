@@ -3,6 +3,7 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::keys::KeySwitchingKeyVersions;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::integer::BooleanBlock;
+use crate::named::Named;
 use crate::prelude::FheKeyswitch;
 pub use crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 use crate::{ClientKey, FheBool, FheInt, FheUint, ServerKey, Tag};
@@ -94,4 +95,8 @@ impl FheKeyswitch<FheBool> for KeySwitchingKey {
         let casted = self.key.key.cast(boolean_block.as_ref());
         FheBool::new(BooleanBlock::new_unchecked(casted), self.tag_out.clone())
     }
+}
+
+impl Named for KeySwitchingKey {
+    const NAME: &'static str = "high_level_api::KeySwitchingKey";
 }

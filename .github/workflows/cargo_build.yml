@@ -1,4 +1,4 @@
-name: Cargo Build
+name: Cargo Build TFHE-rs
 
 on:
   pull_request:
@@ -25,10 +25,10 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install latest stable
-        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: stable
 
@@ -47,10 +47,10 @@ jobs:
         run: |
           make pcc
 
-      - name: Build concrete-csprng
+      - name: Build tfhe-csprng
         if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
-          make build_concrete_csprng
+          make build_tfhe_csprng
 
       - name: Build Release core
         if: ${{ contains(matrix.os, 'ubuntu') }}

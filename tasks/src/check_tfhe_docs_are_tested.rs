@@ -10,15 +10,17 @@ const DIR_TO_IGNORE: [&str; 3] = [
     "tfhe/tfhe-backward-compat-data",
 ];
 
-const FILES_TO_IGNORE: [&str; 4] = [
+const FILES_TO_IGNORE: [&str; 5] = [
     // This contains fragments of code that are unrelated to TFHE-rs
     "tfhe/docs/tutorials/sha256_bool.md",
-    // This contains fragments of code coming from the tutorial that cannot be run as a doctest
-    "tfhe/examples/fhe_strings/README.md",
     // TODO: This contains code that could be executed as a trivium docstring
     "apps/trivium/README.md",
     // TODO: should we test this ?
     "utils/tfhe-versionable/README.md",
+    // TODO: find a way to test the tfhe-fft readme
+    "tfhe-fft/README.md",
+    // TODO: find a way to test the tfhe-ntt readme
+    "tfhe-ntt/README.md",
 ];
 
 pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
@@ -99,7 +101,7 @@ pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
         .into_iter()
         .filter_map(|entry| {
             let path = entry.path().canonicalize().ok()?;
-            if path.is_file() && path.extension().map_or(false, |e| e == "md") {
+            if path.is_file() && path.extension().is_some_and(|e| e == "md") {
                 let file_content = std::fs::read_to_string(&path).ok()?;
                 if file_content.contains("```rust") {
                     Some(path.to_path_buf())

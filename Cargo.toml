@@ -2,10 +2,12 @@
 resolver = "2"
 members = [
     "tfhe",
+    "tfhe-fft",
+    "tfhe-ntt",
     "tfhe-zk-pok",
     "tasks",
     "apps/trivium",
-    "concrete-csprng",
+    "tfhe-csprng",
     "backends/tfhe-cuda-backend",
     "backends/tfhe-hpu-backend",
     "utils/tfhe-versionable",
@@ -17,6 +19,17 @@ exclude = [
     "utils/cargo-tfhe-lints-inner",
     "utils/cargo-tfhe-lints"
 ]
+[workspace.dependencies]
+aligned-vec = { version = "0.6", default-features = false }
+bytemuck = "1.14.3"
+dyn-stack = { version = "0.11", default-features = false }
+itertools = "0.13"
+num-complex = "0.4"
+pulp = { version = "0.20.0", default-features = false }
+rand = "0.8"
+rayon = "1"
+serde = { version = "1.0", default-features = false }
+wasm-bindgen = ">=0.2.86,<0.2.94"
 
 [profile.bench]
 lto = "fat"

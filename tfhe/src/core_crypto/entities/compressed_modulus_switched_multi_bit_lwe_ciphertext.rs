@@ -35,13 +35,12 @@ use tfhe_versionable::Versionize;
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// // Generate an LweSecretKey with binary coefficients
 /// let small_lwe_sk =
@@ -225,7 +224,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
             for ggsw_idx in 1..grouping_factor.ggsw_per_multi_bit_element().0 {
                 // We need to store the diff sums of more than one element as we store the
                 // individual modulus_switched elements
-                if ggsw_idx.count_ones() == 1 {
+                if ggsw_idx.is_power_of_two() {
                     continue;
                 }
 
@@ -421,7 +420,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetCo
             && packed_mask.is_conformant(&lwe_dim)
             && packed_diffs
                 .as_ref()
-                .map_or(true, |packed_diffs| packed_diffs.is_conformant(&lwe_dim))
+                .is_none_or(|packed_diffs| packed_diffs.is_conformant(&lwe_dim))
             && *lwe_dimension == lwe_ct_parameters.lwe_dim
             && lwe_ct_parameters.ct_modulus.is_power_of_two()
             && match lwe_ct_parameters.ms_decompression_method {

@@ -5,6 +5,12 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub(crate) enum CarryPropagationAlgorithm {
+    Sequential,
+    Parallel,
+    Automatic,
+}
 /// Possible output flag that the advanced_add_assign_with_carry family of
 /// functions can compute.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -36,7 +42,7 @@ impl OutputFlag {
 }
 
 fn should_parallel_propagation_be_faster(
-    full_modulus: usize,
+    full_modulus: u64,
     num_blocks: usize,
     num_threads: usize,
 ) -> bool {
@@ -125,11 +131,14 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///     num_blocks,
+    /// );
     ///
     /// let msg1 = 14;
     /// let msg2 = 97;
@@ -193,11 +202,14 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///     num_blocks,
+    /// );
     ///
     /// let msg1 = 14;
     /// let msg2 = 97;
@@ -260,11 +272,14 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///     num_blocks,
+    /// );
     ///
     /// let msg1 = u8::MAX;
     /// let msg2 = 1;
@@ -336,11 +351,14 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///     num_blocks,
+    /// );
     ///
     /// let msg1 = u8::MAX;
     /// let msg2 = 1;
@@ -448,6 +466,7 @@ impl ServerKey {
             rhs.blocks(),
             input_carry,
             OutputFlag::None,
+            CarryPropagationAlgorithm::Automatic,
         );
     }
 
@@ -468,6 +487,7 @@ impl ServerKey {
             rhs.blocks(),
             input_carry,
             OutputFlag::from_signedness(T::IS_SIGNED),
+            CarryPropagationAlgorithm::Automatic,
         )
         .expect("internal error, overflow computation was not returned as was requested")
     }
@@ -493,21 +513,43 @@ impl ServerKey {
         rhs: &[Ciphertext],
         input_carry: Option<&BooleanBlock>,
         requested_flag: OutputFlag,
+        mut algorithm: CarryPropagationAlgorithm,
     ) -> Option<BooleanBlock> {
-        if self.is_eligible_for_parallel_single_carry_propagation(lhs.len()) {
-            self.advanced_add_assign_with_carry_at_least_4_bits(
-                lhs,
-                rhs,
-                input_carry,
-                requested_flag,
-            )
-        } else {
-            self.advanced_add_assign_with_carry_sequential_parallelized(
-                lhs,
-                rhs,
-                input_carry,
-                requested_flag,
-            )
+        // having 4-bits is a hard requirement
+        // So to protect against bad carry prop choice we do this check
+        let total_modulus = self.key.message_modulus.0 * self.key.carry_modulus.0;
+        let has_enough_bits_per_block = total_modulus >= (1 << 4);
+        if !has_enough_bits_per_block {
+            algorithm = CarryPropagationAlgorithm::Sequential;
+        }
+
+        if algorithm == CarryPropagationAlgorithm::Automatic {
+            if should_parallel_propagation_be_faster(
+                self.message_modulus().0 * self.carry_modulus().0,
+                lhs.len(),
+                rayon::current_num_threads(),
+            ) {
+                algorithm = CarryPropagationAlgorithm::Parallel;
+            } else {
+                algorithm = CarryPropagationAlgorithm::Sequential
+            }
+        }
+        match algorithm {
+            CarryPropagationAlgorithm::Parallel => self
+                .advanced_add_assign_with_carry_at_least_4_bits(
+                    lhs,
+                    rhs,
+                    input_carry,
+                    requested_flag,
+                ),
+            CarryPropagationAlgorithm::Sequential => self
+                .advanced_add_assign_with_carry_sequential_parallelized(
+                    lhs,
+                    rhs,
+                    input_carry,
+                    requested_flag,
+                ),
+            CarryPropagationAlgorithm::Automatic => unreachable!(),
         }
     }
 
@@ -625,8 +667,8 @@ impl ServerKey {
                     let overflow_flag = overflow_flag.as_mut().unwrap();
                     let num_bits_in_message = self.message_modulus().0.ilog2() as u64;
                     let lut = self.key.generate_lookup_table(|lhs_rhs| {
-                        let lhs = lhs_rhs / self.message_modulus().0 as u64;
-                        let rhs = lhs_rhs % self.message_modulus().0 as u64;
+                        let lhs = lhs_rhs / self.message_modulus().0;
+                        let rhs = lhs_rhs % self.message_modulus().0;
                         overflow_flag_preparation_lut(lhs, rhs, num_bits_in_message)
                     });
                     self.key.apply_lookup_table_assign(overflow_flag, &lut);
@@ -789,7 +831,7 @@ impl ServerKey {
 
     /// Does lhs += (rhs + carry)
     ///
-    /// acts like the ADC assemby op, except, the flags have to be explicitely requested
+    /// acts like the ADC assembly op, except, the flags have to be explicitly requested
     /// as they incur additional PBSes
     ///
     /// - Parameters must have at least 2 bits of message, 2 bits of carry
@@ -807,7 +849,7 @@ impl ServerKey {
         // This is not made explicit in the docs as we have a
         // `propagate_single_carry_parallelized` function which wraps this special case
         if rhs.is_empty() {
-            // Techinically, CarryFlag is computable, but OverflowFlag is not
+            // Technically, CarryFlag is computable, but OverflowFlag is not
             assert_eq!(
                 requested_flag,
                 OutputFlag::None,
@@ -846,7 +888,7 @@ impl ServerKey {
         let blocks = lhs;
         let num_blocks = blocks.len();
 
-        let message_modulus = self.message_modulus().0 as u64;
+        let message_modulus = self.message_modulus().0;
         let num_bits_in_message = message_modulus.ilog2() as u64;
 
         let block_modulus = self.message_modulus().0 * self.carry_modulus().0;
@@ -854,7 +896,8 @@ impl ServerKey {
 
         // Just in case we compare with max noise level, but it should always be num_bits_in_blocks
         // with the parameters we provide
-        let grouping_size = (num_bits_in_block as usize).min(self.key.max_noise_level.get());
+        let grouping_size =
+            (num_bits_in_block as usize).min(self.key.max_noise_level.get() as usize);
 
         let mut output_flag = None;
 
@@ -969,10 +1012,16 @@ impl ServerKey {
                 rayon::join(
                     || {
                         let block = output_flag.as_mut().unwrap();
-                        self.key.unchecked_add_assign(
-                            block,
-                            &resolved_carries[resolved_carries.len() - 1],
-                        );
+                        // When num block is 1, we have to use the input carry
+                        // given by the caller
+                        let carry_into_last_block = input_carry
+                            .as_ref()
+                            .filter(|_| num_blocks == 1)
+                            .map_or_else(
+                                || &resolved_carries[resolved_carries.len() - 1],
+                                |input_carry| &input_carry.0,
+                            );
+                        self.key.unchecked_add_assign(block, carry_into_last_block);
                         self.key
                             .apply_lookup_table_assign(block, &overflow_flag_lut);
                     },
@@ -1013,12 +1062,12 @@ impl ServerKey {
     ) -> (Vec<Ciphertext>, Vec<Ciphertext>) {
         if block_states.is_empty() {
             return (
-                vec![self.key.create_trivial(0)],
+                vec![self.key.create_trivial(1)],
                 vec![self.key.create_trivial(0)],
             );
         }
-        let message_modulus = self.key.message_modulus.0 as u64;
-        let block_modulus = message_modulus * self.carry_modulus().0 as u64;
+        let message_modulus = self.key.message_modulus.0;
+        let block_modulus = message_modulus * self.carry_modulus().0;
         let num_bits_in_block = block_modulus.ilog2();
         let num_blocks = block_states.len();
 
@@ -1110,7 +1159,7 @@ impl ServerKey {
                 } else {
                     // u64::MAX is -1 in two's complement
                     // We apply the modulus including the padding bit
-                    u64::MAX % (1 << (block_modulus + 1))
+                    u64::MAX % (block_modulus * 2)
                 }
             })]
         };
@@ -1128,7 +1177,7 @@ impl ServerKey {
         });
 
         // Compute the cum sum arrays,
-        // each grouping is independent from other groupings
+        // each grouping is independent of other groupings,
         // but we store everything flattened (Vec<_>) instead of nested (Vec<Vec<_>>)
         propagation_cum_sums
             .par_iter_mut()
@@ -1167,7 +1216,7 @@ impl ServerKey {
                     } else {
                         self.key.unchecked_scalar_add_assign(cum_sum_block, 1);
                     }
-                    cum_sum_block.degree = Degree::new(message_modulus as usize - 1);
+                    cum_sum_block.degree = Degree::new(message_modulus - 1);
                 }
             });
 
@@ -1175,7 +1224,7 @@ impl ServerKey {
         let mut propagation_simulators = Vec::with_capacity(num_blocks);
 
         // First block does not get a carry from
-        propagation_simulators.push(self.key.create_trivial(0));
+        propagation_simulators.push(self.key.create_trivial(1));
         for block in propagation_cum_sums.drain(..) {
             if propagation_simulators.len() % grouping_size == 0 {
                 groupings_pgns.push(block);
@@ -1305,7 +1354,7 @@ impl ServerKey {
     ) -> (Vec<Ciphertext>, Vec<Ciphertext>) {
         let num_blocks = blocks.len();
 
-        let message_modulus = self.message_modulus().0 as u64;
+        let message_modulus = self.message_modulus().0;
 
         let block_modulus = self.message_modulus().0 * self.carry_modulus().0;
         let num_bits_in_block = block_modulus.ilog2();
@@ -1494,12 +1543,12 @@ fn overflow_flag_preparation_lut(
 mod tests {
     use super::should_parallel_propagation_be_faster;
     use crate::integer::gen_keys_radix;
-    use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 
     #[test]
     fn test_propagate_single_carry_on_empty_input_ci_run_filter() {
         // Parameters and num blocks do not matter here
-        let (_, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 4);
+        let (_, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, 4);
 
         sks.propagate_single_carry_parallelized(&mut []);
         // The most interesting part we test is that the code does not panic
@@ -1587,7 +1636,7 @@ mod tests {
             },
         ];
 
-        const FULL_MODULUS: usize = 32; // This is 2_2 parameters
+        const FULL_MODULUS: u64 = 32; // This is 2_2 parameters
 
         fn bool_to_algo_name(parallel_chosen: bool) -> &'static str {
             if parallel_chosen {

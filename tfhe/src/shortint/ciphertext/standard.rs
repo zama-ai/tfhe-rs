@@ -3,8 +3,10 @@ use super::super::parameters::CiphertextConformanceParams;
 use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::{allocate_and_trivially_encrypt_new_lwe_ciphertext, LweSize};
 use crate::shortint::backward_compatibility::ciphertext::CiphertextVersions;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::{CiphertextModulus, PaddingBit, ShortintEncoding};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
@@ -138,17 +140,14 @@ impl Ciphertext {
         self.noise_level
     }
 
-    pub fn set_noise_level(&mut self, noise_level: NoiseLevel) {
-        self.noise_level = noise_level;
-    }
-
-    fn delta(&self) -> u64 {
-        if self.ct.ciphertext_modulus().is_native_modulus() {
-            (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64
+    #[cfg_attr(any(feature = "noise-asserts", test), track_caller)]
+    pub fn set_noise_level(&mut self, noise_level: NoiseLevel, max_noise_level: MaxNoiseLevel) {
+        if cfg!(feature = "noise-asserts") || cfg!(test) {
+            max_noise_level.validate(noise_level).unwrap()
         } else {
-            (self.ct.ciphertext_modulus().get_custom_modulus() / 2) as u64
-                / (self.message_modulus.0 * self.carry_modulus.0) as u64
+            let _ = max_noise_level;
         }
+        self.noise_level = noise_level;
     }
 
     /// Decrypts a trivial ciphertext
@@ -164,8 +163,8 @@ impl Ciphertext {
     /// # Example
     ///
     /// ```rust
+    /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// use tfhe::shortint::{gen_keys, Ciphertext};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
@@ -197,15 +196,24 @@ impl Ciphertext {
     /// ```
     pub fn decrypt_trivial(&self) -> Result<u64, NotTrivialCiphertextError> {
         self.decrypt_trivial_message_and_carry()
-            .map(|x| x % self.message_modulus.0 as u64)
+            .map(|x| x % self.message_modulus.0)
+    }
+
+    pub(crate) fn encoding(&self, padding_bit: PaddingBit) -> ShortintEncoding {
+        ShortintEncoding {
+            ciphertext_modulus: self.ct.ciphertext_modulus(),
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            padding_bit,
+        }
     }
 
     /// See [Self::decrypt_trivial].
     /// # Example
     ///
     /// ```rust
+    /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// use tfhe::shortint::{gen_keys, Ciphertext};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
@@ -218,7 +226,7 @@ impl Ciphertext {
     /// sks.unchecked_scalar_add_assign(&mut trivial_ct, clear as u8);
     ///
     /// let res = trivial_ct.decrypt_trivial();
-    /// let expected = (msg + clear) % PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0 as u64;
+    /// let expected = (msg + clear) % PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
     /// assert_eq!(Ok(expected), res);
     ///
     /// let res = trivial_ct.decrypt_trivial_message_and_carry();
@@ -226,11 +234,46 @@ impl Ciphertext {
     /// ```
     pub fn decrypt_trivial_message_and_carry(&self) -> Result<u64, NotTrivialCiphertextError> {
         if self.is_trivial() {
-            Ok(self.ct.get_body().data / self.delta())
+            let decoded = self
+                .encoding(PaddingBit::Yes)
+                .decode(Plaintext(*self.ct.get_body().data))
+                .0;
+            Ok(decoded)
         } else {
             Err(NotTrivialCiphertextError)
         }
     }
+}
+
+pub(crate) fn unchecked_create_trivial_with_lwe_size(
+    value: Cleartext<u64>,
+    lwe_size: LweSize,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_order: PBSOrder,
+    ciphertext_modulus: CiphertextModulus,
+) -> Ciphertext {
+    let encoded = ShortintEncoding {
+        ciphertext_modulus,
+        message_modulus,
+        carry_modulus,
+        padding_bit: PaddingBit::Yes,
+    }
+    .encode(value);
+
+    let ct =
+        allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded, ciphertext_modulus);
+
+    let degree = Degree::new(value.0);
+
+    Ciphertext::new(
+        ct,
+        degree,
+        NoiseLevel::ZERO,
+        message_modulus,
+        carry_modulus,
+        pbs_order,
+    )
 }
 
 #[cfg(test)]

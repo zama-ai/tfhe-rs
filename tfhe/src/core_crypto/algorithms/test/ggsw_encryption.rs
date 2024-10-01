@@ -28,8 +28,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let main_seed = seeder.seed();
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for _ in 0..NB_TESTS {
         // Create the GlweSecretKey
@@ -55,9 +54,9 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
 
-        let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             compression_seed.seed,
             &mut deterministic_seeder,
         );
@@ -80,9 +79,9 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
 
-        let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             compression_seed.seed,
             &mut deterministic_seeder,
         );
@@ -109,7 +108,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
 
         encrypt_constant_seeded_ggsw_ciphertext(
             &glwe_secret_key,
@@ -130,7 +129,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
 
         par_encrypt_constant_seeded_ggsw_ciphertext(
             &glwe_secret_key,
@@ -240,7 +239,7 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(ggsw_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(ggsw_encrypt_decrypt_custom_mod);
 
 fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     params: ClassicTestParams<Scalar>,
@@ -308,7 +307,7 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(ggsw_par_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(ggsw_par_encrypt_decrypt_custom_mod);
 
 fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -379,7 +378,7 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(ggsw_seeded_encrypt_decrypt_custom_mod);
+create_parameterized_test!(ggsw_seeded_encrypt_decrypt_custom_mod);
 
 fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -450,4 +449,4 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
     }
 }
 
-create_parametrized_test!(ggsw_seeded_par_encrypt_decrypt_custom_mod);
+create_parameterized_test!(ggsw_seeded_par_encrypt_decrypt_custom_mod);

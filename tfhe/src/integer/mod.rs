@@ -15,7 +15,7 @@
 //!
 //! ```rust
 //! use tfhe::integer::gen_keys_radix;
-//! use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+//! use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 //!
 //! //4 blocks for the radix decomposition
 //! let number_of_blocks = 4;
@@ -23,8 +23,10 @@
 //! let modulus = 1u64 << 8;
 //!
 //! // Generation of the client/server keys, using the default parameters:
-//! let (mut client_key, mut server_key) =
-//!     gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, number_of_blocks);
+//! let (client_key, server_key) = gen_keys_radix(
+//!     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+//!     number_of_blocks,
+//! );
 //!
 //! let msg1 = 153u64;
 //! let msg2 = 125u64;
@@ -64,6 +66,7 @@ pub mod parameters;
 pub mod prelude;
 pub mod public_key;
 pub mod server_key;
+#[cfg(feature = "experimental")]
 pub mod wopbs;
 
 #[cfg(feature = "gpu")]
@@ -185,11 +188,14 @@ where
 ///
 /// ```rust
 /// use tfhe::integer::gen_keys_radix;
-/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+/// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 ///
 /// // generate the client key and the server key:
 /// let num_blocks = 4;
-/// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+/// let (cks, sks) = gen_keys_radix(
+///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+///     num_blocks,
+/// );
 /// ```
 pub fn gen_keys_radix<P>(parameters_set: P, num_blocks: usize) -> (RadixClientKey, ServerKey)
 where
@@ -208,11 +214,11 @@ where
 ///
 /// ```rust
 /// use tfhe::integer::gen_keys_crt;
-/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+/// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 ///
 /// // generate the client key and the server key:
 /// let basis = vec![2, 3, 5];
-/// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis);
+/// let (cks, sks) = gen_keys_crt(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, basis);
 /// ```
 pub fn gen_keys_crt<P>(parameters_set: P, basis: Vec<u64>) -> (CrtClientKey, ServerKey)
 where

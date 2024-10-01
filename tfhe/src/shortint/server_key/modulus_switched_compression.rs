@@ -75,7 +75,7 @@ impl ServerKey {
 
     /// Decompresses a compressed ciphertext
     /// The degree from before the compression is conserved.
-    /// This operation uses a PBS. Fot the same cost, it's possible to apply a lookup table by
+    /// This operation uses a PBS. For the same cost, it's possible to apply a lookup table by
     /// calling `decompress_and_apply_lookup_table` instead.
     ///
     /// See [`CompressedModulusSwitchedCiphertext#example`] for usage

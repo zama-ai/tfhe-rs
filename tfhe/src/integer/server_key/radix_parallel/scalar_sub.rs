@@ -1,9 +1,9 @@
-use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
+use crate::core_crypto::prelude::{Cleartext, SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix::scalar_sub::TwosComplementNegation;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
-use crate::shortint::Ciphertext;
+use crate::shortint::{Ciphertext, PaddingBit};
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -13,11 +13,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg = 165;
     /// let scalar = 112;
@@ -70,11 +70,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg = 165;
     /// let scalar = 112;
@@ -150,34 +150,34 @@ impl ServerKey {
 
         // If the block does not have a carry after the subtraction, it means it needs to
         // borrow from the next block
-        let compute_borrow_lut = self.key.generate_lookup_table(|x| {
-            if x < self.message_modulus().0 as u64 {
-                1
-            } else {
-                0
-            }
-        });
+        let compute_borrow_lut =
+            self.key
+                .generate_lookup_table(|x| if x < self.message_modulus().0 { 1 } else { 0 });
 
         let mut borrow = self.key.create_trivial(0);
-        let delta = self.key.delta();
+
+        let encoding = self.key.encoding(PaddingBit::Yes);
         for (lhs_b, scalar_b) in lhs.blocks.iter_mut().zip(scalar_blocks.iter().copied()) {
             // Here we use core_crypto instead of shortint scalar_sub_assign
             // because we need a true subtraction, not an addition of the inverse
             crate::core_crypto::algorithms::lwe_ciphertext_plaintext_sub_assign(
                 &mut lhs_b.ct,
-                crate::core_crypto::prelude::Plaintext(u64::from(scalar_b) * delta),
+                encoding.encode(Cleartext(u64::from(scalar_b))),
             );
             crate::core_crypto::algorithms::lwe_ciphertext_plaintext_add_assign(
                 &mut lhs_b.ct,
-                crate::core_crypto::prelude::Plaintext(self.message_modulus().0 as u64 * delta),
+                encoding.encode(Cleartext(self.message_modulus().0)),
             );
             lhs_b.degree = crate::shortint::ciphertext::Degree::new(
-                lhs_b.degree.get() + (self.message_modulus().0 - usize::from(scalar_b)),
+                lhs_b.degree.get() + (self.message_modulus().0 - u64::from(scalar_b)),
             );
             // And here, it's because shortint sub_assign adds a correcting term,
             // which we do not want here
             crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs_b.ct, &borrow.ct);
-            lhs_b.set_noise_level(lhs_b.noise_level() + borrow.noise_level());
+            lhs_b.set_noise_level(
+                lhs_b.noise_level() + borrow.noise_level(),
+                self.key.max_noise_level,
+            );
 
             borrow.clone_from(lhs_b);
 
@@ -212,7 +212,7 @@ impl ServerKey {
     where
         Scalar: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
     {
-        let packed_modulus = (self.message_modulus().0 * self.message_modulus().0) as u64;
+        let packed_modulus = self.message_modulus().0 * self.message_modulus().0;
 
         let packed_blocks = lhs
             .blocks
@@ -245,7 +245,7 @@ impl ServerKey {
                     let modulus = if num_block_is_even {
                         packed_modulus
                     } else {
-                        self.message_modulus().0 as u64
+                        self.message_modulus().0
                     };
                     let last_scalar_block =
                         u64::from(packed_scalar_blocks.last().copied().unwrap());
@@ -304,7 +304,10 @@ impl ServerKey {
                             &mut block.ct,
                             &simulator.ct,
                         );
-                        block.set_noise_level(block.noise_level() + simulator.noise_level());
+                        block.set_noise_level(
+                            block.noise_level() + simulator.noise_level(),
+                            self.key.max_noise_level,
+                        );
                         self.key.unchecked_scalar_add_assign(block, 1);
                     }
                 });
@@ -319,10 +322,10 @@ impl ServerKey {
             || {
                 let extract_message_low_block_mut = self
                     .key
-                    .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0 as u64);
+                    .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0);
                 let extract_message_high_block_mut = self
                     .key
-                    .generate_lookup_table(|block| (block >> 2) % self.message_modulus().0 as u64);
+                    .generate_lookup_table(|block| (block >> 2) % self.message_modulus().0);
 
                 prepared_blocks
                     .par_iter_mut()
@@ -334,7 +337,10 @@ impl ServerKey {
                             &mut block.ct,
                             &borrow.ct,
                         );
-                        block.set_noise_level(block.noise_level() + borrow.noise_level());
+                        block.set_noise_level(
+                            block.noise_level() + borrow.noise_level(),
+                            self.key.max_noise_level,
+                        );
 
                         let lut = if i % 2 == 0 {
                             &extract_message_low_block_mut
@@ -385,7 +391,8 @@ impl ServerKey {
         let num_bits_in_block = packed_modulus.ilog2();
         // Just in case we compare with max noise level, but it should always be num_bits_in_blocks
         // with the parameters we provide
-        let grouping_size = (num_bits_in_block as usize).min(self.key.max_noise_level.get());
+        let grouping_size =
+            (num_bits_in_block as usize).min(self.key.max_noise_level.get() as usize);
 
         // In this, we store lookup tables to be used on each 'packing'.
         // These LUTs will generate an output that tells whether the packing
@@ -472,7 +479,7 @@ impl ServerKey {
         // _packing_ to be in a state were they are ready to receive `propagation simulator`
         // for previous packing in the same grouping they belong.
         let block_preparator_luts = {
-            let message_modulus = self.message_modulus().0 as u64;
+            let message_modulus = self.message_modulus().0;
             let mut luts = Vec::with_capacity(packed_blocks.len());
             for (i, packed_scalar_block) in packed_scalar_blocks.iter().copied().enumerate() {
                 let packed_scalar_block = u64::from(packed_scalar_block);
@@ -499,25 +506,25 @@ impl ServerKey {
 
                 // LUT to prepare the high block
                 luts.push(self.key.generate_lookup_table(|packed_block| {
-                    let high_block = packed_block / self.message_modulus().0 as u64;
-                    let high_scalar_block = packed_scalar_block / self.message_modulus().0 as u64;
-                    let low_block = packed_block % self.message_modulus().0 as u64;
-                    let low_scalar_block = packed_scalar_block % self.message_modulus().0 as u64;
+                    let high_block = packed_block / self.message_modulus().0;
+                    let high_scalar_block = packed_scalar_block / self.message_modulus().0;
+                    let low_block = packed_block % self.message_modulus().0;
+                    let low_scalar_block = packed_scalar_block % self.message_modulus().0;
 
                     let low_block_result = low_block
                         .wrapping_sub(low_scalar_block)
                         .wrapping_add(message_modulus);
 
-                    let low_block_state = if low_block_result < self.message_modulus().0 as u64 {
+                    let low_block_state = if low_block_result < self.message_modulus().0 {
                         2 // Borrows
-                    } else if low_block_result == self.message_modulus().0 as u64 {
+                    } else if low_block_result == self.message_modulus().0 {
                         1 // Propagate
                     } else {
                         0 // Neither
                     };
 
-                    let mut high_block_result = high_block.wrapping_sub(high_scalar_block)
-                        % self.message_modulus().0 as u64;
+                    let mut high_block_result =
+                        high_block.wrapping_sub(high_scalar_block) % self.message_modulus().0;
                     high_block_result <<= 2;
 
                     // Same idea as in the non scalar version
@@ -537,7 +544,7 @@ impl ServerKey {
                         // add a bit that will absorb the potential overflow.
                         //
                         // Note that this bit may be the padding bit itself, and in that case its
-                        // still fine even if no borrow is actually subracted as the cleaning lut
+                        // still fine even if no borrow is actually subtracted as the cleaning lut
                         // would return 0, and since padding bit is set we would get -0, which is
                         // still 0.
                         let overflow_stopper = message_modulus << 2;

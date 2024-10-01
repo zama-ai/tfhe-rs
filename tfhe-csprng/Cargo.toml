@@ -1,0 +1,37 @@
+[package]
+name = "tfhe-csprng"
+version = "0.5.0"
+edition = "2021"
+license = "BSD-3-Clause-Clear"
+description = "Cryptographically Secure PRNG used in the TFHE-rs library."
+homepage = "https://zama.ai/"
+documentation = "https://docs.zama.ai/tfhe-rs"
+repository = "https://github.com/zama-ai/tfhe-rs"
+readme = "README.md"
+keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
+rust-version = "1.72"
+
+[dependencies]
+aes = "0.8.2"
+rayon = { workspace = true , optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2.133"
+
+[dev-dependencies]
+rand = { workspace = true }
+criterion = "0.5.1"
+clap = "=4.4.4"
+
+[features]
+parallel = ["rayon"]
+software-prng = []
+
+[[bench]]
+name = "benchmark"
+path = "benches/benchmark.rs"
+harness = false
+
+[[example]]
+name = "generate"
+path = "examples/generate.rs"

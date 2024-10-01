@@ -7,11 +7,11 @@ use crate::core_crypto::prelude::{
     par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned,
     LweMultiBitBootstrapKeyOwned,
 };
+use crate::integer::gpu::UnsignedInteger;
 use crate::integer::ClientKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
-
 mod radix;
 
 pub enum CudaBootstrappingKey {
@@ -46,15 +46,16 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::CudaServerKey;
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let cks = ClientKey::new(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     ///
     /// // Generate the server key:
     /// let sks = CudaServerKey::new(&cks, &mut streams);
@@ -163,15 +164,16 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::CudaServerKey;
     /// use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     /// let size = 4;
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let cks = ClientKey::new(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let compressed_sks = CompressedServerKey::new_radix_compressed_server_key(&cks);
     /// let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_sks, &streams);
     /// let cpu_sks = compressed_sks.decompress();
@@ -241,5 +243,28 @@ impl CudaServerKey {
             ciphertext_modulus,
             pbs_order,
         }
+    }
+
+    #[allow(clippy::unused_self)]
+    pub(crate) fn num_bits_to_represent_unsigned_value<Clear>(&self, clear: Clear) -> usize
+    where
+        Clear: UnsignedInteger,
+    {
+        if clear == Clear::MAX {
+            Clear::BITS
+        } else {
+            (clear + Clear::ONE).ceil_ilog2() as usize
+        }
+    }
+
+    /// Returns how many blocks a radix ciphertext should have to
+    /// be able to represent the given unsigned integer
+    pub(crate) fn num_blocks_to_represent_unsigned_value<Clear>(&self, clear: Clear) -> usize
+    where
+        Clear: UnsignedInteger,
+    {
+        let num_bits_to_represent_output_value = self.num_bits_to_represent_unsigned_value(clear);
+        let num_bits_in_message = self.message_modulus.0.ilog2();
+        num_bits_to_represent_output_value.div_ceil(num_bits_in_message as usize)
     }
 }

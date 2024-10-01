@@ -23,7 +23,7 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
 
-    let expected_variance = Variance(lwe_noise_distribution.gaussian_std_dev().get_variance());
+    let expected_variance = lwe_noise_distribution.gaussian_std_dev().get_variance();
 
     let mut rsc = TestResources::new();
 
@@ -86,7 +86,7 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
     );
 }
 
-create_parametrized_test!(lwe_encrypt_decrypt_noise_distribution_custom_mod {
+create_parameterized_test!(lwe_encrypt_decrypt_noise_distribution_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64,
     TEST_PARAMS_3_BITS_SOLINAS_U64,
     TEST_PARAMS_3_BITS_63_U64
@@ -210,7 +210,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
 
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
     let ksk_encoding_with_padding = get_encoding_with_padding(ksk_modulus);
-    let expected_variance = Variance(lwe_modular_std_dev.get_variance());
+    let expected_variance = lwe_modular_std_dev.get_variance();
 
     let mut rsc = TestResources::new();
 
@@ -368,7 +368,8 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                     ciphertext_modulus
                 ));
                 // * norm2
-                //lwe_ciphertext_cleartext_mul_assign(&mut ct, Cleartext(Scalar::cast_from(norm2)));
+                //lwe_ciphertext_cleartext_mul_assign(&mut ct,
+                // Cleartext(Scalar::cast_from(norm2)));
                 lwe_ciphertext_cleartext_mul_assign(&mut ct, Cleartext(norm2));
 
                 assert!(check_encrypted_content_respects_mod(
@@ -509,39 +510,43 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     ]);
     let _ = wtr.write_record(&[
         "std_dev",
-        expected_variance.get_standard_dev().to_string().as_str(),
-        encryption_variance.get_standard_dev().to_string().as_str(),
-        bynorm2_variance.get_standard_dev().to_string().as_str(),
-        after_ks_variance.get_standard_dev().to_string().as_str(),
-        (after_ks_variance.get_standard_dev() - bynorm2_variance.get_standard_dev())
+        expected_variance.get_standard_dev().0.to_string().as_str(),
+        encryption_variance
+            .get_standard_dev()
+            .0
             .to_string()
             .as_str(),
-        after_pbs_variance.get_standard_dev().to_string().as_str(),
-        (bynorm2_variance.get_standard_dev() - after_pbs_variance.get_standard_dev())
+        bynorm2_variance.get_standard_dev().0.to_string().as_str(),
+        after_ks_variance.get_standard_dev().0.to_string().as_str(),
+        (after_ks_variance.get_standard_dev().0 - bynorm2_variance.get_standard_dev().0)
+            .to_string()
+            .as_str(),
+        after_pbs_variance.get_standard_dev().0.to_string().as_str(),
+        (bynorm2_variance.get_standard_dev().0 - after_pbs_variance.get_standard_dev().0)
             .to_string()
             .as_str(),
     ]);
     let _ = wtr.write_record(&[
         "log2 std_dev + ct_w",
-        (expected_variance.get_log_standard_dev() + params.ct_width as f64)
+        (expected_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
-        (encryption_variance.get_log_standard_dev() + params.ct_width as f64)
+        (encryption_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
-        (bynorm2_variance.get_log_standard_dev() + params.ct_width as f64)
+        (bynorm2_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
-        (after_ks_variance.get_log_standard_dev() + params.ct_width as f64)
+        (after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
-        (after_ks_variance.get_log_standard_dev() - bynorm2_variance.get_log_standard_dev())
+        (after_ks_variance.get_log_standard_dev().0 - bynorm2_variance.get_log_standard_dev().0)
             .to_string()
             .as_str(),
-        (after_pbs_variance.get_log_standard_dev() + params.ct_width as f64)
+        (after_pbs_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
-        (bynorm2_variance.get_log_standard_dev() - after_pbs_variance.get_log_standard_dev())
+        (bynorm2_variance.get_log_standard_dev().0 - after_pbs_variance.get_log_standard_dev().0)
             .to_string()
             .as_str(),
     ]);
@@ -559,7 +564,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     //);
 }
 
-create_parametrized_test!(hpu_noise_distribution {
+create_parameterized_test!(hpu_noise_distribution {
     HPU_TEST_PARAMS_4_BITS_NATIVE_U64,
     HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21,
     HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21,
@@ -570,7 +575,7 @@ fn lwe_compact_public_key_encryption_expected_variance(
     lwe_dimension: LweDimension,
 ) -> Variance {
     let input_variance = input_noise.get_variance();
-    Variance(input_variance * (lwe_dimension.to_lwe_size().0 as f64))
+    Variance(input_variance.0 * (lwe_dimension.to_lwe_size().0 as f64))
 }
 
 #[test]
@@ -581,7 +586,8 @@ fn test_variance_increase_cpk_formula() {
     );
 
     assert!(
-        (predicted_variance.get_standard_dev().log2() - 44.000704097196405f64).abs() < f64::EPSILON
+        (predicted_variance.get_standard_dev().0.log2() - 44.000704097196405f64).abs()
+            < f64::EPSILON
     );
 }
 
@@ -596,7 +602,7 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
 
-    let glwe_variance = Variance(glwe_noise_distribution.gaussian_std_dev().get_variance());
+    let glwe_variance = glwe_noise_distribution.gaussian_std_dev().get_variance();
 
     let expected_variance =
         lwe_compact_public_key_encryption_expected_variance(glwe_variance, lwe_dimension);
@@ -671,7 +677,7 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
     );
 }
 
-create_parametrized_test!(lwe_compact_public_encrypt_noise_distribution_custom_mod {
+create_parameterized_test!(lwe_compact_public_encrypt_noise_distribution_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
@@ -685,11 +691,11 @@ fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(
 
     assert!(matches!(noise, DynamicDistribution::Gaussian(_)));
 
-    let expected_variance = Variance(noise.gaussian_std_dev().get_variance());
+    let expected_variance = noise.gaussian_std_dev().get_variance();
 
-    let num_ouptuts = 100_000;
+    let num_outputs = 100_000;
 
-    let mut output: Vec<_> = vec![Scalar::ZERO; num_ouptuts];
+    let mut output: Vec<_> = vec![Scalar::ZERO; num_outputs];
 
     encryption_rng.fill_slice_with_random_noise_from_distribution_custom_mod(
         &mut output,
@@ -743,7 +749,7 @@ fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(
     );
 }
 
-create_parametrized_test!(random_noise_roundtrip {
+create_parameterized_test!(random_noise_roundtrip {
     TEST_PARAMS_4_BITS_NATIVE_U64,
     TEST_PARAMS_3_BITS_SOLINAS_U64,
     TEST_PARAMS_3_BITS_63_U64

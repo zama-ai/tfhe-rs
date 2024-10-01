@@ -10,7 +10,11 @@ use aligned_vec::{ABox, AVec};
 use num_complex::Complex;
 use tfhe_versionable::{Unversionize, Versionize};
 
-use backward_compat::MyStructVersions;
+use backward_compat::{CustomVersions, MyStructVersions};
+
+#[derive(PartialEq, Clone, Debug, Versionize)]
+#[versionize(CustomVersions)]
+struct Custom(u32);
 
 #[derive(PartialEq, Clone, Debug, Versionize)]
 #[versionize(MyStructVersions)]
@@ -19,6 +23,9 @@ pub struct MyStruct {
     base_box: Box<u8>,
     sliced_box: Box<[u16; 50]>,
     base_vec: Vec<u32>,
+    base_vec_vec: Vec<Vec<u32>>,
+    custom_vec_vec: Vec<Vec<Custom>>,
+    custom_vec_vec_vec: Vec<Vec<Vec<Custom>>>,
     s: String,
     opt: Option<u64>,
     phantom: PhantomData<u128>,
@@ -35,12 +42,20 @@ pub struct MyStruct {
 mod backward_compat {
     use tfhe_versionable::VersionsDispatch;
 
+    use crate::Custom;
+
     use super::MyStruct;
 
     #[derive(VersionsDispatch)]
     #[allow(unused)]
     pub enum MyStructVersions {
         V0(MyStruct),
+    }
+
+    #[derive(VersionsDispatch)]
+    #[allow(unused)]
+    pub enum CustomVersions {
+        V0(Custom),
     }
 }
 
@@ -51,6 +66,28 @@ fn test_types() {
         base_box: Box::new(42),
         sliced_box: vec![11; 50].into_boxed_slice().try_into().unwrap(),
         base_vec: vec![1234, 5678],
+        base_vec_vec: vec![vec![1234, 5678], vec![9012, 3456]],
+        custom_vec_vec: vec![
+            vec![9876, 5432, 1987, 6543]
+                .into_iter()
+                .map(Custom)
+                .collect(),
+            vec![1098, 7654, 3210, 9876]
+                .into_iter()
+                .map(Custom)
+                .collect(),
+        ],
+        custom_vec_vec_vec: vec![
+            vec![
+                vec![9876, 5432].into_iter().map(Custom).collect(),
+                vec![1987, 6543].into_iter().map(Custom).collect(),
+            ],
+            vec![
+                vec![1098, 7654].into_iter().map(Custom).collect(),
+                vec![3210, 9876].into_iter().map(Custom).collect(),
+            ],
+        ],
+
         s: String::from("test"),
         opt: Some(0xdeadbeef),
         phantom: PhantomData,

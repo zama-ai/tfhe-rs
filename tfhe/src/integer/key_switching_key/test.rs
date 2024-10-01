@@ -1,32 +1,36 @@
 use crate::integer::key_switching_key::KeySwitchingKey;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::parameters::{
-    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
-};
+use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::{
     ClientKey, CompactPrivateKey, CompactPublicKey, CrtClientKey, IntegerCiphertext,
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey,
 };
-use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
-    PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 use crate::shortint::parameters::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 };
-use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
 
 #[test]
 fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
     let num_block = 4;
 
-    let client_key_1 = RadixClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
+    let client_key_1 = RadixClientKey::new(
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        num_block,
+    );
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::Radix,
+    );
     let client_key_2 = RadixClientKey::from((client_key_2, num_block));
 
     assert_eq!(
@@ -60,11 +64,16 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
 fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
     let basis = vec![2, 3, 5, 7, 11];
 
-    let client_key_1 = CrtClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis.clone());
+    let client_key_1 = CrtClientKey::new(
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        basis.clone(),
+    );
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::CRT);
+    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::CRT,
+    );
     let client_key_2 = CrtClientKey::from((client_key_2, basis));
 
     assert_eq!(
@@ -101,12 +110,16 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
 fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
     let basis = vec![2, 3, 5, 7, 11];
 
-    let (client_key_1, server_key_1) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::CRT);
+    let (client_key_1, server_key_1) = KEY_CACHE.get_from_params(
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::CRT,
+    );
     let client_key_1 = CrtClientKey::from((client_key_1, basis.clone()));
 
-    let (client_key_2, server_key_2) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_1_CARRY_1_KS_PBS, IntegerKeyKind::CRT);
+    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::CRT,
+    );
     let client_key_2 = CrtClientKey::from((client_key_2, basis));
 
     assert_eq!(
@@ -131,11 +144,13 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
 #[test]
 fn gen_multi_keys_test_integer_to_integer_ci_run_filter() {
     // We generate a set of client keys, using the default parameters:
-    let client_key_1 = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    let client_key_1 = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        IntegerKeyKind::Radix,
+    );
 
     assert_eq!(
         client_key_1.parameters().encryption_key_choice(),
@@ -174,7 +189,7 @@ fn test_case_cpk_encrypt_cast_compute(
     assert_eq!(param_pke_only.message_modulus, param_fhe.message_modulus);
     assert_eq!(param_pke_only.carry_modulus, param_fhe.carry_modulus);
 
-    let modulus = param_fhe.message_modulus.0.pow(num_block as u32) as u64;
+    let modulus = param_fhe.message_modulus.0.pow(num_block as u32);
 
     let compact_private_key = CompactPrivateKey::new(param_pke_only);
     let pk = CompactPublicKey::new(&compact_private_key);
@@ -197,12 +212,14 @@ fn test_case_cpk_encrypt_cast_compute(
     // Encrypt a value and cast
     let ct1 = pk.encrypt_radix_compact(input_msg, num_block);
     let expander = ct1
-        .expand(
-            IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks_fhe),
-            IntegerCompactCiphertextListCastingMode::CastIfNecessary(ksk.as_view()),
-        )
+        .expand(IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()))
         .unwrap();
     let mut ct1_extracted_and_cast = expander.get::<RadixCiphertext>(0).unwrap().unwrap();
+
+    assert!(ct1_extracted_and_cast
+        .blocks()
+        .iter()
+        .all(|x| x.degree.get() == sks_fhe.message_modulus().0 - 1));
 
     let sanity_pbs: u64 = cks_fhe.decrypt_radix(&ct1_extracted_and_cast);
     assert_eq!(sanity_pbs, input_msg);
@@ -232,17 +249,17 @@ fn test_case_cpk_encrypt_cast_compute(
 #[test]
 fn test_cpk_encrypt_cast_to_small_compute_big_ci_run_filter() {
     test_case_cpk_encrypt_cast_compute(
-        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
 }
 
 #[test]
 fn test_cpk_encrypt_cast_to_big_compute_big_ci_run_filter() {
     test_case_cpk_encrypt_cast_compute(
-        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
 }

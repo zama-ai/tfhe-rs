@@ -27,11 +27,22 @@ inline void cuda_error(cudaError_t code, const char *file, int line) {
     std::abort();                                                              \
   }
 
+cudaEvent_t cuda_create_event(uint32_t gpu_index);
+
+void cuda_event_record(cudaEvent_t event, cudaStream_t stream,
+                       uint32_t gpu_index);
+void cuda_stream_wait_event(cudaStream_t stream, cudaEvent_t event,
+                            uint32_t gpu_index);
+
+void cuda_event_destroy(cudaEvent_t event, uint32_t gpu_index);
+
 cudaStream_t cuda_create_stream(uint32_t gpu_index);
 
 void cuda_destroy_stream(cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_synchronize_stream(cudaStream_t stream, uint32_t gpu_index);
+
+uint32_t cuda_is_available();
 
 void *cuda_malloc(uint64_t size, uint32_t gpu_index);
 
@@ -42,8 +53,11 @@ void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
 void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index);
 
-void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
+void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
                                   cudaStream_t stream, uint32_t gpu_index);
+
+void cuda_memcpy_gpu_to_gpu(void *dest, void *src, uint64_t size,
+                            uint32_t gpu_index);
 
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index);

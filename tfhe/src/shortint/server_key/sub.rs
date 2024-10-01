@@ -27,14 +27,14 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Encrypt two messages:
-    /// let mut ct_1 = cks.encrypt(3);
+    /// let ct_1 = cks.encrypt(3);
     /// let ct_2 = cks.encrypt(1);
     ///
     /// // Compute homomorphically a subtraction:
     /// let ct_res = sks.sub(&ct_1, &ct_2);
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn sub(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
@@ -70,7 +70,7 @@ impl ServerKey {
     ///
     /// // Compute homomorphically a subtraction:
     /// sks.sub_assign(&mut ct_1, &ct_2);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
     /// ```
     pub fn sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
@@ -115,7 +115,6 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_sub(&ct_1, &ct_2);
     ///
     /// // Decrypt:
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_res), 2 - 1);
     /// ```
     pub fn unchecked_sub(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
@@ -149,7 +148,7 @@ impl ServerKey {
     /// sks.unchecked_sub_assign(&mut ct_1, &ct_2);
     ///
     /// // Decrypt:
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(cks.decrypt(&ct_1) % modulus, 1);
     /// ```
     pub fn unchecked_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
@@ -184,7 +183,7 @@ impl ServerKey {
     ) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
         let msg_mod = self.message_modulus.0;
-        let mut z = (ct_right.degree.get() + msg_mod - 1) / msg_mod;
+        let mut z = ct_right.degree.get().div_ceil(msg_mod);
         z = z.wrapping_mul(msg_mod);
 
         let final_operation_count = ct_left.degree.get() + z;
@@ -218,7 +217,7 @@ impl ServerKey {
     /// // Compute homomorphically a subtraction:
     /// let ct_res = sks.checked_sub(&ct_1, &ct_2).unwrap();
     ///
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
@@ -253,7 +252,7 @@ impl ServerKey {
     ///
     /// // Compute homomorphically a subtraction:
     /// sks.checked_sub_assign(&mut ct_1, &ct_2).unwrap();
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// let clear_res = cks.decrypt(&ct_1);
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
@@ -289,7 +288,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_sub(&mut ct_1, &mut ct_2);
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn smart_sub(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
@@ -338,7 +337,7 @@ impl ServerKey {
     ///
     /// // Compute homomorphically a subtraction:
     /// sks.smart_sub_assign(&mut ct_1, &mut ct_2);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
     /// ```
     pub fn smart_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
@@ -402,8 +401,11 @@ impl ServerKey {
 
         lwe_ciphertext_add_assign(&mut ct_left.ct, &neg_right.ct);
 
-        ct_left.set_noise_level(ct_left.noise_level() + ct_right.noise_level());
-        ct_left.degree = Degree::new(ct_left.degree.get() + z as usize);
+        ct_left.set_noise_level(
+            ct_left.noise_level() + ct_right.noise_level(),
+            self.max_noise_level,
+        );
+        ct_left.degree = Degree::new(ct_left.degree.get() + z);
 
         z
     }

@@ -4,16 +4,10 @@ This document describes the C bindings to the **TFHE-rs** high-level primitives 
 
 ## Setting up TFHE-rs C API for C programming.
 
-You can build **TFHE-rs** C API on a Unix x86\_64 machine using the following command:
+You can build **TFHE-rs** C API using the following command:
 
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=x86_64-unix,high-level-c-api -p tfhe && make symlink_c_libs_without_fingerprint
-```
-
-For a Unix aarch64 machine, use the following command:
-
-```shell
-RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=aarch64-unix,high-level-c-api -p tfhe && make symlink_c_libs_without_fingerprint
+RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=high-level-c-api -p tfhe
 ```
 
 Locate files in the right path:
@@ -97,8 +91,6 @@ int main(void)
 
     // Put the builder in a default state without any types enabled
     config_builder_default(&builder);
-    // Use the small LWE key for encryption
-    config_builder_default_with_small_encryption(&builder);
     // Populate the config
     config_builder_build(builder, &config);
 

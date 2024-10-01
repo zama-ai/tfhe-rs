@@ -1,18 +1,18 @@
 //! Module containing the definition of the SeededLweBootstrapKey.
 
-use tfhe_versionable::Versionize;
-
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_multi_bit_bootstrap_key::SeededLweMultiBitBootstrapKeyVersions;
 use crate::core_crypto::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
 use crate::core_crypto::commons::math::random::{
-    ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
+    CompressionSeed, DefaultRandomGenerator, Distribution, RandomGenerable,
 };
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use tfhe_versionable::Versionize;
 
 /// A [`seeded LWE multi bit bootstrap key`](`SeededLweMultiBitBootstrapKey`).
 ///
@@ -272,7 +272,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
             self.grouping_factor(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,
             &self,
         );
@@ -297,7 +297,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
             self.grouping_factor(),
             self.ciphertext_modulus(),
         );
-        par_decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+        par_decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,
             &self,
         );
@@ -443,5 +443,20 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
             ),
             grouping_factor,
         }
+    }
+}
+
+impl<C: Container<Element = u64>> ParameterSetConformant for SeededLweMultiBitBootstrapKey<C> {
+    type ParameterSet = MultiBitBootstrapKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            ggsw_list,
+            grouping_factor,
+        } = self;
+
+        let params = parameter_set.try_into().unwrap();
+
+        ggsw_list.is_conformant(&params) && *grouping_factor == parameter_set.grouping_factor
     }
 }

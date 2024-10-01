@@ -4,7 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -12,7 +12,7 @@ use crate::shortint::parameters::*;
 use rand::prelude::*;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_default_scalar_div_rem);
+create_parameterized_test!(integer_default_scalar_div_rem);
 
 fn integer_default_scalar_div_rem<P>(param: P)
 where
@@ -42,7 +42,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(num_block as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(num_block as u32);
 
     executor.setup(&cks, sks.clone());
 
@@ -78,7 +78,8 @@ where
             assert!(q.block_carries_are_empty());
             assert!(r.block_carries_are_empty());
             assert_eq!(q, q2);
-            assert_eq!(r, r2);
+            assert_eq!(q, q2, "Failed determinism check, \n\n\n msg: {clear}, scalar: {scalar}, \n\n\nctxt: {ct:?}\n\n\n");
+            assert_eq!(r, r2, "Failed determinism check, \n\n\n msg: {clear}, scalar: {scalar}, \n\n\nctxt: {ct:?}\n\n\n");
 
             let q_res: u64 = cks.decrypt(&q);
             let r_res: u64 = cks.decrypt(&r);
@@ -95,7 +96,9 @@ where
             assert!(q.block_carries_are_empty());
             assert!(r.block_carries_are_empty());
             assert_eq!(q, q2);
+            assert_eq!(q, q2, "Failed determinism check, \n\n\n msg: {clear}, scalar: {scalar}, \n\n\nctxt: {ct:?}\n\n\n");
             assert_eq!(r, r2);
+            assert_eq!(r, r2, "Failed determinism check, \n\n\n msg: {clear}, scalar: {scalar}, \n\n\nctxt: {ct:?}\n\n\n");
 
             let q_res: u64 = cks.decrypt(&q);
             let r_res: u64 = cks.decrypt(&r);

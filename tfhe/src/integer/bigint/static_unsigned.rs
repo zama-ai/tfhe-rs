@@ -80,6 +80,16 @@ impl<const N: usize> StaticUnsignedBigInt<N> {
     pub fn ceil_ilog2(self) -> u32 {
         self.ilog2() + u32::from(!self.is_power_of_two())
     }
+
+    pub fn wrapping_sub(mut self, other: Self) -> Self {
+        let mut negated = !other;
+        super::algorithms::wrapping_add_assign_words(
+            negated.0.as_mut_slice(),
+            Self::from(1u64).0.as_slice(),
+        );
+        super::algorithms::wrapping_add_assign_words(self.0.as_mut_slice(), negated.0.as_slice());
+        self
+    }
 }
 
 #[cfg(test)]
@@ -107,7 +117,7 @@ impl<const N: usize> std::cmp::PartialOrd for StaticUnsignedBigInt<N> {
 
 impl<const N: usize> std::ops::AddAssign<Self> for StaticUnsignedBigInt<N> {
     fn add_assign(&mut self, rhs: Self) {
-        super::algorithms::add_assign_words(self.0.as_mut_slice(), rhs.0.as_slice());
+        super::algorithms::wrapping_add_assign_words(self.0.as_mut_slice(), rhs.0.as_slice());
     }
 }
 

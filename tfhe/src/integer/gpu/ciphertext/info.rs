@@ -122,7 +122,23 @@ impl CudaRadixCiphertextInfo {
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
-                    noise_level: left.noise_level + NoiseLevel::NOMINAL,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+
+    pub(crate) fn after_ilog2(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|info| CudaBlockInfo {
+                    degree: Degree::new(info.message_modulus.0 - 1),
+                    message_modulus: info.message_modulus,
+                    carry_modulus: info.carry_modulus,
+                    pbs_order: info.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }
@@ -151,11 +167,11 @@ impl CudaRadixCiphertextInfo {
                 .iter()
                 .zip(&other.blocks)
                 .map(|(left, _)| CudaBlockInfo {
-                    degree: left.degree,
+                    degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
-                    noise_level: left.noise_level,
+                    noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }
@@ -167,11 +183,87 @@ impl CudaRadixCiphertextInfo {
                 .iter()
                 .zip(&other.blocks)
                 .map(|(left, _)| CudaBlockInfo {
-                    degree: left.degree,
+                    degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
-                    noise_level: left.noise_level,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_if_then_else(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|b| CudaBlockInfo {
+                    degree: Degree::new(b.message_modulus.0 - 1),
+                    message_modulus: b.message_modulus,
+                    carry_modulus: b.carry_modulus,
+                    pbs_order: b.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_overflowing_scalar_add_sub(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|b| CudaBlockInfo {
+                    degree: Degree::new(b.message_modulus.0 - 1),
+                    message_modulus: b.message_modulus,
+                    carry_modulus: b.carry_modulus,
+                    pbs_order: b.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_rotate(&self, other: &Self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .zip(&other.blocks)
+                .map(|(left, _)| CudaBlockInfo {
+                    degree: Degree::new(left.message_modulus.0 - 1),
+                    message_modulus: left.message_modulus,
+                    carry_modulus: left.carry_modulus,
+                    pbs_order: left.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_scalar_rotate(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|left| CudaBlockInfo {
+                    degree: Degree::new(left.message_modulus.0 - 1),
+                    message_modulus: left.message_modulus,
+                    carry_modulus: left.carry_modulus,
+                    pbs_order: left.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_min_max(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|left| CudaBlockInfo {
+                    degree: Degree::new(left.message_modulus.0 - 1),
+                    message_modulus: left.message_modulus,
+                    carry_modulus: left.carry_modulus,
+                    pbs_order: left.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }
@@ -209,7 +301,7 @@ impl CudaRadixCiphertextInfo {
                 .iter()
                 .zip(scalar_composed)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: Degree::new(left.degree.get() + scalar_block as usize),
+                    degree: Degree::new(left.degree.get() + u64::from(scalar_block)),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
@@ -229,7 +321,7 @@ impl CudaRadixCiphertextInfo {
                     message_modulus: info.message_modulus,
                     carry_modulus: info.carry_modulus,
                     pbs_order: info.pbs_order,
-                    noise_level: info.noise_level + NoiseLevel::NOMINAL,
+                    noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }
@@ -250,7 +342,7 @@ impl CudaRadixCiphertextInfo {
                 .iter()
                 .zip(decomposer)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: Degree::new(left.degree.get() + scalar_block as usize),
+                    degree: Degree::new(left.degree.get() + u64::from(scalar_block)),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
@@ -315,12 +407,12 @@ impl CudaRadixCiphertextInfo {
             blocks: self
                 .blocks
                 .iter()
-                .map(|left| CudaBlockInfo {
-                    degree: Degree::new(left.message_modulus.0 - 1),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
+                .map(|b| CudaBlockInfo {
+                    degree: Degree::new(b.message_modulus.0 - 1),
+                    message_modulus: b.message_modulus,
+                    carry_modulus: b.carry_modulus,
+                    pbs_order: b.pbs_order,
+                    noise_level: b.noise_level,
                 })
                 .collect(),
         }
@@ -331,18 +423,19 @@ impl CudaRadixCiphertextInfo {
     {
         let message_modulus = self.blocks.first().unwrap().message_modulus;
         let bits_in_message = message_modulus.0.ilog2();
-        let decomposer =
-            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
-        let mut scalar_composed = decomposer.collect_vec();
-        scalar_composed.resize(self.blocks.len(), 0);
+        let decomposer = BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
+            .iter_as::<u8>()
+            .chain(std::iter::repeat(0u8));
 
         Self {
             blocks: self
                 .blocks
                 .iter()
-                .zip(scalar_composed)
+                .zip(decomposer)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: left.degree.after_bitand(Degree::new(scalar_block as usize)),
+                    degree: left
+                        .degree
+                        .after_bitand(Degree::new(u64::from(scalar_block))),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
@@ -358,18 +451,19 @@ impl CudaRadixCiphertextInfo {
     {
         let message_modulus = self.blocks.first().unwrap().message_modulus;
         let bits_in_message = message_modulus.0.ilog2();
-        let decomposer =
-            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
-        let mut scalar_composed = decomposer.collect_vec();
-        scalar_composed.resize(self.blocks.len(), 0);
+        let decomposer = BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
+            .iter_as::<u8>()
+            .chain(std::iter::repeat(0u8));
 
         Self {
             blocks: self
                 .blocks
                 .iter()
-                .zip(scalar_composed)
+                .zip(decomposer)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: left.degree.after_bitor(Degree::new(scalar_block as usize)),
+                    degree: left
+                        .degree
+                        .after_bitor(Degree::new(u64::from(scalar_block))),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
@@ -385,18 +479,19 @@ impl CudaRadixCiphertextInfo {
     {
         let message_modulus = self.blocks.first().unwrap().message_modulus;
         let bits_in_message = message_modulus.0.ilog2();
-        let decomposer =
-            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
-        let mut scalar_composed = decomposer.collect_vec();
-        scalar_composed.resize(self.blocks.len(), 0);
+        let decomposer = BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
+            .iter_as::<u8>()
+            .chain(std::iter::repeat(0u8));
 
         Self {
             blocks: self
                 .blocks
                 .iter()
-                .zip(scalar_composed)
+                .zip(decomposer)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: left.degree.after_bitxor(Degree::new(scalar_block as usize)),
+                    degree: left
+                        .degree
+                        .after_bitxor(Degree::new(u64::from(scalar_block))),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
@@ -424,6 +519,43 @@ impl CudaRadixCiphertextInfo {
                     message_modulus: block.message_modulus,
                     carry_modulus: block.carry_modulus,
                     pbs_order: block.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+
+    pub(crate) fn after_block_comparisons(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .enumerate()
+                .map(|(i, block)| CudaBlockInfo {
+                    degree: if i == 0 {
+                        Degree::new(1)
+                    } else {
+                        Degree::new(0)
+                    },
+                    message_modulus: block.message_modulus,
+                    carry_modulus: block.carry_modulus,
+                    pbs_order: block.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+
+    pub(crate) fn after_aggregate_one_hot_vector(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|left| CudaBlockInfo {
+                    degree: Degree::new(left.message_modulus.0 - 1),
+                    message_modulus: left.message_modulus,
+                    carry_modulus: left.carry_modulus,
+                    pbs_order: left.pbs_order,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),

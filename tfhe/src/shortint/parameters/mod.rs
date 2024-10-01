@@ -11,11 +11,14 @@ pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    GlweCiphertextConformanceParameters, LweCiphertextCount, LweCiphertextListParameters,
-    LweCiphertextParameters, MsDecompressionType,
+    GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams, LweCiphertextCount,
+    LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::parameters::*;
+#[cfg(feature = "zk-pok")]
+use crate::zk::CompactPkeZkScheme;
 use serde::{Deserialize, Serialize};
 
 use tfhe_versionable::Versionize;
@@ -30,8 +33,10 @@ pub mod multi_bit;
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
+pub mod v0_10;
 
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
+use super::server_key::PBSConformanceParameters;
 pub use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 use crate::shortint::ciphertext::MaxDegree;
@@ -39,16 +44,30 @@ pub use crate::shortint::parameters::classic::compact_pk::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
 pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::pbs_ks::*;
-pub use crate::shortint::parameters::list_compression::CompressionParameters;
-pub use compact_public_key_only::{
-    CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
-    ShortintCompactCiphertextListCastingMode,
+pub use crate::shortint::parameters::list_compression::{
+    CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
+pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs_gpu::*;
+pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::*;
+pub use compact_public_key_only::{
+    CastingFunctionsOwned, CastingFunctionsView, CompactCiphertextListExpansionKind,
+    CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
+};
+
+pub use crate::shortint::parameters::v0_10::classic::compact_pk::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::classic::compact_pk::gaussian::p_fail_2_minus_64::pbs_ks::*;
+pub use crate::shortint::parameters::v0_10::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
+pub use crate::shortint::parameters::v0_10::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::key_switching::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::compact_public_key_only::p_fail_2_minus_64::ks_pbs::*;
+
 #[cfg(tarpaulin)]
 pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
-pub use multi_bit::*;
+pub use multi_bit::MultiBitPBSParameters;
 pub use parameters_wopbs::*;
 
 /// The modulus of the message space. For a given plaintext $p$ we have the message $m$ defined as
@@ -59,7 +78,7 @@ pub use parameters_wopbs::*;
 /// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(MessageModulusVersions)]
-pub struct MessageModulus(pub usize);
+pub struct MessageModulus(pub u64);
 
 impl MessageModulus {
     pub fn corresponding_max_degree(&self) -> MaxDegree {
@@ -76,7 +95,7 @@ impl MessageModulus {
 /// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CarryModulusVersions)]
-pub struct CarryModulus(pub usize);
+pub struct CarryModulus(pub u64);
 
 /// Determines in what ring computations are made
 pub type CiphertextModulus = CoreCiphertextModulus<u64>;
@@ -198,6 +217,19 @@ impl ClassicPBSParameters {
     }
 }
 
+impl From<&PBSConformanceParameters> for BootstrapKeyConformanceParams {
+    fn from(value: &PBSConformanceParameters) -> Self {
+        Self {
+            decomp_base_log: value.base_log,
+            decomp_level_count: value.level,
+            input_lwe_dimension: value.in_lwe_dimension,
+            output_glwe_size: value.out_glwe_dimension.to_glwe_size(),
+            polynomial_size: value.out_polynomial_size,
+            ciphertext_modulus: value.ciphertext_modulus,
+        }
+    }
+}
+
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
 #[versionize(PBSParametersVersions)]
 pub enum PBSParameters {
@@ -235,12 +267,12 @@ pub struct CompressedCiphertextConformanceParams {
 /// Structure to store the expected properties of a ciphertext list
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
+#[derive(Copy, Clone)]
 pub struct CiphertextListConformanceParams {
     pub ct_list_params: LweCiphertextListParameters<u64>,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
-    pub noise_level: NoiseLevel,
     pub expansion_kind: CompactCiphertextListExpansionKind,
 }
 
@@ -259,7 +291,6 @@ impl CiphertextConformanceParams {
             carry_modulus: self.carry_modulus,
             degree: self.degree,
             expansion_kind: self.pbs_order.into(),
-            noise_level: self.noise_level,
         }
     }
 }
@@ -273,6 +304,20 @@ impl From<ClassicPBSParameters> for PBSParameters {
 impl From<MultiBitPBSParameters> for PBSParameters {
     fn from(value: MultiBitPBSParameters) -> Self {
         Self::MultiBitPBS(value)
+    }
+}
+
+impl From<&PBSParameters> for KeyswitchKeyConformanceParams {
+    fn from(value: &PBSParameters) -> Self {
+        Self {
+            decomp_base_log: value.ks_base_log(),
+            decomp_level_count: value.ks_level(),
+            output_lwe_size: value.lwe_dimension().to_lwe_size(),
+            input_lwe_dimension: value
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(value.polynomial_size()),
+            ciphertext_modulus: value.ciphertext_modulus(),
+        }
     }
 }
 
@@ -649,77 +694,79 @@ where
 }
 
 /// Vector containing all [`ClassicPBSParameters`] parameter sets
-pub const ALL_PARAMETER_VEC: [ClassicPBSParameters; 28] = WITH_CARRY_PARAMETERS_VEC;
+pub const ALL_PARAMETER_VEC: [ClassicPBSParameters; 29] = WITH_CARRY_PARAMETERS_VEC;
 
 /// Vector containing all parameter sets where the carry space is strictly greater than one
-pub const WITH_CARRY_PARAMETERS_VEC: [ClassicPBSParameters; 28] = [
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_7_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_1_KS_PBS,
+pub const WITH_CARRY_PARAMETERS_VEC: [ClassicPBSParameters; 29] = [
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M64,
 ];
 
 /// Vector containing all parameter sets where the carry space is strictly greater than one
-pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [ClassicPBSParameters; 16] = [
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_7_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [ClassicPBSParameters; 17] = [
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
 ];
 
 /// Nomenclature: PARAM_MESSAGE_X_CARRY_Y: the message (respectively carry) modulus is
 /// encoded over X (reps. Y) bits, i.e., message_modulus = 2^{X} (resp. carry_modulus = 2^{Y}).
 /// All parameter sets guarantee 128-bits of security and an error probability smaller than
 /// 2^{-40} for a PBS.
-
+///
 /// Return a parameter set from a message and carry moduli.
 ///
 /// # Example
 ///
 /// ```rust
 /// use tfhe::shortint::parameters::{
-///     get_parameters_from_message_and_carry, PARAM_MESSAGE_3_CARRY_1_KS_PBS,
+///     get_parameters_from_message_and_carry, V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
 /// };
 /// let message_space = 7;
 /// let carry_space = 2;
 /// let param = get_parameters_from_message_and_carry(message_space, carry_space);
-/// assert_eq!(param, PARAM_MESSAGE_3_CARRY_1_KS_PBS);
+/// assert_eq!(param, V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 /// ```
 pub fn get_parameters_from_message_and_carry(
     msg_space: usize,
@@ -727,9 +774,9 @@ pub fn get_parameters_from_message_and_carry(
 ) -> ClassicPBSParameters {
     let mut out = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     let mut flag: bool = false;
-    let mut rescaled_message_space = f64::ceil(f64::log2(msg_space as f64)) as usize;
+    let mut rescaled_message_space = f64::ceil(f64::log2(msg_space as f64)) as u64;
     rescaled_message_space = 1 << rescaled_message_space;
-    let mut rescaled_carry_space = f64::ceil(f64::log2(carry_space as f64)) as usize;
+    let mut rescaled_carry_space = f64::ceil(f64::log2(carry_space as f64)) as u64;
     rescaled_carry_space = 1 << rescaled_carry_space;
 
     for param in ALL_PARAMETER_VEC {
@@ -750,132 +797,42 @@ pub fn get_parameters_from_message_and_carry(
     out
 }
 
-// Aliases, to be deprecated in subsequent versions once we e.g. have the "parameter builder"
-pub const PARAM_MESSAGE_1_CARRY_0_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_1_CARRY_1_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_1_CARRY_2_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_1_CARRY_3_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_1_CARRY_4_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_1_CARRY_5_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_1_CARRY_6_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_1_CARRY_7_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_2_CARRY_0_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_2_CARRY_1_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64;
 pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_44B: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_44B_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_2_CARRY_3_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_2_CARRY_4_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_2_CARRY_5_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_2_CARRY_6_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_3_CARRY_0_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_3_CARRY_1_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_3_CARRY_2_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_3_CARRY_3_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_3_CARRY_4_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_3_CARRY_5_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_4_CARRY_0_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_4_CARRY_1_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_4_CARRY_2_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_4_CARRY_3_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_4_CARRY_4_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_5_CARRY_0_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_5_CARRY_1_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_5_CARRY_2_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_5_CARRY_3_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_6_CARRY_0_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_6_CARRY_1_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_6_CARRY_2_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_7_CARRY_0_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_7_CARRY_1_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_8_CARRY_0_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_1_CARRY_1_PBS_KS: ClassicPBSParameters =
-    PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_2_CARRY_2_PBS_KS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_3_CARRY_3_PBS_KS: ClassicPBSParameters =
-    PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64;
-pub const PARAM_MESSAGE_4_CARRY_4_PBS_KS: ClassicPBSParameters =
-    PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64;
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-pub const PARAM_MESSAGE_1_CARRY_0: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_0_KS_PBS;
-pub const PARAM_MESSAGE_1_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_1_KS_PBS;
-pub const PARAM_MESSAGE_1_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_2_KS_PBS;
-pub const PARAM_MESSAGE_1_CARRY_3: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_3_KS_PBS;
-pub const PARAM_MESSAGE_1_CARRY_4: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_4_KS_PBS;
-pub const PARAM_MESSAGE_1_CARRY_5: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_5_KS_PBS;
-pub const PARAM_MESSAGE_1_CARRY_6: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_6_KS_PBS;
-pub const PARAM_MESSAGE_1_CARRY_7: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_7_KS_PBS;
-pub const PARAM_MESSAGE_2_CARRY_0: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_0_KS_PBS;
-pub const PARAM_MESSAGE_2_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_1_KS_PBS;
 pub const PARAM_MESSAGE_2_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-pub const PARAM_MESSAGE_2_CARRY_3: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_3_KS_PBS;
-pub const PARAM_MESSAGE_2_CARRY_4: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_4_KS_PBS;
-pub const PARAM_MESSAGE_2_CARRY_5: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_5_KS_PBS;
-pub const PARAM_MESSAGE_2_CARRY_6: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_6_KS_PBS;
-pub const PARAM_MESSAGE_3_CARRY_0: ClassicPBSParameters = PARAM_MESSAGE_3_CARRY_0_KS_PBS;
-pub const PARAM_MESSAGE_3_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_3_CARRY_1_KS_PBS;
-pub const PARAM_MESSAGE_3_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_3_CARRY_2_KS_PBS;
-pub const PARAM_MESSAGE_3_CARRY_3: ClassicPBSParameters = PARAM_MESSAGE_3_CARRY_3_KS_PBS;
-pub const PARAM_MESSAGE_3_CARRY_4: ClassicPBSParameters = PARAM_MESSAGE_3_CARRY_4_KS_PBS;
-pub const PARAM_MESSAGE_3_CARRY_5: ClassicPBSParameters = PARAM_MESSAGE_3_CARRY_5_KS_PBS;
-pub const PARAM_MESSAGE_4_CARRY_0: ClassicPBSParameters = PARAM_MESSAGE_4_CARRY_0_KS_PBS;
-pub const PARAM_MESSAGE_4_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_4_CARRY_1_KS_PBS;
-pub const PARAM_MESSAGE_4_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_4_CARRY_2_KS_PBS;
-pub const PARAM_MESSAGE_4_CARRY_3: ClassicPBSParameters = PARAM_MESSAGE_4_CARRY_3_KS_PBS;
-pub const PARAM_MESSAGE_4_CARRY_4: ClassicPBSParameters = PARAM_MESSAGE_4_CARRY_4_KS_PBS;
-pub const PARAM_MESSAGE_5_CARRY_0: ClassicPBSParameters = PARAM_MESSAGE_5_CARRY_0_KS_PBS;
-pub const PARAM_MESSAGE_5_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
-pub const PARAM_MESSAGE_5_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_5_CARRY_2_KS_PBS;
-pub const PARAM_MESSAGE_5_CARRY_3: ClassicPBSParameters = PARAM_MESSAGE_5_CARRY_3_KS_PBS;
-pub const PARAM_MESSAGE_6_CARRY_0: ClassicPBSParameters = PARAM_MESSAGE_6_CARRY_0_KS_PBS;
-pub const PARAM_MESSAGE_6_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_6_CARRY_1_KS_PBS;
-pub const PARAM_MESSAGE_6_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_6_CARRY_2_KS_PBS;
-pub const PARAM_MESSAGE_7_CARRY_0: ClassicPBSParameters = PARAM_MESSAGE_7_CARRY_0_KS_PBS;
-pub const PARAM_MESSAGE_7_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_7_CARRY_1_KS_PBS;
-pub const PARAM_MESSAGE_8_CARRY_0: ClassicPBSParameters = PARAM_MESSAGE_8_CARRY_0_KS_PBS;
-pub const PARAM_SMALL_MESSAGE_1_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_1_PBS_KS;
-pub const PARAM_SMALL_MESSAGE_2_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_2_PBS_KS;
-pub const PARAM_SMALL_MESSAGE_3_CARRY_3: ClassicPBSParameters = PARAM_MESSAGE_3_CARRY_3_PBS_KS;
-pub const PARAM_SMALL_MESSAGE_4_CARRY_4: ClassicPBSParameters = PARAM_MESSAGE_4_CARRY_4_PBS_KS;
 
 pub const COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS: CompressionParameters =
-    list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
 pub const COMP_PARAM_MESSAGE_2_CARRY_2: CompressionParameters = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+
+// GPU
+pub const PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+/// The Zk scheme for compact private key encryption supported by these parameters.
+///
+/// The Zk Scheme is available in 2 versions. In case of doubt, you should prefer the V2 which is
+/// more efficient.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(SupportedCompactPkeZkSchemeVersions)]
+pub enum SupportedCompactPkeZkScheme {
+    /// The given parameters do not support zk proof of encryption
+    ZkNotSupported,
+    V1,
+    V2,
+}
+
+#[cfg(feature = "zk-pok")]
+impl TryFrom<SupportedCompactPkeZkScheme> for CompactPkeZkScheme {
+    type Error = ();
+
+    fn try_from(value: SupportedCompactPkeZkScheme) -> Result<Self, Self::Error> {
+        match value {
+            SupportedCompactPkeZkScheme::ZkNotSupported => Err(()),
+            SupportedCompactPkeZkScheme::V1 => Ok(Self::V1),
+            SupportedCompactPkeZkScheme::V2 => Ok(Self::V2),
+        }
+    }
+}

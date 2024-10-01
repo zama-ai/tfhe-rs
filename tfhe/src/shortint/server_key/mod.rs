@@ -19,8 +19,7 @@ mod shift;
 mod sub;
 
 pub mod compressed;
-use ::tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
-use aligned_vec::ABox;
+
 pub use bivariate_pbs::{
     BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,
 };
@@ -30,33 +29,33 @@ pub(crate) use scalar_mul::unchecked_scalar_mul_assign;
 #[cfg(test)]
 pub(crate) mod tests;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::{
-    FourierLweMultiBitBootstrapKeyVersioned, FourierLweMultiBitBootstrapKeyVersionedOwned,
-};
-use crate::core_crypto::backward_compatibility::fft_impl::{
-    FourierLweBootstrapKeyVersioned, FourierLweBootstrapKeyVersionedOwned,
-};
 use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, LweSize, MonomialDegree,
-    PolynomialSize, ThreadCount,
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, GlweSize, LweBskGroupingFactor,
+    LweDimension, LweSize, MonomialDegree, PolynomialSize, ThreadCount,
 };
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::core_crypto::prelude::ComputationBuffers;
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
-    fill_accumulator, fill_accumulator_no_encoding, fill_many_lut_accumulator, ShortintEngine,
+    fill_accumulator, fill_accumulator_no_encoding, fill_accumulator_with_encoding,
+    fill_many_lut_accumulator, ShortintEngine,
 };
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
-use crate::shortint::{PBSMode, PBSOrder};
+
+use crate::shortint::{EncryptionKeyChoice, PBSMode, PBSOrder, PaddingBit, ShortintEncoding};
+use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
+use tfhe_versionable::Versionize;
 
 #[cfg(feature = "pbs-stats")]
 pub mod pbs_stats {
@@ -76,9 +75,10 @@ pub mod pbs_stats {
 pub use pbs_stats::*;
 
 use super::backward_compatibility::server_key::{
-    SerializableShortintBootstrappingKeyVersioned,
-    SerializableShortintBootstrappingKeyVersionedOwned, ServerKeyVersions,
+    SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
 };
+use super::ciphertext::unchecked_create_trivial_with_lwe_size;
+use super::PBSParameters;
 
 /// Error returned when the carry buffer is full.
 #[derive(Debug)]
@@ -136,7 +136,8 @@ impl Display for CheckError {
 
 impl std::error::Error for CheckError {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Versionize)]
+#[versionize(convert = "SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>")]
 pub enum ShortintBootstrappingKey {
     Classic(FourierLweBootstrapKeyOwned),
     ClassicNtt(NttLweBootstrapKeyOwned<u64>),
@@ -147,9 +148,10 @@ pub enum ShortintBootstrappingKey {
     },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
-pub enum SerializableShortintBootstrappingKey<C: Container<Element = concrete_fft::c64>> {
+#[versionize(SerializableShortintBootstrappingKeyVersions)]
+pub enum SerializableShortintBootstrappingKey<C: Container<Element = tfhe_fft::c64>> {
     Classic(FourierLweBootstrapKey<C>),
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKey<C>,
@@ -157,116 +159,7 @@ pub enum SerializableShortintBootstrappingKey<C: Container<Element = concrete_ff
     },
 }
 
-#[derive(Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum SerializableShortintBootstrappingKeyVersion<'vers> {
-    Classic(FourierLweBootstrapKeyVersioned<'vers>),
-    MultiBit {
-        fourier_bsk: FourierLweMultiBitBootstrapKeyVersioned<'vers>,
-        deterministic_execution: bool,
-    },
-}
-
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum SerializableShortintBootstrappingKeyVersionOwned {
-    Classic(FourierLweBootstrapKeyVersionedOwned),
-    MultiBit {
-        fourier_bsk: FourierLweMultiBitBootstrapKeyVersionedOwned,
-        deterministic_execution: bool,
-    },
-}
-
-impl<'vers, C: Container<Element = concrete_fft::c64>>
-    From<&'vers SerializableShortintBootstrappingKey<C>>
-    for SerializableShortintBootstrappingKeyVersion<'vers>
-{
-    fn from(value: &'vers SerializableShortintBootstrappingKey<C>) -> Self {
-        match value {
-            SerializableShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk.versionize()),
-            SerializableShortintBootstrappingKey::MultiBit {
-                fourier_bsk,
-                deterministic_execution,
-            } => Self::MultiBit {
-                fourier_bsk: fourier_bsk.versionize(),
-                deterministic_execution: *deterministic_execution,
-            },
-        }
-    }
-}
-
-impl<C: Container<Element = concrete_fft::c64>> From<SerializableShortintBootstrappingKey<C>>
-    for SerializableShortintBootstrappingKeyVersionOwned
-{
-    fn from(value: SerializableShortintBootstrappingKey<C>) -> Self {
-        match value {
-            SerializableShortintBootstrappingKey::Classic(bsk) => {
-                Self::Classic(bsk.versionize_owned())
-            }
-            SerializableShortintBootstrappingKey::MultiBit {
-                fourier_bsk,
-                deterministic_execution,
-            } => Self::MultiBit {
-                fourier_bsk: fourier_bsk.versionize_owned(),
-                deterministic_execution,
-            },
-        }
-    }
-}
-
-impl<C: IntoContainerOwned<Element = concrete_fft::c64>>
-    TryFrom<SerializableShortintBootstrappingKeyVersionOwned>
-    for SerializableShortintBootstrappingKey<C>
-{
-    type Error = UnversionizeError;
-
-    fn try_from(
-        value: SerializableShortintBootstrappingKeyVersionOwned,
-    ) -> Result<Self, Self::Error> {
-        match value {
-            SerializableShortintBootstrappingKeyVersionOwned::Classic(bsk) => {
-                Ok(Self::Classic(FourierLweBootstrapKey::unversionize(bsk)?))
-            }
-            SerializableShortintBootstrappingKeyVersionOwned::MultiBit {
-                fourier_bsk,
-                deterministic_execution,
-            } => Ok(Self::MultiBit {
-                fourier_bsk: FourierLweMultiBitBootstrapKey::unversionize(fourier_bsk)?,
-                deterministic_execution,
-            }),
-        }
-    }
-}
-
-impl<C: Container<Element = concrete_fft::c64>> Versionize
-    for SerializableShortintBootstrappingKey<C>
-{
-    type Versioned<'vers> = SerializableShortintBootstrappingKeyVersioned<'vers> where C: 'vers;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        self.into()
-    }
-}
-
-impl<C: Container<Element = concrete_fft::c64>> VersionizeOwned
-    for SerializableShortintBootstrappingKey<C>
-{
-    type VersionedOwned = SerializableShortintBootstrappingKeyVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        self.into()
-    }
-}
-
-impl<C: IntoContainerOwned<Element = concrete_fft::c64>> Unversionize
-    for SerializableShortintBootstrappingKey<C>
-{
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        Self::try_from(versioned)
-    }
-}
-
-impl<C: Container<Element = concrete_fft::c64>> SerializableShortintBootstrappingKey<C> {
+impl<C: Container<Element = tfhe_fft::c64>> SerializableShortintBootstrappingKey<C> {
     /// Returns `true` if the serializable shortint bootstrapping key is [`Classic`].
     ///
     /// [`Classic`]: SerializableShortintBootstrappingKey::Classic
@@ -277,7 +170,7 @@ impl<C: Container<Element = concrete_fft::c64>> SerializableShortintBootstrappin
 }
 
 impl<'a> From<&'a ShortintBootstrappingKey>
-    for SerializableShortintBootstrappingKey<&'a [concrete_fft::c64]>
+    for SerializableShortintBootstrappingKey<&'a [tfhe_fft::c64]>
 {
     fn from(value: &'a ShortintBootstrappingKey) -> Self {
         match value {
@@ -298,7 +191,7 @@ impl<'a> From<&'a ShortintBootstrappingKey>
 }
 
 impl From<ShortintBootstrappingKey>
-    for SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>>
+    for SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>
 {
     fn from(value: ShortintBootstrappingKey) -> Self {
         match value {
@@ -327,26 +220,10 @@ impl Serialize for ShortintBootstrappingKey {
     }
 }
 
-impl Versionize for ShortintBootstrappingKey {
-    type Versioned<'vers> = SerializableShortintBootstrappingKeyVersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        SerializableShortintBootstrappingKey::from(self).versionize_owned()
-    }
-}
-
-impl VersionizeOwned for ShortintBootstrappingKey {
-    type VersionedOwned = <SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>> as VersionizeOwned>::VersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        SerializableShortintBootstrappingKey::from(self).versionize_owned()
-    }
-}
-
-impl From<SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>>>
+impl From<SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>>
     for ShortintBootstrappingKey
 {
-    fn from(value: SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>>) -> Self {
+    fn from(value: SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>) -> Self {
         match value {
             SerializableShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk),
             SerializableShortintBootstrappingKey::MultiBit {
@@ -380,12 +257,6 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
     {
         let deser_sk = SerializableShortintBootstrappingKey::deserialize(deserializer)?;
         Ok(Self::from(deser_sk))
-    }
-}
-
-impl Unversionize for ShortintBootstrappingKey {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        SerializableShortintBootstrappingKey::unversionize(versioned).map(Self::from)
     }
 }
 
@@ -553,50 +424,6 @@ pub struct ServerKey {
     pub pbs_mode: PBSMode,
 }
 
-impl ServerKey {
-    pub fn conformance_params(&self) -> CiphertextConformanceParams {
-        let lwe_dim = self.ciphertext_lwe_dimension();
-
-        let ms_decompression_method = match &self.bootstrapping_key {
-            ShortintBootstrappingKey::Classic(_) => MsDecompressionType::ClassicPbs,
-            ShortintBootstrappingKey::ClassicNtt(_) => {
-                todo!("Conformance not implemented for ClassicNtt")
-            }
-            ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
-                MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
-            }
-        };
-
-        let ct_params = LweCiphertextParameters {
-            lwe_dim,
-            ct_modulus: self.ciphertext_modulus,
-            ms_decompression_method,
-        };
-
-        CiphertextConformanceParams {
-            ct_params,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            degree: Degree::new(self.message_modulus.0 - 1),
-            pbs_order: self.pbs_order,
-            noise_level: NoiseLevel::NOMINAL,
-        }
-    }
-}
-
-impl ServerKey {
-    /// Compute associated encoding delta.
-    /// Used for scalar encoding
-    pub(crate) fn delta(&self) -> u64 {
-        if self.ciphertext_modulus.is_native_modulus() {
-            (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64
-        } else {
-            (self.ciphertext_modulus.get_custom_modulus() / 2) as u64
-                / (self.message_modulus.0 * self.carry_modulus.0) as u64
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
 pub struct LookupTable<C: Container<Element = u64>> {
@@ -762,6 +589,45 @@ impl ServerKey {
             pbs_mode,
         }
     }
+
+    pub fn conformance_params(&self) -> CiphertextConformanceParams {
+        let lwe_dim = self.ciphertext_lwe_dimension();
+
+        let ms_decompression_method = match &self.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(_) => MsDecompressionType::ClassicPbs,
+            ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
+                MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
+            }
+            ShortintBootstrappingKey::ClassicNtt(_) => {
+                todo!()
+            }
+        };
+
+        let ct_params = LweCiphertextParameters {
+            lwe_dim,
+            ct_modulus: self.ciphertext_modulus,
+            ms_decompression_method,
+        };
+
+        CiphertextConformanceParams {
+            ct_params,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            degree: Degree::new(self.message_modulus.0 - 1),
+            pbs_order: self.pbs_order,
+            noise_level: NoiseLevel::NOMINAL,
+        }
+    }
+
+    pub(crate) fn encoding(&self, padding_bit: PaddingBit) -> ShortintEncoding {
+        ShortintEncoding {
+            ciphertext_modulus: self.ciphertext_modulus,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            padding_bit,
+        }
+    }
+
     /// Constructs the lookup table given a function as input.
     ///
     /// # Example
@@ -850,7 +716,7 @@ impl ServerKey {
     where
         F: Fn(u64) -> u64,
     {
-        self.generate_lookup_table(|x| f(x % modulus.0 as u64) % modulus.0 as u64)
+        self.generate_lookup_table(|x| f(x % modulus.0) % modulus.0)
     }
 
     /// Constructs the lookup table given a set of function as input.
@@ -860,7 +726,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// {
@@ -889,7 +755,7 @@ impl ServerKey {
     /// }
     /// {
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    ///     let (cks, sks) = gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     ///     let msg = 3;
     ///
@@ -923,7 +789,14 @@ impl ServerKey {
             self.ciphertext_modulus,
         );
         let (input_max_degree, sample_extraction_stride, per_function_output_degree) =
-            fill_many_lut_accumulator(&mut acc, self, functions);
+            fill_many_lut_accumulator(
+                &mut acc,
+                self.bootstrapping_key.polynomial_size(),
+                self.bootstrapping_key.glwe_size(),
+                self.message_modulus,
+                self.carry_modulus,
+                functions,
+            );
 
         ManyLookupTableOwned {
             acc,
@@ -946,7 +819,7 @@ impl ServerKey {
     ///
     /// let msg: u64 = 3;
     /// let ct = cks.encrypt(msg);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// // Generate the lookup table for the function f: x -> x*x*x mod 4
     /// let lut = sks.generate_lookup_table(|x| x * x * x % modulus);
@@ -1007,7 +880,7 @@ impl ServerKey {
         });
 
         ct.degree = acc.degree;
-        ct.set_noise_level(NoiseLevel::NOMINAL);
+        ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
     }
 
     /// Compute a keyswitch and programmable bootstrap applying several functions on an input
@@ -1021,7 +894,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// {
@@ -1050,7 +923,7 @@ impl ServerKey {
     /// }
     /// {
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    ///     let (cks, sks) = gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     ///     let msg = 3;
     ///
@@ -1147,7 +1020,7 @@ impl ServerKey {
     /// assert_eq!(2, res);
     /// ```
     pub fn carry_extract_assign(&self, ct: &mut Ciphertext) {
-        let modulus = ct.message_modulus.0 as u64;
+        let modulus = ct.message_modulus.0;
 
         let lookup_table = self.generate_lookup_table(|x| x / modulus);
 
@@ -1292,34 +1165,22 @@ impl ServerKey {
     /// assert_eq!(1, ct_res);
     /// ```
     pub fn create_trivial(&self, value: u64) -> Ciphertext {
-        let modular_value = value as usize % self.message_modulus.0;
-        self.unchecked_create_trivial(modular_value as u64)
+        let modular_value = value % self.message_modulus.0;
+        self.unchecked_create_trivial(modular_value)
     }
 
     pub(crate) fn unchecked_create_trivial_with_lwe_size(
         &self,
-        value: u64,
+        value: Cleartext<u64>,
         lwe_size: LweSize,
     ) -> Ciphertext {
-        let shifted_value = value * self.delta();
-
-        let encoded = Plaintext(shifted_value);
-
-        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+        unchecked_create_trivial_with_lwe_size(
+            value,
             lwe_size,
-            encoded,
-            self.ciphertext_modulus,
-        );
-
-        let degree = Degree::new(value as usize);
-
-        Ciphertext::new(
-            ct,
-            degree,
-            NoiseLevel::ZERO,
             self.message_modulus,
             self.carry_modulus,
             self.pbs_order,
+            self.ciphertext_modulus,
         )
     }
 
@@ -1333,20 +1194,20 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_create_trivial_with_lwe_size(value, lwe_size)
+        self.unchecked_create_trivial_with_lwe_size(Cleartext(value), lwe_size)
     }
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
-        let modular_value = value as usize % self.message_modulus.0;
+        let modular_value = value % self.message_modulus.0;
 
-        let shifted_value = (modular_value as u64) * self.delta();
-
-        let encoded = Plaintext(shifted_value);
+        let encoded = self
+            .encoding(PaddingBit::Yes)
+            .encode(Cleartext(modular_value));
 
         trivially_encrypt_lwe_ciphertext(&mut ct.ct, encoded);
 
         ct.degree = Degree::new(modular_value);
-        ct.set_noise_level(NoiseLevel::ZERO);
+        ct.set_noise_level(NoiseLevel::ZERO, self.max_noise_level);
     }
 
     pub fn bootstrapping_key_size_elements(&self) -> usize {
@@ -1382,15 +1243,16 @@ impl ServerKey {
 
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
         let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
-        // NB: Following path will not go `power_of_two_scaling_to_native_torus`
-        // Thus keep value MSB aligned without considering real delta
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
-        let ct_value = *ct.ct.get_body().data / delta;
 
-        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup;
-        let result = if ct_value >= modulus_sup as u64 {
+        let ct_value = self
+            .encoding(PaddingBit::Yes)
+            .decode(Plaintext(*ct.ct.get_body().data))
+            .0;
+
+        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup as usize;
+        let result = if ct_value >= modulus_sup {
             // padding bit is 1
-            let ct_value = ct_value % modulus_sup as u64;
+            let ct_value = ct_value % modulus_sup;
             let index_in_lut = ct_value as usize * box_size;
             acc.acc.get_body().as_ref()[index_in_lut].wrapping_neg()
         } else {
@@ -1407,16 +1269,16 @@ impl ServerKey {
 
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
         let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
-        // NB: Following path will not go `power_of_two_scaling_to_native_torus`
-        // Thus keep value MSB aligned without considering real delta
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
-        let ct_value = *ct.ct.get_body().data / delta;
+        let ct_value = self
+            .encoding(PaddingBit::Yes)
+            .decode(Plaintext(*ct.ct.get_body().data))
+            .0;
 
-        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup;
+        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup as usize;
 
-        let padding_bit_set = ct_value >= modulus_sup as u64;
+        let padding_bit_set = ct_value >= modulus_sup;
         let first_result_index_in_lut = {
-            let ct_value = ct_value % modulus_sup as u64;
+            let ct_value = ct_value % modulus_sup;
             ct_value as usize * box_size
         };
 
@@ -1504,7 +1366,7 @@ impl ServerKey {
             );
 
             output_shortint_ct.degree = *output_degree;
-            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL);
+            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
             outputs.push(output_shortint_ct);
         }
 
@@ -1555,7 +1417,7 @@ impl ServerKey {
             );
 
             output_shortint_ct.degree = *output_degree;
-            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL);
+            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
             outputs.push(output_shortint_ct);
         }
 
@@ -1563,10 +1425,19 @@ impl ServerKey {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct CiphertextNoiseDegree {
     pub noise_level: NoiseLevel,
     pub degree: Degree,
+}
+
+impl CiphertextNoiseDegree {
+    pub fn new(noise_level: NoiseLevel, degree: Degree) -> Self {
+        Self {
+            noise_level,
+            degree,
+        }
+    }
 }
 
 impl Ciphertext {
@@ -1747,6 +1618,152 @@ where
 
     LookupTableOwned {
         acc,
-        degree: Degree::new(max_value as usize),
+        degree: Degree::new(max_value),
+    }
+}
+
+/// Caller needs to ensure that the operation applied is coherent from an encoding perspective.
+///
+/// For example:
+///
+/// Input encoding has 2 bits and output encoding has 4 bits, applying the identity lut would map
+/// the following:
+///
+/// 0|00|xx -> 0|00|00
+/// 0|01|xx -> 0|00|01
+/// 0|10|xx -> 0|00|10
+/// 0|11|xx -> 0|00|11
+///
+/// The reason is the identity function is computed in the input space but the scaling is done in
+/// the output space, as there are more bits in the output space, the delta is smaller hence the
+/// apparent "division" happening.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn generate_lookup_table_with_encoding<F>(
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    ciphertext_modulus: CiphertextModulus,
+    input_message_modulus: MessageModulus,
+    input_carry_modulus: CarryModulus,
+    output_message_modulus: MessageModulus,
+    output_carry_modulus: CarryModulus,
+    f: F,
+) -> LookupTableOwned
+where
+    F: Fn(u64) -> u64,
+{
+    let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, ciphertext_modulus);
+    let max_value = fill_accumulator_with_encoding(
+        &mut acc,
+        polynomial_size,
+        glwe_size,
+        input_message_modulus,
+        input_carry_modulus,
+        output_message_modulus,
+        output_carry_modulus,
+        f,
+    );
+
+    LookupTableOwned {
+        acc,
+        degree: Degree::new(max_value),
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct PBSConformanceParameters {
+    pub in_lwe_dimension: LweDimension,
+    pub out_glwe_dimension: GlweDimension,
+    pub out_polynomial_size: PolynomialSize,
+    pub base_log: DecompositionBaseLog,
+    pub level: DecompositionLevelCount,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub multi_bit: Option<LweBskGroupingFactor>,
+}
+
+impl From<&PBSParameters> for PBSConformanceParameters {
+    fn from(value: &PBSParameters) -> Self {
+        Self {
+            in_lwe_dimension: value.lwe_dimension(),
+            out_glwe_dimension: value.glwe_dimension(),
+            out_polynomial_size: value.polynomial_size(),
+            base_log: value.pbs_base_log(),
+            level: value.pbs_level(),
+            ciphertext_modulus: value.ciphertext_modulus(),
+            multi_bit: match value {
+                PBSParameters::PBS(_) => None,
+                PBSParameters::MultiBitPBS(multi_bit_pbs_parameters) => {
+                    Some(multi_bit_pbs_parameters.grouping_factor)
+                }
+            },
+        }
+    }
+}
+
+impl ParameterSetConformant for ShortintBootstrappingKey {
+    type ParameterSet = PBSConformanceParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        match (self, parameter_set.multi_bit) {
+            (Self::Classic(a), None) => {
+                let param: BootstrapKeyConformanceParams = parameter_set.into();
+
+                a.is_conformant(&param)
+            }
+            (
+                Self::MultiBit {
+                    fourier_bsk,
+                    thread_count: _,
+                    deterministic_execution: _,
+                },
+                Some(_grouping_factor),
+            ) => {
+                let param: MultiBitBootstrapKeyConformanceParams =
+                    parameter_set.try_into().unwrap();
+
+                fourier_bsk.is_conformant(&param)
+            }
+            _ => false,
+        }
+    }
+}
+
+impl ParameterSetConformant for ServerKey {
+    type ParameterSet = (PBSParameters, MaxDegree);
+
+    fn is_conformant(&self, (parameter_set, expected_max_degree): &Self::ParameterSet) -> bool {
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+            pbs_order,
+            pbs_mode: _pbs_mode,
+        } = self;
+
+        let params: PBSConformanceParameters = parameter_set.into();
+
+        let pbs_key_ok = bootstrapping_key.is_conformant(&params);
+
+        let param: KeyswitchKeyConformanceParams = parameter_set.into();
+
+        let ks_key_ok = key_switching_key.is_conformant(&param);
+
+        let pbs_order_ok = matches!(
+            (*pbs_order, parameter_set.encryption_key_choice()),
+            (PBSOrder::KeyswitchBootstrap, EncryptionKeyChoice::Big)
+                | (PBSOrder::BootstrapKeyswitch, EncryptionKeyChoice::Small)
+        );
+
+        pbs_key_ok
+            && ks_key_ok
+            && pbs_order_ok
+            && *max_degree == *expected_max_degree
+            && *message_modulus == parameter_set.message_modulus()
+            && *carry_modulus == parameter_set.carry_modulus()
+            && *max_noise_level == parameter_set.max_noise_level()
+            && *ciphertext_modulus == parameter_set.ciphertext_modulus()
     }
 }

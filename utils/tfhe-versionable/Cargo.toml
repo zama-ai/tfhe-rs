@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-versionable"
-version = "0.2.1"
+version = "0.4.0"
 edition = "2021"
 keywords = ["versioning", "serialization", "encoding"]
 homepage = "https://zama.ai/"
@@ -8,7 +8,7 @@ documentation = "https://docs.rs/tfhe_versionable"
 repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
 description = "tfhe-versionable: Add versioning informations/backward compatibility on rust types used for serialization"
-rust-version = "1.76"
+rust-version = "1.81"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -25,7 +25,47 @@ serde_yaml = "0.9"
 toml = "0.8"
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-tfhe-versionable-derive = { version = "0.2.1", path = "../tfhe-versionable-derive" }
-num-complex = { version = "0.4", features = ["serde"] }
-aligned-vec = { version = "0.5", features = ["serde"] }
+serde = { workspace = true, features = ["default", "derive"] }
+tfhe-versionable-derive = { version = "0.4.0", path = "../tfhe-versionable-derive" }
+num-complex = { workspace = true, features = ["serde"] }
+aligned-vec = { workspace = true, features = ["default", "serde"] }
+
+[[example]]
+name = "manual_impl"
+test = true
+
+[[example]]
+name = "simple"
+test = true
+
+[[example]]
+name = "recursive"
+test = true
+
+[[example]]
+name = "upgrades"
+test = true
+
+[[example]]
+name = "failed_upgrade"
+test = true
+
+[[example]]
+name = "not_versioned"
+test = true
+
+[[example]]
+name = "convert"
+test = true
+
+[[example]]
+name = "vec"
+test = true
+
+[[example]]
+name = "bounds"
+test = true
+
+[[example]]
+name = "associated_bounds"
+test = true

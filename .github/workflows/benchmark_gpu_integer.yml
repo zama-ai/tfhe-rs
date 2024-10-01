@@ -1,200 +1,79 @@
-# Run integer benchmarks on an instance with CUDA and return parsed results to Slab CI bot.
-name: Integer GPU benchmarks
+# Run CUDA benchmarks on a Hyperstack VM and return parsed results to Slab CI bot.
+name: Cuda benchmarks
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-
-env:
-  CARGO_TERM_COLOR: always
-  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
-  PARSE_INTEGER_BENCH_CSV_FILE: tfhe_rs_integer_benches_${{ github.sha }}.csv
-  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  RUST_BACKTRACE: "full"
-  RUST_MIN_STACK: "8388608"
-  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    inputs:
+      profile:
+        description: "Instance type"
+        required: true
+        type: choice
+        options:
+          - "l40 (n3-L40x1)"
+          - "single-h100 (n3-H100x1)"
+          - "2-h100 (n3-H100x2)"
+          - "4-h100 (n3-H100x4)"
+          - "multi-h100 (n3-H100x8)"
+          - "multi-h100-nvlink (n3-H100x8-NVLink)"
+          - "multi-h100-sxm5 (n3-H100x8-SXM5)"
+          - "multi-a100-nvlink (n3-A100x8-NVLink)"
+      command:
+        description: "Benchmark command to run"
+        type: choice
+        default: integer_multi_bit
+        options:
+          - integer
+          - integer_multi_bit
+          - integer_compression
+          - pbs
+          - ks
+      op_flavor:
+        description: "Operations set to run"
+        type: choice
+        default: default
+        options:
+          - default
+          - fast_default
+          - unchecked
+      all_precisions:
+        description: "Run all precisions"
+        type: boolean
+        default: false
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
+          - both
 
 jobs:
-  setup-instance:
-    name: Setup instance (cuda-integer-benchmarks)
+  parse-inputs:
     runs-on: ubuntu-latest
-    if:  github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
-      runner-name: ${{ steps.start-instance.outputs.label }}
+      profile: ${{ steps.parse_profile.outputs.profile }}
+      hardware_name: ${{ steps.parse_hardware_name.outputs.name }}
     steps:
-      - name: Start instance
-        id: start-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
-        with:
-          mode: start
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
-          profile: single-h100
-
-  cuda-integer-benchmarks:
-    name: Execute GPU integer benchmarks
-    needs: setup-instance
-    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    strategy:
-      fail-fast: false
-      # explicit include-based build matrix, of known valid options
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            cuda: "12.2"
-            gcc: 11
-    env:
-      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
-      CMAKE_VERSION: 3.29.6
-    steps:
-      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
-      - name: Install dependencies
+      - name: Parse profile
+        id: parse_profile
         run: |
-          sudo apt update
-          sudo apt install -y checkinstall zlib1g-dev libssl-dev
-          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
-          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
-          cd cmake-${{ env.CMAKE_VERSION }}
-          ./bootstrap
-          make -j"$(nproc)"
-          sudo make install
+          echo "profile=$(echo '${{ inputs.profile }}' | sed 's|\(.*\)[[:space:]](.*)|\1|')" >> "${GITHUB_OUTPUT}"
 
-      - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-        with:
-          fetch-depth: 0
-
-      - name: Get benchmark details
+      - name: Parse hardware name
+        id: parse_hardware_name
         run: |
-          {
-            echo "BENCH_DATE=$(date --iso-8601=seconds)";
-            echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})";
-            echo "COMMIT_HASH=$(git describe --tags --dirty)";
-          } >> "${GITHUB_ENV}"
+          echo "name=$(echo '${{ inputs.profile }}' | sed 's|.*[[:space:]](\(.*\))|\1|')" >> "${GITHUB_OUTPUT}"
 
-      - name: Set up home
-        # "Install rust" step require root user to have a HOME directory which is not set.
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-
-      - name: Install rust
-        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
-        with:
-          toolchain: nightly
-
-      - name: Export CUDA variables
-        if: ${{ !cancelled() }}
-        run: |
-          {
-            echo "CUDA_PATH=$CUDA_PATH";
-            echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
-            echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc";
-          } >> "${GITHUB_ENV}"
-          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
-
-      # Specify the correct host compilers
-      - name: Export gcc and g++ variables
-        if: ${{ !cancelled() }}
-        run: |
-          {
-            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
-            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
-          } >> "${GITHUB_ENV}"
-
-      - name: Check device is detected
-        if: ${{ !cancelled() }}
-        run: nvidia-smi
-
-      - name: Run benchmarks with AVX512
-        run: |
-          make FAST_BENCH=TRUE BENCH_OP_FLAVOR=default bench_integer_gpu
-
-      - name: Parse benchmarks to csv
-        run: |
-          make PARSE_INTEGER_BENCH_CSV_FILE=${{ env.PARSE_INTEGER_BENCH_CSV_FILE }} \
-            parse_integer_benches
-
-      - name: Upload csv results artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
-        with:
-          name: ${{ github.sha }}_csv_integer
-          path: ${{ env.PARSE_INTEGER_BENCH_CSV_FILE }}
-
-      - name: Parse results
-        run: |
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
-          --database tfhe_rs \
-          --hardware "n3-H100x1" \
-          --backend gpu \
-          --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
-          --commit-date "${{ env.COMMIT_DATE }}" \
-          --bench-date "${{ env.BENCH_DATE }}" \
-          --walk-subdirs \
-          --name-suffix avx512 \
-          --throughput
-
-      - name: Upload parsed results artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
-        with:
-          name: ${{ github.sha }}_integer
-          path: ${{ env.RESULTS_FILENAME }}
-
-      - name: Checkout Slab repo
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-        with:
-          repository: zama-ai/slab
-          path: slab
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
-
-      - name: Send data to Slab
-        shell: bash
-        run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
-          --slab-url "${{ secrets.SLAB_URL }}"
-
-  slack-notify:
-    name: Slack Notification
-    needs: [ setup-instance, cuda-integer-benchmarks ]
-    runs-on: ubuntu-latest
-    if: ${{ always() && needs.cuda-integer-benchmarks.result != 'skipped' && failure() }}
-    continue-on-error: true
-    steps:
-      - name: Send message
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
-        env:
-          SLACK_COLOR: ${{ needs.cuda-integer-benchmarks.result }}
-          SLACK_MESSAGE: "Integer GPU benchmarks finished with status: ${{ needs.cuda-integer-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
-
-  teardown-instance:
-    name: Teardown instance (cuda-integer-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, cuda-integer-benchmarks, slack-notify ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Stop instance
-        id: stop-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
-        with:
-          mode: stop
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-instance.outputs.runner-name }}
-
-      - name: Slack Notification
-        if: ${{ failure() }}
-        continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-integer-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+  run-benchmarks:
+    name: Run benchmarks
+    needs: parse-inputs
+    uses: ./.github/workflows/benchmark_gpu_integer_common.yml
+    with:
+      profile: ${{ needs.parse-inputs.outputs.profile }}
+      hardware_name: ${{ needs.parse-inputs.outputs.hardware_name }}
+      command: ${{ inputs.command }}
+      op_flavor: ${{ inputs.op_flavor }}
+      bench_type: ${{ inputs.bench_type }}
+      all_precisions: ${{ inputs.all_precisions }}
+    secrets: inherit

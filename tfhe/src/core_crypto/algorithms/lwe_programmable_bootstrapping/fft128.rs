@@ -49,13 +49,12 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///
@@ -233,7 +232,7 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized<
     accumulator: &GlweCiphertext<AccCont>,
     fourier_bsk: &Fourier128LweBootstrapKey<KeyCont>,
     fft: Fft128View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,

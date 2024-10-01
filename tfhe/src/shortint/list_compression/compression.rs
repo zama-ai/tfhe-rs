@@ -7,11 +7,11 @@ use crate::core_crypto::prelude::{
 };
 use crate::shortint::ciphertext::CompressedCiphertextList;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::NoiseLevel;
+use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
-    apply_programmable_bootstrap, generate_lookup_table, unchecked_scalar_mul_assign,
+    apply_programmable_bootstrap, generate_lookup_table_with_encoding, unchecked_scalar_mul_assign,
 };
-use crate::shortint::{Ciphertext, CiphertextModulus};
+use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
 
@@ -57,7 +57,15 @@ impl CompressionKey {
                 let mut list: Vec<_> = vec![];
 
                 for ct in ct_list {
-                    assert!(ct.carry_is_empty());
+                    assert!(
+                        ct.noise_level() == NoiseLevel::NOMINAL,
+                        "Ciphertexts must have a nominal (post PBS) noise to be compressed"
+                    );
+
+                    assert!(
+                        ct.carry_is_empty(),
+                        "Ciphertexts must have empty carries to be compressed"
+                    );
 
                     assert_eq!(
                         lwe_size,
@@ -79,8 +87,9 @@ impl CompressionKey {
                     );
 
                     let mut ct = ct.clone();
-
-                    unchecked_scalar_mul_assign(&mut ct, message_modulus.0 as u8);
+                    let max_noise_level =
+                        MaxNoiseLevel::new((ct.noise_level() * message_modulus.0).get());
+                    unchecked_scalar_mul_assign(&mut ct, message_modulus.0 as u8, max_noise_level);
 
                     list.extend(ct.ct.as_ref());
                 }
@@ -117,18 +126,49 @@ impl CompressionKey {
 }
 
 impl DecompressionKey {
-    pub fn unpack(&self, packed: &CompressedCiphertextList, index: usize) -> Option<Ciphertext> {
-        if index >= packed.count.0 {
-            return None;
+    pub fn unpack(
+        &self,
+        packed: &CompressedCiphertextList,
+        index: usize,
+    ) -> Result<Ciphertext, crate::Error> {
+        if packed.message_modulus.0 != packed.carry_modulus.0 {
+            return Err(crate::Error::new(format!(
+                "Tried to unpack values from a list where message modulus \
+                ({:?}) is != carry modulus ({:?}), this is not supported.",
+                packed.message_modulus, packed.carry_modulus,
+            )));
         }
 
-        let carry_extract = generate_lookup_table(
+        if index >= packed.count.0 {
+            return Err(crate::Error::new(format!(
+                "Tried getting index {index} for CompressedCiphertextList \
+                with {} elements, out of bound access.",
+                packed.count.0
+            )));
+        }
+
+        let encryption_cleartext_modulus = packed.message_modulus.0 * packed.carry_modulus.0;
+        // We multiply by message_modulus during compression so the actual modulus for the
+        // compression is smaller
+        let compression_cleartext_modulus = encryption_cleartext_modulus / packed.message_modulus.0;
+        let effective_compression_message_modulus = MessageModulus(compression_cleartext_modulus);
+        let effective_compression_carry_modulus = CarryModulus(1);
+
+        let decompression_rescale = generate_lookup_table_with_encoding(
             self.out_glwe_size(),
             self.out_polynomial_size(),
             packed.ciphertext_modulus,
+            // Input moduli are the effective compression ones
+            effective_compression_message_modulus,
+            effective_compression_carry_modulus,
+            // Output moduli are directly the ones stored in the list
             packed.message_modulus,
             packed.carry_modulus,
-            |x| x / packed.message_modulus.0 as u64,
+            // Here we do not divide by message_modulus
+            // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits space, we
+            // want to keep the original 2 bits value in the 4 bits space, so we apply the identity
+            // and the encoding will rescale it for us.
+            |x| x,
         );
 
         let polynomial_size = packed.modulus_switched_glwe_ciphertext_list[0].polynomial_size();
@@ -172,14 +212,14 @@ impl DecompressionKey {
                 &self.blind_rotate_key,
                 &intermediate_lwe,
                 &mut output_br,
-                &carry_extract.acc,
+                &decompression_rescale.acc,
                 buffers,
             );
         });
 
-        Some(Ciphertext::new(
+        Ok(Ciphertext::new(
             output_br,
-            carry_extract.degree,
+            decompression_rescale.degree,
             NoiseLevel::NOMINAL,
             packed.message_modulus,
             packed.carry_modulus,

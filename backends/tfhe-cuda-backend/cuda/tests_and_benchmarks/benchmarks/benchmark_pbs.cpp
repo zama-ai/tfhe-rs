@@ -1,9 +1,8 @@
+#include "pbs/pbs_multibit_utilities.h"
+#include "pbs/pbs_utilities.h"
 #include <benchmark/benchmark.h>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <omp.h>
 #include <setup_and_teardown.h>
 
 typedef struct {
@@ -50,7 +49,6 @@ protected:
   uint64_t *d_lut_pbs_indexes;
   uint64_t *d_lwe_ct_in_array;
   uint64_t *d_lwe_ct_out_array;
-  uint64_t *lwe_ct_out_array;
   uint64_t *d_lwe_input_indexes;
   uint64_t *d_lwe_output_indexes;
   int8_t *buffer;
@@ -177,9 +175,10 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 
   scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
-      grouping_factor, input_lwe_ciphertext_count, true);
-
+      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
+      true);
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
     cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
@@ -187,7 +186,8 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
         d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
         d_lwe_input_indexes, d_bsk, (pbs_buffer<uint64_t, MULTI_BIT> *)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-        pbs_base_log, pbs_level, input_lwe_ciphertext_count);
+        pbs_base_log, pbs_level, input_lwe_ciphertext_count, num_many_lut,
+        lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -208,15 +208,20 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
       glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
       true);
-
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
     cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
-        stream, gpu_index, d_lwe_ct_out_array, d_lwe_output_indexes,
-        d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
-        d_lwe_input_indexes, d_bsk, (pbs_buffer<uint64_t, MULTI_BIT> *)buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-        pbs_base_log, pbs_level, input_lwe_ciphertext_count);
+        stream, gpu_index, d_lwe_ct_out_array,
+        (const uint64_t *)d_lwe_output_indexes,
+        (const uint64_t *)d_lut_pbs_identity,
+        (const uint64_t *)d_lut_pbs_indexes,
+        (const uint64_t *)d_lwe_ct_in_array,
+        (const uint64_t *)d_lwe_input_indexes, (const uint64_t *)d_bsk,
+        (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
+        pbs_level, input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -227,9 +232,10 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
 (benchmark::State &st) {
   scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
-      grouping_factor, input_lwe_ciphertext_count, true);
-
+      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
+      true);
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
@@ -237,7 +243,8 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
         d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
         d_lwe_input_indexes, d_bsk, (pbs_buffer<uint64_t, MULTI_BIT> *)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-        pbs_base_log, pbs_level, input_lwe_ciphertext_count);
+        pbs_base_log, pbs_level, input_lwe_ciphertext_count, num_many_lut,
+        lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -258,7 +265,8 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TbcPBC)
       stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
       glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
       true);
-
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
     cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint64_t>(
@@ -268,7 +276,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TbcPBC)
         (uint64_t *)d_lwe_input_indexes, (double2 *)d_fourier_bsk,
         (pbs_buffer<uint64_t, CLASSICAL> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        input_lwe_ciphertext_count);
+        input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -289,7 +297,8 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, CgPBS)
       stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
       glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
       true);
-
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
     cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
@@ -299,7 +308,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, CgPBS)
         (uint64_t *)d_lwe_input_indexes, (double2 *)d_fourier_bsk,
         (pbs_buffer<uint64_t, CLASSICAL> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        input_lwe_ciphertext_count);
+        input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -313,7 +322,8 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
       stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
       glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
       true);
-
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
     cuda_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
@@ -323,7 +333,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
         (uint64_t *)d_lwe_input_indexes, (double2 *)d_fourier_bsk,
         (pbs_buffer<uint64_t, CLASSICAL> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        input_lwe_ciphertext_count);
+        input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 

@@ -11,8 +11,8 @@ use crate::core_crypto::fft_impl::fft64::math::decomposition::DecompositionLevel
 use crate::core_crypto::fft_impl::fft64::math::fft::{FftView, FourierPolynomialList};
 use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomialMutView;
 use aligned_vec::{avec, ABox};
-use concrete_fft::c64;
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use tfhe_fft::c64;
 
 /// A pseudo GGSW ciphertext in the Fourier domain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -240,9 +240,10 @@ impl<'a> PseudoFourierGgswCiphertextView<'a> {
     pub fn into_levels(
         self,
     ) -> impl DoubleEndedIterator<Item = PseudoFourierGgswLevelMatrixView<'a>> {
+        let decomposition_level_count = self.decomposition_level_count.0;
         self.fourier
             .data
-            .split_into(self.decomposition_level_count.0)
+            .split_into(decomposition_level_count)
             .enumerate()
             .map(move |(i, slice)| {
                 PseudoFourierGgswLevelMatrixView::new(
@@ -250,7 +251,7 @@ impl<'a> PseudoFourierGgswCiphertextView<'a> {
                     self.glwe_size_in,
                     self.glwe_size_out,
                     self.fourier.polynomial_size,
-                    DecompositionLevel(i + 1),
+                    DecompositionLevel(decomposition_level_count - i),
                 )
             })
     }
@@ -262,7 +263,7 @@ pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, S
     fft.forward_scratch()
 }
 
-impl<'a> PseudoFourierGgswCiphertextMutView<'a> {
+impl PseudoFourierGgswCiphertextMutView<'_> {
     /// Fill a GGSW ciphertext with the Fourier transform of a GGSW ciphertext in the standard
     /// domain.
     pub fn fill_with_forward_fourier<
@@ -272,7 +273,7 @@ impl<'a> PseudoFourierGgswCiphertextMutView<'a> {
         self,
         coef_ggsw: &PseudoGgswCiphertext<InputCont>,
         fft: FftView<'_>,
-        mut stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
         let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
@@ -284,7 +285,7 @@ impl<'a> PseudoFourierGgswCiphertextMutView<'a> {
             fft.forward_as_torus(
                 FourierPolynomialMutView { data: fourier_poly },
                 coef_poly,
-                stack.rb_mut(),
+                stack,
             );
         }
     }

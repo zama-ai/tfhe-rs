@@ -8,7 +8,7 @@ use crate::core_crypto::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
 use crate::core_crypto::commons::math::random::{
-    ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
+    CompressionSeed, DefaultRandomGenerator, Distribution, RandomGenerable,
 };
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -280,7 +280,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             self.decomposition_level_count(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_ggsw_ciphertext::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_ggsw_ciphertext::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ct,
             &self,
         );
@@ -301,7 +301,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             self.decomposition_level_count(),
             self.ciphertext_modulus(),
         );
-        par_decompress_seeded_ggsw_ciphertext::<_, _, _, ActivatedRandomGenerator>(
+        par_decompress_seeded_ggsw_ciphertext::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ct,
             &self,
         );
@@ -686,13 +686,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = SeededGgswLevelMatrixCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = SeededGgswLevelMatrix<&'this [Self::Element]>
+    type EntityView<'this>
+        = SeededGgswLevelMatrix<&'this [Self::Element]>
     where
         Self: 'this;
 
     type SelfViewMetadata = ();
 
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 
@@ -722,11 +724,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for SeededGgswCiphertext<C>
 {
-    type EntityMutView<'this> = SeededGgswLevelMatrix<&'this mut [Self::Element]>
+    type EntityMutView<'this>
+        = SeededGgswLevelMatrix<&'this mut [Self::Element]>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 }

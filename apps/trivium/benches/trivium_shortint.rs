@@ -1,5 +1,6 @@
 use criterion::Criterion;
 use tfhe::prelude::*;
+use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
 use tfhe::shortint::prelude::*;
 use tfhe::{generate_keys, ConfigBuilder, FheUint64};
 use tfhe_trivium::{TransCiphering, TriviumStreamShortint};
@@ -10,12 +11,13 @@ pub fn trivium_shortint_warmup(c: &mut Criterion) {
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key, server_key): (ClientKey, ServerKey) =
+        gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
@@ -60,12 +62,13 @@ pub fn trivium_shortint_gen(c: &mut Criterion) {
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key, server_key): (ClientKey, ServerKey) =
+        gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
@@ -105,12 +108,13 @@ pub fn trivium_shortint_trans(c: &mut Criterion) {
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key, server_key): (ClientKey, ServerKey) =
+        gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();

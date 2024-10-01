@@ -1,8 +1,8 @@
-use std::env;
+use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
-    if let Ok(val) = env::var("DOCS_RS") {
+    if let Ok(val) = std::env::var("DOCS_RS") {
         if val.parse::<u32>() == Ok(1) {
             return;
         }
@@ -26,7 +26,8 @@ fn main() {
     println!("cargo::rerun-if-changed=cuda/tests_and_benchmarks");
     println!("cargo::rerun-if-changed=cuda/CMakeLists.txt");
     println!("cargo::rerun-if-changed=src");
-    if env::consts::OS == "linux" {
+
+    if std::env::consts::OS == "linux" {
         let output = Command::new("./get_os_name.sh").output().unwrap();
         let distribution = String::from_utf8(output.stdout).unwrap();
         if distribution != "Ubuntu\n" {
@@ -35,6 +36,7 @@ fn main() {
                 Only Ubuntu is supported by tfhe-cuda-backend at this time. Build may fail\n"
             );
         }
+
         let dest = cmake::build("cuda");
         println!("cargo:rustc-link-search=native={}", dest.display());
         println!("cargo:rustc-link-lib=static=tfhe_cuda_backend");
@@ -51,6 +53,57 @@ fn main() {
         println!("cargo:rustc-link-lib=cudart");
         println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/");
         println!("cargo:rustc-link-lib=stdc++");
+
+        let header_path = "wrapper.h";
+        let headers = vec![
+            "wrapper.h",
+            "cuda/include/ciphertext.h",
+            "cuda/include/integer/compression/compression.h",
+            "cuda/include/integer/integer.h",
+            "cuda/include/keyswitch.h",
+            "cuda/include/linear_algebra.h",
+            "cuda/include/pbs/programmable_bootstrap.h",
+            "cuda/include/pbs/programmable_bootstrap_multibit.h",
+        ];
+        let out_path = PathBuf::from("src").join("bindings.rs");
+        let bindings_modified = if out_path.exists() {
+            std::fs::metadata(&out_path).unwrap().modified().unwrap()
+        } else {
+            std::time::SystemTime::UNIX_EPOCH // If bindings file doesn't exist, consider it older
+        };
+        let mut headers_modified = bindings_modified;
+        for header in headers {
+            println!("cargo:rerun-if-changed={}", header);
+            // Check modification times
+            let header_modified = std::fs::metadata(header).unwrap().modified().unwrap();
+            if header_modified > headers_modified {
+                headers_modified = header_modified;
+            }
+        }
+
+        // Regenerate bindings only if header has been modified
+        if headers_modified > bindings_modified {
+            let bindings = bindgen::Builder::default()
+                .header(header_path)
+                // allow only what we are interested in, the custom types appearing in the interface
+                .allowlist_type("PBS_TYPE")
+                .allowlist_type("SHIFT_OR_ROTATE_TYPE")
+                // and the functions reachable from the headers included in wrapper.h
+                .allowlist_function(".*")
+                .clang_arg("-x")
+                .clang_arg("c++")
+                .clang_arg("-std=c++17")
+                .clang_arg("-I/usr/include")
+                .clang_arg("-I/usr/local/include")
+                .ctypes_prefix("ffi")
+                .raw_line("use crate::ffi;")
+                .generate()
+                .expect("Unable to generate bindings");
+
+            bindings
+                .write_to_file(&out_path)
+                .expect("Couldn't write bindings!");
+        }
     } else {
         panic!(
             "Error: platform not supported, tfhe-cuda-backend not built (only Linux is supported)"

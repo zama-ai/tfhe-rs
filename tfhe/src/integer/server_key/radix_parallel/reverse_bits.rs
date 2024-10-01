@@ -8,20 +8,23 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///     num_blocks,
+    /// );
     ///
     /// let msg = 0b10110100_u8;
     ///
     /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
-    /// let mut ct_res = sks.reverse_bits_parallelized(&ct);
+    /// let ct_res = sks.reverse_bits_parallelized(&ct);
     ///
     /// // Decrypt:
     /// let res: u8 = cks.decrypt(&ct_res);
@@ -31,7 +34,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let message_modulus = self.message_modulus().0 as u64;
+        let message_modulus = self.message_modulus().0;
 
         let mut clean_ct;
 
@@ -65,7 +68,7 @@ mod tests {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
     use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-    use crate::integer::tests::create_parametrized_test;
+    use crate::integer::tests::create_parameterized_test;
     use crate::integer::{IntegerKeyKind, RadixClientKey};
     #[cfg(tarpaulin)]
     use crate::shortint::parameters::coverage_parameters::*;
@@ -122,5 +125,5 @@ mod tests {
         reverse_bits_test(param, executor);
     }
 
-    create_parametrized_test!(integer_reverse_bits);
+    create_parameterized_test!(integer_reverse_bits);
 }

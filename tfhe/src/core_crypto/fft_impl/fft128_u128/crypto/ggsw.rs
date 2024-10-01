@@ -9,7 +9,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::crypto::ggsw::update_with_fmadd;
 use crate::core_crypto::prelude::{Container, ContainerMut, SignedDecomposer};
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{PodStack, ReborrowMut};
+use dyn_stack::PodStack;
 
 #[cfg_attr(feature = "__profiling", inline(never))]
 pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlweLo, ContGlweHi>(
@@ -19,7 +19,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
     glwe_lo: &GlweCiphertext<ContGlweLo>,
     glwe_hi: &GlweCiphertext<ContGlweHi>,
     fft: Fft128View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     ContOutLo: ContainerMut<Element = u64>,
     ContOutHi: ContainerMut<Element = u64>,
@@ -34,7 +34,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
         glwe_lo: GlweCiphertext<&[u64]>,
         glwe_hi: GlweCiphertext<&[u64]>,
         fft: Fft128View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         // we check that the polynomial sizes match
         debug_assert_eq!(ggsw.polynomial_size(), glwe_lo.polynomial_size());
@@ -69,7 +69,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
         let (output_fft_buffer_im0, stack) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
-        let (output_fft_buffer_im1, mut substack0) =
+        let (output_fft_buffer_im1, substack0) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
 
         // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
@@ -81,13 +81,10 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
             // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
             // DOMAIN In this section, we perform the external product in the fourier
             // domain, and accumulate the result in the output_fft_buffer variable.
-            let (decomposition_states_lo, stack) = substack0
-                .rb_mut()
-                .make_aligned_raw::<u64>(poly_size * glwe_size, align);
-            let (decomposition_states_hi, mut substack1) =
+            let (decomposition_states_lo, stack) =
+                substack0.make_aligned_raw::<u64>(poly_size * glwe_size, align);
+            let (decomposition_states_hi, substack1) =
                 stack.make_aligned_raw::<u64>(poly_size * glwe_size, align);
-
-            let shift = 128 - decomposer.base_log * decomposer.level_count;
 
             for (out_lo, out_hi, in_lo, in_hi) in izip!(
                 &mut *decomposition_states_lo,
@@ -96,7 +93,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                 glwe_hi.as_ref(),
             ) {
                 let input = (*in_lo as u128) | ((*in_hi as u128) << 64);
-                let value = decomposer.closest_representable(input) >> shift;
+                let value = decomposer.init_decomposer_state(input);
                 *out_lo = value as u64;
                 *out_hi = (value >> 64) as u64;
             }
@@ -110,15 +107,14 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
 
             // We loop through the levels (we reverse to match the order of the decomposition
             // iterator.)
-            for ggsw_decomp_matrix in ggsw.into_levels().rev() {
+            for ggsw_decomp_matrix in ggsw.into_levels() {
                 // We retrieve the decomposition of this level.
                 assert_ne!(current_level, 0);
                 let glwe_level = DecompositionLevel(current_level);
                 current_level -= 1;
-                let (glwe_decomp_term_lo, stack) = substack1
-                    .rb_mut()
-                    .make_aligned_raw::<u64>(poly_size * glwe_size, align);
-                let (glwe_decomp_term_hi, mut substack2) =
+                let (glwe_decomp_term_lo, stack) =
+                    substack1.make_aligned_raw::<u64>(poly_size * glwe_size, align);
+                let (glwe_decomp_term_hi, substack2) =
                     stack.make_aligned_raw::<u64>(poly_size * glwe_size, align);
 
                 let base_log = decomposer.base_log;
@@ -163,7 +159,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                     glwe_decomp_term_hi.as_polynomial_list().iter(),
                 ) {
                     let len = fourier_poly_size;
-                    let stack = substack2.rb_mut();
+                    let stack = &mut *substack2;
                     let (fourier_re0, stack) = stack.make_aligned_raw::<f64>(len, align);
                     let (fourier_re1, stack) = stack.make_aligned_raw::<f64>(len, align);
                     let (fourier_im0, stack) = stack.make_aligned_raw::<f64>(len, align);
@@ -221,7 +217,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                     fourier_re1,
                     fourier_im0,
                     fourier_im1,
-                    substack0.rb_mut(),
+                    substack0,
                 );
             }
         }
@@ -614,7 +610,7 @@ pub fn cmux_split<ContCt0Lo, ContCt0Hi, ContCt1Lo, ContCt1Hi, ContGgsw>(
     ct1_hi: &mut GlweCiphertext<ContCt1Hi>,
     ggsw: &Fourier128GgswCiphertext<ContGgsw>,
     fft: Fft128View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     ContCt0Lo: ContainerMut<Element = u64>,
     ContCt0Hi: ContainerMut<Element = u64>,
@@ -629,7 +625,7 @@ pub fn cmux_split<ContCt0Lo, ContCt0Hi, ContCt1Lo, ContCt1Hi, ContGgsw>(
         mut ct1_hi: GlweCiphertext<&mut [u64]>,
         ggsw: Fourier128GgswCiphertext<&[f64]>,
         fft: Fft128View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         for (c1_lo, c1_hi, c0_lo, c0_hi) in izip!(
             ct1_lo.as_mut(),

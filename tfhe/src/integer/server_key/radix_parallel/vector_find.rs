@@ -50,6 +50,10 @@ impl<Clear> MatchValues<Clear> {
         let matches = range.map(|input| (input, func(input))).collect();
         Self(matches)
     }
+    // Public method to access the private field
+    pub fn get_values(&self) -> &Vec<(Clear, Clear)> {
+        &self.0
+    }
 }
 
 impl ServerKey {
@@ -1091,7 +1095,7 @@ impl ServerKey {
         // Contains the LUTs used to compare a block with scalar block values
         // in many LUTs format for efficiency
         let luts = {
-            let scalar_block_cmp_fns = (0..self.message_modulus().0 as u64)
+            let scalar_block_cmp_fns = (0..self.message_modulus().0)
                 .map(|msg_value| move |block: u64| u64::from(block == msg_value))
                 .collect::<Vec<_>>();
 
@@ -1157,8 +1161,7 @@ impl ServerKey {
             self.message_modulus()
         );
         // Vector of functions that returns function, that will be used to create LUTs later
-        let scalar_block_cmp_fns = (0..(self.message_modulus().0 * self.message_modulus().0)
-            as u64)
+        let scalar_block_cmp_fns = (0..(self.message_modulus().0 * self.message_modulus().0))
             .map(|packed_block_value| {
                 move |is_selected: u64| {
                     if is_selected == 1 {
@@ -1185,7 +1188,7 @@ impl ServerKey {
                 // Since there is a limit in the number of how many lut we can apply in one PBS
                 // we pre-chunk LUTs according to that amount
                 let blocks = decomposed_value
-                    .par_chunks(max_num_many_luts)
+                    .par_chunks(max_num_many_luts as usize)
                     .flat_map(|chunk_of_packed_value| {
                         let fns = chunk_of_packed_value
                             .iter()
@@ -1218,8 +1221,9 @@ impl ServerKey {
         // Used to clean the noise
         let identity_lut = self.key.generate_lookup_table(|x| x);
 
-        let total_modulus = self.message_modulus().0 * self.carry_modulus().0;
-        let chunk_size = (total_modulus - 1) / (self.message_modulus().0 - 1);
+        // Since all but one radix are zeros, the limiting factor
+        // for additions is the noise level
+        let chunk_size = self.key.max_noise_level.get() as usize;
 
         let (num_init_chunks, num_init_rest) = (
             one_hot_vector.len() / chunk_size,
@@ -1320,7 +1324,7 @@ impl ServerKey {
             };
             let mut values = self.compute_prefix_sum_hillis_steele(values, sum_function);
             let lut = self.key.generate_lookup_table(|x| {
-                let x = x % self.message_modulus().0 as u64;
+                let x = x % self.message_modulus().0;
                 if x == ALREADY_SEEN {
                     0
                 } else {

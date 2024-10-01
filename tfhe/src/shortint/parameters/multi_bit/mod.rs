@@ -1,22 +1,19 @@
-//! #Warning experimental
-pub mod p_fail_2_minus_64;
+use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
+use crate::core_crypto::entities::{
+    LweCiphertextParameters, MsDecompressionType, MultiBitBootstrapKeyConformanceParams,
+};
+use crate::core_crypto::prelude::{DynamicDistribution, LweBskGroupingFactor};
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::parameters::{CiphertextConformanceParams, MultiBitPBSParametersVersions};
+use crate::shortint::prelude::*;
+use crate::shortint::server_key::PBSConformanceParameters;
+use crate::shortint::{
+    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus, PBSOrder,
+};
+use crate::Versionize;
 
-use super::{CiphertextConformanceParams, MultiBitPBSParametersVersions};
-pub use crate::core_crypto::commons::dispersion::StandardDev;
-pub use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweDimension, PolynomialSize,
-};
-use crate::core_crypto::prelude::{LweCiphertextParameters, MsDecompressionType};
-use crate::shortint::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
-use crate::shortint::parameters::p_fail_2_minus_64::ks_pbs::*;
-use crate::shortint::parameters::p_fail_2_minus_64::ks_pbs_gpu::*;
-use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, EncryptionKeyChoice, LweBskGroupingFactor, MessageModulus,
-};
-use crate::shortint::PBSOrder;
-use serde::{Deserialize, Serialize};
-use tfhe_versionable::Versionize;
+pub mod gaussian;
+pub mod tuniform;
 
 /// A structure defining the set of cryptographic parameters for homomorphic integer circuit
 /// evaluation. This structure contains information to run the so-called multi-bit PBS with improved
@@ -93,43 +90,18 @@ impl MultiBitPBSParameters {
     }
 }
 
-pub const ALL_MULTI_BIT_PARAMETER_VEC: [MultiBitPBSParameters; 6] = [
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-];
+impl TryFrom<&PBSConformanceParameters> for MultiBitBootstrapKeyConformanceParams {
+    type Error = ();
 
-// Convenience aliases
-pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS: MultiBitPBSParameters =
-    PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBSParameters =
-    PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS: MultiBitPBSParameters =
-    PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS: MultiBitPBSParameters =
-    PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
-    PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS: MultiBitPBSParameters =
-    PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
-pub const DEFAULT_MULTI_BIT_GROUP_2: MultiBitPBSParameters =
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
-pub const DEFAULT_MULTI_BIT_GROUP_3: MultiBitPBSParameters =
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
-
-// GPU
-pub const PARAM_GPU_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS: MultiBitPBSParameters =
-    PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBSParameters =
-    PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_GPU_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS: MultiBitPBSParameters =
-    PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_GPU_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS: MultiBitPBSParameters =
-    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
-    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-pub const PARAM_GPU_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS: MultiBitPBSParameters =
-    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
+    fn try_from(value: &PBSConformanceParameters) -> Result<Self, ()> {
+        Ok(Self {
+            decomp_base_log: value.base_log,
+            decomp_level_count: value.level,
+            input_lwe_dimension: value.in_lwe_dimension,
+            output_glwe_size: value.out_glwe_dimension.to_glwe_size(),
+            polynomial_size: value.out_polynomial_size,
+            grouping_factor: value.multi_bit.ok_or(())?,
+            ciphertext_modulus: value.ciphertext_modulus,
+        })
+    }
+}

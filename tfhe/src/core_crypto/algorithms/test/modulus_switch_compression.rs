@@ -138,4 +138,4 @@ fn test_ms_with_packing() {
     }
 }
 
-create_parametrized_test!(encryption_ms_decryption);
+create_parameterized_test!(encryption_ms_decryption);

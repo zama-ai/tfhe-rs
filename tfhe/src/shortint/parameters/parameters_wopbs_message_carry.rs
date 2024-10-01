@@ -10,7 +10,7 @@ use crate::shortint::parameters::{
 
 // These parameters have security between 123 and 128 bits
 
-pub const WOPBS_PARAM_MESSAGE_1_CARRY_5_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_5_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -36,7 +36,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_5_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_1_CARRY_6_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_6_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -62,7 +62,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_6_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_1_CARRY_7_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_7_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -88,7 +88,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_7_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_1_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -114,7 +114,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_4_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_1_CARRY_8_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_8_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -140,7 +140,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_8_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_1_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(497),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -166,7 +166,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_3_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_1_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(498),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -192,7 +192,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_0_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(653),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -218,7 +218,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_1_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(487),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -244,7 +244,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_2_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_2_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -270,7 +270,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_4_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_2_CARRY_5_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_5_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -296,7 +296,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_5_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_2_CARRY_6_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_6_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -322,7 +322,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_6_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_2_CARRY_7_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_7_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -348,7 +348,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_7_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_2_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(497),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -374,7 +374,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_3_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_2_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(500),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -400,7 +400,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_0_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(769),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -426,7 +426,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_2_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(487),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -452,7 +452,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_1_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_3_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -478,7 +478,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_4_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_3_CARRY_5_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_5_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -504,7 +504,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_5_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(873),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -530,7 +530,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_3_CARRY_6_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_6_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -556,7 +556,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_6_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_3_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(497),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -582,7 +582,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_2_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_3_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(486),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -608,7 +608,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_1_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_3_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(487),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -634,7 +634,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_0_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(953),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -660,7 +660,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_4_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -686,7 +686,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_3_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_4_CARRY_5_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_5_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -712,7 +712,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_5_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_4_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(497),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -738,7 +738,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_2_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_4_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(486),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -764,7 +764,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_1_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_4_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(486),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -790,7 +790,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_0_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_5_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_5_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -816,7 +816,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_3_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_5_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_5_CARRY_4_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -842,7 +842,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_4_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_5_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_5_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -868,7 +868,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_2_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_5_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_5_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(497),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -894,7 +894,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_1_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_5_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_5_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(486),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -920,7 +920,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_0_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_6_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_6_CARRY_3_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -946,7 +946,7 @@ pub const WOPBS_PARAM_MESSAGE_6_CARRY_3_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_6_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_6_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -972,7 +972,7 @@ pub const WOPBS_PARAM_MESSAGE_6_CARRY_2_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_6_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_6_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(497),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -998,7 +998,7 @@ pub const WOPBS_PARAM_MESSAGE_6_CARRY_1_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_6_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_6_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(486),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -1024,7 +1024,7 @@ pub const WOPBS_PARAM_MESSAGE_6_CARRY_0_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_7_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_7_CARRY_2_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -1050,7 +1050,7 @@ pub const WOPBS_PARAM_MESSAGE_7_CARRY_2_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_7_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_7_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -1076,7 +1076,7 @@ pub const WOPBS_PARAM_MESSAGE_7_CARRY_1_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_7_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_7_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(497),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -1102,7 +1102,7 @@ pub const WOPBS_PARAM_MESSAGE_7_CARRY_0_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_8_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_8_CARRY_1_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -1128,7 +1128,7 @@ pub const WOPBS_PARAM_MESSAGE_8_CARRY_1_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const WOPBS_PARAM_MESSAGE_8_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
+pub const LEGACY_WOPBS_PARAM_MESSAGE_8_CARRY_0_KS_PBS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(497),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),

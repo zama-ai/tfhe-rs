@@ -10,43 +10,45 @@ use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{Ciphertext, CompressedServerKey, ServerKey};
 
-const SERVER_KEY_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+const SERVER_KEY_BENCH_PARAMS: [ClassicPBSParameters; 5] = [
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
 ];
 
-const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 15] = [
-    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
+const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 16] = [
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2M64,
 ];
 
 const SERVER_KEY_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 2] = [
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 ];
 
 const SERVER_KEY_MULTI_BIT_BENCH_PARAMS_EXTENDED: [MultiBitPBSParameters; 6] = [
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
 ];
 
 enum BenchParamsSet {
@@ -55,7 +57,7 @@ enum BenchParamsSet {
 }
 
 fn benchmark_parameters(params_set: BenchParamsSet) -> Vec<PBSParameters> {
-    let is_multi_bit = match env::var("__TFHE_RS_BENCH_TYPE") {
+    let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
         Ok(val) => val.to_lowercase() == "multi_bit",
         Err(_) => false,
     };
@@ -92,7 +94,7 @@ fn bench_server_key_unary_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0 as u64;
+        let modulus = cks.parameters.message_modulus().0;
 
         let clear_text = rng.gen::<u64>() % modulus;
 
@@ -136,7 +138,7 @@ fn bench_server_key_binary_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0 as u64;
+        let modulus = cks.parameters.message_modulus().0;
 
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -182,7 +184,7 @@ fn bench_server_key_binary_scalar_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0 as u64;
+        let modulus = cks.parameters.message_modulus().0;
 
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -227,7 +229,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0 as u64;
+        let modulus = cks.parameters.message_modulus().0;
         assert_ne!(modulus, 1);
 
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -268,7 +270,7 @@ fn carry_extract_bench(c: &mut Criterion, params_set: BenchParamsSet) {
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0 as u64;
+        let modulus = cks.parameters.message_modulus().0;
 
         let clear_0 = rng.gen::<u64>() % modulus;
 
@@ -304,7 +306,7 @@ fn programmable_bootstrapping_bench(c: &mut Criterion, params_set: BenchParamsSe
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0 as u64;
+        let modulus = cks.parameters.message_modulus().0;
 
         let acc = sks.generate_lookup_table(|x| x);
 

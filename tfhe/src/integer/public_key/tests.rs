@@ -1,8 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::parameters::{
-    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
-};
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey, RadixCiphertext};
 use crate::shortint::parameters::classic::compact_pk::*;
 #[cfg(tarpaulin)]
@@ -10,52 +8,52 @@ use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
 
-create_parametrized_test!(big_radix_encrypt_decrypt_128_bits {
+create_parameterized_test!(big_radix_encrypt_decrypt_128_bits {
 
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         },
         no_coverage => {
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             /* PARAM_MESSAGE_3_CARRY_3_KS_PBS, Skipped as the key requires 32GB
             * PARAM_MESSAGE_4_CARRY_4_KS_PBS, Skipped as the key requires 550GB */
         }
     }
 );
 
-create_parametrized_test!(
+create_parameterized_test!(
     radix_encrypt_decrypt_compressed_128_bits {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         },
         no_coverage => {
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             /* PARAM_MESSAGE_3_CARRY_3_KS_PBS, Skipped as its slow
             * PARAM_MESSAGE_4_CARRY_4_KS_PBS, Skipped as its slow */
         }
     }
 );
 
-create_parametrized_test!(
+create_parameterized_test!(
     big_radix_encrypt_decrypt_compact_128_bits_list {
         coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
         },
         no_coverage => {
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
         }
     }
 );
 
-create_parametrized_test!(
+create_parameterized_test!(
     small_radix_encrypt_decrypt_compact_128_bits_list {
         coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
         },
         no_coverage => {
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
         }
     }
 );
@@ -129,16 +127,9 @@ fn radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
         assert!(compact_lists[1].is_packed());
 
         for compact_encrypted_list in compact_lists {
-            let unpacking_mode = if compact_encrypted_list.is_packed() {
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks)
-            } else {
-                IntegerCompactCiphertextListUnpackingMode::NoUnpacking
-            };
-
             let expander = compact_encrypted_list
                 .expand(
-                    unpacking_mode,
-                    IntegerCompactCiphertextListCastingMode::NoCasting,
+                    IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(&sks),
                 )
                 .unwrap();
 

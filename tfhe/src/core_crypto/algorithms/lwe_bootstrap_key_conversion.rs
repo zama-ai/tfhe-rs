@@ -10,9 +10,9 @@ use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use crate::core_crypto::prelude::{bitalign_modswitch_requirement, user2ntt_bitalign_modswitch};
-use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
+use tfhe_fft::c64;
 
 /// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the Fourier
 /// domain.
@@ -47,7 +47,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized<Scalar, Input
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut FourierLweBootstrapKey<OutputCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,

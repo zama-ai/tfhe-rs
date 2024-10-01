@@ -12,11 +12,11 @@ use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use aligned_vec::ABox;
-use concrete_fft::c64;
 use itertools::Itertools;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{mpsc, Condvar, Mutex};
 use std::thread;
+use tfhe_fft::c64;
 
 pub use super::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
 
@@ -77,10 +77,9 @@ pub struct StandardMultiBitModulusSwitchedCt<
 }
 
 impl<
-        'a,
         Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
         C: Container<Element = Scalar> + Sync,
-    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<'a, Scalar, C>
+    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<'_, Scalar, C>
 {
     fn lwe_dimension(&self) -> LweDimension {
         self.input.lwe_size().to_lwe_dimension()
@@ -175,13 +174,12 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<GgswBufferCont, GgswGroupCont, Fouri
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///
@@ -853,13 +851,12 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///

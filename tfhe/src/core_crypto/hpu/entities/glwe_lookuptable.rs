@@ -7,7 +7,8 @@ use super::algorithms::{modswitch, order};
 use super::{FromWith, IntoWith};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::shortint::ClassicPBSParameters;
+use crate::core_crypto::prelude::CiphertextModulus;
+use crate::shortint::{ClassicPBSParameters, PaddingBit, ShortintEncoding};
 
 impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParameters>
     for HpuGlweLookuptableOwned<Scalar>
@@ -52,13 +53,18 @@ pub fn create_hpu_lookuptable(
 
     // Populate body
     // Modulus of the msg contained in the msg bits and operations buffer
-    let modulus_sup = pbs_p.message_modulus.0 * pbs_p.carry_modulus.0;
+    let modulus_sup = (pbs_p.message_modulus.0 * pbs_p.carry_modulus.0) as usize;
 
     // N/(p/2) = size of each block
     let box_size = pbs_p.polynomial_size.0 / modulus_sup;
 
     // Value of the shift we multiply our messages by
-    let delta = (1_u64 << 63) / (pbs_p.message_modulus.0 * pbs_p.carry_modulus.0) as u64;
+    let encoding = ShortintEncoding {
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        message_modulus: pbs_p.message_modulus,
+        carry_modulus: pbs_p.carry_modulus,
+        padding_bit: PaddingBit::Yes,
+    };
 
     let mut body = cpu_acc_view.get_mut_body();
     let body_u64 = body.as_mut();
@@ -70,8 +76,8 @@ pub fn create_hpu_lookuptable(
 
     for i in 0..modulus_sup {
         let index = i * box_size;
-        let f_eval = pbs.eval(&digits_params, i as usize) as u64;
-        body_u64[index..index + box_size].fill(f_eval * delta);
+        let f_eval = pbs.eval(&digits_params, i) as u64;
+        body_u64[index..index + box_size].fill(encoding.encode(Cleartext(f_eval)).0);
     }
 
     let half_box_size = box_size / 2;

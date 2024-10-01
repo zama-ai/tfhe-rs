@@ -116,9 +116,9 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let inner: CudaUnsignedRadixCiphertext = cuda_key.key.create_trivial_radix(
+                let inner: CudaUnsignedRadixCiphertext = cuda_key.key.key.create_trivial_radix(
                     value,
-                    Id::num_blocks(cuda_key.key.message_modulus),
+                    Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 Ok(Self::new(inner, cuda_key.tag.clone()))

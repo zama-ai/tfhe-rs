@@ -15,7 +15,7 @@ This example shows how to use classical public keys.
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, PublicKey};
+use tfhe::{ConfigBuilder, generate_keys, FheUint8, PublicKey};
 
 fn main() {
     let config = ConfigBuilder::default().build();
@@ -38,14 +38,14 @@ For more information on using compact public keys to encrypt data and generate a
 ```rust
 use tfhe::prelude::*;
 use tfhe::{
-    generate_keys, set_server_key, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint8,
+    generate_keys, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint8,
 };
 
 
 fn main() {
      let config = ConfigBuilder::default()
         .use_custom_parameters(
-            tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+            tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
         )
         .build();
     let (client_key, _) = generate_keys(config);

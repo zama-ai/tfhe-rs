@@ -1,12 +1,12 @@
 use crate::core_crypto::commons::utils::izip;
 pub use crate::core_crypto::fft_impl::fft128::math::fft::Fft128View;
-use concrete_fft::fft128::f128;
 use dyn_stack::PodStack;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use pulp::{f64x4, u64x4, x86::V3};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly-avx512")]
 use pulp::{f64x8, u64x8, x86::V4};
+use tfhe_fft::fft128::f128;
 
 #[inline(always)]
 pub fn zeroing_shl(x: u64, shift: u64) -> u64 {
@@ -1218,7 +1218,7 @@ pub fn convert_add_backward_torus(
     );
 }
 
-impl<'a> Fft128View<'a> {
+impl Fft128View<'_> {
     pub fn forward_as_integer_split(
         self,
         fourier_re0: &mut [f64],
@@ -1253,7 +1253,7 @@ impl<'a> Fft128View<'a> {
         fourier_re1: &[f64],
         fourier_im0: &[f64],
         fourier_im1: &[f64],
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         self.backward_with_conv_split(
             standard_lo,
@@ -1308,7 +1308,7 @@ impl<'a> Fft128View<'a> {
         fourier_im0: &[f64],
         fourier_im1: &[f64],
         conv_fn: impl Fn(&mut [u64], &mut [u64], &mut [u64], &mut [u64], &[f64], &[f64], &[f64], &[f64]),
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         let n = standard_lo.len();
         debug_assert_eq!(n, 2 * fourier_re0.len());

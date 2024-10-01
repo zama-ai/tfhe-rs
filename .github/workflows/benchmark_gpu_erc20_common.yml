@@ -1,0 +1,180 @@
+# Run ERC20 benchmarks on an instance with CUDA and return parsed results to Slab CI bot.
+name: Cuda ERC20 benchmarks - common
+
+on:
+  workflow_call:
+    inputs:
+      backend:
+        type: string
+        default: hyperstack
+      profile:
+        type: string
+        required: true
+      hardware_name:
+        type: string
+        required: true
+    secrets:
+      FHE_ACTIONS_TOKEN:
+        required: true
+      SLAB_ACTION_TOKEN:
+        required: true
+      SLAB_BASE_URL:
+        required: true
+      SLAB_URL:
+        required: true
+      JOB_SECRET:
+        required: true
+      SLACK_CHANNEL:
+        required: true
+      BOT_USERNAME:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  PARSE_INTEGER_BENCH_CSV_FILE: tfhe_rs_integer_benches_${{ github.sha }}.csv
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+jobs:
+  setup-instance:
+    name: Setup instance (cuda-erc20-benchmarks)
+    runs-on: ubuntu-latest
+    if:  github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: ${{ inputs.backend }}
+          profile: ${{ inputs.profile }}
+
+  cuda-erc20-benchmarks:
+    name: Cuda ERC20 benchmarks (${{ inputs.profile }})
+    needs: setup-instance
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.2"
+            gcc: 11
+    steps:
+      - name: Checkout tfhe-rs repo with tags
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+
+      - name: Setup Hyperstack dependencies
+        uses: ./.github/actions/hyperstack_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
+
+      - name: Get benchmark details
+        run: |
+          {
+            echo "BENCH_DATE=$(date --iso-8601=seconds)";
+            echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})";
+            echo "COMMIT_HASH=$(git describe --tags --dirty)";
+          } >> "${GITHUB_ENV}"
+
+      - name: Set up home
+        # "Install rust" step require root user to have a HOME directory which is not set.
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
+        with:
+          toolchain: nightly
+
+      - name: Run benchmarks
+        run: |
+          make bench_hlapi_erc20_gpu
+
+      - name: Parse results
+        run: |
+          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          --database tfhe_rs \
+          --hardware "${{ inputs.hardware_name }}" \
+          --backend gpu \
+          --project-version "${{ env.COMMIT_HASH }}" \
+          --branch ${{ github.ref_name }} \
+          --commit-date "${{ env.COMMIT_DATE }}" \
+          --bench-date "${{ env.BENCH_DATE }}" \
+          --walk-subdirs \
+          --name-suffix avx512
+
+      - name: Upload parsed results artifact
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b
+        with:
+          name: ${{ github.sha }}_erc20_${{ inputs.profile }}
+          path: ${{ env.RESULTS_FILENAME }}
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: zama-ai/slab
+          path: slab
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+
+      - name: Send data to Slab
+        shell: bash
+        run: |
+          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          --slab-url "${{ secrets.SLAB_URL }}"
+
+  slack-notify:
+    name: Slack Notification
+    needs: [ setup-instance, cuda-erc20-benchmarks ]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.cuda-erc20-benchmarks.result != 'skipped' && failure() }}
+    continue-on-error: true
+    steps:
+      - name: Send message
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
+        env:
+          SLACK_COLOR: ${{ needs.cuda-erc20-benchmarks.result }}
+          SLACK_MESSAGE: "Cuda ERC20 benchmarks (${{ inputs.profile }}) finished with status: ${{ needs.cuda-erc20-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
+
+  teardown-instance:
+    name: Teardown instance (cuda-erc20-${{ inputs.profile }}-benchmarks)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, cuda-erc20-benchmarks, slack-notify ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (cuda-erc20-${{ inputs.profile }}-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

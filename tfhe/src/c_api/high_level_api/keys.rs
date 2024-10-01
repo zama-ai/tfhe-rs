@@ -34,6 +34,19 @@ impl_serialize_deserialize_on_type!(CompressedCompactPublicKey);
 impl_serialize_deserialize_on_type!(ServerKey);
 impl_serialize_deserialize_on_type!(CompressedServerKey);
 
+impl_safe_serialize_on_type!(ClientKey);
+impl_safe_serialize_on_type!(PublicKey);
+impl_safe_serialize_on_type!(CompactPublicKey);
+impl_safe_serialize_on_type!(CompressedCompactPublicKey);
+impl_safe_serialize_on_type!(ServerKey);
+impl_safe_serialize_on_type!(CompressedServerKey);
+
+impl_safe_deserialize_on_type!(ClientKey);
+impl_safe_deserialize_on_type!(PublicKey);
+impl_safe_deserialize_on_type!(CompactPublicKey);
+impl_safe_deserialize_on_type!(CompressedCompactPublicKey);
+impl_safe_deserialize_on_type!(CompressedServerKey);
+
 #[no_mangle]
 pub unsafe extern "C" fn generate_keys(
     config: *mut super::config::Config,
@@ -69,7 +82,7 @@ pub unsafe extern "C" fn set_server_key(server_key: *const ServerKey) -> c_int {
 /// Sets the cuda server key.
 ///
 /// Once a cuda server key is set in a thread, all computations done in
-/// that thread will actually happend on the Cuda GPU.
+/// that thread will actually happen on the Cuda GPU.
 ///
 /// Does not take ownership of the key
 #[cfg(feature = "gpu")]

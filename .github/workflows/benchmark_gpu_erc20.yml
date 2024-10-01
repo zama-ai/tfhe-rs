@@ -1,0 +1,44 @@
+# Run CUDA ERC20 benchmarks on a Hyperstack VM and return parsed results to Slab CI bot.
+name: Cuda ERC20 benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Instance type"
+        required: true
+        type: choice
+        options:
+          - "l40 (n3-L40x1)"
+          - "single-h100 (n3-H100x1)"
+          - "2-h100 (n3-H100x2)"
+          - "4-h100 (n3-H100x4)"
+          - "multi-h100 (n3-H100x8)"
+          - "multi-h100-nvlink (n3-H100x8-NVLink)"
+          - "multi-h100-sxm5 (n3-H100x8-SXM5)"
+
+jobs:
+  parse-inputs:
+    runs-on: ubuntu-latest
+    outputs:
+      profile: ${{ steps.parse_profile.outputs.profile }}
+      hardware_name: ${{ steps.parse_hardware_name.outputs.name }}
+    steps:
+      - name: Parse profile
+        id: parse_profile
+        run: |
+          echo "profile=$(echo '${{ inputs.profile }}' | sed 's|\(.*\)[[:space:]](.*)|\1|')" >> "${GITHUB_OUTPUT}"
+
+      - name: Parse hardware name
+        id: parse_hardware_name
+        run: |
+          echo "name=$(echo '${{ inputs.profile }}' | sed 's|.*[[:space:]](\(.*\))|\1|')" >> "${GITHUB_OUTPUT}"
+
+  run-benchmarks:
+    name: Run benchmarks
+    needs: parse-inputs
+    uses: ./.github/workflows/benchmark_gpu_erc20_common.yml
+    with:
+      profile: ${{ needs.parse-inputs.outputs.profile }}
+      hardware_name: ${{ needs.parse-inputs.outputs.hardware_name }}
+    secrets: inherit

@@ -1,3 +1,5 @@
+use rand::RngCore;
+
 use super::*;
 
 #[derive(Clone, Debug)]

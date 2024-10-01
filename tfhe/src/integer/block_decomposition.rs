@@ -150,7 +150,12 @@ where
         }
 
         let mut masked = self.data & self.bit_mask;
-        self.data >>= self.num_bits_in_mask;
+
+        if self.num_bits_in_mask < T::BITS as u32 {
+            self.data >>= self.num_bits_in_mask;
+        } else {
+            self.data = T::ZERO;
+        };
 
         if self.num_bits_valid < self.num_bits_in_mask {
             // This will be the case when self.num_bits_in_mask is not a multiple

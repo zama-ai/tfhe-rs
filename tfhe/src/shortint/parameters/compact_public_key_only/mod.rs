@@ -7,9 +7,9 @@ use crate::shortint::backward_compatibility::parameters::compact_public_key_only
 };
 use crate::shortint::parameters::{
     CarryModulus, ClassicPBSParameters, MessageModulus, MultiBitPBSParameters, PBSParameters,
-    ShortintParameterSet,
+    ShortintParameterSet, SupportedCompactPkeZkScheme,
 };
-use crate::shortint::KeySwitchingKeyView;
+use crate::shortint::{KeySwitchingKeyView, PaddingBit, ShortintEncoding};
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -21,14 +21,19 @@ pub enum CompactCiphertextListExpansionKind {
     NoCasting(PBSOrder),
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum CompactCiphertextListCastingMode<K> {
-    CastIfNecessary(K),
+pub type CastingFunctionsOwned<'functions> =
+    Vec<Option<Vec<&'functions (dyn Fn(u64) -> u64 + Sync)>>>;
+pub type CastingFunctionsView<'functions> =
+    &'functions [Option<Vec<&'functions (dyn Fn(u64) -> u64 + Sync)>>];
+
+#[derive(Clone, Copy)]
+pub enum ShortintCompactCiphertextListCastingMode<'a> {
+    CastIfNecessary {
+        casting_key: KeySwitchingKeyView<'a>,
+        functions: Option<CastingFunctionsView<'a>>,
+    },
     NoCasting,
 }
-
-pub type ShortintCompactCiphertextListCastingMode<'key> =
-    CompactCiphertextListCastingMode<KeySwitchingKeyView<'key>>;
 
 impl From<PBSOrder> for CompactCiphertextListExpansionKind {
     fn from(value: PBSOrder) -> Self {
@@ -45,6 +50,8 @@ pub struct CompactPublicKeyEncryptionParameters {
     pub carry_modulus: CarryModulus,
     pub ciphertext_modulus: CiphertextModulus,
     pub expansion_kind: CompactCiphertextListExpansionKind,
+    // Version of the PKE zk scheme compatible with these parameters
+    pub zk_scheme: SupportedCompactPkeZkScheme,
 }
 
 impl CompactPublicKeyEncryptionParameters {
@@ -55,6 +62,7 @@ impl CompactPublicKeyEncryptionParameters {
         carry_modulus: CarryModulus,
         ciphertext_modulus: CiphertextModulus,
         output_ciphertext_kind: CompactCiphertextListExpansionKind,
+        zk_scheme: SupportedCompactPkeZkScheme,
     ) -> Result<Self, Error> {
         let parameters = Self {
             encryption_lwe_dimension,
@@ -63,6 +71,7 @@ impl CompactPublicKeyEncryptionParameters {
             carry_modulus,
             ciphertext_modulus,
             expansion_kind: output_ciphertext_kind,
+            zk_scheme,
         };
 
         if !parameters.is_valid() {
@@ -91,6 +100,15 @@ impl CompactPublicKeyEncryptionParameters {
             "Invalid CompactPublicKeyEncryptionParameters, \
             encryption_lwe_dimension is not a power of 2, which is required.",
         );
+    }
+
+    pub(crate) fn encoding(&self) -> ShortintEncoding {
+        ShortintEncoding {
+            ciphertext_modulus: self.ciphertext_modulus,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            padding_bit: PaddingBit::Yes,
+        }
     }
 }
 
@@ -121,6 +139,8 @@ impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
             carry_modulus,
             ciphertext_modulus,
             output_ciphertext_kind,
+            // Zk needs specific pke parameters
+            SupportedCompactPkeZkScheme::ZkNotSupported,
         )
     }
 }

@@ -714,13 +714,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = PseudoGgswLevelMatrixCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = PseudoGgswLevelMatrix<&'this [Self::Element]>
+    type EntityView<'this>
+        = PseudoGgswLevelMatrix<&'this [Self::Element]>
     where
         Self: 'this;
 
     type SelfViewMetadata = ();
 
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 
@@ -750,11 +752,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for PseudoGgswCiphertext<C>
 {
-    type EntityMutView<'this> = PseudoGgswLevelMatrix<&'this mut [Self::Element]>
+    type EntityMutView<'this>
+        = PseudoGgswLevelMatrix<&'this mut [Self::Element]>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 }

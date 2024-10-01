@@ -8,6 +8,7 @@ use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::parameters::LweDimension;
 use crate::core_crypto::commons::traits::*;
+use crate::named::Named;
 
 /// An [`LWE secret key`](`LweSecretKey`).
 ///
@@ -23,6 +24,10 @@ use crate::core_crypto::commons::traits::*;
 #[versionize(LweSecretKeyVersions)]
 pub struct LweSecretKey<C: Container> {
     data: C,
+}
+
+impl<C: Container> Named for LweSecretKey<C> {
+    const NAME: &'static str = "core_crypto::LweSecretKey";
 }
 
 impl<T, C: Container<Element = T>> AsRef<[T]> for LweSecretKey<C> {
@@ -149,8 +154,7 @@ where
     /// // Create the PRNG
     /// let mut seeder = new_seeder();
     /// let seeder = seeder.as_mut();
-    /// let mut secret_generator =
-    ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    /// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
     ///
     /// let lwe_secret_key: LweSecretKeyOwned<u64> =
     ///     LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_generator);

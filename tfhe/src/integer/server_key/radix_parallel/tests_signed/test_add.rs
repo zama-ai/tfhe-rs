@@ -9,7 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     CpuFunctionExecutor, MAX_NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
@@ -19,9 +19,9 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_unchecked_add);
-create_parametrized_test!(integer_signed_unchecked_overflowing_add);
-create_parametrized_test!(
+create_parameterized_test!(integer_signed_unchecked_add);
+create_parameterized_test!(integer_signed_unchecked_overflowing_add);
+create_parameterized_test!(
     integer_signed_unchecked_overflowing_add_parallelized {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -30,25 +30,25 @@ create_parametrized_test!(
         no_coverage => {
             // Requires 4 bits, so 1_1 parameters are not supported
             // until they get their own version of the algorithm
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         }
     }
 );
-create_parametrized_test!(integer_signed_smart_add);
-create_parametrized_test!(integer_signed_default_add);
-create_parametrized_test!(integer_extensive_trivial_signed_default_add);
-create_parametrized_test!(integer_signed_default_overflowing_add);
-create_parametrized_test!(integer_extensive_trivial_signed_overflowing_add);
-create_parametrized_test!(
+create_parameterized_test!(integer_signed_smart_add);
+create_parameterized_test!(integer_signed_default_add);
+create_parameterized_test!(integer_extensive_trivial_signed_default_add);
+create_parameterized_test!(integer_signed_default_overflowing_add);
+create_parameterized_test!(integer_extensive_trivial_signed_overflowing_add);
+create_parameterized_test!(
     integer_extensive_trivial_signed_advanced_overflowing_add_assign_with_carry_sequential
 );
-create_parametrized_test!(
+create_parameterized_test!(
     integer_extensive_trivial_signed_overflowing_advanced_add_assign_with_carry_at_least_4_bits {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -57,13 +57,13 @@ create_parametrized_test!(
         no_coverage => {
             // Requires 4 bits, so 1_1 parameters are not supported
             // until they get their own version of the algorithm
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         }
     }
 );
@@ -239,8 +239,8 @@ where
         let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
         let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
-        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check,\n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
 
         let (expected_result, expected_overflowed) =
             signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
@@ -314,15 +314,16 @@ where
     executor.setup(&cks, sks.clone());
 
     for num_blocks in 1..MAX_NB_CTXT {
-        let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
-        if modulus == 1 {
-            // Basically have one bit the sign bit can't really test
+        let half_modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
+        if half_modulus <= 1 {
+            // The half_modulus (i.e modulus without sign bit) is such that the set of values
+            // is empty
             continue;
         }
 
         for _ in 0..nb_tests_smaller {
-            let clear_0 = rng.gen::<i64>() % modulus;
-            let clear_1 = rng.gen::<i64>() % modulus;
+            let clear_0 = rng.gen::<i64>() % half_modulus;
+            let clear_1 = rng.gen::<i64>() % half_modulus;
 
             let ctxt_0 = cks.as_ref().encrypt_signed_radix(clear_0, num_blocks);
             let ctxt_1 = cks.as_ref().encrypt_signed_radix(clear_1, num_blocks);
@@ -330,23 +331,23 @@ where
             let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
             let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp_ct, "Failed determinism check");
-            assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+            assert_eq!(ct_res, tmp_ct, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
+            assert_eq!(tmp_o, result_overflowed, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
 
             let (expected_result, expected_overflowed) =
-                signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+                signed_overflowing_add_under_modulus(clear_0, clear_1, half_modulus);
 
             let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
             let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
             assert_eq!(
                 decrypted_result, expected_result,
-                "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+                "Invalid result for add, for ({clear_0} + {clear_1}) % {half_modulus} \
              expected {expected_result}, got {decrypted_result}"
             );
             assert_eq!(
                 decrypted_overflowed,
                 expected_overflowed,
-                "Invalid overflow flag result for overflowing_suv for ({clear_0} + {clear_1}) % {modulus} \
+                "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {half_modulus} \
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
             assert_eq!(result_overflowed.0.degree.get(), 1);
@@ -354,14 +355,14 @@ where
 
             for _ in 0..nb_tests_smaller {
                 // Add non zero scalar to have non clean ciphertexts
-                let clear_2 = random_non_zero_value(&mut rng, modulus);
-                let clear_3 = random_non_zero_value(&mut rng, modulus);
+                let clear_2 = random_non_zero_value(&mut rng, half_modulus);
+                let clear_3 = random_non_zero_value(&mut rng, half_modulus);
 
                 let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
                 let ctxt_1 = sks.unchecked_scalar_add(&ctxt_1, clear_3);
 
-                let clear_lhs = signed_add_under_modulus(clear_0, clear_2, modulus);
-                let clear_rhs = signed_add_under_modulus(clear_1, clear_3, modulus);
+                let clear_lhs = signed_add_under_modulus(clear_0, clear_2, half_modulus);
+                let clear_rhs = signed_add_under_modulus(clear_1, clear_3, half_modulus);
 
                 let d0: i64 = cks.decrypt_signed(&ctxt_0);
                 assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
@@ -372,19 +373,19 @@ where
                 assert!(ct_res.block_carries_are_empty());
 
                 let (expected_result, expected_overflowed) =
-                    signed_overflowing_add_under_modulus(clear_lhs, clear_rhs, modulus);
+                    signed_overflowing_add_under_modulus(clear_lhs, clear_rhs, half_modulus);
 
                 let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
                 let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
                 assert_eq!(
                     decrypted_result, expected_result,
-                    "Invalid result for add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                    "Invalid result for add, for ({clear_lhs} + {clear_rhs}) % {half_modulus} \
                 expected {expected_result}, got {decrypted_result}"
                 );
                 assert_eq!(
                     decrypted_overflowed,
                     expected_overflowed,
-                    "Invalid overflow flag result for overflowing_add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                    "Invalid overflow flag result for overflowing_add, for ({clear_lhs} + {clear_rhs}) % {half_modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
                 );
                 assert_eq!(result_overflowed.0.degree.get(), 1);
@@ -451,10 +452,7 @@ where
 
     let message_modulus = cks.parameters().message_modulus();
     let block_num_bits = message_modulus.0.ilog2();
-    // Contrary to regular add, we do bit_size every block num_bits,
-    // otherwise the bit_size actually encrypted is not exactly the same
-    // leading to false test overflow results.
-    for bit_size in (2..=64u32).step_by(block_num_bits as usize) {
+    for bit_size in 2..=64u32 {
         let num_blocks = bit_size.div_ceil(block_num_bits);
         let modulus = (cks.parameters().message_modulus().0 as i128).pow(num_blocks) / 2;
 
@@ -557,15 +555,16 @@ where
     let mut clear;
 
     for num_blocks in 1..MAX_NB_CTXT {
-        let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
-        if modulus == 1 {
-            // Basically have one bit the sign bit can't really test
+        let half_modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
+        if half_modulus <= 1 {
+            // The half_modulus (i.e modulus without sign bit) is such that the set of values
+            // is empty
             continue;
         }
 
         for _ in 0..nb_tests_smaller {
-            let clear_0 = rng.gen::<i64>() % modulus;
-            let clear_1 = rng.gen::<i64>() % modulus;
+            let clear_0 = rng.gen::<i64>() % half_modulus;
+            let clear_1 = rng.gen::<i64>() % half_modulus;
 
             let ctxt_0 = cks.as_ref().encrypt_signed_radix(clear_0, num_blocks);
             let ctxt_1 = cks.as_ref().encrypt_signed_radix(clear_1, num_blocks);
@@ -575,14 +574,14 @@ where
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp_ct);
 
-            clear = signed_add_under_modulus(clear_0, clear_1, modulus);
+            clear = signed_add_under_modulus(clear_0, clear_1, half_modulus);
 
             // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
             // add multiple times to raise the degree
             for _ in 0..nb_tests_smaller {
                 ct_res = executor.execute((&ct_res, &ctxt_0));
                 assert!(ct_res.block_carries_are_empty());
-                clear = signed_add_under_modulus(clear, clear_0, modulus);
+                clear = signed_add_under_modulus(clear, clear_0, half_modulus);
 
                 let dec_res: i64 = cks.decrypt_signed(&ct_res);
 

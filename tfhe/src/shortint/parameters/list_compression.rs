@@ -1,6 +1,6 @@
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::prelude::{CiphertextModulusLog, LweCiphertextCount, StandardDev};
+use crate::core_crypto::prelude::{CiphertextModulusLog, LweCiphertextCount};
 use crate::shortint::backward_compatibility::parameters::list_compression::CompressionParametersVersions;
 use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
@@ -8,7 +8,7 @@ use crate::shortint::parameters::{
 };
 use std::fmt::Debug;
 
-#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressionParametersVersions)]
 pub struct CompressionParameters {
     pub br_level: DecompositionLevelCount,
@@ -23,29 +23,17 @@ pub struct CompressionParameters {
 }
 
 pub const COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompressionParameters =
-    CompressionParameters {
-        br_level: DecompositionLevelCount(1),
-        br_base_log: DecompositionBaseLog(25),
-        packing_ks_level: DecompositionLevelCount(2),
-        packing_ks_base_log: DecompositionBaseLog(8),
-        packing_ks_polynomial_size: PolynomialSize(256),
-        packing_ks_glwe_dimension: GlweDimension(5),
-        lwe_per_glwe: LweCiphertextCount(256),
-        storage_log_modulus: CiphertextModulusLog(11),
-        packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(36),
-    };
+    V0_11_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-pub const COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64: CompressionParameters =
+pub const V0_11_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompressionParameters =
     CompressionParameters {
         br_level: DecompositionLevelCount(1),
-        br_base_log: DecompositionBaseLog(25),
+        br_base_log: DecompositionBaseLog(23),
         packing_ks_level: DecompositionLevelCount(2),
-        packing_ks_base_log: DecompositionBaseLog(8),
+        packing_ks_base_log: DecompositionBaseLog(6),
         packing_ks_polynomial_size: PolynomialSize(256),
-        packing_ks_glwe_dimension: GlweDimension(5),
+        packing_ks_glwe_dimension: GlweDimension(4),
         lwe_per_glwe: LweCiphertextCount(256),
-        storage_log_modulus: CiphertextModulusLog(11),
-        packing_ks_key_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(
-            StandardDev(1.6173527465097522e-09),
-        ),
+        storage_log_modulus: CiphertextModulusLog(12),
+        packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(43),
     };

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -ex
 
 function usage() {
     echo "$0: shortint test runner"
@@ -65,16 +65,8 @@ if [[ "${FAST_TESTS}" == TRUE ]]; then
 fi
 
 CURR_DIR="$(dirname "$0")"
-ARCH_FEATURE="$("${CURR_DIR}/get_arch_feature.sh")"
 
-nproc_bin=nproc
-
-# macOS detects CPUs differently
-if [[ $(uname) == "Darwin" ]]; then
-    nproc_bin="sysctl -n hw.logicalcpu"
-fi
-
-n_threads_small="$(${nproc_bin})"
+n_threads_small="$("${CURR_DIR}"/cpu_count.sh)"
 n_threads_big="${n_threads_small}"
 
 # TODO: automate thread selection by measuring host machine ram and loading the key sizes from the
@@ -101,7 +93,7 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
         --profile ci \
-        --features="${ARCH_FEATURE}",shortint,internal-keycache,zk-pok \
+        --features=shortint,internal-keycache,zk-pok,experimental \
         --test-threads "${n_threads_small}" \
         -E "${filter_expression_small_params}"
 
@@ -118,15 +110,16 @@ and not test(~smart_add_and_mul)"""
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
         --profile ci \
-        --features="${ARCH_FEATURE}",shortint,internal-keycache \
+        --features=shortint,internal-keycache,zk-pok,experimental \
         --test-threads "${n_threads_big}" \
+        --no-tests=warn \
         -E "${filter_expression_big_params}"
 
         if [[ "${multi_bit}" == "" ]]; then
             cargo "${RUST_TOOLCHAIN}" test \
                 --profile "${cargo_profile}" \
                 --package "${tfhe_package}" \
-                --features="${ARCH_FEATURE}",shortint,internal-keycache \
+                --features=shortint,internal-keycache,zk-pok,experimental \
                 --doc \
                 -- shortint::
         fi
@@ -140,7 +133,7 @@ else
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
         --profile ci \
-        --features="${ARCH_FEATURE}",shortint,internal-keycache \
+        --features=shortint,internal-keycache,experimental \
         --test-threads "${n_threads_big}" \
         -E "${filter_expression}"
 
@@ -148,7 +141,7 @@ else
         cargo "${RUST_TOOLCHAIN}" test \
             --profile "${cargo_profile}" \
             --package "${tfhe_package}" \
-            --features="${ARCH_FEATURE}",shortint,internal-keycache \
+            --features=shortint,internal-keycache,experimental \
             --doc \
             -- --test-threads="${n_threads_big}" shortint::
     fi

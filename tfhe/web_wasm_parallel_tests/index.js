@@ -27,7 +27,7 @@ async function setup() {
     "compressedPublicKeyTest",
     "compressedCompactPublicKeyTest256BitBig",
     "compressedCompactPublicKeyTest256BitSmall",
-    "compactPublicKeyZeroKnowledge",
+    "compactPublicKeyZeroKnowledgeTest",
     "compactPublicKeyBench32BitBig",
     "compactPublicKeyBench32BitSmall",
     "compactPublicKeyBench256BitBig",
@@ -45,7 +45,7 @@ async function setup() {
 
     let button = document.getElementById(id);
     if (button === null) {
-      console.error("button with id: ", id, "not found");
+      console.error(`button with id: ${id} not found`);
       return null;
     }
 
@@ -56,7 +56,7 @@ async function setup() {
         document.getElementById("testSuccess").checked = false;
         setButtonsDisabledState(demoNames, true);
 
-        console.log("Running: ", id);
+        console.log(`Running: ${id}`);
         try {
           let results = await fn();
           document.getElementById("testSuccess").checked = true;

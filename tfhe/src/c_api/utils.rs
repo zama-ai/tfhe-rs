@@ -6,7 +6,10 @@ where
 {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(closure)) {
         Ok(_) => 0,
-        _ => 1,
+        Err(err) => {
+            super::error::replace_last_error_with_panic_payload(&err);
+            1
+        }
     }
 }
 

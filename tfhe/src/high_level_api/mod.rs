@@ -23,6 +23,29 @@ macro_rules! expand_pub_use_fhe_type(
     }
 );
 
+macro_rules! export_concrete_array_types {
+    (
+        pub use $module_path:path { $($fhe_type_name:ident),* $(,)? };
+
+    ) => {
+          ::paste::paste! {
+            pub use $module_path::{
+                $(
+                    // DynBackend
+                    [<$fhe_type_name Array>],
+                    [<$fhe_type_name Slice>],
+                    [<$fhe_type_name SliceMut>],
+
+                    // CpuBackend
+                    [<Cpu $fhe_type_name Array>],
+                    [<Cpu $fhe_type_name Slice>],
+                    [<Cpu $fhe_type_name SliceMut>],
+                )*
+            };
+        }
+    };
+}
+
 pub use crate::core_crypto::commons::math::random::Seed;
 pub use crate::integer::server_key::MatchValues;
 pub use config::{Config, ConfigBuilder};
@@ -49,17 +72,36 @@ expand_pub_use_fhe_type!(
         FheInt32, FheInt64, FheInt128, FheInt160, FheInt256
     };
 );
+pub use array::{
+    ClearArray, CpuFheIntArray, CpuFheIntSlice, CpuFheIntSliceMut, CpuFheUintArray,
+    CpuFheUintSlice, CpuFheUintSliceMut, FheBoolId, FheIntArray, FheIntSlice, FheIntSliceMut,
+    FheUintArray, FheUintSlice, FheUintSliceMut,
+};
+export_concrete_array_types!(
+    pub use array{
+        FheBool,
+        FheUint2, FheUint4, FheUint8, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+        FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256,
+    };
+);
 
 pub use crate::integer::parameters::CompactCiphertextListConformanceParams;
+pub use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
+#[cfg(feature = "strings")]
+pub use crate::strings::ciphertext::ClearString;
+
 #[cfg(feature = "zk-pok")]
 pub use compact_list::ProvenCompactCiphertextList;
 pub use compact_list::{
     CompactCiphertextList, CompactCiphertextListBuilder, CompactCiphertextListExpander,
 };
-pub use compressed_ciphertext_list::{CompressedCiphertextList, CompressedCiphertextListBuilder};
-pub use safe_serialize::{safe_serialize, safe_serialize_versioned};
-
+pub use compressed_ciphertext_list::{
+    CompressedCiphertextList, CompressedCiphertextListBuilder, HlCompressible, HlExpandable,
+};
+#[cfg(feature = "strings")]
+pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, FheStringLen};
 pub use tag::Tag;
+pub use traits::FheId;
 
 mod booleans;
 mod compressed_ciphertext_list;
@@ -68,6 +110,8 @@ mod errors;
 mod global_state;
 mod integers;
 mod keys;
+#[cfg(feature = "strings")]
+mod strings;
 mod traits;
 mod utils;
 
@@ -91,65 +135,37 @@ pub enum Device {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[repr(i32)]
+#[cfg_attr(test, derive(strum::EnumIter))]
 pub enum FheTypes {
-    Bool,
-    Uint2,
-    Uint4,
-    Uint6,
-    Uint8,
-    Uint10,
-    Uint12,
-    Uint14,
-    Uint16,
-    Uint32,
-    Uint64,
-    Uint128,
-    Uint160,
-    Uint256,
-    Uint512,
-    Uint1024,
-    Uint2048,
-    Int2,
-    Int4,
-    Int6,
-    Int8,
-    Int10,
-    Int12,
-    Int14,
-    Int16,
-    Int32,
-    Int64,
-    Int128,
-    Int160,
-    Int256,
-}
-
-pub mod safe_serialize {
-    use crate::named::Named;
-    use serde::Serialize;
-    use tfhe_versionable::Versionize;
-
-    pub fn safe_serialize<T>(
-        a: &T,
-        writer: impl std::io::Write,
-        serialized_size_limit: u64,
-    ) -> Result<(), String>
-    where
-        T: Named + Serialize,
-    {
-        crate::safe_deserialization::safe_serialize(a, writer, serialized_size_limit)
-            .map_err(|err| err.to_string())
-    }
-
-    pub fn safe_serialize_versioned<T>(
-        a: &T,
-        writer: impl std::io::Write,
-        serialized_size_limit: u64,
-    ) -> Result<(), String>
-    where
-        T: Named + Versionize,
-    {
-        crate::safe_deserialization::safe_serialize_versioned(a, writer, serialized_size_limit)
-            .map_err(|err| err.to_string())
-    }
+    Bool = 0,
+    Uint4 = 1,
+    Uint8 = 2,
+    Uint16 = 3,
+    Uint32 = 4,
+    Uint64 = 5,
+    Uint128 = 6,
+    Uint160 = 7,
+    Uint256 = 8,
+    Uint512 = 9,
+    Uint1024 = 10,
+    Uint2048 = 11,
+    Uint2 = 12,
+    Uint6 = 13,
+    Uint10 = 14,
+    Uint12 = 15,
+    Uint14 = 16,
+    Int2 = 17,
+    Int4 = 18,
+    Int6 = 19,
+    Int8 = 20,
+    Int10 = 21,
+    Int12 = 22,
+    Int14 = 23,
+    Int16 = 24,
+    Int32 = 25,
+    Int64 = 26,
+    Int128 = 27,
+    Int160 = 28,
+    Int256 = 29,
 }

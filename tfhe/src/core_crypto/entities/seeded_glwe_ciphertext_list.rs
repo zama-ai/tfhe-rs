@@ -4,7 +4,7 @@ use tfhe_versionable::Versionize;
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_glwe_ciphertext_list::SeededGlweCiphertextListVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -63,7 +63,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
     /// let seeder = seeder.as_mut();
     ///
     /// // Create a new SeededGlweCiphertextList
-    /// let mut seeded_glwe_list = SeededGlweCiphertextList::new(
+    /// let seeded_glwe_list = SeededGlweCiphertextList::new(
     ///     0u64,
     ///     glwe_size,
     ///     polynomial_size,
@@ -188,7 +188,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
             self.glwe_ciphertext_count(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_glwe_ciphertext_list::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_glwe_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
             &self,
         );
@@ -302,13 +302,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = SeededGlweCiphertextCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = SeededGlweCiphertext<&'this [Self::Element]>
+    type EntityView<'this>
+        = SeededGlweCiphertext<&'this [Self::Element]>
     where
         Self: 'this;
 
     type SelfViewMetadata = ();
 
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 
@@ -337,11 +339,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for SeededGlweCiphertextList<C>
 {
-    type EntityMutView<'this> = SeededGlweCiphertext<&'this mut [Self::Element]>
+    type EntityMutView<'this>
+        = SeededGlweCiphertext<&'this mut [Self::Element]>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 }

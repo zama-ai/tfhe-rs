@@ -15,7 +15,7 @@ use crate::core_crypto::prelude::*;
 /// use tfhe::core_crypto::fft_impl::common::modulus_switch;
 /// use tfhe::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 /// use tfhe::core_crypto::prelude::*;
-/// use concrete_csprng::seeders::Seed;
+/// use tfhe_csprng::seeders::Seed;
 ///
 /// let log_modulus = 12;
 ///
@@ -25,7 +25,7 @@ use crate::core_crypto::prelude::*;
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
-/// let mut secret_generator = SecretRandomGenerator::<ActivatedRandomGenerator>::new(Seed(0));
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(Seed(0));
 ///
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key::<u64, _>(
 ///     glwe_size.to_glwe_dimension(),
@@ -37,7 +37,7 @@ use crate::core_crypto::prelude::*;
 /// let seeder = seeder.as_mut();
 ///
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// let inputs = [1 << 57, 1 << 58];
 ///
@@ -77,14 +77,14 @@ use crate::core_crypto::prelude::*;
 ///     );
 /// }
 /// ```
-#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedModulusSwitchedGlweCiphertextVersions)]
 pub struct CompressedModulusSwitchedGlweCiphertext<Scalar: UnsignedInteger> {
-    packed_integers: PackedIntegers<Scalar>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    bodies_count: LweCiphertextCount,
-    uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+    pub(crate) packed_integers: PackedIntegers<Scalar>,
+    pub(crate) glwe_dimension: GlweDimension,
+    pub(crate) polynomial_size: PolynomialSize,
+    pub(crate) bodies_count: LweCiphertextCount,
+    pub(crate) uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
 impl<Scalar: UnsignedTorus> CompressedModulusSwitchedGlweCiphertext<Scalar> {

@@ -135,18 +135,18 @@ impl Default for Args {
 }
 
 impl Args {
-    fn from_arg_list(mut progam_args: std::env::Args) -> Self {
+    fn from_arg_list(mut program_args: std::env::Args) -> Self {
         let mut args = Args::default();
         let mut had_invalid = false;
 
-        progam_args.next().unwrap(); // This is argv[0], the program name/path
-        while let Some(arg) = progam_args.next() {
+        program_args.next().unwrap(); // This is argv[0], the program name/path
+        while let Some(arg) = program_args.next() {
             if arg == "--parallel" {
                 args.parallel = true;
             } else if arg == "--trivial" {
                 args.trivial = true;
             } else if arg == "--device" {
-                let Some(value) = progam_args.next() else {
+                let Some(value) = program_args.next() else {
                     panic!("Expected value after --device");
                 };
 
@@ -161,7 +161,7 @@ impl Args {
                     _ => panic!("Unsupported device {value}"),
                 }
             } else if arg == "--multibit" {
-                let Some(value) = progam_args.next() else {
+                let Some(value) = program_args.next() else {
                     panic!("Expected value after --multibit");
                 };
 
@@ -186,12 +186,12 @@ fn main() -> Result<(), std::io::Error> {
     println!("key gen start");
     let config = match args.multibit {
         None => ConfigBuilder::default(),
-        Some(2) => {
-            ConfigBuilder::with_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS)
-        }
-        Some(3) => {
-            ConfigBuilder::with_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS)
-        }
+        Some(2) => ConfigBuilder::with_custom_parameters(
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        ),
+        Some(3) => ConfigBuilder::with_custom_parameters(
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        ),
         Some(v) => {
             panic!("Invalid multibit setting {v}");
         }

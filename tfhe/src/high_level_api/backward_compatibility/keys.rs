@@ -1,8 +1,7 @@
 use crate::high_level_api::keys::*;
-use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
 use crate::Tag;
 use std::convert::Infallible;
-use std::sync::Arc;
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 #[derive(VersionsDispatch)]
@@ -28,66 +27,29 @@ impl Upgrade<ClientKey> for ClientKeyV0 {
     }
 }
 
-// This type was previously versioned using a manual implementation with a conversion
-// to a type where the inner key was name `integer_key`
-#[derive(Version)]
-pub struct ServerKeyV0 {
-    pub(crate) integer_key: Arc<IntegerServerKey>,
-}
-
-impl Upgrade<ServerKeyV1> for ServerKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<ServerKeyV1, Self::Error> {
-        Ok(ServerKeyV1 {
-            key: self.integer_key,
-        })
-    }
-}
-
-#[derive(Version)]
-pub struct ServerKeyV1 {
-    pub(crate) key: Arc<IntegerServerKey>,
-}
-
-impl Upgrade<ServerKey> for ServerKeyV1 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<ServerKey, Self::Error> {
-        Ok(ServerKey {
-            key: self.key,
-            tag: Tag::default(),
-        })
-    }
+impl Deprecable for ServerKey {
+    const TYPE_NAME: &'static str = "ServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum ServerKeyVersions {
-    V0(ServerKeyV0),
-    V1(ServerKeyV1),
-    V2(ServerKey),
+    V0(Deprecated<ServerKey>),
+    V1(Deprecated<ServerKey>),
+    V2(Deprecated<ServerKey>),
+    V3(ServerKey),
 }
 
-#[derive(Version)]
-pub struct CompressedServerKeyV0 {
-    pub(crate) integer_key: IntegerCompressedServerKey,
-}
-
-impl Upgrade<CompressedServerKey> for CompressedServerKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<CompressedServerKey, Self::Error> {
-        Ok(CompressedServerKey {
-            integer_key: self.integer_key,
-            tag: Tag::default(),
-        })
-    }
+impl Deprecable for CompressedServerKey {
+    const TYPE_NAME: &'static str = "CompressedServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedServerKeyVersions {
-    V0(CompressedServerKeyV0),
-    V1(CompressedServerKey),
+    V0(Deprecated<CompressedServerKey>),
+    V1(Deprecated<CompressedServerKey>),
+    V2(CompressedServerKey),
 }
 
 #[derive(Version)]
@@ -184,43 +146,9 @@ pub(crate) enum IntegerConfigVersions {
     V0(IntegerConfig),
 }
 
-#[derive(Version)]
-pub(crate) struct IntegerClientKeyV0 {
-    pub(crate) key: crate::integer::ClientKey,
-    pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
-}
-
-#[derive(Version)]
-pub(crate) struct IntegerClientKeyV1 {
-    pub(crate) key: crate::integer::ClientKey,
-    pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
-    pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
-    pub(crate) compression_key: Option<CompressionPrivateKeys>,
-}
-
-impl Upgrade<IntegerClientKeyV1> for IntegerClientKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<IntegerClientKeyV1, Self::Error> {
-        Ok(IntegerClientKeyV1 {
-            key: self.key,
-            wopbs_block_parameters: self.wopbs_block_parameters,
-            dedicated_compact_private_key: None,
-            compression_key: None,
-        })
-    }
-}
-
-impl Upgrade<IntegerClientKeyV2> for IntegerClientKeyV1 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<IntegerClientKeyV2, Self::Error> {
-        Ok(IntegerClientKeyV2 {
-            key: self.key,
-            dedicated_compact_private_key: self.dedicated_compact_private_key,
-            compression_key: self.compression_key,
-        })
-    }
+impl Deprecable for IntegerClientKey {
+    const TYPE_NAME: &'static str = "IntegerClientKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.8";
 }
 
 #[derive(Version)]
@@ -247,111 +175,36 @@ impl Upgrade<IntegerClientKey> for IntegerClientKeyV2 {
 #[derive(VersionsDispatch)]
 #[allow(unused)]
 pub(crate) enum IntegerClientKeyVersions {
-    V0(IntegerClientKeyV0),
-    V1(IntegerClientKeyV1),
+    V0(Deprecated<IntegerClientKey>),
+    V1(Deprecated<IntegerClientKey>),
     V2(IntegerClientKeyV2),
     V3(IntegerClientKey),
 }
 
-#[derive(Version)]
-pub struct IntegerServerKeyV0 {
-    pub(crate) key: crate::integer::ServerKey,
-    pub(crate) wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
-}
-
-#[derive(Version)]
-pub struct IntegerServerKeyV1 {
-    pub(crate) key: crate::integer::ServerKey,
-    pub(crate) wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
-    pub(crate) cpk_key_switching_key_material:
-        Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
-    pub(crate) compression_key: Option<CompressionKey>,
-    pub(crate) decompression_key: Option<DecompressionKey>,
-}
-
-impl Upgrade<IntegerServerKeyV1> for IntegerServerKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<IntegerServerKeyV1, Self::Error> {
-        Ok(IntegerServerKeyV1 {
-            key: self.key,
-            wopbs_key: self.wopbs_key,
-            cpk_key_switching_key_material: None,
-            compression_key: None,
-            decompression_key: None,
-        })
-    }
-}
-
-impl Upgrade<IntegerServerKeyV2> for IntegerServerKeyV1 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<IntegerServerKeyV2, Self::Error> {
-        Ok(IntegerServerKeyV2 {
-            key: self.key,
-            cpk_key_switching_key_material: self.cpk_key_switching_key_material,
-            compression_key: self.compression_key,
-            decompression_key: self.decompression_key,
-        })
-    }
-}
-
-#[derive(Version)]
-pub struct IntegerServerKeyV2 {
-    pub(crate) key: crate::integer::ServerKey,
-    pub(crate) cpk_key_switching_key_material:
-        Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
-    pub(crate) compression_key: Option<crate::shortint::list_compression::CompressionKey>,
-    pub(crate) decompression_key: Option<crate::shortint::list_compression::DecompressionKey>,
-}
-
-impl Upgrade<IntegerServerKey> for IntegerServerKeyV2 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<IntegerServerKey, Self::Error> {
-        Ok(IntegerServerKey {
-            key: self.key,
-            cpk_key_switching_key_material: self.cpk_key_switching_key_material,
-            compression_key: self
-                .compression_key
-                .map(|key| crate::integer::compression_keys::CompressionKey { key }),
-            decompression_key: self
-                .decompression_key
-                .map(|key| crate::integer::compression_keys::DecompressionKey { key }),
-        })
-    }
+impl Deprecable for IntegerServerKey {
+    const TYPE_NAME: &'static str = "IntegerServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum IntegerServerKeyVersions {
-    V0(IntegerServerKeyV0),
-    V1(IntegerServerKeyV1),
-    V2(IntegerServerKeyV2),
-    V3(IntegerServerKey),
+    V0(Deprecated<IntegerServerKey>),
+    V1(Deprecated<IntegerServerKey>),
+    V2(Deprecated<IntegerServerKey>),
+    V3(Deprecated<IntegerServerKey>),
+    V4(IntegerServerKey),
 }
 
-#[derive(Version)]
-pub struct IntegerCompressedServerKeyV0 {
-    pub(crate) key: crate::integer::CompressedServerKey,
-}
-
-impl Upgrade<IntegerCompressedServerKey> for IntegerCompressedServerKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<IntegerCompressedServerKey, Self::Error> {
-        Ok(IntegerCompressedServerKey {
-            key: self.key,
-            cpk_key_switching_key_material: None,
-            compression_key: None,
-            decompression_key: None,
-        })
-    }
+impl Deprecable for IntegerCompressedServerKey {
+    const TYPE_NAME: &'static str = "IntegerCompressedServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum IntegerCompressedServerKeyVersions {
-    V0(IntegerCompressedServerKeyV0),
-    V1(IntegerCompressedServerKey),
+    V0(Deprecated<IntegerCompressedServerKey>),
+    V1(Deprecated<IntegerCompressedServerKey>),
+    V2(IntegerCompressedServerKey),
 }
 
 #[derive(VersionsDispatch)]
@@ -366,7 +219,13 @@ pub(in crate::high_level_api) enum IntegerCompressedCompactPublicKeyVersions {
     V0(IntegerCompressedCompactPublicKey),
 }
 
+impl Deprecable for KeySwitchingKey {
+    const TYPE_NAME: &'static str = "KeySwitchingKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
+}
+
 #[derive(VersionsDispatch)]
 pub enum KeySwitchingKeyVersions {
-    V0(KeySwitchingKey),
+    V0(Deprecated<KeySwitchingKey>),
+    V1(KeySwitchingKey),
 }

@@ -1,7 +1,7 @@
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use aligned_vec::{avec, ABox};
-use concrete_fft::c64;
+use tfhe_fft::c64;
 
 //--------------------------------------------------------------------------------
 // Structure definitions

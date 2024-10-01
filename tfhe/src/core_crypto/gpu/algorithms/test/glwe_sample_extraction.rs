@@ -2,6 +2,7 @@ use super::*;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::glwe_sample_extraction::cuda_extract_lwe_samples_from_glwe_ciphertext_list;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
 use itertools::Itertools;
 
@@ -26,7 +27,7 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
     let gpu_index = 0;
-    let streams = CudaStreams::new_single_gpu(gpu_index);
+    let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
     let mut msgs = vec![];
 
@@ -122,4 +123,4 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
     }
 }
 
-create_gpu_parametrized_test!(glwe_encrypt_sample_extract_decrypt_custom_mod);
+create_gpu_parameterized_test!(glwe_encrypt_sample_extract_decrypt_custom_mod);

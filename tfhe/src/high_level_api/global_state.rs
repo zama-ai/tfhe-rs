@@ -4,7 +4,10 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::errors::{UninitializedServerKey, UnwrapResultExt};
 use crate::high_level_api::keys::{InternalServerKey, ServerKey};
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::CudaServerKey;
 use std::cell::RefCell;
+
 /// We store the internal keys as thread local, meaning each thread has its own set of keys.
 ///
 /// This means that the user can do computations in multiple threads
@@ -39,10 +42,9 @@ thread_local! {
 ///
 /// ```rust
 /// use std::thread;
-/// use tfhe;
 /// use tfhe::ConfigBuilder;
 ///
-/// let config = tfhe::ConfigBuilder::default().build();
+/// let config = ConfigBuilder::default().build();
 /// let (client_key, server_key) = tfhe::generate_keys(config);
 /// let server_key_2 = server_key.clone();
 ///
@@ -152,6 +154,28 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cpu key requested but only cuda key is available")
+            }
+        }
+    })
+}
+
+#[inline]
+#[cfg(feature = "gpu")]
+pub(crate) fn with_cuda_internal_keys<T, F>(func: F) -> T
+where
+    F: FnOnce(&CudaServerKey) -> T,
+{
+    // Should use `with_borrow` when its stabilized
+    INTERNAL_KEYS.with(|keys| {
+        let maybe_key = &*keys.borrow();
+        let key = maybe_key
+            .as_ref()
+            .ok_or(UninitializedServerKey)
+            .unwrap_display();
+        match key {
+            InternalServerKey::Cuda(key) => func(&key.key.key),
+            InternalServerKey::Cpu(_) => {
+                panic!("Cuda key requested but only cpu key is available")
             }
         }
     })

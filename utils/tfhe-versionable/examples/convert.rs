@@ -3,48 +3,62 @@
 use tfhe_versionable::{Unversionize, Versionize, VersionsDispatch};
 
 #[derive(Clone, Versionize)]
-#[versionize(SerializableMyStructVersions, from = SerializableMyStruct, into = SerializableMyStruct)]
-struct MyStruct {
+// To mimic serde parameters, this can also be expressed as
+// "#[versionize(from = SerializableMyStruct, into = SerializableMyStruct)]"
+#[versionize(convert = "SerializableMyStruct<T>")]
+struct MyStruct<T> {
     val: u64,
+    generics: T,
 }
 
 #[derive(Versionize)]
 #[versionize(SerializableMyStructVersions)]
-struct SerializableMyStruct {
+struct SerializableMyStruct<T> {
     high: u32,
     low: u32,
+    generics: T,
 }
 
 #[derive(VersionsDispatch)]
 #[allow(unused)]
-enum SerializableMyStructVersions {
-    V0(SerializableMyStruct),
+enum SerializableMyStructVersions<T> {
+    V0(SerializableMyStruct<T>),
 }
 
-impl From<MyStruct> for SerializableMyStruct {
-    fn from(value: MyStruct) -> Self {
-        println!("{}", value.val);
+impl<T> From<MyStruct<T>> for SerializableMyStruct<T> {
+    fn from(value: MyStruct<T>) -> Self {
         Self {
             high: (value.val >> 32) as u32,
             low: (value.val & 0xffffffff) as u32,
+            generics: value.generics,
         }
     }
 }
 
-impl From<SerializableMyStruct> for MyStruct {
-    fn from(value: SerializableMyStruct) -> Self {
+impl<T> From<SerializableMyStruct<T>> for MyStruct<T> {
+    fn from(value: SerializableMyStruct<T>) -> Self {
         Self {
             val: ((value.high as u64) << 32) | (value.low as u64),
+            generics: value.generics,
         }
     }
 }
 
 fn main() {
-    let stru = MyStruct { val: 37 };
+    let stru = MyStruct {
+        val: 37,
+        generics: 90,
+    };
 
     let serialized = bincode::serialize(&stru.versionize()).unwrap();
 
-    let stru_decoded = MyStruct::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
+    let stru_decoded: MyStruct<i32> =
+        MyStruct::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
 
     assert_eq!(stru.val, stru_decoded.val)
+}
+
+#[test]
+fn test() {
+    main()
 }

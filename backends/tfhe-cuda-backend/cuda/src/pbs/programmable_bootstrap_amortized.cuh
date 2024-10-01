@@ -6,15 +6,16 @@
 #include <cuda_runtime.h>
 #endif
 
+#include "bootstrapping_key.cuh"
 #include "crypto/gadget.cuh"
 #include "crypto/torus.cuh"
 #include "device.h"
 #include "fft/bnsmfft.cuh"
 #include "fft/twiddles.cuh"
+#include "pbs/programmable_bootstrap.h"
 #include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
-#include "programmable_bootstrap.h"
 #include "types/complex/operations.cuh"
 
 template <typename Torus, class params, sharedMemDegree SMD>
@@ -116,8 +117,8 @@ __global__ void device_programmable_bootstrap_amortized(
 
     // Perform a rounding to increase the accuracy of the
     // bootstrapped ciphertext
-    round_to_closest_multiple_inplace<Torus, params::opt,
-                                      params::degree / params::opt>(
+    init_decomposer_state_inplace<Torus, params::opt,
+                                  params::degree / params::opt>(
         accumulator_rotated, base_log, level_count, glwe_dimension + 1);
 
     // Initialize the polynomial multiplication via FFT arrays

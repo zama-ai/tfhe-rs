@@ -649,7 +649,8 @@ where
             ciphertext_modulus,
         } = self;
 
-        check_encrypted_content_respects_mod(self, glwe_ct_parameters.ct_modulus)
+        polynomial_size.0.is_power_of_two()
+            && check_encrypted_content_respects_mod(self, glwe_ct_parameters.ct_modulus)
             && data.container_len()
                 == glwe_ciphertext_size(
                     glwe_ct_parameters.glwe_dim.to_glwe_size(),

@@ -3,7 +3,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionE
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, rotate_left_helper, rotate_right_helper, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -11,10 +11,10 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_unchecked_scalar_rotate_left);
-create_parametrized_test!(integer_default_scalar_rotate_left);
-create_parametrized_test!(integer_unchecked_scalar_rotate_right);
-create_parametrized_test!(integer_default_scalar_rotate_right);
+create_parameterized_test!(integer_unchecked_scalar_rotate_left);
+create_parameterized_test!(integer_default_scalar_rotate_left);
+create_parameterized_test!(integer_unchecked_scalar_rotate_right);
+create_parameterized_test!(integer_default_scalar_rotate_right);
 
 fn integer_default_scalar_rotate_left<P>(param: P)
 where
@@ -62,7 +62,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     let nb_bits = modulus.ilog2();
     let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
@@ -128,7 +128,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     let nb_bits = modulus.ilog2();
     let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
@@ -198,7 +198,7 @@ where
     executor.setup(&cks, sks);
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     let nb_bits = modulus.ilog2();
     let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
@@ -270,7 +270,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     let nb_bits = modulus.ilog2();
     let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 

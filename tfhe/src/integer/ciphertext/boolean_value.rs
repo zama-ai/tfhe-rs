@@ -23,12 +23,12 @@ use tfhe_versionable::Versionize;
 /// ## Converting a [BooleanBlock] to a [RadixCiphertext]
 ///
 /// ```rust
-/// use tfhe::integer::{gen_keys_radix, BooleanBlock};
-/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+/// use tfhe::integer::gen_keys_radix;
+/// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 ///
 /// // We have 4 * 2 = 8 bits of message
 /// let size = 4;
-/// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+/// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
 ///
 /// let a = 128u8;
 /// let b = 55u8;
@@ -83,11 +83,11 @@ impl BooleanBlock {
     ///
     /// ```rust
     /// use tfhe::integer::{gen_keys_radix, BooleanBlock};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let a = 128u8;
     /// let ct_a = cks.encrypt(a);
@@ -141,11 +141,11 @@ impl BooleanBlock {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::integer::{gen_keys_radix, RadixCiphertext, SignedRadixCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // 8 bits
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 4);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, 4);
     ///
     /// let msg = false;
     /// let msg2 = true;

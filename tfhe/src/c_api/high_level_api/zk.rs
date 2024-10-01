@@ -1,7 +1,7 @@
 use super::utils::*;
 use crate::c_api::high_level_api::config::Config;
 use crate::c_api::utils::get_ref_checked;
-use crate::zk::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
+use crate::zk::Compressible;
 use std::ffi::c_int;
 
 #[repr(C)]
@@ -20,19 +20,16 @@ impl From<ZkComputeLoad> for crate::zk::ZkComputeLoad {
     }
 }
 
-pub struct CompactPkePublicParams(pub(crate) crate::core_crypto::entities::CompactPkePublicParams);
-impl_destroy_on_type!(CompactPkePublicParams);
+pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs);
+impl_destroy_on_type!(CompactPkeCrs);
 
-/// Serializes the public params
+/// Serializes the CRS
 ///
 /// If compress is true, the data will be compressed (less serialized bytes), however, this makes
-/// the serialization process slower.
-///
-/// Also, the value to `compress` should match the value given to `is_compressed`
-/// when deserializing.
+/// the deserialization process slower.
 #[no_mangle]
-pub unsafe extern "C" fn compact_pke_public_params_serialize(
-    sself: *const CompactPkePublicParams,
+pub unsafe extern "C" fn compact_pke_crs_serialize(
+    sself: *const CompactPkeCrs,
     compress: bool,
     result: *mut crate::c_api::buffer::DynamicBuffer,
 ) -> ::std::os::raw::c_int {
@@ -41,61 +38,145 @@ pub unsafe extern "C" fn compact_pke_public_params_serialize(
 
         let wrapper = crate::c_api::utils::get_ref_checked(sself).unwrap();
 
-        let compress = if compress {
-            Compress::Yes
+        let buffer = if compress {
+            bincode::serialize(&wrapper.0.compress()).unwrap()
         } else {
-            Compress::No
+            bincode::serialize(&wrapper.0).unwrap()
         };
-        let mut buffer = vec![];
-        wrapper
-            .0
-            .serialize_with_mode(&mut buffer, compress)
-            .unwrap();
 
         *result = buffer.into();
     })
 }
 
-/// Deserializes the public params
-///
-/// If the data comes from compressed public params, then `is_compressed` must be true.
+/// Deserializes the CRS
 #[no_mangle]
-pub unsafe extern "C" fn compact_pke_public_params_deserialize(
+pub unsafe extern "C" fn compact_pke_crs_deserialize(
     buffer_view: crate::c_api::buffer::DynamicBufferView,
-    is_compressed: bool,
-    validate: bool,
-    result: *mut *mut CompactPkePublicParams,
+    result: *mut *mut CompactPkeCrs,
 ) -> ::std::os::raw::c_int {
     crate::c_api::utils::catch_panic(|| {
         crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
 
         *result = std::ptr::null_mut();
 
-        let deserialized = crate::zk::CompactPkePublicParams::deserialize_with_mode(
-            buffer_view.as_slice(),
-            if is_compressed {
-                Compress::Yes
-            } else {
-                Compress::No
-            },
-            if validate {
-                Validate::Yes
-            } else {
-                Validate::No
-            },
-        )
-        .unwrap();
+        let deserialized = bincode::deserialize(buffer_view.as_slice()).unwrap();
 
-        let heap_allocated_object = Box::new(CompactPkePublicParams(deserialized));
+        let heap_allocated_object = Box::new(CompactPkeCrs(deserialized));
 
         *result = Box::into_raw(heap_allocated_object);
     })
 }
 
-pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs);
+/// Serializes the CRS
+///
+/// If compress is true, the data will be compressed (less serialized bytes), however, this makes
+/// the deserialization process slower.
+#[no_mangle]
+pub unsafe extern "C" fn compact_pke_crs_safe_serialize(
+    sself: *const CompactPkeCrs,
+    compress: bool,
+    serialized_size_limit: u64,
+    result: *mut crate::c_api::buffer::DynamicBuffer,
+) -> ::std::os::raw::c_int {
+    crate::c_api::utils::catch_panic(|| {
+        crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
 
-impl_destroy_on_type!(CompactPkeCrs);
+        let wrapper = crate::c_api::utils::get_ref_checked(sself).unwrap();
 
+        let mut buffer = Vec::new();
+        if compress {
+            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+                .serialize_into(&wrapper.0.compress(), &mut buffer)
+                .unwrap();
+        } else {
+            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+                .serialize_into(&wrapper.0, &mut buffer)
+                .unwrap();
+        };
+
+        *result = buffer.into();
+    })
+}
+
+/// Deserializes the CRS
+#[no_mangle]
+pub unsafe extern "C" fn compact_pke_crs_safe_deserialize(
+    buffer_view: crate::c_api::buffer::DynamicBufferView,
+    serialized_size_limit: u64,
+    result: *mut *mut CompactPkeCrs,
+) -> ::std::os::raw::c_int {
+    crate::c_api::utils::catch_panic(|| {
+        crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        *result = std::ptr::null_mut();
+
+        let buffer_view: &[u8] = buffer_view.as_slice();
+
+        let deserialized =
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+                .disable_conformance()
+                .deserialize_from(buffer_view)
+                .unwrap();
+
+        let heap_allocated_object = Box::new(CompactPkeCrs(deserialized));
+
+        *result = Box::into_raw(heap_allocated_object);
+    })
+}
+
+/// Deserializes the CRS from a CompactPkePublicParams object that comes from a previous version of
+/// TFHE-rs. This function is kept for backward compatibility, new code should directly use the
+/// CompactPkeCrs object.
+#[no_mangle]
+pub unsafe extern "C" fn compact_pke_crs_deserialize_from_params(
+    buffer_view: crate::c_api::buffer::DynamicBufferView,
+    result: *mut *mut CompactPkeCrs,
+) -> ::std::os::raw::c_int {
+    crate::c_api::utils::catch_panic(|| {
+        crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        *result = std::ptr::null_mut();
+
+        let deserialized: crate::core_crypto::entities::ZkCompactPkeV1PublicParams =
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
+        let crs = deserialized.into();
+
+        let heap_allocated_object = Box::new(CompactPkeCrs(crs));
+
+        *result = Box::into_raw(heap_allocated_object);
+    })
+}
+
+/// Deserializes the CRS from a CompactPkePublicParams object that comes from a previous version of
+/// TFHE-rs. This function is kept for backward compatibility, new code should directly use the
+/// CompactPkeCrs object.
+#[no_mangle]
+pub unsafe extern "C" fn compact_pke_crs_safe_deserialize_from_params(
+    buffer_view: crate::c_api::buffer::DynamicBufferView,
+    serialized_size_limit: u64,
+    result: *mut *mut CompactPkeCrs,
+) -> ::std::os::raw::c_int {
+    crate::c_api::utils::catch_panic(|| {
+        crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        *result = std::ptr::null_mut();
+
+        let buffer_view: &[u8] = buffer_view.as_slice();
+
+        let deserialized: crate::core_crypto::entities::ZkCompactPkeV1PublicParams =
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+                .disable_conformance()
+                .deserialize_from(buffer_view)
+                .unwrap();
+        let crs = deserialized.into();
+
+        let heap_allocated_object = Box::new(CompactPkeCrs(crs));
+
+        *result = Box::into_raw(heap_allocated_object);
+    })
+}
+
+/// Creates a new CRS to generate zk pke proofs based on a config object.
 #[no_mangle]
 pub unsafe extern "C" fn compact_pke_crs_from_config(
     config: *const Config,
@@ -109,19 +190,5 @@ pub unsafe extern "C" fn compact_pke_crs_from_config(
             .unwrap();
 
         *out_result = Box::into_raw(Box::new(CompactPkeCrs(crs)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn compact_pke_crs_public_params(
-    crs: *const CompactPkeCrs,
-    out_public_params: *mut *mut CompactPkePublicParams,
-) -> c_int {
-    crate::c_api::utils::catch_panic(|| {
-        let crs = get_ref_checked(crs).unwrap();
-
-        *out_public_params = Box::into_raw(Box::new(CompactPkePublicParams(
-            crs.0.public_params().clone(),
-        )));
     })
 }

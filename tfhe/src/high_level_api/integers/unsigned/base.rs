@@ -73,7 +73,6 @@ pub trait FheUintId: IntegerId {}
 /// [FheUint8]: crate::high_level_api::FheUint8
 /// [FheUint12]: crate::high_level_api::FheUint12
 /// [FheUint16]: crate::high_level_api::FheUint16
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
 #[versionize(FheUintVersions)]
 pub struct FheUint<Id: FheUintId> {
@@ -82,6 +81,7 @@ pub struct FheUint<Id: FheUintId> {
     pub(crate) tag: Tag,
 }
 
+#[derive(Copy, Clone)]
 pub struct FheUintConformanceParams<Id: FheUintId> {
     pub(crate) params: RadixCiphertextConformanceParams,
     pub(crate) id: PhantomData<Id>,
@@ -204,7 +204,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -225,7 +225,10 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let result = cuda_key.key.is_even(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key
+                    .key
+                    .key
+                    .is_even(&*self.ciphertext.on_gpu(), streams);
                 FheBool::new(result, cuda_key.tag.clone())
             }),
         })
@@ -237,7 +240,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -258,7 +261,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let result = cuda_key.key.is_odd(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.key.is_odd(&*self.ciphertext.on_gpu(), streams);
                 FheBool::new(result, cuda_key.tag.clone())
             }),
         })
@@ -332,7 +335,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -363,7 +366,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -390,10 +393,11 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key
                     .key
+                    .key
                     .leading_zeros(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
@@ -407,7 +411,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -434,10 +438,11 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key
                     .key
+                    .key
                     .leading_ones(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
@@ -451,7 +456,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -478,10 +483,11 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key
                     .key
+                    .key
                     .trailing_zeros(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
@@ -495,7 +501,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -522,14 +528,89 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key
                     .key
+                    .key
                     .trailing_ones(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+        })
+    }
+
+    /// Returns the number of ones in the binary representation of self.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let clear_a = 0b0000000_0110111u16;
+    /// let a = FheUint16::encrypt(clear_a, &client_key);
+    ///
+    /// let result = a.count_ones();
+    /// let decrypted: u32 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, clear_a.count_ones());
+    /// ```
+    pub fn count_ones(&self) -> super::FheUint32 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .count_ones_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                super::FheUint32::new(result, cpu_key.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support count_ones yet");
+            }
+        })
+    }
+
+    /// Returns the number of zeros in the binary representation of self.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let clear_a = 0b0000000_0110111u16;
+    /// let a = FheUint16::encrypt(clear_a, &client_key);
+    ///
+    /// let result = a.count_zeros();
+    /// let decrypted: u32 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, clear_a.count_zeros());
+    /// ```
+    pub fn count_zeros(&self) -> super::FheUint32 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .count_zeros_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                super::FheUint32::new(result, cpu_key.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support count_zeros yet");
+            }
         })
     }
 
@@ -541,7 +622,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -566,10 +647,10 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let result = cuda_key.key.ilog2(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.ilog2(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
@@ -585,7 +666,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -619,10 +700,11 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let (result, is_ok) = cuda_key
                     .key
+                    .key
                     .checked_ilog2(&*self.ciphertext.on_gpu(), streams);
-                let result = cuda_key.key.cast_to_unsigned(
+                let result = cuda_key.key.key.cast_to_unsigned(
                     result,
-                    super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 (
@@ -646,7 +728,7 @@ where
     /// ```rust
     /// use tfhe::prelude::*;
     /// use tfhe::{
-    ///     generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16, FheUint8, MatchValues,
+    ///     generate_keys, set_server_key, ConfigBuilder, FheUint16, FheUint8, MatchValues,
     /// };
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
@@ -697,9 +779,22 @@ where
                 }
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support match_value yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let (result, matched) =
+                    cuda_key
+                        .key
+                        .key
+                        .match_value(&self.ciphertext.on_gpu(), matches, streams);
+                let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
+                if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
+                    Ok((
+                        FheUint::new(result, cuda_key.tag.clone()),
+                        FheBool::new(matched, cuda_key.tag.clone()),
+                    ))
+                } else {
+                    Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
+                }
+            }),
         })
     }
 
@@ -715,7 +810,7 @@ where
     /// ```rust
     /// use tfhe::prelude::*;
     /// use tfhe::{
-    ///     generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16, FheUint8, MatchValues,
+    ///     generate_keys, set_server_key, ConfigBuilder, FheUint16, FheUint8, MatchValues,
     /// };
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
@@ -762,9 +857,20 @@ where
                 }
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support match_value_or yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key.key.key.match_value_or(
+                    &self.ciphertext.on_gpu(),
+                    matches,
+                    or_value,
+                    streams,
+                );
+                let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
+                if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
+                    Ok(FheUint::new(result, cuda_key.tag.clone()))
+                } else {
+                    Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
+                }
+            }),
         })
     }
 
@@ -820,9 +926,10 @@ where
                     sks.pbs_key().key.message_modulus,
                 ),
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    (cuda_key.key.carry_modulus, cuda_key.key.message_modulus)
-                }
+                InternalServerKey::Cuda(cuda_key) => (
+                    cuda_key.key.key.carry_modulus,
+                    cuda_key.key.key.message_modulus,
+                ),
             });
 
         // Check number of blocks
@@ -902,7 +1009,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let casted = cuda_key.key.cast_to_unsigned(
+                let casted = cuda_key.key.key.cast_to_unsigned(
                     input.ciphertext.into_gpu(),
                     IntoId::num_blocks(cuda_key.message_modulus()),
                     streams,
@@ -946,7 +1053,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let casted = cuda_key.key.cast_to_unsigned(
+                let casted = cuda_key.key.key.cast_to_unsigned(
                     input.ciphertext.into_gpu(),
                     IntoId::num_blocks(cuda_key.message_modulus()),
                     streams,
@@ -990,7 +1097,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                let inner = cuda_key.key.cast_to_unsigned(
+                let inner = cuda_key.key.key.cast_to_unsigned(
                     input.ciphertext.into_gpu().0,
                     Id::num_blocks(cuda_key.message_modulus()),
                     streams,

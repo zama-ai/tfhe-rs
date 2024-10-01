@@ -92,8 +92,8 @@ public:
         &payload_modulus, &delta, number_of_inputs, repetitions, samples);
 
     scratch_cuda_multi_bit_programmable_bootstrap_64(
-        stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
-        polynomial_size, pbs_level, grouping_factor, number_of_inputs, true);
+        stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
+        pbs_level, number_of_inputs, true);
 
     lwe_ct_out_array =
         (uint64_t *)malloc((glwe_dimension * polynomial_size + 1) *
@@ -119,6 +119,8 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
                  (glwe_dimension + 1) * (glwe_dimension + 1) * polynomial_size *
                  (1 << grouping_factor);
 
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
   for (int r = 0; r < repetitions; r++) {
     uint64_t *d_bsk = d_bsk_array + (ptrdiff_t)(bsk_size * r);
     uint64_t *lwe_sk_out =
@@ -135,7 +137,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
           (void *)d_lwe_input_indexes, (void *)d_bsk, pbs_buffer, lwe_dimension,
           glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
-          pbs_level, number_of_inputs);
+          pbs_level, number_of_inputs, num_many_lut, lut_stride);
 
       // Copy result to the host memory
       cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
@@ -169,70 +171,44 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
   }
 }
 
+/**
+  int lwe_dimension;
+  int glwe_dimension;
+  int polynomial_size;
+  DynamicDistribution lwe_noise_distribution;
+  DynamicDistribution glwe_noise_distribution;
+  int pbs_base_log;
+  int pbs_level;
+  int message_modulus;
+  int carry_modulus;
+  int number_of_inputs;
+  int grouping_factor;
+  int repetitions;
+  int samples;
+ */
 // Defines for which parameters set the PBS will be tested.
 // It executes each src for all pairs on phis X qs (Cartesian product)
 ::testing::internal::ParamGenerator<MultiBitProgrammableBootstrapTestParams>
     multipbs_params_u64 = ::testing::Values(
-        // fast src
+        // PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
         (MultiBitProgrammableBootstrapTestParams){
-            16, 1, 256, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
-            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 23, 1, 2,
-            2, 1, 2, 1, 10},
+            882, 1, 2048, new_t_uniform(46), new_t_uniform(17), 14, 2, 8, 8,
+            100, 3, 1, 1},
+        // PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
         (MultiBitProgrammableBootstrapTestParams){
-            16, 1, 256, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
-            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 23, 1, 2,
-            2, 128, 2, 1, 10},
-        // 4_bits_multi_bit_group_2
+            978, 1, 8192, new_gaussian_from_std_dev((2.962875621642539e-07)),
+            new_gaussian_from_std_dev((2.168404344971009e-19)), 14, 2, 8, 8,
+            100, 3, 1, 1},
+        // PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
         (MultiBitProgrammableBootstrapTestParams){
-            818, 1, 2048, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
-            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 22, 1, 2,
-            2, 1, 2, 1, 10},
+            836, 1, 2048, new_gaussian_from_std_dev((3.433444883863949e-06)),
+            new_gaussian_from_std_dev((2.845267479601915e-15)), 22, 2, 4, 4,
+            100, 2, 1, 1},
+        // PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
         (MultiBitProgrammableBootstrapTestParams){
-            818, 1, 2048, new_gaussian_from_std_dev(sqrt(1.3880686109937e-15)),
-            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-24)), 22, 1, 2,
-            2, 128, 2, 1, 10},
-        // 4_bits_multi_bit_group_3
-        (MultiBitProgrammableBootstrapTestParams){
-            888, 1, 2048,
-            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-            1, 3, 1, 10},
-        (MultiBitProgrammableBootstrapTestParams){
-            888, 1, 16384,
-            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-            1, 3, 1, 1},
-
-        (MultiBitProgrammableBootstrapTestParams){
-            888, 1, 1024,
-            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-            128, 3, 1, 10},
-        (MultiBitProgrammableBootstrapTestParams){
-            888, 1, 2048,
-            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-            128, 3, 1, 10},
-        (MultiBitProgrammableBootstrapTestParams){
-            888, 1, 4096,
-            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-            128, 3, 1, 10},
-        (MultiBitProgrammableBootstrapTestParams){
-            888, 1, 8192,
-            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-            128, 3, 1, 1},
-        (MultiBitProgrammableBootstrapTestParams){
-            888, 1, 16384,
-            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-            128, 3, 1, 1},
-        (MultiBitProgrammableBootstrapTestParams){
-            972, 1, 8192,
-            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 14, 2, 8, 8,
-            68, 3, 1, 1});
+            978, 1, 8192, new_gaussian_from_std_dev((2.962875621642539e-07)),
+            new_gaussian_from_std_dev((2.168404344971009e-19)), 14, 2, 8, 8,
+            100, 2, 1, 1});
 
 std::string printParamName(
     ::testing::TestParamInfo<MultiBitProgrammableBootstrapTestParams> p) {

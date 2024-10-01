@@ -34,7 +34,7 @@ function fhe_uint32_example() {
     // the error message will be displayed in the console
     init_panic_hook();
 
-    const block_params = new ShortintParameters(ShortintParametersName.PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
+    const block_params = new ShortintParameters(ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
     let config = TfheConfigBuilder.default()
         .build();
 
@@ -79,7 +79,7 @@ async function example() {
     await initThreadPool(navigator.hardwareConcurrency);
     await init_panic_hook();
 
-    const block_params = new ShortintParameters(ShortintParametersName.PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
+    const block_params = new ShortintParameters(ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
     // ....
 }
 ```
@@ -97,6 +97,26 @@ The compiled WASM packages are located in `tfhe/pkg`.
 {% hint style="info" %}
 The browser API and the Node.js API are available as npm packages. Using `npm i tfhe` for the browser API and `npm i node-tfhe` for the Node.js API.
 {% endhint %}
+
+### Extra steps for web bundlers
+
+When using the browser API _with parallelism_, some extra step might be needed depending on the bundler used:
+
+#### Usage with Webpack
+
+If you're using Webpack v5 (version >= 5.25.1), you don't need to do anything special, as it already supports [bundling Workers](https://webpack.js.org/guides/web-workers/) out of the box.
+
+#### Usage with Parcel
+
+Parcel v2 also recognises the used syntax and works out of the box.
+
+#### Usage with Rollup
+
+For Rollup, you'll need [`@surma/rollup-plugin-off-main-thread`](https://github.com/surma/rollup-plugin-off-main-thread) plugin (version >= 2.1.0) which brings the same functionality and was tested with this crate.
+
+Alternatively, you can use [Vite](https://vitejs.dev/) which has necessary plugins built-in.
+
+(Taken from [RReverser/wasm-bindgen-rayon](https://github.com/RReverser/wasm-bindgen-rayon?tab=readme-ov-file#usage-with-various-bundlers))
 
 ## Using the JS on WASM API
 
@@ -147,12 +167,13 @@ Make sure to update the path of the required clause in the example below to matc
 // Here import assert to check the decryption went well and panic otherwise
 const assert = require('node:assert').strict;
 // Import the Shortint module from the TFHE-rs package generated earlier
-const { Shortint } = require("/path/to/built/tfhe/pkg");
+const { Shortint, ShortintParametersName, ShortintParameters } = require("/path/to/built/tfhe/pkg");
 
 function shortint_example() {
     // Get pre-defined parameters from the shortint module to manage messages with 4 bits of useful
     // information in total (2 bits of "message" and 2 bits of "carry")
-    let params = Shortint.get_parameters(2, 2);
+    let params_name = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let params = new ShortintParameters(params_name);
     // Create a new secret ClientKey, this must not be shared
     console.log("Generating client keys...")
     let cks = Shortint.new_client_key(params);

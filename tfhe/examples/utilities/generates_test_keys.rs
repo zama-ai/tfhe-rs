@@ -2,26 +2,49 @@ use clap::{Arg, ArgAction, Command};
 use tfhe::boolean;
 use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS};
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK, KEY_CACHE_WOPBS};
+#[cfg(feature = "experimental")]
+use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
+use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK};
 #[cfg(tarpaulin)]
 use tfhe::shortint::parameters::coverage_parameters::{
-    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS, COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS, COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS,
+    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
+    COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS, COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,
+    COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS,
     COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 };
-use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
+use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
 use tfhe::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 
+use tfhe::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::{
+    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+};
 use tfhe::shortint::parameters::{
-    ClassicPBSParameters, WopbsParameters, ALL_MULTI_BIT_PARAMETER_VEC,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_1_CARRY_2_KS_PBS, PARAM_MESSAGE_1_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_4_KS_PBS, PARAM_MESSAGE_1_CARRY_5_KS_PBS, PARAM_MESSAGE_1_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_1_KS_PBS, PARAM_MESSAGE_3_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS, WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS, WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    ClassicPBSParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+};
+#[cfg(feature = "experimental")]
+use tfhe::shortint::parameters::{
+    WopbsParameters, LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS, LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
 use tfhe::shortint::MultiBitPBSParameters;
 
@@ -48,7 +71,16 @@ fn client_server_keys() {
     let multi_bit_only: bool = matches.get_flag("multi_bit_only");
     let coverage_only: bool = matches.get_flag("coverage_only");
     if multi_bit_only {
-        generate_pbs_multi_bit_keys(&ALL_MULTI_BIT_PARAMETER_VEC);
+        const MULTI_BIT_PARAMS: [MultiBitPBSParameters; 6] = [
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        ];
+
+        generate_pbs_multi_bit_keys(&MULTI_BIT_PARAMS);
     } else if coverage_only {
         println!("Generating keys (ClientKey, ServerKey) for coverage");
 
@@ -58,8 +90,8 @@ fn client_server_keys() {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
                 COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,
                 COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS,
-                COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-                COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+                COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
+                COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
             ];
 
             generate_pbs_keys(&PBS_PARAMS);
@@ -76,66 +108,75 @@ fn client_server_keys() {
             ShortintKeySwitchingParameters,
         ); 2] = [
             (
-                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+                V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
             ),
             (
-                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+                V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
             ),
         ];
 
         generate_ksk_keys(&KSK_PARAMS);
 
-        const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 1] = [(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        )];
-        generate_wopbs_keys(&WOPBS_PARAMS);
+        #[cfg(feature = "experimental")]
+        {
+            const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 1] = [(
+                V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            )];
+            generate_wopbs_keys(&WOPBS_PARAMS);
+        }
 
         const BOOLEAN_PARAMS: [BooleanParameters; 2] =
             [DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS];
         generate_boolean_keys(&BOOLEAN_PARAMS);
     } else {
-        const PBS_KEYS: [ClassicPBSParameters; 13] = [
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_4_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_5_KS_PBS,
-            PARAM_MESSAGE_1_CARRY_6_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+        const PBS_KEYS: [ClassicPBSParameters; 14] = [
+            // TUniform
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            // Gaussian
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
         ];
         generate_pbs_keys(&PBS_KEYS);
 
-        const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 4] = [
-            (
-                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            ),
-            (
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            ),
-            (
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            ),
-            (
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-                WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            ),
-        ];
+        #[cfg(feature = "experimental")]
+        {
+            const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 4] = [
+                (
+                    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                    LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+                ),
+                (
+                    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                    LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                ),
+                (
+                    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+                    LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                ),
+                (
+                    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+                    LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+                ),
+            ];
 
-        generate_wopbs_keys(&WOPBS_PARAMS);
+            generate_wopbs_keys(&WOPBS_PARAMS);
+        }
     }
 }
 
@@ -219,6 +260,7 @@ fn generate_ksk_keys(
     }
 }
 
+#[cfg(feature = "experimental")]
 fn generate_wopbs_keys(params: &[(ClassicPBSParameters, WopbsParameters)]) {
     println!("Generating woPBS keys");
 

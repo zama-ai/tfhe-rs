@@ -1,8 +1,12 @@
 use ark_ff::biginteger::arithmetic::widening_mul;
 use rand::prelude::*;
 
-pub fn sqr<T: Copy + core::ops::Mul>(x: T) -> T::Output {
+pub fn sqr(x: u128) -> u128 {
     x * x
+}
+
+pub fn checked_sqr(x: u128) -> Option<u128> {
+    x.checked_mul(x)
 }
 
 // copied from the standard library
@@ -213,6 +217,11 @@ impl Montgomery {
 
 pub fn four_squares(v: u128) -> [u64; 4] {
     let rng = &mut StdRng::seed_from_u64(0);
+
+    // In the extreme case where the noise is exactly at the bound, v is 0
+    if v == 0 {
+        return [0; 4];
+    }
 
     let f = v % 4;
     if f == 2 {

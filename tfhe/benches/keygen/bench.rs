@@ -1,22 +1,22 @@
-use concrete_csprng::seeders::Seeder;
 use criterion::*;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
-    par_allocate_and_generate_new_lwe_bootstrap_key, ActivatedRandomGenerator, CiphertextModulus,
+    par_allocate_and_generate_new_lwe_bootstrap_key, CiphertextModulus, DefaultRandomGenerator,
     EncryptionRandomGenerator, SecretRandomGenerator,
 };
 use tfhe::core_crypto::seeders::new_seeder;
 use tfhe::shortint::prelude::*;
+use tfhe_csprng::seeders::Seeder;
 
 fn criterion_bench(c: &mut Criterion) {
     let parameters = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     let mut seeder = new_seeder();
     let mut deterministic_seeder =
-        DeterministicSeeder::<ActivatedRandomGenerator>::new(seeder.seed());
+        DeterministicSeeder::<DefaultRandomGenerator>::new(seeder.seed());
     let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
-    let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        SecretRandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
+    let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         deterministic_seeder.seed(),
         &mut deterministic_seeder,
     );

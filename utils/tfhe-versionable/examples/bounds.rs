@@ -1,52 +1,79 @@
-//! This example shows how to use the `bound` attribute to add a specific bound that is needed to be
-//! able to derive `Versionize`
+//! Example of a simple struct with an Upgrade impl that requires a specific bound.
+//! In that case, the previous versions of the type used a string as a representation, but it has
+//! been changed to a Generic. For the upgrade to work, we need to be able to create this generic
+//! from a String.
 
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-use tfhe_versionable::{
-    Unversionize, UnversionizeError, Versionize, VersionizeOwned, VersionsDispatch,
-};
+use std::error::Error;
+use std::io::Cursor;
+use std::str::FromStr;
 
-// Example of a simple struct with a manual Versionize impl that requires a specific bound
+use tfhe_versionable::{Unversionize, Upgrade, Version, Versionize, VersionsDispatch};
+
+/// The previous version of our application
+mod v0 {
+    use tfhe_versionable::{Versionize, VersionsDispatch};
+
+    #[derive(Versionize)]
+    #[versionize(MyStructVersions)]
+    pub(super) struct MyStruct {
+        pub(super) val: String,
+    }
+
+    #[derive(VersionsDispatch)]
+    #[allow(unused)]
+    pub(super) enum MyStructVersions {
+        V0(MyStruct),
+    }
+}
+
+#[derive(Version)]
+struct MyStructV0 {
+    val: String,
+}
+
+#[derive(Versionize)]
+#[versionize(MyStructVersions)]
 struct MyStruct<T> {
     val: T,
 }
 
-impl<T: Serialize + DeserializeOwned> Versionize for MyStruct<T> {
-    type Versioned<'vers> = &'vers T where T: 'vers;
+impl<T: FromStr> Upgrade<MyStruct<T>> for MyStructV0
+where
+    <T as FromStr>::Err: Error + Send + Sync + 'static,
+{
+    type Error = <T as FromStr>::Err;
 
-    fn versionize(&self) -> Self::Versioned<'_> {
-        &self.val
+    fn upgrade(self) -> Result<MyStruct<T>, Self::Error> {
+        let val = T::from_str(&self.val)?;
+
+        Ok(MyStruct { val })
     }
-}
-
-impl<T: Serialize + DeserializeOwned + ToOwned<Owned = T>> VersionizeOwned for MyStruct<T> {
-    type VersionedOwned = T;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        self.val.to_owned()
-    }
-}
-
-impl<T: Serialize + DeserializeOwned + ToOwned<Owned = T>> Unversionize for MyStruct<T> {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        Ok(MyStruct { val: versioned })
-    }
-}
-
-// The additional bound can be specified on the parent struct using this attribute. This is similar
-// to what serde does. You can also use #[versionize(OuterVersions, bound(unversionize = "T:
-// ToOwned<Owned = T>"))] if the bound is only needed for the Unversionize impl.
-#[derive(Versionize)]
-#[versionize(OuterVersions, bound = "T: ToOwned<Owned = T>")]
-struct Outer<T> {
-    inner: MyStruct<T>,
 }
 
 #[derive(VersionsDispatch)]
 #[allow(unused)]
-enum OuterVersions<T: ToOwned<Owned = T>> {
-    V0(Outer<T>),
+enum MyStructVersions<T> {
+    V0(MyStructV0),
+    V1(MyStruct<T>),
 }
 
-fn main() {}
+fn main() {
+    let val = 64;
+    let stru_v0 = v0::MyStruct {
+        val: format!("{val}"),
+    };
+
+    let mut ser = Vec::new();
+    ciborium::ser::into_writer(&stru_v0.versionize(), &mut ser).unwrap();
+
+    let unvers =
+        MyStruct::<u64>::unversionize(ciborium::de::from_reader(&mut Cursor::new(&ser)).unwrap())
+            .unwrap();
+
+    assert_eq!(unvers.val, val);
+}
+
+#[test]
+fn test() {
+    main()
+}

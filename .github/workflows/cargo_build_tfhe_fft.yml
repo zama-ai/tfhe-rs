@@ -1,0 +1,44 @@
+# Build tfhe-fft
+name: Cargo Build tfhe-fft
+
+on:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-builds-fft:
+    runs-on: ${{ matrix.runner_type }}
+
+    strategy:
+      matrix:
+        runner_type: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Run pcc checks
+        if: matrix.runner_type == 'ubuntu-latest'
+        run: |
+          sudo apt install -y libfftw3-dev
+          make pcc_fft
+
+      - name: Build release
+        run: |
+          make build_fft
+
+      - name: Build release no-std
+        run: |
+          make build_fft_no_std

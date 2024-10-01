@@ -107,7 +107,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_encrypt_ks_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_encrypt_ks_decrypt_custom_mod);
 
 #[test]
 fn test_lwe_encrypt_ks_switch_mod_decrypt_custom_mod() {

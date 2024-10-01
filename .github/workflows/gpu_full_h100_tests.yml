@@ -1,0 +1,136 @@
+# Compile and test tfhe-cuda-backend on an H100 VM on hyperstack
+name: TFHE Cuda Backend - Full tests on H100
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-instance:
+    name: Setup instance (cuda-h100-tests)
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: hyperstack
+          profile: single-h100
+
+  cuda-tests-linux:
+    name: CUDA H100 tests
+    needs: [ setup-instance ]
+    concurrency:
+      group: ${{ github.workflow }}_${{ github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.2"
+            gcc: 11 
+    steps:
+      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y checkinstall zlib1g-dev libssl-dev libclang-dev
+          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          cd cmake-${{ env.CMAKE_VERSION }}
+          ./bootstrap
+          make -j"$(nproc)"
+          sudo make install
+
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+
+      - name: Setup Hyperstack dependencies
+        uses: ./.github/actions/hyperstack_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
+
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
+        with:
+          toolchain: stable
+
+      - name: Run core crypto, integer and internal CUDA backend tests
+        run: |
+          make test_gpu
+
+      - name: Run user docs tests
+        run: |
+          make test_user_doc_gpu
+
+      - name: Test C API
+        run: |
+          make test_c_api_gpu
+
+      - name: Run High Level API Tests
+        run: |
+          make test_high_level_api_gpu
+
+  slack-notify:
+    name: Slack Notification
+    needs: [ setup-instance, cuda-tests-linux ]
+    runs-on: ubuntu-latest
+    if: ${{ failure() }}
+    continue-on-error: true
+    steps:
+      - name: Send message
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
+        env:
+          SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
+          SLACK_MESSAGE: "Full H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
+
+  teardown-instance:
+    name: Teardown instance (cuda-h100-tests)
+    needs: [ setup-instance, cuda-tests-linux ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (cuda-h100-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

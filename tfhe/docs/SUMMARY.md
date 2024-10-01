@@ -8,7 +8,10 @@
 * [Installation](getting\_started/installation.md)
 * [Quick start](getting\_started/quick\_start.md)
 * [Types & Operations](getting\_started/operations.md)
-* [Benchmarks](getting\_started/benchmarks.md)
+* [Benchmarks](getting\_started/benchmarks/summary.md)
+  * [CPU Benchmarks](getting\_started/benchmarks/cpu\_benchmarks.md)
+  * [GPU Benchmarks](getting\_started/benchmarks/gpu\_benchmarks.md)
+  * [Zero-knowledge proof benchmarks](getting_started/benchmarks/zk_proof_benchmarks.md)
 * [Security and cryptography](getting\_started/security\_and\_cryptography.md)
 
 ## Fundamentals
@@ -38,6 +41,7 @@
 * [Multi-threading with Rayon crate](guides/rayon\_crate.md)
 * [Trivial ciphertexts](guides/trivial\_ciphertext.md)
 * [PBS statistics](guides/pbs-stats.md)
+* [Array](guides/array.md)
 
 ## Tutorials
 

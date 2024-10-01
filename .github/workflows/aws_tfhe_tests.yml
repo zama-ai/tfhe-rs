@@ -40,6 +40,9 @@ jobs:
       shortint_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.shortint_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
+      strings_test: ${{ env.IS_PULL_REQUEST == 'false' ||
+        steps.changed-files.outputs.strings_any_changed ||
+        steps.changed-files.outputs.dependencies_any_changed }}
       high_level_api_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.high_level_api_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
@@ -57,22 +60,24 @@ jobs:
       any_file_changed: ${{ env.IS_PULL_REQUEST == 'false' || steps.aggregated-changes.outputs.any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Check for file changes
         id: changed-files
-        uses: tj-actions/changed-files@e9772d140489982e0e3704fea5ee93d536f1e275
+        uses: tj-actions/changed-files@d6e91a2266cdb9d62096cebf1e8546899c6aa18f
         with:
           since_last_remote_commit: true
           files_yaml: |
             dependencies:
               - tfhe/Cargo.toml
-              - concrete-csprng/**
+              - tfhe-csprng/**
+              - tfhe-fft/**
               - tfhe-zk-pok/**
             csprng:
-              - concrete-csprng/**
+              - tfhe-csprng/**
             zk_pok:
               - tfhe-zk-pok/**
             core_crypto:
@@ -83,6 +88,11 @@ jobs:
             shortint:
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**
+            strings:
+              - tfhe/src/core_crypto/**
+              - tfhe/src/shortint/**
+              - tfhe/src/integer/**
+              - tfhe/src/strings/**
             high_level_api:
               - tfhe/src/**
               - '!tfhe/src/c_api/**'
@@ -112,6 +122,7 @@ jobs:
           steps.changed-files.outputs.core_crypto_any_changed == 'true' ||
           steps.changed-files.outputs.boolean_any_changed == 'true' ||
           steps.changed-files.outputs.shortint_any_changed == 'true' ||
+          steps.changed-files.outputs.strings_any_changed == 'true' ||
           steps.changed-files.outputs.high_level_api_any_changed == 'true' ||
           steps.changed-files.outputs.c_api_any_changed == 'true' ||
           steps.changed-files.outputs.examples_any_changed == 'true' ||
@@ -131,7 +142,7 @@ jobs:
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -151,23 +162,20 @@ jobs:
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
-
-      - name: Set up home
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Install latest stable
-        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: stable
 
-      - name: Run concrete-csprng tests
+      - name: Run tfhe-csprng tests
         if: needs.should-run.outputs.csprng_test == 'true'
         run: |
-          make test_concrete_csprng
+          make test_tfhe_csprng
 
       - name: Run tfhe-zk-pok tests
         if: needs.should-run.outputs.zk_pok_test == 'true'
@@ -204,6 +212,11 @@ jobs:
         run: |
           BIG_TESTS_INSTANCE=TRUE make test_shortint_ci
 
+      - name: Run strings tests
+        if: needs.should-run.outputs.strings_test == 'true'
+        run: |
+          BIG_TESTS_INSTANCE=TRUE make test_strings
+
       - name: Run high-level API tests
         if: needs.should-run.outputs.high_level_api_test == 'true'
         run: |
@@ -222,9 +235,9 @@ jobs:
           make test_kreyvium
 
       - name: Slack Notification
-        if: ${{ always() }}
+        if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "CPU tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
@@ -237,7 +250,7 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -248,7 +261,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Instance teardown (cpu-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

@@ -14,6 +14,7 @@ pub mod computation_buffers;
 pub mod dispersion;
 pub mod generators;
 pub mod math;
+pub mod noise_formulas;
 pub mod numeric;
 pub mod parameters;
 pub mod utils;
@@ -35,14 +36,14 @@ pub mod test_tools {
         EncryptionRandomGenerator, SecretRandomGenerator,
     };
     use crate::core_crypto::commons::math::random::{
-        ActivatedRandomGenerator, RandomGenerable, RandomGenerator, Uniform,
+        DefaultRandomGenerator, RandomGenerable, RandomGenerator, Uniform,
     };
     use crate::core_crypto::commons::parameters::{
         CiphertextCount, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
         LweDimension, PlaintextCount, PolynomialSize,
     };
     use crate::core_crypto::commons::traits::*;
-    use concrete_csprng::seeders::Seed;
+    use tfhe_csprng::seeders::Seed;
 
     pub fn variance(samples: &[f64]) -> Variance {
         let num_samples = samples.len();
@@ -52,16 +53,15 @@ pub mod test_tools {
         )
     }
 
-    pub fn new_random_generator() -> RandomGenerator<ActivatedRandomGenerator> {
+    pub fn new_random_generator() -> RandomGenerator<DefaultRandomGenerator> {
         RandomGenerator::new(random_seed())
     }
 
-    pub fn new_secret_random_generator() -> SecretRandomGenerator<ActivatedRandomGenerator> {
+    pub fn new_secret_random_generator() -> SecretRandomGenerator<DefaultRandomGenerator> {
         SecretRandomGenerator::new(random_seed())
     }
 
-    pub fn new_encryption_random_generator() -> EncryptionRandomGenerator<ActivatedRandomGenerator>
-    {
+    pub fn new_encryption_random_generator() -> EncryptionRandomGenerator<DefaultRandomGenerator> {
         EncryptionRandomGenerator::new(random_seed(), &mut UnsafeRandSeeder)
     }
 
@@ -92,11 +92,11 @@ pub mod test_tools {
     {
         for (x, y) in first.as_ref().iter().zip(second.as_ref().iter()) {
             println!("{:?}, {:?}", *x, *y);
-            println!("{}", dist.get_standard_dev());
+            println!("{:?}", dist.get_standard_dev());
             let distance: f64 = modular_distance(*x, *y).cast_into();
             let torus_distance = distance / 2_f64.powi(Element::BITS as i32);
             assert!(
-                torus_distance <= 5. * dist.get_standard_dev(),
+                torus_distance <= 5. * dist.get_standard_dev().0,
                 "{x} != {y} "
             );
         }
@@ -310,39 +310,39 @@ pub mod test_tools {
             // q = 2^64
             let q = CiphertextModulus::<u64>::new_native();
             // Divide by 8 to get an exact division vs 10 or anything not a power of 2
-            let one_eigth = ((1u128 << 64) / 8) as u64;
-            let seven_eigth = 7 * one_eigth;
+            let one_eighth = ((1u128 << 64) / 8) as u64;
+            let seven_eighth = 7 * one_eighth;
 
-            let distance = torus_modular_diff(one_eigth, seven_eigth, q);
+            let distance = torus_modular_diff(one_eighth, seven_eighth, q);
             assert_eq!(distance, 0.25);
-            let distance = torus_modular_diff(seven_eigth, one_eigth, q);
+            let distance = torus_modular_diff(seven_eighth, one_eighth, q);
             assert_eq!(distance, -0.25);
         }
         {
             // q = 2^63
             let q = CiphertextModulus::<u64>::try_new_power_of_2(63).unwrap();
             // Divide by 8 to get an exact division vs 10 or anything not a power of 2
-            let one_eigth = q.get_custom_modulus() as u64 / 8;
-            let seven_eigth = 7 * one_eigth;
+            let one_eighth = q.get_custom_modulus() as u64 / 8;
+            let seven_eighth = 7 * one_eighth;
 
-            let distance = torus_modular_diff(one_eigth, seven_eigth, q);
+            let distance = torus_modular_diff(one_eighth, seven_eighth, q);
             assert_eq!(distance, 0.25);
-            let distance = torus_modular_diff(seven_eigth, one_eigth, q);
+            let distance = torus_modular_diff(seven_eighth, one_eighth, q);
             assert_eq!(distance, -0.25);
         }
         {
             // q = 2^64 - 2^32 + 1
             let q = CiphertextModulus::<u64>::try_new((1 << 64) - (1 << 32) + 1).unwrap();
             // Even though 8 does not divide q exactly, everything work ok for this example.
-            // This may not be the case for all moduli with enough LSBs set as then one_eigth would
+            // This may not be the case for all moduli with enough LSBs set as then one_eighth would
             // be the floor and not the rounding of q / 8, here they happen to match and that's good
             // enough
-            let one_eigth = q.get_custom_modulus() as u64 / 8;
-            let seven_eigth = 7 * one_eigth;
+            let one_eighth = q.get_custom_modulus() as u64 / 8;
+            let seven_eighth = 7 * one_eighth;
 
-            let distance = torus_modular_diff(one_eigth, seven_eigth, q);
+            let distance = torus_modular_diff(one_eighth, seven_eighth, q);
             assert_eq!(distance, 0.25);
-            let distance = torus_modular_diff(seven_eigth, one_eigth, q);
+            let distance = torus_modular_diff(seven_eighth, one_eighth, q);
             assert_eq!(distance, -0.25);
         }
     }

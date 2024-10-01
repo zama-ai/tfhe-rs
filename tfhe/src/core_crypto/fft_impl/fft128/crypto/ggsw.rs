@@ -16,8 +16,8 @@ use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertext, GlweCipherte
 use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::CACHELINE_ALIGN;
-use concrete_fft::fft128::f128;
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use tfhe_fft::fft128::f128;
 use tfhe_versionable::Versionize;
 
 /// A GGSW ciphertext in the Fourier domain.
@@ -148,11 +148,12 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
     where
         C: Split,
     {
+        let decomposition_level_count = self.decomposition_level_count.0;
         izip!(
-            self.data_re0.split_into(self.decomposition_level_count.0),
-            self.data_re1.split_into(self.decomposition_level_count.0),
-            self.data_im0.split_into(self.decomposition_level_count.0),
-            self.data_im1.split_into(self.decomposition_level_count.0)
+            self.data_re0.split_into(decomposition_level_count),
+            self.data_re1.split_into(decomposition_level_count),
+            self.data_im0.split_into(decomposition_level_count),
+            self.data_im1.split_into(decomposition_level_count)
         )
         .enumerate()
         .map(move |(i, (data_re0, data_re1, data_im0, data_im1))| {
@@ -163,7 +164,7 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
                 data_im1,
                 self.polynomial_size,
                 self.glwe_size,
-                DecompositionLevel(i + 1),
+                DecompositionLevel(decomposition_level_count - i),
             )
         })
     }
@@ -364,7 +365,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
     ggsw: &Fourier128GgswCiphertext<ContGgsw>,
     glwe: &GlweCiphertext<ContGlwe>,
     fft: Fft128View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     ContOut: ContainerMut<Element = Scalar>,
@@ -376,7 +377,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
         ggsw: Fourier128GgswCiphertext<&[f64]>,
         glwe: GlweCiphertext<&[Scalar]>,
         fft: Fft128View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         // we check that the polynomial sizes match
         debug_assert_eq!(ggsw.polynomial_size(), glwe.polynomial_size());
@@ -403,7 +404,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
         let (output_fft_buffer_im0, stack) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
-        let (output_fft_buffer_im1, mut substack0) =
+        let (output_fft_buffer_im1, substack0) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
 
         // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
@@ -415,21 +416,21 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
             // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
             // DOMAIN In this section, we perform the external product in the fourier
             // domain, and accumulate the result in the output_fft_buffer variable.
-            let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(
+            let (mut decomposition, substack1) = TensorSignedDecompositionLendingIter::new(
                 glwe.as_ref()
                     .iter()
-                    .map(|s| decomposer.closest_representable(*s)),
+                    .map(|s| decomposer.init_decomposer_state(*s)),
                 DecompositionBaseLog(decomposer.base_log),
                 DecompositionLevelCount(decomposer.level_count),
-                substack0.rb_mut(),
+                substack0,
             );
 
             // We loop through the levels (we reverse to match the order of the decomposition
             // iterator.)
-            for ggsw_decomp_matrix in ggsw.into_levels().rev() {
+            for ggsw_decomp_matrix in ggsw.into_levels() {
                 // We retrieve the decomposition of this level.
-                let (glwe_level, glwe_decomp_term, mut substack2) =
-                    collect_next_term(&mut decomposition, &mut substack1, align);
+                let (glwe_level, glwe_decomp_term, substack2) =
+                    collect_next_term(&mut decomposition, substack1, align);
                 let glwe_decomp_term = GlweCiphertextView::from_container(
                     &*glwe_decomp_term,
                     ggsw.polynomial_size(),
@@ -454,7 +455,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                     glwe_decomp_term.as_polynomial_list().iter()
                 ) {
                     let len = fourier_poly_size;
-                    let stack = substack2.rb_mut();
+                    let stack = &mut *substack2;
                     let (fourier_re0, stack) = stack.make_aligned_raw::<f64>(len, align);
                     let (fourier_re1, stack) = stack.make_aligned_raw::<f64>(len, align);
                     let (fourier_im0, stack) = stack.make_aligned_raw::<f64>(len, align);
@@ -508,7 +509,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                     fourier_re1,
                     fourier_im0,
                     fourier_im1,
-                    substack0.rb_mut(),
+                    substack0,
                 );
             }
         }
@@ -527,9 +528,9 @@ fn collect_next_term<'a, Scalar: UnsignedTorus>(
     decomposition: &mut TensorSignedDecompositionLendingIter<'_, Scalar>,
     substack1: &'a mut PodStack,
     align: usize,
-) -> (DecompositionLevel, &'a mut [Scalar], PodStack<'a>) {
+) -> (DecompositionLevel, &'a mut [Scalar], &'a mut PodStack) {
     let (glwe_level, _, glwe_decomp_term) = decomposition.next_term().unwrap();
-    let (glwe_decomp_term, substack2) = substack1.rb_mut().collect_aligned(align, glwe_decomp_term);
+    let (glwe_decomp_term, substack2) = substack1.collect_aligned(align, glwe_decomp_term);
     (glwe_level, glwe_decomp_term, substack2)
 }
 
@@ -766,7 +767,7 @@ pub fn cmux<Scalar, ContCt0, ContCt1, ContGgsw>(
     ct1: &mut GlweCiphertext<ContCt1>,
     ggsw: &Fourier128GgswCiphertext<ContGgsw>,
     fft: Fft128View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     ContCt0: ContainerMut<Element = Scalar>,
@@ -778,7 +779,7 @@ pub fn cmux<Scalar, ContCt0, ContCt1, ContGgsw>(
         mut ct1: GlweCiphertext<&mut [Scalar]>,
         ggsw: Fourier128GgswCiphertext<&[f64]>,
         fft: Fft128View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         for (c1, c0) in izip!(ct1.as_mut(), ct0.as_ref()) {
             *c1 = c1.wrapping_sub(*c0);

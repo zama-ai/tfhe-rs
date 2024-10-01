@@ -20,7 +20,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        self.barrel_shifter(ct, n, BarrelShifterOperation::RightRotate);
+        self.unchecked_shift_rotate_bits_assign(ct, n, BarrelShifterOperation::RightRotate);
     }
 
     pub fn smart_rotate_right_assign_parallelized<T>(&self, ct: &mut T, n: &mut RadixCiphertext)
@@ -72,11 +72,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg = 128u8;
     /// let n = 2;
@@ -149,7 +149,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        self.barrel_shifter(ct, n, BarrelShifterOperation::LeftRotate);
+        self.unchecked_shift_rotate_bits_assign(ct, n, BarrelShifterOperation::LeftRotate);
     }
 
     pub fn smart_rotate_left_assign_parallelized<T>(&self, ct: &mut T, n: &mut RadixCiphertext)
@@ -234,11 +234,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let msg = 128u8;
     /// let n = 2;

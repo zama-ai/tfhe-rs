@@ -4,11 +4,12 @@ use crate::integer::ciphertext::SignedRadixCiphertext;
 use crate::integer::client_key::RecomposableSignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
-use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
+use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
 use crate::shortint::parameters::*;
 use rand::distributions::Standard;
 use rand::prelude::*;
@@ -344,70 +345,75 @@ macro_rules! define_signed_comparison_test_functions {
             }
 
 
-            // Then call our create_parametrized_test macro onto or specialized fns
+            // Then call our create_parameterized_test macro onto or specialized fns
 
-            create_parametrized_test!([<integer_signed_unchecked_ $comparison_name _ $clear_type>]
+            create_parameterized_test!([<integer_signed_unchecked_ $comparison_name _ $clear_type>]
             {
+                // Non parallelized does not support 1_1
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
 
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+                V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
                 #[cfg(tarpaulin)]
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
 
-            create_parametrized_test!([<integer_signed_unchecked_ $comparison_name _parallelized_ $clear_type>]
+            create_parameterized_test!([<integer_signed_unchecked_ $comparison_name _parallelized_ $clear_type>]
             {
+                V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
 
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+                V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
                 #[cfg(tarpaulin)]
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
 
-            create_parametrized_test!([<integer_signed_smart_ $comparison_name _ $clear_type>]
+            create_parameterized_test!([<integer_signed_smart_ $comparison_name _ $clear_type>]
             {
+                // Non parallelized does not support PARAM_MESSAGE_1_CARRY_1_KS_PBS,
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
                 // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                 // as smart test might overflow values
                 // and when using 3_3 to represent 256 we actually have more than 256 bits
                 // of message so the overflow behaviour is not the same, leading to false negatives
 
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+                V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
                 #[cfg(tarpaulin)]
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
 
-            create_parametrized_test!([<integer_signed_smart_ $comparison_name _parallelized_ $clear_type>]
+            create_parameterized_test!([<integer_signed_smart_ $comparison_name _parallelized_ $clear_type>]
             {
+                V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
                 // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                 // as smart test might overflow values
                 // and when using 3_3 to represent 256 we actually have more than 256 bits
                 // of message so the overflow behaviour is not the same, leading to false negatives
 
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+                V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
                 #[cfg(tarpaulin)]
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
 
-            create_parametrized_test!([<integer_signed_default_ $comparison_name _parallelized_ $clear_type>]
+            create_parameterized_test!([<integer_signed_default_ $comparison_name _parallelized_ $clear_type>]
             {
+                V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
 
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
                 // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                 // as default test might overflow values
                 // and when using 3_3 to represent 256 we actually have more than 256 bits
                 // of message so the overflow behaviour is not the same, leading to false negatives
 
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+                V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
                 #[cfg(tarpaulin)]
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
@@ -676,85 +682,73 @@ pub(crate) fn test_signed_default_minmax<P, T, ClearF, Scalar>(
 mod no_coverage {
     use super::*;
 
-    fn integer_signed_unchecked_min_parallelized_128_bits(
-        params: crate::shortint::ClassicPBSParameters,
-    ) {
+    fn integer_signed_unchecked_min_parallelized_128_bits(params: impl Into<PBSParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_min_parallelized);
         test_signed_unchecked_minmax(params, 2, executor, std::cmp::min::<i128>)
     }
 
-    fn integer_signed_unchecked_max_parallelized_128_bits(
-        params: crate::shortint::ClassicPBSParameters,
-    ) {
+    fn integer_signed_unchecked_max_parallelized_128_bits(params: impl Into<PBSParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_max_parallelized);
         test_signed_unchecked_minmax(params, 2, executor, std::cmp::max::<i128>)
     }
 
-    fn integer_signed_smart_min_parallelized_128_bits(
-        params: crate::shortint::ClassicPBSParameters,
-    ) {
+    fn integer_signed_smart_min_parallelized_128_bits(params: impl Into<PBSParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::smart_min_parallelized);
         test_signed_smart_minmax(params, 2, executor, std::cmp::min::<i128>);
     }
 
-    fn integer_signed_smart_max_parallelized_128_bits(
-        params: crate::shortint::ClassicPBSParameters,
-    ) {
+    fn integer_signed_smart_max_parallelized_128_bits(params: impl Into<PBSParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::smart_max_parallelized);
         test_signed_smart_minmax(params, 2, executor, std::cmp::max::<i128>);
     }
 
-    fn integer_signed_min_parallelized_128_bits(params: crate::shortint::ClassicPBSParameters) {
+    fn integer_signed_min_parallelized_128_bits(params: impl Into<PBSParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::min_parallelized);
         test_signed_default_minmax(params, 2, executor, std::cmp::min::<i128>);
     }
 
-    fn integer_signed_max_parallelized_128_bits(params: crate::shortint::ClassicPBSParameters) {
+    fn integer_signed_max_parallelized_128_bits(params: impl Into<PBSParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::max_parallelized);
         test_signed_default_minmax(params, 2, executor, std::cmp::max::<i128>);
     }
 
-    create_parametrized_test!(integer_signed_unchecked_max_parallelized_128_bits {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS
-    });
-    create_parametrized_test!(integer_signed_unchecked_min_parallelized_128_bits {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS
-    });
-    create_parametrized_test!(integer_signed_smart_max_parallelized_128_bits {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    create_parameterized_test!(integer_signed_unchecked_max_parallelized_128_bits);
+    create_parameterized_test!(integer_signed_unchecked_min_parallelized_128_bits);
+    create_parameterized_test!(integer_signed_smart_max_parallelized_128_bits {
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
         // of message so the overflow behaviour is not the same, leading to false negatives
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS
+        V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_signed_smart_min_parallelized_128_bits {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    create_parameterized_test!(integer_signed_smart_min_parallelized_128_bits {
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
         // of message so the overflow behaviour is not the same, leading to false negatives
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS
+        V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_signed_max_parallelized_128_bits {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    create_parameterized_test!(integer_signed_max_parallelized_128_bits {
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
         // of message so the overflow behaviour is not the same, leading to false negatives
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS
+        V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_signed_min_parallelized_128_bits {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    create_parameterized_test!(integer_signed_min_parallelized_128_bits {
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
         // of message so the overflow behaviour is not the same, leading to false negatives
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS
+        V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
 
     define_signed_comparison_test_functions!(eq, i128);
@@ -769,7 +763,7 @@ mod no_coverage {
 #[cfg(tarpaulin)]
 mod coverage {
     use super::*;
-    use crate::integer::tests::create_parametrized_test_classical_params;
+    use crate::integer::tests::create_parameterized_test_classical_params;
 
     fn integer_signed_unchecked_min_parallelized_8_bits(
         params: crate::shortint::ClassicPBSParameters,
@@ -805,12 +799,12 @@ mod coverage {
         test_signed_default_minmax(params, 1, executor, std::cmp::max::<i8>)
     }
 
-    create_parametrized_test_classical_params!(integer_signed_unchecked_max_parallelized_8_bits);
-    create_parametrized_test_classical_params!(integer_signed_unchecked_min_parallelized_8_bits);
-    create_parametrized_test_classical_params!(integer_signed_smart_max_parallelized_8_bits);
-    create_parametrized_test_classical_params!(integer_signed_smart_min_parallelized_8_bits);
-    create_parametrized_test_classical_params!(integer_signed_max_parallelized_8_bits);
-    create_parametrized_test_classical_params!(integer_signed_min_parallelized_8_bits);
+    create_parameterized_test_classical_params!(integer_signed_unchecked_max_parallelized_8_bits);
+    create_parameterized_test_classical_params!(integer_signed_unchecked_min_parallelized_8_bits);
+    create_parameterized_test_classical_params!(integer_signed_smart_max_parallelized_8_bits);
+    create_parameterized_test_classical_params!(integer_signed_smart_min_parallelized_8_bits);
+    create_parameterized_test_classical_params!(integer_signed_max_parallelized_8_bits);
+    create_parameterized_test_classical_params!(integer_signed_min_parallelized_8_bits);
 
     define_signed_comparison_test_functions!(eq, i8);
     define_signed_comparison_test_functions!(ne, i8);
@@ -818,4 +812,159 @@ mod coverage {
     define_signed_comparison_test_functions!(le, i8);
     define_signed_comparison_test_functions!(gt, i8);
     define_signed_comparison_test_functions!(ge, i8);
+}
+
+create_parameterized_test!(integer_extensive_trivial_signed_default_comparisons);
+
+fn integer_extensive_trivial_signed_default_comparisons(params: impl Into<PBSParameters>) {
+    let lt_executor = CpuFunctionExecutor::new(&ServerKey::lt_parallelized);
+    let le_executor = CpuFunctionExecutor::new(&ServerKey::le_parallelized);
+    let gt_executor = CpuFunctionExecutor::new(&ServerKey::gt_parallelized);
+    let ge_executor = CpuFunctionExecutor::new(&ServerKey::ge_parallelized);
+    let min_executor = CpuFunctionExecutor::new(&ServerKey::min_parallelized);
+    let max_executor = CpuFunctionExecutor::new(&ServerKey::max_parallelized);
+
+    extensive_trivial_signed_default_comparisons_test(
+        params,
+        lt_executor,
+        le_executor,
+        gt_executor,
+        ge_executor,
+        min_executor,
+        max_executor,
+    )
+}
+
+/// Although this uses the executor pattern and could be plugged in other backends,
+/// It is not recommended to do so unless the backend is extremely fast on trivial ciphertexts
+/// or extremely extremely fast in general, or if its plugged just as a one time thing.
+#[allow(clippy::eq_op)]
+pub(crate) fn extensive_trivial_signed_default_comparisons_test<P, E1, E2, E3, E4, E5, E6>(
+    param: P,
+    mut lt_executor: E1,
+    mut le_executor: E2,
+    mut gt_executor: E3,
+    mut ge_executor: E4,
+    mut min_executor: E5,
+    mut max_executor: E6,
+) where
+    P: Into<PBSParameters>,
+    E1: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        BooleanBlock,
+    >,
+    E2: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        BooleanBlock,
+    >,
+    E3: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        BooleanBlock,
+    >,
+    E4: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        BooleanBlock,
+    >,
+    E5: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+    E6: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let params = param.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = thread_rng();
+
+    lt_executor.setup(&cks, sks.clone());
+    le_executor.setup(&cks, sks.clone());
+    gt_executor.setup(&cks, sks.clone());
+    ge_executor.setup(&cks, sks.clone());
+    min_executor.setup(&cks, sks.clone());
+    max_executor.setup(&cks, sks.clone());
+
+    for num_blocks in 1..=128 {
+        let Some(modulus) = (params.message_modulus().0 as i128).checked_pow(num_blocks as u32)
+        else {
+            break;
+        };
+        if modulus == 2 {
+            continue;
+        }
+        let modulus = modulus / 2;
+        for _ in 0..25 {
+            let clear_a = rng.gen_range(0..modulus);
+            let clear_b = rng.gen_range(0..modulus);
+
+            let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_a, num_blocks);
+            let b: SignedRadixCiphertext = sks.create_trivial_radix(clear_b, num_blocks);
+
+            {
+                let result = lt_executor.execute((&a, &b));
+                let result = cks.decrypt_bool(&result);
+                assert_eq!(result, clear_a < clear_b, "{clear_a} < {clear_b}");
+
+                let result = lt_executor.execute((&a, &a));
+                let result = cks.decrypt_bool(&result);
+                assert_eq!(result, clear_a < clear_a, "{clear_a} < {clear_a}");
+            }
+
+            {
+                let result = le_executor.execute((&a, &b));
+                let result = cks.decrypt_bool(&result);
+                assert_eq!(result, clear_a <= clear_b, "{clear_a} <= {clear_b}");
+
+                let result = le_executor.execute((&a, &a));
+                let result = cks.decrypt_bool(&result);
+                assert_eq!(result, clear_a <= clear_a, "{clear_a} <= {clear_a}");
+            }
+
+            {
+                let result = gt_executor.execute((&a, &b));
+                let result = cks.decrypt_bool(&result);
+                assert_eq!(result, clear_a > clear_b, "{clear_a} > {clear_b}");
+
+                let result = gt_executor.execute((&a, &a));
+                let result = cks.decrypt_bool(&result);
+                assert_eq!(result, clear_a > clear_a, "{clear_a} > {clear_a}");
+            }
+
+            {
+                let result = ge_executor.execute((&a, &b));
+                let result = cks.decrypt_bool(&result);
+                assert_eq!(result, clear_a >= clear_b, "{clear_a} >= {clear_b}");
+
+                let result = ge_executor.execute((&a, &a));
+                let result = cks.decrypt_bool(&result);
+                assert_eq!(result, clear_a >= clear_a, "{clear_a} >= {clear_a}");
+            }
+
+            {
+                let result = min_executor.execute((&a, &b));
+                let result: i128 = cks.decrypt_signed(&result);
+                assert_eq!(result, clear_a.min(clear_b), "{clear_a}.min({clear_b})");
+
+                let result = min_executor.execute((&a, &a));
+                let result: i128 = cks.decrypt_signed(&result);
+                assert_eq!(result, clear_a.min(clear_a), "{clear_a}.min({clear_a})");
+            }
+
+            {
+                let result = max_executor.execute((&a, &b));
+                let result: i128 = cks.decrypt_signed(&result);
+                assert_eq!(result, clear_a.max(clear_b), "{clear_a}.max({clear_b})");
+
+                let result = max_executor.execute((&a, &a));
+                let result: i128 = cks.decrypt_signed(&result);
+                assert_eq!(result, clear_a.max(clear_a), "{clear_a}.max({clear_a})");
+            }
+        }
+    }
 }

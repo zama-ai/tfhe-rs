@@ -1,5 +1,5 @@
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
-    create_gpu_parametrized_test, GpuFunctionExecutor,
+    create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_sub::{
@@ -8,11 +8,11 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_sub::{
 };
 use crate::shortint::parameters::*;
 
-create_gpu_parametrized_test!(integer_unchecked_sub);
-create_gpu_parametrized_test!(integer_sub);
+create_gpu_parameterized_test!(integer_unchecked_sub);
+create_gpu_parameterized_test!(integer_sub);
 
-create_gpu_parametrized_test!(integer_unchecked_signed_overflowing_sub);
-create_gpu_parametrized_test!(integer_signed_overflowing_sub);
+create_gpu_parameterized_test!(integer_unchecked_signed_overflowing_sub);
+create_gpu_parameterized_test!(integer_signed_overflowing_sub);
 
 fn integer_unchecked_sub<P>(param: P)
 where

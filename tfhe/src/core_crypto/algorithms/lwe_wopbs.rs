@@ -11,9 +11,9 @@ use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::{
     extract_bits, extract_bits_scratch,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::FftView;
-use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
+use tfhe_fft::c64;
 
 /// Allocate a new [`list of LWE private functional packing keyswitch
 /// keys`](`LwePrivateFunctionalPackingKeyswitchKeyList`) and fill it with actual keys required to
@@ -327,7 +327,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized<
     delta_log: DeltaLog,
     number_of_bits_to_extract: ExtractedBitsCount,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,
@@ -437,9 +437,8 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
 ///     glwe_dimension,
@@ -661,7 +660,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimi
     base_log_cbs: DecompositionBaseLog,
     level_cbs: DecompositionLevelCount,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,

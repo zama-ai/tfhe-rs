@@ -1,7 +1,7 @@
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, MaxNoiseLevel, ServerKey};
 
 fn test_ct_unary_op_noise_level_propagation(sk: &ServerKey, ct: &Ciphertext) {
     let test_fn = |op: &dyn Fn(&ServerKey, &Ciphertext) -> Ciphertext,
@@ -234,7 +234,7 @@ fn test_ct_scalar_op_noise_level_propagation(sk: &ServerKey, ct: &Ciphertext, sc
     test_fn(&ServerKey::unchecked_scalar_add, &|ct_noise, _| ct_noise);
     test_fn(&ServerKey::unchecked_scalar_sub, &|ct_noise, _| ct_noise);
     test_fn(&ServerKey::unchecked_scalar_mul, &|ct_noise, scalar| {
-        ct_noise * scalar as usize
+        ct_noise * u64::from(scalar)
     });
     let expected_pbs_noise = if ct.is_trivial() {
         NoiseLevel::ZERO
@@ -281,7 +281,7 @@ fn test_ct_scalar_op_assign_noise_level_propagation(sk: &ServerKey, ct: &Ciphert
     });
     test_fn(
         &ServerKey::unchecked_scalar_mul_assign,
-        &|ct_noise, scalar| ct_noise * scalar as usize,
+        &|ct_noise, scalar| ct_noise * u64::from(scalar),
     );
     let expected_pbs_noise = if ct.is_trivial() {
         NoiseLevel::ZERO
@@ -324,7 +324,12 @@ fn test_noise_level_propagation_ci_run_filter() {
     let keys = KEY_CACHE.get_from_param(params);
     let (ck, sk) = (keys.client_key(), keys.server_key());
 
-    let modulus: u64 = params.message_modulus.0 as u64;
+    // The goal of this test is to check the noise level is properly propagated
+    // thus it does operations in a way that is not correct noise-wise
+    let mut sk = sk.clone();
+    sk.max_noise_level = MaxNoiseLevel::UNKNOWN;
+
+    let modulus: u64 = params.message_modulus.0;
 
     for _ in 0..10 {
         let trivial0 = sk.create_trivial(0);
@@ -335,21 +340,21 @@ fn test_noise_level_propagation_ci_run_filter() {
         let ct2 = sk.unchecked_add(&ct1, &ct1);
 
         for ct in [&trivial0, &trivial, &ct1, &ct2] {
-            test_ct_unary_op_noise_level_propagation(sk, ct);
-            test_ct_unary_op_assign_noise_level_propagation(sk, ct);
+            test_ct_unary_op_noise_level_propagation(&sk, ct);
+            test_ct_unary_op_assign_noise_level_propagation(&sk, ct);
         }
 
         for ct_left in [&trivial0, &trivial, &ct1, &ct2] {
             for ct_right in [&trivial0, &trivial, &ct1, &ct2] {
-                test_ct_binary_op_noise_level_propagation(sk, ct_left, ct_right);
-                test_ct_binary_op_assign_noise_level_propagation(sk, ct_left, ct_right);
+                test_ct_binary_op_noise_level_propagation(&sk, ct_left, ct_right);
+                test_ct_binary_op_assign_noise_level_propagation(&sk, ct_left, ct_right);
             }
         }
 
         for ct in [&trivial0, &trivial, &ct1, &ct2] {
             for scalar in 0..params.carry_modulus.0 * params.message_modulus.0 {
-                test_ct_scalar_op_noise_level_propagation(sk, ct, scalar as u8);
-                test_ct_scalar_op_assign_noise_level_propagation(sk, ct, scalar as u8);
+                test_ct_scalar_op_noise_level_propagation(&sk, ct, scalar as u8);
+                test_ct_scalar_op_assign_noise_level_propagation(&sk, ct, scalar as u8);
             }
         }
     }

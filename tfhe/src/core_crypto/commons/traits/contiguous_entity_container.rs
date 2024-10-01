@@ -15,7 +15,7 @@ type WrappingFunction<'data, Element, WrappingType> = fn(
 type ChunksWrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::Chunks<'data, Element>,
-        itertools::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
+        core::iter::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
     >,
     WrappingFunction<'data, Element, WrappingType>,
 >;
@@ -23,7 +23,7 @@ type ChunksWrappingLendingIterator<'data, Element, WrappingType> = std::iter::Ma
 type ChunksExactWrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::ChunksExact<'data, Element>,
-        itertools::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
+        core::iter::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
     >,
     WrappingFunction<'data, Element, WrappingType>,
 >;
@@ -54,7 +54,7 @@ type WrappingFunctionMut<'data, Element, WrappingType> = fn(
 type ChunksWrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::ChunksMut<'data, Element>,
-        itertools::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
+        core::iter::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
     >,
     WrappingFunctionMut<'data, Element, WrappingType>,
 >;
@@ -62,7 +62,7 @@ type ChunksWrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter:
 type ChunksExactWrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::ChunksExactMut<'data, Element>,
-        itertools::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
+        core::iter::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
     >,
     WrappingFunctionMut<'data, Element, WrappingType>,
 >;
@@ -130,7 +130,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let entity_view_pod_size = self.get_entity_view_pod_size();
         self.as_ref()
             .chunks_exact(entity_view_pod_size)
-            .zip(itertools::repeat_n(meta, entity_count))
+            .zip(core::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::EntityView::<'_>::create_from(elt, meta))
     }
 
@@ -187,6 +187,16 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         Self::SelfView::<'_>::create_from(sub_container, self_meta)
     }
 
+    fn first(&self) -> Option<Self::EntityView<'_>> {
+        let entity_count = self.entity_count();
+
+        if entity_count == 0 {
+            None
+        } else {
+            Some(self.get(0))
+        }
+    }
+
     fn last(&self) -> Option<Self::EntityView<'_>> {
         let entity_count = self.entity_count();
 
@@ -209,7 +219,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let meta = self.get_self_view_creation_metadata();
         self.as_ref()
             .chunks(pod_chunk_size)
-            .zip(itertools::repeat_n(meta, entity_count))
+            .zip(core::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::SelfView::<'_>::create_from(elt, meta))
     }
 
@@ -230,7 +240,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let meta = self.get_self_view_creation_metadata();
         self.as_ref()
             .chunks_exact(pod_chunk_size)
-            .zip(itertools::repeat_n(meta, entity_count))
+            .zip(core::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::SelfView::<'_>::create_from(elt, meta))
     }
 
@@ -331,7 +341,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let entity_view_pod_size = self.get_entity_view_pod_size();
         self.as_mut()
             .chunks_exact_mut(entity_view_pod_size)
-            .zip(itertools::repeat_n(meta, entity_count))
+            .zip(core::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::EntityMutView::<'_>::create_from(elt, meta))
     }
 
@@ -407,7 +417,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let meta = self.get_self_view_creation_metadata();
         self.as_mut()
             .chunks_mut(pod_chunk_size)
-            .zip(itertools::repeat_n(meta, entity_count))
+            .zip(core::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
     }
 
@@ -429,8 +439,19 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let meta = self.get_self_view_creation_metadata();
         self.as_mut()
             .chunks_exact_mut(pod_chunk_size)
-            .zip(itertools::repeat_n(meta, entity_count))
+            .zip(core::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
+    }
+
+    fn reverse(&mut self) {
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let container = self.as_mut();
+
+        container.reverse();
+
+        for entity_slot in self.as_mut().chunks_exact_mut(entity_view_pod_size) {
+            entity_slot.reverse();
+        }
     }
 
     fn par_iter_mut<'this>(

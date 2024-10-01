@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     panic_if_any_block_values_exceeds_its_degree, unsigned_modulus, CpuFunctionExecutor,
     ExpectedDegrees, ExpectedNoiseLevels,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -15,8 +15,8 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_smart_neg);
-create_parametrized_test!(integer_default_neg);
+create_parameterized_test!(integer_smart_neg);
+create_parameterized_test!(integer_default_neg);
 
 fn integer_smart_neg<P>(param: P)
 where

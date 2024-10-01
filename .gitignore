@@ -13,6 +13,7 @@ target/
 
 # Some of our bench outputs
 /tfhe/benchmarks_parameters
+/tfhe-zk-pok/benchmarks_parameters
 **/*.csv
 
 # dieharder run log
@@ -26,6 +27,10 @@ backends/tfhe-cuda-backend/cuda/cmake-build-debug/
 
 # WASM tests
 tfhe/web_wasm_parallel_tests/server.PID
+venv/
+web-test-runner/
+node_modules/
+package-lock.json
 
 # Dir used for backward compatibility test data
 tfhe/tfhe-backward-compat-data/

@@ -6,9 +6,10 @@ use tfhe_versionable::{Unversionize, Upgrade, Version, Versionize, VersionsDispa
 
 // The structure that should be versioned, as defined in your code
 #[derive(Versionize)]
-#[versionize(MyStructVersions)] // Link to the enum type that will holds all the versions of this
-                                // type
-struct MyStruct<T: Default> {
+// We have to link to the enum type that will holds all the versions of this
+// type. This can also be written `#[versionize(dispatch = MyStructVersions)]`.
+#[versionize(MyStructVersions)]
+struct MyStruct<T> {
     attr: T,
     builtin: u32,
 }
@@ -38,19 +39,44 @@ impl<T: Default> Upgrade<MyStruct<T>> for MyStructV0 {
 // This enum is not directly used but serves as a template to generate a new enum that will be
 // serialized. This allows recursive versioning.
 #[allow(unused)]
-enum MyStructVersions<T: Default> {
+enum MyStructVersions<T> {
     V0(MyStructV0),
     V1(MyStruct<T>),
 }
 
+mod v0 {
+    // This module simulates an older version of our app where we initiated the versioning process.
+    // In real life code this would likely be only present in your git history.
+    use tfhe_versionable::{Versionize, VersionsDispatch};
+
+    #[derive(Versionize)]
+    #[versionize(MyStructVersions)]
+    pub(super) struct MyStruct {
+        pub(super) builtin: u32,
+    }
+
+    #[derive(VersionsDispatch)]
+    #[allow(unused)]
+    pub(super) enum MyStructVersions {
+        V0(MyStruct),
+    }
+}
+
 fn main() {
-    let ms = MyStruct {
-        attr: 37u64,
-        builtin: 1234,
-    };
+    // In the past we saved a value
+    let value = 1234;
+    let ms = v0::MyStruct { builtin: value };
 
     let serialized = bincode::serialize(&ms.versionize()).unwrap();
 
     // This can be called in future versions of your application, when more variants have been added
-    let _unserialized = MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap());
+    let unserialized =
+        MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
+
+    assert_eq!(unserialized.builtin, value);
+}
+
+#[test]
+fn test() {
+    main()
 }

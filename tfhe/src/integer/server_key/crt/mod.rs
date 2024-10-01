@@ -4,6 +4,17 @@ use crate::integer::ServerKey;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+pub(crate) fn make_basis(message_modulus: u64) -> Vec<u64> {
+    match message_modulus {
+        2 => vec![2],
+        3 => vec![2],
+        n if n < 8 => vec![2, 3],
+        n if n < 16 => vec![2, 5, 7],
+        _ => vec![3, 7, 13],
+    }
+}
+
 mod add_crt;
 mod mul_crt;
 mod neg_crt;
@@ -19,12 +30,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 14;
@@ -58,12 +69,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 28;
     ///

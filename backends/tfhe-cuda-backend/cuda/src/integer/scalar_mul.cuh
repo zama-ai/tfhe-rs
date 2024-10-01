@@ -7,7 +7,7 @@
 #endif
 
 #include "device.h"
-#include "integer.h"
+#include "integer/integer_utilities.h"
 #include "multiplication.cuh"
 #include "scalar_shifts.cuh"
 #include "utils/kernel_dimensions.cuh"
@@ -29,22 +29,23 @@ __global__ void device_small_scalar_radix_multiplication(T *output_lwe_array,
 
 template <typename T>
 __host__ void scratch_cuda_integer_radix_scalar_mul_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_scalar_mul_buffer<T> **mem_ptr, uint32_t num_radix_blocks,
-    int_radix_params params, bool allocate_gpu_memory) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_scalar_mul_buffer<T> **mem_ptr,
+    uint32_t num_radix_blocks, int_radix_params params,
+    bool allocate_gpu_memory) {
 
   *mem_ptr =
       new int_scalar_mul_buffer<T>(streams, gpu_indexes, gpu_count, params,
-                                   num_radix_blocks, allocate_gpu_memory);
+                                   num_radix_blocks, allocate_gpu_memory, true);
 }
 
 template <typename T, class params>
 __host__ void host_integer_scalar_mul_radix(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    T *lwe_array, T *decomposed_scalar, T *has_at_least_one_set,
-    int_scalar_mul_buffer<T> *mem, void **bsks, T **ksks,
-    uint32_t input_lwe_dimension, uint32_t message_modulus,
-    uint32_t num_radix_blocks, uint32_t num_scalars) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, T *lwe_array, T const *decomposed_scalar,
+    T const *has_at_least_one_set, int_scalar_mul_buffer<T> *mem,
+    void *const *bsks, T *const *ksks, uint32_t input_lwe_dimension,
+    uint32_t message_modulus, uint32_t num_radix_blocks, uint32_t num_scalars) {
 
   if (num_radix_blocks == 0 | num_scalars == 0)
     return;
@@ -53,7 +54,7 @@ __host__ void host_integer_scalar_mul_radix(
   // whereas lwe_dimension is the number of elements in the mask
   uint32_t lwe_size = input_lwe_dimension + 1;
   uint32_t lwe_size_bytes = lwe_size * sizeof(T);
-  uint32_t msg_bits = (uint32_t)std::log2(message_modulus);
+  uint32_t msg_bits = log2_int(message_modulus);
   uint32_t num_ciphertext_bits = msg_bits * num_radix_blocks;
 
   T *preshifted_buffer = mem->preshifted_buffer;
@@ -93,9 +94,11 @@ __host__ void host_integer_scalar_mul_radix(
   }
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
-  cuda_drop_async(preshifted_buffer, streams[0], gpu_indexes[0]);
-  mem->logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
-  delete (mem->logical_scalar_shift_buffer);
+  if (mem->anticipated_buffers_drop) {
+    cuda_drop_async(preshifted_buffer, streams[0], gpu_indexes[0]);
+    mem->logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
+    delete (mem->logical_scalar_shift_buffer);
+  }
 
   if (j == 0) {
     // lwe array = 0
@@ -109,20 +112,22 @@ __host__ void host_integer_scalar_mul_radix(
     host_integer_partial_sum_ciphertexts_vec_kb<T, params>(
         streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer,
         terms_degree, bsks, ksks, mem->sum_ciphertexts_vec_mem,
-        num_radix_blocks, j);
+        num_radix_blocks, j, nullptr);
 
-    auto scp_mem_ptr = mem->sum_ciphertexts_vec_mem->scp_mem;
-    host_propagate_single_carry<T>(streams, gpu_indexes, gpu_count, lwe_array,
-                                   nullptr, nullptr, scp_mem_ptr, bsks, ksks,
-                                   num_radix_blocks);
+    auto scp_mem_ptr = mem->sc_prop_mem;
+    uint32_t requested_flag = outputFlag::FLAG_NONE;
+    uint32_t uses_carry = 0;
+    host_propagate_single_carry<T>(
+        streams, gpu_indexes, gpu_count, lwe_array, nullptr, nullptr,
+        scp_mem_ptr, bsks, ksks, num_radix_blocks, requested_flag, uses_carry);
   }
 }
 
 // Small scalar_mul is used in shift/rotate
 template <typename T>
 __host__ void host_integer_small_scalar_mul_radix(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    T *output_lwe_array, T *input_lwe_array, T scalar,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, T *output_lwe_array, T *input_lwe_array, T scalar,
     uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_indexes[0]);

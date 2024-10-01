@@ -9,7 +9,7 @@ use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{
     DecompositionLevel, DecompositionTerm, DecompositionTermNonNative, SignedDecomposer,
 };
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, PlaintextCount};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -66,9 +66,8 @@ pub fn ggsw_encryption_multiplicative_factor<Scalar: UnsignedInteger>(
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -136,12 +135,13 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
         .expect("Failed to split generator into ggsw levels");
 
     let decomp_base_log = output.decomposition_base_log();
+    let decomp_level_count = output.decomposition_level_count();
     let ciphertext_modulus = output.ciphertext_modulus();
 
-    for (level_index, (mut level_matrix, mut generator)) in
+    for (output_index, (mut level_matrix, mut generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
-        let decomp_level = DecompositionLevel(level_index + 1);
+        let decomp_level = DecompositionLevel(decomp_level_count.0 - output_index);
         let factor = ggsw_encryption_multiplicative_factor(
             ciphertext_modulus,
             decomp_level,
@@ -199,9 +199,8 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -269,11 +268,12 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, 
         .expect("Failed to split generator into ggsw levels");
 
     let decomp_base_log = output.decomposition_base_log();
+    let decomp_level_count = output.decomposition_level_count();
     let ciphertext_modulus = output.ciphertext_modulus();
 
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
-        |(level_index, (mut level_matrix, mut generator))| {
-            let decomp_level = DecompositionLevel(level_index + 1);
+        |(output_index, (mut level_matrix, mut generator))| {
+            let decomp_level = DecompositionLevel(decomp_level_count.0 - output_index);
             let factor = ggsw_encryption_multiplicative_factor(
                 ciphertext_modulus,
                 decomp_level,
@@ -401,12 +401,13 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
         .expect("Failed to split generator into ggsw levels");
 
     let decomp_base_log = output.decomposition_base_log();
+    let decomp_level_count = output.decomposition_level_count();
     let ciphertext_modulus = output.ciphertext_modulus();
 
-    for (level_index, (mut level_matrix, mut loop_generator)) in
+    for (output_index, (mut level_matrix, mut loop_generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
-        let decomp_level = DecompositionLevel(level_index + 1);
+        let decomp_level = DecompositionLevel(decomp_level_count.0 - output_index);
         let factor = ggsw_encryption_multiplicative_factor(
             ciphertext_modulus,
             decomp_level,
@@ -462,10 +463,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -537,7 +535,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<
         glwe_secret_key.glwe_dimension()
     );
 
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );
@@ -583,11 +581,12 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
         .expect("Failed to split generator into ggsw levels");
 
     let decomp_base_log = output.decomposition_base_log();
+    let decomp_level_count = output.decomposition_level_count();
     let ciphertext_modulus = output.ciphertext_modulus();
 
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
-        |(level_index, (mut level_matrix, mut generator))| {
-            let decomp_level = DecompositionLevel(level_index + 1);
+        |(output_index, (mut level_matrix, mut generator))| {
+            let decomp_level = DecompositionLevel(decomp_level_count.0 - output_index);
             let factor = ggsw_encryption_multiplicative_factor(
                 ciphertext_modulus,
                 decomp_level,
@@ -647,10 +646,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -717,7 +713,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext<
         glwe_secret_key.glwe_dimension()
     );
 
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );
@@ -825,9 +821,8 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -885,7 +880,7 @@ where
         glwe_secret_key.glwe_dimension()
     );
 
-    let level_matrix = ggsw_ciphertext.last().unwrap();
+    let level_matrix = ggsw_ciphertext.first().unwrap();
     let level_matrix_as_glwe_list = level_matrix.as_glwe_list();
     let last_row = level_matrix_as_glwe_list.last().unwrap();
     let decomp_level = ggsw_ciphertext.decomposition_level_count();

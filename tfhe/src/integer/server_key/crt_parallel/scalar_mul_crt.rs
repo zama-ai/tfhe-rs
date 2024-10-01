@@ -14,12 +14,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 2;
@@ -55,8 +55,13 @@ impl ServerKey {
                 if self
                     .key
                     .max_degree
-                    .validate(ct_i.degree * scalar_i as usize)
+                    .validate(ct_i.degree * u64::from(scalar_i))
                     .is_ok()
+                    && self
+                        .key
+                        .max_noise_level
+                        .validate(ct_i.noise_level * scalar)
+                        .is_ok()
                 {
                     self.key.unchecked_scalar_mul_assign(ct_i, scalar_i);
                 } else {
@@ -75,19 +80,20 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 2;
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// sks.checked_crt_scalar_mul_assign_parallelized(&mut ctxt_1, clear_2);
+    /// sks.checked_crt_scalar_mul_assign_parallelized(&mut ctxt_1, clear_2)
+    ///     .unwrap();
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
@@ -126,7 +132,7 @@ impl ServerKey {
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// `small` means the scalar value shall fit in a __shortint block__.
-    /// For example, if the parameters are PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    /// For example, if the parameters are V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
     /// the scalar should fit in 2 bits.
     ///
     /// The result is returned as a new ciphertext.
@@ -135,12 +141,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 14;
@@ -168,7 +174,7 @@ impl ServerKey {
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// `small` means the scalar shall value fit in a __shortint block__.
-    /// For example, if the parameters are PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    /// For example, if the parameters are V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
     /// the scalar should fit in 2 bits.
     ///
     /// The result is assigned to the input ciphertext
@@ -177,12 +183,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 14;

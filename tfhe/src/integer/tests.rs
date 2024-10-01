@@ -1,4 +1,4 @@
-macro_rules! create_parametrized_test {
+macro_rules! create_parameterized_test {
     (
         $name:ident {
             $($(#[$cfg:meta])* $param:ident),*
@@ -16,23 +16,23 @@ macro_rules! create_parametrized_test {
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             coverage => {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
                 COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
             },
             no_coverage => {
-                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+                V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
             }
         });
     };
@@ -56,21 +56,21 @@ macro_rules! create_parametrized_test {
         }
     };
 }
-macro_rules! create_parametrized_test_classical_params {
+macro_rules! create_parameterized_test_classical_params {
     (
         $name:ident
     ) => {
-        $crate::integer::tests::create_parametrized_test!($name {
+        $crate::integer::tests::create_parameterized_test!($name {
             coverage => {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             },
             no_coverage => {
-                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS
+                V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+                V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
             }
         });
     };
 }
-pub(crate) use {create_parametrized_test, create_parametrized_test_classical_params};
+pub(crate) use {create_parameterized_test, create_parameterized_test_classical_params};

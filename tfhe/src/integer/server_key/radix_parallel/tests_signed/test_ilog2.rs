@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
@@ -18,20 +18,20 @@ use crate::shortint::PBSParameters;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_default_trailing_zeros);
-create_parametrized_test!(integer_signed_default_trailing_ones);
-create_parametrized_test!(integer_signed_default_leading_zeros);
-create_parametrized_test!(integer_signed_default_leading_ones);
-create_parametrized_test!(integer_signed_default_ilog2);
-create_parametrized_test!(integer_signed_default_checked_ilog2 {
+create_parameterized_test!(integer_signed_default_trailing_zeros);
+create_parameterized_test!(integer_signed_default_trailing_ones);
+create_parameterized_test!(integer_signed_default_leading_zeros);
+create_parameterized_test!(integer_signed_default_leading_ones);
+create_parameterized_test!(integer_signed_default_ilog2);
+create_parameterized_test!(integer_signed_default_checked_ilog2 {
     // uses comparison so 1_1 parameters are not supported
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
 });
 
 fn integer_signed_default_trailing_zeros<P>(param: P)
@@ -145,7 +145,10 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
         let ct_res = executor.execute(&ctxt);
         let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+        assert_eq!(
+            ct_res, tmp,
+            "Failed determinism check, \n\n\n msg: {clear}, \n\n\nctxt: {ctxt:?}\n\n\n"
+        );
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
         let expected_result = compute_expected_clear(clear);
@@ -298,7 +301,10 @@ where
         let ct_res = executor.execute(&ctxt);
         let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+        assert_eq!(
+            ct_res, tmp,
+            "Failed determinism check, \n\n\n msg: {clear}, \n\n\nctxt: {ctxt:?}\n\n\n"
+        );
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
         let expected_result = clear.ilog2();
@@ -353,7 +359,10 @@ where
         let ct_res = executor.execute(&ctxt);
         let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+        assert_eq!(
+            ct_res, tmp,
+            "Failed determinism check, \n\n\n msg: {clear}, \n\n\nctxt: {ctxt:?}\n\n\n"
+        );
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
         let expected_result = clear.ilog2();
@@ -429,7 +438,10 @@ where
         let (ct_res, is_ok) = executor.execute(&ctxt);
         let (tmp, tmp_is_ok) = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+        assert_eq!(
+            ct_res, tmp,
+            "Failed determinism check, \n\n\n msg: {clear}, \n\n\nctxt: {ctxt:?}\n\n\n"
+        );
         assert_eq!(is_ok, tmp_is_ok);
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);

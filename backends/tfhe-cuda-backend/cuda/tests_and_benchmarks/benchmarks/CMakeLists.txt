@@ -44,12 +44,10 @@ if(NOT TARGET tfhe-rs)
   ExternalProject_Add(
     tfhe-rs
     SOURCE_DIR ${TFHE_RS_SOURCE_DIR}
-    BUILD_IN_SOURCE 1
+    BINARY_DIR ${TFHE_RS_SOURCE_DIR}
     BUILD_ALWAYS 1
-    UPDATE_COMMAND ""
     CONFIGURE_COMMAND ""
-    DOWNLOAD_COMMAND ""
-    BUILD_COMMAND $(MAKE) build_c_api
+    BUILD_COMMAND ${CMAKE_COMMAND} -E env CARGO_PROFILE=release make build_c_api
     INSTALL_COMMAND ""
     LOG_BUILD ON)
 endif()

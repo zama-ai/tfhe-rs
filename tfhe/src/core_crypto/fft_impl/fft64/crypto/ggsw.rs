@@ -1,10 +1,7 @@
 use super::super::math::decomposition::TensorSignedDecompositionLendingIter;
 use super::super::math::fft::{FftView, FourierPolynomialList};
 use super::super::math::polynomial::FourierPolynomialMutView;
-use crate::core_crypto::backward_compatibility::fft_impl::{
-    FourierGgswCiphertextVersioned, FourierGgswCiphertextVersionedOwned,
-    FourierPolynomialListVersioned, FourierPolynomialListVersionedOwned,
-};
+use crate::core_crypto::backward_compatibility::fft_impl::FourierGgswCiphertextVersions;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
@@ -19,102 +16,19 @@ use crate::core_crypto::entities::ggsw_ciphertext::{
 };
 use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertextMutView, GlweCiphertextView};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
-use concrete_fft::c64;
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use tfhe_fft::c64;
+use tfhe_versionable::Versionize;
 
 /// A GGSW ciphertext in the Fourier domain.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
+#[versionize(FourierGgswCiphertextVersions)]
 pub struct FourierGgswCiphertext<C: Container<Element = c64>> {
     fourier: FourierPolynomialList<C>,
     glwe_size: GlweSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
-}
-
-#[derive(serde::Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub struct FourierGgswCiphertextVersion<'vers> {
-    fourier: FourierPolynomialListVersioned<'vers>,
-    glwe_size: <GlweSize as Versionize>::Versioned<'vers>,
-    decomposition_base_log: <DecompositionBaseLog as Versionize>::Versioned<'vers>,
-    decomposition_level_count: <DecompositionLevelCount as Versionize>::Versioned<'vers>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub struct FourierGgswCiphertextVersionOwned {
-    fourier: FourierPolynomialListVersionedOwned,
-    glwe_size: <GlweSize as VersionizeOwned>::VersionedOwned,
-    decomposition_base_log: <DecompositionBaseLog as VersionizeOwned>::VersionedOwned,
-    decomposition_level_count: <DecompositionLevelCount as VersionizeOwned>::VersionedOwned,
-}
-
-impl<'vers, C: Container<Element = c64>> From<&'vers FourierGgswCiphertext<C>>
-    for FourierGgswCiphertextVersion<'vers>
-{
-    fn from(value: &'vers FourierGgswCiphertext<C>) -> Self {
-        Self {
-            fourier: value.fourier.versionize(),
-            glwe_size: value.glwe_size.versionize(),
-            decomposition_base_log: value.decomposition_base_log.versionize(),
-            decomposition_level_count: value.decomposition_level_count.versionize(),
-        }
-    }
-}
-
-impl<C: Container<Element = c64>> From<FourierGgswCiphertext<C>>
-    for FourierGgswCiphertextVersionOwned
-{
-    fn from(value: FourierGgswCiphertext<C>) -> Self {
-        Self {
-            fourier: value.fourier.versionize_owned(),
-            glwe_size: value.glwe_size.versionize_owned(),
-            decomposition_base_log: value.decomposition_base_log.versionize_owned(),
-            decomposition_level_count: value.decomposition_level_count.versionize_owned(),
-        }
-    }
-}
-
-impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierGgswCiphertextVersionOwned>
-    for FourierGgswCiphertext<C>
-{
-    type Error = UnversionizeError;
-    fn try_from(value: FourierGgswCiphertextVersionOwned) -> Result<Self, Self::Error> {
-        Ok(Self {
-            fourier: FourierPolynomialList::unversionize(value.fourier)?,
-            glwe_size: GlweSize::unversionize(value.glwe_size)?,
-            decomposition_base_log: DecompositionBaseLog::unversionize(
-                value.decomposition_base_log,
-            )?,
-            decomposition_level_count: DecompositionLevelCount::unversionize(
-                value.decomposition_level_count,
-            )?,
-        })
-    }
-}
-
-impl<C: Container<Element = c64>> Versionize for FourierGgswCiphertext<C> {
-    type Versioned<'vers> = FourierGgswCiphertextVersioned<'vers> where C: 'vers;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        self.into()
-    }
-}
-
-impl<C: Container<Element = c64>> VersionizeOwned for FourierGgswCiphertext<C> {
-    type VersionedOwned = FourierGgswCiphertextVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        self.into()
-    }
-}
-
-impl<C: IntoContainerOwned<Element = c64>> Unversionize for FourierGgswCiphertext<C> {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        Self::try_from(versioned)
-    }
 }
 
 /// A matrix containing a single level of gadget decomposition, in the Fourier domain.
@@ -315,16 +229,17 @@ impl<C: Container<Element = c64>> FourierGgswLevelRow<C> {
 impl<'a> FourierGgswCiphertextView<'a> {
     /// Return an iterator over the level matrices.
     pub fn into_levels(self) -> impl DoubleEndedIterator<Item = FourierGgswLevelMatrixView<'a>> {
+        let decomposition_level_count = self.decomposition_level_count.0;
         self.fourier
             .data
-            .split_into(self.decomposition_level_count.0)
+            .split_into(decomposition_level_count)
             .enumerate()
             .map(move |(i, slice)| {
                 FourierGgswLevelMatrixView::new(
                     slice,
                     self.glwe_size,
                     self.fourier.polynomial_size,
-                    DecompositionLevel(i + 1),
+                    DecompositionLevel(decomposition_level_count - i),
                 )
             })
     }
@@ -335,14 +250,14 @@ pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, S
     fft.forward_scratch()
 }
 
-impl<'a> FourierGgswCiphertextMutView<'a> {
+impl FourierGgswCiphertextMutView<'_> {
     /// Fill a GGSW ciphertext with the Fourier transform of a GGSW ciphertext in the standard
     /// domain.
     pub fn fill_with_forward_fourier<Scalar: UnsignedTorus>(
         self,
         coef_ggsw: GgswCiphertextView<'_, Scalar>,
         fft: FftView<'_>,
-        mut stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
         let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
@@ -354,7 +269,7 @@ impl<'a> FourierGgswCiphertextMutView<'a> {
             fft.forward_as_torus(
                 FourierPolynomialMutView { data: fourier_poly },
                 coef_poly,
-                stack.rb_mut(),
+                stack,
             );
         }
     }
@@ -568,7 +483,7 @@ pub fn add_external_product_assign<Scalar>(
     ggsw: FourierGgswCiphertextView<'_>,
     glwe: GlweCiphertextView<Scalar>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
 {
@@ -588,7 +503,7 @@ pub fn add_external_product_assign<Scalar>(
         ggsw.decomposition_level_count(),
     );
 
-    let (output_fft_buffer, mut substack0) =
+    let (output_fft_buffer, substack0) =
         stack.make_aligned_raw::<c64>(fourier_poly_size * ggsw.glwe_size().0, align);
     // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
     // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
@@ -600,20 +515,20 @@ pub fn add_external_product_assign<Scalar>(
         // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
         // In this section, we perform the external product in the fourier domain, and accumulate
         // the result in the output_fft_buffer variable.
-        let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(
+        let (mut decomposition, substack1) = TensorSignedDecompositionLendingIter::new(
             glwe.as_ref()
                 .iter()
-                .map(|s| decomposer.closest_representable(*s)),
+                .map(|s| decomposer.init_decomposer_state(*s)),
             DecompositionBaseLog(decomposer.base_log),
             DecompositionLevelCount(decomposer.level_count),
-            substack0.rb_mut(),
+            substack0,
         );
 
         // We loop through the levels (we reverse to match the order of the decomposition iterator.)
-        ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
+        ggsw.into_levels().for_each(|ggsw_decomp_matrix| {
             // We retrieve the decomposition of this level.
-            let (glwe_level, glwe_decomp_term, mut substack2) =
-                collect_next_term(&mut decomposition, &mut substack1, align);
+            let (glwe_level, glwe_decomp_term, substack2) =
+                collect_next_term(&mut decomposition, substack1, align);
             let glwe_decomp_term = GlweCiphertextView::from_container(
                 &*glwe_decomp_term,
                 ggsw.polynomial_size(),
@@ -638,9 +553,8 @@ pub fn add_external_product_assign<Scalar>(
                 glwe_decomp_term.as_polynomial_list().iter()
             )
             .for_each(|(ggsw_row, glwe_poly)| {
-                let (fourier, substack3) = substack2
-                    .rb_mut()
-                    .make_aligned_raw::<c64>(fourier_poly_size, align);
+                let (fourier, substack3) =
+                    substack2.make_aligned_raw::<c64>(fourier_poly_size, align);
                 // We perform the forward fft transform for the glwe polynomial
                 let fourier = fft
                     .forward_as_integer(
@@ -681,7 +595,7 @@ pub fn add_external_product_assign<Scalar>(
         .for_each(|(out, fourier)| {
             // The fourier buffer is not re-used afterwards so we can use the in-place version of
             // the add_backward_as_torus function
-            fft.add_backward_in_place_as_torus(out, fourier, substack0.rb_mut());
+            fft.add_backward_in_place_as_torus(out, fourier, substack0);
         });
     }
 }
@@ -691,9 +605,9 @@ pub(crate) fn collect_next_term<'a, Scalar: UnsignedTorus>(
     decomposition: &mut TensorSignedDecompositionLendingIter<'_, Scalar>,
     substack1: &'a mut PodStack,
     align: usize,
-) -> (DecompositionLevel, &'a mut [Scalar], PodStack<'a>) {
+) -> (DecompositionLevel, &'a mut [Scalar], &'a mut PodStack) {
     let (glwe_level, _, glwe_decomp_term) = decomposition.next_term().unwrap();
-    let (glwe_decomp_term, substack2) = substack1.rb_mut().collect_aligned(align, glwe_decomp_term);
+    let (glwe_decomp_term, substack2) = substack1.collect_aligned(align, glwe_decomp_term);
     (glwe_level, glwe_decomp_term, substack2)
 }
 
@@ -732,28 +646,18 @@ pub(crate) fn update_with_fmadd(
                 is_output_uninit: bool,
                 fourier_poly_size: usize,
             ) {
-                let rhs = S::c64s_as_simd(fourier).0;
-                let len = rhs.len();
+                let rhs = S::as_simd_c64s(fourier).0;
 
                 if is_output_uninit {
                     for (output_fourier, ggsw_poly) in izip!(
                         output_fft_buffer.into_chunks(fourier_poly_size),
                         lhs_polynomial_list.into_chunks(fourier_poly_size)
                     ) {
-                        let out = S::c64s_as_mut_simd(output_fourier).0;
-                        let lhs = S::c64s_as_simd(ggsw_poly).0;
+                        let out = S::as_mut_simd_c64s(output_fourier).0;
+                        let lhs = S::as_simd_c64s(ggsw_poly).0;
 
-                        // This split is done to make better use of memory prefetchers see
-                        // https://blog.mattstuchlik.com/2024/07/21/fastest-memory-read.html
-                        let (lhs0, lhs1) = lhs.split_at(len / 2);
-                        let (rhs0, rhs1) = rhs.split_at(len / 2);
-                        let (out0, out1) = out.split_at_mut(len / 2);
-
-                        for ((out0, out1), (lhs0, lhs1), (rhs0, rhs1)) in
-                            izip!(izip!(out0, out1), izip!(lhs0, lhs1), izip!(rhs0, rhs1),)
-                        {
-                            *out0 = simd.c64s_mul(*lhs0, *rhs0);
-                            *out1 = simd.c64s_mul(*lhs1, *rhs1);
+                        for (out, lhs, rhs) in izip!(out, lhs, rhs) {
+                            *out = simd.mul_c64s(*lhs, *rhs);
                         }
                     }
                 } else {
@@ -761,20 +665,11 @@ pub(crate) fn update_with_fmadd(
                         output_fft_buffer.into_chunks(fourier_poly_size),
                         lhs_polynomial_list.into_chunks(fourier_poly_size)
                     ) {
-                        let out = S::c64s_as_mut_simd(output_fourier).0;
-                        let lhs = S::c64s_as_simd(ggsw_poly).0;
+                        let out = S::as_mut_simd_c64s(output_fourier).0;
+                        let lhs = S::as_simd_c64s(ggsw_poly).0;
 
-                        // This split is done to make better use of memory prefetchers see
-                        // https://blog.mattstuchlik.com/2024/07/21/fastest-memory-read.html
-                        let (lhs0, lhs1) = lhs.split_at(len / 2);
-                        let (rhs0, rhs1) = rhs.split_at(len / 2);
-                        let (out0, out1) = out.split_at_mut(len / 2);
-
-                        for ((out0, out1), (lhs0, lhs1), (rhs0, rhs1)) in
-                            izip!(izip!(out0, out1), izip!(lhs0, lhs1), izip!(rhs0, rhs1),)
-                        {
-                            *out0 = simd.c64s_mul_add_e(*lhs0, *rhs0, *out0);
-                            *out1 = simd.c64s_mul_add_e(*lhs1, *rhs1, *out1);
+                        for (out, lhs, rhs) in izip!(out, lhs, rhs) {
+                            *out = simd.mul_add_c64s(*lhs, *rhs, *out);
                         }
                     }
                 }
@@ -822,25 +717,25 @@ pub(crate) fn update_with_fmadd_factor(
 
         #[inline(always)]
         fn with_simd<S: pulp::Simd>(self, simd: S) -> Self::Output {
-            let factor = simd.c64s_splat(self.factor);
+            let factor = simd.splat_c64s(self.factor);
 
             for (output_fourier, ggsw_poly) in izip!(
                 self.output_fft_buffer.into_chunks(self.fourier_poly_size),
                 self.lhs_polynomial_list.into_chunks(self.fourier_poly_size)
             ) {
-                let out = S::c64s_as_mut_simd(output_fourier).0;
-                let lhs = S::c64s_as_simd(ggsw_poly).0;
-                let rhs = S::c64s_as_simd(self.fourier).0;
+                let out = S::as_mut_simd_c64s(output_fourier).0;
+                let lhs = S::as_simd_c64s(ggsw_poly).0;
+                let rhs = S::as_simd_c64s(self.fourier).0;
 
                 if self.is_output_uninit {
                     for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
                         // NOTE: factor * (lhs * rhs) is more efficient than (lhs * rhs) * factor
-                        *out = simd.c64s_mul(factor, simd.c64s_mul(lhs, rhs));
+                        *out = simd.mul_c64s(factor, simd.mul_c64s(lhs, rhs));
                     }
                 } else {
                     for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
                         // NOTE: see above
-                        *out = simd.c64s_mul_add_e(factor, simd.c64s_mul(lhs, rhs), *out);
+                        *out = simd.mul_add_c64s(factor, simd.mul_c64s(lhs, rhs), *out);
                     }
                 }
             }
@@ -872,7 +767,7 @@ pub fn cmux<Scalar: UnsignedTorus>(
     mut ct1: GlweCiphertextMutView<'_, Scalar>,
     ggsw: FourierGgswCiphertextView<'_>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) {
     izip!(ct1.as_mut(), ct0.as_ref()).for_each(|(c1, c0)| {
         *c1 = c1.wrapping_sub(*c0);

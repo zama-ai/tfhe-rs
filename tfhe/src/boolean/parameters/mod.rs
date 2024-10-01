@@ -18,11 +18,14 @@
 //! Failing to properly fix the parameters will potentially result with an incorrect and/or insecure
 //! computation.
 
+pub mod params;
+
 pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice,
     GlweDimension, LweDimension, PolynomialSize,
 };
+pub use params::*;
 
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -121,89 +124,9 @@ impl BooleanKeySwitchingParameters {
     }
 }
 
-/// Default parameter set.
-///
-/// This parameter set ensures 128-bits of security, and a probability of error is upper-bounded by
-/// $2^{-40}$. The secret keys generated with this parameter set are uniform binary.
-/// This parameter set allows to evaluate faster Boolean circuits than the `TFHE_LIB_PARAMETERS`
-/// one.
-pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(811),
-    glwe_dimension: GlweDimension(3),
-    polynomial_size: PolynomialSize(512),
-    #[allow(clippy::excessive_precision)]
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        5.2851456906764125e-06,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        9.315272083503367e-10,
-    )),
-    pbs_base_log: DecompositionBaseLog(10),
-    pbs_level: DecompositionLevelCount(2),
-    ks_base_log: DecompositionBaseLog(3),
-    ks_level: DecompositionLevelCount(5),
-    encryption_key_choice: EncryptionKeyChoice::Small,
-};
-
-pub const DEFAULT_PARAMETERS_KS_PBS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(746),
-    glwe_dimension: GlweDimension(3),
-    polynomial_size: PolynomialSize(512),
-    #[allow(clippy::excessive_precision)]
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        1.622209113562635e-05,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        9.315272083503367e-10,
-    )),
-    pbs_base_log: DecompositionBaseLog(10),
-    pbs_level: DecompositionLevelCount(2),
-    ks_base_log: DecompositionBaseLog(3),
-    ks_level: DecompositionLevelCount(4),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-
-/// The secret keys generated with this parameter set are uniform binary.
-/// This parameter set ensures a probability of error upper-bounded by $2^{-165}$
-/// for for 128-bits of security.
-pub const PARAMETERS_ERROR_PROB_2_POW_MINUS_165: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(843),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
-    #[allow(clippy::excessive_precision)]
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        3.0428362050688556e-06,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        9.313225746198247e-10,
-    )),
-    pbs_base_log: DecompositionBaseLog(10),
-    pbs_level: DecompositionLevelCount(2),
-    ks_base_log: DecompositionBaseLog(3),
-    ks_level: DecompositionLevelCount(5),
-    encryption_key_choice: EncryptionKeyChoice::Small,
-};
-
-pub const PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(776),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
-    #[allow(clippy::excessive_precision)]
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        9.66750902600141e-06,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        9.313225746198247e-10,
-    )),
-    pbs_base_log: DecompositionBaseLog(10),
-    pbs_level: DecompositionLevelCount(2),
-    ks_base_log: DecompositionBaseLog(3),
-    ks_level: DecompositionLevelCount(5),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-
 /// Parameter sets given in TFHE-lib:
 /// <https://github.com/tfhe/tfhe/blob/bc71bfae7ad9d5f8ce5f29bdfd691189bfe207f3/src/libtfhe/tfhe_gate_bootstrapping.cpp#L51>
+///
 /// Original security in 2020 was 129-bits, while it is currently around 120 bits.
 pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
     lwe_dimension: LweDimension(630),

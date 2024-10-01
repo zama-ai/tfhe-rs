@@ -9,9 +9,7 @@ use crate::core_crypto::commons::traits::{Container, ContainerMut, IntoContainer
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox};
-use concrete_fft::c64;
-use concrete_fft::unordered::{Method, Plan};
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
 use std::any::TypeId;
 use std::collections::hash_map::Entry;
@@ -20,6 +18,8 @@ use std::mem::{align_of, size_of};
 use std::sync::{Arc, OnceLock, RwLock};
 #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
 use std::time::Duration;
+use tfhe_fft::c64;
+use tfhe_fft::unordered::{Method, Plan};
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
@@ -172,7 +172,7 @@ impl Fft {
                             Plan::new(
                                 n / 2,
                                 Method::UserProvided {
-                                    base_algo: concrete_fft::ordered::FftAlgo::Dif4,
+                                    base_algo: tfhe_fft::ordered::FftAlgo::Dif4,
                                     base_n: n / 2,
                                 },
                             ),
@@ -329,7 +329,7 @@ fn convert_add_backward_torus<Scalar: UnsignedTorus>(
     convert_add_backward_torus_scalar::<Scalar>(out_re, out_im, inp, twisties);
 }
 
-impl<'a> FftView<'a> {
+impl FftView<'_> {
     /// Return the polynomial size that this FFT was made for.
     pub fn polynomial_size(self) -> PolynomialSize {
         PolynomialSize(2 * self.plan.fft_size())
@@ -383,7 +383,7 @@ impl<'a> FftView<'a> {
         self,
         fourier: FourierPolynomialMutView<'out>,
         standard: PolynomialView<'_, Scalar>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) -> FourierPolynomialMutView<'out> {
         self.forward_with_conv(fourier, standard, convert_forward_torus, stack)
     }
@@ -403,7 +403,7 @@ impl<'a> FftView<'a> {
         self,
         fourier: FourierPolynomialMutView<'out>,
         standard: PolynomialView<'_, Scalar>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) -> FourierPolynomialMutView<'out> {
         self.forward_with_conv(fourier, standard, convert_forward_integer, stack)
     }
@@ -462,7 +462,7 @@ impl<'a> FftView<'a> {
         self,
         standard: PolynomialMutView<'_, Scalar>,
         fourier: FourierPolynomialView<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         self.backward_with_conv(standard, fourier, convert_backward_torus, stack);
     }
@@ -481,7 +481,7 @@ impl<'a> FftView<'a> {
         self,
         standard: PolynomialMutView<'_, Scalar>,
         fourier: FourierPolynomialView<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         self.backward_with_conv(standard, fourier, convert_add_backward_torus, stack);
     }
@@ -492,7 +492,7 @@ impl<'a> FftView<'a> {
         self,
         standard: PolynomialMutView<'_, Scalar>,
         fourier: FourierPolynomialMutView<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         self.backward_with_conv_in_place(standard, fourier, convert_add_backward_torus, stack);
     }
@@ -506,7 +506,7 @@ impl<'a> FftView<'a> {
         fourier: FourierPolynomialMutView<'out>,
         standard: PolynomialView<'_, Scalar>,
         conv_fn: F,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) -> FourierPolynomialMutView<'out> {
         let fourier = fourier.data;
         let standard = standard.as_ref();
@@ -526,7 +526,7 @@ impl<'a> FftView<'a> {
         mut standard: PolynomialMutView<'_, Scalar>,
         fourier: FourierPolynomialView<'_>,
         conv_fn: F,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         let fourier = fourier.data;
         let standard = standard.as_mut();
@@ -548,7 +548,7 @@ impl<'a> FftView<'a> {
         mut standard: PolynomialMutView<'_, Scalar>,
         fourier: FourierPolynomialMutView<'_>,
         conv_fn: F,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         let fourier = fourier.data;
         let standard = standard.as_mut();
@@ -590,7 +590,10 @@ impl<C: ContainerMut<Element = c64>> FourierPolynomialList<C> {
 }
 
 impl<C: Container<Element = c64>> Versionize for FourierPolynomialList<C> {
-    type Versioned<'vers> = FourierPolynomialListVersioned<'vers> where C: 'vers;
+    type Versioned<'vers>
+        = FourierPolynomialListVersioned<'vers>
+    where
+        C: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()
@@ -626,7 +629,7 @@ impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> 
                 buf: &'a [c64],
             }
 
-            impl<'a> serde::Serialize for SingleFourierPolynomial<'a> {
+            impl serde::Serialize for SingleFourierPolynomial<'_> {
                 fn serialize<S: serde::Serializer>(
                     &self,
                     serializer: S,
@@ -698,7 +701,7 @@ impl<'de, C: IntoContainerOwned<Element = c64>> serde::Deserialize<'de>
                     buf: &'a mut [c64],
                 }
 
-                impl<'de, 'a> serde::de::DeserializeSeed<'de> for FillFourier<'a> {
+                impl<'de> serde::de::DeserializeSeed<'de> for FillFourier<'_> {
                     type Value = ();
 
                     fn deserialize<D: serde::Deserializer<'de>>(
@@ -768,9 +771,9 @@ pub fn par_convert_polynomials_list_to_fourier<Scalar: UnsignedTorus>(
                 .unwrap()
                 .try_unaligned_bytes_required()
                 .unwrap();
-            let mut stack = vec![0; stack_len];
+            let mut mem = vec![0; stack_len];
 
-            let mut stack = PodStack::new(&mut stack);
+            let stack = PodStack::new(&mut mem);
 
             for (fourier_poly, standard_poly) in izip!(
                 fourier_poly_chunk.chunks_exact_mut(f_polynomial_size),
@@ -779,7 +782,7 @@ pub fn par_convert_polynomials_list_to_fourier<Scalar: UnsignedTorus>(
                 fft.forward_as_torus(
                     FourierPolynomialMutView { data: fourier_poly },
                     PolynomialView::from_container(standard_poly),
-                    stack.rb_mut(),
+                    stack,
                 );
             }
         });

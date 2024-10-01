@@ -116,12 +116,12 @@ impl CompressedPublicKey {
 #[cfg(test)]
 mod tests {
     use crate::integer::keycache::KEY_CACHE;
-    use crate::integer::tests::create_parametrized_test;
+    use crate::integer::tests::create_parameterized_test;
     use crate::integer::IntegerKeyKind;
     use crate::shortint::parameters::*;
 
-    create_parametrized_test!(integer_public_key_decompression_small {
-        PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    create_parameterized_test!(integer_public_key_decompression_small {
+        V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     });
 
     fn integer_public_key_decompression_small(param: ClassicPBSParameters) {

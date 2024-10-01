@@ -8,7 +8,7 @@ use super::{
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::OutputFlag;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -16,45 +16,45 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_unchecked_add);
-create_parametrized_test!(integer_unchecked_add_assign);
-create_parametrized_test!(integer_smart_add);
-create_parametrized_test!(integer_default_add);
-create_parametrized_test!(integer_extensive_trivial_default_add);
-create_parametrized_test!(integer_default_overflowing_add);
-create_parametrized_test!(integer_extensive_trivial_default_overflowing_add);
-create_parametrized_test!(integer_advanced_overflowing_add_assign_with_carry_at_least_4_bits {
+create_parameterized_test!(integer_unchecked_add);
+create_parameterized_test!(integer_unchecked_add_assign);
+create_parameterized_test!(integer_smart_add);
+create_parameterized_test!(integer_default_add);
+create_parameterized_test!(integer_extensive_trivial_default_add);
+create_parameterized_test!(integer_default_overflowing_add);
+create_parameterized_test!(integer_extensive_trivial_default_overflowing_add);
+create_parameterized_test!(integer_advanced_overflowing_add_assign_with_carry_at_least_4_bits {
     coverage => {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
     },
     no_coverage => {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
     }
 });
-create_parametrized_test!(integer_advanced_add_assign_with_carry_sequential);
-create_parametrized_test!(integer_extensive_trivial_overflowing_advanced_add_assign_with_carry_at_least_4_bits {
+create_parameterized_test!(integer_advanced_add_assign_with_carry_sequential);
+create_parameterized_test!(integer_extensive_trivial_overflowing_advanced_add_assign_with_carry_at_least_4_bits {
     coverage => {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
     },
     no_coverage => {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
     }
 });
-create_parametrized_test!(
+create_parameterized_test!(
     integer_extensive_trivial_advanced_overflowing_add_assign_with_carry_sequential
 );
 
@@ -522,10 +522,8 @@ where
 
     let message_modulus = cks.parameters().message_modulus();
     let block_num_bits = message_modulus.0.ilog2();
-    // Contrary to regular add, we do bit_size every block num_bits,
-    // otherwise the bit_size actually encrypted is not exactly the same
-    // leading to false test overflow results.
-    for bit_size in (1..=64u32).step_by(block_num_bits as usize) {
+
+    for bit_size in 1..=64u32 {
         let num_blocks = bit_size.div_ceil(block_num_bits);
         let modulus = unsigned_modulus_u128(cks.parameters().message_modulus(), num_blocks);
 
@@ -567,22 +565,22 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
-
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..nb_tests_smaller {
+    for num_blocks in 1..MAX_NB_CTXT {
+        let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
+
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        let ctxt_0 = cks.encrypt(clear_0);
-        let ctxt_1 = cks.encrypt(clear_1);
+        let ctxt_0 = cks.as_ref().encrypt_radix(clear_0, num_blocks);
+        let ctxt_1 = cks.as_ref().encrypt_radix(clear_1, num_blocks);
 
         let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
         let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
         panic_if_any_block_is_not_clean(&ct_res, &cks);
-        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
-        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
 
         let (expected_result, expected_overflowed) =
             overflowing_add_under_modulus(clear_0, clear_1, modulus);
@@ -644,6 +642,7 @@ where
     }
 
     // Test with trivial inputs
+    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
     for _ in 0..4 {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;

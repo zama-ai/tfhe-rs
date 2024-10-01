@@ -4,7 +4,7 @@ use crate::core_crypto::commons::math::decomposition::{
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-use dyn_stack::{PodStack, ReborrowMut};
+use dyn_stack::PodStack;
 
 /// An iterator that yields the terms of the signed decomposition of an integer.
 ///
@@ -43,7 +43,7 @@ where
         Self {
             base_log: base_log.0,
             level_count: level.0,
-            state: input >> (T::BITS - base_log.0 * level.0),
+            state: input,
             current_level: level.0,
             mod_b_mask: (T::ONE << base_log.0) - T::ONE,
             fresh: true,
@@ -118,6 +118,23 @@ where
     }
 }
 
+/// With
+///
+/// B = 2^base_log
+/// res < B
+///
+/// returns 1 if the following condition is true otherwise 0
+///
+/// (res > B / 2) || ((res == B / 2) && ((state % B) >= B / 2));
+#[inline(always)]
+fn decomposition_bit_trick<Scalar: UnsignedInteger>(
+    res: Scalar,
+    state: Scalar,
+    base_log: usize,
+) -> Scalar {
+    ((res.wrapping_sub(Scalar::ONE) | state) & res) >> (base_log - 1)
+}
+
 #[inline]
 pub(crate) fn decompose_one_level<S: UnsignedInteger>(
     base_log: usize,
@@ -126,8 +143,7 @@ pub(crate) fn decompose_one_level<S: UnsignedInteger>(
 ) -> S {
     let res = *state & mod_b_mask;
     *state >>= base_log;
-    let mut carry = (res.wrapping_sub(S::ONE) | *state) & res;
-    carry >>= base_log - 1;
+    let carry = decomposition_bit_trick(res, *state, base_log);
     *state += carry;
     res.wrapping_sub(carry << base_log)
 }
@@ -298,12 +314,12 @@ pub struct TensorSignedDecompositionLendingIterNonNative<'buffers> {
 
 impl<'buffers> TensorSignedDecompositionLendingIterNonNative<'buffers> {
     #[inline]
-    pub fn new(
+    pub(crate) fn new(
         decomposer: &SignedDecomposerNonNative<u64>,
         input: &[u64],
         modulus: u64,
-        stack: PodStack<'buffers>,
-    ) -> (Self, PodStack<'buffers>) {
+        stack: &'buffers mut PodStack,
+    ) -> (Self, &'buffers mut PodStack) {
         let shift = modulus.ceil_ilog2() as usize - decomposer.base_log * decomposer.level_count;
         let input_size = input.len();
         let (states, stack) =
@@ -393,10 +409,51 @@ impl<'buffers> TensorSignedDecompositionLendingIterNonNative<'buffers> {
         &mut self,
         substack1: &'a mut PodStack,
         align: usize,
-    ) -> (DecompositionLevel, &'a mut [u64], PodStack<'a>) {
+    ) -> (DecompositionLevel, &'a mut [u64], &'a mut PodStack) {
         let (glwe_level, _, glwe_decomp_term) = self.next_term().unwrap();
-        let (glwe_decomp_term, substack2) =
-            substack1.rb_mut().collect_aligned(align, glwe_decomp_term);
+        let (glwe_decomp_term, substack2) = substack1.collect_aligned(align, glwe_decomp_term);
         (glwe_level, glwe_decomp_term, substack2)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_decomp_bit_trick() {
+        for rep_bit_count in 1..13 {
+            println!("{rep_bit_count}");
+            let b = 1u64 << rep_bit_count;
+            let b_over_2 = b / 2;
+
+            for val in 0..b {
+                // Have a chance to sample all values in 0..b at least once, here we expect on
+                // average about 10 occurrence for each value in the range
+                for _ in 0..10 * b {
+                    let state: u64 = rand::random();
+                    let test_val =
+                        (val > b_over_2) || ((val == b_over_2) && ((state % b) >= b_over_2));
+                    let bit_trick = decomposition_bit_trick(val, state, rep_bit_count);
+                    let bit_trick_as_bool = if bit_trick == 1 {
+                        true
+                    } else if bit_trick == 0 {
+                        false
+                    } else {
+                        panic!("Bit trick result was not a bit.");
+                    };
+
+                    assert_eq!(
+                        test_val, bit_trick_as_bool,
+                        "\nval    ={val}\n\
+                           val_b  ={val:064b}\n\
+                           state  ={state}\n\
+                           state_b={state:064b}\n\
+                           expected: {test_val}\n\
+                           got     : {bit_trick_as_bool}"
+                    );
+                }
+            }
+        }
     }
 }

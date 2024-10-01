@@ -20,7 +20,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
 /// Perform a blind rotation given an input [`LWE ciphertext`](`LweCiphertext`), modifying a look-up
 /// table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
@@ -58,13 +58,12 @@ use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///
@@ -211,7 +210,7 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
     lut: &mut GlweCiphertext<OutputCont>,
     bsk: &NttLweBootstrapKey<KeyCont>,
     ntt: Ntt64View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     InputCont: Container<Element = u64>,
     OutputCont: ContainerMut<Element = u64>,
@@ -223,12 +222,10 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         mut lut: GlweCiphertextMutView<'_, u64>,
         lwe: &[u64],
         ntt: Ntt64View<'_>,
-        mut stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
-        use crate::core_crypto::{
-            fft_impl::common::pbs_modulus_switch,
-            prelude::polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign,
-        };
+        use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
+        use crate::core_crypto::prelude::polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign;
 
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
         let modulus = ntt.custom_modulus();
@@ -255,7 +252,6 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
 
         for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), bsk.into_ggsw_iter()) {
             if *lwe_mask_element != 0u64 {
-                let stack = stack.rb_mut();
                 // We copy ct_0 to ct_1
                 let (ct1, stack) =
                     stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
@@ -333,14 +329,12 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         mut lut: GlweCiphertextMutView<'_, u64>,
         lwe: &[u64],
         ntt: Ntt64View<'_>,
-        mut stack: PodStack<'_>,
+        mut stack: &mut PodStack,
     ) {
-        use crate::core_crypto::{
-            fft_impl::common::pbs_modulus_switch,
-            prelude::polynomial_algorithms::{
-                polynomial_wrapping_monic_monomial_div_assign,
-                polynomial_wrapping_monic_monomial_mul_assign,
-            },
+        use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
+        use crate::core_crypto::prelude::polynomial_algorithms::{
+            polynomial_wrapping_monic_monomial_div_assign,
+            polynomial_wrapping_monic_monomial_mul_assign,
         };
 
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
@@ -352,7 +346,7 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
 
         for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), bsk.into_ggsw_iter()) {
             if *lwe_mask_element != 0u64 {
-                let stack = stack.rb_mut();
+                let stack = &mut *stack;
                 // We copy ct_0 to ct_1
                 let (ct1, stack) =
                     stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
@@ -427,13 +421,12 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///
@@ -594,7 +587,7 @@ pub fn programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized<
     accumulator: &GlweCiphertext<AccCont>,
     bsk: &NttLweBootstrapKey<KeyCont>,
     ntt: Ntt64View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     InputCont: Container<Element = u64>,
     OutputCont: ContainerMut<Element = u64>,
@@ -607,7 +600,7 @@ pub fn programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized<
         lwe_in: LweCiphertextView<'_, u64>,
         accumulator: GlweCiphertextView<'_, u64>,
         ntt: Ntt64View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         debug_assert_eq!(lwe_out.ciphertext_modulus(), lwe_in.ciphertext_modulus());
         debug_assert_eq!(
@@ -659,7 +652,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
     ggsw: NttGgswCiphertextView<'_, u64>,
     glwe: &GlweCiphertext<InputGlweCont>,
     ntt: Ntt64View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     InputGlweCont: Container<Element = u64>,
 {
@@ -669,7 +662,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
         ggsw: NttGgswCiphertextView<'_, u64>,
         glwe: &GlweCiphertext<InputGlweCont>,
         ntt: Ntt64View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         InputGlweCont: Container<Element = u64>,
     {
@@ -690,7 +683,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
             out.ciphertext_modulus(),
         );
 
-        let (output_fft_buffer, mut substack0) =
+        let (output_fft_buffer, substack0) =
             stack.make_aligned_raw::<u64>(poly_size * ggsw.glwe_size().0, align);
         // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
         // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
@@ -698,22 +691,22 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
         let mut is_output_uninit = true;
 
         {
-            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
-            // In this section, we perform the external product in the ntt domain, and accumulate
-            // the result in the output_fft_buffer variable.
-            let (mut decomposition, mut substack1) =
-                TensorSignedDecompositionLendingIterNonNative::new(
-                    &decomposer,
-                    glwe.as_ref(),
-                    ntt.custom_modulus(),
-                    substack0.rb_mut(),
-                );
+            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
+            // DOMAIN In this section, we perform the external product in the ntt
+            // domain, and accumulate the result in the output_fft_buffer variable.
+            let (mut decomposition, substack1) = TensorSignedDecompositionLendingIterNonNative::new(
+                &decomposer,
+                glwe.as_ref(),
+                ntt.custom_modulus(),
+                substack0,
+            );
 
-            // We loop through the levels (we reverse to match the order of the decomposition iterator.)
-            ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
+            // We loop through the levels (we reverse to match the order of the decomposition
+            // iterator.)
+            ggsw.into_levels().for_each(|ggsw_decomp_matrix| {
                 // We retrieve the decomposition of this level.
-                let (glwe_level, glwe_decomp_term, mut substack2) =
-                    decomposition.collect_next_term(&mut substack1, align);
+                let (glwe_level, glwe_decomp_term, substack2) =
+                    decomposition.collect_next_term(substack1, align);
                 let glwe_decomp_term = GlweCiphertextView::from_container(
                     &*glwe_decomp_term,
                     ggsw.polynomial_size(),
@@ -738,8 +731,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
                     glwe_decomp_term.as_polynomial_list().iter()
                 )
                 .for_each(|(ggsw_row, glwe_poly)| {
-                    let (ntt_poly, _) =
-                        substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
+                    let (ntt_poly, _) = substack2.make_aligned_raw::<u64>(poly_size, align);
                     // We perform the forward ntt transform for the glwe polynomial
                     ntt.forward(PolynomialMutView::from_container(ntt_poly), glwe_poly);
                     // Now we loop through the polynomials of the output, and add the
@@ -784,19 +776,15 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
         ggsw: NttGgswCiphertextView<'_, u64>,
         glwe: &GlweCiphertext<InputGlweCont>,
         ntt: Ntt64View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         InputGlweCont: Container<Element = u64>,
     {
         // Check that modswitch is really needed around cmux
 
-        use crate::core_crypto::{
-            fft_impl::fft64::{
-                crypto::ggsw::collect_next_term,
-                math::decomposition::TensorSignedDecompositionLendingIter,
-            },
-            prelude::SignedDecomposer,
-        };
+        use crate::core_crypto::fft_impl::fft64::crypto::ggsw::collect_next_term;
+        use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
+        use crate::core_crypto::prelude::SignedDecomposer;
         assert!(
             glwe.ciphertext_modulus()
                 .is_compatible_with_native_modulus(),
@@ -833,9 +821,9 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
         let mut is_output_uninit = true;
 
         {
-            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
-            // In this section, we perform the external product in the ntt domain, and accumulate
-            // the result in the output_fft_buffer variable.
+            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
+            // DOMAIN In this section, we perform the external product in the ntt
+            // domain, and accumulate the result in the output_fft_buffer variable.
             let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(
                 glwe.as_ref()
                     .iter()
@@ -845,7 +833,8 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
                 substack0.rb_mut(),
             );
 
-            // We loop through the levels (we reverse to match the order of the decomposition iterator.)
+            // We loop through the levels (we reverse to match the order of the decomposition
+            // iterator.)
             ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
                 // We retrieve the decomposition of this level.
                 let (glwe_level, glwe_decomp_term, mut substack2) =
@@ -947,7 +936,7 @@ pub(crate) fn cmux_ntt64_assign(
     ct1: GlweCiphertextMutView<'_, u64>,
     ggsw: NttGgswCiphertextView<'_, u64>,
     ntt: Ntt64View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) {
     #[cfg(not(feature = "ntt-bnf"))]
     fn implementation(
@@ -955,7 +944,7 @@ pub(crate) fn cmux_ntt64_assign(
         mut ct1: GlweCiphertextMutView<'_, u64>,
         ggsw: NttGgswCiphertextView<'_, u64>,
         ntt: Ntt64View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
             *c1 = c1.wrapping_sub_custom_mod(*c0, ntt.custom_modulus());
@@ -969,7 +958,7 @@ pub(crate) fn cmux_ntt64_assign(
         mut ct1: GlweCiphertextMutView<'_, u64>,
         ggsw: NttGgswCiphertextView<'_, u64>,
         ntt: Ntt64View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
             *c1 = c1.wrapping_sub(*c0);

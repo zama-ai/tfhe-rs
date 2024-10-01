@@ -14,7 +14,7 @@ if ! git lfs env 2>/dev/null >/dev/null; then
 fi
 
 if [ -d $3 ]; then
-		cd $3 && git fetch --depth 1 && git reset --hard origin/$2 && git clean -dfx
+		cd $3 && git remote set-branches origin '*' && git fetch --depth 1 && git reset --hard origin/$2 && git clean -dfx
 
 else
 		git clone $1 -b $2 --depth 1 $3

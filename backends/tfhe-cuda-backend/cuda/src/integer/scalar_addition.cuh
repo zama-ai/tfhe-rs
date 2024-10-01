@@ -7,30 +7,28 @@
 #endif
 
 #include "device.h"
-#include "integer.h"
+#include "integer/integer_utilities.h"
 #include "utils/kernel_dimensions.cuh"
 #include <stdio.h>
 
 template <typename Torus>
 __global__ void device_integer_radix_scalar_addition_inplace(
-    Torus *lwe_array, Torus *scalar_input, int32_t num_blocks,
+    Torus *lwe_array, Torus const *scalar_input, int32_t num_blocks,
     uint32_t lwe_dimension, uint64_t delta) {
 
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < num_blocks) {
-    Torus scalar = scalar_input[tid];
-    Torus *body = lwe_array + tid * (lwe_dimension + 1) + lwe_dimension;
-
-    *body += scalar * delta;
+    lwe_array[tid * (lwe_dimension + 1) + lwe_dimension] +=
+        scalar_input[tid] * delta;
   }
 }
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_addition_inplace(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array, Torus *scalar_input, uint32_t lwe_dimension,
-    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, Torus const *scalar_input,
+    uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
+    uint32_t message_modulus, uint32_t carry_modulus) {
   cudaSetDevice(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads
@@ -66,8 +64,8 @@ __global__ void device_integer_radix_add_scalar_one_inplace(
 
 template <typename Torus>
 __host__ void host_integer_radix_add_scalar_one_inplace(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array, uint32_t lwe_dimension,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, uint32_t lwe_dimension,
     uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
     uint32_t carry_modulus) {
   cudaSetDevice(gpu_indexes[0]);
@@ -106,10 +104,10 @@ __global__ void device_integer_radix_scalar_subtraction_inplace(
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_subtraction_inplace(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array, Torus *scalar_input, uint32_t lwe_dimension,
-    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, Torus *scalar_input,
+    uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
+    uint32_t message_modulus, uint32_t carry_modulus) {
   cudaSetDevice(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads

@@ -4,23 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest ./test --runInBand --testNamePattern=Test",
-    "bench": "jest ./test --runInBand --testNamePattern=Bench",
     "build": "cp -r ../../tfhe/pkg ./ && webpack build ./index.js --mode production -o dist --output-filename index.js && cp index.html dist/ && cp favicon.ico dist/",
     "server": "serve --config ../serve.json dist/",
-    "test-separate-processes": "jest --listTests | xargs -L 1 jest --runInBand --testNamePattern=Test",
-    "bench-separate-processes": "jest --listTests | xargs -L 1 jest --runInBand --testNamePattern=Bench",
-    "test2": "mocha",
     "format": "prettier . --write",
     "check-format": "prettier . --check"
   },
   "author": "",
-  "license": "ISC",
+  "license": "BSD-3-Clause-Clear",
   "devDependencies": {
     "@babel/preset-env": "^7.25.4",
-    "jest": "^29.7.0",
     "prettier": "^3.3.3",
-    "puppeteer": "^23.2.1",
     "serve": "^14.2.3",
     "webpack": "^5.94.0",
     "webpack-cli": "^5.1.4"

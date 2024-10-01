@@ -3,7 +3,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionE
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, overflowing_sum_slice_under_modulus, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -11,9 +11,9 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
-create_parametrized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
-create_parametrized_test!(integer_default_sum_ciphertexts_vec);
+create_parameterized_test!(integer_smart_sum_ciphertexts_slice);
+create_parameterized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
+create_parameterized_test!(integer_default_sum_ciphertexts_vec);
 
 fn integer_default_unsigned_overflowing_sum_ciphertexts_vec<P>(param: P)
 where
@@ -48,7 +48,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
         for _ in 0..nb_tests_smaller {
@@ -157,8 +157,7 @@ where
         .parameters()
         .message_modulus()
         .0
-        .pow(crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT as u32)
-        as u64;
+        .pow(crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -195,7 +194,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
         for _ in 0..nb_tests_smaller {

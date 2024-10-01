@@ -1,11 +1,12 @@
 use std::path::Path;
 
+use tfhe::core_crypto::prelude::TUniform;
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
-    ShortintCiphertextTest, ShortintClientKeyTest, TestMetadata, TestParameterSet, TestType,
-    Testcase,
+    ShortintCiphertextTest, ShortintClientKeyTest, TestDistribution, TestMetadata,
+    TestParameterSet, TestType, Testcase,
 };
 
 use tfhe::shortint::parameters::{
@@ -20,26 +21,22 @@ use tfhe_versionable::Unversionize;
 
 use crate::{load_and_unversionize, TestedModule};
 
-/// Converts test parameters metadata that are independant of any tfhe-rs version and use only
+/// Converts test parameters metadata that are independent of any tfhe-rs version and use only
 /// built-in types into parameters suitable for the currently tested version.
 pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
     ClassicPBSParameters {
         lwe_dimension: LweDimension(test_params.lwe_dimension),
         glwe_dimension: GlweDimension(test_params.glwe_dimension),
         polynomial_size: PolynomialSize(test_params.polynomial_size),
-        lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-            test_params.lwe_noise_gaussian_stddev,
-        )),
-        glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-            test_params.glwe_noise_gaussian_stddev,
-        )),
+        lwe_noise_distribution: convert_distribution(&test_params.lwe_noise_distribution),
+        glwe_noise_distribution: convert_distribution(&test_params.glwe_noise_distribution),
         pbs_base_log: DecompositionBaseLog(test_params.pbs_base_log),
         pbs_level: DecompositionLevelCount(test_params.pbs_level),
         ks_base_log: DecompositionBaseLog(test_params.ks_base_log),
         ks_level: DecompositionLevelCount(test_params.ks_level),
-        message_modulus: MessageModulus(test_params.message_modulus),
-        carry_modulus: CarryModulus(test_params.carry_modulus),
-        max_noise_level: MaxNoiseLevel::new(test_params.max_noise_level),
+        message_modulus: MessageModulus(test_params.message_modulus as u64),
+        carry_modulus: CarryModulus(test_params.carry_modulus as u64),
+        max_noise_level: MaxNoiseLevel::new(test_params.max_noise_level as u64),
         log2_p_fail: test_params.log2_p_fail,
         ciphertext_modulus: CiphertextModulus::try_new(test_params.ciphertext_modulus).unwrap(),
         encryption_key_choice: {
@@ -49,6 +46,17 @@ pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
                 _ => panic!("Invalid encryption key choice"),
             }
         },
+    }
+}
+
+fn convert_distribution(value: &TestDistribution) -> DynamicDistribution<u64> {
+    match value {
+        TestDistribution::Gaussian { stddev } => {
+            DynamicDistribution::new_gaussian_from_std_dev(StandardDev(*stddev))
+        }
+        TestDistribution::TUniform { bound_log2 } => {
+            DynamicDistribution::TUniform(TUniform::new(*bound_log2))
+        }
     }
 }
 

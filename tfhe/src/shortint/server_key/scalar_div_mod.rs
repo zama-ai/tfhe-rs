@@ -48,7 +48,7 @@ impl ServerKey {
     ///```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// // Generate the client key and the server key
@@ -58,7 +58,7 @@ impl ServerKey {
     /// let clear_2 = 2;
     ///
     /// // Encrypt one message
-    /// let mut ct_1 = cks.encrypt(clear_1);
+    /// let ct_1 = cks.encrypt(clear_1);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.unchecked_scalar_div(&ct_1, clear_2);
@@ -67,10 +67,10 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_1 / (clear_2 as u64), res);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
     /// // Encrypt one message
-    /// let mut ct_1 = cks.encrypt(clear_1);
+    /// let ct_1 = cks.encrypt(clear_1);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.unchecked_scalar_div(&ct_1, clear_2);
@@ -88,10 +88,10 @@ impl ServerKey {
     pub fn unchecked_scalar_div_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         assert_ne!(scalar, 0, "attempt to divide by zero");
 
-        let lookup_table =
-            self.generate_msg_lookup_table(|x| x / (scalar as u64), ct.message_modulus);
+        let scalar = u64::from(scalar);
+        let lookup_table = self.generate_msg_lookup_table(|x| x / scalar, ct.message_modulus);
         self.apply_lookup_table_assign(ct, &lookup_table);
-        ct.degree = Degree::new(ct.degree.get() / scalar as usize);
+        ct.degree = Degree::new(ct.degree.get() / scalar);
     }
 
     /// Alias to [`unchecked_scalar_mod`](`Self::unchecked_scalar_mod`) provided for convenience
@@ -140,7 +140,7 @@ impl ServerKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     /// };
     ///
     /// // Generate the client key and the server key:
@@ -148,7 +148,7 @@ impl ServerKey {
     ///
     /// let msg = 3;
     ///
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// let modulus: u8 = 2;
     /// // Compute homomorphically an addition:
@@ -158,9 +158,9 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(1, dec);
     ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    /// let (cks, sks) = gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// let modulus: u8 = 2;
     /// // Compute homomorphically an addition:
@@ -178,8 +178,9 @@ impl ServerKey {
 
     pub fn unchecked_scalar_mod_assign(&self, ct: &mut Ciphertext, modulus: u8) {
         assert_ne!(modulus, 0);
-        let acc = self.generate_msg_lookup_table(|x| x % modulus as u64, ct.message_modulus);
+        let modulus = u64::from(modulus);
+        let acc = self.generate_msg_lookup_table(|x| x % modulus, ct.message_modulus);
         self.apply_lookup_table_assign(ct, &acc);
-        ct.degree = Degree::new(modulus as usize - 1);
+        ct.degree = Degree::new(modulus - 1);
     }
 }

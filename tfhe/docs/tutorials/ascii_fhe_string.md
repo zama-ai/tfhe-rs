@@ -25,7 +25,7 @@ To use the `FheUint8` type, enable the `integer` feature:
 
 [dependencies]
 # Default configuration for x86 Unix machines:
-tfhe = { version = "0.8.0", features = ["integer", "x86_64-unix"]}
+tfhe = { version = "0.11.0", features = ["integer"] }
 ```
 
 Refer to the [installation guide](../getting\_started/installation.md) for other configurations.
@@ -35,7 +35,9 @@ The `FheAsciiString::encrypt` function performs data validation to ensure the in
 In FHE operations, direct branching on encrypted values is not possible. However, you can evaluate a boolean condition to obtain the desired outcome. Here is an example to check and convert the 'char' to a lowercase without using a branch:
 
 ```rust
-pub const UP_LOW_DISTANCE: u8 = 32;
+#![allow(dead_code)]
+
+const UP_LOW_DISTANCE: u8 = 32;
 
 fn to_lower(c: u8) -> u8 {
     if c > 64 && c < 91 {
@@ -49,7 +51,9 @@ fn to_lower(c: u8) -> u8 {
 You can remove the branch this way:
 
 ```rust
-pub const UP_LOW_DISTANCE: u8 = 32;
+#![allow(dead_code)]
+
+const UP_LOW_DISTANCE: u8 = 32;
 
 fn to_lower(c: u8) -> u8 {
     c + ((c > 64) as u8 & (c < 91) as u8) * UP_LOW_DISTANCE
@@ -59,10 +63,12 @@ fn to_lower(c: u8) -> u8 {
 This method can adapt to operations on homomorphic integers:
 
 ```rust
+#![allow(dead_code)]
+
 use tfhe::prelude::*;
 use tfhe::FheUint8;
 
-pub const UP_LOW_DISTANCE: u8 = 32;
+const UP_LOW_DISTANCE: u8 = 32;
 
 fn to_lower(c: &FheUint8) -> FheUint8 {
     c + FheUint8::cast_from(c.gt(64) & c.lt(91)) * UP_LOW_DISTANCE
@@ -75,7 +81,7 @@ Full example:
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ClientKey, ConfigBuilder, FheUint8};
 
-pub const UP_LOW_DISTANCE: u8 = 32;
+const UP_LOW_DISTANCE: u8 = 32;
 
 struct FheAsciiString {
     bytes: Vec<FheUint8>,

@@ -28,13 +28,14 @@ jobs:
       gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Check for file changes
         id: changed-files
-        uses: tj-actions/changed-files@e9772d140489982e0e3704fea5ee93d536f1e275
+        uses: tj-actions/changed-files@d6e91a2266cdb9d62096cebf1e8546899c6aa18f
         with:
           since_last_remote_commit: true
           files_yaml: |
@@ -43,15 +44,17 @@ jobs:
               - tfhe/build.rs
               - backends/tfhe-cuda-backend/**
               - tfhe/src/core_crypto/gpu/**
+              - tfhe/src/integer/server_key/radix_parallel/tests_unsigned/**
+              - tfhe/src/integer/server_key/radix_parallel/tests_signed/**
+              - tfhe/src/integer/server_key/radix_parallel/tests_cases_unsigned.rs
               - tfhe/src/integer/gpu/**
-              - tfhe/shortint/parameters/**
+              - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
-              - Makefile
               - '.github/workflows/gpu_signed_integer_h100_tests.yml'
-              - scripts/**
-              - ci/**
+              - scripts/integer-tests.sh
+              - ci/slab.toml
 
   setup-instance:
     name: Setup instance (cuda-h100-tests)
@@ -65,7 +68,7 @@ jobs:
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -91,60 +94,24 @@ jobs:
           - os: ubuntu-22.04
             cuda: "12.2"
             gcc: 11 
-    env:
-      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
-      CMAKE_VERSION: 3.29.6
     steps:
-      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y checkinstall zlib1g-dev libssl-dev 
-          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
-          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
-          cd cmake-${{ env.CMAKE_VERSION }}
-          ./bootstrap
-          make -j"$(nproc)"
-          sudo make install
-
       - name: Checkout tfhe-rs
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup Hyperstack dependencies
+        uses: ./.github/actions/hyperstack_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
 
       - name: Set up home
         run: |
           echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
 
       - name: Install latest stable
-        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: stable
-
-      - name: Export CUDA variables
-        if: ${{ !cancelled() }}
-        run: |
-          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
-          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
-          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
-          echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc" >> "${GITHUB_ENV}"
-
-      # Specify the correct host compilers
-      - name: Export gcc and g++ variables
-        if: ${{ !cancelled() }}
-        run: |
-          {
-            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
-            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "HOME=/home/ubuntu";
-          } >> "${GITHUB_ENV}"
-
-      - name: Check device is detected
-        if: ${{ !cancelled() }}
-        run: nvidia-smi
-
-      - name: Run signed integer tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_signed_integer_gpu_ci
 
       - name: Run signed integer multi-bit tests
         run: |
@@ -154,11 +121,11 @@ jobs:
     name: Slack Notification
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' }}
+    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
       - name: Send message
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
           SLACK_MESSAGE: "Integer GPU H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
@@ -171,7 +138,7 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -182,7 +149,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Instance teardown (cuda-h100-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

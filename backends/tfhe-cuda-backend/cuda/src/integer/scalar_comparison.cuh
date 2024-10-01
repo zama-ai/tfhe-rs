@@ -5,10 +5,10 @@
 
 template <typename Torus>
 __host__ void scalar_compare_radix_blocks_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
-    uint32_t num_radix_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus *lwe_array_in,
+    Torus *scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks) {
 
   if (num_radix_blocks == 0)
     return;
@@ -57,11 +57,12 @@ __host__ void scalar_compare_radix_blocks_kb(
 
 template <typename Torus>
 __host__ void integer_radix_unsigned_scalar_difference_check_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr,
-    std::function<Torus(Torus)> sign_handler_f, void **bsks, Torus **ksks,
-    uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    Torus const *scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
+    Torus *const *ksks, uint32_t total_num_radix_blocks,
+    uint32_t total_num_scalar_blocks) {
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -109,11 +110,11 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     };
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], lut->get_lut(gpu_indexes[0], 0),
-        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
-        scalar_last_leaf_lut_f);
-    lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+    generate_device_accumulator<Torus>(streams[0], gpu_indexes[0],
+                                       lut->get_lut(0, 0), glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, scalar_last_leaf_lut_f);
+    lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out,
@@ -140,8 +141,9 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 
     //////////////
     // lsb
-    Torus *lhs = diff_buffer->tmp_packed_left;
-    Torus *rhs = diff_buffer->tmp_packed_right;
+    Torus *lhs = diff_buffer->tmp_packed;
+    Torus *rhs =
+        diff_buffer->tmp_packed + total_num_radix_blocks / 2 * big_lwe_size;
 
     pack_blocks<Torus>(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
                        big_lwe_dimension, num_lsb_radix_blocks,
@@ -193,10 +195,10 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 
     auto lut = diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
     generate_device_accumulator_bivariate<Torus>(
-        streams[0], gpu_indexes[0], lut->get_lut(gpu_indexes[0], 0),
-        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+        streams[0], gpu_indexes[0], lut->get_lut(0, 0), glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
         scalar_bivariate_last_leaf_lut_f);
-    lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+    lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_lsb_out,
@@ -209,8 +211,9 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     uint32_t num_lsb_radix_blocks = total_num_radix_blocks;
     uint32_t num_scalar_blocks = total_num_scalar_blocks;
 
-    Torus *lhs = diff_buffer->tmp_packed_left;
-    Torus *rhs = diff_buffer->tmp_packed_right;
+    Torus *lhs = diff_buffer->tmp_packed;
+    Torus *rhs =
+        diff_buffer->tmp_packed + total_num_radix_blocks / 2 * big_lwe_size;
 
     pack_blocks<Torus>(streams[0], gpu_indexes[0], lhs, lwe_array_in,
                        big_lwe_dimension, num_lsb_radix_blocks,
@@ -243,11 +246,12 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 
 template <typename Torus>
 __host__ void integer_radix_signed_scalar_difference_check_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr,
-    std::function<Torus(Torus)> sign_handler_f, void **bsks, Torus **ksks,
-    uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    Torus const *scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
+    Torus *const *ksks, uint32_t total_num_radix_blocks,
+    uint32_t total_num_scalar_blocks) {
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -287,10 +291,10 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     host_compare_with_zero_equality<Torus>(
         streams, gpu_indexes, gpu_count, are_all_msb_zeros, lwe_array_in,
         mem_ptr, bsks, ksks, total_num_radix_blocks, mem_ptr->is_zero_lut);
-    Torus *sign_block =
+    Torus const *sign_block =
         lwe_array_in + (total_num_radix_blocks - 1) * big_lwe_size;
 
-    auto sign_bit_pos = (int)std::log2(message_modulus) - 1;
+    auto sign_bit_pos = (int)log2_int(message_modulus) - 1;
 
     auto scalar_last_leaf_with_respect_to_zero_lut_f =
         [sign_handler_f, sign_bit_pos,
@@ -327,10 +331,10 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
     generate_device_accumulator_bivariate<Torus>(
-        streams[0], gpu_indexes[0], lut->get_lut(gpu_indexes[0], 0),
-        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+        streams[0], gpu_indexes[0], lut->get_lut(0, 0), glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
         scalar_bivariate_last_leaf_lut_f);
-    lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+    lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, are_all_msb_zeros,
@@ -356,8 +360,9 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
     //////////////
     // lsb
-    Torus *lhs = diff_buffer->tmp_packed_left;
-    Torus *rhs = diff_buffer->tmp_packed_right;
+    Torus *lhs = diff_buffer->tmp_packed;
+    Torus *rhs =
+        diff_buffer->tmp_packed + total_num_radix_blocks / 2 * big_lwe_size;
 
     pack_blocks<Torus>(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
                        big_lwe_dimension, num_lsb_radix_blocks,
@@ -420,13 +425,12 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
     auto signed_msb_lut = mem_ptr->signed_msb_lut;
     generate_device_accumulator_bivariate<Torus>(
-        msb_streams[0], gpu_indexes[0],
-        signed_msb_lut->get_lut(gpu_indexes[0], 0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        lut_f);
-    signed_msb_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+        msb_streams[0], gpu_indexes[0], signed_msb_lut->get_lut(0, 0),
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, lut_f);
+    signed_msb_lut->broadcast_lut(streams, gpu_indexes, 0);
 
-    Torus *sign_block = msb + (num_msb_radix_blocks - 1) * big_lwe_size;
+    Torus const *sign_block = msb + (num_msb_radix_blocks - 1) * big_lwe_size;
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         msb_streams, gpu_indexes, gpu_count, lwe_array_msb_out, sign_block,
         are_all_msb_zeros, bsks, ksks, 1, signed_msb_lut,
@@ -457,8 +461,9 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     auto lwe_array_ct_out = mem_ptr->tmp_lwe_array_out;
     auto lwe_array_sign_out =
         lwe_array_ct_out + (num_lsb_radix_blocks / 2) * big_lwe_size;
-    Torus *lhs = diff_buffer->tmp_packed_left;
-    Torus *rhs = diff_buffer->tmp_packed_right;
+    Torus *lhs = diff_buffer->tmp_packed;
+    Torus *rhs =
+        diff_buffer->tmp_packed + total_num_radix_blocks / 2 * big_lwe_size;
 
     pack_blocks<Torus>(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
                        big_lwe_dimension, num_lsb_radix_blocks - 1,
@@ -476,9 +481,10 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     scalar_compare_radix_blocks_kb<Torus>(lsb_streams, gpu_indexes, gpu_count,
                                           lwe_array_ct_out, lhs, rhs, mem_ptr,
                                           bsks, ksks, num_lsb_radix_blocks);
-    Torus *encrypted_sign_block =
+    Torus const *encrypted_sign_block =
         lwe_array_in + (total_num_radix_blocks - 1) * big_lwe_size;
-    Torus *scalar_sign_block = scalar_blocks + (total_num_scalar_blocks - 1);
+    Torus const *scalar_sign_block =
+        scalar_blocks + (total_num_scalar_blocks - 1);
 
     auto trivial_sign_block = mem_ptr->tmp_trivial_sign_block;
     create_trivial_radix<Torus>(
@@ -505,10 +511,11 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
 template <typename Torus>
 __host__ void integer_radix_signed_scalar_maxmin_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
-    uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus *lwe_array_in,
+    Torus *scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t total_num_radix_blocks,
+    uint32_t total_num_scalar_blocks) {
 
   auto params = mem_ptr->params;
   // Calculates the difference sign between the ciphertext and the scalar
@@ -541,11 +548,12 @@ __host__ void integer_radix_signed_scalar_maxmin_kb(
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_difference_check_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr,
-    std::function<Torus(Torus)> sign_handler_f, void **bsks, Torus **ksks,
-    uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    Torus const *scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
+    Torus *const *ksks, uint32_t total_num_radix_blocks,
+    uint32_t total_num_scalar_blocks) {
 
   if (mem_ptr->is_signed) {
     // is signed and scalar is positive
@@ -563,10 +571,11 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
 
 template <typename Torus>
 __host__ void host_integer_radix_signed_scalar_maxmin_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
-    uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus *lwe_array_in,
+    Torus *scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t total_num_radix_blocks,
+    uint32_t total_num_scalar_blocks) {
 
   if (mem_ptr->is_signed) {
     // is signed and scalar is positive
@@ -582,10 +591,11 @@ __host__ void host_integer_radix_signed_scalar_maxmin_kb(
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_maxmin_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
-    uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    Torus const *scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t total_num_radix_blocks,
+    uint32_t total_num_scalar_blocks) {
 
   auto params = mem_ptr->params;
 
@@ -619,10 +629,11 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_equality_check_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in, Torus *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
-    uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    Torus const *scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks,
+    uint32_t num_scalar_blocks) {
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -668,10 +679,10 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
     pack_blocks<Torus>(lsb_streams[0], gpu_indexes[0], packed_scalar,
                        scalar_blocks, 0, num_scalar_blocks, message_modulus);
 
-    cuda_memcpy_async_gpu_to_gpu(
-        scalar_comparison_luts->get_lut_indexes(gpu_indexes[0], 0),
-        packed_scalar, num_halved_scalar_blocks * sizeof(Torus), lsb_streams[0],
-        gpu_indexes[0]);
+    cuda_memcpy_async_gpu_to_gpu(scalar_comparison_luts->get_lut_indexes(0, 0),
+                                 packed_scalar,
+                                 num_halved_scalar_blocks * sizeof(Torus),
+                                 lsb_streams[0], gpu_indexes[0]);
     scalar_comparison_luts->broadcast_lut(lsb_streams, gpu_indexes, 0);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(

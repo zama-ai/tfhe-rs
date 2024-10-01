@@ -25,7 +25,7 @@ fn mul_zp<T: Copy + Zero + Add<Output = T> + Group>(x: T, scalar: Zp) -> T {
     y
 }
 
-fn bigint_to_bytes(x: [u64; 7]) -> [u8; 7 * 8] {
+fn bigint_to_le_bytes(x: [u64; 7]) -> [u8; 7 * 8] {
     let mut buf = [0u8; 7 * 8];
     for (i, &xi) in x.iter().enumerate() {
         buf[i * 8..][..8].copy_from_slice(&xi.to_le_bytes());
@@ -34,24 +34,48 @@ fn bigint_to_bytes(x: [u64; 7]) -> [u8; 7 * 8] {
 }
 
 mod g1 {
+    use tfhe_versionable::Versionize;
+
+    use crate::serialization::{InvalidSerializedAffineError, SerializableG1Affine};
+
     use super::*;
 
-    #[derive(
-        Copy,
-        Clone,
-        Debug,
-        PartialEq,
-        Eq,
-        Serialize,
-        Deserialize,
-        Hash,
-        CanonicalSerialize,
-        CanonicalDeserialize,
-    )]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
+    #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
+    #[versionize(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
     #[repr(transparent)]
     pub struct G1Affine {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: crate::curve_446::g1::G1Affine,
+    }
+
+    impl From<G1Affine> for SerializableAffine<SerializableFp> {
+        fn from(value: G1Affine) -> Self {
+            SerializableAffine::uncompressed(value.inner)
+        }
+    }
+
+    impl TryFrom<SerializableAffine<SerializableFp>> for G1Affine {
+        type Error = InvalidSerializedAffineError;
+
+        fn try_from(value: SerializableAffine<SerializableFp>) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: value.try_into()?,
+            })
+        }
+    }
+
+    impl Compressible for G1Affine {
+        type Compressed = SerializableG1Affine;
+
+        type UncompressError = InvalidSerializedAffineError;
+
+        fn compress(&self) -> Self::Compressed {
+            SerializableAffine::compressed(self.inner)
+        }
+
+        fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+            compressed.try_into()
+        }
     }
 
     impl G1Affine {
@@ -68,23 +92,48 @@ mod g1 {
                 .unwrap(),
             }
         }
+
+        pub fn validate(&self) -> bool {
+            self.inner.is_on_curve() && self.inner.is_in_correct_subgroup_assuming_on_curve()
+        }
     }
 
-    #[derive(
-        Copy,
-        Clone,
-        PartialEq,
-        Eq,
-        Serialize,
-        Deserialize,
-        Hash,
-        CanonicalSerialize,
-        CanonicalDeserialize,
-    )]
+    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
+    #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
+    #[versionize(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
     #[repr(transparent)]
     pub struct G1 {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: crate::curve_446::g1::G1Projective,
+    }
+
+    impl From<G1> for SerializableG1Affine {
+        fn from(value: G1) -> Self {
+            SerializableAffine::uncompressed(value.inner.into_affine())
+        }
+    }
+
+    impl TryFrom<SerializableG1Affine> for G1 {
+        type Error = InvalidSerializedAffineError;
+
+        fn try_from(value: SerializableG1Affine) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: Affine::try_from(value)?.into(),
+            })
+        }
+    }
+
+    impl Compressible for G1 {
+        type Compressed = SerializableG1Affine;
+
+        type UncompressError = InvalidSerializedAffineError;
+
+        fn compress(&self) -> Self::Compressed {
+            SerializableAffine::compressed(self.inner.into_affine())
+        }
+
+        fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+            compressed.try_into()
+        }
     }
 
     impl fmt::Debug for G1 {
@@ -114,7 +163,7 @@ mod g1 {
             },
         };
 
-        // Size in number of bytes when the [to_bytes]
+        // Size in number of bytes when the [to_le_bytes]
         // function is called.
         // This is not the size after serialization!
         pub const BYTE_SIZE: usize = 2 * 7 * 8 + 1;
@@ -141,10 +190,10 @@ mod g1 {
             }
         }
 
-        pub fn to_bytes(self) -> [u8; Self::BYTE_SIZE] {
+        pub fn to_le_bytes(self) -> [u8; Self::BYTE_SIZE] {
             let g = self.inner.into_affine();
-            let x = bigint_to_bytes(g.x.0 .0);
-            let y = bigint_to_bytes(g.y.0 .0);
+            let x = bigint_to_le_bytes(g.x.0 .0);
+            let y = bigint_to_le_bytes(g.y.0 .0);
             let mut buf = [0u8; 2 * 7 * 8 + 1];
             buf[..7 * 8].copy_from_slice(&x);
             buf[7 * 8..][..7 * 8].copy_from_slice(&y);
@@ -211,24 +260,49 @@ mod g1 {
 }
 
 mod g2 {
-    use super::*;
+    use tfhe_versionable::Versionize;
 
-    #[derive(
-        Copy,
-        Clone,
-        Debug,
-        PartialEq,
-        Eq,
-        Serialize,
-        Deserialize,
-        Hash,
-        CanonicalSerialize,
-        CanonicalDeserialize,
-    )]
+    use crate::serialization::SerializableG2Affine;
+
+    use super::*;
+    use crate::serialization::InvalidSerializedAffineError;
+
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
+    #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
+    #[versionize(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
     #[repr(transparent)]
     pub struct G2Affine {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: crate::curve_446::g2::G2Affine,
+    }
+
+    impl From<G2Affine> for SerializableG2Affine {
+        fn from(value: G2Affine) -> Self {
+            SerializableAffine::uncompressed(value.inner)
+        }
+    }
+
+    impl TryFrom<SerializableG2Affine> for G2Affine {
+        type Error = InvalidSerializedAffineError;
+
+        fn try_from(value: SerializableG2Affine) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: value.try_into()?,
+            })
+        }
+    }
+
+    impl Compressible for G2Affine {
+        type Compressed = SerializableG2Affine;
+
+        type UncompressError = InvalidSerializedAffineError;
+
+        fn compress(&self) -> Self::Compressed {
+            SerializableAffine::compressed(self.inner)
+        }
+
+        fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+            compressed.try_into()
+        }
     }
 
     impl G2Affine {
@@ -244,6 +318,10 @@ mod g2 {
                 )
                 .unwrap(),
             }
+        }
+
+        pub fn validate(&self) -> bool {
+            self.inner.is_on_curve() && self.inner.is_in_correct_subgroup_assuming_on_curve()
         }
 
         // m is an intermediate variable that's used in both the curve point addition and pairing
@@ -337,21 +415,42 @@ mod g2 {
         }
     }
 
-    #[derive(
-        Copy,
-        Clone,
-        PartialEq,
-        Eq,
-        Serialize,
-        Deserialize,
-        Hash,
-        CanonicalSerialize,
-        CanonicalDeserialize,
-    )]
+    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
+    #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
+    #[versionize(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
     #[repr(transparent)]
     pub struct G2 {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: crate::curve_446::g2::G2Projective,
+    }
+
+    impl From<G2> for SerializableG2Affine {
+        fn from(value: G2) -> Self {
+            SerializableAffine::uncompressed(value.inner.into_affine())
+        }
+    }
+
+    impl TryFrom<SerializableG2Affine> for G2 {
+        type Error = InvalidSerializedAffineError;
+
+        fn try_from(value: SerializableG2Affine) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: Affine::try_from(value)?.into(),
+            })
+        }
+    }
+
+    impl Compressible for G2 {
+        type Compressed = SerializableG2Affine;
+
+        type UncompressError = InvalidSerializedAffineError;
+
+        fn compress(&self) -> Self::Compressed {
+            SerializableAffine::compressed(self.inner.into_affine())
+        }
+
+        fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+            compressed.try_into()
+        }
     }
 
     impl fmt::Debug for G2 {
@@ -424,7 +523,7 @@ mod g2 {
             },
         };
 
-        // Size in number of bytes when the [to_bytes]
+        // Size in number of bytes when the [to_le_bytes]
         // function is called.
         // This is not the size after serialization!
         pub const BYTE_SIZE: usize = 4 * 7 * 8 + 1;
@@ -450,12 +549,12 @@ mod g2 {
                 .sum::<Self>()
         }
 
-        pub fn to_bytes(self) -> [u8; Self::BYTE_SIZE] {
+        pub fn to_le_bytes(self) -> [u8; Self::BYTE_SIZE] {
             let g = self.inner.into_affine();
-            let xc0 = bigint_to_bytes(g.x.c0.0 .0);
-            let xc1 = bigint_to_bytes(g.x.c1.0 .0);
-            let yc0 = bigint_to_bytes(g.y.c0.0 .0);
-            let yc1 = bigint_to_bytes(g.y.c1.0 .0);
+            let xc0 = bigint_to_le_bytes(g.x.c0.0 .0);
+            let xc1 = bigint_to_le_bytes(g.x.c1.0 .0);
+            let yc0 = bigint_to_le_bytes(g.y.c0.0 .0);
+            let yc1 = bigint_to_le_bytes(g.y.c1.0 .0);
             let mut buf = [0u8; 4 * 7 * 8 + 1];
             buf[..7 * 8].copy_from_slice(&xc0);
             buf[7 * 8..][..7 * 8].copy_from_slice(&xc1);
@@ -525,10 +624,12 @@ mod g2 {
 
 mod gt {
     use crate::curve_446::{Fq, Fq12, Fq2};
+    use crate::serialization::InvalidSerializedAffineError;
 
     use super::*;
     use ark_ec::pairing::{MillerLoopOutput, Pairing};
     use ark_ff::{CubicExtField, QuadExtField};
+    use tfhe_versionable::Versionize;
 
     type Bls = crate::curve_446::Bls12_446;
 
@@ -698,11 +799,28 @@ mod gt {
         }
     }
 
-    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash)]
+    #[serde(try_from = "SerializableFp12", into = "SerializableFp12")]
+    #[versionize(try_from = "SerializableFp12", into = "SerializableFp12")]
     #[repr(transparent)]
     pub struct Gt {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: ark_ec::pairing::PairingOutput<crate::curve_446::Bls12_446>,
+    }
+
+    impl From<Gt> for SerializableFp12 {
+        fn from(value: Gt) -> Self {
+            value.inner.0.into()
+        }
+    }
+
+    impl TryFrom<SerializableFp12> for Gt {
+        type Error = InvalidSerializedAffineError;
+
+        fn try_from(value: SerializableFp12) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: PairingOutput(value.try_into()?),
+            })
+        }
     }
 
     impl fmt::Debug for Gt {
@@ -827,7 +945,9 @@ mod gt {
 
 mod zp {
     use super::*;
+    use crate::serialization::InvalidArraySizeError;
     use ark_ff::Fp;
+    use tfhe_versionable::Versionize;
     use zeroize::Zeroize;
 
     fn redc(n: [u64; 5], nprime: u64, mut t: [u64; 7]) -> [u64; 5] {
@@ -864,11 +984,27 @@ mod zp {
         t
     }
 
-    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Zeroize)]
+    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash, Zeroize)]
+    #[serde(try_from = "SerializableFp", into = "SerializableFp")]
+    #[versionize(try_from = "SerializableFp", into = "SerializableFp")]
     #[repr(transparent)]
     pub struct Zp {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub inner: crate::curve_446::Fr,
+    }
+
+    impl From<Zp> for SerializableFp {
+        fn from(value: Zp) -> Self {
+            value.inner.into()
+        }
+    }
+    impl TryFrom<SerializableFp> for Zp {
+        type Error = InvalidArraySizeError;
+
+        fn try_from(value: SerializableFp) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: value.try_into()?,
+            })
+        }
     }
 
     impl fmt::Debug for Zp {
@@ -909,7 +1045,7 @@ mod zp {
             }
         }
 
-        pub fn to_bytes(self) -> [u8; 5 * 8] {
+        pub fn to_le_bytes(self) -> [u8; 5 * 8] {
             let buf = [
                 self.inner.0 .0[0].to_le_bytes(),
                 self.inner.0 .0[1].to_le_bytes(),
@@ -1172,6 +1308,26 @@ mod tests {
 
         let g_hat_cur2: G2 =
             serde_json::from_str(&serde_json::to_string(&g_hat_cur).unwrap()).unwrap();
+        assert_eq!(g_hat_cur, g_hat_cur2);
+    }
+
+    #[test]
+    fn test_compressed_serialization() {
+        let rng = &mut StdRng::seed_from_u64(0);
+        let alpha = Zp::rand(rng);
+        let g_cur = G1::GENERATOR.mul_scalar(alpha);
+        let g_hat_cur = G2::GENERATOR.mul_scalar(alpha);
+
+        let g_cur2 = G1::uncompress(
+            serde_json::from_str(&serde_json::to_string(&g_cur.compress()).unwrap()).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(g_cur, g_cur2);
+
+        let g_hat_cur2 = G2::uncompress(
+            serde_json::from_str(&serde_json::to_string(&g_hat_cur.compress()).unwrap()).unwrap(),
+        )
+        .unwrap();
         assert_eq!(g_hat_cur, g_hat_cur2);
     }
 

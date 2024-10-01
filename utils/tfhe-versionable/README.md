@@ -1,9 +1,15 @@
 # TFHE-versionable
-This crate provides type level versioning for serialized data. It offers a way to add backward
-compatibility on any data type. The versioning scheme works recursively and is independant of the
-chosen serialization backend.
+This crate provides type level versioning for serialized data. It offers a way
+to add backward compatibility on any data type. The versioning scheme works
+recursively and is independent of the chosen serialized file format. It uses the
+`serde` framework.
 
-To use it, simply define an enum that have a variant for each version of your target type.
+The crate will convert any type into an equivalent packed with versions
+information. This "versioned" type is then serializable using any format
+compatible with `serde`.
+
+To use it, simply define an enum that have a variant for each version of your
+target type.
 
 For example, if you have defined an internal type:
 ```rust
@@ -19,7 +25,9 @@ enum MyStructVersions {
 }
 ```
 
-If at a subsequent point in time you want to add a field to this struct, the idea is to copy the previously defined version of the struct and create a new one with the added field. This mostly becomes:
+If at a subsequent point in time you want to add a field to this struct, the
+idea is to copy the previously defined version of the struct and create a new
+one with the added field. This mostly becomes:
 ```rust
 struct MyStruct {
 	val: u32,
@@ -36,16 +44,22 @@ enum MyStructVersions {
 }
 ```
 
-You also have to implement the `Upgrade` trait, that tells how to go from a version to another.
+You also have to implement the `Upgrade` trait, that tells how to go from a
+version to another.
 
-To make this work recursively, this crate defines 3 derive macro that should be used on these types:
-- `Versionize` should be used on the current version of your type, the one that is used in your code
+To make this work recursively, this crate defines 3 derive macro that should be
+used on these types:
+- `Versionize` should be used on the current version of your type, the one that
+  is used in your code
 - `Version` is used on every previous version of this type
 - `VersionsDispatch` is used on the enum holding all the versions
 
-This will implement the `Versionize`/`Unversionize` traits with their `versionize` and `unversionize` methods that should be used before/after the calls to `serialize`/`deserialize`.
+This will implement the `Versionize`/`Unversionize` traits with their
+`versionize` and `unversionize` methods that should be used before/after the
+calls to `serialize`/`deserialize`.
 
-The enum variants should keep their order and names between versions. The only supported operation is to add a new variant.
+The enum variants should keep their order and names between versions. The only
+allowed operation on this enum is to add a new variant.
 
 # Complete example
 ```rust

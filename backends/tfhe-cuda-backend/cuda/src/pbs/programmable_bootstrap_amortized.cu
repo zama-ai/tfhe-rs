@@ -1,16 +1,6 @@
 #include "programmable_bootstrap_amortized.cuh"
 
 /*
- * Returns the buffer size for 64 bits executions
- */
-uint64_t get_buffer_size_programmable_bootstrap_amortized_64(
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t input_lwe_ciphertext_count) {
-  return get_buffer_size_programmable_bootstrap_amortized<uint64_t>(
-      glwe_dimension, polynomial_size, input_lwe_ciphertext_count);
-}
-
-/*
  * This scratch function allocates the necessary amount of data on the GPU for
  * the amortized PBS on 32 bits inputs, into `buffer`. It also
  * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
@@ -136,8 +126,9 @@ void scratch_cuda_programmable_bootstrap_amortized_64(
  */
 void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
-    void *lwe_output_indexes, void *lut_vector, void *lut_vector_indexes,
-    void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
     int8_t *pbs_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples) {
@@ -274,8 +265,9 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
  */
 void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
-    void *lwe_output_indexes, void *lut_vector, void *lut_vector_indexes,
-    void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
     int8_t *pbs_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples) {

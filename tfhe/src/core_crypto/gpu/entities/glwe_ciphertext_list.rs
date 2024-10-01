@@ -6,7 +6,7 @@ use crate::core_crypto::prelude::{
 };
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CudaGlweCiphertextList<T: UnsignedInteger>(pub(crate) CudaGlweList<T>);
 
 #[allow(dead_code)]
@@ -68,10 +68,7 @@ impl<T: UnsignedInteger> CudaGlweCiphertextList<T> {
         Self(cuda_glwe_list)
     }
 
-    pub(crate) fn to_glwe_ciphertext_list(
-        &self,
-        streams: &CudaStreams,
-    ) -> GlweCiphertextList<Vec<T>> {
+    pub fn to_glwe_ciphertext_list(&self, streams: &CudaStreams) -> GlweCiphertextList<Vec<T>> {
         let glwe_ct_size = self.0.glwe_ciphertext_count.0
             * glwe_ciphertext_size(self.0.glwe_dimension.to_glwe_size(), self.0.polynomial_size);
         let mut container: Vec<T> = vec![T::ZERO; glwe_ct_size];

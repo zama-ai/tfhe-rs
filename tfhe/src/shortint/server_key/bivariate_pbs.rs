@@ -26,7 +26,7 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
     server_key: &ServerKey,
     lhs: CiphertextNoiseDegree,
     rhs: CiphertextNoiseDegree,
-    factor: usize,
+    factor: u64,
 ) -> Result<(), CheckError> {
     let final_degree = (lhs.degree * factor) + rhs.degree;
 
@@ -63,8 +63,8 @@ impl ServerKey {
         // Depending on the factor used, rhs and / or lhs may have carries
         // (degree >= message_modulus) which is why we need to apply the message_modulus
         // to clear them
-        let factor_u64 = left_message_scaling.0 as u64;
-        let message_modulus = self.message_modulus.0 as u64;
+        let factor_u64 = left_message_scaling.0;
+        let message_modulus = self.message_modulus.0;
         let wrapped_f = |input: u64| -> u64 {
             let lhs = (input / factor_u64) % message_modulus;
             let rhs = (input % factor_u64) % message_modulus;
@@ -127,7 +127,7 @@ impl ServerKey {
     /// let msg2: u64 = 2;
     /// let ct1 = cks.encrypt(msg);
     /// let ct2 = cks.encrypt(msg2);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// // Generate the lookup table for the function f: x, y -> (x * y * x) mod 4
     /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
@@ -153,12 +153,12 @@ impl ServerKey {
         ct_right: &Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) {
-        let modulus = (ct_right.degree.get() + 1) as u64;
-        assert!(modulus <= acc.ct_right_modulus.0 as u64);
+        let modulus = ct_right.degree.get() + 1;
+        assert!(modulus <= acc.ct_right_modulus.0);
 
         self.unchecked_scalar_mul_assign(ct_left, acc.ct_right_modulus.0 as u8);
 
-        unchecked_add_assign(ct_left, ct_right);
+        unchecked_add_assign(ct_left, ct_right, self.max_noise_level);
 
         // Compute the PBS
         self.apply_lookup_table_assign(ct_left, &acc.acc);
@@ -179,7 +179,7 @@ impl ServerKey {
     /// let msg2: u64 = 2;
     /// let ct1 = cks.encrypt(msg);
     /// let ct2 = cks.encrypt(msg2);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// // Generate the lookup table for the function f: x, y -> (x * y * x) mod 4
     /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
@@ -352,8 +352,8 @@ impl ServerKey {
                 self.unchecked_scalar_mul(ct_to_scale, scale)
             }
             ScaledBehavior::ScaledInBootstrap => {
-                let lookup_table = self
-                    .generate_lookup_table(|a| (a % self.message_modulus.0 as u64) * scale as u64);
+                let lookup_table =
+                    self.generate_lookup_table(|a| (a % self.message_modulus.0) * u64::from(scale));
 
                 self.apply_lookup_table(ct_to_scale, &lookup_table)
             }
@@ -362,12 +362,11 @@ impl ServerKey {
         let temp = self.unchecked_add(&scaled, unscaled_ct);
 
         let lookup_table = match order {
-            Order::ScaleLeft => {
-                self.generate_lookup_table_bivariate_with_factor(f, MessageModulus(scale as usize))
-            }
+            Order::ScaleLeft => self
+                .generate_lookup_table_bivariate_with_factor(f, MessageModulus(u64::from(scale))),
             Order::ScaleRight => self.generate_lookup_table_bivariate_with_factor(
                 |rhs: u64, lhs: u64| f(lhs, rhs),
-                MessageModulus(scale as usize),
+                MessageModulus(u64::from(scale)),
             ),
         };
 
@@ -495,26 +494,26 @@ struct ScalingOperation {
 
 impl ScalingOperation {
     fn cleaned_inputs(self) -> usize {
-        let scaled_bootstapped_inplace =
+        let scaled_bootstrapped_inplace =
             matches!(self.scaled_behavior, ScaledBehavior::BootstrappedThenScaled);
 
-        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstapped_inplace)
+        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstrapped_inplace)
     }
     fn number_of_pbs(self) -> usize {
-        let scaled_bootstapped = matches!(
+        let scaled_bootstrapped = matches!(
             self.scaled_behavior,
             ScaledBehavior::BootstrappedThenScaled | ScaledBehavior::ScaledInBootstrap
         );
 
-        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstapped)
+        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstrapped)
     }
 }
 
 impl Ciphertext {
     fn noise_degree_if_scaled(&self, scale: u8) -> CiphertextNoiseDegree {
         CiphertextNoiseDegree {
-            noise_level: self.noise_level() * scale as usize,
-            degree: self.degree * scale as usize,
+            noise_level: self.noise_level() * u64::from(scale),
+            degree: self.degree * u64::from(scale),
         }
     }
     fn noise_degree_if_bootstrapped_then_scaled(&self, scale: u8) -> CiphertextNoiseDegree {
@@ -524,14 +523,15 @@ impl Ciphertext {
         } = self.noise_degree_if_bootstrapped();
 
         CiphertextNoiseDegree {
-            noise_level: noise * scale as usize,
-            degree: degree * scale as usize,
+            noise_level: noise * u64::from(scale),
+            degree: degree * u64::from(scale),
         }
     }
     fn noise_degree_if_scaled_in_bootstrap(&self, scale: u8) -> CiphertextNoiseDegree {
         CiphertextNoiseDegree {
             noise_level: NoiseLevel::NOMINAL,
-            degree: Degree::new(self.degree.get().min(self.message_modulus.0 - 1)) * scale as usize,
+            degree: Degree::new(self.degree.get().min(self.message_modulus.0 - 1))
+                * u64::from(scale),
         }
     }
 }
