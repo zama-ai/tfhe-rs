@@ -2,6 +2,19 @@
 
 This document describes the array types provided by the High-level API.
 
+This new encrypted types allow you to easily perform array and tensor operations on encrypted data, taking care of the iteration and shape logic for you.
+
+It also implements efficient algorithms in some cases, like summing elements of an array.
+
+The following example shows a complete workflow of working with encrypted arrays, including:
+- Generating keys
+- Encrypting arrays of integers
+- Performing operations such as:
+    - slicing arrays
+    - computing on a sub array, adding encrypted data to it
+    - computing on a sub array, adding clear data to it
+- Decrypting the result, getting back a Rust `Vec` of decrypted values
+
 ```toml
 # Cargo.toml
 
