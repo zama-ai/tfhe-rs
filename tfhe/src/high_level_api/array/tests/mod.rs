@@ -43,9 +43,9 @@ where
     for<'a> FheBackendArraySlice<'a, Backend, Id>:
         BitAnd<FheBackendArraySlice<'a, Backend, Id>, Output = FheBackendArray<Backend, Id>>,
     for<'a> &'a FheBackendArray<Backend, Id>: BitAnd<FheBackendArray<Backend, Id>, Output = FheBackendArray<Backend, Id>>
-        + BitAnd<&'a FheBackendArray<Backend, Id>, Output = FheBackendArray<Backend, Id>>,
-    // for the 2 tested slice/array ops
-    for<'a> &'a FheBackendArray<Backend, Id>: BitAnd<FheBackendArraySlice<'a, Backend, Id>, Output = FheBackendArray<Backend, Id>>
+        + BitAnd<&'a FheBackendArray<Backend, Id>, Output = FheBackendArray<Backend, Id>>
+        // for the 2 tested slice/array ops
+        + BitAnd<FheBackendArraySlice<'a, Backend, Id>, Output = FheBackendArray<Backend, Id>>
         + BitAnd<&'a FheBackendArray<Backend, Id>, Output = FheBackendArray<Backend, Id>>,
     for<'a> FheBackendArraySlice<'a, Backend, Id>:
         BitAnd<&'a FheBackendArray<Backend, Id>, Output = FheBackendArray<Backend, Id>>,
