@@ -33,7 +33,7 @@ __device__ inline void typecast_double_round_to_torus(double x, T &r) {
   constexpr double mx = get_two_pow_torus_bits<T>();
   double frac = x - floor(x);
   frac *= mx;
-  typecast_double_to_torus(round(frac), r);
+  typecast_double_to_torus(frac, r);
 }
 
 template <typename T>
