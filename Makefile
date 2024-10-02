@@ -947,6 +947,11 @@ dieharder_csprng: install_dieharder build_concrete_csprng
 # Benchmarks
 #
 
+.PHONY: print_doc_bench_parameters # Print parameters used in doc benchmarks
+print_doc_bench_parameters:
+	RUSTFLAGS="" cargo run --example print_doc_bench_parameters \
+	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe
+
 .PHONY: bench_integer # Run benchmarks for unsigned integer
 bench_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
