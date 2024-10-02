@@ -1,70 +1,195 @@
-use std::pin::Pin;
+//! This ffi layer implement a wrapper around multiple ffi implementation
+//! Aims is to completly hide underlying specificities and enable compile-time
+//! swapping.
+//!
+//! Mainly replacing Xrt(u55c)/Aved(V80) by a simulation interface for ease CI
 
-// Exposed types
-pub use cxx::UniquePtr;
-pub use extern_cxx::new_hpu_hw;
-pub use extern_cxx::{HpuHw, MemZone, MemZoneProperties, SyncMode, Verbosity};
+/// Enumeration to define the synchronisation of data between Host and Device
+#[derive(Debug, Clone)]
+pub enum SyncMode {
+    Host2Device,
+    Device2Host,
+}
 
-#[cxx::bridge(namespace=ffi)]
-mod extern_cxx {
-    /// Enumeration to define the synchronisation of data between Host and Device
-    #[derive(Debug, Clone)]
-    enum SyncMode {
-        Host2Device,
-        Device2Host,
+/// Enumeration to define the verbosity in Cxx bridge
+#[derive(Debug, Clone)]
+#[repr(u8)]
+pub enum Verbosity {
+    Error = 0,
+    Warning,
+    Info,
+    Debug,
+    Trace,
+}
+
+/// Define memory zone properties
+#[derive(Debug, Clone)]
+pub struct MemZoneProperties {
+    pub hbm_pc: usize,
+    pub size_b: usize,
+}
+
+pub struct HpuHw(#[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::HpuHw>);
+
+impl HpuHw {
+    /// Read Hw register through ffi
+    #[inline(always)]
+    pub fn read_reg(&self, addr: u64) -> u32 {
+        #[cfg(feature = "hw-xrt")]
+        {
+            self.0.read_reg(addr)
+        }
+
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
     }
 
-    /// Enumeration to define the verbosity in Cxx bridge
-    #[derive(Debug, Clone)]
-    #[repr(u8)]
-    enum Verbosity {
-        Error = 0,
-        Warning,
-        Info,
-        Debug,
-        Trace,
+    /// Write Hw register through ffi
+    #[inline(always)]
+    pub fn write_reg(&mut self, addr: u64, value: u32) {
+        #[cfg(feature = "hw-xrt")]
+        {
+            self.0.pin_mut().write_reg(addr, value)
+        }
+
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
     }
 
-    unsafe extern "C++" {
-        include!("tfhe-hpu-backend/src/ffi/cxx/hpu_hw.h");
+    /// Handle on-board memory allocation through ffi
+    #[inline(always)]
+    pub fn alloc(&mut self, props: MemZoneProperties) -> MemZone {
+        #[cfg(feature = "hw-xrt")]
+        {
+            let xrt_mz = self.0.pin_mut().alloc(props.into());
+            MemZone(xrt_mz)
+        }
 
-        type HpuHw;
-        // Access Hw register
-        fn read_reg(&self, addr: u64) -> u32;
-        fn write_reg(self: Pin<&mut HpuHw>, addr: u64, value: u32);
-
-        // Handle onbeard memory
-        fn alloc(self: Pin<&mut HpuHw>, props: MemZoneProperties) -> UniquePtr<MemZone>;
-        // fn release(self: Pin<&mut HpuHw>, zone: &MemZone);
-
-        fn new_hpu_hw(
-            fpga_id: u32,
-            kernel_name: String,
-            xclbin: String,
-            verbose: Verbosity,
-        ) -> UniquePtr<HpuHw>;
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
     }
 
-    /// Define memory zone properties
-    #[derive(Debug, Clone)]
-    struct MemZoneProperties {
-        hbm_pc: usize,
-        size_b: usize,
+    /// Handle on-board memory deallocation through ffi
+    #[inline(always)]
+    pub fn release(&mut self, zone: &MemZone) {
+        todo!("Handle memory release");
     }
 
-    unsafe extern "C++" {
-        include!("tfhe-hpu-backend/src/ffi/cxx/mem_zone.h");
+    /// Handle ffi instanciation
+    #[inline(always)]
+    pub fn new_hpu_hw(
+        fpga_id: u32,
+        kernel_name: String,
+        xclbin: String,
+        verbose: Verbosity,
+    ) -> HpuHw {
+        #[cfg(feature = "hw-xrt")]
+        {
+            let xrt_hw = xrt::new_hpu_hw(fpga_id, kernel_name, xclbin, verbose.into());
+            Self(xrt_hw)
+        }
 
-        type MemZone;
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
+    }
+}
 
-        fn read_bytes(&self, ofst: usize, bytes: &mut [u8]);
-        fn paddr(&self) -> u64;
-        #[allow(unused)]
-        fn size(&self) -> usize;
-        fn write_bytes(self: Pin<&mut MemZone>, ofst: usize, bytes: &[u8]);
-        #[allow(unused)]
-        fn mmap(self: Pin<&mut MemZone>) -> &mut [u64];
-        fn sync(self: Pin<&mut MemZone>, mode: SyncMode);
+pub struct MemZone(#[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::MemZone>);
+
+impl MemZone {
+    /// Read a bytes slice in the associated MemZone
+    #[inline(always)]
+    pub fn read_bytes(&self, ofst: usize, bytes: &mut [u8]) {
+        #[cfg(feature = "hw-xrt")]
+        {
+            self.0.read_bytes(ofst, bytes);
+        }
+
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
+    }
+
+    /// Get physical MemZone addresse
+    #[inline(always)]
+    pub fn paddr(&self) -> u64 {
+        #[cfg(feature = "hw-xrt")]
+        {
+            self.0.paddr()
+        }
+
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
+    }
+
+    /// Get MemZone size in byte
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn size(&self) -> usize {
+        #[cfg(feature = "hw-xrt")]
+        {
+            self.0.size()
+        }
+
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
+    }
+
+    /// Get write byte slice in MemZone at a given offset
+    #[inline(always)]
+    pub fn write_bytes(&mut self, ofst: usize, bytes: &[u8]) {
+        #[cfg(feature = "hw-xrt")]
+        {
+            self.0.pin_mut().write_bytes(ofst, bytes)
+        }
+
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
+    }
+
+    /// Map MemZone in userspace
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn mmap(&mut self) -> &mut [u64] {
+        #[cfg(feature = "hw-xrt")]
+        {
+            self.0.pin_mut().mmap()
+        }
+
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
+    }
+
+    /// Handle MemZone synchronisation with the hw target
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn sync(&mut self, mode: SyncMode) {
+        #[cfg(feature = "hw-xrt")]
+        {
+            self.0.pin_mut().sync(mode.into())
+        }
+
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            todo!("sim ffi")
+        }
     }
 }
 
@@ -76,9 +201,12 @@ impl MemZone {
         self.read_bytes(ofst_bytes, data_bytes);
     }
 
-    pub fn write<T: Sized + bytemuck::Pod>(self: Pin<&mut MemZone>, ofst: usize, data: &[T]) {
+    pub fn write<T: Sized + bytemuck::Pod>(&mut self, ofst: usize, data: &[T]) {
         let data_bytes = bytemuck::cast_slice::<T, u8>(data);
         let ofst_bytes = ofst * std::mem::size_of::<T>();
         self.write_bytes(ofst_bytes, data_bytes);
     }
 }
+
+#[cfg(feature = "hw-xrt")]
+mod xrt;

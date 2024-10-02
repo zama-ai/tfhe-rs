@@ -4,7 +4,6 @@
 //! This is to mitigate a limitation of XRT memory allocation.
 
 use crate::ffi;
-use std::pin::Pin;
 
 // Some XRT constants
 // Use to circumvent current XRT limitation with huge buffer
@@ -21,7 +20,7 @@ pub struct HugeMemoryProperties {
 
 pub struct HugeMemory<T: Sized> {
     cut_coefs: usize,
-    cut_mem: Vec<Vec<ffi::UniquePtr<ffi::MemZone>>>,
+    cut_mem: Vec<Vec<ffi::MemZone>>,
     phantom: std::marker::PhantomData<T>,
 }
 impl<T: Sized> std::fmt::Debug for HugeMemory<T> {
@@ -40,8 +39,8 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
     /// HugeMemory block is spread over multiple Hbm cut. Furthermore, due to size and XRT limitation
     /// each cut is split on multiple buffer of 16MiB.
     /// We allocate 16MiB buffer only ( the last one isn't shrinked to fit the required memory size)
-    #[tracing::instrument(level = "trace", skip(ffi_pin), ret)]
-    pub fn alloc(ffi_pin: &mut Pin<&mut ffi::HpuHw>, props: HugeMemoryProperties) -> Self {
+    #[tracing::instrument(level = "trace", skip(ffi_hw), ret)]
+    pub fn alloc(ffi_hw: &mut ffi::HpuHw, props: HugeMemoryProperties) -> Self {
         assert_eq!(
             0,
             MEM_CHUNK_SIZE_B % std::mem::size_of::<T>(),
@@ -59,7 +58,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
                     hbm_pc,
                     size_b: MEM_CHUNK_SIZE_B,
                 };
-                let mz = ffi_pin.as_mut().alloc(chunk_props);
+                let mz = ffi_hw.alloc(chunk_props);
                 cut_mz.push(mz);
             }
 
@@ -112,11 +111,8 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         let data_bytes = bytemuck::cast_slice::<T, u8>(data);
         for bfr in cut[bid_start..=bid_stop].iter_mut() {
             let size_b = std::cmp::min(rmn_data, MEM_CHUNK_SIZE_B - bid_ofst);
-            let mut bfr_pin = bfr.pin_mut();
-            bfr_pin
-                .as_mut()
-                .write_bytes(bid_ofst, &data_bytes[data_ofst..data_ofst + size_b]);
-            bfr_pin.as_mut().sync(ffi::SyncMode::Host2Device);
+            bfr.write_bytes(bid_ofst, &data_bytes[data_ofst..data_ofst + size_b]);
+            bfr.sync(ffi::SyncMode::Host2Device);
             data_ofst += size_b;
             rmn_data -= size_b;
             bid_ofst = 0;

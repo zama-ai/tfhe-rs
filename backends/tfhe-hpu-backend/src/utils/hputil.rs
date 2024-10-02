@@ -5,7 +5,7 @@
 use tfhe_hpu_backend::prelude::*;
 use tfhe_hpu_backend::{ffi, interface::rtl, interface::rtl::FromRtl};
 
-use hw_hpu::asm::{self, Asm, AsmBin, IOp};
+use tfhe_hpu_backend::asm::{self, Asm, AsmBin, IOp};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use clap_num::maybe_hex;
@@ -150,14 +150,13 @@ fn main() {
             }
         };
 
-        ffi::new_hpu_hw(
+        ffi::HpuHw::new_hpu_hw(
             args.fpga_id,
             config.fpga.kernel.clone(),
             config.fpga.xclbin.clone(),
             verbosity,
         )
     };
-    let mut hw_pin = hpu_hw.pin_mut();
     let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
 
     // Handle user command --------------------------------------------------
@@ -172,7 +171,7 @@ fn main() {
             println!("Start read register {name} @{addr_start:0>8x}");
             for idx in 0..range {
                 let addr = addr_start + (idx * std::mem::size_of::<u32>()) as u64;
-                let val = hw_pin.as_mut().read_reg(addr);
+                let val = hpu_hw.read_reg(addr);
                 println!("  @{addr:0>8x} -> {val:0>8x}");
             }
         }
@@ -184,30 +183,30 @@ fn main() {
             let addr = *reg.offset() as u64;
 
             println!("Write {value:0>8x} in register {name} @{addr:0>8x}");
-            hw_pin.as_mut().write_reg(addr, value);
+            hpu_hw.write_reg(addr, value);
         }
         Command::Dump { name } => {
             for sec in name {
                 match sec {
                     Section::PePbs => println!(
                         "PePbs registers {:?}",
-                        rtl::runtime::InfoPePbs::from_rtl(&mut hw_pin, &regmap)
+                        rtl::runtime::InfoPePbs::from_rtl(&mut hpu_hw, &regmap)
                     ),
                     Section::PeMem => println!(
                         "PeMem registers {:?}",
-                        rtl::runtime::InfoPeMem::from_rtl(&mut hw_pin, &regmap)
+                        rtl::runtime::InfoPeMem::from_rtl(&mut hpu_hw, &regmap)
                     ),
                     Section::PeAlu => println!(
                         "PeAlu registers {:?}",
-                        rtl::runtime::InfoPeAlu::from_rtl(&mut hw_pin, &regmap)
+                        rtl::runtime::InfoPeAlu::from_rtl(&mut hpu_hw, &regmap)
                     ),
                     Section::Isc => println!(
                         "Isc registers {:?}",
-                        rtl::runtime::InfoIsc::from_rtl(&mut hw_pin, &regmap)
+                        rtl::runtime::InfoIsc::from_rtl(&mut hpu_hw, &regmap)
                     ),
                     Section::Arch => println!(
                         "Arch registers {:?}",
-                        HpuParameters::from_rtl(&mut hw_pin, &regmap)
+                        HpuParameters::from_rtl(&mut hpu_hw, &regmap)
                     ),
                 }
             }
@@ -217,23 +216,23 @@ fn main() {
                 match sec {
                     Section::PePbs => {
                         println!(" Reset PePbs registers");
-                        let mut sec = rtl::runtime::InfoPePbs::from_rtl(&mut hw_pin, &regmap);
-                        sec.reset(&mut hw_pin, &regmap);
+                        let mut sec = rtl::runtime::InfoPePbs::from_rtl(&mut hpu_hw, &regmap);
+                        sec.reset(&mut hpu_hw, &regmap);
                     }
                     Section::PeMem => {
                         println!(" Reset PeMem registers");
-                        let mut sec = rtl::runtime::InfoPeMem::from_rtl(&mut hw_pin, &regmap);
-                        sec.reset(&mut hw_pin, &regmap);
+                        let mut sec = rtl::runtime::InfoPeMem::from_rtl(&mut hpu_hw, &regmap);
+                        sec.reset(&mut hpu_hw, &regmap);
                     }
                     Section::PeAlu => {
                         println!(" Reset PeAlu registers");
-                        let mut sec = rtl::runtime::InfoPeAlu::from_rtl(&mut hw_pin, &regmap);
-                        sec.reset(&mut hw_pin, &regmap);
+                        let mut sec = rtl::runtime::InfoPeAlu::from_rtl(&mut hpu_hw, &regmap);
+                        sec.reset(&mut hpu_hw, &regmap);
                     }
                     Section::Isc => {
                         println!(" Reset Isc registers");
-                        let mut sec = rtl::runtime::InfoIsc::from_rtl(&mut hw_pin, &regmap);
-                        sec.reset(&mut hw_pin, &regmap);
+                        let mut sec = rtl::runtime::InfoIsc::from_rtl(&mut hpu_hw, &regmap);
+                        sec.reset(&mut hpu_hw, &regmap);
                     }
                     Section::Arch => {
                         println!(" Arch registers couldn't be reset");
@@ -274,17 +273,17 @@ fn main() {
                 // NB: For parsing purpose, we must send the msb word (that contain opcode) first
                 //   -> Thus we use a reversed version of the iterator
                 for w in op_words.iter().rev() {
-                    hw_pin.as_mut().write_reg(workq_addr, *w);
+                    hpu_hw.write_reg(workq_addr, *w);
                 }
 
                 // Read value
                 let val = loop {
-                    let ack_code = hw_pin.as_mut().read_reg(ackq_addr);
+                    let ack_code = hpu_hw.read_reg(ackq_addr);
                     if ack_code != ACKQ_EMPTY {
                         assert_eq!(ack_code, *op_words.last().unwrap(),
                             "Ack code mismatch, received an ack for another command [get: {ack_code:x}, exp: {:x}]", op_words.last().unwrap());
                         // Next word is the red value
-                        let val = hw_pin.as_mut().read_reg(ackq_addr);
+                        let val = hpu_hw.read_reg(ackq_addr);
 
                         break val;
                     }
@@ -327,12 +326,12 @@ fn main() {
             // NB: For parsing purpose, we must send the msb word (that contain opcode) first
             //   -> Thus we use a reversed version of the iterator
             for w in op_words.iter().rev() {
-                hw_pin.as_mut().write_reg(workq_addr, *w);
+                hpu_hw.write_reg(workq_addr, *w);
             }
 
             // Read ack
             loop {
-                let ack_code = hw_pin.as_mut().read_reg(ackq_addr);
+                let ack_code = hpu_hw.read_reg(ackq_addr);
                 if ack_code != ACKQ_EMPTY {
                     assert_eq!(ack_code, *op_words.last().unwrap(),
                         "Ack code mismatch, received an ack for another command [get: {ack_code:x}, exp: {:x}]", op_words.last().unwrap());
@@ -347,7 +346,7 @@ fn main() {
                 .get("WorkAck::ackq")
                 .expect("Unknow register, check regmap definition")
                 .offset()) as u64;
-            let ack_code = hw_pin.as_mut().read_reg(ackq_addr);
+            let ack_code = hpu_hw.read_reg(ackq_addr);
             println!("Flush ackq -> {ack_code:0>8x}");
             if ack_code == ACKQ_EMPTY {
                 break;
@@ -360,9 +359,9 @@ fn main() {
                 hbm_pc: pc,
                 size_b: size,
             };
-            let mut mz = hw_pin.as_mut().alloc(cut_props);
-            mz.pin_mut().sync(ffi::SyncMode::Device2Host);
-            mz.pin_mut().read(0, bfr.as_mut_slice());
+            let mut mz = hpu_hw.alloc(cut_props);
+            mz.sync(ffi::SyncMode::Device2Host);
+            mz.read(0, bfr.as_mut_slice());
             if let Ok(bfr_u64) = bytemuck::try_cast_slice::<_, u64>(bfr.as_slice()) {
                 println!("MemZone content [u64]: {bfr_u64:x?}");
             } else if let Ok(bfr_u32) = bytemuck::try_cast_slice::<_, u32>(bfr.as_slice()) {
@@ -379,9 +378,9 @@ fn main() {
                 hbm_pc: pc,
                 size_b: size,
             };
-            let mut mz = hw_pin.as_mut().alloc(cut_props);
-            mz.pin_mut().write(0, bfr.as_slice());
-            mz.pin_mut().sync(ffi::SyncMode::Host2Device);
+            let mut mz = hpu_hw.alloc(cut_props);
+            mz.write(0, bfr.as_slice());
+            mz.sync(ffi::SyncMode::Host2Device);
         }
     }
 }

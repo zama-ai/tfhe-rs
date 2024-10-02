@@ -111,7 +111,7 @@ gpu = ["dep:tfhe-cuda-backend"]
 zk-pok = ["dep:tfhe-zk-pok"]
 # Start Fpga Hpu features
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]
-hpu-hw = ["hpu", "tfhe-hpu-backend/hw-itf"]
+hpu-hw = ["hpu", "tfhe-hpu-backend/hw-xrt"]
 hpu-xfer = ["hpu-hw"]
 hpu-debug = ["tfhe-hpu-backend/io-dump"]
 # Start Fpga simulation features
