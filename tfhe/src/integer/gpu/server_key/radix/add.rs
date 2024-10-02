@@ -323,7 +323,6 @@ impl CudaServerKey {
                 );
             }
         }
-        self.propagate_single_carry_assign_async(result, streams);
     }
 
     pub fn unchecked_sum_ciphertexts<T: CudaIntegerRadixCiphertext>(
