@@ -16,7 +16,7 @@ use thiserror::Error;
 
 // Publicly export some types
 pub const ACKQ_EMPTY: u32 = 0xdeadc0de;
-pub use config::HpuConfig;
+pub use config::{FFIMode, FpgaConfig, HpuConfig};
 pub use device::HpuDevice;
 pub use variable::HpuVarWrapped;
 
