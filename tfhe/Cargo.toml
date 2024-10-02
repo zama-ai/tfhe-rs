@@ -295,6 +295,11 @@ name = "write_params_to_file"
 path = "examples/utilities/params_to_file.rs"
 required-features = ["boolean", "shortint", "internal-keycache"]
 
+[[example]]
+name = "print_doc_bench_parameters"
+path = "examples/utilities/print_doc_bench_parameters.rs"
+required-features = ["shortint", "internal-keycache"]
+
 # Real use-case examples
 
 [[example]]
