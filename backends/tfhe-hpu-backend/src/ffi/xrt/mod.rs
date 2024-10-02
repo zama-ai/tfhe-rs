@@ -80,18 +80,6 @@ impl From<SyncMode> for SyncModeCxx {
     }
 }
 
-/// Provide conversion between global Verbosity and Cxx version
-impl From<Verbosity> for VerbosityCxx {
-    fn from(value: Verbosity) -> Self {
-        match value {
-            Verbosity::Error => Self::Error,
-            Verbosity::Warning => Self::Warning,
-            Verbosity::Info => Self::Info,
-            Verbosity::Debug => Self::Debug,
-            Verbosity::Trace => Self::Trace,
-        }
-    }
-}
 /// Provide conversion between global MemZoneProperties and Cxx version
 impl From<MemZoneProperties> for MemZonePropertiesCxx {
     fn from(value: MemZoneProperties) -> Self {

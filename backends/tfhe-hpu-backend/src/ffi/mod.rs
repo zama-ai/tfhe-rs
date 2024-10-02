@@ -4,22 +4,16 @@
 //!
 //! Mainly replacing Xrt(u55c)/Aved(V80) by a simulation interface for ease CI
 
+use crate::{
+    entities::HpuParameters,
+    interface::{FFIMode, FpgaConfig},
+};
+
 /// Enumeration to define the synchronisation of data between Host and Device
 #[derive(Debug, Clone)]
 pub enum SyncMode {
     Host2Device,
     Device2Host,
-}
-
-/// Enumeration to define the verbosity in Cxx bridge
-#[derive(Debug, Clone)]
-#[repr(u8)]
-pub enum Verbosity {
-    Error = 0,
-    Warning,
-    Info,
-    Debug,
-    Trace,
 }
 
 /// Define memory zone properties
@@ -29,7 +23,10 @@ pub struct MemZoneProperties {
     pub size_b: usize,
 }
 
-pub struct HpuHw(#[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::HpuHw>);
+pub struct HpuHw(
+    #[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::HpuHw>,
+    #[cfg(not(feature = "hw-xrt"))] sim::HpuHw,
+);
 
 impl HpuHw {
     /// Read Hw register through ffi
@@ -83,21 +80,36 @@ impl HpuHw {
 
     /// Handle ffi instanciation
     #[inline(always)]
-    pub fn new_hpu_hw(
-        fpga_id: u32,
-        kernel_name: String,
-        xclbin: String,
-        verbose: Verbosity,
-    ) -> HpuHw {
+    pub fn new_hpu_hw(config: FpgaConfig) -> HpuHw {
         #[cfg(feature = "hw-xrt")]
         {
-            let xrt_hw = xrt::new_hpu_hw(fpga_id, kernel_name, xclbin, verbose.into());
-            Self(xrt_hw)
+            use tracing::{enabled, Level};
+            // Check config
+            match config.ffi {
+                FFIMode::Xrt { id, kernel, xclbin } => {
+                    // Extract trace verbosity and convert it in cxx understandable value
+                    let verbosity = {
+                        if enabled!(target: "cxx", Level::TRACE) {
+                            xrt::VerbosityCxx::Trace
+                        } else if enabled!(target: "cxx", Level::DEBUG) {
+                            xrt::VerbosityCxx::Debug
+                        } else if enabled!(target: "cxx", Level::INFO) {
+                            xrt::VerbosityCxx::Info
+                        } else if enabled!(target: "cxx", Level::WARN) {
+                            xrt::VerbosityCxx::Warning
+                        } else {
+                            xrt::VerbosityCxx::Error
+                        }
+                    };
+                    Self(xrt::new_hpu_hw(id, kernel, xclbin, verbosity))
+                }
+                _ => panic!("Unsupported config type with ffi::xrt"),
+            }
         }
 
         #[cfg(not(feature = "hw-xrt"))]
         {
-            todo!("sim ffi")
+            Self(sim::HpuHw::new_hpu_hw(config))
         }
     }
 }
@@ -208,5 +220,7 @@ impl MemZone {
     }
 }
 
+#[cfg(not(feature = "hw-xrt"))]
+mod sim;
 #[cfg(feature = "hw-xrt")]
 mod xrt;

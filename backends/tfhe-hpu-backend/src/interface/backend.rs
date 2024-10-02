@@ -11,7 +11,7 @@ use std::collections::VecDeque;
 use std::str::FromStr;
 use std::sync::{mpsc, Arc, Mutex};
 
-use tracing::{debug, enabled, info, trace, Level};
+use tracing::{debug, info, trace};
 
 pub struct HpuBackend {
     // Low-level hardware handling
@@ -88,28 +88,7 @@ unsafe impl Sync for HpuBackendWrapped {}
 /// Handle HpuBackend construction and initialisation
 impl HpuBackend {
     pub fn new(fpga_id: u32, config: &config::HpuConfig) -> Self {
-        // Extract trace verbosity and convert it in cxx understandable value
-        let verbosity = {
-            if enabled!(target: "cxx", Level::TRACE) {
-                ffi::Verbosity::Trace
-            } else if enabled!(target: "cxx", Level::DEBUG) {
-                ffi::Verbosity::Debug
-            } else if enabled!(target: "cxx", Level::INFO) {
-                ffi::Verbosity::Info
-            } else if enabled!(target: "cxx", Level::WARN) {
-                ffi::Verbosity::Warning
-            } else {
-                ffi::Verbosity::Error
-            }
-        };
-
-        // TODO update ffi interface to use &str instead of String ?
-        let mut hpu_hw = ffi::HpuHw::new_hpu_hw(
-            fpga_id,
-            config.fpga.kernel.clone(),
-            config.fpga.xclbin.clone(),
-            verbosity,
-        );
+        let mut hpu_hw = ffi::HpuHw::new_hpu_hw(config.fpga.clone());
         let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
 
         let params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
