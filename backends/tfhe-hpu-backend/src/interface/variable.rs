@@ -45,7 +45,7 @@ impl HpuVar {
                 for slot in self.bundle.iter_mut() {
                     slot.mz
                         .iter_mut()
-                        .for_each(|mz| mz.pin_mut().sync(ffi::SyncMode::Device2Host));
+                        .for_each(|mz| mz.sync(ffi::SyncMode::Device2Host));
                 }
                 self.state = SyncState::BothSync;
                 Ok(())
@@ -61,7 +61,7 @@ impl HpuVar {
                 for slot in self.bundle.iter_mut() {
                     slot.mz
                         .iter_mut()
-                        .for_each(|mz| mz.pin_mut().sync(ffi::SyncMode::Host2Device));
+                        .for_each(|mz| mz.sync(ffi::SyncMode::Host2Device));
                 }
                 self.state = SyncState::BothSync;
                 Ok(())
@@ -137,7 +137,7 @@ impl HpuVarWrapped {
 
             for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct.iter()) {
                 for (id, cut) in ct.hw_slice().iter().enumerate() {
-                    slot.mz[id].pin_mut().write(0, &cut);
+                    slot.mz[id].write(0, &cut);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
                         &cut.as_slice(),

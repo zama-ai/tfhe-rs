@@ -1,5 +1,5 @@
-#include "tfhe-hpu-backend/src/ffi/cxx/mem_zone.h"
-#include "tfhe-hpu-backend/src/ffi/mod.rs.h"
+#include "tfhe-hpu-backend/src/ffi/xrt/cxx/mem_zone.h"
+#include "tfhe-hpu-backend/src/ffi/xrt/mod.rs.h"
 
 #include <iostream>
 
@@ -32,12 +32,12 @@ namespace ffi {
     bo->write(bytes.data(), bytes.size()*sizeof(uint8_t), ofst);
   }
 
-  void MemZone::sync(SyncMode mode){
+  void MemZone::sync(SyncModeCxx mode){
       switch (mode) {
-        case SyncMode::Host2Device:
+        case SyncModeCxx::Host2Device:
           bo->sync(XCL_BO_SYNC_BO_TO_DEVICE);
           break;
-        case SyncMode::Device2Host:
+        case SyncModeCxx::Device2Host:
           bo->sync(XCL_BO_SYNC_BO_FROM_DEVICE);
           break;
       }
