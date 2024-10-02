@@ -6,8 +6,9 @@ use syn::{
 };
 
 use crate::{
-    add_lifetime_bound, add_trait_where_clause, add_where_lifetime_bound, extend_where_clause,
-    parse_const_str, DESERIALIZE_TRAIT_NAME, LIFETIME_NAME, SERIALIZE_TRAIT_NAME,
+    add_lifetime_param, add_trait_where_clause, add_where_lifetime_bound_to_generics,
+    extend_where_clause, parse_const_str, DESERIALIZE_TRAIT_NAME, LIFETIME_NAME,
+    SERIALIZE_TRAIT_NAME,
 };
 
 /// Generates an impl block for the From trait. This will be:
@@ -116,7 +117,7 @@ pub(crate) trait AssociatedType: Sized {
         let mut generics = self.orig_type_generics().clone();
         if let AssociatedTypeKind::Ref(opt_lifetime) = &self.kind() {
             if let Some(lifetime) = opt_lifetime {
-                add_lifetime_bound(&mut generics, lifetime);
+                add_lifetime_param(&mut generics, lifetime);
             }
             add_trait_where_clause(&mut generics, self.inner_types()?, Self::REF_BOUNDS)?;
         } else {
@@ -214,8 +215,8 @@ impl<T: AssociatedType> AssociatingTrait<T> {
         let mut ref_type_generics = self.ref_type.orig_type_generics().clone();
         // If the original type has some generics, we need to add a lifetime bound on them
         if let Some(lifetime) = self.ref_type.lifetime() {
-            add_lifetime_bound(&mut ref_type_generics, lifetime);
-            add_where_lifetime_bound(&mut ref_type_generics, lifetime);
+            add_lifetime_param(&mut ref_type_generics, lifetime);
+            add_where_lifetime_bound_to_generics(&mut ref_type_generics, lifetime);
         }
 
         let (impl_generics, orig_generics, where_clause) = generics.split_for_impl();
