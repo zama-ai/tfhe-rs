@@ -362,24 +362,46 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   }
 }
 template <typename Torus>
-uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
+__host__ __device__ uint64_t
+get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // accumulator
 }
 template <typename Torus>
-uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
+__host__ __device__ uint64_t
+get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size * 2; // accumulator
 }
 template <typename Torus>
-uint64_t get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one(
+__host__ __device__ uint64_t
+get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size; // accumulator
 }
 template <typename Torus>
-uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two(
+__host__ __device__ uint64_t
+get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size; // accumulator
+}
+
+template <typename Torus>
+__host__ __device__ uint64_t get_buffer_size_multibit_programmable_bootstrap(
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, uint32_t lwe_chunk_size) {
+
+  uint64_t buffer_size = 0;
+  buffer_size += input_lwe_ciphertext_count * lwe_chunk_size * level_count *
+                 (glwe_dimension + 1) * (glwe_dimension + 1) *
+                 (polynomial_size / 2) * sizeof(double2); // keybundle fft
+  buffer_size += input_lwe_ciphertext_count * (glwe_dimension + 1) *
+                 level_count * (polynomial_size / 2) *
+                 sizeof(double2); // global_accumulator_fft
+  buffer_size += input_lwe_ciphertext_count * (glwe_dimension + 1) *
+                 polynomial_size * sizeof(Torus); // global_accumulator
+
+  return buffer_size + buffer_size % sizeof(double2);
 }
 
 template <typename Torus, typename params>

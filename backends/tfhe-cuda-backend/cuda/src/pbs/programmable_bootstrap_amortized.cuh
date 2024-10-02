@@ -213,7 +213,8 @@ __global__ void device_programmable_bootstrap_amortized(
 }
 
 template <typename Torus>
-uint64_t get_buffer_size_full_sm_programmable_bootstrap_amortized(
+__host__ __device__ uint64_t
+get_buffer_size_full_sm_programmable_bootstrap_amortized(
     uint32_t polynomial_size, uint32_t glwe_dimension) {
   return sizeof(Torus) * polynomial_size * (glwe_dimension + 1) + // accumulator
          sizeof(Torus) * polynomial_size *
@@ -224,13 +225,14 @@ uint64_t get_buffer_size_full_sm_programmable_bootstrap_amortized(
 }
 
 template <typename Torus>
-uint64_t get_buffer_size_partial_sm_programmable_bootstrap_amortized(
+__host__ __device__ uint64_t
+get_buffer_size_partial_sm_programmable_bootstrap_amortized(
     uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // accumulator fft
 }
 
 template <typename Torus>
-uint64_t get_buffer_size_programmable_bootstrap_amortized(
+__host__ uint64_t get_buffer_size_programmable_bootstrap_amortized(
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_lwe_ciphertext_count) {
 

@@ -261,7 +261,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 }
 
 template <typename Torus>
-uint64_t get_buffer_size_programmable_bootstrap(
+__host__ __device__ uint64_t get_buffer_size_programmable_bootstrap(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count) {
 
