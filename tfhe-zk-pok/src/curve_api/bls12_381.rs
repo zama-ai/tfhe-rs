@@ -36,18 +36,13 @@ fn bigint_to_le_bytes(x: [u64; 6]) -> [u8; 6 * 8] {
 mod g1 {
     use tfhe_versionable::Versionize;
 
-    use crate::backward_compatibility::SerializableG1AffineVersions;
     use crate::serialization::{InvalidSerializedAffineError, SerializableG1Affine};
 
     use super::*;
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
-    #[versionize(
-        SerializableG1AffineVersions,
-        try_from = "SerializableG1Affine",
-        into = "SerializableG1Affine"
-    )]
+    #[versionize(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
     #[repr(transparent)]
     pub struct G1Affine {
         pub(crate) inner: ark_bls12_381::g1::G1Affine,
@@ -99,11 +94,7 @@ mod g1 {
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
-    #[versionize(
-        SerializableG1AffineVersions,
-        try_from = "SerializableG1Affine",
-        into = "SerializableG1Affine"
-    )]
+    #[versionize(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
     #[repr(transparent)]
     pub struct G1 {
         pub(crate) inner: ark_bls12_381::G1Projective,
@@ -264,18 +255,13 @@ mod g1 {
 mod g2 {
     use tfhe_versionable::Versionize;
 
-    use crate::backward_compatibility::SerializableG2AffineVersions;
     use crate::serialization::{InvalidSerializedAffineError, SerializableG2Affine};
 
     use super::*;
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
-    #[versionize(
-        SerializableG2AffineVersions,
-        try_from = "SerializableG2Affine",
-        into = "SerializableG2Affine"
-    )]
+    #[versionize(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
     #[repr(transparent)]
     pub struct G2Affine {
         pub(crate) inner: ark_bls12_381::g2::G2Affine,
@@ -328,11 +314,7 @@ mod g2 {
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
-    #[versionize(
-        SerializableG2AffineVersions,
-        try_from = "SerializableG2Affine",
-        into = "SerializableG2Affine"
-    )]
+    #[versionize(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
     #[repr(transparent)]
     pub struct G2 {
         pub(crate) inner: ark_bls12_381::G2Projective,
@@ -539,7 +521,6 @@ mod g2 {
 }
 
 mod gt {
-    use crate::backward_compatibility::SerializableFp12Versions;
     use crate::serialization::InvalidArraySizeError;
 
     use super::*;
@@ -548,11 +529,7 @@ mod gt {
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash)]
     #[serde(try_from = "SerializableFp12", into = "SerializableFp12")]
-    #[versionize(
-        SerializableFp12Versions,
-        try_from = "SerializableFp12",
-        into = "SerializableFp12"
-    )]
+    #[versionize(try_from = "SerializableFp12", into = "SerializableFp12")]
     #[repr(transparent)]
     pub struct Gt {
         inner: ark_ec::pairing::PairingOutput<ark_bls12_381::Bls12_381>,
@@ -697,7 +674,6 @@ mod gt {
 }
 
 mod zp {
-    use crate::backward_compatibility::SerializableFpVersions;
     use crate::serialization::InvalidArraySizeError;
 
     use super::*;
@@ -741,11 +717,7 @@ mod zp {
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash, Zeroize)]
     #[serde(try_from = "SerializableFp", into = "SerializableFp")]
-    #[versionize(
-        SerializableFpVersions,
-        try_from = "SerializableFp",
-        into = "SerializableFp"
-    )]
+    #[versionize(try_from = "SerializableFp", into = "SerializableFp")]
     #[repr(transparent)]
     pub struct Zp {
         pub(crate) inner: ark_bls12_381::Fr,

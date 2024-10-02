@@ -36,18 +36,13 @@ fn bigint_to_le_bytes(x: [u64; 7]) -> [u8; 7 * 8] {
 mod g1 {
     use tfhe_versionable::Versionize;
 
-    use crate::backward_compatibility::SerializableG1AffineVersions;
     use crate::serialization::{InvalidSerializedAffineError, SerializableG1Affine};
 
     use super::*;
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
-    #[versionize(
-        SerializableG1AffineVersions,
-        try_from = "SerializableG1Affine",
-        into = "SerializableG1Affine"
-    )]
+    #[versionize(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
     #[repr(transparent)]
     pub struct G1Affine {
         pub(crate) inner: crate::curve_446::g1::G1Affine,
@@ -101,11 +96,7 @@ mod g1 {
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
-    #[versionize(
-        SerializableG1AffineVersions,
-        try_from = "SerializableG1Affine",
-        into = "SerializableG1Affine"
-    )]
+    #[versionize(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
     #[repr(transparent)]
     pub struct G1 {
         pub(crate) inner: crate::curve_446::g1::G1Projective,
@@ -267,7 +258,6 @@ mod g1 {
 mod g2 {
     use tfhe_versionable::Versionize;
 
-    use crate::backward_compatibility::SerializableG2AffineVersions;
     use crate::serialization::SerializableG2Affine;
 
     use super::*;
@@ -275,11 +265,7 @@ mod g2 {
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
-    #[versionize(
-        SerializableG2AffineVersions,
-        try_from = "SerializableG2Affine",
-        into = "SerializableG2Affine"
-    )]
+    #[versionize(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
     #[repr(transparent)]
     pub struct G2Affine {
         pub(crate) inner: crate::curve_446::g2::G2Affine,
@@ -423,11 +409,7 @@ mod g2 {
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
-    #[versionize(
-        SerializableG2AffineVersions,
-        try_from = "SerializableG2Affine",
-        into = "SerializableG2Affine"
-    )]
+    #[versionize(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
     #[repr(transparent)]
     pub struct G2 {
         pub(crate) inner: crate::curve_446::g2::G2Projective,
@@ -633,7 +615,6 @@ mod g2 {
 }
 
 mod gt {
-    use crate::backward_compatibility::SerializableFp12Versions;
     use crate::curve_446::{Fq, Fq12, Fq2};
     use crate::serialization::InvalidSerializedAffineError;
 
@@ -812,11 +793,7 @@ mod gt {
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash)]
     #[serde(try_from = "SerializableFp12", into = "SerializableFp12")]
-    #[versionize(
-        SerializableFp12Versions,
-        try_from = "SerializableFp12",
-        into = "SerializableFp12"
-    )]
+    #[versionize(try_from = "SerializableFp12", into = "SerializableFp12")]
     #[repr(transparent)]
     pub struct Gt {
         pub(crate) inner: ark_ec::pairing::PairingOutput<crate::curve_446::Bls12_446>,
@@ -959,8 +936,6 @@ mod gt {
 }
 
 mod zp {
-    use crate::backward_compatibility::SerializableFpVersions;
-
     use super::*;
     use crate::serialization::InvalidArraySizeError;
     use ark_ff::Fp;
@@ -1003,11 +978,7 @@ mod zp {
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash, Zeroize)]
     #[serde(try_from = "SerializableFp", into = "SerializableFp")]
-    #[versionize(
-        SerializableFpVersions,
-        try_from = "SerializableFp",
-        into = "SerializableFp"
-    )]
+    #[versionize(try_from = "SerializableFp", into = "SerializableFp")]
     #[repr(transparent)]
     pub struct Zp {
         pub inner: crate::curve_446::Fr,
