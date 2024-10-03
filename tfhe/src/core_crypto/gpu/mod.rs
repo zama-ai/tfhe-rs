@@ -141,6 +141,7 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         num_samples,
         lut_count,
         lut_stride,
+        true,
     );
     cleanup_cuda_programmable_bootstrap(
         streams.ptr[0],

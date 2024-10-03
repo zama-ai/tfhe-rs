@@ -45,7 +45,7 @@ __global__ void device_programmable_bootstrap_tbc(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, int8_t *device_mem,
     uint64_t device_memory_size_per_block, bool support_dsm, uint32_t lut_count,
-    uint32_t lut_stride) {
+    uint32_t lut_stride, bool do_modulus_switch) {
 
   cluster_group cluster = this_cluster();
 
@@ -97,8 +97,11 @@ __global__ void device_programmable_bootstrap_tbc(
 
   // Put "b" in [0, 2N[
   Torus b_hat = 0;
-  modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
-                 params::log2_degree + 1);
+  if (do_modulus_switch)
+    modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
+                   params::log2_degree + 1);
+  else
+    b_hat = block_lwe_array_in[lwe_dimension];
 
   divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                         params::degree / params::opt>(
@@ -110,8 +113,11 @@ __global__ void device_programmable_bootstrap_tbc(
 
     // Put "a" in [0, 2N[
     Torus a_hat = 0;
-    modulus_switch(block_lwe_array_in[i], a_hat,
-                   params::log2_degree + 1); // 2 * params::log2_degree + 1);
+    if (do_modulus_switch)
+      modulus_switch(block_lwe_array_in[i], a_hat,
+                     params::log2_degree + 1); // 2 * params::log2_degree + 1);
+    else
+      a_hat = block_lwe_array_in[i];
 
     // Perform ACC * (X^ä - 1)
     multiply_by_monomial_negacyclic_and_sub_polynomial<
@@ -216,7 +222,7 @@ __host__ void host_programmable_bootstrap_tbc(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t lut_count, uint32_t lut_stride) {
+    uint32_t lut_count, uint32_t lut_stride, bool do_modulus_switch) {
 
   auto supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
@@ -272,7 +278,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, full_dm,
-        supports_dsm, lut_count, lut_stride));
+        supports_dsm, lut_count, lut_stride, do_modulus_switch));
   } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
     config.dynamicSmemBytes = partial_sm + minimum_sm_tbc;
 
@@ -281,7 +287,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem,
-        partial_dm, supports_dsm, lut_count, lut_stride));
+        partial_dm, supports_dsm, lut_count, lut_stride, do_modulus_switch));
   } else {
     config.dynamicSmemBytes = full_sm + minimum_sm_tbc;
 
@@ -290,7 +296,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, 0,
-        supports_dsm, lut_count, lut_stride));
+        supports_dsm, lut_count, lut_stride, do_modulus_switch));
   }
 }
 

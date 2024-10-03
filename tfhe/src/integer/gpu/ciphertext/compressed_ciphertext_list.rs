@@ -575,7 +575,7 @@ mod tests {
                         .unwrap();
                     let decompressed = d_decompressed.to_radix_ciphertext(&streams);
                     let decrypted: u128 = radix_cks.decrypt(&decompressed);
-                    assert_eq!(decrypted, *message);
+                    assert_eq!(decrypted, *message, "nb messages {nb_messages}");
                 }
             }
 
@@ -610,7 +610,7 @@ mod tests {
                         .unwrap();
                     let decompressed = d_decompressed.to_signed_radix_ciphertext(&streams);
                     let decrypted: i128 = radix_cks.decrypt_signed(&decompressed);
-                    assert_eq!(decrypted, *message);
+                    assert_eq!(decrypted, *message, "nb messages {nb_messages}");
                 }
             }
 
@@ -644,7 +644,7 @@ mod tests {
                         .unwrap();
                     let decompressed = d_decompressed.to_boolean_block(&streams);
                     let decrypted = radix_cks.decrypt_bool(&decompressed);
-                    assert_eq!(decrypted, *message);
+                    assert_eq!(decrypted, *message, "nb messages {nb_messages}");
                 }
             }
 
@@ -705,7 +705,7 @@ mod tests {
                                 .unwrap();
                             let decompressed = d_decompressed.to_radix_ciphertext(&streams);
                             let decrypted: u128 = radix_cks.decrypt(&decompressed);
-                            assert_eq!(decrypted, *message);
+                            assert_eq!(decrypted, *message, "nb messages {nb_messages}");
                         }
                         MessageType::Signed(message) => {
                             let d_decompressed: CudaSignedRadixCiphertext = cuda_compressed
@@ -714,7 +714,7 @@ mod tests {
                                 .unwrap();
                             let decompressed = d_decompressed.to_signed_radix_ciphertext(&streams);
                             let decrypted: i128 = radix_cks.decrypt_signed(&decompressed);
-                            assert_eq!(decrypted, *message);
+                            assert_eq!(decrypted, *message, "nb messages {nb_messages}");
                         }
                         MessageType::Boolean(message) => {
                             let d_decompressed: CudaBooleanBlock = cuda_compressed
@@ -723,7 +723,7 @@ mod tests {
                                 .unwrap();
                             let decompressed = d_decompressed.to_boolean_block(&streams);
                             let decrypted = radix_cks.decrypt_bool(&decompressed);
-                            assert_eq!(decrypted, *message);
+                            assert_eq!(decrypted, *message, "nb messages {nb_messages}");
                         }
                     }
                 }

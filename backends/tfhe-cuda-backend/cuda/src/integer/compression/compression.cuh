@@ -318,7 +318,8 @@ host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
         compression_params.small_lwe_dimension,
         encryption_params.polynomial_size, encryption_params.pbs_base_log,
         encryption_params.pbs_level, encryption_params.grouping_factor,
-        num_radix_blocks, encryption_params.pbs_type, lut_count, lut_stride);
+        num_radix_blocks, encryption_params.pbs_type, lut_count, lut_stride,
+        false);
   } else {
     /// For multi GPU execution we create vectors of pointers for inputs and
     /// outputs
@@ -345,7 +346,8 @@ host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
         compression_params.small_lwe_dimension,
         encryption_params.polynomial_size, encryption_params.pbs_base_log,
         encryption_params.pbs_level, encryption_params.grouping_factor,
-        num_radix_blocks, encryption_params.pbs_type, lut_count, lut_stride);
+        num_radix_blocks, encryption_params.pbs_type, lut_count, lut_stride,
+        false);
 
     /// Copy data back to GPU 0 and release vecs
     multi_gpu_gather_lwe_async<Torus>(

@@ -1170,6 +1170,7 @@ extern "C" {
         num_samples: u32,
         lut_count: u32,
         lut_stride: u32,
+        do_modulus_switch: bool,
     );
 
     pub fn cleanup_cuda_programmable_bootstrap(

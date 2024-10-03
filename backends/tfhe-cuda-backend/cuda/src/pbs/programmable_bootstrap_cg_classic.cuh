@@ -45,7 +45,7 @@ __global__ void device_programmable_bootstrap_cg(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, int8_t *device_mem,
     uint64_t device_memory_size_per_block, uint32_t lut_count,
-    uint32_t lut_stride) {
+    uint32_t lut_stride, bool do_modulus_switch) {
 
   grid_group grid = this_grid();
 
@@ -94,8 +94,11 @@ __global__ void device_programmable_bootstrap_cg(
 
   // Put "b" in [0, 2N[
   Torus b_hat = 0;
-  modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
-                 params::log2_degree + 1);
+  if (do_modulus_switch)
+    modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
+                   params::log2_degree + 1);
+  else
+    b_hat = block_lwe_array_in[lwe_dimension];
 
   divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                         params::degree / params::opt>(
@@ -107,7 +110,10 @@ __global__ void device_programmable_bootstrap_cg(
 
     // Put "a" in [0, 2N[
     Torus a_hat = 0;
-    modulus_switch(block_lwe_array_in[i], a_hat, params::log2_degree + 1);
+    if (do_modulus_switch)
+      modulus_switch(block_lwe_array_in[i], a_hat, params::log2_degree + 1);
+    else
+      a_hat = block_lwe_array_in[i];
 
     // Perform ACC * (X^ä - 1)
     multiply_by_monomial_negacyclic_and_sub_polynomial<
@@ -210,7 +216,7 @@ __host__ void host_programmable_bootstrap_cg(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t lut_count, uint32_t lut_stride) {
+    uint32_t lut_count, uint32_t lut_stride, bool do_modulus_switch) {
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
@@ -250,6 +256,7 @@ __host__ void host_programmable_bootstrap_cg(
   kernel_args[12] = &d_mem;
   kernel_args[14] = &lut_count;
   kernel_args[15] = &lut_stride;
+  kernel_args[16] = &do_modulus_switch;
 
   if (max_shared_memory < partial_sm) {
     kernel_args[13] = &full_dm;

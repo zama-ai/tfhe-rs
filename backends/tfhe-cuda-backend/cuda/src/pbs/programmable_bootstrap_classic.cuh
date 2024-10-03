@@ -27,7 +27,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         Torus *global_accumulator, double2 *global_accumulator_fft,
         uint32_t lwe_iteration, uint32_t lwe_dimension,
         uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-        int8_t *device_mem, uint64_t device_memory_size_per_block) {
+        int8_t *device_mem, uint64_t device_memory_size_per_block,
+        bool do_modulus_switch) {
 
   // We use shared memory for the polynomials that are used often during the
   // bootstrap, since shared memory is kept in L1 cache and accessing it is
@@ -75,8 +76,11 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     // First iteration
     // Put "b" in [0, 2N[
     Torus b_hat = 0;
-    modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
-                   params::log2_degree + 1);
+    if (do_modulus_switch)
+      modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
+                     params::log2_degree + 1);
+    else
+      b_hat = block_lwe_array_in[lwe_dimension];
     // The y-dimension is used to select the element of the GLWE this block will
     // compute
     divide_by_monomial_negacyclic_inplace<Torus, params::opt,
@@ -94,8 +98,11 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   // Put "a" in [0, 2N[
   Torus a_hat = 0;
-  modulus_switch(block_lwe_array_in[lwe_iteration], a_hat,
-                 params::log2_degree + 1); // 2 * params::log2_degree + 1);
+  if (do_modulus_switch)
+    modulus_switch(block_lwe_array_in[lwe_iteration], a_hat,
+                   params::log2_degree + 1); // 2 * params::log2_degree + 1);
+  else
+    a_hat = block_lwe_array_in[lwe_iteration];
 
   synchronize_threads_in_block();
 
@@ -324,7 +331,7 @@ execute_step_one(cudaStream_t stream, uint32_t gpu_index, Torus *lut_vector,
                  uint32_t glwe_dimension, uint32_t polynomial_size,
                  uint32_t base_log, uint32_t level_count, int8_t *d_mem,
                  int lwe_iteration, uint64_t partial_sm, uint64_t partial_dm,
-                 uint64_t full_sm, uint64_t full_dm) {
+                 uint64_t full_sm, uint64_t full_dm, bool do_modulus_switch) {
 
   int max_shared_memory = cuda_get_max_shared_memory(0);
   cudaSetDevice(gpu_index);
@@ -337,21 +344,21 @@ execute_step_one(cudaStream_t stream, uint32_t gpu_index, Torus *lut_vector,
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             bootstrapping_key, global_accumulator, global_accumulator_fft,
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, full_dm);
+            level_count, d_mem, full_dm, do_modulus_switch);
   } else if (max_shared_memory < full_sm) {
     device_programmable_bootstrap_step_one<Torus, params, PARTIALSM>
         <<<grid, thds, partial_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             bootstrapping_key, global_accumulator, global_accumulator_fft,
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, partial_dm);
+            level_count, d_mem, partial_dm, do_modulus_switch);
   } else {
     device_programmable_bootstrap_step_one<Torus, params, FULLSM>
         <<<grid, thds, full_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             bootstrapping_key, global_accumulator, global_accumulator_fft,
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, 0);
+            level_count, d_mem, 0, do_modulus_switch);
   }
   check_cuda_error(cudaGetLastError());
 }
@@ -407,7 +414,7 @@ __host__ void host_programmable_bootstrap(
     pbs_buffer<Torus, CLASSICAL> *pbs_buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t lut_count, uint32_t lut_stride) {
+    uint32_t lut_count, uint32_t lut_stride, bool do_modulus_switch) {
   cudaSetDevice(gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to
@@ -437,7 +444,8 @@ __host__ void host_programmable_bootstrap(
         lwe_input_indexes, bootstrapping_key, global_accumulator,
         global_accumulator_fft, input_lwe_ciphertext_count, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
-        partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one);
+        partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one,
+        do_modulus_switch);
     execute_step_two<Torus, params>(
         stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
         lut_vector_indexes, bootstrapping_key, global_accumulator,

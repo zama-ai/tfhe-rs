@@ -214,7 +214,8 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        grouping_factor, num_radix_blocks, pbs_type, lut_count, lut_stride);
+        grouping_factor, num_radix_blocks, pbs_type, lut_count, lut_stride,
+        true);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
@@ -241,7 +242,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, lut->buffer,
         glwe_dimension, small_lwe_dimension, polynomial_size, pbs_base_log,
         pbs_level, grouping_factor, num_radix_blocks, pbs_type, lut_count,
-        lut_stride);
+        lut_stride, true);
 
     /// Copy data back to GPU 0 and release vecs
     multi_gpu_gather_lwe_async<Torus>(streams, gpu_indexes, active_gpu_count,
@@ -298,7 +299,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        grouping_factor, num_radix_blocks, pbs_type, lut_count, lut_stride);
+        grouping_factor, num_radix_blocks, pbs_type, lut_count, lut_stride,
+        true);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
@@ -325,7 +327,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
         lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, lut->buffer,
         glwe_dimension, small_lwe_dimension, polynomial_size, pbs_base_log,
         pbs_level, grouping_factor, num_radix_blocks, pbs_type, lut_count,
-        lut_stride);
+        lut_stride, true);
 
     /// Copy data back to GPU 0 and release vecs
     multi_gpu_gather_lwe_async<Torus>(streams, gpu_indexes, active_gpu_count,
@@ -394,7 +396,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        grouping_factor, num_radix_blocks, pbs_type, lut_count, lut_stride);
+        grouping_factor, num_radix_blocks, pbs_type, lut_count, lut_stride,
+        true);
   } else {
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     multi_gpu_scatter_lwe_async<Torus>(
@@ -417,7 +420,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, lut->buffer,
         glwe_dimension, small_lwe_dimension, polynomial_size, pbs_base_log,
         pbs_level, grouping_factor, num_radix_blocks, pbs_type, lut_count,
-        lut_stride);
+        lut_stride, true);
 
     /// Copy data back to GPU 0 and release vecs
     multi_gpu_gather_lwe_async<Torus>(streams, gpu_indexes, active_gpu_count,
@@ -816,7 +819,8 @@ void host_full_propagate_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
         mem_ptr->lut->lwe_trivial_indexes, bsks, mem_ptr->lut->buffer,
         params.glwe_dimension, params.small_lwe_dimension,
         params.polynomial_size, params.pbs_base_log, params.pbs_level,
-        params.grouping_factor, 2, params.pbs_type, lut_count, lut_stride);
+        params.grouping_factor, 2, params.pbs_type, lut_count, lut_stride,
+        true);
 
     cuda_memcpy_async_gpu_to_gpu(cur_input_block, mem_ptr->tmp_big_lwe_vector,
                                  big_lwe_size * sizeof(Torus), streams[0],

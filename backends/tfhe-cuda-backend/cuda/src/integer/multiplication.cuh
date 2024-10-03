@@ -368,7 +368,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           glwe_dimension, small_lwe_dimension, polynomial_size,
           mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
           mem_ptr->params.grouping_factor, total_count,
-          mem_ptr->params.pbs_type, lut_count, lut_stride);
+          mem_ptr->params.pbs_type, lut_count, lut_stride, true);
     } else {
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
@@ -416,7 +416,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           glwe_dimension, small_lwe_dimension, polynomial_size,
           mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
           mem_ptr->params.grouping_factor, total_count,
-          mem_ptr->params.pbs_type, lut_count, lut_stride);
+          mem_ptr->params.pbs_type, lut_count, lut_stride, true);
 
       multi_gpu_gather_lwe_async<Torus>(
           streams, gpu_indexes, active_gpu_count, new_blocks, lwe_after_pbs_vec,
