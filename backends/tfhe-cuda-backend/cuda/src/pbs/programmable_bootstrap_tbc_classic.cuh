@@ -200,6 +200,49 @@ __host__ void scratch_programmable_bootstrap_tbc(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
+  bool supports_dsm =
+      supports_distributed_shared_memory_on_classic_programmable_bootstrap<
+          Torus>(polynomial_size);
+
+  uint64_t full_sm = get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
+      polynomial_size);
+  uint64_t partial_sm =
+      get_buffer_size_partial_sm_programmable_bootstrap_tbc<Torus>(
+          polynomial_size);
+  uint64_t minimum_sm_tbc = 0;
+  if (supports_dsm)
+    minimum_sm_tbc =
+        get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
+            polynomial_size);
+  int max_shared_memory = cuda_get_max_shared_memory(0);
+
+  if (max_shared_memory >= full_sm + minimum_sm_tbc) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm + minimum_sm_tbc));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaGetLastError());
+  } else if (max_shared_memory >= partial_sm + minimum_sm_tbc) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize,
+        partial_sm + minimum_sm_tbc));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaGetLastError());
+  } else {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_tbc<Torus, params, NOSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, minimum_sm_tbc));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_tbc<Torus, params, NOSM>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaGetLastError());
+  }
+
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, PBS_VARIANT::TBC, allocate_gpu_memory);
