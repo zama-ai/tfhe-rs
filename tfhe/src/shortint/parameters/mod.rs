@@ -722,7 +722,7 @@ pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [ClassicPBSParameters; 16] 
 /// encoded over X (reps. Y) bits, i.e., message_modulus = 2^{X} (resp. carry_modulus = 2^{Y}).
 /// All parameter sets guarantee 128-bits of security and an error probability smaller than
 /// 2^{-40} for a PBS.
-/// 
+///
 /// Return a parameter set from a message and carry moduli.
 ///
 /// # Example

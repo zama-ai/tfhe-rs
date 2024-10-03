@@ -262,13 +262,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = GlweCiphertextCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = GlweCiphertextView<'this, Self::Element>
+    type EntityView<'this>
+        = GlweCiphertextView<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = GlweCiphertextListCreationMetadata<Self::Element>;
 
-    type SelfView<'this> = GlweCiphertextListView<'this, Self::Element>
+    type SelfView<'this>
+        = GlweCiphertextListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -295,11 +297,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for GlweCiphertextList<C>
 {
-    type EntityMutView<'this> = GlweCiphertextMutView<'this, Self::Element>
+    type EntityMutView<'this>
+        = GlweCiphertextMutView<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = GlweCiphertextListMutView<'this, Self::Element>
+    type SelfMutView<'this>
+        = GlweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
 }

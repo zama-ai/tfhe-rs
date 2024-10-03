@@ -443,14 +443,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     type EntityViewMetadata =
         LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = LwePrivateFunctionalPackingKeyswitchKey<&'this [Self::Element]>
+    type EntityView<'this>
+        = LwePrivateFunctionalPackingKeyswitchKey<&'this [Self::Element]>
     where
         Self: 'this;
 
     type SelfViewMetadata =
         LwePrivateFunctionalPackingKeyswitchKeyListCreationMetadata<Self::Element>;
 
-    type SelfView<'this> = LwePrivateFunctionalPackingKeyswitchKeyList<&'this [Self::Element]>
+    type SelfView<'this>
+        = LwePrivateFunctionalPackingKeyswitchKeyList<&'this [Self::Element]>
     where
         Self: 'this;
 
@@ -483,11 +485,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for LwePrivateFunctionalPackingKeyswitchKeyList<C>
 {
-    type EntityMutView<'this> = LwePrivateFunctionalPackingKeyswitchKey<&'this mut [Self::Element]>
+    type EntityMutView<'this>
+        = LwePrivateFunctionalPackingKeyswitchKey<&'this mut [Self::Element]>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = LwePrivateFunctionalPackingKeyswitchKeyList<&'this mut [Self::Element]>
+    type SelfMutView<'this>
+        = LwePrivateFunctionalPackingKeyswitchKeyList<&'this mut [Self::Element]>
     where
         Self: 'this;
 }

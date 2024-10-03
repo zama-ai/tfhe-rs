@@ -14,10 +14,10 @@ pub(crate) struct OneBased<T: ?Sized>(T);
 
 // TODO: these impl could be removed by adding support for `repr(transparent)` in tfhe-versionable
 impl<T: Versionize> Versionize for OneBased<T> {
-    type Versioned<'vers> = T::Versioned<'vers>
+    type Versioned<'vers>
+        = T::Versioned<'vers>
     where
-        T: 'vers,
-    ;
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.0.versionize()

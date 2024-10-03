@@ -136,13 +136,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = ();
 
-    type EntityView<'this> = PlaintextRef<'this, Self::Element>
+    type EntityView<'this>
+        = PlaintextRef<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = ();
 
-    type SelfView<'this> = PlaintextList<&'this [Self::Element]>
+    type SelfView<'this>
+        = PlaintextList<&'this [Self::Element]>
     where
         Self: 'this;
 
@@ -158,11 +160,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for PlaintextList<C>
 {
-    type EntityMutView<'this>= PlaintextRefMut<'this, Self::Element>
+    type EntityMutView<'this>
+        = PlaintextRefMut<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this>= PlaintextList<&'this mut [Self::Element]>
+    type SelfMutView<'this>
+        = PlaintextList<&'this mut [Self::Element]>
     where
         Self: 'this;
 }

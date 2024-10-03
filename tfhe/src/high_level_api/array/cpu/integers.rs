@@ -42,10 +42,12 @@ impl<T> ArrayBackend for CpuIntegerArrayBackend<T>
 where
     T: IntegerRadixCiphertext,
 {
-    type Slice<'a> = &'a [T]
+    type Slice<'a>
+        = &'a [T]
     where
         Self: 'a;
-    type SliceMut<'a> = &'a mut [T]
+    type SliceMut<'a>
+        = &'a mut [T]
     where
         Self: 'a;
     type Owned = Vec<T>;

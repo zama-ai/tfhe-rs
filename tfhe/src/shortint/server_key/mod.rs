@@ -243,7 +243,10 @@ impl<C: IntoContainerOwned<Element = concrete_fft::c64>>
 impl<C: Container<Element = concrete_fft::c64>> Versionize
     for SerializableShortintBootstrappingKey<C>
 {
-    type Versioned<'vers> = SerializableShortintBootstrappingKeyVersioned<'vers> where C: 'vers;
+    type Versioned<'vers>
+        = SerializableShortintBootstrappingKeyVersioned<'vers>
+    where
+        C: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()
