@@ -174,7 +174,10 @@ pub trait UnversionizeVec: VersionizeVec {
 pub trait NotVersioned: Versionize {}
 
 impl<T: NotVersioned + Serialize + DeserializeOwned + Clone> VersionizeSlice for T {
-    type VersionedSlice<'vers> = &'vers [T] where T: 'vers;
+    type VersionedSlice<'vers>
+        = &'vers [T]
+    where
+        T: 'vers;
 
     fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
         slice
@@ -246,7 +249,10 @@ impl_scalar_versionize!(f64);
 impl_scalar_versionize!(char);
 
 impl<T: Versionize> Versionize for Wrapping<T> {
-    type Versioned<'vers> = Wrapping<T::Versioned<'vers>> where T: 'vers;
+    type Versioned<'vers>
+        = Wrapping<T::Versioned<'vers>>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         Wrapping(self.0.versionize())
@@ -270,7 +276,10 @@ impl<T: Unversionize> Unversionize for Wrapping<T> {
 impl<T: NotVersioned> NotVersioned for Wrapping<T> {}
 
 impl<T: Versionize> Versionize for Box<T> {
-    type Versioned<'vers> = T::Versioned<'vers> where T: 'vers;
+    type Versioned<'vers>
+        = T::Versioned<'vers>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.as_ref().versionize()
@@ -292,7 +301,10 @@ impl<T: Unversionize> Unversionize for Box<T> {
 }
 
 impl<T: VersionizeSlice + Clone> Versionize for Box<[T]> {
-    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
+    type Versioned<'vers>
+        = T::VersionedSlice<'vers>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         T::versionize_slice(self)
@@ -324,7 +336,10 @@ impl<T: VersionizeVec + Clone> VersionizeVec for Box<[T]> {
 }
 
 impl<T: VersionizeSlice> VersionizeSlice for Box<[T]> {
-    type VersionedSlice<'vers> = Vec<T::VersionedSlice<'vers>> where T: 'vers;
+    type VersionedSlice<'vers>
+        = Vec<T::VersionedSlice<'vers>>
+    where
+        T: 'vers;
 
     fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
         slice
@@ -344,7 +359,10 @@ impl<T: UnversionizeVec + Clone> UnversionizeVec for Box<[T]> {
 }
 
 impl<T: VersionizeSlice> Versionize for Vec<T> {
-    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
+    type Versioned<'vers>
+        = T::VersionedSlice<'vers>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         T::versionize_slice(self)
@@ -376,7 +394,10 @@ impl<T: VersionizeVec> VersionizeVec for Vec<T> {
 }
 
 impl<T: VersionizeSlice> VersionizeSlice for Vec<T> {
-    type VersionedSlice<'vers> = Vec<T::VersionedSlice<'vers>> where T: 'vers;
+    type VersionedSlice<'vers>
+        = Vec<T::VersionedSlice<'vers>>
+    where
+        T: 'vers;
 
     fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
         slice
@@ -396,7 +417,10 @@ impl<T: UnversionizeVec> UnversionizeVec for Vec<T> {
 }
 
 impl<T: VersionizeSlice + Clone> Versionize for [T] {
-    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
+    type Versioned<'vers>
+        = T::VersionedSlice<'vers>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         T::versionize_slice(self)
@@ -422,7 +446,11 @@ impl<T: VersionizeVec + Clone> VersionizeVec for &[T] {
 }
 
 impl<'a, T: VersionizeSlice> VersionizeSlice for &'a [T] {
-    type VersionedSlice<'vers> = Vec<T::VersionedSlice<'vers>> where T: 'vers, 'a: 'vers;
+    type VersionedSlice<'vers>
+        = Vec<T::VersionedSlice<'vers>>
+    where
+        T: 'vers,
+        'a: 'vers;
 
     fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
         slice
@@ -435,7 +463,10 @@ impl<'a, T: VersionizeSlice> VersionizeSlice for &'a [T] {
 // Since serde doesn't support arbitrary length arrays with const generics, the array
 // is converted to a slice/vec.
 impl<const N: usize, T: VersionizeSlice> Versionize for [T; N] {
-    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
+    type Versioned<'vers>
+        = T::VersionedSlice<'vers>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         T::versionize_slice(self)
@@ -474,7 +505,10 @@ impl<const N: usize, T: VersionizeVec + Clone> VersionizeVec for [T; N] {
 }
 
 impl<const N: usize, T: VersionizeSlice> VersionizeSlice for [T; N] {
-    type VersionedSlice<'vers> = Vec<T::VersionedSlice<'vers>> where T: 'vers;
+    type VersionedSlice<'vers>
+        = Vec<T::VersionedSlice<'vers>>
+    where
+        T: 'vers;
 
     fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
         slice
@@ -533,7 +567,10 @@ impl VersionizeOwned for &str {
 impl NotVersioned for str {}
 
 impl<T: Versionize> Versionize for Option<T> {
-    type Versioned<'vers> = Option<T::Versioned<'vers>> where T: 'vers;
+    type Versioned<'vers>
+        = Option<T::Versioned<'vers>>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.as_ref().map(|val| val.versionize())
@@ -557,7 +594,8 @@ impl<T: Unversionize> Unversionize for Option<T> {
 impl<T: NotVersioned> NotVersioned for Option<T> {}
 
 impl<T> Versionize for PhantomData<T> {
-    type Versioned<'vers> = Self
+    type Versioned<'vers>
+        = Self
     where
         Self: 'vers;
 
@@ -583,7 +621,8 @@ impl<T> Unversionize for PhantomData<T> {
 impl<T> NotVersioned for PhantomData<T> {}
 
 impl<T: Versionize> Versionize for Arc<T> {
-    type Versioned<'vers> = T::Versioned<'vers>
+    type Versioned<'vers>
+        = T::Versioned<'vers>
     where
         T: 'vers;
 
@@ -609,7 +648,10 @@ impl<T: Unversionize + Clone> Unversionize for Arc<T> {
 impl<T: NotVersioned> NotVersioned for Arc<T> {}
 
 impl<T: Versionize> Versionize for Complex<T> {
-    type Versioned<'vers> = Complex<T::Versioned<'vers>> where T: 'vers;
+    type Versioned<'vers>
+        = Complex<T::Versioned<'vers>>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         Complex {
@@ -642,7 +684,10 @@ impl<T: Unversionize> Unversionize for Complex<T> {
 impl<T: NotVersioned> NotVersioned for Complex<T> {}
 
 impl<T: Versionize> Versionize for ABox<T> {
-    type Versioned<'vers> = T::Versioned<'vers> where T: 'vers;
+    type Versioned<'vers>
+        = T::Versioned<'vers>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.as_ref().versionize()
@@ -668,7 +713,10 @@ where
 }
 
 impl<T: VersionizeSlice + Clone> Versionize for ABox<[T]> {
-    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
+    type Versioned<'vers>
+        = T::VersionedSlice<'vers>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         T::versionize_slice(self)
@@ -692,7 +740,10 @@ impl<T: UnversionizeVec + Clone> Unversionize for ABox<[T]> {
 impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> NotVersioned for ABox<[T]> {}
 
 impl<T: VersionizeSlice> Versionize for AVec<T> {
-    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
+    type Versioned<'vers>
+        = T::VersionedSlice<'vers>
+    where
+        T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         T::versionize_slice(self)
@@ -738,7 +789,11 @@ impl NotVersioned for () {}
 
 // TODO: use a macro for more tuple sizes
 impl<T: Versionize, U: Versionize> Versionize for (T, U) {
-    type Versioned<'vers> = (T::Versioned<'vers>, U::Versioned<'vers>) where T: 'vers, U: 'vers;
+    type Versioned<'vers>
+        = (T::Versioned<'vers>, U::Versioned<'vers>)
+    where
+        T: 'vers,
+        U: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         (self.0.versionize(), self.1.versionize())
@@ -760,7 +815,11 @@ impl<T: Unversionize, U: Unversionize> Unversionize for (T, U) {
 }
 
 impl<T: Versionize, U: Versionize> VersionizeSlice for (T, U) {
-    type VersionedSlice<'vers> = Vec<(T::Versioned<'vers>, U::Versioned<'vers>)> where T: 'vers, U: 'vers;
+    type VersionedSlice<'vers>
+        = Vec<(T::Versioned<'vers>, U::Versioned<'vers>)>
+    where
+        T: 'vers,
+        U: 'vers;
 
     fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
         slice
@@ -790,7 +849,16 @@ impl<T: Unversionize, U: Unversionize> UnversionizeVec for (T, U) {
 }
 
 impl<T: Versionize, U: Versionize, V: Versionize> Versionize for (T, U, V) {
-    type Versioned<'vers> = (T::Versioned<'vers>, U::Versioned<'vers>, V::Versioned<'vers>) where T: 'vers, U: 'vers, V: 'vers;
+    type Versioned<'vers>
+        = (
+        T::Versioned<'vers>,
+        U::Versioned<'vers>,
+        V::Versioned<'vers>,
+    )
+    where
+        T: 'vers,
+        U: 'vers,
+        V: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         (
@@ -824,7 +892,16 @@ impl<T: Unversionize, U: Unversionize, V: Unversionize> Unversionize for (T, U, 
 }
 
 impl<T: Versionize, U: Versionize, V: Versionize> VersionizeSlice for (T, U, V) {
-    type VersionedSlice<'vers> = Vec<(T::Versioned<'vers>, U::Versioned<'vers>, V::Versioned<'vers>)> where T: 'vers, U: 'vers, V: 'vers;
+    type VersionedSlice<'vers>
+        = Vec<(
+        T::Versioned<'vers>,
+        U::Versioned<'vers>,
+        V::Versioned<'vers>,
+    )>
+    where
+        T: 'vers,
+        U: 'vers,
+        V: 'vers;
 
     fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
         slice
@@ -868,7 +945,8 @@ impl<T: Unversionize, U: Unversionize, V: Unversionize> UnversionizeVec for (T, 
 // converts to `Vec<T::Versioned>` for the versioned type, so we don't have to derive
 // Eq/Hash on it.
 impl<T: Versionize> Versionize for HashSet<T> {
-    type Versioned<'vers> = Vec<T::Versioned<'vers>>
+    type Versioned<'vers>
+        = Vec<T::Versioned<'vers>>
     where
         T: 'vers;
 
@@ -897,7 +975,11 @@ impl<T: Unversionize + std::hash::Hash + Eq> Unversionize for HashSet<T> {
 // converts to `Vec<(K::Versioned, V::Versioned)>` for the versioned type, so we don't have to
 // derive Eq/Hash on it.
 impl<K: Versionize, V: Versionize> Versionize for HashMap<K, V> {
-    type Versioned<'vers> = Vec<(K::Versioned<'vers>, V::Versioned<'vers>)> where K: 'vers, V: 'vers;
+    type Versioned<'vers>
+        = Vec<(K::Versioned<'vers>, V::Versioned<'vers>)>
+    where
+        K: 'vers,
+        V: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.iter()

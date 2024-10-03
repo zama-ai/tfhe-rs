@@ -406,7 +406,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = SeededGlweCiphertextListCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = SeededGlweCiphertextListView<'this, Self::Element>
+    type EntityView<'this>
+        = SeededGlweCiphertextListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -414,7 +415,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     // At the moment it does not make sense to return "sub" keyswitch keys. So we use a dummy
     // placeholder type here.
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 
@@ -446,13 +448,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for SeededLwePackingKeyswitchKey<C>
 {
-    type EntityMutView<'this> = SeededGlweCiphertextListMutView<'this, Self::Element>
+    type EntityMutView<'this>
+        = SeededGlweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
 
     // At the moment it does not make sense to return "sub" keyswitch keys. So we use a dummy
     // placeholder type here.
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this>
+        = DummyCreateFrom
     where
         Self: 'this;
 }

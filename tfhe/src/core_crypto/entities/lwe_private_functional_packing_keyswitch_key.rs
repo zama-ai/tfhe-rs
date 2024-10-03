@@ -437,13 +437,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = GlweCiphertextListCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = GlweCiphertextListView<'this, Self::Element>
+    type EntityView<'this>
+        = GlweCiphertextListView<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata<Self::Element>;
 
-    type SelfView<'this> = LwePrivateFunctionalPackingKeyswitchKeyView<'this, Self::Element>
+    type SelfView<'this>
+        = LwePrivateFunctionalPackingKeyswitchKeyView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -473,11 +475,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for LwePrivateFunctionalPackingKeyswitchKey<C>
 {
-    type EntityMutView<'this> = GlweCiphertextListMutView<'this, Self::Element>
+    type EntityMutView<'this>
+        = GlweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = LwePrivateFunctionalPackingKeyswitchKeyMutView<'this, Self::Element>
+    type SelfMutView<'this>
+        = LwePrivateFunctionalPackingKeyswitchKeyMutView<'this, Self::Element>
     where
         Self: 'this;
 }

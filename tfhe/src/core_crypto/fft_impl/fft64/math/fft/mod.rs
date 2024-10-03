@@ -590,7 +590,10 @@ impl<C: ContainerMut<Element = c64>> FourierPolynomialList<C> {
 }
 
 impl<C: Container<Element = c64>> Versionize for FourierPolynomialList<C> {
-    type Versioned<'vers> = FourierPolynomialListVersioned<'vers> where C: 'vers;
+    type Versioned<'vers>
+        = FourierPolynomialListVersioned<'vers>
+    where
+        C: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()

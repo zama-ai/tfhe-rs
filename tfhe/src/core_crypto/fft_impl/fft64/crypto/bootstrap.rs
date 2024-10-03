@@ -105,7 +105,10 @@ impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierLweBootstrapKeyVersion
 }
 
 impl<C: Container<Element = c64>> Versionize for FourierLweBootstrapKey<C> {
-    type Versioned<'vers> = FourierLweBootstrapKeyVersioned<'vers> where C: 'vers;
+    type Versioned<'vers>
+        = FourierLweBootstrapKeyVersioned<'vers>
+    where
+        C: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()

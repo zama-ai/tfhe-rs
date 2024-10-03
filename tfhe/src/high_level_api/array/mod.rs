@@ -199,7 +199,8 @@ where
     Id: Default,
     C: BackendDataContainer,
 {
-    type Slice<'a>  = FheArrayBase<<C::Backend as ArrayBackend>::Slice<'a>, Id>
+    type Slice<'a>
+        = FheArrayBase<<C::Backend as ArrayBackend>::Slice<'a>, Id>
     where
         Self: 'a;
 
@@ -217,7 +218,8 @@ where
     Id: Default,
     C: BackendDataContainerMut,
 {
-    type SliceMut<'a> = FheArrayBase<<C::Backend as ArrayBackend>::SliceMut<'a>, Id>
+    type SliceMut<'a>
+        = FheArrayBase<<C::Backend as ArrayBackend>::SliceMut<'a>, Id>
     where
         Self: 'a;
 

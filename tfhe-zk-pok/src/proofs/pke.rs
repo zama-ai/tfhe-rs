@@ -55,10 +55,12 @@ where
     SerializablePKEv1PublicParamsVersions: VersionsDispatch<SerializablePKEv1PublicParams>,
     GroupElements<G>: Into<SerializableGroupElements>,
 {
-    type Versioned<'vers> =
-        <SerializablePKEv1PublicParamsVersions as VersionsDispatch<
-            SerializablePKEv1PublicParams,
-            >>::Owned where G:'vers;
+    type Versioned<'vers>
+        = <SerializablePKEv1PublicParamsVersions as VersionsDispatch<
+        SerializablePKEv1PublicParams,
+    >>::Owned
+    where
+        G: 'vers;
     fn versionize(&self) -> Self::Versioned<'_> {
         VersionizeOwned::versionize_owned(SerializablePKEv1PublicParams::from(self.to_owned()))
     }

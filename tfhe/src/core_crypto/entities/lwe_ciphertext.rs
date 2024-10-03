@@ -178,13 +178,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = LweBodyCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = LweBodyRef<'this, Self::Element>
+    type EntityView<'this>
+        = LweBodyRef<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = LweBodyListCreationMetadata<Self::Element>;
 
-    type SelfView<'this> = LweBodyListView<'this,Self::Element>
+    type SelfView<'this>
+        = LweBodyListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -208,11 +210,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for LweBodyList<C>
 {
-    type EntityMutView<'this> = LweBodyRefMut<'this, Self::Element>
+    type EntityMutView<'this>
+        = LweBodyRefMut<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = LweBodyListMutView<'this, Self::Element>
+    type SelfMutView<'this>
+        = LweBodyListMutView<'this, Self::Element>
     where
         Self: 'this;
 }
@@ -429,13 +433,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = LweMaskCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = LweMask<&'this [Self::Element]>
+    type EntityView<'this>
+        = LweMask<&'this [Self::Element]>
     where
         Self: 'this;
 
     type SelfViewMetadata = LweMaskListCreationMetadata<Self::Element>;
 
-    type SelfView<'this> = LweMaskListView<'this, Self::Element>
+    type SelfView<'this>
+        = LweMaskListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -460,11 +466,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for LweMaskList<C>
 {
-    type EntityMutView<'this> = LweMask<&'this mut [Self::Element]>
+    type EntityMutView<'this>
+        = LweMask<&'this mut [Self::Element]>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = LweMaskListMutView<'this,Self::Element>
+    type SelfMutView<'this>
+        = LweMaskListMutView<'this, Self::Element>
     where
         Self: 'this;
 }

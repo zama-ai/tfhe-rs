@@ -228,7 +228,8 @@ impl<'de> serde::de::Visitor<'de> for SmallVecVisitor {
 }
 
 impl Versionize for SmallVec {
-    type Versioned<'vers> = &'vers [u8]
+    type Versioned<'vers>
+        = &'vers [u8]
     where
         Self: 'vers;
 

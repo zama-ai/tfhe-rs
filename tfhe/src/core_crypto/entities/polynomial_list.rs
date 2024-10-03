@@ -160,13 +160,15 @@ impl<C: Container> ContiguousEntityContainer for PolynomialList<C> {
 
     type EntityViewMetadata = PolynomialCreationMetadata;
 
-    type EntityView<'this> = PolynomialView<'this, Self::Element>
+    type EntityView<'this>
+        = PolynomialView<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = PolynomialListCreationMetadata;
 
-    type SelfView<'this> = PolynomialListView<'this, Self::Element>
+    type SelfView<'this>
+        = PolynomialListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -186,11 +188,13 @@ impl<C: Container> ContiguousEntityContainer for PolynomialList<C> {
 }
 
 impl<C: ContainerMut> ContiguousEntityContainerMut for PolynomialList<C> {
-    type EntityMutView<'this> = PolynomialMutView<'this, Self::Element>
+    type EntityMutView<'this>
+        = PolynomialMutView<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = PolynomialListMutView<'this, Self::Element>
+    type SelfMutView<'this>
+        = PolynomialListMutView<'this, Self::Element>
     where
         Self: 'this;
 }

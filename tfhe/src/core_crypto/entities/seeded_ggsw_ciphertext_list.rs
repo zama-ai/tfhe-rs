@@ -414,13 +414,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = SeededGgswCiphertextCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = SeededGgswCiphertextView<'this, Self::Element>
+    type EntityView<'this>
+        = SeededGgswCiphertextView<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = SeededGgswCiphertextListCreationMetadata<Self::Element>;
 
-    type SelfView<'this> = SeededGgswCiphertextListView<'this, Self::Element>
+    type SelfView<'this>
+        = SeededGgswCiphertextListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -459,11 +461,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for SeededGgswCiphertextList<C>
 {
-    type EntityMutView<'this> = SeededGgswCiphertextMutView<'this, Self::Element>
+    type EntityMutView<'this>
+        = SeededGgswCiphertextMutView<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = SeededGgswCiphertextListMutView<'this, Self::Element>
+    type SelfMutView<'this>
+        = SeededGgswCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
 }

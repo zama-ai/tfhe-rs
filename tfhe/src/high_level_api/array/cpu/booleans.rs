@@ -25,8 +25,14 @@ pub type CpuFheBoolSliceMut<'a> =
     super::super::FheBackendArraySliceMut<'a, CpuFheBoolArrayBackend, FheBoolId>;
 
 impl ArrayBackend for CpuFheBoolArrayBackend {
-    type Slice<'a> = &'a [BooleanBlock] where Self: 'a;
-    type SliceMut<'a> = &'a mut [BooleanBlock] where Self: 'a;
+    type Slice<'a>
+        = &'a [BooleanBlock]
+    where
+        Self: 'a;
+    type SliceMut<'a>
+        = &'a mut [BooleanBlock]
+    where
+        Self: 'a;
     type Owned = Vec<BooleanBlock>;
 }
 

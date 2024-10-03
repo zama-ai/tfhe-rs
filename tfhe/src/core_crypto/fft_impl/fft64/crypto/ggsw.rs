@@ -96,7 +96,10 @@ impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierGgswCiphertextVersionO
 }
 
 impl<C: Container<Element = c64>> Versionize for FourierGgswCiphertext<C> {
-    type Versioned<'vers> = FourierGgswCiphertextVersioned<'vers> where C: 'vers;
+    type Versioned<'vers>
+        = FourierGgswCiphertextVersioned<'vers>
+    where
+        C: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()

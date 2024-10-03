@@ -22,8 +22,14 @@ pub type FheBoolSliceMut<'a> = FheBackendArraySliceMut<'a, DynFheBoolArrayBacken
 pub struct DynFheBoolArrayBackend;
 
 impl ArrayBackend for DynFheBoolArrayBackend {
-    type Slice<'a> = InnerBoolSlice<'a> where Self: 'a;
-    type SliceMut<'a> = InnerBoolSliceMut<'a> where Self: 'a;
+    type Slice<'a>
+        = InnerBoolSlice<'a>
+    where
+        Self: 'a;
+    type SliceMut<'a>
+        = InnerBoolSliceMut<'a>
+    where
+        Self: 'a;
     type Owned = InnerBoolArray;
 }
 

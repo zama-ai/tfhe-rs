@@ -40,7 +40,8 @@ struct MyStructVersionOwned<T: Default + VersionizeOwned> {
 }
 
 impl<T: Default + Versionize + Serialize + DeserializeOwned> Versionize for MyStruct<T> {
-    type Versioned<'vers> = MyStructVersionsDispatch<'vers, T>
+    type Versioned<'vers>
+        = MyStructVersionsDispatch<'vers, T>
     where
         Self: 'vers;
 

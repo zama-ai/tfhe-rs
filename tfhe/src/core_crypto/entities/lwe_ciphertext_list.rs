@@ -315,13 +315,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = LweCiphertextCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = LweCiphertextView<'this, Self::Element>
+    type EntityView<'this>
+        = LweCiphertextView<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = LweCiphertextListCreationMetadata<Self::Element>;
 
-    type SelfView<'this> = LweCiphertextListView<'this, Self::Element>
+    type SelfView<'this>
+        = LweCiphertextListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -346,11 +348,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for LweCiphertextList<C>
 {
-    type EntityMutView<'this> = LweCiphertextMutView<'this, Self::Element>
+    type EntityMutView<'this>
+        = LweCiphertextMutView<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = LweCiphertextListMutView<'this, Self::Element>
+    type SelfMutView<'this>
+        = LweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
 }

@@ -14,7 +14,7 @@ fn make_digits(a: &impl BigInteger, w: usize, num_bits: usize) -> impl Iterator<
     } else {
         num_bits
     };
-    let digits_count = num_bits.div_ceil(w) ;
+    let digits_count = num_bits.div_ceil(w);
 
     (0..digits_count).map(move |i| {
         // Construct a buffer of bits of the scalar, starting at `bit_offset`.

@@ -155,8 +155,14 @@ pub type FheIntSliceMut<'a, Id> = FheBackendArraySliceMut<'a, DynIntBackend, Id>
 pub struct DynIntBackend;
 
 impl ArrayBackend for DynIntBackend {
-    type Slice<'a> = InnerIntSlice<'a> where Self: 'a;
-    type SliceMut<'a> = InnerIntSliceMut<'a> where Self: 'a;
+    type Slice<'a>
+        = InnerIntSlice<'a>
+    where
+        Self: 'a;
+    type SliceMut<'a>
+        = InnerIntSliceMut<'a>
+    where
+        Self: 'a;
     type Owned = InnerIntArray;
 }
 

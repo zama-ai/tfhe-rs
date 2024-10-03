@@ -46,8 +46,14 @@ impl<T> ArrayBackend for ClearArrayBackend<T>
 where
     T: Copy,
 {
-    type Slice<'a> = ClearContainer<&'a [T]> where Self: 'a;
-    type SliceMut<'a> = ClearContainer<&'a mut [T]> where Self: 'a;
+    type Slice<'a>
+        = ClearContainer<&'a [T]>
+    where
+        Self: 'a;
+    type SliceMut<'a>
+        = ClearContainer<&'a mut [T]>
+    where
+        Self: 'a;
     type Owned = ClearContainer<Vec<T>>;
 }
 
