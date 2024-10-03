@@ -85,8 +85,8 @@ impl CudaCompressedCiphertextList {
         decomp_key: &CudaDecompressionKey,
         streams: &CudaStreams,
     ) -> Option<(CudaRadixCiphertext, DataKind)> {
-        let preceding_infos = self.info.get(..index).unwrap();
-        let current_info = self.info.get(index).copied().unwrap();
+        let preceding_infos = self.info.get(..index)?;
+        let current_info = self.info.get(index).copied()?;
 
         let start_block_index: usize = preceding_infos
             .iter()
