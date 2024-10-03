@@ -23,7 +23,6 @@ pub struct CompactCiphertextList {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub expansion_kind: CompactCiphertextListExpansionKind,
-    pub noise_level: NoiseLevel,
 }
 
 impl ParameterSetConformant for CompactCiphertextList {
@@ -36,7 +35,6 @@ impl ParameterSetConformant for CompactCiphertextList {
             message_modulus,
             carry_modulus,
             expansion_kind,
-            noise_level,
         } = self;
 
         let CiphertextListConformanceParams {
@@ -44,7 +42,6 @@ impl ParameterSetConformant for CompactCiphertextList {
             message_modulus: param_message_modulus,
             carry_modulus: param_carry_modulus,
             degree: param_degree,
-            noise_level: param_noise_level,
             expansion_kind: param_expansion_kind,
         } = param;
 
@@ -53,7 +50,6 @@ impl ParameterSetConformant for CompactCiphertextList {
             && *carry_modulus == *param_carry_modulus
             && *expansion_kind == *param_expansion_kind
             && *degree == *param_degree
-            && *noise_level == *param_noise_level
     }
 }
 
@@ -138,7 +134,7 @@ impl CompactCiphertextList {
                             message_modulus: self.message_modulus,
                             carry_modulus: self.carry_modulus,
                             pbs_order,
-                            noise_level: self.noise_level,
+                            noise_level: NoiseLevel::UNKNOWN,
                         };
 
                         casting_key
@@ -161,7 +157,7 @@ impl CompactCiphertextList {
                             message_modulus: self.message_modulus,
                             carry_modulus: self.carry_modulus,
                             pbs_order,
-                            noise_level: self.noise_level,
+                            noise_level: NoiseLevel::NOMINAL,
                         }
                     })
                     .collect::<Vec<_>>();
@@ -180,7 +176,6 @@ impl CompactCiphertextList {
         MessageModulus,
         CarryModulus,
         CompactCiphertextListExpansionKind,
-        NoiseLevel,
     ) {
         let Self {
             ct_list,
@@ -188,7 +183,6 @@ impl CompactCiphertextList {
             message_modulus,
             carry_modulus,
             expansion_kind,
-            noise_level,
         } = self;
 
         (
@@ -197,7 +191,6 @@ impl CompactCiphertextList {
             message_modulus,
             carry_modulus,
             expansion_kind,
-            noise_level,
         )
     }
 
@@ -208,7 +201,6 @@ impl CompactCiphertextList {
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
         expansion_kind: CompactCiphertextListExpansionKind,
-        noise_level: NoiseLevel,
     ) -> Self {
         Self {
             ct_list,
@@ -216,7 +208,6 @@ impl CompactCiphertextList {
             message_modulus,
             carry_modulus,
             expansion_kind,
-            noise_level,
         }
     }
 

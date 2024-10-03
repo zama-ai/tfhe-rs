@@ -1,4 +1,4 @@
-use super::{Degree, NoiseLevel};
+use super::Degree;
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::core_crypto::prelude::LweCiphertextListParameters;
@@ -257,7 +257,6 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
                 message_modulus: *message_modulus,
                 carry_modulus: *carry_modulus,
                 degree: Degree::new(message_modulus.0 * message_modulus.0 - 1),
-                noise_level: NoiseLevel::NOMINAL,
                 expansion_kind: *expansion_kind,
             };
 

@@ -254,7 +254,6 @@ pub struct CiphertextListConformanceParams {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
-    pub noise_level: NoiseLevel,
     pub expansion_kind: CompactCiphertextListExpansionKind,
 }
 
@@ -273,7 +272,6 @@ impl CiphertextConformanceParams {
             carry_modulus: self.carry_modulus,
             degree: self.degree,
             expansion_kind: self.pbs_order.into(),
-            noise_level: self.noise_level,
         }
     }
 }
