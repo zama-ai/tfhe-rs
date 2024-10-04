@@ -7,7 +7,7 @@ use crate::shortint::backward_compatibility::ciphertext::CompressedCiphertextLis
 use crate::shortint::parameters::CompressedCiphertextConformanceParams;
 use crate::shortint::{CarryModulus, MessageModulus};
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedCiphertextListVersions)]
 pub struct CompressedCiphertextList {
     pub modulus_switched_glwe_ciphertext_list: Vec<CompressedModulusSwitchedGlweCiphertext<u64>>,

@@ -95,7 +95,7 @@ impl CompressedCiphertextListBuilder {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(CompressedCiphertextListVersions)]
 pub struct CompressedCiphertextList {
     pub(crate) packed_list: ShortintCompressedCiphertextList,
@@ -153,13 +153,22 @@ impl CompressedCiphertextList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::integer::ClientKey;
+    use crate::integer::{gen_keys, IntegerKeyKind};
     use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use itertools::Itertools;
+    use rand::Rng;
 
+    const NB_TESTS: usize = 10;
+    const NB_OPERATOR_TESTS: usize = 10;
     #[test]
-    fn test_heterogeneous_ciphertext_compression_ci_run_filter() {
-        let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    fn test_ciphertext_compression() {
+        const NUM_BLOCKS: usize = 32;
+
+        let (cks, sks) = gen_keys(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            IntegerKeyKind::Radix,
+        );
 
         let private_compression_key =
             cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
@@ -167,32 +176,170 @@ mod tests {
         let (compression_key, decompression_key) =
             cks.new_compression_decompression_keys(&private_compression_key);
 
-        let ct1 = cks.encrypt_radix(3_u32, 16);
+        const MAX_NB_MESSAGES: usize = 2 * COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+            .lwe_per_glwe
+            .0
+            / NUM_BLOCKS;
 
-        let ct2 = cks.encrypt_signed_radix(-2, 16);
+        let mut rng = rand::thread_rng();
 
-        let ct3 = cks.encrypt_bool(true);
+        let message_modulus: u128 = cks.parameters().message_modulus().0 as u128;
 
-        let compressed = CompressedCiphertextListBuilder::new()
-            .push(ct1)
-            .push(ct2)
-            .push(ct3)
-            .build(&compression_key);
+        for _ in 0..NB_TESTS {
+            // Unsigned
+            let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+            for _ in 0..NB_OPERATOR_TESTS {
+                let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                let messages = (0..nb_messages)
+                    .map(|_| rng.gen::<u128>() % modulus)
+                    .collect::<Vec<_>>();
 
-        let decompressed1 = compressed.get(0, &decompression_key).unwrap().unwrap();
+                let cts = messages
+                    .iter()
+                    .map(|message| cks.encrypt_radix(*message, NUM_BLOCKS))
+                    .collect_vec();
 
-        let decrypted: u32 = cks.decrypt_radix(&decompressed1);
+                let mut builder = CompressedCiphertextListBuilder::new();
 
-        assert_eq!(decrypted, 3_u32);
+                for ct in cts {
+                    let and_ct = sks.bitand_parallelized(&ct, &ct);
+                    builder.push(and_ct);
+                }
 
-        let decompressed2 = compressed.get(1, &decompression_key).unwrap().unwrap();
+                let compressed = builder.build(&compression_key);
 
-        let decrypted2: i32 = cks.decrypt_signed_radix(&decompressed2);
+                for (i, message) in messages.iter().enumerate() {
+                    let decompressed = compressed.get(i, &decompression_key).unwrap().unwrap();
+                    let decrypted: u128 = cks.decrypt_radix(&decompressed);
+                    assert_eq!(decrypted, *message);
+                }
+            }
 
-        assert_eq!(decrypted2, -2);
+            // Signed
+            let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
+            for _ in 0..NB_OPERATOR_TESTS {
+                let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                let messages = (0..nb_messages)
+                    .map(|_| rng.gen::<i128>() % modulus)
+                    .collect::<Vec<_>>();
 
-        let decompressed3 = compressed.get(2, &decompression_key).unwrap().unwrap();
+                let cts = messages
+                    .iter()
+                    .map(|message| cks.encrypt_signed_radix(*message, NUM_BLOCKS))
+                    .collect_vec();
 
-        assert!(cks.decrypt_bool(&decompressed3));
+                let mut builder = CompressedCiphertextListBuilder::new();
+
+                for ct in cts {
+                    let and_ct = sks.bitand_parallelized(&ct, &ct);
+                    builder.push(and_ct);
+                }
+
+                let compressed = builder.build(&compression_key);
+
+                for (i, message) in messages.iter().enumerate() {
+                    let decompressed = compressed.get(i, &decompression_key).unwrap().unwrap();
+                    let decrypted: i128 = cks.decrypt_signed_radix(&decompressed);
+                    assert_eq!(decrypted, *message);
+                }
+            }
+
+            // Boolean
+            for _ in 0..NB_OPERATOR_TESTS {
+                let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                let messages = (0..nb_messages)
+                    .map(|_| rng.gen::<i64>() % 2 != 0)
+                    .collect::<Vec<_>>();
+
+                let cts = messages
+                    .iter()
+                    .map(|message| cks.encrypt_bool(*message))
+                    .collect_vec();
+
+                let mut builder = CompressedCiphertextListBuilder::new();
+
+                for ct in cts {
+                    let and_ct = sks.boolean_bitand(&ct, &ct);
+                    builder.push(and_ct);
+                }
+
+                let compressed = builder.build(&compression_key);
+
+                for (i, message) in messages.iter().enumerate() {
+                    let decompressed = compressed.get(i, &decompression_key).unwrap().unwrap();
+                    let decrypted = cks.decrypt_bool(&decompressed);
+                    assert_eq!(decrypted, *message);
+                }
+            }
+
+            // Hybrid
+            enum MessageType {
+                Unsigned(u128),
+                Signed(i128),
+                Boolean(bool),
+            }
+            for _ in 0..NB_OPERATOR_TESTS {
+                let mut builder = CompressedCiphertextListBuilder::new();
+
+                let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                let mut messages = vec![];
+                for _ in 0..nb_messages {
+                    let case_selector = rng.gen_range(0..3);
+                    match case_selector {
+                        0 => {
+                            // Unsigned
+                            let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+                            let message = rng.gen::<u128>() % modulus;
+                            let ct = cks.encrypt_radix(message, NUM_BLOCKS);
+                            let and_ct = sks.bitand_parallelized(&ct, &ct);
+                            builder.push(and_ct);
+                            messages.push(MessageType::Unsigned(message));
+                        }
+                        1 => {
+                            // Signed
+                            let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
+                            let message = rng.gen::<i128>() % modulus;
+                            let ct = cks.encrypt_signed_radix(message, NUM_BLOCKS);
+                            let and_ct = sks.bitand_parallelized(&ct, &ct);
+                            builder.push(and_ct);
+                            messages.push(MessageType::Signed(message));
+                        }
+                        _ => {
+                            // Boolean
+                            let message = rng.gen::<i64>() % 2 != 0;
+                            let ct = cks.encrypt_bool(message);
+                            let and_ct = sks.boolean_bitand(&ct, &ct);
+                            builder.push(and_ct);
+                            messages.push(MessageType::Boolean(message));
+                        }
+                    }
+                }
+
+                let compressed = builder.build(&compression_key);
+
+                for (i, val) in messages.iter().enumerate() {
+                    match val {
+                        MessageType::Unsigned(message) => {
+                            let decompressed =
+                                compressed.get(i, &decompression_key).unwrap().unwrap();
+                            let decrypted: u128 = cks.decrypt_radix(&decompressed);
+                            assert_eq!(decrypted, *message);
+                        }
+                        MessageType::Signed(message) => {
+                            let decompressed =
+                                compressed.get(i, &decompression_key).unwrap().unwrap();
+                            let decrypted: i128 = cks.decrypt_signed_radix(&decompressed);
+                            assert_eq!(decrypted, *message);
+                        }
+                        MessageType::Boolean(message) => {
+                            let decompressed =
+                                compressed.get(i, &decompression_key).unwrap().unwrap();
+                            let decrypted = cks.decrypt_bool(&decompressed);
+                            assert_eq!(decrypted, *message);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
