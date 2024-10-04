@@ -183,7 +183,7 @@ impl ServerKey {
     ) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
         let msg_mod = self.message_modulus.0;
-        let mut z = (ct_right.degree.get() + msg_mod - 1) / msg_mod;
+        let mut z = ct_right.degree.get().div_ceil(msg_mod);
         z = z.wrapping_mul(msg_mod);
 
         let final_operation_count = ct_left.degree.get() + z;

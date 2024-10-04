@@ -2701,7 +2701,7 @@ where
         let first_block_msg = first_block % block_msg_mod;
         let first_block_carry = first_block / block_msg_mod;
         assert_eq!(first_block_msg, (block_msg_mod - 1 + msg) % block_msg_mod);
-        assert_eq!(first_block_carry, (block_msg_mod - 1 + msg) / block_msg_mod);
+        assert_eq!(first_block_carry, msg.div_ceil(block_msg_mod));
         for b in &ct.blocks[1..] {
             let block = shortint_cks.decrypt_message_and_carry(b);
             let msg = block % block_msg_mod;

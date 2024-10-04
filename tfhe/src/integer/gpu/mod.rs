@@ -643,12 +643,6 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
 pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
