@@ -77,7 +77,7 @@ use crate::core_crypto::prelude::*;
 ///     );
 /// }
 /// ```
-#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedModulusSwitchedGlweCiphertextVersions)]
 pub struct CompressedModulusSwitchedGlweCiphertext<Scalar: UnsignedInteger> {
     pub(crate) packed_integers: PackedIntegers<Scalar>,

@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
 use crate::{
@@ -20,7 +21,7 @@ fn test_tag_propagation_cpu() {
             PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         )),
-        Some(COMP_PARAM_MESSAGE_2_CARRY_2),
+        Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),
     )
 }
 
@@ -139,9 +140,9 @@ fn test_tag_propagation_zk_pok() {
 fn test_tag_propagation_gpu() {
     test_tag_propagation(
         Device::CudaGpu,
-        PARAM_MESSAGE_2_CARRY_2,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         None,
-        Some(COMP_PARAM_MESSAGE_2_CARRY_2),
+        Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),
     )
 }
 

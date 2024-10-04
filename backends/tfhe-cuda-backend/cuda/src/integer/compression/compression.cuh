@@ -61,10 +61,6 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
   auto out_len = (number_bits_to_pack + nbits - 1) / nbits;
 
   // Last GLWE
-  auto last_body_count = num_lwes % compression_params.polynomial_size;
-  in_len =
-      compression_params.glwe_dimension * compression_params.polynomial_size +
-      last_body_count;
   number_bits_to_pack = in_len * log_modulus;
   auto last_out_len = (number_bits_to_pack + nbits - 1) / nbits;
 
@@ -75,10 +71,6 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
 
   dim3 grid(num_blocks);
   dim3 threads(num_threads);
-  cuda_memset_async(array_out, 0,
-                    num_glwes * (compression_params.glwe_dimension + 1) *
-                        compression_params.polynomial_size * sizeof(Torus),
-                    stream, gpu_index);
   pack<Torus><<<grid, threads, 0, stream>>>(array_out, array_in, log_modulus,
                                             num_coeffs, in_len, out_len);
   check_cuda_error(cudaGetLastError());
@@ -294,7 +286,7 @@ host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
                                 compression_params.glwe_dimension,
                                 compression_params.polynomial_size);
     d_indexes_array_chunk += num_lwes;
-    extracted_lwe += lwe_accumulator_size;
+    extracted_lwe += num_lwes * lwe_accumulator_size;
     current_idx = last_idx;
   }
 
