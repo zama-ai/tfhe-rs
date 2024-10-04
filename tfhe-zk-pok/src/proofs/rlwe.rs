@@ -81,9 +81,14 @@ pub struct Proof<G: Curve> {
     c_hat: G::G2,
     c_y: G::G1,
     pi: G::G1,
-    c_hat_t: Option<G::G2>,
-    c_h: Option<G::G1>,
-    pi_kzg: Option<G::G1>,
+    compute_load_proof_fields: Option<ComputeLoadProofFields<G>>,
+}
+
+#[derive(Clone, Debug)]
+struct ComputeLoadProofFields<G: Curve> {
+    c_hat_t: G::G2,
+    c_h: G::G1,
+    pi_kzg: G::G1,
 }
 
 pub fn crs_gen<G: Curve>(
@@ -594,18 +599,18 @@ pub fn prove<G: Curve>(
             c_hat,
             c_y,
             pi,
-            c_hat_t: Some(c_hat_t),
-            c_h: Some(c_h),
-            pi_kzg: Some(pi_kzg),
+            compute_load_proof_fields: Some(ComputeLoadProofFields {
+                c_hat_t,
+                c_h,
+                pi_kzg,
+            }),
         }
     } else {
         Proof {
             c_hat,
             c_y,
             pi,
-            c_hat_t: None,
-            c_h: None,
-            pi_kzg: None,
+            compute_load_proof_fields: None,
         }
     }
 }
@@ -619,10 +624,9 @@ pub fn verify<G: Curve>(
         c_hat,
         c_y,
         pi,
-        c_hat_t,
-        c_h,
-        pi_kzg,
+        ref compute_load_proof_fields,
     } = proof;
+
     let e = G::Gt::pairing;
 
     let &PublicParams {
@@ -785,7 +789,12 @@ pub fn verify<G: Curve>(
         }
     }
 
-    if let (Some(pi_kzg), Some(c_hat_t), Some(c_h)) = (pi_kzg, c_hat_t, c_h) {
+    if let Some(&ComputeLoadProofFields {
+        c_hat_t,
+        c_h,
+        pi_kzg,
+    }) = compute_load_proof_fields.as_ref()
+    {
         let mut z = G::Zp::ZERO;
         G::Zp::hash(
             core::array::from_mut(&mut z),

@@ -2,7 +2,8 @@
 #![allow(non_snake_case)]
 
 use super::*;
-use crate::backward_compatibility::{PKEv2CompressedProofVersions, PKEv2ProofVersions};
+use crate::backward_compatibility::pke_v2::{CompressedProofVersions, ProofVersions};
+use crate::curve_api::{CompressedG1, CompressedG2};
 use crate::four_squares::*;
 use crate::serialization::{
     try_vec_to_array, InvalidSerializedAffineError, InvalidSerializedPublicParamsError,
@@ -229,52 +230,69 @@ impl<G: Curve> PublicParams<G> {
     deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
     serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
 ))]
-#[versionize(PKEv2ProofVersions)]
+#[versionize(ProofVersions)]
 pub struct Proof<G: Curve> {
-    C_hat_e: G::G2,
-    C_e: G::G1,
-    C_r_tilde: G::G1,
-    C_R: G::G1,
-    C_hat_bin: G::G2,
-    C_y: G::G1,
-    C_h1: G::G1,
-    C_h2: G::G1,
-    C_hat_t: G::G2,
-    pi: G::G1,
-    pi_kzg: G::G1,
+    pub(crate) C_hat_e: G::G2,
+    pub(crate) C_e: G::G1,
+    pub(crate) C_r_tilde: G::G1,
+    pub(crate) C_R: G::G1,
+    pub(crate) C_hat_bin: G::G2,
+    pub(crate) C_y: G::G1,
+    pub(crate) C_h1: G::G1,
+    pub(crate) C_h2: G::G1,
+    pub(crate) C_hat_t: G::G2,
+    pub(crate) pi: G::G1,
+    pub(crate) pi_kzg: G::G1,
 
-    C_hat_h3: Option<G::G2>,
-    C_hat_w: Option<G::G2>,
+    pub(crate) compute_load_proof_fields: Option<ComputeLoadProofFields<G>>,
 }
 
-type CompressedG2<G> = <<G as Curve>::G2 as Compressible>::Compressed;
-type CompressedG1<G> = <<G as Curve>::G1 as Compressible>::Compressed;
+/// These fields can be pre-computed on the prover side in the faster Verifier scheme. If that's the
+/// case, they should be included in the proof.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct ComputeLoadProofFields<G: Curve> {
+    pub(crate) C_hat_h3: G::G2,
+    pub(crate) C_hat_w: G::G2,
+}
 
 #[derive(Serialize, Deserialize, Versionize)]
 #[serde(bound(
     deserialize = "G: Curve, CompressedG1<G>: serde::Deserialize<'de>, CompressedG2<G>: serde::Deserialize<'de>",
     serialize = "G: Curve, CompressedG1<G>: serde::Serialize, CompressedG2<G>: serde::Serialize"
 ))]
-#[versionize(PKEv2CompressedProofVersions)]
+#[versionize(CompressedProofVersions)]
 pub struct CompressedProof<G: Curve>
 where
     G::G1: Compressible,
     G::G2: Compressible,
 {
-    C_hat_e: CompressedG2<G>,
-    C_e: CompressedG1<G>,
-    C_r_tilde: CompressedG1<G>,
-    C_R: CompressedG1<G>,
-    C_hat_bin: CompressedG2<G>,
-    C_y: CompressedG1<G>,
-    C_h1: CompressedG1<G>,
-    C_h2: CompressedG1<G>,
-    C_hat_t: CompressedG2<G>,
-    pi: CompressedG1<G>,
-    pi_kzg: CompressedG1<G>,
+    pub(crate) C_hat_e: CompressedG2<G>,
+    pub(crate) C_e: CompressedG1<G>,
+    pub(crate) C_r_tilde: CompressedG1<G>,
+    pub(crate) C_R: CompressedG1<G>,
+    pub(crate) C_hat_bin: CompressedG2<G>,
+    pub(crate) C_y: CompressedG1<G>,
+    pub(crate) C_h1: CompressedG1<G>,
+    pub(crate) C_h2: CompressedG1<G>,
+    pub(crate) C_hat_t: CompressedG2<G>,
+    pub(crate) pi: CompressedG1<G>,
+    pub(crate) pi_kzg: CompressedG1<G>,
 
-    C_hat_h3: Option<CompressedG2<G>>,
-    C_hat_w: Option<CompressedG2<G>>,
+    pub(crate) compute_load_proof_fields: Option<CompressedComputeLoadProofFields<G>>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    deserialize = "G: Curve, CompressedG1<G>: serde::Deserialize<'de>, CompressedG2<G>: serde::Deserialize<'de>",
+    serialize = "G: Curve, CompressedG1<G>: serde::Serialize, CompressedG2<G>: serde::Serialize"
+))]
+pub(crate) struct CompressedComputeLoadProofFields<G: Curve>
+where
+    G::G1: Compressible,
+    G::G2: Compressible,
+{
+    pub(crate) C_hat_h3: CompressedG2<G>,
+    pub(crate) C_hat_w: CompressedG2<G>,
 }
 
 impl<G: Curve> Compressible for Proof<G>
@@ -299,8 +317,7 @@ where
             C_hat_t,
             pi,
             pi_kzg,
-            C_hat_h3,
-            C_hat_w,
+            compute_load_proof_fields,
         } = self;
 
         CompressedProof {
@@ -315,8 +332,13 @@ where
             C_hat_t: C_hat_t.compress(),
             pi: pi.compress(),
             pi_kzg: pi_kzg.compress(),
-            C_hat_h3: C_hat_h3.map(|val| val.compress()),
-            C_hat_w: C_hat_w.map(|val| val.compress()),
+
+            compute_load_proof_fields: compute_load_proof_fields.as_ref().map(
+                |ComputeLoadProofFields { C_hat_h3, C_hat_w }| CompressedComputeLoadProofFields {
+                    C_hat_h3: C_hat_h3.compress(),
+                    C_hat_w: C_hat_w.compress(),
+                },
+            ),
         }
     }
 
@@ -333,8 +355,7 @@ where
             C_hat_t,
             pi,
             pi_kzg,
-            C_hat_h3,
-            C_hat_w,
+            compute_load_proof_fields,
         } = compressed;
 
         Ok(Proof {
@@ -349,8 +370,19 @@ where
             C_hat_t: G::G2::uncompress(C_hat_t)?,
             pi: G::G1::uncompress(pi)?,
             pi_kzg: G::G1::uncompress(pi_kzg)?,
-            C_hat_h3: C_hat_h3.map(G::G2::uncompress).transpose()?,
-            C_hat_w: C_hat_w.map(G::G2::uncompress).transpose()?,
+
+            compute_load_proof_fields: if let Some(CompressedComputeLoadProofFields {
+                C_hat_h3,
+                C_hat_w,
+            }) = compute_load_proof_fields
+            {
+                Some(ComputeLoadProofFields {
+                    C_hat_h3: G::G2::uncompress(C_hat_h3)?,
+                    C_hat_w: G::G2::uncompress(C_hat_w)?,
+                })
+            } else {
+                None
+            },
         })
     }
 }
@@ -1383,42 +1415,50 @@ pub fn prove<G: Curve>(
         .collect::<Box<[_]>>();
     scalars.reverse();
     let C_h2 = G::G1::multi_mul_scalar(&g_list[..n], &scalars);
-    let (C_hat_h3, C_hat_w) = match load {
-        ComputeLoad::Proof => rayon::join(
-            || {
-                Some(G::G2::multi_mul_scalar(
-                    &g_hat_list[n - (d + k)..n],
-                    &(0..d + k)
-                        .rev()
-                        .map(|j| {
-                            let mut acc = G::Zp::ZERO;
-                            for (i, &phi) in phi.iter().enumerate() {
-                                match R(i, d + k + 4 + j) {
-                                    0 => {}
-                                    1 => acc += phi,
-                                    -1 => acc -= phi,
-                                    _ => unreachable!(),
+    let compute_load_proof_fields = match load {
+        ComputeLoad::Proof => {
+            let (C_hat_h3, C_hat_w) = rayon::join(
+                || {
+                    G::G2::multi_mul_scalar(
+                        &g_hat_list[n - (d + k)..n],
+                        &(0..d + k)
+                            .rev()
+                            .map(|j| {
+                                let mut acc = G::Zp::ZERO;
+                                for (i, &phi) in phi.iter().enumerate() {
+                                    match R(i, d + k + 4 + j) {
+                                        0 => {}
+                                        1 => acc += phi,
+                                        -1 => acc -= phi,
+                                        _ => unreachable!(),
+                                    }
                                 }
-                            }
-                            delta_r * acc - delta_theta_q * theta[j]
-                        })
-                        .collect::<Box<[_]>>(),
-                ))
-            },
-            || {
-                Some(G::G2::multi_mul_scalar(
-                    &g_hat_list[..d + k + 4],
-                    &w[..d + k + 4],
-                ))
-            },
-        ),
-        ComputeLoad::Verify => (None, None),
+                                delta_r * acc - delta_theta_q * theta[j]
+                            })
+                            .collect::<Box<[_]>>(),
+                    )
+                },
+                || G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &w[..d + k + 4]),
+            );
+
+            Some(ComputeLoadProofFields { C_hat_h3, C_hat_w })
+        }
+        ComputeLoad::Verify => None,
     };
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_le_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_le_bytes);
-    let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
-    let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
+    let byte_generators =
+        if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) = compute_load_proof_fields {
+            Some((G::G2::to_le_bytes(C_hat_h3), G::G2::to_le_bytes(C_hat_w)))
+        } else {
+            None
+        };
+
+    let (C_hat_h3_bytes, C_hat_w_bytes): (&[u8], &[u8]) =
+        if let Some((C_hat_h3_bytes_owner, C_hat_w_bytes_owner)) = byte_generators.as_ref() {
+            (C_hat_h3_bytes_owner.as_ref(), C_hat_w_bytes_owner.as_ref())
+        } else {
+            (&[], &[])
+        };
 
     let C_hat_t = G::G2::multi_mul_scalar(g_hat_list, &t);
 
@@ -1622,10 +1662,9 @@ pub fn prove<G: Curve>(
         C_h1,
         C_h2,
         C_hat_t,
-        C_hat_h3,
-        C_hat_w,
         pi,
         pi_kzg,
+        compute_load_proof_fields,
     }
 }
 
@@ -1747,11 +1786,11 @@ pub fn verify<G: Curve>(
         C_h1,
         C_h2,
         C_hat_t,
-        C_hat_h3,
-        C_hat_w,
         pi,
         pi_kzg,
+        ref compute_load_proof_fields,
     } = proof;
+
     let pairing = G::Gt::pairing;
 
     let &PublicParams {
@@ -1803,10 +1842,20 @@ pub fn verify<G: Curve>(
         return Err(());
     }
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_le_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_le_bytes);
-    let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
-    let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
+    let byte_generators = if let Some(&ComputeLoadProofFields { C_hat_h3, C_hat_w }) =
+        compute_load_proof_fields.as_ref()
+    {
+        Some((G::G2::to_le_bytes(C_hat_h3), G::G2::to_le_bytes(C_hat_w)))
+    } else {
+        None
+    };
+
+    let (C_hat_h3_bytes, C_hat_w_bytes): (&[u8], &[u8]) =
+        if let Some((C_hat_h3_bytes_owner, C_hat_w_bytes_owner)) = byte_generators.as_ref() {
+            (C_hat_h3_bytes_owner.as_ref(), C_hat_w_bytes_owner.as_ref())
+        } else {
+            (&[], &[])
+        };
 
     let x_bytes = &*[
         q.to_le_bytes().as_slice(),
@@ -2059,8 +2108,11 @@ pub fn verify<G: Curve>(
 
         let lhs2 = pairing(
             C_r_tilde,
-            match C_hat_h3 {
-                Some(C_hat_h3) => C_hat_h3,
+            match compute_load_proof_fields.as_ref() {
+                Some(&ComputeLoadProofFields {
+                    C_hat_h3,
+                    C_hat_w: _,
+                }) => C_hat_h3,
                 None => G::G2::multi_mul_scalar(
                     &g_hat_list[n - (d + k)..n],
                     &(0..d + k)
@@ -2093,8 +2145,11 @@ pub fn verify<G: Curve>(
         );
         let lhs4 = pairing(
             C_e.mul_scalar(delta_e),
-            match C_hat_w {
-                Some(C_hat_w) => C_hat_w,
+            match compute_load_proof_fields.as_ref() {
+                Some(&ComputeLoadProofFields {
+                    C_hat_h3: _,
+                    C_hat_w,
+                }) => C_hat_w,
                 None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &w[..d + k + 4]),
             },
         );
@@ -2140,7 +2195,7 @@ pub fn verify<G: Curve>(
         ],
     );
 
-    let load = if C_hat_h3.is_some() && C_hat_w.is_some() {
+    let load = if compute_load_proof_fields.is_some() {
         ComputeLoad::Proof
     } else {
         ComputeLoad::Verify
@@ -2293,10 +2348,8 @@ pub fn verify<G: Curve>(
         g,
         {
             let mut C_hat = C_hat_t.mul_scalar(chi2);
-            if let Some(C_hat_h3) = C_hat_h3 {
+            if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) = compute_load_proof_fields {
                 C_hat += C_hat_h3.mul_scalar(chi3);
-            }
-            if let Some(C_hat_w) = C_hat_w {
                 C_hat += C_hat_w.mul_scalar(chi4);
             }
             C_hat
@@ -2573,7 +2626,7 @@ mod tests {
                 rng,
             );
 
-            let compressed_proof = bincode::serialize(&proof.clone().compress()).unwrap();
+            let compressed_proof = bincode::serialize(&proof.compress()).unwrap();
             let proof =
                 Proof::uncompress(bincode::deserialize(&compressed_proof).unwrap()).unwrap();
 
