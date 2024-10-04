@@ -57,7 +57,15 @@ impl CompressionKey {
                 let mut list: Vec<_> = vec![];
 
                 for ct in ct_list {
-                    assert!(ct.carry_is_empty());
+                    assert!(
+                        ct.noise_level() == NoiseLevel::NOMINAL,
+                        "Ciphertexts must have a nominal (post PBS) noise to be compressed"
+                    );
+
+                    assert!(
+                        ct.carry_is_empty(),
+                        "Ciphertexts must have empty carries to be compressed"
+                    );
 
                     assert_eq!(
                         lwe_size,
