@@ -78,6 +78,10 @@ jobs:
     needs: setup-instance
     if: needs.setup-instance.result != 'skipped'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        browser: [ chrome, firefox ]
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938
@@ -106,12 +110,12 @@ jobs:
       - name: Install web resources
         run: |
           make install_node
-          make install_chrome_browser
-          make install_chrome_web_driver
+          make install_${{ matrix.browser }}_browser
+          make install_${{ matrix.browser }}_driver
 
       - name: Run benchmarks
         run: |
-          make bench_web_js_api_parallel_chrome_ci
+          make bench_web_js_api_parallel_${{ matrix.browser }}_ci
 
       - name: Parse results
         run: |
@@ -124,12 +128,16 @@ jobs:
           --commit-date "${{ env.COMMIT_DATE }}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --key-gen
+          rm tfhe/wasm_pk_gen.csv
 
+      # Run these benchmarks only once
       - name: Measure public key and ciphertext sizes in HL Api
+        if:  matrix.browser == 'chrome'
         run: |
           make measure_hlapi_compact_pk_ct_sizes
 
       - name: Parse key and ciphertext sizes results
+        if:  matrix.browser == 'chrome'
         run: |
           python3 ./ci/benchmark_parser.py tfhe/hlapi_cpk_and_cctl_sizes.csv ${{ env.RESULTS_FILENAME }} \
           --key-gen \
@@ -138,7 +146,7 @@ jobs:
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
         with:
-          name: ${{ github.sha }}_wasm
+          name: ${{ github.sha }}_wasm_${{ matrix.browser }}
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
@@ -160,7 +168,7 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "WASM benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "WASM benchmarks (${{ matrix.browser }}) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (wasm-client-benchmarks)
