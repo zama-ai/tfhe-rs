@@ -1,8 +1,12 @@
+pub mod pke;
+pub mod pke_v2;
+
+use std::error::Error;
+use std::fmt::Display;
+
 use tfhe_versionable::VersionsDispatch;
 
-use crate::curve_api::{Compressible, Curve};
-use crate::proofs::pke::{CompressedProof as PKEv1CompressedProof, Proof as PKEv1Proof};
-use crate::proofs::pke_v2::{CompressedProof as PKEv2CompressedProof, Proof as PKEv2Proof};
+use crate::curve_api::Curve;
 use crate::proofs::GroupElements;
 use crate::serialization::{
     SerializableAffine, SerializableCubicExtField, SerializableFp, SerializableFp2,
@@ -34,33 +38,20 @@ pub type SerializableG1AffineVersions = SerializableAffineVersions<SerializableF
 pub type SerializableG2AffineVersions = SerializableAffineVersions<SerializableFp2>;
 pub type SerializableFp12Versions = SerializableQuadExtFieldVersions<SerializableFp6>;
 
-#[derive(VersionsDispatch)]
-pub enum PKEv1ProofVersions<G: Curve> {
-    V0(PKEv1Proof<G>),
+/// The proof was missing some elements
+#[derive(Debug)]
+pub struct IncompleteProof;
+
+impl Display for IncompleteProof {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "incomplete serialized ZK proof, missing some pre-computed elements"
+        )
+    }
 }
 
-#[derive(VersionsDispatch)]
-pub enum PKEv2ProofVersions<G: Curve> {
-    V0(PKEv2Proof<G>),
-}
-
-#[derive(VersionsDispatch)]
-pub enum PKEv1CompressedProofVersions<G: Curve>
-where
-    G::G1: Compressible,
-    G::G2: Compressible,
-{
-    V0(PKEv1CompressedProof<G>),
-}
-
-#[derive(VersionsDispatch)]
-pub enum PKEv2CompressedProofVersions<G: Curve>
-where
-    G::G1: Compressible,
-    G::G2: Compressible,
-{
-    V0(PKEv2CompressedProof<G>),
-}
+impl Error for IncompleteProof {}
 
 #[derive(VersionsDispatch)]
 #[allow(dead_code)]
