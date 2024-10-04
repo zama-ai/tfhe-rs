@@ -7,8 +7,10 @@
 
 mod associated;
 mod dispatch_type;
+mod transparent;
 mod version_type;
 mod versionize_attribute;
+mod versionize_impl;
 
 use dispatch_type::DispatchType;
 use proc_macro::TokenStream;
@@ -51,6 +53,7 @@ pub(crate) const SEND_TRAIT_NAME: &str = "::core::marker::Send";
 pub(crate) const STATIC_LIFETIME_NAME: &str = "'static";
 
 use associated::AssociatingTrait;
+use versionize_impl::VersionizeImplementor;
 
 use crate::version_type::VersionType;
 use crate::versionize_attribute::VersionizeAttribute;
@@ -131,21 +134,24 @@ pub fn derive_versions_dispatch(input: TokenStream) -> TokenStream {
 pub fn derive_versionize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    let attributes = syn_unwrap!(
-        VersionizeAttribute::parse_from_attributes_list(&input.attrs).and_then(|attr_opt| attr_opt
-            .ok_or_else(|| syn::Error::new(
-                Span::call_site(),
-                "Missing `versionize` attribute for `Versionize`",
-            )))
-    );
+    let attributes = syn_unwrap!(VersionizeAttribute::parse_from_attributes_list(
+        &input.attrs
+    ));
+
+    let implementor = syn_unwrap!(VersionizeImplementor::new(
+        attributes,
+        &input.data,
+        Span::call_site()
+    ));
 
     // If we apply a type conversion before the call to versionize, the type that implements
     // the `Version` trait is the target type and not Self
-    let version_trait_impl: Option<proc_macro2::TokenStream> = if attributes.needs_conversion() {
-        None
-    } else {
-        Some(impl_version_trait(&input))
-    };
+    let version_trait_impl: Option<proc_macro2::TokenStream> =
+        if implementor.is_directly_versioned() {
+            Some(impl_version_trait(&input))
+        } else {
+            None
+        };
 
     // Parse the name of the traits that we will implement
     let versionize_trait: Path = parse_const_str(VERSIONIZE_TRAIT_NAME);
@@ -162,28 +168,28 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
     let (_, ty_generics, _) = input.generics.split_for_impl();
 
     // Generates the associated types required by the traits
-    let versioned_type = attributes.versioned_type(&lifetime, &input.generics);
-    let versioned_owned_type = attributes.versioned_owned_type(&input.generics);
+    let versioned_type = implementor.versioned_type(&lifetime, &input.generics);
+    let versioned_owned_type = implementor.versioned_owned_type(&input.generics);
     let versioned_type_where_clause =
-        attributes.versioned_type_where_clause(&lifetime, &input.generics);
+        implementor.versioned_type_where_clause(&lifetime, &input.generics);
     let versioned_owned_type_where_clause =
-        attributes.versioned_owned_type_where_clause(&input.generics);
+        implementor.versioned_owned_type_where_clause(&input.generics);
 
     // If the original type has some generics, we need to add bounds on them for
     // the traits impl
     let versionize_trait_where_clause =
-        syn_unwrap!(attributes.versionize_trait_where_clause(&input.generics));
+        syn_unwrap!(implementor.versionize_trait_where_clause(&input.generics));
     let versionize_owned_trait_where_clause =
-        syn_unwrap!(attributes.versionize_owned_trait_where_clause(&input.generics));
+        syn_unwrap!(implementor.versionize_owned_trait_where_clause(&input.generics));
     let unversionize_trait_where_clause =
-        syn_unwrap!(attributes.unversionize_trait_where_clause(&input.generics));
+        syn_unwrap!(implementor.unversionize_trait_where_clause(&input.generics));
 
     let trait_impl_generics = input.generics.split_for_impl().0;
 
-    let versionize_body = attributes.versionize_method_body();
-    let versionize_owned_body = attributes.versionize_owned_method_body();
+    let versionize_body = implementor.versionize_method_body();
+    let versionize_owned_body = implementor.versionize_owned_method_body();
     let unversionize_arg_name = Ident::new("versioned", Span::call_site());
-    let unversionize_body = attributes.unversionize_method_body(&unversionize_arg_name);
+    let unversionize_body = implementor.unversionize_method_body(&unversionize_arg_name);
     let unversionize_error: Path = parse_const_str(UNVERSIONIZE_ERROR_NAME);
 
     quote! {
