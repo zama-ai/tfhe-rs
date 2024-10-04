@@ -14,7 +14,7 @@ fn make_digits(a: &impl BigInteger, w: usize, num_bits: usize) -> impl Iterator<
     } else {
         num_bits
     };
-    let digits_count = (num_bits + w - 1) / w;
+    let digits_count = num_bits.div_ceil(w) ;
 
     (0..digits_count).map(move |i| {
         // Construct a buffer of bits of the scalar, starting at `bit_offset`.
@@ -70,7 +70,7 @@ pub fn msm_wnaf_g1_446(
         (size.ilog2() as usize * 69 / 100) + 2
     };
 
-    let digits_count = (num_bits + c - 1) / c;
+    let digits_count = num_bits.div_ceil(c);
     let scalar_digits = scalars
         .into_par_iter()
         .flat_map_iter(|s| make_digits(s, c, num_bits))

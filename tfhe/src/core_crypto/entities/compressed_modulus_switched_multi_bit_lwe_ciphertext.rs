@@ -225,7 +225,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
             for ggsw_idx in 1..grouping_factor.ggsw_per_multi_bit_element().0 {
                 // We need to store the diff sums of more than one element as we store the
                 // individual modulus_switched elements
-                if ggsw_idx.count_ones() == 1 {
+                if ggsw_idx.is_power_of_two() {
                     continue;
                 }
 

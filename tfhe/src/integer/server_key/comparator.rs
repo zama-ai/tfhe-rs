@@ -89,11 +89,7 @@ impl<'a> Comparator<'a> {
             .generate_lookup_table(|x| if x < message_modulus { x } else { 0 });
 
         let rhs_lut = server_key.key.generate_lookup_table(|x| {
-            if x >= message_modulus {
-                x - message_modulus
-            } else {
-                0
-            }
+            x.saturating_sub(message_modulus)
         });
 
         Self {

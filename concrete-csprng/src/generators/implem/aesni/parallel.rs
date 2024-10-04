@@ -53,7 +53,6 @@ impl ParallelRandomGenerator for AesniRandomGenerator {
 }
 
 #[cfg(test)]
-
 mod test {
     use crate::generators::aes_ctr::aes_ctr_parallel_generic_tests;
     use crate::generators::implem::aesni::block_cipher::AesniBlockCipher;

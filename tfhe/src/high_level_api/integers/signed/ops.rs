@@ -1695,8 +1695,6 @@ where
 {
     /// Performs a right bit rotation and assign operation on [FheInt]
     ///
-    /// # Note
-
     /// # Example
     ///
     /// ```rust

@@ -276,7 +276,7 @@ impl ServerKey {
     pub fn is_neg_possible(&self, ct: CiphertextNoiseDegree) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
         let msg_mod = self.message_modulus.0;
-        let mut z = (ct.degree.get() + msg_mod - 1) / msg_mod;
+        let mut z = ct.degree.get().div_ceil(msg_mod);
         z = z.wrapping_mul(msg_mod);
 
         self.max_degree.validate(Degree::new(z))
