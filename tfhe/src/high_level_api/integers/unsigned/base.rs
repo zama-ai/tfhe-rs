@@ -73,7 +73,6 @@ pub trait FheUintId: IntegerId {}
 /// [FheUint8]: crate::high_level_api::FheUint8
 /// [FheUint12]: crate::high_level_api::FheUint12
 /// [FheUint16]: crate::high_level_api::FheUint16
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
 #[versionize(FheUintVersions)]
 pub struct FheUint<Id: FheUintId> {

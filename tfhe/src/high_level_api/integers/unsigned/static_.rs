@@ -38,14 +38,11 @@ macro_rules! static_int_type {
             #[doc = ""]
             #[doc = "See [FheUint]"]
             $(#[$outer])*
-            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<FheUint $num_bits>] = FheUint<[<FheUint $num_bits Id>]>;
 
-            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<Compressed FheUint $num_bits>] = CompressedFheUint<[<FheUint $num_bits Id>]>;
 
             // Conformance Params
-            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<FheUint $num_bits ConformanceParams>] = FheUintConformanceParams<[<FheUint $num_bits Id>]>;
         }
     };
