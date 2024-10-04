@@ -167,12 +167,13 @@ install_web_resource:
 	echo "$(checksum) $(filename)" > checksum && \
 	sha256sum -c checksum && \
 	rm checksum && \
-	unzip $(filename)
+	$(decompress_cmd) $(filename)
 
 install_chrome_browser: url = "https://storage.googleapis.com/chrome-for-testing-public/128.0.6613.137/linux64/chrome-linux64.zip"
 install_chrome_browser: checksum = "c5d7da679f3a353ae4e4420ab113de06d4bd459152f5b17558390c02d9520566"
 install_chrome_browser: dest = "$(WEB_RUNNER_DIR)/chrome"
 install_chrome_browser: filename = "chrome-linux64.zip"
+install_chrome_browser: decompress_cmd = unzip
 
 .PHONY: install_chrome_browser # Install Chrome browser for Linux
 install_chrome_browser: install_web_resource
@@ -181,9 +182,28 @@ install_chrome_web_driver: url = "https://storage.googleapis.com/chrome-for-test
 install_chrome_web_driver: checksum = "f041092f403fb7455a6da2871070b6587c32814a3e3c2b0a794d3d4aa4739151"
 install_chrome_web_driver: dest = "$(WEB_RUNNER_DIR)/chrome"
 install_chrome_web_driver: filename = "chromedriver-linux64.zip"
+install_chrome_web_driver: decompress_cmd = unzip
 
 .PHONY: install_chrome_web_driver # Install Chrome web driver for Linux
 install_chrome_web_driver: install_web_resource
+
+install_firefox_browser: url = "https://download-installer.cdn.mozilla.net/pub/firefox/releases/131.0/linux-x86_64/en-US/firefox-131.0.tar.bz2"
+install_firefox_browser: checksum = "4ca8504a62a31472ecb8c3a769d4301dd4ac692d4cc5d51b8fe2cf41e7b11106"
+install_firefox_browser: dest = "$(WEB_RUNNER_DIR)/firefox"
+install_firefox_browser: filename = "firefox-131.0.tar.bz2"
+install_firefox_browser: decompress_cmd = tar -xvf
+
+.PHONY: install_firefox_browser # Install firefox browser for Linux
+install_firefox_browser: install_web_resource
+
+install_firefox_web_driver: url = "https://github.com/mozilla/geckodriver/releases/download/v0.35.0/geckodriver-v0.35.0-linux64.tar.gz"
+install_firefox_web_driver: checksum = "ac26e9ba8f3b8ce0fbf7339b9c9020192f6dcfcbf04a2bcd2af80dfe6bb24260"
+install_firefox_web_driver: dest = "$(WEB_RUNNER_DIR)/firefox"
+install_firefox_web_driver: filename = "geckodriver-v0.35.0-linux64.tar.gz"
+install_firefox_web_driver: decompress_cmd = tar -xvf
+
+.PHONY: install_firefox_web_driver # Install firefox web driver for Linux
+install_firefox_web_driver: install_web_resource
 
 .PHONY: check_linelint_installed # Check if linelint newline linter is installed
 check_linelint_installed:
@@ -931,15 +951,30 @@ test_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromed
 test_web_js_api_parallel_chrome: browser_kind = chrome
 test_web_js_api_parallel_chrome: filter = Test
 
-.PHONY: test_web_js_api_parallel_chrome # Run tests for the web wasm api
+.PHONY: test_web_js_api_parallel_chrome # Run tests for the web wasm api on Chrome
 test_web_js_api_parallel_chrome: run_web_js_api_parallel
 
-.PHONY: test_web_js_api_parallel_chrome_ci # Run tests for the web wasm api
+.PHONY: test_web_js_api_parallel_chrome_ci # Run tests for the web wasm api on Chrome
 test_web_js_api_parallel_chrome_ci: setup_venv
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_web_js_api_parallel_chrome
+
+test_web_js_api_parallel_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
+test_web_js_api_parallel_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
+test_web_js_api_parallel_firefox: browser_kind = firefox
+test_web_js_api_parallel_firefox: filter = Test
+
+.PHONY: test_web_js_api_parallel_firefox # Run tests for the web wasm api on Firefox
+test_web_js_api_parallel_firefox: run_web_js_api_parallel
+
+.PHONY: test_web_js_api_parallel_firefox_ci # Run tests for the web wasm api on Firefox
+test_web_js_api_parallel_firefox_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) test_web_js_api_parallel_firefox
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
 no_tfhe_typo:
@@ -1107,6 +1142,21 @@ bench_web_js_api_parallel_chrome_ci: setup_venv
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_parallel_chrome
+
+bench_web_js_api_parallel_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
+bench_web_js_api_parallel_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
+bench_web_js_api_parallel_firefox: browser_kind = firefox
+bench_web_js_api_parallel_firefox: filter = Bench
+
+.PHONY: bench_web_js_api_parallel_firefox # Run benchmarks for the web wasm api
+bench_web_js_api_parallel_firefox: run_web_js_api_parallel
+
+.PHONY: bench_web_js_api_parallel_firefox_ci # Run benchmarks for the web wasm api
+bench_web_js_api_parallel_firefox_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) bench_web_js_api_parallel_firefox
 
 #
 # Utility tools

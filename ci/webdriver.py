@@ -22,9 +22,11 @@ import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -107,7 +109,7 @@ class BrowserKind(enum.Enum):
     """
 
     chrome = 1
-    # firefox = 2
+    firefox = 2
 
 
 class Driver:
@@ -125,37 +127,52 @@ class Driver:
         self.browser_path = browser_path
         self.driver_path = driver_path
 
+        self._is_threaded_logs = threaded_logs
+        self._log_thread = None
+
         self.browser_kind = browser_kind
 
-        self.options = Options()
+        match self.browser_kind:
+            case BrowserKind.chrome:
+                self.options = ChromeOptions()
+            case BrowserKind.firefox:
+                self.options = FirefoxOptions()
+
         self.options.binary_location = self.browser_path
         self.options.add_argument("--headless")
         if os.getuid() == 0:
             # If user ID is root then driver needs to run in no-sandbox mode.
-            print("Script is running as root, running browser with --no-sandbox for compatibility")
+            print(
+                "Script is running as root, running browser with --no-sandbox for compatibility"
+            )
             self.options.add_argument("--no-sandbox")
 
         self._driver = None
 
         self.shutting_down = False
 
-        self._log_thread = None
-        if threaded_logs:
-            self._log_thread = threading.Thread(target=self._threaded_logs)
-
-    def set_capability(self, name, value):
-        self.options.set_capability(name, value)
-
     def get_driver(self):
         if self._driver is None:
-            driver_service = Service(self.driver_path)
 
             match self.browser_kind:
                 case BrowserKind.chrome:
+                    driver_service = ChromeService(self.driver_path)
+                    self.options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
                     self._driver = webdriver.Chrome(
                         service=driver_service, options=self.options
                     )
-                # TODO: Add Firefox support
+                    if self._is_threaded_logs:
+                        self._log_thread = threading.Thread(target=self._threaded_logs)
+                case BrowserKind.firefox:
+                    driver_service = FirefoxService(self.driver_path)
+                    self.options.log.level = "trace"
+                    self.options.enable_bidi = True
+                    self._driver = webdriver.Firefox(
+                        service=driver_service, options=self.options
+                    )
+                    self._driver.script.add_console_message_handler(
+                        self._on_console_logs
+                    )
                 case _:
                     print(
                         f"{self.browser_kind.name.capitalize()} browser driver is not supported"
@@ -188,6 +205,16 @@ class Driver:
 
     def find_element(self, element_id):
         return self.get_driver().find_element(By.ID, element_id)
+
+    def _on_console_logs(self, log):
+        """
+        Callback used for retrieving console log using BiDi protocol reling on websocket
+        """
+        # Filter out useless message
+        if "using deprecated parameters" in log.text:
+            return
+
+        print(f"{log.level.upper()}: {log.text}")
 
     def print_log(self, log_type):
         logs = self.get_driver().get_log(log_type)
@@ -325,14 +352,18 @@ def run_case(driver, case):
     return json.loads(benchmark_results) if benchmark_results else None
 
 
-def dump_benchmark_results(results):
+def dump_benchmark_results(results, browser_kind):
     """
     Dump as JSON benchmark results into a file.
     If `results` is an empty dict then this function is a no-op.
 
     :param results: benchmark results as :class:`dict`
+    :param browser_kind: browser as :class:`BrowserKind`
     """
     if results:
+        results = {
+            "_".join((key, browser_kind.name)): val for key, val in results.items()
+        }
         pathlib.Path("tfhe/wasm_benchmark_results.json").write_text(json.dumps(results))
 
 
@@ -433,12 +464,6 @@ def main():
     driver = Driver(
         args.browser_path, args.driver_path, browser_kind, threaded_logs=True
     )
-    match browser_kind:
-        case BrowserKind.chrome:
-            driver.set_capability("goog:loggingPrefs", {"browser": "ALL"})
-        case _:
-            # A no-op for browser that are not supported
-            pass
 
     driver.get_page(f"http://{args.address}:{args.port}", timeout_seconds=10)
 
@@ -463,7 +488,7 @@ def main():
             else:
                 failures.append(case.id)
 
-    dump_benchmark_results(benchmark_results)
+    dump_benchmark_results(benchmark_results, browser_kind)
 
     # Close the browser
     driver.quit()
