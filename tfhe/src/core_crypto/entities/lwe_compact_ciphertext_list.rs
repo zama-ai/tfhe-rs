@@ -334,16 +334,16 @@ pub type LweCompactCiphertextListMutView<'data, Scalar> =
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
 #[derive(Copy, Clone)]
-pub struct LweCiphertextListParameters<T: UnsignedInteger> {
+pub struct CiphertextListParameters<T: UnsignedInteger> {
     pub lwe_dim: LweDimension,
     pub lwe_ciphertext_count_constraint: ListSizeConstraint,
     pub ct_modulus: CiphertextModulus<T>,
 }
 
 impl<T: UnsignedInteger> ParameterSetConformant for LweCompactCiphertextListOwned<T> {
-    type ParameterSet = LweCiphertextListParameters<T>;
+    type ParameterSet = CiphertextListParameters<T>;
 
-    fn is_conformant(&self, param: &LweCiphertextListParameters<T>) -> bool {
+    fn is_conformant(&self, param: &CiphertextListParameters<T>) -> bool {
         let Self {
             data,
             lwe_size,

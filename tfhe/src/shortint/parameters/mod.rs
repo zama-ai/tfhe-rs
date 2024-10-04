@@ -13,8 +13,8 @@ pub use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams, LweCiphertextCount,
-    LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
+    CiphertextListParameters, GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams,
+    LweCiphertextCount, LweCiphertextParameters, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::parameters::*;
 use serde::{Deserialize, Serialize};
@@ -250,7 +250,7 @@ pub struct CompressedCiphertextConformanceParams {
 /// before running a computation on them
 #[derive(Copy, Clone)]
 pub struct CiphertextListConformanceParams {
-    pub ct_list_params: LweCiphertextListParameters<u64>,
+    pub ct_list_params: CiphertextListParameters<u64>,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
@@ -264,7 +264,7 @@ impl CiphertextConformanceParams {
         list_constraint: ListSizeConstraint,
     ) -> CiphertextListConformanceParams {
         CiphertextListConformanceParams {
-            ct_list_params: LweCiphertextListParameters {
+            ct_list_params: CiphertextListParameters {
                 lwe_dim: self.ct_params.lwe_dim,
                 ct_modulus: self.ct_params.ct_modulus,
                 lwe_ciphertext_count_constraint: list_constraint,

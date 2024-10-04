@@ -1,7 +1,7 @@
 use super::{Degree, NoiseLevel};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
-use crate::core_crypto::prelude::LweCiphertextListParameters;
+use crate::core_crypto::prelude::CiphertextListParameters;
 use crate::shortint::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
@@ -249,7 +249,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             };
 
             let params = CiphertextListConformanceParams {
-                ct_list_params: LweCiphertextListParameters {
+                ct_list_params: CiphertextListParameters {
                     lwe_dim: *encryption_lwe_dimension,
                     lwe_ciphertext_count_constraint: ListSizeConstraint::exact_size(expected_len),
                     ct_modulus: *ciphertext_modulus,
