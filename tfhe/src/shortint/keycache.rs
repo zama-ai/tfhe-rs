@@ -290,14 +290,7 @@ impl NamedParam for ShortintKeySwitchingParameters {
 impl NamedParam for CompressionParameters {
     fn name(&self) -> String {
         named_params_impl!(expose
-            COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
-        );
-        named_params_impl!(
-            {
-                *self;
-                Self
-            } == (COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
         );
 
         named_params_impl!(

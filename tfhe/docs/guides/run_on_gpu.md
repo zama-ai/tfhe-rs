@@ -197,16 +197,19 @@ The following example shows how to compress and decompress a list containing 4 m
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::{COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_2_CARRY_2};
+use tfhe::shortint::parameters::{
+    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+};
 use tfhe::{
     set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
     FheInt64, FheUint16, FheUint2, FheUint32,
 };
 
 fn main() {
-    let config = tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2)
-        .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2)
-        .build();
+    let config =
+        tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+            .build();
 
     let ck = tfhe::ClientKey::generate(config);
     let compressed_server_key = tfhe::CompressedServerKey::new(&ck);
