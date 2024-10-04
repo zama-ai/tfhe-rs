@@ -128,6 +128,9 @@ pub trait Compressible: Sized {
     fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError>;
 }
 
+pub type CompressedG1<G> = <<G as Curve>::G1 as Compressible>::Compressed;
+pub type CompressedG2<G> = <<G as Curve>::G2 as Compressible>::Compressed;
+
 pub trait PairingGroupOps<Zp, G1, G2>:
     Copy
     + Send
