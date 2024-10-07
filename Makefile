@@ -446,32 +446,23 @@ build_tfhe_coverage: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) --tests
 
-.PHONY: symlink_c_libs_without_fingerprint # Link the .a and .so files without the changing hash part in target
-symlink_c_libs_without_fingerprint:
-	@./scripts/symlink_c_libs_without_fingerprint.sh \
-		--cargo-profile "$(CARGO_PROFILE)" \
-		--lib-name tfhe-c-api-dynamic-buffer
-
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
-	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
 build_c_api_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,gpu \
 		-p $(TFHE_SPEC)
-	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
-	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
 build_web_js_api: install_rs_build_toolchain install_wasm_pack
