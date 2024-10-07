@@ -6,39 +6,11 @@ use crate::serialization::{
 };
 use core::ops::{Index, IndexMut};
 use rand::{Rng, RngCore};
-use tfhe_versionable::{Unversionize, Versionize, VersionizeOwned};
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[repr(transparent)]
 pub(crate) struct OneBased<T: ?Sized>(T);
-
-// TODO: these impl could be removed by adding support for `repr(transparent)` in tfhe-versionable
-impl<T: Versionize> Versionize for OneBased<T> {
-    type Versioned<'vers>
-        = T::Versioned<'vers>
-    where
-        T: 'vers;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        self.0.versionize()
-    }
-}
-
-impl<T: VersionizeOwned> VersionizeOwned for OneBased<T> {
-    type VersionedOwned = T::VersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        self.0.versionize_owned()
-    }
-}
-
-impl<T: Unversionize> Unversionize for OneBased<T> {
-    fn unversionize(
-        versioned: Self::VersionedOwned,
-    ) -> Result<Self, tfhe_versionable::UnversionizeError> {
-        Ok(Self(T::unversionize(versioned)?))
-    }
-}
 
 /// The proving scheme is available in 2 versions, one that puts more load on the prover and one
 /// that puts more load on the verifier
