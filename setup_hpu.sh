@@ -5,7 +5,8 @@ CUR_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 export HPU_BACKEND_DIR=$CUR_SCRIPT_DIR/backends/tfhe-hpu-backend
 
 # Default default bitstream
-export HPU_CONFIG="config_44b_pem2"
+# export HPU_CONFIG="config_44b_pem2"
+export HPU_CONFIG="sim_44b_pem2"
 
 # Default verbosity
 export RUST_LOG=info

@@ -88,7 +88,7 @@ unsafe impl Sync for HpuBackendWrapped {}
 /// Handle HpuBackend construction and initialisation
 impl HpuBackend {
     pub fn new(fpga_id: u32, config: &config::HpuConfig) -> Self {
-        let mut hpu_hw = ffi::HpuHw::new_hpu_hw(config.fpga.clone());
+        let mut hpu_hw = ffi::HpuHw::new_hpu_hw(config.clone());
         let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
 
         let params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
@@ -715,7 +715,11 @@ impl HpuBackend {
         if ack_code != ACKQ_EMPTY {
             let ack_cmd = cmd_q.pop_front().unwrap();
             // TODO check that ack_code match with expected op msb
-            tracing::debug!("Received ack for IOp  {}", ack_cmd.op.asm_encode(8));
+            tracing::debug!(
+                "Received ack {:x} for IOp  {}",
+                ack_code,
+                ack_cmd.op.asm_encode(8)
+            );
             // update dst state and drop srcs ref
             ack_cmd.dst.inner.lock().unwrap().operation_done();
             Ok(true)

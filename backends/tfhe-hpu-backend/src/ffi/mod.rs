@@ -4,10 +4,8 @@
 //!
 //! Mainly replacing Xrt(u55c)/Aved(V80) by a simulation interface for ease CI
 
-use crate::{
-    entities::HpuParameters,
-    interface::{FFIMode, FpgaConfig},
-};
+use crate::entities::HpuParameters;
+use crate::interface::{FFIMode, HpuConfig};
 
 /// Enumeration to define the synchronisation of data between Host and Device
 #[derive(Debug, Clone)]
@@ -72,12 +70,12 @@ impl HpuHw {
 
     /// Handle ffi instanciation
     #[inline(always)]
-    pub fn new_hpu_hw(config: FpgaConfig) -> HpuHw {
+    pub fn new_hpu_hw(config: HpuConfig) -> HpuHw {
         #[cfg(feature = "hw-xrt")]
         {
             use tracing::{enabled, Level};
             // Check config
-            match config.ffi {
+            match config.fpga.ffi {
                 FFIMode::Xrt { id, kernel, xclbin } => {
                     // Extract trace verbosity and convert it in cxx understandable value
                     let verbosity = {
