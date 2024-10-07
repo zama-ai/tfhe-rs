@@ -7,8 +7,8 @@ use syn::{
 
 use crate::{
     add_lifetime_param, add_trait_where_clause, add_where_lifetime_bound_to_generics,
-    extend_where_clause, parse_const_str, DESERIALIZE_TRAIT_NAME, LIFETIME_NAME,
-    SERIALIZE_TRAIT_NAME,
+    extend_where_clause, filter_unsized_bounds, parse_const_str, DESERIALIZE_TRAIT_NAME,
+    LIFETIME_NAME, SERIALIZE_TRAIT_NAME,
 };
 
 /// Generates an impl block for the From trait. This will be:
@@ -114,7 +114,7 @@ pub(crate) trait AssociatedType: Sized {
 
     /// Returns the generics and bounds that should be added to the type
     fn type_generics(&self) -> syn::Result<Generics> {
-        let mut generics = self.orig_type_generics().clone();
+        let mut generics = filter_unsized_bounds(self.orig_type_generics());
         if let AssociatedTypeKind::Ref(opt_lifetime) = &self.kind() {
             if let Some(lifetime) = opt_lifetime {
                 add_lifetime_param(&mut generics, lifetime);
