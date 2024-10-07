@@ -665,6 +665,9 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
                                  int_sc_prop_memory<Torus> *mem, void **bsks,
                                  Torus **ksks, uint32_t num_blocks) {
   auto params = mem->params;
+  if (params.message_modulus == 2)
+    PANIC("Cuda error: single carry propagation is not supported for 1 bit "
+          "messages")
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
   auto big_lwe_size = glwe_dimension * polynomial_size + 1;
