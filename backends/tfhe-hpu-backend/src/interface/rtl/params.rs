@@ -7,9 +7,9 @@ use crate::entities::*;
 
 // Set of constant defined in RTL and associated rust definition
 // -> Cf. fpga/hw/common_lib/common_package/rtl/common_definition_pkg.sv
-const NTT_CORE_ARCH_OFS: u32 = 5 << 8;
-const MOD_NTT_NAME_OFS: u32 = 6 << 8;
-const APPLICATION_NAME_OFS: u32 = 7 << 8;
+pub(crate) const NTT_CORE_ARCH_OFS: u32 = 5 << 8;
+pub(crate) const MOD_NTT_NAME_OFS: u32 = 6 << 8;
+pub(crate) const APPLICATION_NAME_OFS: u32 = 7 << 8;
 
 impl FromRtl for HpuParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
@@ -236,7 +236,7 @@ impl FromRtl for HpuIscParameters {
 
 // Define parameters set as constants
 // Used to easily derived IoMeasure version without duplication
-const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
+pub(crate) const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 586,
     glwe_dimension: 2,
     polynomial_size: 512,
@@ -251,7 +251,7 @@ const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: 32,
 };
 
-const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
+pub(crate) const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 742,
     glwe_dimension: 1,
     polynomial_size: 2048,
@@ -266,7 +266,7 @@ const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: u64::BITS as usize,
 };
 
-const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
+pub(crate) const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 710,
     glwe_dimension: 2,
     polynomial_size: 1024,
@@ -281,7 +281,7 @@ const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: u64::BITS as usize,
 };
 
-const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
+pub(crate) const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 724,
     glwe_dimension: 2,
     polynomial_size: 1024,
@@ -296,7 +296,7 @@ const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: 44,
 };
 
-const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
+pub(crate) const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 724,
     glwe_dimension: 2,
     polynomial_size: 1024,
@@ -326,6 +326,7 @@ impl FromRtl for HpuPBSParameters {
             "Invalid register encoding. Check register map definition"
         );
 
+        println!("Read pbs_params code {}", pbs_app_val & 0xff);
         match pbs_app_val & 0xFF {
             0 => CONCRETE_BOOLEAN,
             1 => MSG2_CARRY2,

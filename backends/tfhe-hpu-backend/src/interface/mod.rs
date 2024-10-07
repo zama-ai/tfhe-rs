@@ -4,7 +4,7 @@ mod config;
 mod device;
 mod memory;
 #[cfg(not(feature = "utils"))]
-mod rtl;
+pub(crate) mod rtl;
 #[cfg(feature = "utils")]
 pub mod rtl;
 mod variable;

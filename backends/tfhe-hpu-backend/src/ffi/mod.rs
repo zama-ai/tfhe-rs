@@ -32,15 +32,7 @@ impl HpuHw {
     /// Read Hw register through ffi
     #[inline(always)]
     pub fn read_reg(&self, addr: u64) -> u32 {
-        #[cfg(feature = "hw-xrt")]
-        {
-            self.0.read_reg(addr)
-        }
-
-        #[cfg(not(feature = "hw-xrt"))]
-        {
-            todo!("sim ffi")
-        }
+        self.0.read_reg(addr)
     }
 
     /// Write Hw register through ffi
@@ -53,7 +45,7 @@ impl HpuHw {
 
         #[cfg(not(feature = "hw-xrt"))]
         {
-            todo!("sim ffi")
+            self.0.write_reg(addr, value)
         }
     }
 
@@ -68,7 +60,7 @@ impl HpuHw {
 
         #[cfg(not(feature = "hw-xrt"))]
         {
-            todo!("sim ffi")
+            MemZone(self.0.alloc(props))
         }
     }
 
@@ -114,50 +106,29 @@ impl HpuHw {
     }
 }
 
-pub struct MemZone(#[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::MemZone>);
+pub struct MemZone(
+    #[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::MemZone>,
+    #[cfg(not(feature = "hw-xrt"))] sim::MemZone,
+);
 
 impl MemZone {
     /// Read a bytes slice in the associated MemZone
     #[inline(always)]
     pub fn read_bytes(&self, ofst: usize, bytes: &mut [u8]) {
-        #[cfg(feature = "hw-xrt")]
-        {
-            self.0.read_bytes(ofst, bytes);
-        }
-
-        #[cfg(not(feature = "hw-xrt"))]
-        {
-            todo!("sim ffi")
-        }
+        self.0.read_bytes(ofst, bytes);
     }
 
     /// Get physical MemZone addresse
     #[inline(always)]
     pub fn paddr(&self) -> u64 {
-        #[cfg(feature = "hw-xrt")]
-        {
-            self.0.paddr()
-        }
-
-        #[cfg(not(feature = "hw-xrt"))]
-        {
-            todo!("sim ffi")
-        }
+        self.0.paddr()
     }
 
     /// Get MemZone size in byte
     #[inline(always)]
     #[allow(unused)]
     pub fn size(&self) -> usize {
-        #[cfg(feature = "hw-xrt")]
-        {
-            self.0.size()
-        }
-
-        #[cfg(not(feature = "hw-xrt"))]
-        {
-            todo!("sim ffi")
-        }
+        self.0.size()
     }
 
     /// Get write byte slice in MemZone at a given offset
@@ -170,7 +141,7 @@ impl MemZone {
 
         #[cfg(not(feature = "hw-xrt"))]
         {
-            todo!("sim ffi")
+            self.0.write_bytes(ofst, bytes)
         }
     }
 
@@ -185,7 +156,7 @@ impl MemZone {
 
         #[cfg(not(feature = "hw-xrt"))]
         {
-            todo!("sim ffi")
+            self.0.mmap()
         }
     }
 
@@ -200,7 +171,7 @@ impl MemZone {
 
         #[cfg(not(feature = "hw-xrt"))]
         {
-            todo!("sim ffi")
+            self.0.sync(mode)
         }
     }
 }
