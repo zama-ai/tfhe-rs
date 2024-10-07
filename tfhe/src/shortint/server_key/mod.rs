@@ -31,12 +31,6 @@ pub(crate) mod tests;
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::{
-    FourierLweMultiBitBootstrapKeyVersioned, FourierLweMultiBitBootstrapKeyVersionedOwned,
-};
-use crate::core_crypto::backward_compatibility::fft_impl::{
-    FourierLweBootstrapKeyVersioned, FourierLweBootstrapKeyVersionedOwned,
-};
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, GlweSize, LweBskGroupingFactor,
     LweDimension, LweSize, MonomialDegree, PolynomialSize, ThreadCount,
@@ -55,7 +49,7 @@ use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
 use crate::shortint::{EncryptionKeyChoice, PBSOrder};
-use ::tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use ::tfhe_versionable::Versionize;
 use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
@@ -78,8 +72,7 @@ pub mod pbs_stats {
 pub use pbs_stats::*;
 
 use super::backward_compatibility::server_key::{
-    SerializableShortintBootstrappingKeyVersioned,
-    SerializableShortintBootstrappingKeyVersionedOwned, ServerKeyVersions,
+    SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
 };
 use super::PBSParameters;
 
@@ -139,7 +132,8 @@ impl Display for CheckError {
 
 impl std::error::Error for CheckError {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Versionize)]
+#[versionize(convert = "SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>>")]
 pub enum ShortintBootstrappingKey {
     Classic(FourierLweBootstrapKeyOwned),
     MultiBit {
@@ -149,126 +143,15 @@ pub enum ShortintBootstrappingKey {
     },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
+#[versionize(SerializableShortintBootstrappingKeyVersions)]
 pub enum SerializableShortintBootstrappingKey<C: Container<Element = concrete_fft::c64>> {
     Classic(FourierLweBootstrapKey<C>),
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKey<C>,
         deterministic_execution: bool,
     },
-}
-
-#[derive(Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum SerializableShortintBootstrappingKeyVersion<'vers> {
-    Classic(FourierLweBootstrapKeyVersioned<'vers>),
-    MultiBit {
-        fourier_bsk: FourierLweMultiBitBootstrapKeyVersioned<'vers>,
-        deterministic_execution: bool,
-    },
-}
-
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum SerializableShortintBootstrappingKeyVersionOwned {
-    Classic(FourierLweBootstrapKeyVersionedOwned),
-    MultiBit {
-        fourier_bsk: FourierLweMultiBitBootstrapKeyVersionedOwned,
-        deterministic_execution: bool,
-    },
-}
-
-impl<'vers, C: Container<Element = concrete_fft::c64>>
-    From<&'vers SerializableShortintBootstrappingKey<C>>
-    for SerializableShortintBootstrappingKeyVersion<'vers>
-{
-    fn from(value: &'vers SerializableShortintBootstrappingKey<C>) -> Self {
-        match value {
-            SerializableShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk.versionize()),
-            SerializableShortintBootstrappingKey::MultiBit {
-                fourier_bsk,
-                deterministic_execution,
-            } => Self::MultiBit {
-                fourier_bsk: fourier_bsk.versionize(),
-                deterministic_execution: *deterministic_execution,
-            },
-        }
-    }
-}
-
-impl<C: Container<Element = concrete_fft::c64>> From<SerializableShortintBootstrappingKey<C>>
-    for SerializableShortintBootstrappingKeyVersionOwned
-{
-    fn from(value: SerializableShortintBootstrappingKey<C>) -> Self {
-        match value {
-            SerializableShortintBootstrappingKey::Classic(bsk) => {
-                Self::Classic(bsk.versionize_owned())
-            }
-            SerializableShortintBootstrappingKey::MultiBit {
-                fourier_bsk,
-                deterministic_execution,
-            } => Self::MultiBit {
-                fourier_bsk: fourier_bsk.versionize_owned(),
-                deterministic_execution,
-            },
-        }
-    }
-}
-
-impl<C: IntoContainerOwned<Element = concrete_fft::c64>>
-    TryFrom<SerializableShortintBootstrappingKeyVersionOwned>
-    for SerializableShortintBootstrappingKey<C>
-{
-    type Error = UnversionizeError;
-
-    fn try_from(
-        value: SerializableShortintBootstrappingKeyVersionOwned,
-    ) -> Result<Self, Self::Error> {
-        match value {
-            SerializableShortintBootstrappingKeyVersionOwned::Classic(bsk) => {
-                Ok(Self::Classic(FourierLweBootstrapKey::unversionize(bsk)?))
-            }
-            SerializableShortintBootstrappingKeyVersionOwned::MultiBit {
-                fourier_bsk,
-                deterministic_execution,
-            } => Ok(Self::MultiBit {
-                fourier_bsk: FourierLweMultiBitBootstrapKey::unversionize(fourier_bsk)?,
-                deterministic_execution,
-            }),
-        }
-    }
-}
-
-impl<C: Container<Element = concrete_fft::c64>> Versionize
-    for SerializableShortintBootstrappingKey<C>
-{
-    type Versioned<'vers>
-        = SerializableShortintBootstrappingKeyVersioned<'vers>
-    where
-        C: 'vers;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        self.into()
-    }
-}
-
-impl<C: Container<Element = concrete_fft::c64>> VersionizeOwned
-    for SerializableShortintBootstrappingKey<C>
-{
-    type VersionedOwned = SerializableShortintBootstrappingKeyVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        self.into()
-    }
-}
-
-impl<C: IntoContainerOwned<Element = concrete_fft::c64>> Unversionize
-    for SerializableShortintBootstrappingKey<C>
-{
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        Self::try_from(versioned)
-    }
 }
 
 impl<C: Container<Element = concrete_fft::c64>> SerializableShortintBootstrappingKey<C> {
@@ -326,22 +209,6 @@ impl Serialize for ShortintBootstrappingKey {
     }
 }
 
-impl Versionize for ShortintBootstrappingKey {
-    type Versioned<'vers> = SerializableShortintBootstrappingKeyVersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        SerializableShortintBootstrappingKey::from(self).versionize_owned()
-    }
-}
-
-impl VersionizeOwned for ShortintBootstrappingKey {
-    type VersionedOwned = <SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>> as VersionizeOwned>::VersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        SerializableShortintBootstrappingKey::from(self).versionize_owned()
-    }
-}
-
 impl From<SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>>>
     for ShortintBootstrappingKey
 {
@@ -379,12 +246,6 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
     {
         let deser_sk = SerializableShortintBootstrappingKey::deserialize(deserializer)?;
         Ok(Self::from(deser_sk))
-    }
-}
-
-impl Unversionize for ShortintBootstrappingKey {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        SerializableShortintBootstrappingKey::unversionize(versioned).map(Self::from)
     }
 }
 

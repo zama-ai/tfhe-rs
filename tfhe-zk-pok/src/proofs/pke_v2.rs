@@ -2,9 +2,7 @@
 #![allow(non_snake_case)]
 
 use super::*;
-use crate::backward_compatibility::{
-    PKEv2CompressedProofVersions, PKEv2ProofVersions, SerializablePKEv2PublicParamsVersions,
-};
+use crate::backward_compatibility::{PKEv2CompressedProofVersions, PKEv2ProofVersions};
 use crate::four_squares::*;
 use crate::serialization::{
     try_vec_to_array, InvalidSerializedAffineError, InvalidSerializedPublicParamsError,
@@ -13,15 +11,13 @@ use crate::serialization::{
 use core::marker::PhantomData;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use tfhe_versionable::{UnversionizeError, VersionsDispatch};
 
 fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
 /// The CRS of the zk scheme
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[serde(
     try_from = "SerializablePKEv2PublicParams",
     into = "SerializablePKEv2PublicParams",
@@ -30,6 +26,7 @@ fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
         serialize = "PublicParams<G>: Into<SerializablePKEv2PublicParams>"
     )
 )]
+#[versionize(convert = SerializablePKEv2PublicParams)]
 pub struct PublicParams<G: Curve> {
     pub(crate) g_lists: GroupElements<G>,
     pub(crate) D: usize,
@@ -53,54 +50,6 @@ pub struct PublicParams<G: Curve> {
     pub(crate) hash_xi: [u8; HASH_METADATA_LEN_BYTES],
     pub(crate) hash_z: [u8; HASH_METADATA_LEN_BYTES],
     pub(crate) hash_chi: [u8; HASH_METADATA_LEN_BYTES],
-}
-
-// Manual impl of Versionize because TryFrom + generics is currently badly handled by the proc macro
-impl<G: Curve> Versionize for PublicParams<G>
-where
-    Self: Clone,
-    SerializablePKEv2PublicParamsVersions: VersionsDispatch<SerializablePKEv2PublicParams>,
-    GroupElements<G>: Into<SerializableGroupElements>,
-{
-    type Versioned<'vers>
-        = <SerializablePKEv2PublicParamsVersions as VersionsDispatch<
-        SerializablePKEv2PublicParams,
-    >>::Owned
-    where
-        G: 'vers;
-    fn versionize(&self) -> Self::Versioned<'_> {
-        VersionizeOwned::versionize_owned(SerializablePKEv2PublicParams::from(self.to_owned()))
-    }
-}
-
-impl<G: Curve> VersionizeOwned for PublicParams<G>
-where
-    Self: Clone,
-    SerializablePKEv2PublicParamsVersions: VersionsDispatch<SerializablePKEv2PublicParams>,
-    GroupElements<G>: Into<SerializableGroupElements>,
-{
-    type VersionedOwned = <SerializablePKEv2PublicParamsVersions as VersionsDispatch<
-        SerializablePKEv2PublicParams,
-    >>::Owned;
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        VersionizeOwned::versionize_owned(SerializablePKEv2PublicParams::from(self.to_owned()))
-    }
-}
-
-impl<E, G: Curve> Unversionize for PublicParams<G>
-where
-    Self: Clone,
-    SerializablePKEv2PublicParamsVersions: VersionsDispatch<SerializablePKEv2PublicParams>,
-    GroupElements<G>: Into<SerializableGroupElements>,
-    Self: TryFrom<SerializablePKEv2PublicParams, Error = E>,
-    E: Error + Send + Sync + 'static,
-{
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        SerializablePKEv2PublicParams::unversionize(versioned).and_then(|value| {
-            TryInto::<Self>::try_into(value)
-                .map_err(|e| UnversionizeError::conversion("SerializablePublicParams", e))
-        })
-    }
 }
 
 impl<G: Curve> Compressible for PublicParams<G>
