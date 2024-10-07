@@ -70,6 +70,10 @@ impl ClientKey {
         }
     }
 
+    pub fn computation_parameters(&self) -> crate::shortint::PBSParameters {
+        self.key.block_parameters()
+    }
+
     pub fn into_raw_parts(
         self,
     ) -> (
