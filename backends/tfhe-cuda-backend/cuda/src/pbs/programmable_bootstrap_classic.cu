@@ -530,8 +530,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
     uint32_t num_samples, uint32_t lut_count, uint32_t lut_stride) {
 
   if (base_log > 32)
-    PANIC("Cuda error (classical PBS): base log should be > number of bits "
-          "in the ciphertext representation (32)");
+    PANIC("Cuda error (classical PBS): base log should be <= 32")
 
   pbs_buffer<uint32_t, CLASSICAL> *buffer =
       (pbs_buffer<uint32_t, CLASSICAL> *)mem_ptr;
@@ -650,9 +649,8 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples, uint32_t lut_count, uint32_t lut_stride) {
-  if (base_log > 64)
-    PANIC("Cuda error (classical PBS): base log should be > number of bits "
-          "in the ciphertext representation (64)");
+  if (base_log > 32)
+    PANIC("Cuda error (classical PBS): base log should be <= 32")
 
   pbs_buffer<uint64_t, CLASSICAL> *buffer =
       (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
