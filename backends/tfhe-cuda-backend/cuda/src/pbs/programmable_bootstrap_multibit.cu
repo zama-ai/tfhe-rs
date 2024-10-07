@@ -68,9 +68,8 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t lut_count, uint32_t lut_stride) {
 
-  if (base_log > 64)
-    PANIC("Cuda error (multi-bit PBS): base log should be > number of bits in "
-          "the ciphertext representation (64)");
+  if (base_log > 32)
+    PANIC("Cuda error (multi-bit PBS): base log should be <= 32")
 
   switch (polynomial_size) {
   case 256:
@@ -146,9 +145,8 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t lut_count, uint32_t lut_stride) {
 
-  if (base_log > 64)
-    PANIC("Cuda error (multi-bit PBS): base log should be > number of bits in "
-          "the ciphertext representation (64)");
+  if (base_log > 32)
+    PANIC("Cuda error (multi-bit PBS): base log should be <= 32")
 
   switch (polynomial_size) {
   case 256:
@@ -591,9 +589,8 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t lut_count, uint32_t lut_stride) {
 
-  if (base_log > 64)
-    PANIC("Cuda error (multi-bit PBS): base log should be > number of bits in "
-          "the ciphertext representation (64)");
+  if (base_log > 32)
+    PANIC("Cuda error (multi-bit PBS): base log should be <= 32")
 
   switch (polynomial_size) {
   case 256:
