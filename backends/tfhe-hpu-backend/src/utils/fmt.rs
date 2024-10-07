@@ -60,7 +60,7 @@ fn main() -> Result<(), anyhow::Error> {
             dop_parser.read_asm::<asm::Arg>(&args.from),
             iop_parser.read_asm::<asm::Arg>(&args.from),
             dop_parser.read_hex::<asm::FmtDOp>(&args.from),
-            iop_parser.read_hex::<asm::FmtDOp>(&args.from),
+            iop_parser.read_hex::<asm::FmtIOp>(&args.from),
         ) {
             (Ok((header, ops)), ..) => asm::write_hex(&header, &ops, &args.to)?,
             (Err(_), Ok((header, ops)), ..) => asm::write_hex(&header, &ops, &args.to)?,

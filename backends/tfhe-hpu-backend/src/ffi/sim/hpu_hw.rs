@@ -1,13 +1,32 @@
 //! HpuHw mockup ffi interface
+//!
+//! Mockup is split in two half:
+//! 1. ffi mockup
+//! 2. Simulation model
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::TryRecvError;
+
 use super::*;
 use crate::ffi;
+use crate::prelude::ACKQ_EMPTY;
+use hpu_sim::{HpuSim, HpuSimHandle};
 use hw_regmap::FlatRegmap;
 
 use crate::interface::rtl::params::*;
 
+#[derive(Default)]
+struct KeyState {
+    avail: AtomicBool,
+    rst_pdg: AtomicBool,
+}
+
 pub struct HpuHw {
-    regmap: FlatRegmap,
     params: ffi::HpuParameters,
+    regmap: FlatRegmap,
+    bsk: KeyState,
+    ksk: KeyState,
+
+    sim_handle: HpuSimHandle,
 }
 
 impl HpuHw {
@@ -25,6 +44,39 @@ impl HpuHw {
 }
 
 impl HpuHw {
+    /// Handle ffi instanciation
+    #[inline(always)]
+    pub fn new_hpu_hw(config: ffi::HpuConfig) -> HpuHw {
+        // Check config
+        let params = match &config.fpga.ffi {
+            ffi::FFIMode::Sim(params) => params.clone(),
+            _ => panic!("Unsupported config type with ffi::sim"),
+        };
+        let regmap = FlatRegmap::from_file(&config.fpga.regmap);
+
+        // Instanciate Hpu simulation
+        let (hpu_sim, sim_handle) = HpuSim::new(config);
+        hpu_sim.spawn();
+
+        Self {
+            regmap,
+            params,
+            bsk: Default::default(),
+            ksk: Default::default(),
+            sim_handle,
+        }
+    }
+
+    pub fn alloc(&mut self, props: ffi::MemZoneProperties) -> MemZone {
+        self.sim_handle.mem_req_tx.send(props).unwrap();
+        let chunk = self.sim_handle.mem_resp_rx.recv().unwrap();
+        MemZone::new(chunk)
+    }
+
+    pub fn release(&mut self, _zone: &MemZone) {}
+
+    /// Kind of register reverse
+    /// Return register value from parameter value
     pub fn read_reg(&self, addr: u64) -> u32 {
         let register_name = self.get_register_name(addr);
         match register_name {
@@ -100,6 +152,36 @@ impl HpuHw {
                 isc_p.min_iop_size as u32
             }
 
+            "Keys_Bsk::avail" => self.bsk.avail.load(Ordering::SeqCst) as u32,
+            "Keys_Bsk::reset" => {
+                if self.bsk.rst_pdg.load(Ordering::SeqCst) {
+                    self.bsk.rst_pdg.store(false, Ordering::SeqCst);
+                    1 << 31
+                } else {
+                    0
+                }
+            }
+            "Keys_Ksk::avail" => self.ksk.avail.load(Ordering::SeqCst) as u32,
+            "Keys_Ksk::reset" => {
+                if self.ksk.rst_pdg.load(Ordering::SeqCst) {
+                    self.ksk.rst_pdg.store(false, Ordering::SeqCst);
+                    1 << 31
+                } else {
+                    0
+                }
+            }
+
+            // Queue interface
+            "WorkAck::workq" => {
+                // TODO implement finite size queue
+                0
+            }
+            "WorkAck::ackq" => match self.sim_handle.ackq_rx.try_recv() {
+                Ok(ack) => ack,
+                Err(TryRecvError::Empty) => ACKQ_EMPTY,
+                Err(TryRecvError::Disconnected) => panic!("HpuSimHandle closed"),
+            },
+
             _ => {
                 tracing::warn!("Register {register_name} not hooked for reading, return 0");
                 0
@@ -110,25 +192,24 @@ impl HpuHw {
     pub fn write_reg(&mut self, addr: u64, value: u32) {
         let register_name = self.get_register_name(addr);
         match register_name {
-            _ => tracing::debug!("Register {register_name} not hooked for writting"),
+            "Keys_Ksk::avail" => self.ksk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst),
+            "Keys_Bsk::reset" => {
+                if (value & 0x1) == 0x1 {
+                    self.bsk.rst_pdg.store(true, Ordering::SeqCst);
+                    self.bsk.avail.store(false, Ordering::SeqCst);
+                }
+            }
+            "Keys_Ksk::avail" => self.ksk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst),
+            "Keys_Ksk::reset" => {
+                if (value & 0x1) == 0x1 {
+                    self.ksk.rst_pdg.store(true, Ordering::SeqCst);
+                    self.ksk.avail.store(false, Ordering::SeqCst);
+                }
+            }
+            "WorkAck::workq" => {
+                self.sim_handle.workq_tx.send(value);
+            }
+            _ => tracing::warn!("Register {register_name} not hooked for writting"),
         }
-    }
-
-    pub fn alloc(&mut self, props: ffi::MemZoneProperties) -> MemZone {
-        todo!()
-    }
-
-    pub fn release(&mut self, zone: &MemZone) {}
-
-    /// Handle ffi instanciation
-    #[inline(always)]
-    pub fn new_hpu_hw(config: ffi::FpgaConfig) -> HpuHw {
-        // Check config
-        let params = match config.ffi {
-            ffi::FFIMode::Sim(params) => params,
-            _ => panic!("Unsupported config type with ffi::sim"),
-        };
-        let regmap = FlatRegmap::from_file(&config.regmap);
-        Self { regmap, params }
     }
 }

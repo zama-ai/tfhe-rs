@@ -6,3 +6,5 @@ pub(crate) use hpu_hw::HpuHw;
 
 mod mem_zone;
 pub(crate) use mem_zone::MemZone;
+
+mod hpu_sim;
