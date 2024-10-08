@@ -24,6 +24,7 @@ private:
   int current_level;
   T mask_mod_b;
   T *state;
+  bool use_regs = false;
 
 public:
   __device__ GadgetMatrix(uint32_t base_log, uint32_t level_count, T *state,
@@ -41,12 +42,54 @@ public:
     synchronize_threads_in_block();
   }
 
+  __device__ GadgetMatrix(uint32_t base_log, uint32_t level_count, T s_regs[params::opt],
+                          bool use_regs)
+      : base_log(base_log), level_count(level_count), num_poly(1),
+        use_regs(use_regs) {
+
+    mask_mod_b = (1ll << base_log) - 1ll;
+    current_level = level_count;
+    for (int i = 0; i < params::opt; i++) {
+      s_regs[i] >>= (sizeof(T) * 8 - base_log * level_count);
+    }
+    //synchronize_threads_in_block();
+  }
   // Decomposes all polynomials at once
   __device__ void decompose_and_compress_next(double2 *result) {
     for (int j = 0; j < num_poly; j++) {
       auto result_slice = result + j * params::degree / 2;
       decompose_and_compress_next_polynomial(result_slice, j);
     }
+  }
+
+  __device__ void decompose_and_compress_next_registers(T s_regs[params::opt], double2 fft_regs[params::opt / 2]) {
+      decompose_and_compress_next_polynomial_registers(s_regs, fft_regs);
+  }
+
+  // Decomposes a single polynomial
+  __device__ void decompose_and_compress_next_polynomial_registers(T s_regs[params::opt], double2 fft_regs[params::opt / 2]) {
+    int tid = threadIdx.x;
+    for (int i = 0; i < params::opt / 2; i++) {
+      T res_re = s_regs[i] & mask_mod_b;
+      T res_im = s_regs[i + params::opt / 2] & mask_mod_b;
+      s_regs[i] >>= base_log;
+      s_regs[i + params::opt / 2] >>= base_log;
+      T carry_re = ((res_re - 1ll) | s_regs[i]) & res_re;
+      T carry_im =
+          ((res_im - 1ll) | s_regs[i + params::opt / 2]) & res_im;
+      carry_re >>= (base_log - 1);
+      carry_im >>= (base_log - 1);
+      s_regs[i] += carry_re;
+      s_regs[i + params::opt / 2] += carry_im;
+      res_re -= carry_re << base_log;
+      res_im -= carry_im << base_log;
+
+      fft_regs[i].x = (int32_t)res_re;
+      fft_regs[i].y = (int32_t)res_im;
+
+      tid += params::degree / params::opt;
+    }
+    synchronize_threads_in_block();
   }
 
   // Decomposes a single polynomial
@@ -79,10 +122,12 @@ public:
     }
     synchronize_threads_in_block();
   }
-
-  __device__ void decompose_and_compress_level(double2 *result, int level) {
+  __device__ void decompose_and_compress_level(double2 *result, int level, T s_regs[params::opt] = nullptr, double2 fft_regs[params::opt / 2] =nullptr) {
     for (int i = 0; i < level_count - level; i++)
-      decompose_and_compress_next(result);
+      if (!use_regs)
+        decompose_and_compress_next(result);
+      else
+        decompose_and_compress_next_registers(s_regs, fft_regs);
   }
 };
 

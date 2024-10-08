@@ -116,6 +116,103 @@ mul_ggsw_glwe(Torus *accumulator, double2 *fft, double2 *join_buffer,
   __syncthreads();
 }
 
+template <typename Torus, typename G, class params>
+__device__ void
+mul_ggsw_glwe_registers(Torus acc[params::opt],  double2 fft_regs[params::opt / 2], double2 *complex_workspace, double2 *join_buffer,
+              const double2 *__restrict__ bootstrapping_key,
+              int polynomial_size, uint32_t glwe_dimension, int level_count,
+              int iteration, G &group, bool support_dsm = false) {
+
+  // Switch to the FFT space
+  NSMFFT_direct_registers<HalfDegree<params>>(fft_regs, complex_workspace);
+  synchronize_threads_in_block();
+
+  // Get the pieces of the bootstrapping key that will be needed for the
+  // external product; blockIdx.x is the ID of the block that's executing
+  // this function, so we end up getting the lines of the bootstrapping key
+  // needed to perform the external product in this block (corresponding to
+  // the same decomposition level)
+  auto bsk_slice = get_ith_mask_kth_block(
+      bootstrapping_key, iteration, blockIdx.y, blockIdx.x, polynomial_size,
+      glwe_dimension, level_count);
+
+  // Perform the matrix multiplication between the GGSW and the GLWE,
+  // each block operating on a single level for mask and body
+
+  // The first product is used to initialize level_join_buffer
+  auto bsk_poly = bsk_slice + blockIdx.y * params::degree / 2;
+  auto this_block_rank = get_this_block_rank<G>(group, support_dsm);
+  auto buffer_slice =
+      get_join_buffer_element<G>(blockIdx.x, blockIdx.y, group, join_buffer,
+                                 polynomial_size, glwe_dimension, support_dsm);
+
+  int tid = threadIdx.x;
+  for (int i = 0; i < params::opt / 2; i++) {
+    buffer_slice[tid] = fft_regs[i] * bsk_poly[tid];
+    tid += params::degree / params::opt;
+  }
+
+  group.sync();
+
+  // Continues multiplying fft by every polynomial in that particular bsk level
+  // Each y-block accumulates in a different polynomial at each iteration
+  for (int j = 1; j < (glwe_dimension + 1); j++) {
+    int idx = (j + this_block_rank) % (glwe_dimension + 1);
+
+    auto bsk_poly = bsk_slice + idx * params::degree / 2;
+    auto buffer_slice = get_join_buffer_element<G>(blockIdx.x, idx, group,
+                                                   join_buffer, polynomial_size,
+                                                   glwe_dimension, support_dsm);
+
+    int tid = threadIdx.x;
+    for (int i = 0; i < params::opt / 2; i++) {
+      buffer_slice[tid] += fft_regs[i] * bsk_poly[tid];
+      tid += params::degree / params::opt;
+    }
+    group.sync();
+  }
+
+  // -----------------------------------------------------------------
+  // All blocks are synchronized here; after this sync, level_join_buffer has
+  // the values needed from every other block
+
+  auto src_acc =
+      get_join_buffer_element<G>(0, blockIdx.y, group, join_buffer,
+                                 polynomial_size, glwe_dimension, support_dsm);
+
+  // copy first product into fft buffer
+  tid = threadIdx.x;
+  for (int i = 0; i < params::opt / 2; i++) {
+    fft_regs[i] = src_acc[tid];
+    tid += params::degree / params::opt;
+  }
+  synchronize_threads_in_block();
+
+  // accumulate rest of the products into fft buffer
+  for (int l = 1; l < gridDim.x; l++) {
+    auto cur_src_acc = get_join_buffer_element<G>(l, blockIdx.y, group,
+                                                  join_buffer, polynomial_size,
+                                                  glwe_dimension, support_dsm);
+    tid = threadIdx.x;
+    for (int i = 0; i < params::opt / 2; i++) {
+      fft_regs[i] += cur_src_acc[tid];
+      tid += params::degree / params::opt;
+    }
+  }
+
+  synchronize_threads_in_block();
+
+  // Perform the inverse FFT on the result of the GGSW x GLWE and add to the
+  // accumulator
+  NSMFFT_inverse_registers<HalfDegree<params>>(fft_regs, complex_workspace);
+  synchronize_threads_in_block();
+
+  add_to_torus_registers<Torus, params>(fft_regs, acc);
+
+  __syncthreads();
+}
+
+
 template <typename Torus>
 void execute_pbs_async(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,

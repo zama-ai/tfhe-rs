@@ -53,15 +53,17 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
-  Torus *accumulator = (Torus *)selected_memory;
-  double2 *accumulator_fft =
-      (double2 *)accumulator +
-      (ptrdiff_t)(sizeof(Torus) * polynomial_size / sizeof(double2));
+  // registers to store accumulator
+  Torus acc[params::opt];
+  double2 acc_fft[params::opt / 2];
+
+  Torus *torus_workspace = (Torus *)selected_memory;
+  double2 *complex_workspace = (double2 *)selected_memory;
 
   if constexpr (SMD == PARTIALSM) {
-    accumulator_fft = (double2 *)sharedmem;
+    complex_workspace = (double2 *)sharedmem;
     if (support_dsm)
-      accumulator_fft += sizeof(double2) * (polynomial_size / 2);
+      complex_workspace += sizeof(double2) * (polynomial_size / 2);
   }
 
   // The third dimension of the block is used to determine on which ciphertext
@@ -91,28 +93,51 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
                    params::log2_degree + 1);
 
-    divide_by_monomial_negacyclic_inplace<Torus, params::opt,
+    divide_by_monomial_negacyclic_registers<Torus, params::opt,
                                           params::degree / params::opt>(
-        accumulator, &block_lut_vector[blockIdx.y * params::degree], b_hat,
-        false);
+        acc, &block_lut_vector[blockIdx.y * params::degree], b_hat);
+
   } else {
     // Load the accumulator calculated in previous iterations
-    copy_polynomial<Torus, params::opt, params::degree / params::opt>(
-        global_slice, accumulator);
+    copy_polynomial_registers<Torus, params::opt, params::degree / params::opt>(
+        global_slice, acc);
   }
 
   for (int i = 0; (i + lwe_offset) < lwe_dimension && i < lwe_chunk_size; i++) {
     // Perform a rounding to increase the accuracy of the
     // bootstrapped ciphertext
-    round_to_closest_multiple_inplace<Torus, params::opt,
+    round_to_closest_multiple_inplace_registers<Torus, params::opt,
                                       params::degree / params::opt>(
-        accumulator, base_log, level_count);
+        acc, base_log, level_count);
 
     // Decompose the accumulator. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
     // accumulator decomposed at level 0, 1 at 1, etc.)
-    GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator);
-    gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
+    GadgetMatrix<Torus, params> gadget_acc_regs(base_log, level_count, acc, true);
+    gadget_acc_regs.decompose_and_compress_level(nullptr, blockIdx.x, acc, acc_fft);
+
+    // __syncthreads();
+    // if(threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1 && blockIdx.z == 0) {
+    //   printf("new acc\n");
+    //   for (int z = 0; z < params::degree / 2; z++)
+    //     printf("{%.5f %.5f} ", accumulator_fft[z].x, accumulator_fft[z].y );
+    //   printf("\n");
+    // }
+    // __syncthreads();
+
+
+    // GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator);
+    // gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
+
+    // __syncthreads();
+    // if(threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1 && blockIdx.z == 0 ) {
+    //   printf("old acc\n");
+    //   for (int z = 0; z < params::degree / 2; z++)
+    //     printf("{%.5f %.5f} ", accumulator_fft[z].x, accumulator_fft[z].y );
+    //   printf("\n");
+    // }
+    // __syncthreads();
+
 
     // We are using the same memory space for accumulator_fft and
     // accumulator_rotated, so we need to synchronize here to make sure they
@@ -120,12 +145,16 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     synchronize_threads_in_block();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe<Torus, cluster_group, params>(
-        accumulator, accumulator_fft, block_join_buffer, keybundle,
+    mul_ggsw_glwe_registers<Torus, cluster_group, params>(
+        acc, acc_fft, complex_workspace, block_join_buffer, keybundle,
         polynomial_size, glwe_dimension, level_count, i, cluster, support_dsm);
 
     synchronize_threads_in_block();
   }
+
+  regs_to_sm<Torus, params::opt, params::degree / params::opt>(
+    torus_workspace, acc);
+
 
   if (lwe_offset + lwe_chunk_size >= (lwe_dimension / grouping_factor)) {
     auto block_lwe_array_out =
@@ -137,7 +166,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       // Perform a sample extract. At this point, all blocks have the result,
       // but we do the computation at block 0 to avoid waiting for extra blocks,
       // in case they're not synchronized
-      sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+      sample_extract_mask<Torus, params>(block_lwe_array_out, torus_workspace);
 
       if (lut_count > 1) {
         for (int i = 1; i < lut_count; i++) {
@@ -150,12 +179,12 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                   blockIdx.y * polynomial_size];
 
           sample_extract_mask<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, glwe_dimension,
+                                             torus_workspace, glwe_dimension,
                                              i * lut_stride);
         }
       }
     } else if (blockIdx.x == 0 && blockIdx.y == glwe_dimension) {
-      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+      sample_extract_body<Torus, params>(block_lwe_array_out, torus_workspace, 0);
       if (lut_count > 1) {
         for (int i = 1; i < lut_count; i++) {
 
@@ -168,14 +197,14 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                   blockIdx.y * polynomial_size];
 
           sample_extract_body<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, 0, i * lut_stride);
+                                             torus_workspace, 0, i * lut_stride);
         }
       }
     }
   } else {
     // Load the accumulator calculated in previous iterations
     copy_polynomial<Torus, params::opt, params::degree / params::opt>(
-        accumulator, global_slice);
+        torus_workspace, global_slice);
   }
 }
 

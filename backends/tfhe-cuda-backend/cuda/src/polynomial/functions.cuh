@@ -4,6 +4,7 @@
 #include "crypto/torus.cuh"
 #include "device.h"
 #include "parameters.cuh"
+#include <cuda_pipeline.h>
 
 // Return A if C == 0 and B if C == 1
 #define SEL(A, B, C) ((-(C) & ((A) ^ (B))) ^ (A))
@@ -32,6 +33,30 @@ __device__ void copy_polynomial(const T *__restrict__ source, T *dst) {
     tid = tid + block_size;
   }
 }
+
+// for debugging
+template <typename T, int elems_per_thread, int block_size>
+__device__ void regs_to_sm(T *sm, T acc[elems_per_thread]) {
+  int tid = threadIdx.x;
+  __syncthreads();
+#pragma unroll
+  for (int i = 0; i < elems_per_thread; i++) {
+    sm[tid] = acc[i];
+    tid = tid + block_size;
+  }
+  __syncthreads();
+}
+
+template <typename T, int elems_per_thread, int block_size>
+__device__ void copy_polynomial_registers(const T *__restrict__ source, T acc[elems_per_thread]) {
+  int tid = threadIdx.x;
+#pragma unroll
+  for (int i = 0; i < elems_per_thread; i++) {
+    acc[i] = source[tid];
+    tid = tid + block_size;
+  }
+}
+
 template <typename T, int elems_per_thread, int block_size>
 __device__ void copy_polynomial_in_regs(const T *__restrict__ source, T *dst) {
 #pragma unroll
@@ -55,6 +80,8 @@ divide_by_monomial_negacyclic_inplace(T *accumulator,
                                       const T *__restrict__ input, uint32_t j,
                                       bool zeroAcc, uint32_t num_poly = 1) {
   constexpr int degree = block_size * elems_per_thread;
+  constexpr unsigned degree_minus_one = degree - 1;
+  constexpr unsigned double_degree_minus_one = 2 * degree - 1;
   for (int z = 0; z < num_poly; z++) {
     T *accumulator_slice = (T *)accumulator + (ptrdiff_t)(z * degree);
     const T *input_slice = (T *)input + (ptrdiff_t)(z * degree);
@@ -66,31 +93,44 @@ divide_by_monomial_negacyclic_inplace(T *accumulator,
         tid += block_size;
       }
     } else {
-      tid = threadIdx.x;
       for (int i = 0; i < elems_per_thread; i++) {
-        if (j < degree) {
-          // if (tid < degree - j)
-          //  accumulator_slice[tid] = input_slice[tid + j];
-          // else
-          //  accumulator_slice[tid] = -input_slice[tid - degree + j];
-          int x = tid + j - SEL(degree, 0, tid < degree - j);
-          accumulator_slice[tid] =
-              SEL(-1, 1, tid < degree - j) * input_slice[x];
-        } else {
-          int32_t jj = j - degree;
-          // if (tid < degree - jj)
-          //  accumulator_slice[tid] = -input_slice[tid + jj];
-          // else
-          //  accumulator_slice[tid] = input_slice[tid - degree + jj];
-          int x = tid + jj - SEL(degree, 0, tid < degree - jj);
-          accumulator_slice[tid] =
-              SEL(1, -1, tid < degree - jj) * input_slice[x];
-        }
+        unsigned x = (unsigned)(tid + j);
+        x &= double_degree_minus_one;
+        bool wrap_around = x >= degree;
+        x &= degree_minus_one;
+
+        accumulator_slice[tid] = wrap_around ? -input_slice[x] : input_slice[x];
         tid += block_size;
       }
     }
   }
 }
+
+
+template <typename T, int elems_per_thread, int block_size>
+__device__ void
+divide_by_monomial_negacyclic_registers(T acc[elems_per_thread],
+                                      const T *__restrict__ input, uint32_t j) {
+  constexpr int degree = block_size * elems_per_thread;
+  constexpr unsigned degree_minus_one = degree - 1;
+  constexpr unsigned double_degree_minus_one = 2 * degree - 1;
+  unsigned tid = threadIdx.x;
+
+
+
+  tid = threadIdx.x;
+  for (int i = 0; i < elems_per_thread; i++) {
+
+    unsigned x = (unsigned)(tid + j);
+    x &= double_degree_minus_one;
+    bool wrap_around = x >= degree;
+    x &= degree_minus_one;
+
+    acc[i] = wrap_around ? -input[x] : input[x];
+    tid += block_size;
+  }
+}
+
 
 /*
  * Receives num_poly  concatenated polynomials of type T. For each:
@@ -160,6 +200,24 @@ __device__ void round_to_closest_multiple_inplace(T *rotated_acc, int base_log,
   }
 }
 
+template <typename T, int elems_per_thread, int block_size>
+__device__ void round_to_closest_multiple_inplace_registers(T rotated_acc[elems_per_thread], int base_log,
+                                                  int level_count,
+                                                  uint32_t num_poly = 1) {
+  int tid = threadIdx.x;
+  for (int i = 0; i < elems_per_thread; i++) {
+    T x_acc = rotated_acc[i];
+    T shift = sizeof(T) * 8 - level_count * base_log;
+    T mask = 1ll << (shift - 1);
+    T b_acc = (x_acc & mask) >> (shift - 1);
+    T res_acc = x_acc >> shift;
+    res_acc += b_acc;
+    res_acc <<= shift;
+    rotated_acc[i] = res_acc;
+    tid = tid + block_size;
+  }
+}
+
 template <typename Torus, class params>
 __device__ void add_to_torus(double2 *m_values, Torus *result,
                              bool init_torus = false) {
@@ -186,6 +244,31 @@ __device__ void add_to_torus(double2 *m_values, Torus *result,
   }
 }
 
+template <typename Torus, class params>
+__device__ void add_to_torus_registers(double2 fft_regs[params::opt / 2], Torus result[params::opt],
+                             bool init_torus = false) {
+  int tid = threadIdx.x;
+#pragma unroll
+  for (int i = 0; i < params::opt / 2; i++) {
+    double double_real = fft_regs[i].x;
+    double double_imag = fft_regs[i].y;
+
+    Torus torus_real = 0;
+    typecast_double_round_to_torus<Torus>(double_real, torus_real);
+
+    Torus torus_imag = 0;
+    typecast_double_round_to_torus<Torus>(double_imag, torus_imag);
+
+    if (init_torus) {
+      result[i] = torus_real;
+      result[i + params::opt / 2] = torus_imag;
+    } else {
+      result[i] += torus_real;
+      result[i + params::opt / 2] += torus_imag;
+    }
+    tid = tid + params::degree / params::opt;
+  }
+}
 // Extracts the body of the nth-LWE in a GLWE.
 template <typename Torus, class params>
 __device__ void sample_extract_body(Torus *lwe_array_out, Torus *glwe,

@@ -132,7 +132,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
       tid += params::degree / params::opt;
     }
 
-    NSMFFT_direct<HalfDegree<params>>(fft);
+    NSMFFT_direct_natural_order<HalfDegree<params>>(fft);
 
     // lwe iteration
     auto keybundle_out = get_ith_mask_kth_block(
