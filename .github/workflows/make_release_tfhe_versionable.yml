@@ -2,6 +2,11 @@ name: Publish tfhe-versionable release
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run"
+        type: boolean
+        default: true
 
 env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -16,11 +21,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Publish crate.io package
+      - name: Publish proc-macro crate
+        env:
+          CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          cargo publish -p tfhe-versionable-derive --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
+
+      - name: Publish main crate
+        if: ${{ ! inputs.dry_run }}
         env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          cargo publish -p tfhe-versionable-derive --token ${{ env.CRATES_TOKEN }}
           cargo publish -p tfhe-versionable --token ${{ env.CRATES_TOKEN }}
 
       - name: Slack Notification
