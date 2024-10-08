@@ -1149,6 +1149,12 @@ bench_web_js_api_parallel_firefox_ci: setup_venv
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_parallel_firefox
 
+.PHONY: bench_hlapi_erc20 # Run benchmarks for ECR20 operations
+bench_hlapi_erc20: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc20 \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,pbs-stats,nightly-avx512 -p $(TFHE_SPEC) --
+
 #
 # Utility tools
 #
