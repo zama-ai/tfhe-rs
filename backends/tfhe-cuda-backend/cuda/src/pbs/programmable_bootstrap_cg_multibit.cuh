@@ -144,8 +144,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                   blockIdx.y * polynomial_size];
 
           sample_extract_mask<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, glwe_dimension,
-                                             i * lut_stride);
+                                             accumulator, 1, i * lut_stride);
         }
       }
 

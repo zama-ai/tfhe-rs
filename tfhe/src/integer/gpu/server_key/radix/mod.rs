@@ -927,37 +927,72 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, &mut stream);
-    /// let num_blocks = 2;
-    /// let msg = 3;
-    /// let ct = cks.encrypt_radix(msg, num_blocks);
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
-    /// // Generate the lookup table for the functions
-    /// // f1: x -> x*x mod 4
-    /// // f2: x -> count_ones(x as binary) mod 4
-    /// let f1 = |x: u64| x.pow(2) % 4;
-    /// let f2 = |x: u64| x.count_ones() as u64 % 4;
-    /// // Easy to use for generation
-    /// let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
-    /// let vec_res = unsafe { sks.apply_many_lookup_table_async(&d_ct.as_ref(), &luts, &stream) };
-    /// stream.synchronize();
-    /// // Need to manually help Rust to iterate over them easily
-    /// let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
-    /// for (d_res, function) in vec_res.iter().zip(functions) {
-    ///     let d_res_unsigned = CudaUnsignedRadixCiphertext {
-    ///         ciphertext: d_res.duplicate(&stream),
-    ///     };
-    ///     let res = d_res_unsigned.to_radix_ciphertext(&mut stream);
-    ///     let dec: u64 = cks.decrypt_radix(&res);
-    ///     println!(" compare {} vs {}", dec, function(msg));
-    ///     assert_eq!(dec, function(msg));
+    /// use tfhe::shortint::parameters::{
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    /// };
+    /// {
+    ///     // Generate the client key and the server key:
+    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///     let gpu_index = 0;
+    ///     let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    ///     // Generate the client key and the server key:
+    ///     let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, &mut stream);
+    ///     let num_blocks = 2;
+    ///     let msg = 3;
+    ///     let ct = cks.encrypt_radix(msg, num_blocks);
+    ///     let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    ///     // Generate the lookup table for the functions
+    ///     // f1: x -> x*x mod 4
+    ///     // f2: x -> count_ones(x as binary) mod 4
+    ///     let f1 = |x: u64| x.pow(2) % 4;
+    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
+    ///     // Easy to use for generation
+    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
+    ///     let vec_res = unsafe { sks.apply_many_lookup_table_async(&d_ct.as_ref(), &luts, &stream) };
+    ///     stream.synchronize();
+    ///     // Need to manually help Rust to iterate over them easily
+    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
+    ///     for (d_res, function) in vec_res.iter().zip(functions) {
+    ///         let d_res_unsigned = CudaUnsignedRadixCiphertext {
+    ///             ciphertext: d_res.duplicate(&stream),
+    ///         };
+    ///         let res = d_res_unsigned.to_radix_ciphertext(&mut stream);
+    ///         let dec: u64 = cks.decrypt_radix(&res);
+    ///         println!(" compare {} vs {}", dec, function(msg));
+    ///         assert_eq!(dec, function(msg));
+    ///     }
+    /// }
+    /// {
+    ///     // Generate the client key and the server key:
+    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    ///     let gpu_index = 0;
+    ///     let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    ///     // Generate the client key and the server key:
+    ///     let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_3_CARRY_3_KS_PBS, &mut stream);
+    ///     let num_blocks = 2;
+    ///     let msg = 3;
+    ///     let ct = cks.encrypt_radix(msg, num_blocks);
+    ///     let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    ///     // Generate the lookup table for the functions
+    ///     // f1: x -> x*x mod 4
+    ///     // f2: x -> count_ones(x as binary) mod 4
+    ///     let f1 = |x: u64| x.pow(2) % 4;
+    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
+    ///     // Easy to use for generation
+    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
+    ///     let vec_res = unsafe { sks.apply_many_lookup_table_async(&d_ct.as_ref(), &luts, &stream) };
+    ///     stream.synchronize();
+    ///     // Need to manually help Rust to iterate over them easily
+    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
+    ///     for (d_res, function) in vec_res.iter().zip(functions) {
+    ///         let d_res_unsigned = CudaUnsignedRadixCiphertext {
+    ///             ciphertext: d_res.duplicate(&stream),
+    ///         };
+    ///         let res = d_res_unsigned.to_radix_ciphertext(&mut stream);
+    ///         let dec: u64 = cks.decrypt_radix(&res);
+    ///         println!(" compare {} vs {}", dec, function(msg));
+    ///         assert_eq!(dec, function(msg));
+    ///     }
     /// }
     /// ```
     /// # Safety

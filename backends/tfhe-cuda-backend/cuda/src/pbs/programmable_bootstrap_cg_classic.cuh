@@ -163,8 +163,7 @@ __global__ void device_programmable_bootstrap_cg(
                                 blockIdx.y * polynomial_size];
 
         sample_extract_mask<Torus, params>(next_block_lwe_array_out,
-                                           accumulator, glwe_dimension,
-                                           i * lut_stride);
+                                           accumulator, 1, i * lut_stride);
       }
     }
   } else if (blockIdx.x == 0 && blockIdx.y == glwe_dimension) {

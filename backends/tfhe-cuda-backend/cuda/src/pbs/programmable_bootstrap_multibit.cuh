@@ -337,8 +337,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                   blockIdx.y * polynomial_size];
 
           sample_extract_mask<Torus, params>(next_block_lwe_array_out,
-                                             global_slice, glwe_dimension,
-                                             i * lut_stride);
+                                             global_slice, 1, i * lut_stride);
         }
       }
     } else if (blockIdx.y == glwe_dimension) {
