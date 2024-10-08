@@ -15,7 +15,7 @@ Here is a full example:
 
 [dependencies]
 # ...
-tfhe = { version = "0.8.1", features = ["integer", "x86_64-unix"] }
+tfhe = { version = "0.8.2", features = ["integer", "x86_64-unix"] }
 bincode = "1.3.3"
 ```
 
