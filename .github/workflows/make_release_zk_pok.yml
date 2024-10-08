@@ -13,22 +13,76 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 jobs:
+  package:
+    runs-on: ubuntu-latest
+    outputs:
+      hash: ${{ steps.hash.outputs.hash }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          fetch-depth: 0
+      - name: Prepare package
+        run: |
+          cargo package -p tfhe-zk-pok
+      - uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: crate-zk-pok
+          path: target/package/*.crate
+      - name: generate hash
+        id: hash
+        run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
+
+  provenance:
+    if: ${{ !inputs.dry_run  }}
+    needs: [package]
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    permissions:
+      # Needed to detect the GitHub Actions environment
+      actions: read
+      # Needed to create the provenance via GitHub OIDC
+      id-token: write
+      # Needed to upload assets/artifacts
+      contents: write
+    with:
+      # SHA-256 hashes of the Crate package.
+      base64-subjects: ${{ needs.package.outputs.hash }}
+
+
   publish_release:
     name: Publish tfhe-zk-pok Release
+    needs: [package] # for comparing hashes
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938
         with:
           fetch-depth: 0
-
+      - name: Download artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: crate-zk-pok
+          path: target/package
       - name: Publish crate.io package
         env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
           cargo publish -p tfhe-zk-pok --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
-
+      - name: Verify hash
+        id: published_hash
+        run: cd target/package && echo "pub_hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
+      - name: Slack notification (hashes comparison)
+        if: ${{ needs.package.outputs.hash != steps.published_hash.outputs.pub_hash }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: failure
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "SLSA tfhe-zk-pok crate - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
