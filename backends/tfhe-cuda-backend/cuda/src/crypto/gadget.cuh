@@ -69,6 +69,7 @@ public:
   // Decomposes a single polynomial
   __device__ void decompose_and_compress_next_polynomial_registers(T s_regs[params::opt], double2 fft_regs[params::opt / 2]) {
     int tid = threadIdx.x;
+#pragma unroll    
     for (int i = 0; i < params::opt / 2; i++) {
       T res_re = s_regs[i] & mask_mod_b;
       T res_im = s_regs[i + params::opt / 2] & mask_mod_b;

@@ -58,7 +58,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   double2 acc_fft[params::opt / 2];
 
   Torus *torus_workspace = (Torus *)selected_memory;
-  double2 *complex_workspace = (double2 *)selected_memory;
+  double2 *complex_workspace = static_cast<double2 *>(__builtin_assume_aligned(selected_memory, 16));
 
   if constexpr (SMD == PARTIALSM) {
     complex_workspace = (double2 *)sharedmem;
@@ -116,40 +116,10 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     GadgetMatrix<Torus, params> gadget_acc_regs(base_log, level_count, acc, true);
     gadget_acc_regs.decompose_and_compress_level(nullptr, blockIdx.x, acc, acc_fft);
 
-    // __syncthreads();
-    // if(threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1 && blockIdx.z == 0) {
-    //   printf("new acc\n");
-    //   for (int z = 0; z < params::degree / 2; z++)
-    //     printf("{%.5f %.5f} ", accumulator_fft[z].x, accumulator_fft[z].y );
-    //   printf("\n");
-    // }
-    // __syncthreads();
-
-
-    // GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator);
-    // gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
-
-    // __syncthreads();
-    // if(threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1 && blockIdx.z == 0 ) {
-    //   printf("old acc\n");
-    //   for (int z = 0; z < params::degree / 2; z++)
-    //     printf("{%.5f %.5f} ", accumulator_fft[z].x, accumulator_fft[z].y );
-    //   printf("\n");
-    // }
-    // __syncthreads();
-
-
-    // We are using the same memory space for accumulator_fft and
-    // accumulator_rotated, so we need to synchronize here to make sure they
-    // don't modify the same memory space at the same time
-    synchronize_threads_in_block();
-
     // Perform G^-1(ACC) * GGSW -> GLWE
     mul_ggsw_glwe_registers<Torus, cluster_group, params>(
         acc, acc_fft, complex_workspace, block_join_buffer, keybundle,
         polynomial_size, glwe_dimension, level_count, i, cluster, support_dsm);
-
-    synchronize_threads_in_block();
   }
 
   regs_to_sm<Torus, params::opt, params::degree / params::opt>(

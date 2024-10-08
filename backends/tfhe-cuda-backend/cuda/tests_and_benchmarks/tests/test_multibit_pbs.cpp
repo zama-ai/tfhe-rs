@@ -179,62 +179,62 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
         (MultiBitProgrammableBootstrapTestParams){
             16, 1, 256, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
             new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 23, 1, 2,
-            2, 1, 2, 1, 10}
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     16, 1, 256, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
-        //     new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 23, 1, 2,
-        //     2, 128, 2, 1, 10},
-        // // 4_bits_multi_bit_group_2
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     818, 1, 2048, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
-        //     new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 22, 1, 2,
-        //     2, 1, 2, 1, 10},
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     818, 1, 2048, new_gaussian_from_std_dev(sqrt(1.3880686109937e-15)),
-        //     new_gaussian_from_std_dev(sqrt(1.1919984450689246e-24)), 22, 1, 2,
-        //     2, 128, 2, 1, 10},
-        // // 4_bits_multi_bit_group_3
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     888, 1, 2048,
-        //     new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-        //     new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-        //     1, 3, 1, 10},
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     888, 1, 16384,
-        //     new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-        //     new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-        //     1, 3, 1, 1},
+            2, 1, 2, 1, 10},
+        (MultiBitProgrammableBootstrapTestParams){
+            16, 1, 256, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 23, 1, 2,
+            2, 128, 2, 1, 10},
+        // 4_bits_multi_bit_group_2
+        (MultiBitProgrammableBootstrapTestParams){
+            818, 1, 2048, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 22, 1, 2,
+            2, 1, 2, 1, 10},
+        (MultiBitProgrammableBootstrapTestParams){
+            818, 1, 2048, new_gaussian_from_std_dev(sqrt(1.3880686109937e-15)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-24)), 22, 1, 2,
+            2, 128, 2, 1, 10},
+        // 4_bits_multi_bit_group_3
+        (MultiBitProgrammableBootstrapTestParams){
+            888, 1, 2048,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
+            1, 3, 1, 10},
+        (MultiBitProgrammableBootstrapTestParams){
+            888, 1, 16384,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
+            1, 3, 1, 1},
 
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     888, 1, 1024,
-        //     new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-        //     new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-        //     128, 3, 1, 10},
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     888, 1, 2048,
-        //     new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-        //     new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-        //     128, 3, 1, 10},
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     888, 1, 4096,
-        //     new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-        //     new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-        //     128, 3, 1, 10},
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     888, 1, 8192,
-        //     new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-        //     new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-        //     128, 3, 1, 1},
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     888, 1, 16384,
-        //     new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-        //     new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-        //     128, 3, 1, 1},
-        // (MultiBitProgrammableBootstrapTestParams){
-        //     972, 1, 8192,
-        //     new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
-        //     new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 14, 2, 8, 8,
-        //     68, 3, 1, 1}
+        (MultiBitProgrammableBootstrapTestParams){
+            888, 1, 1024,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
+            128, 3, 1, 10},
+        (MultiBitProgrammableBootstrapTestParams){
+            888, 1, 2048,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
+            128, 3, 1, 10},
+        (MultiBitProgrammableBootstrapTestParams){
+            888, 1, 4096,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
+            128, 3, 1, 10},
+        (MultiBitProgrammableBootstrapTestParams){
+            888, 1, 8192,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
+            128, 3, 1, 1},
+        (MultiBitProgrammableBootstrapTestParams){
+            888, 1, 16384,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
+            128, 3, 1, 1},
+        (MultiBitProgrammableBootstrapTestParams){
+            972, 1, 8192,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 14, 2, 8, 8,
+            68, 3, 1, 1}
         );
 
 std::string printParamName(

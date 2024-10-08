@@ -38,7 +38,6 @@ __device__ void copy_polynomial(const T *__restrict__ source, T *dst) {
 template <typename T, int elems_per_thread, int block_size>
 __device__ void regs_to_sm(T *sm, T acc[elems_per_thread]) {
   int tid = threadIdx.x;
-  __syncthreads();
 #pragma unroll
   for (int i = 0; i < elems_per_thread; i++) {
     sm[tid] = acc[i];
@@ -114,20 +113,16 @@ divide_by_monomial_negacyclic_registers(T acc[elems_per_thread],
   constexpr int degree = block_size * elems_per_thread;
   constexpr unsigned degree_minus_one = degree - 1;
   constexpr unsigned double_degree_minus_one = 2 * degree - 1;
-  unsigned tid = threadIdx.x;
 
-
-
-  tid = threadIdx.x;
+#pragma unroll
   for (int i = 0; i < elems_per_thread; i++) {
 
-    unsigned x = (unsigned)(tid + j);
+    unsigned x = threadIdx.x + j + block_size * i;
     x &= double_degree_minus_one;
     bool wrap_around = x >= degree;
     x &= degree_minus_one;
 
     acc[i] = wrap_around ? -input[x] : input[x];
-    tid += block_size;
   }
 }
 
@@ -205,6 +200,7 @@ __device__ void round_to_closest_multiple_inplace_registers(T rotated_acc[elems_
                                                   int level_count,
                                                   uint32_t num_poly = 1) {
   int tid = threadIdx.x;
+#pragma unroll
   for (int i = 0; i < elems_per_thread; i++) {
     T x_acc = rotated_acc[i];
     T shift = sizeof(T) * 8 - level_count * base_log;

@@ -264,8 +264,6 @@ template <class params> __device__ void NSMFFT_direct_registers(double2 data[par
       tid = tid + STRIDE;
     }
   }
-  __syncthreads();
-
 }
 
 /*
@@ -370,7 +368,6 @@ template <class params> __device__ void NSMFFT_inverse_registers(double2 data[pa
    */
 
 
-  __syncthreads();
   constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
   constexpr Index LOG2_DEGREE = params::log2_degree;
   constexpr Index DEGREE = params::degree;
@@ -430,22 +427,13 @@ template <class params> __device__ void NSMFFT_inverse_registers(double2 data[pa
   }
 
   // last iteration
+#pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
     w = (u[i] - v[i]);
     u[i] = u[i] + v[i];
     v[i] = w * (double2){0.707106781186547461715008466854,
                          -0.707106781186547461715008466854};
   }
-  __syncthreads();
-  // store registers in SM
-  tid = threadIdx.x;
-#pragma unroll
-  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
-    A[tid] = u[i];
-    A[tid + HALF_DEGREE] = v[i];
-    tid = tid + STRIDE;
-  }
-  __syncthreads();
 }
 
 

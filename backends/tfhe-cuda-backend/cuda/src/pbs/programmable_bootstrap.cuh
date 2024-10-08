@@ -125,7 +125,6 @@ mul_ggsw_glwe_registers(Torus acc[params::opt],  double2 fft_regs[params::opt / 
 
   // Switch to the FFT space
   NSMFFT_direct_registers<HalfDegree<params>>(fft_regs, complex_workspace);
-  synchronize_threads_in_block();
 
   // Get the pieces of the bootstrapping key that will be needed for the
   // external product; blockIdx.x is the ID of the block that's executing
@@ -186,7 +185,6 @@ mul_ggsw_glwe_registers(Torus acc[params::opt],  double2 fft_regs[params::opt / 
     fft_regs[i] = src_acc[tid];
     tid += params::degree / params::opt;
   }
-  synchronize_threads_in_block();
 
   // accumulate rest of the products into fft buffer
   for (int l = 1; l < gridDim.x; l++) {
@@ -200,16 +198,11 @@ mul_ggsw_glwe_registers(Torus acc[params::opt],  double2 fft_regs[params::opt / 
     }
   }
 
-  synchronize_threads_in_block();
-
   // Perform the inverse FFT on the result of the GGSW x GLWE and add to the
   // accumulator
   NSMFFT_inverse_registers<HalfDegree<params>>(fft_regs, complex_workspace);
-  synchronize_threads_in_block();
 
   add_to_torus_registers<Torus, params>(fft_regs, acc);
-
-  __syncthreads();
 }
 
 
