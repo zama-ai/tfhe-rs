@@ -1,9 +1,14 @@
+#[path = "../utilities.rs"]
+mod utilities;
+
+use crate::utilities::{write_to_json, OperatorType};
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
 use rayon::prelude::*;
 use std::ops::{Add, Mul, Sub};
+use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::*;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheBool, FheUint64};
@@ -103,31 +108,69 @@ where
 }
 
 #[cfg(feature = "pbs-stats")]
-fn print_transfer_pbs_counts<FheType, F>(
-    client_key: &ClientKey,
-    type_name: &str,
-    fn_name: &str,
-    transfer_func: F,
-) where
-    FheType: FheEncrypt<u64, ClientKey>,
-    F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType),
-{
-    let mut rng = thread_rng();
+mod pbs_stats {
+    use super::*;
+    use std::fs::{File, OpenOptions};
+    use std::io::Write;
+    use std::path::Path;
 
-    let from_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
-    let to_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
-    let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+    fn write_result(file: &mut File, name: &str, value: usize) {
+        let line = format!("{name},{value}\n");
+        let error_message = format!("cannot write {name} result into file");
+        file.write_all(line.as_bytes()).expect(&error_message);
+    }
 
-    tfhe::reset_pbs_count();
-    let (_, _) = transfer_func(&from_amount, &to_amount, &amount);
-    let count = tfhe::get_pbs_count();
+    pub fn print_transfer_pbs_counts<FheType, F>(
+        client_key: &ClientKey,
+        type_name: &str,
+        fn_name: &str,
+        transfer_func: F,
+    ) where
+        FheType: FheEncrypt<u64, ClientKey>,
+        F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType),
+    {
+        let mut rng = thread_rng();
 
-    println!("ERC20 transfer/{fn_name}::{type_name}: {count} PBS");
+        let from_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let to_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
+
+        tfhe::reset_pbs_count();
+        let (_, _) = transfer_func(&from_amount, &to_amount, &amount);
+        let count = tfhe::get_pbs_count();
+
+        println!("ERC20 transfer/{fn_name}::{type_name}: {count} PBS");
+
+        let params = client_key.computation_parameters();
+        let test_name = format!("hlapi::erc20::pbs_count::{fn_name}::{type_name}");
+
+        let results_file = Path::new("erc20_pbs_count.csv");
+        if !results_file.exists() {
+            File::create(results_file).expect("create results file failed");
+        }
+        let mut file = OpenOptions::new()
+            .append(true)
+            .open(results_file)
+            .expect("cannot open results file");
+
+        write_result(&mut file, &test_name, count as usize);
+
+        write_to_json::<u64, _>(
+            &test_name,
+            params,
+            params.name(),
+            "pbs-count",
+            &OperatorType::Atomic,
+            0,
+            vec![],
+        );
+    }
 }
 
 fn bench_transfer_latency<FheType, F>(
     c: &mut BenchmarkGroup<'_, WallTime>,
     client_key: &ClientKey,
+    bench_name: &str,
     type_name: &str,
     fn_name: &str,
     transfer_func: F,
@@ -135,8 +178,8 @@ fn bench_transfer_latency<FheType, F>(
     FheType: FheEncrypt<u64, ClientKey>,
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType),
 {
-    let id_name = format!("{fn_name}::{type_name}");
-    c.bench_function(&id_name, |b| {
+    let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
+    c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
 
         let from_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
@@ -147,11 +190,24 @@ fn bench_transfer_latency<FheType, F>(
             let (_, _) = transfer_func(&from_amount, &to_amount, &amount);
         })
     });
+
+    let params = client_key.computation_parameters();
+
+    write_to_json::<u64, _>(
+        &bench_id,
+        params,
+        params.name(),
+        "erc20-transfer",
+        &OperatorType::Atomic,
+        64,
+        vec![],
+    );
 }
 
 fn bench_transfer_throughput<FheType, F>(
     group: &mut BenchmarkGroup<'_, WallTime>,
     client_key: &ClientKey,
+    bench_name: &str,
     type_name: &str,
     fn_name: &str,
     transfer_func: F,
@@ -163,8 +219,8 @@ fn bench_transfer_throughput<FheType, F>(
 
     for num_elems in [10, 100, 500] {
         group.throughput(Throughput::Elements(num_elems));
-        let id_name = format!("{fn_name}::{type_name}::{num_elems}");
-        group.bench_with_input(id_name, &num_elems, |b, &num_elems| {
+        let bench_id = format!("{bench_name}::{fn_name}::{type_name}::{num_elems}_elems");
+        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
@@ -184,8 +240,23 @@ fn bench_transfer_throughput<FheType, F>(
                     })
             })
         });
+
+        let params = client_key.computation_parameters();
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            params,
+            params.name(),
+            "erc20-transfer",
+            &OperatorType::Atomic,
+            64,
+            vec![],
+        );
     }
 }
+
+#[cfg(feature = "pbs-stats")]
+use pbs_stats::print_transfer_pbs_counts;
 
 fn main() {
     #[cfg(not(feature = "gpu"))]
@@ -230,10 +301,12 @@ fn main() {
 
     // FheUint64 latency
     {
-        let mut group = c.benchmark_group("ERC20 latency");
+        let bench_name = "hlapi::erc20::transfer_latency";
+        let mut group = c.benchmark_group(bench_name);
         bench_transfer_latency(
             &mut group,
             &cks,
+            bench_name,
             "FheUint64",
             "whitepaper",
             transfer_whitepaper::<FheUint64>,
@@ -241,6 +314,7 @@ fn main() {
         bench_transfer_latency(
             &mut group,
             &cks,
+            bench_name,
             "FheUint64",
             "no_cmux",
             transfer_no_cmux::<FheUint64>,
@@ -248,6 +322,7 @@ fn main() {
         bench_transfer_latency(
             &mut group,
             &cks,
+            bench_name,
             "FheUint64",
             "overflow",
             transfer_overflow::<FheUint64>,
@@ -255,6 +330,7 @@ fn main() {
         bench_transfer_latency(
             &mut group,
             &cks,
+            bench_name,
             "FheUint64",
             "safe",
             transfer_safe::<FheUint64>,
@@ -265,10 +341,12 @@ fn main() {
 
     // FheUint64 Throughput
     {
-        let mut group = c.benchmark_group("ERC20 throughput");
+        let bench_name = "hlapi::erc20::transfer_throughput";
+        let mut group = c.benchmark_group(bench_name);
         bench_transfer_throughput(
             &mut group,
             &cks,
+            bench_name,
             "FheUint64",
             "whitepaper",
             transfer_whitepaper::<FheUint64>,
@@ -276,6 +354,7 @@ fn main() {
         bench_transfer_throughput(
             &mut group,
             &cks,
+            bench_name,
             "FheUint64",
             "no_cmux",
             transfer_no_cmux::<FheUint64>,
@@ -283,6 +362,7 @@ fn main() {
         bench_transfer_throughput(
             &mut group,
             &cks,
+            bench_name,
             "FheUint64",
             "overflow",
             transfer_overflow::<FheUint64>,
@@ -290,6 +370,7 @@ fn main() {
         bench_transfer_throughput(
             &mut group,
             &cks,
+            bench_name,
             "FheUint64",
             "safe",
             transfer_safe::<FheUint64>,
