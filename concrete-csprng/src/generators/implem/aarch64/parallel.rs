@@ -53,7 +53,6 @@ impl ParallelRandomGenerator for NeonAesRandomGenerator {
 }
 
 #[cfg(test)]
-
 mod test {
     use crate::generators::aes_ctr::aes_ctr_parallel_generic_tests;
     use crate::generators::implem::aarch64::block_cipher::ArmAesBlockCipher;
