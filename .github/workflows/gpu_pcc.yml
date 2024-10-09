@@ -86,6 +86,11 @@ jobs:
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
 
+      - name: Install libclang
+        if: ${{ !cancelled() }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y libclang-dev
+
       - name: Run fmt checks
         run: |
           make check_fmt_gpu

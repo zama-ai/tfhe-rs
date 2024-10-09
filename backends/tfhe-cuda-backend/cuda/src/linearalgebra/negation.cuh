@@ -11,7 +11,7 @@
 #include "linear_algebra.h"
 
 template <typename T>
-__global__ void negation(T *output, T *input, uint32_t num_entries) {
+__global__ void negation(T *output, T const *input, uint32_t num_entries) {
 
   int tid = threadIdx.x;
   int index = blockIdx.x * blockDim.x + tid;
@@ -23,7 +23,7 @@ __global__ void negation(T *output, T *input, uint32_t num_entries) {
 
 template <typename T>
 __host__ void host_negation(cudaStream_t stream, uint32_t gpu_index, T *output,
-                            T *input, uint32_t input_lwe_dimension,
+                            T const *input, uint32_t input_lwe_dimension,
                             uint32_t input_lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_index);

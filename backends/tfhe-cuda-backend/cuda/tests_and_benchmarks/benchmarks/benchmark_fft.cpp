@@ -1,3 +1,4 @@
+#include "pbs_utilities.h"
 #include <benchmark/benchmark.h>
 #include <cstdint>
 #include <setup_and_teardown.h>

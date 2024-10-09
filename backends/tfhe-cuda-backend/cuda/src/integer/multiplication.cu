@@ -66,12 +66,12 @@ void generate_ids_update_degrees(int *terms_degree, size_t *h_lwe_idx_in,
  * the integer radix multiplication in keyswitch->bootstrap order.
  */
 void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t message_modulus, uint32_t carry_modulus, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t pbs_base_log,
-    uint32_t pbs_level, uint32_t ks_base_log, uint32_t ks_level,
-    uint32_t grouping_factor, uint32_t num_radix_blocks, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory) {
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t message_modulus, uint32_t carry_modulus,
+    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
+    uint32_t pbs_base_log, uint32_t pbs_level, uint32_t ks_base_log,
+    uint32_t ks_level, uint32_t grouping_factor, uint32_t num_radix_blocks,
+    PBS_TYPE pbs_type, bool allocate_gpu_memory) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           polynomial_size * glwe_dimension, lwe_dimension,
@@ -87,7 +87,7 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
   case 8192:
   case 16384:
     scratch_cuda_integer_mult_radix_ciphertext_kb<uint64_t>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        (cudaStream_t const *)(streams), gpu_indexes, gpu_count,
         (int_mul_memory<uint64_t> **)mem_ptr, num_radix_blocks, params,
         allocate_gpu_memory);
     break;
@@ -125,10 +125,10 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
  * - 'pbs_type' selects which PBS implementation should be used
  */
 void cuda_integer_mult_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     void *radix_lwe_out, void *radix_lwe_left, void *radix_lwe_right,
-    void **bsks, void **ksks, int8_t *mem_ptr, uint32_t polynomial_size,
-    uint32_t num_blocks) {
+    void *const *bsks, void *const *ksks, int8_t *mem_ptr,
+    uint32_t polynomial_size, uint32_t num_blocks) {
 
   switch (polynomial_size) {
   case 256:
@@ -193,8 +193,9 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
   }
 }
 
-void cleanup_cuda_integer_mult(void **streams, uint32_t *gpu_indexes,
-                               uint32_t gpu_count, int8_t **mem_ptr_void) {
+void cleanup_cuda_integer_mult(void *const *streams,
+                               uint32_t const *gpu_indexes, uint32_t gpu_count,
+                               int8_t **mem_ptr_void) {
 
   int_mul_memory<uint64_t> *mem_ptr =
       (int_mul_memory<uint64_t> *)(*mem_ptr_void);
@@ -203,10 +204,10 @@ void cleanup_cuda_integer_mult(void **streams, uint32_t *gpu_indexes,
 }
 
 void scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t lwe_dimension,
-    uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     bool allocate_gpu_memory) {
@@ -222,9 +223,10 @@ void scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
 }
 
 void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     void *radix_lwe_out, void *radix_lwe_vec, uint32_t num_radix_in_vec,
-    int8_t *mem_ptr, void **bsks, void **ksks, uint32_t num_blocks_in_radix) {
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
+    uint32_t num_blocks_in_radix) {
 
   auto mem = (int_sum_ciphertexts_vec_memory<uint64_t> *)mem_ptr;
 
@@ -298,7 +300,7 @@ void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
 }
 
 void cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr_void) {
   int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr =
       (int_sum_ciphertexts_vec_memory<uint64_t> *)(*mem_ptr_void);

@@ -1,10 +1,10 @@
 #include "integer/scalar_comparison.cuh"
 
 void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_array_in, void *scalar_blocks,
-    int8_t *mem_ptr, void **bsks, void **ksks, uint32_t lwe_ciphertext_count,
-    uint32_t num_scalar_blocks) {
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
+    uint32_t lwe_ciphertext_count, uint32_t num_scalar_blocks) {
 
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;

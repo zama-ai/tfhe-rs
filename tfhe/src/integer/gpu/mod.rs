@@ -15,6 +15,7 @@ use crate::shortint::{CarryModulus, MessageModulus};
 pub use server_key::CudaServerKey;
 use std::cmp::min;
 
+use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
 
 #[repr(u32)]

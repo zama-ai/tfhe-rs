@@ -1,5 +1,6 @@
-use std::env;
+use std::path::PathBuf;
 use std::process::Command;
+use std::{env, fs};
 
 fn main() {
     if let Ok(val) = env::var("DOCS_RS") {
@@ -51,6 +52,44 @@ fn main() {
         println!("cargo:rustc-link-lib=cudart");
         println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/");
         println!("cargo:rustc-link-lib=stdc++");
+
+        let header_path = "wrapper.h";
+        println!("cargo:rerun-if-changed={}", header_path);
+
+        let bindings = bindgen::Builder::default()
+            .header(header_path)
+            // Enable C++ support
+            .clang_arg("-x")
+            .clang_arg("c++")
+            // Specify the C++ standard to use (e.g., C++14, C++17)
+            .clang_arg("-std=c++17")
+            // Add the include path where stdint.h is located
+            .clang_arg("-I/usr/include") // Path to the standard headers on Linux
+            .clang_arg("-I/usr/local/include") // Another potential path on Linux
+            .ctypes_prefix("ffi")
+            .raw_line("use crate::ffi;")
+            .generate()
+            .expect("Unable to generate bindings");
+
+        let out_path = PathBuf::from("src").join("bindings.rs");
+        bindings
+            .write_to_file(&out_path)
+            .expect("Couldn't write bindings!");
+        // Now, read the generated file and modify it to insert custom attributes at the top
+        let mut bindings_content =
+            fs::read_to_string(&out_path).expect("Couldn't read the generated bindings file");
+
+        // Prepend the `#![allow(...)]` attributes
+        let custom_attributes = "\
+#![allow(non_upper_case_globals)]\n\
+#![allow(non_snake_case)]\n\
+#![allow(improper_ctypes)]\n\
+#![allow(warnings)]\n";
+
+        bindings_content = format!("{}{}", custom_attributes, bindings_content);
+
+        // Write the modified content back to the file
+        fs::write(&out_path, bindings_content).expect("Couldn't write modified bindings to file!");
     } else {
         panic!(
             "Error: platform not supported, tfhe-cuda-backend not built (only Linux is supported)"

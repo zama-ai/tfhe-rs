@@ -13,9 +13,9 @@
 #include <stdio.h>
 
 template <typename T>
-__global__ void plaintext_addition(T *output, T *lwe_input, T *plaintext_input,
-                                   uint32_t input_lwe_dimension,
-                                   uint32_t num_entries) {
+__global__ void
+plaintext_addition(T *output, T const *lwe_input, T const *plaintext_input,
+                   uint32_t input_lwe_dimension, uint32_t num_entries) {
 
   int tid = threadIdx.x;
   int plaintext_index = blockIdx.x * blockDim.x + tid;
@@ -30,7 +30,7 @@ __global__ void plaintext_addition(T *output, T *lwe_input, T *plaintext_input,
 template <typename T>
 __host__ void
 host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index, T *output,
-                        T *lwe_input, T *plaintext_input,
+                        T const *lwe_input, T const *plaintext_input,
                         uint32_t lwe_dimension, uint32_t lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_index);
@@ -49,7 +49,7 @@ host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index, T *output,
 }
 
 template <typename T>
-__global__ void addition(T *output, T *input_1, T *input_2,
+__global__ void addition(T *output, T const *input_1, T const *input_2,
                          uint32_t num_entries) {
 
   int tid = threadIdx.x;
@@ -63,7 +63,7 @@ __global__ void addition(T *output, T *input_1, T *input_2,
 // Coefficient-wise addition
 template <typename T>
 __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index, T *output,
-                            T *input_1, T *input_2,
+                            T const *input_1, T const *input_2,
                             uint32_t input_lwe_dimension,
                             uint32_t input_lwe_ciphertext_count) {
 
