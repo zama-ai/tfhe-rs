@@ -9,6 +9,7 @@ use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::named::Named;
 
 /// A [`GLWE secret key`](`GlweSecretKey`)
 ///
@@ -26,6 +27,10 @@ use crate::core_crypto::entities::*;
 pub struct GlweSecretKey<C: Container> {
     data: C,
     polynomial_size: PolynomialSize,
+}
+
+impl<C: Container> Named for GlweSecretKey<C> {
+    const NAME: &'static str = "core_crypto::GlweSecretKey";
 }
 
 impl<T, C: Container<Element = T>> AsRef<[T]> for GlweSecretKey<C> {
