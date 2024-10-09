@@ -14,3 +14,4 @@ keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
 [build-dependencies]
 cmake = { version = "0.1" }
 pkg-config = { version = "0.3" }
+bindgen = "0.70.1"

@@ -12,7 +12,9 @@ use crate::core_crypto::prelude::{
 pub use algorithms::*;
 pub use entities::*;
 use std::ffi::c_void;
-pub(crate) use tfhe_cuda_backend::cuda_bind::*;
+use tfhe_cuda_backend::bindings::*;
+use tfhe_cuda_backend::cuda_bind::*;
+
 #[derive(Debug)]
 pub struct CudaStreams {
     pub ptr: Vec<*mut c_void>,

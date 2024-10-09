@@ -3,13 +3,13 @@
 
 #include "crypto/keyswitch.cuh"
 #include "device.h"
-#include "integer.h"
 #include "integer/comparison.cuh"
 #include "integer/integer.cuh"
+#include "integer/integer_utilities.h"
 #include "integer/negation.cuh"
 #include "integer/scalar_shifts.cuh"
 #include "linear_algebra.h"
-#include "programmable_bootstrap.h"
+#include "pbs/programmable_bootstrap.h"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <fstream>
@@ -20,10 +20,11 @@
 
 template <typename Torus>
 void host_resolve_signed_overflow(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *result, Torus *last_block_inner_propagation,
-    Torus *last_block_input_carry, Torus *last_block_output_carry,
-    int_resolve_signed_overflow_memory<Torus> *mem, void **bsks, Torus **ksks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *result, Torus *last_block_inner_propagation,
+    Torus const *last_block_input_carry, Torus *last_block_output_carry,
+    int_resolve_signed_overflow_memory<Torus> *mem, void *const *bsks,
+    Torus *const *ksks) {
 
   auto x = mem->x;
 
@@ -53,7 +54,8 @@ void host_resolve_signed_overflow(
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_signed_overflowing_add_or_sub_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count,
     int_signed_overflowing_add_or_sub_memory<Torus> **mem_ptr,
     uint32_t num_blocks, SIGNED_OPERATION op, int_radix_params params,
     bool allocate_gpu_memory) {
@@ -69,9 +71,9 @@ __host__ void scratch_cuda_integer_signed_overflowing_add_or_sub_kb(
  */
 template <typename Torus>
 __host__ void host_integer_signed_overflowing_add_or_sub_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lhs, Torus *rhs, Torus *overflowed, SIGNED_OPERATION op, void **bsks,
-    uint64_t **ksks,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lhs, Torus const *rhs, Torus *overflowed,
+    SIGNED_OPERATION op, void *const *bsks, uint64_t *const *ksks,
     int_signed_overflowing_add_or_sub_memory<uint64_t> *mem_ptr,
     uint32_t num_blocks) {
 

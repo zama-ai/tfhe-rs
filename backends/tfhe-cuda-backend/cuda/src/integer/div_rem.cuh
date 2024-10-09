@@ -3,13 +3,13 @@
 
 #include "crypto/keyswitch.cuh"
 #include "device.h"
-#include "integer.h"
 #include "integer/comparison.cuh"
 #include "integer/integer.cuh"
+#include "integer/integer_utilities.h"
 #include "integer/negation.cuh"
 #include "integer/scalar_shifts.cuh"
 #include "linear_algebra.h"
-#include "programmable_bootstrap.h"
+#include "pbs/programmable_bootstrap.h"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <fstream>
@@ -160,21 +160,23 @@ template <typename Torus> struct lwe_ciphertext_list {
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_div_rem_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_div_rem_memory<Torus> **mem_ptr, uint32_t num_blocks,
-    int_radix_params params, bool allocate_gpu_memory) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_div_rem_memory<Torus> **mem_ptr,
+    uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory) {
 
   *mem_ptr = new int_div_rem_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory);
 }
 
 template <typename Torus>
-__host__ void
-host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
-                        uint32_t gpu_count, Torus *quotient, Torus *remainder,
-                        Torus *numerator, Torus *divisor, void **bsks,
-                        uint64_t **ksks, int_div_rem_memory<uint64_t> *mem_ptr,
-                        uint32_t num_blocks) {
+__host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
+                                      uint32_t const *gpu_indexes,
+                                      uint32_t gpu_count, Torus *quotient,
+                                      Torus *remainder, Torus const *numerator,
+                                      Torus const *divisor, void *const *bsks,
+                                      uint64_t *const *ksks,
+                                      int_div_rem_memory<uint64_t> *mem_ptr,
+                                      uint32_t num_blocks) {
 
   auto radix_params = mem_ptr->params;
 
@@ -222,8 +224,8 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
   lwe_ciphertext_list<Torus> cleaned_merged_interesting_remainder(
       mem_ptr->cleaned_merged_interesting_remainder, radix_params, num_blocks);
 
-  numerator_block_stack.clone_from(numerator, 0, num_blocks - 1, streams[0],
-                                   gpu_indexes[0]);
+  numerator_block_stack.clone_from((Torus *)numerator, 0, num_blocks - 1,
+                                   streams[0], gpu_indexes[0]);
   remainder1.assign_zero(0, num_blocks - 1, streams[0], gpu_indexes[0]);
   remainder2.assign_zero(0, num_blocks - 1, streams[0], gpu_indexes[0]);
 
@@ -245,9 +247,9 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                                       streams[0], gpu_indexes[0]);
     interesting_remainder2.clone_from(remainder2, 0, last_non_trivial_block,
                                       streams[0], gpu_indexes[0]);
-    interesting_divisor.clone_from(divisor, 0, last_non_trivial_block,
+    interesting_divisor.clone_from((Torus *)divisor, 0, last_non_trivial_block,
                                    streams[0], gpu_indexes[0]);
-    divisor_ms_blocks.clone_from(divisor,
+    divisor_ms_blocks.clone_from((Torus *)divisor,
                                  (msb_bit_set + 1) / num_bits_in_message,
                                  num_blocks - 1, streams[0], gpu_indexes[0]);
 
@@ -256,65 +258,67 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     // msb_bit_set) the split versions share some bits they should not. So we do
     // one PBS on the last block of the interesting_divisor, and first block of
     // divisor_ms_blocks to trim out bits which should not be there
-    auto trim_last_interesting_divisor_bits =
-        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
-          if ((msb_bit_set + 1) % num_bits_in_message == 0) {
-            return;
-          }
-          // The last block of the interesting part of the remainder
-          // can contain bits which we should not account for
-          // we have to zero them out.
+    auto trim_last_interesting_divisor_bits = [&](cudaStream_t const *streams,
+                                                  uint32_t const *gpu_indexes,
+                                                  uint32_t gpu_count) {
+      if ((msb_bit_set + 1) % num_bits_in_message == 0) {
+        return;
+      }
+      // The last block of the interesting part of the remainder
+      // can contain bits which we should not account for
+      // we have to zero them out.
 
-          // Where the msb is set in the block
-          uint32_t pos_in_block = msb_bit_set % num_bits_in_message;
+      // Where the msb is set in the block
+      uint32_t pos_in_block = msb_bit_set % num_bits_in_message;
 
-          // e.g 2 bits in message:
-          // if pos_in_block is 0, then we want to keep only first bit (right
-          // shift
-          // mask by 1) if pos_in_block is 1, then we want to keep the two
-          // bits
-          // (right shift mask by 0)
-          uint32_t shift_amount = num_bits_in_message - (pos_in_block + 1);
+      // e.g 2 bits in message:
+      // if pos_in_block is 0, then we want to keep only first bit (right
+      // shift
+      // mask by 1) if pos_in_block is 1, then we want to keep the two
+      // bits
+      // (right shift mask by 0)
+      uint32_t shift_amount = num_bits_in_message - (pos_in_block + 1);
 
-          // Create mask of 1s on the message part, 0s in the carries
-          uint32_t full_message_mask = message_modulus - 1;
+      // Create mask of 1s on the message part, 0s in the carries
+      uint32_t full_message_mask = message_modulus - 1;
 
-          // Shift the mask so that we will only keep bits we should
-          uint32_t shifted_mask = full_message_mask >> shift_amount;
+      // Shift the mask so that we will only keep bits we should
+      uint32_t shifted_mask = full_message_mask >> shift_amount;
 
-          integer_radix_apply_univariate_lookup_table_kb<Torus>(
-              streams, gpu_indexes, gpu_count, interesting_divisor.last_block(),
-              interesting_divisor.last_block(), bsks, ksks, 1,
-              mem_ptr->masking_luts_1[shifted_mask]);
-        }; // trim_last_interesting_divisor_bits
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          streams, gpu_indexes, gpu_count, interesting_divisor.last_block(),
+          interesting_divisor.last_block(), bsks, ksks, 1,
+          mem_ptr->masking_luts_1[shifted_mask]);
+    }; // trim_last_interesting_divisor_bits
 
-    auto trim_first_divisor_ms_bits =
-        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
-          if (divisor_ms_blocks.is_empty() ||
-              ((msb_bit_set + 1) % num_bits_in_message) == 0) {
-            return;
-          }
-          // Where the msb is set in the block
-          uint32_t pos_in_block = msb_bit_set % num_bits_in_message;
+    auto trim_first_divisor_ms_bits = [&](cudaStream_t const *streams,
+                                          uint32_t const *gpu_indexes,
+                                          uint32_t gpu_count) {
+      if (divisor_ms_blocks.is_empty() ||
+          ((msb_bit_set + 1) % num_bits_in_message) == 0) {
+        return;
+      }
+      // Where the msb is set in the block
+      uint32_t pos_in_block = msb_bit_set % num_bits_in_message;
 
-          // e.g 2 bits in message:
-          // if pos_in_block is 0, then we want to discard the first bit (left
-          // shift mask by 1) if pos_in_block is 1, then we want to discard the
-          // two bits (left shift mask by 2) let shift_amount =
-          // num_bits_in_message - pos_in_block
-          uint32_t shift_amount = pos_in_block + 1;
-          uint32_t full_message_mask = message_modulus - 1;
-          uint32_t shifted_mask = full_message_mask << shift_amount;
+      // e.g 2 bits in message:
+      // if pos_in_block is 0, then we want to discard the first bit (left
+      // shift mask by 1) if pos_in_block is 1, then we want to discard the
+      // two bits (left shift mask by 2) let shift_amount =
+      // num_bits_in_message - pos_in_block
+      uint32_t shift_amount = pos_in_block + 1;
+      uint32_t full_message_mask = message_modulus - 1;
+      uint32_t shifted_mask = full_message_mask << shift_amount;
 
-          // Keep the mask within the range of message bits, so that
-          // the estimated degree of the output is < msg_modulus
-          shifted_mask = shifted_mask & full_message_mask;
+      // Keep the mask within the range of message bits, so that
+      // the estimated degree of the output is < msg_modulus
+      shifted_mask = shifted_mask & full_message_mask;
 
-          integer_radix_apply_univariate_lookup_table_kb<Torus>(
-              streams, gpu_indexes, gpu_count, divisor_ms_blocks.first_block(),
-              divisor_ms_blocks.first_block(), bsks, ksks, 1,
-              mem_ptr->masking_luts_2[shifted_mask]);
-        }; // trim_first_divisor_ms_bits
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          streams, gpu_indexes, gpu_count, divisor_ms_blocks.first_block(),
+          divisor_ms_blocks.first_block(), bsks, ksks, 1,
+          mem_ptr->masking_luts_2[shifted_mask]);
+    }; // trim_first_divisor_ms_bits
 
     // This does
     //  R := R << 1; R(0) := N(i)
@@ -325,48 +329,50 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     // However, to keep the remainder clean (noise wise), what we do is that we
     // put the remainder block from which we need to extract the bit, as the LSB
     // of the Remainder, so that left shifting will pull the bit we need.
-    auto left_shift_interesting_remainder1 =
-        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
-          numerator_block_1.clone_from(
-              numerator_block_stack, numerator_block_stack.len - 1,
-              numerator_block_stack.len - 1, streams[0], gpu_indexes[0]);
-          numerator_block_stack.pop();
-          interesting_remainder1.insert(0, numerator_block_1.first_block(),
-                                        streams[0], gpu_indexes[0]);
+    auto left_shift_interesting_remainder1 = [&](cudaStream_t const *streams,
+                                                 uint32_t const *gpu_indexes,
+                                                 uint32_t gpu_count) {
+      numerator_block_1.clone_from(
+          numerator_block_stack, numerator_block_stack.len - 1,
+          numerator_block_stack.len - 1, streams[0], gpu_indexes[0]);
+      numerator_block_stack.pop();
+      interesting_remainder1.insert(0, numerator_block_1.first_block(),
+                                    streams[0], gpu_indexes[0]);
 
-          host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
-              streams, gpu_indexes, gpu_count, interesting_remainder1.data, 1,
-              mem_ptr->shift_mem_1, bsks, ksks, interesting_remainder1.len);
+      host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+          streams, gpu_indexes, gpu_count, interesting_remainder1.data, 1,
+          mem_ptr->shift_mem_1, bsks, ksks, interesting_remainder1.len);
 
-          tmp_radix.clone_from(interesting_remainder1, 0,
-                               interesting_remainder1.len - 1, streams[0],
-                               gpu_indexes[0]);
+      tmp_radix.clone_from(interesting_remainder1, 0,
+                           interesting_remainder1.len - 1, streams[0],
+                           gpu_indexes[0]);
 
-          host_radix_blocks_rotate_left<Torus>(
-              streams, gpu_indexes, gpu_count, interesting_remainder1.data,
-              tmp_radix.data, 1, interesting_remainder1.len, big_lwe_size);
+      host_radix_blocks_rotate_left<Torus>(
+          streams, gpu_indexes, gpu_count, interesting_remainder1.data,
+          tmp_radix.data, 1, interesting_remainder1.len, big_lwe_size);
 
-          numerator_block_1.clone_from(
-              interesting_remainder1, interesting_remainder1.len - 1,
-              interesting_remainder1.len - 1, streams[0], gpu_indexes[0]);
+      numerator_block_1.clone_from(
+          interesting_remainder1, interesting_remainder1.len - 1,
+          interesting_remainder1.len - 1, streams[0], gpu_indexes[0]);
 
-          interesting_remainder1.pop();
+      interesting_remainder1.pop();
 
-          if (pos_in_block != 0) {
-            // We have not yet extracted all the bits from this numerator
-            // so, we put it back on the front so that it gets taken next
-            // iteration
-            numerator_block_stack.push(numerator_block_1.first_block(),
-                                       streams[0], gpu_indexes[0]);
-          }
-        }; // left_shift_interesting_remainder1
+      if (pos_in_block != 0) {
+        // We have not yet extracted all the bits from this numerator
+        // so, we put it back on the front so that it gets taken next
+        // iteration
+        numerator_block_stack.push(numerator_block_1.first_block(), streams[0],
+                                   gpu_indexes[0]);
+      }
+    }; // left_shift_interesting_remainder1
 
-    auto left_shift_interesting_remainder2 =
-        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
-          host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
-              streams, gpu_indexes, gpu_count, interesting_remainder2.data, 1,
-              mem_ptr->shift_mem_2, bsks, ksks, interesting_remainder2.len);
-        }; // left_shift_interesting_remainder2
+    auto left_shift_interesting_remainder2 = [&](cudaStream_t const *streams,
+                                                 uint32_t const *gpu_indexes,
+                                                 uint32_t gpu_count) {
+      host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+          streams, gpu_indexes, gpu_count, interesting_remainder2.data, 1,
+          mem_ptr->shift_mem_2, bsks, ksks, interesting_remainder2.len);
+    }; // left_shift_interesting_remainder2
 
     for (uint j = 0; j < gpu_count; j++) {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
@@ -416,7 +422,8 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     // fills:
     //  `new_remainder` - radix ciphertext
     //  `subtraction_overflowed` - single ciphertext
-    auto do_overflowing_sub = [&](cudaStream_t *streams, uint32_t *gpu_indexes,
+    auto do_overflowing_sub = [&](cudaStream_t const *streams,
+                                  uint32_t const *gpu_indexes,
                                   uint32_t gpu_count) {
       host_integer_overflowing_sub_kb<Torus>(
           streams, gpu_indexes, gpu_count, new_remainder.data,
@@ -427,8 +434,8 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
     // fills:
     //  `at_least_one_upper_block_is_non_zero` - single ciphertext
-    auto check_divisor_upper_blocks = [&](cudaStream_t *streams,
-                                          uint32_t *gpu_indexes,
+    auto check_divisor_upper_blocks = [&](cudaStream_t const *streams,
+                                          uint32_t const *gpu_indexes,
                                           uint32_t gpu_count) {
       auto &trivial_blocks = divisor_ms_blocks;
       if (trivial_blocks.is_empty()) {
@@ -459,7 +466,8 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     // fills:
     //  `cleaned_merged_interesting_remainder` - radix ciphertext
     auto create_clean_version_of_merged_remainder =
-        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+        [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
+            uint32_t gpu_count) {
           integer_radix_apply_univariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
@@ -498,7 +506,8 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         streams[0], gpu_indexes[0]);
 
     auto conditionally_zero_out_merged_interesting_remainder =
-        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+        [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
+            uint32_t gpu_count) {
           integer_radix_apply_bivariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
@@ -510,7 +519,8 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         };
 
     auto conditionally_zero_out_merged_new_remainder =
-        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+        [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
+            uint32_t gpu_count) {
           integer_radix_apply_bivariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count, new_remainder.data,
               new_remainder.data, overflow_sum_radix.data, bsks, ksks,
@@ -518,7 +528,8 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
               mem_ptr->zero_out_if_overflow_happened[factor_lut_id], factor);
         };
 
-    auto set_quotient_bit = [&](cudaStream_t *streams, uint32_t *gpu_indexes,
+    auto set_quotient_bit = [&](cudaStream_t const *streams,
+                                uint32_t const *gpu_indexes,
                                 uint32_t gpu_count) {
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, did_not_overflow.data,

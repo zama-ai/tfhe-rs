@@ -1,12 +1,12 @@
 #ifndef CUDA_PROGRAMMABLE_BOOTSTRAP_CUH
 #define CUDA_PROGRAMMABLE_BOOTSTRAP_CUH
 
+#include "bootstrapping_key.cuh"
 #include "cooperative_groups.h"
 #include "device.h"
 #include "fft/bnsmfft.cuh"
 #include "helper_multi_gpu.h"
-#include "programmable_bootstrap.h"
-#include "programmable_bootstrap_multibit.h"
+#include "pbs/programmable_bootstrap_multibit.h"
 
 using namespace cooperative_groups;
 namespace cg = cooperative_groups;
@@ -117,18 +117,22 @@ mul_ggsw_glwe(Torus *accumulator, double2 *fft, double2 *join_buffer,
 }
 
 template <typename Torus>
-void execute_pbs_async(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    const LweArrayVariant<Torus> &lwe_array_out,
-    const LweArrayVariant<Torus> &lwe_output_indexes,
-    std::vector<Torus *> lut_vec, std::vector<Torus *> lut_indexes_vec,
-    const LweArrayVariant<Torus> &lwe_array_in,
-    const LweArrayVariant<Torus> &lwe_input_indexes, void **bootstrapping_keys,
-    std::vector<int8_t *> pbs_buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t grouping_factor,
-    uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type, uint32_t lut_count,
-    uint32_t lut_stride) {
+void execute_pbs_async(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+                       uint32_t gpu_count,
+                       const LweArrayVariant<Torus> &lwe_array_out,
+                       const LweArrayVariant<Torus> &lwe_output_indexes,
+                       const std::vector<Torus *> lut_vec,
+                       const std::vector<Torus *> lut_indexes_vec,
+                       const LweArrayVariant<Torus> &lwe_array_in,
+                       const LweArrayVariant<Torus> &lwe_input_indexes,
+                       void *const *bootstrapping_keys,
+                       std::vector<int8_t *> pbs_buffer,
+                       uint32_t glwe_dimension, uint32_t lwe_dimension,
+                       uint32_t polynomial_size, uint32_t base_log,
+                       uint32_t level_count, uint32_t grouping_factor,
+                       uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
+                       uint32_t lut_count, uint32_t lut_stride) {
+
   switch (sizeof(Torus)) {
   case sizeof(uint32_t):
     // 32 bits

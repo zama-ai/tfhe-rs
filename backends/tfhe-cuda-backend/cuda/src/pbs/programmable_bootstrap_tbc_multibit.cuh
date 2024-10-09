@@ -8,12 +8,13 @@
 #include "device.h"
 #include "fft/bnsmfft.cuh"
 #include "fft/twiddles.cuh"
+#include "pbs/pbs_multibit_utilities.h"
+#include "pbs/programmable_bootstrap.h"
+#include "pbs/programmable_bootstrap_multibit.cuh"
 #include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
 #include "programmable_bootstrap.cuh"
-#include "programmable_bootstrap.h"
-#include "programmable_bootstrap_multibit.cuh"
 #include "types/complex/operations.cuh"
 #include <vector>
 
@@ -290,13 +291,14 @@ __host__ void scratch_tbc_multi_bit_programmable_bootstrap(
 
 template <typename Torus, class params>
 __host__ void execute_tbc_external_product_loop(
-    cudaStream_t stream, uint32_t gpu_index, Torus *lut_vector,
-    Torus *lut_vector_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
-    Torus *lwe_array_out, Torus *lwe_output_indexes,
-    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t lwe_offset, uint32_t lut_count, uint32_t lut_stride) {
+    cudaStream_t stream, uint32_t gpu_index, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, pbs_buffer<Torus, MULTI_BIT> *buffer,
+    uint32_t num_samples, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
+    uint32_t level_count, uint32_t lwe_offset, uint32_t lut_count,
+    uint32_t lut_stride) {
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   auto supports_dsm =
@@ -393,8 +395,9 @@ __host__ void execute_tbc_external_product_loop(
 template <typename Torus, class params>
 __host__ void host_tbc_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
-    Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
-    Torus *lwe_array_in, Torus *lwe_input_indexes, uint64_t *bootstrapping_key,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,

@@ -13,9 +13,9 @@
 #include <stdio.h>
 
 template <typename T>
-__global__ void plaintext_addition(T *output, T *lwe_input, T *plaintext_input,
-                                   uint32_t input_lwe_dimension,
-                                   uint32_t num_entries) {
+__global__ void
+plaintext_addition(T *output, T const *lwe_input, T const *plaintext_input,
+                   uint32_t input_lwe_dimension, uint32_t num_entries) {
 
   int tid = threadIdx.x;
   int plaintext_index = blockIdx.x * blockDim.x + tid;
@@ -30,7 +30,7 @@ __global__ void plaintext_addition(T *output, T *lwe_input, T *plaintext_input,
 template <typename T>
 __host__ void
 host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index, T *output,
-                        T *lwe_input, T *plaintext_input,
+                        T const *lwe_input, T const *plaintext_input,
                         uint32_t lwe_dimension, uint32_t lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_index);
@@ -49,7 +49,7 @@ host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index, T *output,
 }
 
 template <typename T>
-__global__ void addition(T *output, T *input_1, T *input_2,
+__global__ void addition(T *output, T const *input_1, T const *input_2,
                          uint32_t num_entries) {
 
   int tid = threadIdx.x;
@@ -63,7 +63,7 @@ __global__ void addition(T *output, T *input_1, T *input_2,
 // Coefficient-wise addition
 template <typename T>
 __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index, T *output,
-                            T *input_1, T *input_2,
+                            T const *input_1, T const *input_2,
                             uint32_t input_lwe_dimension,
                             uint32_t input_lwe_ciphertext_count) {
 
@@ -83,7 +83,7 @@ __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index, T *output,
 }
 
 template <typename T>
-__global__ void subtraction(T *output, T *input_1, T *input_2,
+__global__ void subtraction(T *output, T const *input_1, T const *input_2,
                             uint32_t num_entries) {
 
   int tid = threadIdx.x;
@@ -97,7 +97,7 @@ __global__ void subtraction(T *output, T *input_1, T *input_2,
 // Coefficient-wise subtraction
 template <typename T>
 __host__ void host_subtraction(cudaStream_t stream, uint32_t gpu_index,
-                               T *output, T *input_1, T *input_2,
+                               T *output, T const *input_1, T const *input_2,
                                uint32_t input_lwe_dimension,
                                uint32_t input_lwe_ciphertext_count) {
 
@@ -157,9 +157,11 @@ __host__ void host_subtraction_plaintext(cudaStream_t stream,
 }
 
 template <typename T>
-__global__ void unchecked_sub_with_correcting_term(
-    T *output, T *input_1, T *input_2, uint32_t num_entries, uint32_t lwe_size,
-    uint32_t message_modulus, uint32_t carry_modulus, uint32_t degree) {
+__global__ void
+unchecked_sub_with_correcting_term(T *output, T const *input_1,
+                                   T const *input_2, uint32_t num_entries,
+                                   uint32_t lwe_size, uint32_t message_modulus,
+                                   uint32_t carry_modulus, uint32_t degree) {
   uint32_t msg_mod = message_modulus;
   uint64_t z = max((uint64_t)ceil(degree / msg_mod), (uint64_t)1);
   z *= msg_mod;
@@ -178,9 +180,10 @@ __global__ void unchecked_sub_with_correcting_term(
 }
 template <typename T>
 __host__ void host_unchecked_sub_with_correcting_term(
-    cudaStream_t stream, uint32_t gpu_index, T *output, T *input_1, T *input_2,
-    uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus, uint32_t degree) {
+    cudaStream_t stream, uint32_t gpu_index, T *output, T const *input_1,
+    T const *input_2, uint32_t input_lwe_dimension,
+    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
+    uint32_t carry_modulus, uint32_t degree) {
 
   cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body

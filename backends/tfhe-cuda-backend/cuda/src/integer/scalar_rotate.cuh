@@ -4,7 +4,7 @@
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.cuh"
-#include "integer.h"
+#include "integer/integer_utilities.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
 #include "types/complex/operations.cuh"
@@ -13,10 +13,10 @@
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_scalar_rotate_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_logical_scalar_shift_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
-    int_radix_params params, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, int_radix_params params,
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
   *mem_ptr = new int_logical_scalar_shift_buffer<Torus>(
       streams, gpu_indexes, gpu_count, shift_type, params, num_radix_blocks,
@@ -25,9 +25,10 @@ __host__ void scratch_cuda_integer_radix_scalar_rotate_kb(
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_rotate_kb_inplace(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array, uint32_t n, int_logical_scalar_shift_buffer<Torus> *mem,
-    void **bsks, Torus **ksks, uint32_t num_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, uint32_t n,
+    int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
+    Torus *const *ksks, uint32_t num_blocks) {
 
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;

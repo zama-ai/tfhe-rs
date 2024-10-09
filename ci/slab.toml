@@ -27,7 +27,7 @@ instance_type = "hpc7a.96xlarge"
 # Profile used to build CUDA code without the need to get p-like instance.
 [backend.aws.gpu-build]
 region = "us-east-1"
-image_id = "ami-06b3d61f41bf8350a"
+image_id = "ami-06a04649d895d10e0"
 instance_type = "m6i.4xlarge"
 
 [backend.hyperstack.gpu-test]

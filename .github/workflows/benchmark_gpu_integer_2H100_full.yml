@@ -63,7 +63,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y checkinstall zlib1g-dev libssl-dev
+          sudo apt install -y checkinstall zlib1g-dev libssl-dev libclang-dev
           wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
           tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
           cd cmake-${{ env.CMAKE_VERSION }}
