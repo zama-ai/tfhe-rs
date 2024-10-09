@@ -14,7 +14,7 @@ use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
 };
 use crate::shortint::{EncryptionKeyChoice, MessageModulus, PBSParameters};
-use crate::Error;
+use crate::{Config, Error};
 use concrete_csprng::seeders::Seed;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -470,6 +470,16 @@ pub struct IntegerServerKeyConformanceParams {
         ShortintKeySwitchingParameters,
     )>,
     pub compression_param: Option<CompressionParameters>,
+}
+
+impl From<Config> for IntegerServerKeyConformanceParams {
+    fn from(value: Config) -> Self {
+        Self {
+            sk_param: value.inner.block_parameters,
+            cpk_param: value.inner.dedicated_compact_public_key_parameters,
+            compression_param: value.inner.compression_parameters,
+        }
+    }
 }
 
 impl
