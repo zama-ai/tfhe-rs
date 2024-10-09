@@ -111,7 +111,7 @@ jobs:
         run: |
           make install_node
           make install_${{ matrix.browser }}_browser
-          make install_${{ matrix.browser }}_driver
+          make install_${{ matrix.browser }}_web_driver
 
       - name: Run benchmarks
         run: |
