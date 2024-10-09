@@ -68,7 +68,7 @@ jobs:
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          slab-url: ${{ secrets.SLAB_BASE_URL_PRE_PROD }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: aws
           profile: cpu-small
@@ -81,7 +81,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        browser: [ chrome, firefox ]
+        browser: [ firefox ]
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938
@@ -97,10 +97,11 @@ jobs:
             echo "COMMIT_HASH=$(git describe --tags --dirty)";
           } >> "${GITHUB_ENV}"
 
-      - name: Set up home
-        # "Install rust" step require root user to have a HOME directory which is not set.
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+      # TODO tester de virer cette merde (dixit Arthur le chef, c'est pas moi qui l'ai dit)
+#      - name: Set up home
+#        # "Install rust" step require root user to have a HOME directory which is not set.
+#        run: |
+#          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
 
       - name: Install rust
         uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
@@ -112,7 +113,10 @@ jobs:
           make install_node
           make install_${{ matrix.browser }}_browser
           make install_${{ matrix.browser }}_web_driver
+          sudo apt install -y libgtk-3-dev
+#          web-test-runner/firefox/firefox/firefox --headless
 
+    # TODO mettre à jour l'AMI pour qu'elle intègre libgtk-3-dev
       - name: Run benchmarks
         run: |
           make bench_web_js_api_parallel_${{ matrix.browser }}_ci
@@ -162,13 +166,13 @@ jobs:
           python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
-      - name: Slack Notification
-        if: ${{ failure() }}
-        continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "WASM benchmarks (${{ matrix.browser }}) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+#      - name: Slack Notification
+#        if: ${{ failure() }}
+#        continue-on-error: true
+#        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+#        env:
+#          SLACK_COLOR: ${{ job.status }}
+#          SLACK_MESSAGE: "WASM benchmarks (${{ matrix.browser }}) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (wasm-client-benchmarks)
@@ -182,7 +186,7 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          slab-url: ${{ secrets.SLAB_BASE_URL_PRE_PROD }}
           job-secret: ${{ secrets.JOB_SECRET }}
           label: ${{ needs.setup-instance.outputs.runner-name }}
 
