@@ -142,7 +142,12 @@ mod pbs_stats {
         println!("ERC20 transfer/{fn_name}::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
-        let test_name = format!("hlapi::erc20::pbs_count::{fn_name}::{type_name}");
+
+        let test_name = if cfg!(feature = "gpu") {
+            format!("hlapi::cuda::erc20::pbs_count::{fn_name}::{type_name}")
+        } else {
+            format!("hlapi::erc20::pbs_count::{fn_name}::{type_name}")
+        };
 
         let results_file = Path::new("erc20_pbs_count.csv");
         if !results_file.exists() {
@@ -301,7 +306,12 @@ fn main() {
 
     // FheUint64 latency
     {
-        let bench_name = "hlapi::erc20::transfer_latency";
+        let bench_name = if cfg!(feature = "gpu") {
+            "hlapi::cuda::erc20::transfer_latency"
+        } else {
+            "hlapi::erc20::transfer_latency"
+        };
+
         let mut group = c.benchmark_group(bench_name);
         bench_transfer_latency(
             &mut group,
@@ -341,7 +351,12 @@ fn main() {
 
     // FheUint64 Throughput
     {
-        let bench_name = "hlapi::erc20::transfer_throughput";
+        let bench_name = if cfg!(feature = "gpu") {
+            "hlapi::cuda::erc20::transfer_throughput"
+        } else {
+            "hlapi::erc20::transfer_throughput"
+        };
+
         let mut group = c.benchmark_group(bench_name);
         bench_transfer_throughput(
             &mut group,
