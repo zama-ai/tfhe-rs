@@ -1155,6 +1155,12 @@ bench_hlapi_erc20: install_rs_check_toolchain
 	--bench hlapi-erc20 \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,pbs-stats,nightly-avx512 -p $(TFHE_SPEC) --
 
+.PHONY: bench_hlapi_erc20_gpu # Run benchmarks for ECR20 operations on GPU
+bench_hlapi_erc20_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc20 \
+	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p $(TFHE_SPEC) --
+
 #
 # Utility tools
 #
