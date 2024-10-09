@@ -22,6 +22,8 @@ jobs:
   setup-instance:
     name: Setup instance (erc20-benchmarks)
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
