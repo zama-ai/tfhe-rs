@@ -135,17 +135,17 @@ class Driver:
         match self.browser_kind:
             case BrowserKind.chrome:
                 self.options = ChromeOptions()
+                if os.getuid() == 0:
+                    # If user ID is root then driver needs to run in no-sandbox mode.
+                    print(
+                        "Script is running as root, running browser with --no-sandbox for compatibility"
+                    )
+                self.options.add_argument("--no-sandbox")
             case BrowserKind.firefox:
                 self.options = FirefoxOptions()
 
         self.options.binary_location = self.browser_path
         self.options.add_argument("--headless")
-        if os.getuid() == 0:
-            # If user ID is root then driver needs to run in no-sandbox mode.
-            print(
-                "Script is running as root, running browser with --no-sandbox for compatibility"
-            )
-            self.options.add_argument("--no-sandbox")
 
         self._driver = None
 
