@@ -9,10 +9,10 @@
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "helper_multi_gpu.h"
-#include "integer.h"
 #include "integer/integer.cuh"
+#include "integer/integer_utilities.h"
 #include "linear_algebra.h"
-#include "programmable_bootstrap.h"
+#include "pbs/programmable_bootstrap.h"
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
 #include "utils/kernel_dimensions.cuh"
@@ -43,8 +43,8 @@ __global__ void smart_copy(Torus *dst, Torus *src, int32_t *id_out,
 
 template <typename Torus, class params>
 __global__ void
-all_shifted_lhs_rhs(Torus *radix_lwe_left, Torus *lsb_ciphertext,
-                    Torus *msb_ciphertext, Torus *radix_lwe_right,
+all_shifted_lhs_rhs(Torus const *radix_lwe_left, Torus *lsb_ciphertext,
+                    Torus *msb_ciphertext, Torus const *radix_lwe_right,
                     Torus *lsb_rhs, Torus *msb_rhs, int num_blocks) {
 
   size_t block_id = blockIdx.x;
@@ -170,8 +170,8 @@ __global__ void fill_radix_from_lsb_msb(Torus *result_blocks, Torus *lsb_blocks,
 }
 template <typename Torus>
 __host__ void scratch_cuda_integer_partial_sum_ciphertexts_vec_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_sum_ciphertexts_vec_memory<Torus> **mem_ptr,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_sum_ciphertexts_vec_memory<Torus> **mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
     int_radix_params params, bool allocate_gpu_memory) {
 
@@ -182,9 +182,10 @@ __host__ void scratch_cuda_integer_partial_sum_ciphertexts_vec_kb(
 
 template <typename Torus, class params>
 __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *radix_lwe_out, Torus *terms, int *terms_degree, void **bsks,
-    uint64_t **ksks, int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *radix_lwe_out, Torus *terms, int *terms_degree,
+    void *const *bsks, uint64_t *const *ksks,
+    int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t num_radix_in_vec,
     int_radix_lut<Torus> *reused_lut) {
 
@@ -450,9 +451,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
 template <typename Torus, class params>
 __host__ void host_integer_mult_radix_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    uint64_t *radix_lwe_out, uint64_t *radix_lwe_left,
-    uint64_t *radix_lwe_right, void **bsks, uint64_t **ksks,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, uint64_t *radix_lwe_out, uint64_t const *radix_lwe_left,
+    uint64_t const *radix_lwe_right, void *const *bsks, uint64_t *const *ksks,
     int_mul_memory<Torus> *mem_ptr, uint32_t num_blocks) {
 
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
@@ -569,9 +570,10 @@ __host__ void host_integer_mult_radix_kb(
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_mul_memory<Torus> **mem_ptr, uint32_t num_radix_blocks,
-    int_radix_params params, bool allocate_gpu_memory) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_mul_memory<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, int_radix_params params,
+    bool allocate_gpu_memory) {
   *mem_ptr = new int_mul_memory<Torus>(streams, gpu_indexes, gpu_count, params,
                                        num_radix_blocks, allocate_gpu_memory);
 }

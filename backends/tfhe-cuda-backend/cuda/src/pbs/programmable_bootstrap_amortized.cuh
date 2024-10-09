@@ -6,15 +6,16 @@
 #include <cuda_runtime.h>
 #endif
 
+#include "bootstrapping_key.cuh"
 #include "crypto/gadget.cuh"
 #include "crypto/torus.cuh"
 #include "device.h"
 #include "fft/bnsmfft.cuh"
 #include "fft/twiddles.cuh"
+#include "pbs/programmable_bootstrap.h"
 #include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
-#include "programmable_bootstrap.h"
 #include "types/complex/operations.cuh"
 
 template <typename Torus, class params, sharedMemDegree SMD>

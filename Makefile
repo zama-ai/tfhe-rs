@@ -418,6 +418,14 @@ clippy_cuda_backend: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-cuda-backend -- --no-deps -D warnings
 
+.PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend
+check_rust_bindings_did_not_change: 
+	cargo build -p tfhe-cuda-backend && \
+	git diff --quiet HEAD -- backends/tfhe-cuda-backend/src/bindings.rs || \
+	( echo "Generated bindings have changed! Please run 'git add backends/tfhe-cuda-backend/src/bindings.rs' \
+	and commit the changes." && exit 1 ) 
+
+
 .PHONY: tfhe_lints # Run custom tfhe-rs lints
 tfhe_lints: install_tfhe_lints
 	cd tfhe && RUSTFLAGS="$(RUSTFLAGS)" cargo tfhe-lints \
@@ -1257,7 +1265,7 @@ pcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_te
 clippy_all tfhe_lints check_compile_tests
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
-pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu
+pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu check_rust_bindings_did_not_change
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_tested clippy_fast \

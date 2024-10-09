@@ -14,8 +14,8 @@
 #include <vector>
 
 template <typename T>
-__global__ void cleartext_vec_multiplication(T *output, T *lwe_input,
-                                             T *cleartext_input,
+__global__ void cleartext_vec_multiplication(T *output, T const *lwe_input,
+                                             T const *cleartext_input,
                                              uint32_t input_lwe_dimension,
                                              uint32_t num_entries) {
 
@@ -29,11 +29,10 @@ __global__ void cleartext_vec_multiplication(T *output, T *lwe_input,
 }
 
 template <typename T>
-__host__ void
-host_cleartext_vec_multiplication(cudaStream_t stream, uint32_t gpu_index,
-                                  T *output, T *lwe_input, T *cleartext_input,
-                                  uint32_t input_lwe_dimension,
-                                  uint32_t input_lwe_ciphertext_count) {
+__host__ void host_cleartext_vec_multiplication(
+    cudaStream_t stream, uint32_t gpu_index, T *output, T const *lwe_input,
+    T const *cleartext_input, uint32_t input_lwe_dimension,
+    uint32_t input_lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body
@@ -53,7 +52,7 @@ host_cleartext_vec_multiplication(cudaStream_t stream, uint32_t gpu_index,
 
 template <typename T>
 __global__ void
-cleartext_multiplication(T *output, T *lwe_input, T cleartext_input,
+cleartext_multiplication(T *output, T const *lwe_input, T cleartext_input,
                          uint32_t input_lwe_dimension, uint32_t num_entries) {
 
   int tid = threadIdx.x;
@@ -67,7 +66,7 @@ cleartext_multiplication(T *output, T *lwe_input, T cleartext_input,
 template <typename T>
 __host__ void
 host_cleartext_multiplication(cudaStream_t stream, uint32_t gpu_index,
-                              T *output, T *lwe_input, T cleartext_input,
+                              T *output, T const *lwe_input, T cleartext_input,
                               uint32_t input_lwe_dimension,
                               uint32_t input_lwe_ciphertext_count) {
 

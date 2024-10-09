@@ -1,9 +1,8 @@
+#include "pbs/pbs_multibit_utilities.h"
+#include "pbs/pbs_utilities.h"
 #include <benchmark/benchmark.h>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <omp.h>
 #include <setup_and_teardown.h>
 
 typedef struct {
@@ -50,7 +49,6 @@ protected:
   uint64_t *d_lut_pbs_indexes;
   uint64_t *d_lwe_ct_in_array;
   uint64_t *d_lwe_ct_out_array;
-  uint64_t *lwe_ct_out_array;
   uint64_t *d_lwe_input_indexes;
   uint64_t *d_lwe_output_indexes;
   int8_t *buffer;
@@ -215,12 +213,15 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
   for (auto _ : st) {
     // Execute PBS
     cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
-        stream, gpu_index, d_lwe_ct_out_array, d_lwe_output_indexes,
-        d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
-        d_lwe_input_indexes, d_bsk, (pbs_buffer<uint64_t, MULTI_BIT> *)buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-        pbs_base_log, pbs_level, input_lwe_ciphertext_count, lut_count,
-        lut_stride);
+        stream, gpu_index, d_lwe_ct_out_array,
+        (const uint64_t *)d_lwe_output_indexes,
+        (const uint64_t *)d_lut_pbs_identity,
+        (const uint64_t *)d_lut_pbs_indexes,
+        (const uint64_t *)d_lwe_ct_in_array,
+        (const uint64_t *)d_lwe_input_indexes, (const uint64_t *)d_bsk,
+        (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
+        pbs_level, input_lwe_ciphertext_count, lut_count, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 

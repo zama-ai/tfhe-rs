@@ -1,410 +1,12 @@
-#ifndef CUDA_INTEGER_H
-#define CUDA_INTEGER_H
+#ifndef CUDA_INTEGER_UTILITIES_H
+#define CUDA_INTEGER_UTILITIES_H
 
+#include "integer.h"
 #include "keyswitch.h"
 #include "pbs/programmable_bootstrap.cuh"
-#include "programmable_bootstrap.h"
-#include "programmable_bootstrap_multibit.h"
 #include <cassert>
 #include <cmath>
 #include <functional>
-
-enum OUTPUT_CARRY { NONE = 0, GENERATED = 1, PROPAGATED = 2 };
-enum SHIFT_OR_ROTATE_TYPE {
-  LEFT_SHIFT = 0,
-  RIGHT_SHIFT = 1,
-  LEFT_ROTATE = 2,
-  RIGHT_ROTATE = 3
-};
-enum BITOP_TYPE {
-  BITAND = 0,
-  BITOR = 1,
-  BITXOR = 2,
-  SCALAR_BITAND = 3,
-  SCALAR_BITOR = 4,
-  SCALAR_BITXOR = 5,
-};
-
-enum COMPARISON_TYPE {
-  EQ = 0,
-  NE = 1,
-  GT = 2,
-  GE = 3,
-  LT = 4,
-  LE = 5,
-  MAX = 6,
-  MIN = 7,
-};
-
-enum CMP_ORDERING { IS_INFERIOR = 0, IS_EQUAL = 1, IS_SUPERIOR = 2 };
-
-enum SIGNED_OPERATION { ADDITION = 1, SUBTRACTION = -1 };
-
-extern "C" {
-void scratch_cuda_apply_univariate_lut_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    void *input_lut, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
-
-void cuda_apply_univariate_lut_kb_64(void **streams, uint32_t *gpu_indexes,
-                                     uint32_t gpu_count, void *output_radix_lwe,
-                                     void *input_radix_lwe, int8_t *mem_ptr,
-                                     void **ksks, void **bsks,
-                                     uint32_t num_blocks);
-
-void cleanup_cuda_apply_univariate_lut_kb_64(void **streams,
-                                             uint32_t *gpu_indexes,
-                                             uint32_t gpu_count,
-                                             int8_t **mem_ptr_void);
-
-void scratch_cuda_apply_bivariate_lut_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    void *input_lut, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
-
-void cuda_apply_bivariate_lut_kb_64(void **streams, uint32_t *gpu_indexes,
-                                    uint32_t gpu_count, void *output_radix_lwe,
-                                    void *input_radix_lwe_1,
-                                    void *input_radix_lwe_2, int8_t *mem_ptr,
-                                    void **ksks, void **bsks,
-                                    uint32_t num_blocks, uint32_t shift);
-
-void cleanup_cuda_apply_bivariate_lut_kb_64(void **streams,
-                                            uint32_t *gpu_indexes,
-                                            uint32_t gpu_count,
-                                            int8_t **mem_ptr_void);
-
-void cuda_apply_many_univariate_lut_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *output_radix_lwe, void *input_radix_lwe, int8_t *mem_ptr, void **ksks,
-    void **bsks, uint32_t num_blocks, uint32_t num_luts, uint32_t lut_stride);
-
-void scratch_cuda_full_propagation_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
-
-void cuda_full_propagation_64_inplace(void **streams, uint32_t *gpu_indexes,
-                                      uint32_t gpu_count, void *input_blocks,
-                                      int8_t *mem_ptr, void **ksks, void **bsks,
-                                      uint32_t num_blocks);
-
-void cleanup_cuda_full_propagation(void **streams, uint32_t *gpu_indexes,
-                                   uint32_t gpu_count, int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t message_modulus, uint32_t carry_modulus, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t pbs_base_log,
-    uint32_t pbs_level, uint32_t ks_base_log, uint32_t ks_level,
-    uint32_t grouping_factor, uint32_t num_blocks, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory);
-
-void cuda_integer_mult_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *radix_lwe_out, void *radix_lwe_left, void *radix_lwe_right,
-    void **bsks, void **ksks, int8_t *mem_ptr, uint32_t polynomial_size,
-    uint32_t num_blocks);
-
-void cleanup_cuda_integer_mult(void **streams, uint32_t *gpu_indexes,
-                               uint32_t gpu_count, int8_t **mem_ptr_void);
-
-void cuda_negate_integer_radix_ciphertext_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *lwe_array_in, uint32_t lwe_dimension,
-    uint32_t lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus);
-
-void cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    void *scalar_input, uint32_t lwe_dimension, uint32_t lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus);
-
-void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory);
-
-void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t shift, int8_t *mem_ptr, void **bsks, void **ksks,
-    uint32_t num_blocks);
-
-void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory);
-
-void cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t shift, int8_t *mem_ptr, void **bsks, void **ksks,
-    uint32_t num_blocks);
-
-void cleanup_cuda_integer_radix_logical_scalar_shift(void **streams,
-                                                     uint32_t *gpu_indexes,
-                                                     uint32_t gpu_count,
-                                                     int8_t **mem_ptr_void);
-
-void cleanup_cuda_integer_radix_arithmetic_scalar_shift(void **streams,
-                                                        uint32_t *gpu_indexes,
-                                                        uint32_t gpu_count,
-                                                        int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool is_signed, bool allocate_gpu_memory);
-
-void cuda_integer_radix_shift_and_rotate_kb_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    void *lwe_shift, int8_t *mem_ptr, void **bsks, void **ksks,
-    uint32_t num_blocks);
-
-void cleanup_cuda_integer_radix_shift_and_rotate(void **streams,
-                                                 uint32_t *gpu_indexes,
-                                                 uint32_t gpu_count,
-                                                 int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_radix_comparison_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    COMPARISON_TYPE op_type, bool is_signed, bool allocate_gpu_memory);
-
-void cuda_comparison_integer_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *lwe_array_1, void *lwe_array_2, int8_t *mem_ptr,
-    void **bsks, void **ksks, uint32_t lwe_ciphertext_count);
-
-void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *lwe_array_in, void *scalar_blocks,
-    int8_t *mem_ptr, void **bsks, void **ksks, uint32_t lwe_ciphertext_count,
-    uint32_t num_scalar_blocks);
-
-void cleanup_cuda_integer_comparison(void **streams, uint32_t *gpu_indexes,
-                                     uint32_t gpu_count, int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_radix_bitop_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    BITOP_TYPE op_type, bool allocate_gpu_memory);
-
-void cuda_bitop_integer_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *lwe_array_1, void *lwe_array_2, int8_t *mem_ptr,
-    void **bsks, void **ksks, uint32_t lwe_ciphertext_count);
-
-void cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *lwe_array_input, void *clear_blocks,
-    uint32_t num_clear_blocks, int8_t *mem_ptr, void **bsks, void **ksks,
-    uint32_t lwe_ciphertext_count, BITOP_TYPE op);
-
-void cleanup_cuda_integer_bitop(void **streams, uint32_t *gpu_indexes,
-                                uint32_t gpu_count, int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_radix_cmux_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory);
-
-void cuda_cmux_integer_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *lwe_condition, void *lwe_array_true,
-    void *lwe_array_false, int8_t *mem_ptr, void **bsks, void **ksks,
-    uint32_t lwe_ciphertext_count);
-
-void cleanup_cuda_integer_radix_cmux(void **streams, uint32_t *gpu_indexes,
-                                     uint32_t gpu_count, int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_radix_scalar_rotate_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory);
-
-void cuda_integer_radix_scalar_rotate_kb_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t n, int8_t *mem_ptr, void **bsks, void **ksks, uint32_t num_blocks);
-
-void cleanup_cuda_integer_radix_scalar_rotate(void **streams,
-                                              uint32_t *gpu_indexes,
-                                              uint32_t gpu_count,
-                                              int8_t **mem_ptr_void);
-
-void scratch_cuda_propagate_single_carry_kb_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
-
-void cuda_propagate_single_carry_kb_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    void *carry_out, int8_t *mem_ptr, void **bsks, void **ksks,
-    uint32_t num_blocks);
-
-void cuda_propagate_single_carry_get_input_carries_kb_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    void *carry_out, void *input_carries, int8_t *mem_ptr, void **bsks,
-    void **ksks, uint32_t num_blocks);
-
-void cleanup_cuda_propagate_single_carry(void **streams, uint32_t *gpu_indexes,
-                                         uint32_t gpu_count,
-                                         int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t lwe_dimension,
-    uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory);
-
-void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *radix_lwe_out, void *radix_lwe_vec, uint32_t num_radix_in_vec,
-    int8_t *mem_ptr, void **bsks, void **ksks, uint32_t num_blocks_in_radix);
-
-void cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_radix_overflowing_sub_kb_64(
-    void **stream, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
-
-void cuda_integer_radix_overflowing_sub_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *radix_lwe_out, void *radix_lwe_overflowed, void *radix_lwe_left,
-    void *radix_lwe_right, int8_t *mem_ptr, void **bsks, void **ksks,
-    uint32_t num_blocks_in_radix);
-
-void cleanup_cuda_integer_radix_overflowing_sub(void **streams,
-                                                uint32_t *gpu_indexes,
-                                                uint32_t gpu_count,
-                                                int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_scalar_mul_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t lwe_dimension,
-    uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor, uint32_t num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory);
-
-void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint64_t *decomposed_scalar, uint64_t *has_at_least_one_set,
-    int8_t *mem_ptr, void **bsks, void **ksks, uint32_t lwe_dimension,
-    uint32_t polynomial_size, uint32_t message_modulus, uint32_t num_blocks,
-    uint32_t num_scalars);
-
-void cleanup_cuda_integer_radix_scalar_mul(void **streams,
-                                           uint32_t *gpu_indexes,
-                                           uint32_t gpu_count,
-                                           int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
-
-void cuda_integer_div_rem_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *quotient,
-    void *remainder, void *numerator, void *divisor, int8_t *mem_ptr,
-    void **bsks, void **ksks, uint32_t num_blocks_in_radix);
-
-void cleanup_cuda_integer_div_rem(void **streams, uint32_t *gpu_indexes,
-                                  uint32_t gpu_count, int8_t **mem_ptr_void);
-
-void scratch_cuda_signed_overflowing_add_or_sub_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks, int8_t signed_operation,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory);
-
-void cuda_signed_overflowing_add_or_sub_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lhs,
-    void *rhs, void *overflowed, int8_t signed_operation, int8_t *mem_ptr,
-    void **bsks, void **ksks, uint32_t num_blocks_in_radix);
-
-void cleanup_signed_overflowing_add_or_sub(void **streams,
-                                           uint32_t *gpu_indexes,
-                                           uint32_t gpu_count,
-                                           int8_t **mem_ptr_void);
-
-void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    void *input_lut, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory);
-
-void cuda_integer_compute_prefix_sum_hillis_steele_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *output_radix_lwe, void *generates_or_propagates, int8_t *mem_ptr,
-    void **ksks, void **bsks, uint32_t num_blocks, uint32_t shift);
-
-void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int8_t **mem_ptr_void);
-
-void cuda_integer_reverse_blocks_64_inplace(void **streams,
-                                            uint32_t *gpu_indexes,
-                                            uint32_t gpu_count, void *lwe_array,
-                                            uint32_t num_blocks,
-                                            uint32_t lwe_size);
-
-} // extern C
 
 template <typename Torus>
 __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
@@ -532,7 +134,7 @@ template <typename Torus> struct int_radix_lut {
   std::vector<Torus *> lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec;
 
-  int_radix_lut(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_radix_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                 uint32_t gpu_count, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, bool allocate_gpu_memory) {
 
@@ -638,7 +240,7 @@ template <typename Torus> struct int_radix_lut {
   }
 
   // constructor to reuse memory
-  int_radix_lut(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_radix_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                 uint32_t gpu_count, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, int_radix_lut *base_lut_object) {
 
@@ -746,7 +348,7 @@ template <typename Torus> struct int_radix_lut {
   }
 
   // Broadcast luts from gpu src_gpu_idx to all active gpus
-  void broadcast_lut(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void broadcast_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                      uint32_t src_gpu_idx) {
     Torus lut_size = (params.glwe_dimension + 1) * params.polynomial_size;
 
@@ -769,7 +371,7 @@ template <typename Torus> struct int_radix_lut {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_drop_async(lut_vec[i], streams[i], gpu_indexes[i]);
@@ -824,10 +426,10 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
   int_radix_lut<Torus> *lut;
 
   // With offset
-  int_bit_extract_luts_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                              uint32_t gpu_count, int_radix_params params,
-                              uint32_t bits_per_block, uint32_t final_offset,
-                              uint32_t num_radix_blocks,
+  int_bit_extract_luts_buffer(cudaStream_t const *streams,
+                              uint32_t const *gpu_indexes, uint32_t gpu_count,
+                              int_radix_params params, uint32_t bits_per_block,
+                              uint32_t final_offset, uint32_t num_radix_blocks,
                               bool allocate_gpu_memory) {
     this->params = params;
 
@@ -898,16 +500,16 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
   }
 
   // Without offset
-  int_bit_extract_luts_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                              uint32_t gpu_count, int_radix_params params,
-                              uint32_t bits_per_block,
+  int_bit_extract_luts_buffer(cudaStream_t const *streams,
+                              uint32_t const *gpu_indexes, uint32_t gpu_count,
+                              int_radix_params params, uint32_t bits_per_block,
                               uint32_t num_radix_blocks,
                               bool allocate_gpu_memory)
       : int_bit_extract_luts_buffer(streams, gpu_indexes, gpu_count, params,
                                     bits_per_block, 0, num_radix_blocks,
                                     allocate_gpu_memory) {}
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     lut->release(streams, gpu_indexes, gpu_count);
     delete (lut);
@@ -933,8 +535,8 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
 
   Torus offset;
 
-  int_shift_and_rotate_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                              uint32_t gpu_count,
+  int_shift_and_rotate_buffer(cudaStream_t const *streams,
+                              uint32_t const *gpu_indexes, uint32_t gpu_count,
                               SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
                               int_radix_params params,
                               uint32_t num_radix_blocks,
@@ -1056,7 +658,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     cuda_drop_async(tmp_bits, streams[0], gpu_indexes[0]);
     cuda_drop_async(tmp_shift_bits, streams[0], gpu_indexes[0]);
@@ -1085,7 +687,7 @@ template <typename Torus> struct int_fullprop_buffer {
   Torus *tmp_small_lwe_vector;
   Torus *tmp_big_lwe_vector;
 
-  int_fullprop_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_fullprop_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                       uint32_t gpu_count, int_radix_params params,
                       bool allocate_gpu_memory) {
     this->params = params;
@@ -1142,7 +744,7 @@ template <typename Torus> struct int_fullprop_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
 
     lut->release(streams, gpu_indexes, 1);
@@ -1165,7 +767,7 @@ template <typename Torus> struct int_sc_prop_memory {
 
   int_radix_params params;
 
-  int_sc_prop_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_sc_prop_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                      uint32_t gpu_count, int_radix_params params,
                      uint32_t num_radix_blocks, bool allocate_gpu_memory) {
     this->params = params;
@@ -1258,7 +860,7 @@ template <typename Torus> struct int_sc_prop_memory {
     message_acc->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     cuda_drop_async(generates_or_propagates, streams[0], gpu_indexes[0]);
     cuda_drop_async(step_output, streams[0], gpu_indexes[0]);
@@ -1285,9 +887,9 @@ template <typename Torus> struct int_overflowing_sub_memory {
 
   int_radix_params params;
 
-  int_overflowing_sub_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
-                             uint32_t gpu_count, int_radix_params params,
-                             uint32_t num_radix_blocks,
+  int_overflowing_sub_memory(cudaStream_t const *streams,
+                             uint32_t const *gpu_indexes, uint32_t gpu_count,
+                             int_radix_params params, uint32_t num_radix_blocks,
                              bool allocate_gpu_memory) {
     this->params = params;
     auto glwe_dimension = params.glwe_dimension;
@@ -1379,7 +981,7 @@ template <typename Torus> struct int_overflowing_sub_memory {
     message_acc->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     cuda_drop_async(generates_or_propagates, streams[0], gpu_indexes[0]);
     cuda_drop_async(step_output, streams[0], gpu_indexes[0]);
@@ -1407,7 +1009,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
   bool mem_reuse = false;
 
-  int_sum_ciphertexts_vec_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_sum_ciphertexts_vec_memory(cudaStream_t const *streams,
+                                 uint32_t const *gpu_indexes,
                                  uint32_t gpu_count, int_radix_params params,
                                  uint32_t num_blocks_in_radix,
                                  uint32_t max_num_radix_in_vec,
@@ -1460,7 +1063,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                       streams[0], gpu_indexes[0]);
   }
 
-  int_sum_ciphertexts_vec_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_sum_ciphertexts_vec_memory(cudaStream_t const *streams,
+                                 uint32_t const *gpu_indexes,
                                  uint32_t gpu_count, int_radix_params params,
                                  uint32_t num_blocks_in_radix,
                                  uint32_t max_num_radix_in_vec,
@@ -1496,7 +1100,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                       streams[0], gpu_indexes[0]);
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     cuda_drop_async(d_smart_copy_in, streams[0], gpu_indexes[0]);
     cuda_drop_async(d_smart_copy_out, streams[0], gpu_indexes[0]);
@@ -1523,7 +1127,7 @@ template <typename Torus> struct int_mul_memory {
 
   int_radix_params params;
 
-  int_mul_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_mul_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                  uint32_t gpu_count, int_radix_params params,
                  uint32_t num_radix_blocks, bool allocate_gpu_memory) {
     this->params = params;
@@ -1597,7 +1201,7 @@ template <typename Torus> struct int_mul_memory {
         small_lwe_vector);
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     cuda_drop_async(vector_result_sb, streams[0], gpu_indexes[0]);
     cuda_drop_async(block_mul_res, streams[0], gpu_indexes[0]);
@@ -1621,7 +1225,8 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
 
   bool reuse_memory = false;
 
-  int_logical_scalar_shift_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_logical_scalar_shift_buffer(cudaStream_t const *streams,
+                                  uint32_t const *gpu_indexes,
                                   uint32_t gpu_count,
                                   SHIFT_OR_ROTATE_TYPE shift_type,
                                   int_radix_params params,
@@ -1712,13 +1317,11 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     }
   }
 
-  int_logical_scalar_shift_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                                  uint32_t gpu_count,
-                                  SHIFT_OR_ROTATE_TYPE shift_type,
-                                  int_radix_params params,
-                                  uint32_t num_radix_blocks,
-                                  bool allocate_gpu_memory,
-                                  Torus *pre_allocated_buffer) {
+  int_logical_scalar_shift_buffer(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, SHIFT_OR_ROTATE_TYPE shift_type,
+      int_radix_params params, uint32_t num_radix_blocks,
+      bool allocate_gpu_memory, Torus *pre_allocated_buffer) {
     this->shift_type = shift_type;
     this->params = params;
     tmp_rotated = pre_allocated_buffer;
@@ -1800,7 +1403,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
       }
     }
   }
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     for (auto &buffer : lut_buffers_bivariate) {
       buffer->release(streams, gpu_indexes, gpu_count);
@@ -1826,8 +1429,9 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
   cudaStream_t *local_streams_2;
   uint32_t active_gpu_count;
 
-  int_arithmetic_scalar_shift_buffer(cudaStream_t *streams,
-                                     uint32_t *gpu_indexes, uint32_t gpu_count,
+  int_arithmetic_scalar_shift_buffer(cudaStream_t const *streams,
+                                     uint32_t const *gpu_indexes,
+                                     uint32_t gpu_count,
                                      SHIFT_OR_ROTATE_TYPE shift_type,
                                      int_radix_params params,
                                      uint32_t num_radix_blocks,
@@ -1971,7 +1575,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     for (uint j = 0; j < active_gpu_count; j++) {
       cuda_destroy_stream(local_streams_1[j], gpu_indexes[j]);
@@ -2004,9 +1608,10 @@ template <typename Torus> struct int_zero_out_if_buffer {
   cudaStream_t *false_streams;
   uint32_t active_gpu_count;
 
-  int_zero_out_if_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                         uint32_t gpu_count, int_radix_params params,
-                         uint32_t num_radix_blocks, bool allocate_gpu_memory) {
+  int_zero_out_if_buffer(cudaStream_t const *streams,
+                         uint32_t const *gpu_indexes, uint32_t gpu_count,
+                         int_radix_params params, uint32_t num_radix_blocks,
+                         bool allocate_gpu_memory) {
     this->params = params;
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
 
@@ -2025,7 +1630,7 @@ template <typename Torus> struct int_zero_out_if_buffer {
       }
     }
   }
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     cuda_drop_async(tmp, streams[0], gpu_indexes[0]);
     for (uint j = 0; j < active_gpu_count; j++) {
@@ -2050,7 +1655,7 @@ template <typename Torus> struct int_cmux_buffer {
 
   int_radix_params params;
 
-  int_cmux_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_cmux_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                   uint32_t gpu_count,
                   std::function<Torus(Torus)> predicate_lut_f,
                   int_radix_params params, uint32_t num_radix_blocks,
@@ -2121,7 +1726,7 @@ template <typename Torus> struct int_cmux_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     predicate_lut->release(streams, gpu_indexes, gpu_count);
     delete predicate_lut;
@@ -2152,9 +1757,9 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   // value).
   std::unordered_map<int, int_radix_lut<Torus> *> is_equal_to_lut_map;
 
-  int_are_all_block_true_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                                uint32_t gpu_count, COMPARISON_TYPE op,
-                                int_radix_params params,
+  int_are_all_block_true_buffer(cudaStream_t const *streams,
+                                uint32_t const *gpu_indexes, uint32_t gpu_count,
+                                COMPARISON_TYPE op, int_radix_params params,
                                 uint32_t num_radix_blocks,
                                 bool allocate_gpu_memory) {
     this->params = params;
@@ -2174,7 +1779,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     for (auto &lut : is_equal_to_lut_map) {
       lut.second->release(streams, gpu_indexes, gpu_count);
@@ -2197,9 +1802,10 @@ template <typename Torus> struct int_comparison_eq_buffer {
 
   int_are_all_block_true_buffer<Torus> *are_all_block_true_buffer;
 
-  int_comparison_eq_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                           uint32_t gpu_count, COMPARISON_TYPE op,
-                           int_radix_params params, uint32_t num_radix_blocks,
+  int_comparison_eq_buffer(cudaStream_t const *streams,
+                           uint32_t const *gpu_indexes, uint32_t gpu_count,
+                           COMPARISON_TYPE op, int_radix_params params,
+                           uint32_t num_radix_blocks,
                            bool allocate_gpu_memory) {
     this->params = params;
     this->op = op;
@@ -2272,7 +1878,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     operator_lut->release(streams, gpu_indexes, gpu_count);
     delete operator_lut;
@@ -2298,7 +1904,8 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
   Torus *tmp_x;
   Torus *tmp_y;
 
-  int_tree_sign_reduction_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_tree_sign_reduction_buffer(cudaStream_t const *streams,
+                                 uint32_t const *gpu_indexes,
                                  uint32_t gpu_count,
                                  std::function<Torus(Torus)> operator_f,
                                  int_radix_params params,
@@ -2340,7 +1947,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     tree_inner_leaf_lut->release(streams, gpu_indexes, gpu_count);
     delete tree_inner_leaf_lut;
@@ -2369,9 +1976,10 @@ template <typename Torus> struct int_comparison_diff_buffer {
   Torus *tmp_signs_b;
   int_radix_lut<Torus> *reduce_signs_lut;
 
-  int_comparison_diff_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                             uint32_t gpu_count, COMPARISON_TYPE op,
-                             int_radix_params params, uint32_t num_radix_blocks,
+  int_comparison_diff_buffer(cudaStream_t const *streams,
+                             uint32_t const *gpu_indexes, uint32_t gpu_count,
+                             COMPARISON_TYPE op, int_radix_params params,
+                             uint32_t num_radix_blocks,
                              bool allocate_gpu_memory) {
     this->params = params;
     this->op = op;
@@ -2415,7 +2023,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     tree_buffer->release(streams, gpu_indexes, gpu_count);
     delete tree_buffer;
@@ -2463,10 +2071,11 @@ template <typename Torus> struct int_comparison_buffer {
   cudaStream_t *msb_streams;
   uint32_t active_gpu_count;
 
-  int_comparison_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                        uint32_t gpu_count, COMPARISON_TYPE op,
-                        int_radix_params params, uint32_t num_radix_blocks,
-                        bool is_signed, bool allocate_gpu_memory) {
+  int_comparison_buffer(cudaStream_t const *streams,
+                        uint32_t const *gpu_indexes, uint32_t gpu_count,
+                        COMPARISON_TYPE op, int_radix_params params,
+                        uint32_t num_radix_blocks, bool is_signed,
+                        bool allocate_gpu_memory) {
     this->params = params;
     this->op = op;
     this->is_signed = is_signed;
@@ -2610,7 +2219,7 @@ template <typename Torus> struct int_comparison_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     switch (op) {
     case COMPARISON_TYPE::MAX:
@@ -2701,8 +2310,9 @@ template <typename Torus> struct int_div_rem_memory {
 
   // allocate and initialize if needed, temporary arrays used to calculate
   // cuda integer div_rem operation
-  void init_temporary_buffers(cudaStream_t *streams, uint32_t *gpu_indexes,
-                              uint32_t gpu_count, uint32_t num_blocks) {
+  void init_temporary_buffers(cudaStream_t const *streams,
+                              uint32_t const *gpu_indexes, uint32_t gpu_count,
+                              uint32_t num_blocks) {
     uint32_t big_lwe_size = params.big_lwe_dimension + 1;
 
     // non boolean temporary arrays, with `num_blocks` blocks
@@ -2749,8 +2359,9 @@ template <typename Torus> struct int_div_rem_memory {
   }
 
   // initialize lookup tables for div_rem operation
-  void init_lookup_tables(cudaStream_t *streams, uint32_t *gpu_indexes,
-                          uint32_t gpu_count, uint32_t num_blocks) {
+  void init_lookup_tables(cudaStream_t const *streams,
+                          uint32_t const *gpu_indexes, uint32_t gpu_count,
+                          uint32_t num_blocks) {
     uint32_t num_bits_in_message = 31 - __builtin_clz(params.message_modulus);
 
     // create and generate masking_luts_1[] and masking_lut_2[]
@@ -2890,7 +2501,7 @@ template <typename Torus> struct int_div_rem_memory {
     }
   }
 
-  int_div_rem_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_div_rem_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                      uint32_t gpu_count, int_radix_params params,
                      uint32_t num_blocks, bool allocate_gpu_memory) {
     active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
@@ -2930,7 +2541,7 @@ template <typename Torus> struct int_div_rem_memory {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     uint32_t num_bits_in_message = 31 - __builtin_clz(params.message_modulus);
 
@@ -3033,9 +2644,9 @@ template <typename Torus> struct int_last_block_inner_propagate_memory {
   int_radix_params params;
 
   int_last_block_inner_propagate_memory(
-      cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-      int_radix_params params, SIGNED_OPERATION op, uint32_t num_radix_blocks,
-      bool allocate_gpu_memory) {
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, int_radix_params params, SIGNED_OPERATION op,
+      uint32_t num_radix_blocks, bool allocate_gpu_memory) {
 
     this->params = params;
     auto message_modulus = params.message_modulus;
@@ -3100,7 +2711,7 @@ template <typename Torus> struct int_last_block_inner_propagate_memory {
                                                     gpu_indexes[0]);
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     last_block_inner_propagation_lut->release(streams, gpu_indexes, gpu_count);
     delete last_block_inner_propagation_lut;
@@ -3114,8 +2725,9 @@ template <typename Torus> struct int_resolve_signed_overflow_memory {
 
   Torus *x;
 
-  int_resolve_signed_overflow_memory(cudaStream_t *streams,
-                                     uint32_t *gpu_indexes, uint32_t gpu_count,
+  int_resolve_signed_overflow_memory(cudaStream_t const *streams,
+                                     uint32_t const *gpu_indexes,
+                                     uint32_t gpu_count,
                                      int_radix_params params,
                                      bool allocate_gpu_memory) {
 
@@ -3160,7 +2772,7 @@ template <typename Torus> struct int_resolve_signed_overflow_memory {
     resolve_overflow_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     resolve_overflow_lut->release(streams, gpu_indexes, gpu_count);
     delete resolve_overflow_lut;
@@ -3190,7 +2802,8 @@ template <typename Torus> struct int_signed_overflowing_add_or_sub_memory {
 
   // allocate temporary arrays used to calculate
   // cuda integer signed overflowing add or sub
-  void allocate_temporary_buffers(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void allocate_temporary_buffers(cudaStream_t const *streams,
+                                  uint32_t const *gpu_indexes,
                                   uint32_t gpu_count, uint32_t num_blocks) {
     uint32_t big_lwe_size = params.big_lwe_dimension + 1;
 
@@ -3210,9 +2823,9 @@ template <typename Torus> struct int_signed_overflowing_add_or_sub_memory {
 
   // constructor without memory reuse
   int_signed_overflowing_add_or_sub_memory(
-      cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-      int_radix_params params, uint32_t num_blocks, SIGNED_OPERATION op,
-      bool allocate_gpu_memory) {
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, int_radix_params params, uint32_t num_blocks,
+      SIGNED_OPERATION op, bool allocate_gpu_memory) {
     this->params = params;
     active_gpu_count = get_active_gpu_count(num_blocks, gpu_count);
 
@@ -3241,7 +2854,7 @@ template <typename Torus> struct int_signed_overflowing_add_or_sub_memory {
         streams, gpu_indexes, gpu_count, params, allocate_gpu_memory);
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     // memory objects for other operations
     scp_mem->release(streams, gpu_indexes, gpu_count);
@@ -3273,7 +2886,7 @@ template <typename Torus> struct int_bitop_buffer {
   int_radix_params params;
   int_radix_lut<Torus> *lut;
 
-  int_bitop_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
+  int_bitop_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                    uint32_t gpu_count, BITOP_TYPE op, int_radix_params params,
                    uint32_t num_radix_blocks, bool allocate_gpu_memory) {
 
@@ -3337,7 +2950,7 @@ template <typename Torus> struct int_bitop_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     lut->release(streams, gpu_indexes, gpu_count);
     delete lut;
@@ -3351,9 +2964,10 @@ template <typename Torus> struct int_scalar_mul_buffer {
   Torus *preshifted_buffer;
   Torus *all_shifted_buffer;
 
-  int_scalar_mul_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
-                        uint32_t gpu_count, int_radix_params params,
-                        uint32_t num_radix_blocks, bool allocate_gpu_memory) {
+  int_scalar_mul_buffer(cudaStream_t const *streams,
+                        uint32_t const *gpu_indexes, uint32_t gpu_count,
+                        int_radix_params params, uint32_t num_radix_blocks,
+                        bool allocate_gpu_memory) {
     this->params = params;
 
     if (allocate_gpu_memory) {
@@ -3390,7 +3004,7 @@ template <typename Torus> struct int_scalar_mul_buffer {
     }
   }
 
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     sum_ciphertexts_vec_mem->release(streams, gpu_indexes, gpu_count);
     delete sum_ciphertexts_vec_mem;
@@ -3398,4 +3012,4 @@ template <typename Torus> struct int_scalar_mul_buffer {
   }
 };
 
-#endif // CUDA_INTEGER_H
+#endif // CUDA_INTEGER_UTILITIES_H

@@ -5,7 +5,8 @@
 
 /// Initialize same-size arrays on all active gpus
 template <typename Torus>
-void multi_gpu_alloc_array_async(cudaStream_t *streams, uint32_t *gpu_indexes,
+void multi_gpu_alloc_array_async(cudaStream_t const *streams,
+                                 uint32_t const *gpu_indexes,
                                  uint32_t gpu_count, std::vector<Torus *> &dest,
                                  uint32_t elements_per_gpu) {
 
@@ -18,9 +19,10 @@ void multi_gpu_alloc_array_async(cudaStream_t *streams, uint32_t *gpu_indexes,
 }
 /// Copy an array residing on one GPU to all active gpus
 template <typename Torus>
-void multi_gpu_copy_array_async(cudaStream_t *streams, uint32_t *gpu_indexes,
-                                uint32_t gpu_count, std::vector<Torus *> &dest,
-                                Torus *src, uint32_t elements_per_gpu) {
+void multi_gpu_copy_array_async(cudaStream_t const *streams,
+                                uint32_t const *gpu_indexes, uint32_t gpu_count,
+                                std::vector<Torus *> &dest, Torus const *src,
+                                uint32_t elements_per_gpu) {
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
     cuda_memcpy_async_gpu_to_gpu(dest[i], src, elements_per_gpu * sizeof(Torus),
@@ -31,9 +33,10 @@ void multi_gpu_copy_array_async(cudaStream_t *streams, uint32_t *gpu_indexes,
 /// Initializes also the related indexing and initializes it to the trivial
 /// index
 template <typename Torus>
-void multi_gpu_alloc_lwe_async(cudaStream_t *streams, uint32_t *gpu_indexes,
-                               uint32_t gpu_count, std::vector<Torus *> &dest,
-                               uint32_t num_inputs, uint32_t lwe_size) {
+void multi_gpu_alloc_lwe_async(cudaStream_t const *streams,
+                               uint32_t const *gpu_indexes, uint32_t gpu_count,
+                               std::vector<Torus *> &dest, uint32_t num_inputs,
+                               uint32_t lwe_size) {
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
     auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
@@ -48,9 +51,10 @@ void multi_gpu_alloc_lwe_async(cudaStream_t *streams, uint32_t *gpu_indexes,
 /// The input indexing logic is given by an index array.
 /// The output indexing is always the trivial one
 template <typename Torus>
-void multi_gpu_scatter_lwe_async(cudaStream_t *streams, uint32_t *gpu_indexes,
+void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
+                                 uint32_t const *gpu_indexes,
                                  uint32_t gpu_count, std::vector<Torus *> &dest,
-                                 Torus *src, Torus *h_src_indexes,
+                                 Torus const *src, Torus const *h_src_indexes,
                                  bool is_trivial_index, uint32_t num_inputs,
                                  uint32_t lwe_size) {
 
@@ -88,9 +92,9 @@ void multi_gpu_scatter_lwe_async(cudaStream_t *streams, uint32_t *gpu_indexes,
 /// dest_indexes
 /// The input indexing should be the trivial one
 template <typename Torus>
-void multi_gpu_gather_lwe_async(cudaStream_t *streams, uint32_t *gpu_indexes,
-                                uint32_t gpu_count, Torus *dest,
-                                const std::vector<Torus *> &src,
+void multi_gpu_gather_lwe_async(cudaStream_t const *streams,
+                                uint32_t const *gpu_indexes, uint32_t gpu_count,
+                                Torus *dest, const std::vector<Torus *> &src,
                                 Torus *h_dest_indexes, bool is_trivial_index,
                                 uint32_t num_inputs, uint32_t lwe_size) {
 
@@ -123,7 +127,8 @@ void multi_gpu_gather_lwe_async(cudaStream_t *streams, uint32_t *gpu_indexes,
 }
 
 template <typename Torus>
-void multi_gpu_release_async(cudaStream_t *streams, uint32_t *gpu_indexes,
+void multi_gpu_release_async(cudaStream_t const *streams,
+                             uint32_t const *gpu_indexes,
                              std::vector<Torus *> &vec) {
 
   for (uint i = 0; i < vec.size(); i++)

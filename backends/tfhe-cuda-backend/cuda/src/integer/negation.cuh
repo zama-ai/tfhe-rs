@@ -8,10 +8,10 @@
 
 #include "crypto/keyswitch.cuh"
 #include "device.h"
-#include "integer.h"
 #include "integer/integer.cuh"
+#include "integer/integer_utilities.h"
 #include "linear_algebra.h"
-#include "programmable_bootstrap.h"
+#include "pbs/programmable_bootstrap.h"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <fstream>
@@ -23,9 +23,9 @@
 
 template <typename Torus>
 __global__ void
-device_integer_radix_negation(Torus *output, Torus *input, int32_t num_blocks,
-                              uint64_t lwe_dimension, uint64_t message_modulus,
-                              uint64_t delta) {
+device_integer_radix_negation(Torus *output, Torus const *input,
+                              int32_t num_blocks, uint64_t lwe_dimension,
+                              uint64_t message_modulus, uint64_t delta) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < lwe_dimension + 1) {
     bool is_body = (tid == lwe_dimension);
@@ -54,12 +54,11 @@ device_integer_radix_negation(Torus *output, Torus *input, int32_t num_blocks,
 }
 
 template <typename Torus>
-__host__ void
-host_integer_radix_negation(cudaStream_t *streams, uint32_t *gpu_indexes,
-                            uint32_t gpu_count, Torus *output, Torus *input,
-                            uint32_t lwe_dimension,
-                            uint32_t input_lwe_ciphertext_count,
-                            uint64_t message_modulus, uint64_t carry_modulus) {
+__host__ void host_integer_radix_negation(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *output, Torus const *input,
+    uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
+    uint64_t message_modulus, uint64_t carry_modulus) {
   cudaSetDevice(gpu_indexes[0]);
 
   // lwe_size includes the presence of the body
@@ -85,9 +84,9 @@ host_integer_radix_negation(cudaStream_t *streams, uint32_t *gpu_indexes,
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_overflowing_sub_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_overflowing_sub_memory<Torus> **mem_ptr, uint32_t num_blocks,
-    int_radix_params params, bool allocate_gpu_memory) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_overflowing_sub_memory<Torus> **mem_ptr,
+    uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory) {
 
   *mem_ptr = new int_overflowing_sub_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory);
@@ -95,9 +94,10 @@ __host__ void scratch_cuda_integer_overflowing_sub_kb(
 
 template <typename Torus>
 __host__ void host_integer_overflowing_sub_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *radix_lwe_out, Torus *radix_lwe_overflowed, Torus *radix_lwe_left,
-    Torus *radix_lwe_right, void **bsks, uint64_t **ksks,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *radix_lwe_out, Torus *radix_lwe_overflowed,
+    Torus const *radix_lwe_left, Torus const *radix_lwe_right,
+    void *const *bsks, uint64_t *const *ksks,
     int_overflowing_sub_memory<uint64_t> *mem_ptr, uint32_t num_blocks) {
 
   auto radix_params = mem_ptr->params;

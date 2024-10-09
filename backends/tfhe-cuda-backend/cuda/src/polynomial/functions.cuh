@@ -188,7 +188,7 @@ __device__ void add_to_torus(double2 *m_values, Torus *result,
 
 // Extracts the body of the nth-LWE in a GLWE.
 template <typename Torus, class params>
-__device__ void sample_extract_body(Torus *lwe_array_out, Torus *glwe,
+__device__ void sample_extract_body(Torus *lwe_array_out, Torus const *glwe,
                                     uint32_t glwe_dimension, uint32_t nth = 0) {
   // Set first coefficient of the glwe as the body of the LWE sample
   lwe_array_out[glwe_dimension * params::degree] =
@@ -197,7 +197,7 @@ __device__ void sample_extract_body(Torus *lwe_array_out, Torus *glwe,
 
 // Extracts the mask from the nth-LWE in a GLWE.
 template <typename Torus, class params>
-__device__ void sample_extract_mask(Torus *lwe_array_out, Torus *glwe,
+__device__ void sample_extract_mask(Torus *lwe_array_out, Torus const *glwe,
                                     uint32_t glwe_dimension = 1,
                                     uint32_t nth = 0) {
   for (int z = 0; z < glwe_dimension; z++) {

@@ -101,9 +101,10 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
 template <typename Torus>
 __host__ void host_keyswitch_lwe_ciphertext_vector(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
-    Torus *lwe_output_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
-    Torus *ksk, uint32_t lwe_dimension_in, uint32_t lwe_dimension_out,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
+    Torus const *lwe_output_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *ksk, uint32_t lwe_dimension_in,
+    uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
+    uint32_t num_samples) {
 
   cudaSetDevice(gpu_index);
 
@@ -124,13 +125,13 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
 }
 
 template <typename Torus>
-void execute_keyswitch_async(cudaStream_t *streams, uint32_t *gpu_indexes,
-                             uint32_t gpu_count,
+void execute_keyswitch_async(cudaStream_t const *streams,
+                             uint32_t const *gpu_indexes, uint32_t gpu_count,
                              const LweArrayVariant<Torus> &lwe_array_out,
                              const LweArrayVariant<Torus> &lwe_output_indexes,
                              const LweArrayVariant<Torus> &lwe_array_in,
                              const LweArrayVariant<Torus> &lwe_input_indexes,
-                             Torus **ksks, uint32_t lwe_dimension_in,
+                             Torus *const *ksks, uint32_t lwe_dimension_in,
                              uint32_t lwe_dimension_out, uint32_t base_log,
                              uint32_t level_count, uint32_t num_samples) {
 
@@ -176,9 +177,9 @@ __host__ void scratch_packing_keyswitch_lwe_list_to_glwe(
 // different thread blocks at the x-axis to work on that input.
 template <typename Torus>
 __device__ void packing_keyswitch_lwe_ciphertext_into_glwe_ciphertext(
-    Torus *glwe_out, Torus *lwe_in, Torus *fp_ksk, uint32_t lwe_dimension_in,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count) {
+    Torus *glwe_out, Torus const *lwe_in, Torus const *fp_ksk,
+    uint32_t lwe_dimension_in, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count) {
 
   const int tid = threadIdx.x + blockIdx.x * blockDim.x;
   size_t glwe_size = (glwe_dimension + 1);
@@ -225,12 +226,11 @@ __device__ void packing_keyswitch_lwe_ciphertext_into_glwe_ciphertext(
 // Assumes there are (glwe_dimension+1) * polynomial_size threads split through
 // different thread blocks at the x-axis to work on that input.
 template <typename Torus>
-__global__ void
-packing_keyswitch_lwe_list_to_glwe(Torus *glwe_array_out, Torus *lwe_array_in,
-                                   Torus *fp_ksk, uint32_t lwe_dimension_in,
-                                   uint32_t glwe_dimension,
-                                   uint32_t polynomial_size, uint32_t base_log,
-                                   uint32_t level_count, Torus *d_mem) {
+__global__ void packing_keyswitch_lwe_list_to_glwe(
+    Torus *glwe_array_out, Torus const *lwe_array_in, Torus const *fp_ksk,
+    uint32_t lwe_dimension_in, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    Torus *d_mem) {
   const int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   const int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
@@ -276,7 +276,7 @@ __global__ void accumulate_glwes(Torus *glwe_out, Torus *glwe_array_in,
 template <typename Torus>
 __host__ void host_packing_keyswitch_lwe_list_to_glwe(
     cudaStream_t stream, uint32_t gpu_index, Torus *glwe_out,
-    Torus *lwe_array_in, Torus *fp_ksk_array, int8_t *fp_ks_buffer,
+    Torus const *lwe_array_in, Torus const *fp_ksk_array, int8_t *fp_ks_buffer,
     uint32_t lwe_dimension_in, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_lwes) {

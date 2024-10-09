@@ -4,12 +4,13 @@
 #include "integer.cuh"
 
 template <typename Torus>
-__host__ void zero_out_if(cudaStream_t *streams, uint32_t *gpu_indexes,
-                          uint32_t gpu_count, Torus *lwe_array_out,
-                          Torus *lwe_array_input, Torus *lwe_condition,
+__host__ void zero_out_if(cudaStream_t const *streams,
+                          uint32_t const *gpu_indexes, uint32_t gpu_count,
+                          Torus *lwe_array_out, Torus const *lwe_array_input,
+                          Torus const *lwe_condition,
                           int_zero_out_if_buffer<Torus> *mem_ptr,
-                          int_radix_lut<Torus> *predicate, void **bsks,
-                          Torus **ksks, uint32_t num_radix_blocks) {
+                          int_radix_lut<Torus> *predicate, void *const *bsks,
+                          Torus *const *ksks, uint32_t num_radix_blocks) {
   cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
 
@@ -42,10 +43,11 @@ __host__ void zero_out_if(cudaStream_t *streams, uint32_t *gpu_indexes,
 
 template <typename Torus>
 __host__ void host_integer_radix_cmux_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_condition, Torus *lwe_array_true,
-    Torus *lwe_array_false, int_cmux_buffer<Torus> *mem_ptr, void **bsks,
-    Torus **ksks, uint32_t num_radix_blocks) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_condition,
+    Torus const *lwe_array_true, Torus const *lwe_array_false,
+    int_cmux_buffer<Torus> *mem_ptr, void *const *bsks, Torus *const *ksks,
+    uint32_t num_radix_blocks) {
 
   auto params = mem_ptr->params;
 
@@ -89,8 +91,8 @@ __host__ void host_integer_radix_cmux_kb(
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_cmux_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    int_cmux_buffer<Torus> **mem_ptr,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_cmux_buffer<Torus> **mem_ptr,
     std::function<Torus(Torus)> predicate_lut_f, uint32_t num_radix_blocks,
     int_radix_params params, bool allocate_gpu_memory) {
 

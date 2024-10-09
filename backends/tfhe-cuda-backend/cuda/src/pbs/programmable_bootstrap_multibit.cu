@@ -1,7 +1,7 @@
 #include "../polynomial/parameters.cuh"
+#include "pbs/programmable_bootstrap_multibit.h"
 #include "programmable_bootstrap_cg_multibit.cuh"
 #include "programmable_bootstrap_multibit.cuh"
-#include "programmable_bootstrap_multibit.h"
 
 #if (CUDA_ARCH >= 900)
 #include "programmable_bootstrap_tbc_multibit.cuh"
@@ -61,8 +61,9 @@ bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
 template <typename Torus>
 void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
-    Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
-    Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *bootstrapping_key,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
@@ -138,8 +139,9 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 template <typename Torus>
 void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
-    Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
-    Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *bootstrapping_key,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
@@ -214,8 +216,9 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 
 void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
-    void *lwe_output_indexes, void *lut_vector, void *lut_vector_indexes,
-    void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
     int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t lut_count,
@@ -229,12 +232,12 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
 #if CUDA_ARCH >= 900
     cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<uint64_t *>(lwe_output_indexes),
-        static_cast<uint64_t *>(lut_vector),
-        static_cast<uint64_t *>(lut_vector_indexes),
-        static_cast<uint64_t *>(lwe_array_in),
-        static_cast<uint64_t *>(lwe_input_indexes),
-        static_cast<uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
+        static_cast<const uint64_t *>(lwe_output_indexes),
+        static_cast<const uint64_t *>(lut_vector),
+        static_cast<const uint64_t *>(lut_vector_indexes),
+        static_cast<const uint64_t *>(lwe_array_in),
+        static_cast<const uint64_t *>(lwe_input_indexes),
+        static_cast<const uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
         num_samples, lut_count, lut_stride);
     break;
@@ -244,24 +247,24 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
   case PBS_VARIANT::CG:
     cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<uint64_t *>(lwe_output_indexes),
-        static_cast<uint64_t *>(lut_vector),
-        static_cast<uint64_t *>(lut_vector_indexes),
-        static_cast<uint64_t *>(lwe_array_in),
-        static_cast<uint64_t *>(lwe_input_indexes),
-        static_cast<uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
+        static_cast<const uint64_t *>(lwe_output_indexes),
+        static_cast<const uint64_t *>(lut_vector),
+        static_cast<const uint64_t *>(lut_vector_indexes),
+        static_cast<const uint64_t *>(lwe_array_in),
+        static_cast<const uint64_t *>(lwe_input_indexes),
+        static_cast<const uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
         num_samples, lut_count, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<uint64_t *>(lwe_output_indexes),
-        static_cast<uint64_t *>(lut_vector),
-        static_cast<uint64_t *>(lut_vector_indexes),
-        static_cast<uint64_t *>(lwe_array_in),
-        static_cast<uint64_t *>(lwe_input_indexes),
-        static_cast<uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
+        static_cast<const uint64_t *>(lwe_output_indexes),
+        static_cast<const uint64_t *>(lut_vector),
+        static_cast<const uint64_t *>(lut_vector_indexes),
+        static_cast<const uint64_t *>(lwe_array_in),
+        static_cast<const uint64_t *>(lwe_input_indexes),
+        static_cast<const uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
         num_samples, lut_count, lut_stride);
     break;
@@ -493,9 +496,9 @@ template void scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(
 template void
 cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
-    uint64_t *lwe_output_indexes, uint64_t *lut_vector,
-    uint64_t *lut_vector_indexes, uint64_t *lwe_array_in,
-    uint64_t *lwe_input_indexes, uint64_t *bootstrapping_key,
+    uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
+    uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,
+    uint64_t const *lwe_input_indexes, uint64_t const *bootstrapping_key,
     pbs_buffer<uint64_t, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
@@ -510,9 +513,9 @@ template void scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
 template void
 cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
-    uint64_t *lwe_output_indexes, uint64_t *lut_vector,
-    uint64_t *lut_vector_indexes, uint64_t *lwe_array_in,
-    uint64_t *lwe_input_indexes, uint64_t *bootstrapping_key,
+    uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
+    uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,
+    uint64_t const *lwe_input_indexes, uint64_t const *bootstrapping_key,
     pbs_buffer<uint64_t, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
@@ -582,8 +585,9 @@ void scratch_cuda_tbc_multi_bit_programmable_bootstrap(
 template <typename Torus>
 void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
-    Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
-    Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *bootstrapping_key,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
@@ -678,9 +682,9 @@ template void scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
 template void
 cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
-    uint64_t *lwe_output_indexes, uint64_t *lut_vector,
-    uint64_t *lut_vector_indexes, uint64_t *lwe_array_in,
-    uint64_t *lwe_input_indexes, uint64_t *bootstrapping_key,
+    uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
+    uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,
+    uint64_t const *lwe_input_indexes, uint64_t const *bootstrapping_key,
     pbs_buffer<uint64_t, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
