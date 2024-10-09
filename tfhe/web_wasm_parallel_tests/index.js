@@ -23,7 +23,6 @@ async function setup() {
   const demos = await Comlink.wrap(worker).demos;
 
   const demoNames = [
-    "publicKeyTest",
     "compressedPublicKeyTest",
     "compressedCompactPublicKeyTest256BitBig",
     "compressedCompactPublicKeyTest256BitSmall",
