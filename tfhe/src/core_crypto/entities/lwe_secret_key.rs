@@ -8,6 +8,7 @@ use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::parameters::LweDimension;
 use crate::core_crypto::commons::traits::*;
+use crate::named::Named;
 
 /// An [`LWE secret key`](`LweSecretKey`).
 ///
@@ -23,6 +24,10 @@ use crate::core_crypto::commons::traits::*;
 #[versionize(LweSecretKeyVersions)]
 pub struct LweSecretKey<C: Container> {
     data: C,
+}
+
+impl<C: Container> Named for LweSecretKey<C> {
+    const NAME: &'static str = "core_crypto::LweSecretKey";
 }
 
 impl<T, C: Container<Element = T>> AsRef<[T]> for LweSecretKey<C> {
