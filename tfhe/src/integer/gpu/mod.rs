@@ -82,7 +82,7 @@ where
             ks_level: wopbs_params.ks_level,
             message_modulus: wopbs_params.message_modulus,
             carry_modulus: wopbs_params.carry_modulus,
-            max_noise_level: crate::shortint::parameters::MaxNoiseLevel::from_msg_carry_modulus(
+            max_noise_level: crate::shortint::parameters::MaxNoiseLevel::integer_radix_server_key(
                 wopbs_params.message_modulus,
                 wopbs_params.carry_modulus,
             ),
