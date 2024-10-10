@@ -16,13 +16,13 @@ use std::sync::Arc;
 
 create_parametrized_test!(integer_signed_unchecked_if_then_else {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
 });
 create_parametrized_test!(integer_signed_default_if_then_else {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
 });
 
 fn integer_signed_unchecked_if_then_else<P>(param: P)

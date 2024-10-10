@@ -1,5 +1,6 @@
 use criterion::Criterion;
 use tfhe::prelude::*;
+use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
 use tfhe::shortint::prelude::*;
 use tfhe::{generate_keys, ConfigBuilder, FheUint64};
 use tfhe_trivium::{KreyviumStreamShortint, TransCiphering};
@@ -10,7 +11,8 @@ pub fn kreyvium_shortint_warmup(c: &mut Criterion) {
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key, server_key): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
@@ -60,7 +62,8 @@ pub fn kreyvium_shortint_gen(c: &mut Criterion) {
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key, server_key): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
@@ -105,7 +108,8 @@ pub fn kreyvium_shortint_trans(c: &mut Criterion) {
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key, server_key): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),

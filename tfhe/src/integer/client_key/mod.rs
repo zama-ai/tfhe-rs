@@ -628,9 +628,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let msg = 13_u64;
     ///
@@ -669,9 +669,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let msg = 27_u64;
     /// let basis: Vec<u64> = vec![2, 3, 5];

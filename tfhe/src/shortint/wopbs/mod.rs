@@ -260,11 +260,11 @@ mod experimental {
         /// ```rust
         /// use tfhe::shortint::gen_keys;
         /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
-        /// use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS;
+        /// use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
         /// use tfhe::shortint::wopbs::*;
         ///
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+        /// let (cks, sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
         /// ```
         pub fn new_wopbs_key(

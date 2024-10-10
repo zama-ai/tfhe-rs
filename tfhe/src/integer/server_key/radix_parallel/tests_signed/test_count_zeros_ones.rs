@@ -7,6 +7,7 @@ use crate::integer::tests::create_parametrized_test;
 use crate::integer::{
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
+use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
 use crate::shortint::parameters::*;
 use crate::shortint::PBSParameters;
 use rand::Rng;
