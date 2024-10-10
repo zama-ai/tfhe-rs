@@ -6,6 +6,7 @@
 #include <cuda_runtime.h>
 #endif
 
+#include "bootstrapping_key.cuh"
 #include "crypto/gadget.cuh"
 #include "crypto/torus.cuh"
 #include "device.h"

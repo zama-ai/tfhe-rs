@@ -1,7 +1,7 @@
 #include "integer/negation.cuh"
 
 void cuda_negate_integer_radix_ciphertext_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_array_in, uint32_t lwe_dimension,
     uint32_t lwe_ciphertext_count, uint32_t message_modulus,
     uint32_t carry_modulus) {
@@ -14,8 +14,8 @@ void cuda_negate_integer_radix_ciphertext_64(
 }
 
 void scratch_cuda_integer_radix_overflowing_sub_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
@@ -33,10 +33,10 @@ void scratch_cuda_integer_radix_overflowing_sub_kb_64(
 }
 
 void cuda_integer_radix_overflowing_sub_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     void *radix_lwe_out, void *radix_lwe_overflowed, void *radix_lwe_left,
-    void *radix_lwe_right, int8_t *mem_ptr, void **bsks, void **ksks,
-    uint32_t num_blocks) {
+    void *radix_lwe_right, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks, uint32_t num_blocks) {
 
   auto mem = (int_overflowing_sub_memory<uint64_t> *)mem_ptr;
 
@@ -49,8 +49,8 @@ void cuda_integer_radix_overflowing_sub_kb_64(
       num_blocks);
 }
 
-void cleanup_cuda_integer_radix_overflowing_sub(void **streams,
-                                                uint32_t *gpu_indexes,
+void cleanup_cuda_integer_radix_overflowing_sub(void *const *streams,
+                                                uint32_t const *gpu_indexes,
                                                 uint32_t gpu_count,
                                                 int8_t **mem_ptr_void) {
   int_overflowing_sub_memory<uint64_t> *mem_ptr =

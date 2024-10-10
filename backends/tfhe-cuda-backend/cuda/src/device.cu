@@ -113,7 +113,7 @@ void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
 }
 
 /// Copy memory within a GPU asynchronously
-void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
+void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
                                   cudaStream_t stream, uint32_t gpu_index) {
   if (size == 0)
     return;

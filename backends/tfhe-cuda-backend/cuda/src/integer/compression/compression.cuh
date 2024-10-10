@@ -3,6 +3,7 @@
 
 #include "ciphertext.h"
 #include "compression.h"
+#include "compression_utilities.h"
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer/integer.cuh"
@@ -77,11 +78,10 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
 }
 
 template <typename Torus>
-__host__ void host_integer_compress(cudaStream_t *streams,
-                                    uint32_t *gpu_indexes, uint32_t gpu_count,
-                                    Torus *glwe_array_out, Torus *lwe_array_in,
-                                    Torus **fp_ksk, uint32_t num_radix_blocks,
-                                    int_compression<Torus> *mem_ptr) {
+__host__ void host_integer_compress(
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    Torus *glwe_array_out, Torus const *lwe_array_in, Torus *const *fp_ksk,
+    uint32_t num_radix_blocks, int_compression<Torus> *mem_ptr) {
 
   auto compression_params = mem_ptr->compression_params;
   auto input_lwe_dimension = compression_params.small_lwe_dimension;
@@ -138,9 +138,9 @@ __host__ void host_integer_compress(cudaStream_t *streams,
 }
 
 template <typename Torus>
-__global__ void extract(Torus *glwe_array_out, Torus *array_in, uint32_t index,
-                        uint32_t log_modulus, uint32_t input_len,
-                        uint32_t initial_out_len) {
+__global__ void extract(Torus *glwe_array_out, Torus const *array_in,
+                        uint32_t index, uint32_t log_modulus,
+                        uint32_t input_len, uint32_t initial_out_len) {
   auto nbits = sizeof(Torus) * 8;
 
   auto i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -176,7 +176,7 @@ __global__ void extract(Torus *glwe_array_out, Torus *array_in, uint32_t index,
 /// Extracts the glwe_index-nth GLWE ciphertext
 template <typename Torus>
 __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
-                           Torus *glwe_array_out, Torus *array_in,
+                           Torus *glwe_array_out, Torus const *array_in,
                            uint32_t glwe_index,
                            int_decompression<Torus> *mem_ptr) {
   if (array_in == glwe_array_out)
@@ -219,15 +219,14 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
 }
 
 template <typename Torus>
-__host__ void
-host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
-                        uint32_t gpu_count, Torus *d_lwe_array_out,
-                        Torus *d_packed_glwe_in, uint32_t *h_indexes_array,
-                        uint32_t indexes_array_size, void **d_bsks,
-                        int_decompression<Torus> *h_mem_ptr) {
+__host__ void host_integer_decompress(
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    Torus *d_lwe_array_out, Torus const *d_packed_glwe_in,
+    uint32_t const *h_indexes_array, uint32_t indexes_array_size,
+    void *const *d_bsks, int_decompression<Torus> *h_mem_ptr) {
 
   auto d_indexes_array = h_mem_ptr->tmp_indexes_array;
-  cuda_memcpy_async_to_gpu(d_indexes_array, h_indexes_array,
+  cuda_memcpy_async_to_gpu(d_indexes_array, (void *)h_indexes_array,
                            indexes_array_size * sizeof(uint32_t), streams[0],
                            gpu_indexes[0]);
 

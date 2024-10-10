@@ -1,8 +1,8 @@
 #include "integer/cmux.cuh"
 
 void scratch_cuda_integer_radix_cmux_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
@@ -24,10 +24,10 @@ void scratch_cuda_integer_radix_cmux_kb_64(
 }
 
 void cuda_cmux_integer_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_condition, void *lwe_array_true,
-    void *lwe_array_false, int8_t *mem_ptr, void **bsks, void **ksks,
-    uint32_t lwe_ciphertext_count) {
+    void *lwe_array_false, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks, uint32_t lwe_ciphertext_count) {
 
   host_integer_radix_cmux_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
@@ -40,7 +40,8 @@ void cuda_cmux_integer_radix_ciphertext_kb_64(
       lwe_ciphertext_count);
 }
 
-void cleanup_cuda_integer_radix_cmux(void **streams, uint32_t *gpu_indexes,
+void cleanup_cuda_integer_radix_cmux(void *const *streams,
+                                     uint32_t const *gpu_indexes,
                                      uint32_t gpu_count,
                                      int8_t **mem_ptr_void) {
 

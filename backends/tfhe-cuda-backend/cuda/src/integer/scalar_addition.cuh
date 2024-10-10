@@ -7,7 +7,7 @@
 #endif
 
 #include "device.h"
-#include "integer.h"
+#include "integer_utilities.h"
 #include "utils/kernel_dimensions.cuh"
 #include <stdio.h>
 
@@ -25,10 +25,10 @@ __global__ void device_integer_radix_scalar_addition_inplace(
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_addition_inplace(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array, Torus *scalar_input, uint32_t lwe_dimension,
-    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, Torus *scalar_input,
+    uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
+    uint32_t message_modulus, uint32_t carry_modulus) {
   cudaSetDevice(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads
@@ -64,8 +64,8 @@ __global__ void device_integer_radix_add_scalar_one_inplace(
 
 template <typename Torus>
 __host__ void host_integer_radix_add_scalar_one_inplace(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array, uint32_t lwe_dimension,
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, uint32_t lwe_dimension,
     uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
     uint32_t carry_modulus) {
   cudaSetDevice(gpu_indexes[0]);
@@ -104,10 +104,10 @@ __global__ void device_integer_radix_scalar_subtraction_inplace(
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_subtraction_inplace(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array, Torus *scalar_input, uint32_t lwe_dimension,
-    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus) {
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, Torus *scalar_input,
+    uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
+    uint32_t message_modulus, uint32_t carry_modulus) {
   cudaSetDevice(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads

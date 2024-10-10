@@ -1,8 +1,8 @@
 #include "integer/comparison.cuh"
 
 void scratch_cuda_integer_radix_comparison_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
@@ -37,9 +37,9 @@ void scratch_cuda_integer_radix_comparison_kb_64(
 }
 
 void cuda_comparison_integer_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_array_1, void *lwe_array_2, int8_t *mem_ptr,
-    void **bsks, void **ksks, uint32_t num_radix_blocks) {
+    void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
 
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;
@@ -79,7 +79,8 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
   }
 }
 
-void cleanup_cuda_integer_comparison(void **streams, uint32_t *gpu_indexes,
+void cleanup_cuda_integer_comparison(void *const *streams,
+                                     uint32_t const *gpu_indexes,
                                      uint32_t gpu_count,
                                      int8_t **mem_ptr_void) {
 

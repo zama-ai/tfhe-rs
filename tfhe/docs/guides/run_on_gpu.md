@@ -10,6 +10,7 @@ This guide explains how to update your existing program to leverage GPU accelera
 * Compute Capability >= 3.0
 * [gcc](https://gcc.gnu.org/) >= 8.0 - check this [page](https://gist.github.com/ax3l/9489132) for more details about nvcc/gcc compatible versions
 * [cmake](https://cmake.org/) >= 3.24
+* libclang, to match Rust bingen [requirements](https://rust-lang.github.io/rust-bindgen/requirements.html) >= 9.0
 * Rust version - check this [page](rust\_configuration.md)
 
 ## Importing to your project

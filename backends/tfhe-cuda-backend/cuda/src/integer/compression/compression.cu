@@ -48,25 +48,25 @@ void scratch_cuda_integer_decompress_radix_ciphertext_64(
 }
 void cuda_integer_compress_radix_ciphertext_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *glwe_array_out, void *lwe_array_in, void **fp_ksk, uint32_t num_nths,
-    int8_t *mem_ptr) {
+    void *glwe_array_out, void const *lwe_array_in, void *const *fp_ksk,
+    uint32_t num_nths, int8_t *mem_ptr) {
 
   host_integer_compress<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       static_cast<uint64_t *>(glwe_array_out),
-      static_cast<uint64_t *>(lwe_array_in), (uint64_t **)(fp_ksk), num_nths,
-      (int_compression<uint64_t> *)mem_ptr);
+      static_cast<const uint64_t *>(lwe_array_in), (uint64_t *const *)(fp_ksk),
+      num_nths, (int_compression<uint64_t> *)mem_ptr);
 }
 void cuda_integer_decompress_radix_ciphertext_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *glwe_in, uint32_t *indexes_array,
-    uint32_t indexes_array_size, void **bsks, int8_t *mem_ptr) {
+    void *lwe_array_out, void const *glwe_in, uint32_t const *indexes_array,
+    uint32_t indexes_array_size, void *const *bsks, int8_t *mem_ptr) {
 
   host_integer_decompress<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lwe_array_out), static_cast<uint64_t *>(glwe_in),
-      indexes_array, indexes_array_size, bsks,
-      (int_decompression<uint64_t> *)mem_ptr);
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<const uint64_t *>(glwe_in), indexes_array, indexes_array_size,
+      bsks, (int_decompression<uint64_t> *)mem_ptr);
 }
 
 void cleanup_cuda_integer_compress_radix_ciphertext_64(void **streams,
