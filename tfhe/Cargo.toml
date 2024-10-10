@@ -79,7 +79,7 @@ tfhe-zk-pok = { version = "0.3.0", path = "../tfhe-zk-pok", optional = true }
 tfhe-versionable = { version = "0.3.2", path = "../utils/tfhe-versionable" }
 
 # wasm deps
-wasm-bindgen = { version = "<0.2.94", features = [
+wasm-bindgen = { version = ">=0.2.86,<0.2.94", features = [
     "serde-serialize",
 ], optional = true }
 wasm-bindgen-rayon = { version = "1.0", optional = true }
