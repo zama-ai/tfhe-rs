@@ -190,6 +190,6 @@ impl MemZone {
 }
 
 #[cfg(not(feature = "hw-xrt"))]
-mod sim;
+pub(crate) mod sim;
 #[cfg(feature = "hw-xrt")]
 mod xrt;

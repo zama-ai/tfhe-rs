@@ -1,21 +1,44 @@
 //!
 //! Hpu simulation model
+//! Simulate Hpu execution, communication with the ffi-model is made through channel
+//! HpuSim use it's own thread
 
 mod hbm;
+pub mod hpu_ops;
+pub use hpu_ops::HpuOps;
+
 use std::array::from_fn;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::sync::Arc;
 
 use crate::asm::{self, Asm, AsmBin};
+use crate::interface::HpuSimParameters;
 
 pub(crate) use hbm::{HbmBank, HbmChunk};
 use strum::IntoEnumIterator;
 
-use crate::entities::HpuParameters;
+use crate::entities::{hpu_big_lwe_ciphertext_size, HpuParameters};
 use crate::ffi::{HpuConfig, MemZoneProperties};
 
-pub(crate) struct HpuSimHandle {
-    // workq interface
+/// Hpu communication channels
+pub(crate) struct HpuChannel {
+    host: HpuChannelHost,
+    sim: HpuChannelSim,
+}
+
+/// Hpu communication channels Simulation side
+pub(crate) struct HpuChannelSim {
+    // WorkAckQ interface
+    workq_rx: Receiver<u32>,
+    ackq_tx: Sender<u32>,
+    // Memory allocation interface
+    mem_req_rx: Receiver<MemZoneProperties>,
+    mem_resp_tx: Sender<Arc<HbmChunk>>,
+}
+
+/// Hpu communication channels Host side (i.e. ffi)
+pub(crate) struct HpuChannelHost {
+    // WorkAckQ interface
     pub(crate) workq_tx: Sender<u32>,
     pub(crate) ackq_rx: Receiver<u32>,
 
@@ -24,35 +47,73 @@ pub(crate) struct HpuSimHandle {
     pub(crate) mem_resp_rx: Receiver<Arc<HbmChunk>>,
 }
 
-pub(crate) struct HpuSim {
-    config: HpuConfig,
-
-    /// On-board memory
-    hbm_bank: [HbmBank; hbm::HBM_BANK_NB],
-
-    /// WorkAckQ interface
-    workq_rx: Receiver<u32>,
-    workq_stream: Vec<u8>,
-    ackq_tx: Sender<u32>,
-
-    /// Memory allocation interface
-    mem_req_rx: Receiver<MemZoneProperties>,
-    mem_resp_tx: Sender<Arc<HbmChunk>>,
-
-    /// Parser for workq_stream
-    iop_parser: asm::Parser<asm::IOp>,
-}
-
-impl HpuSim {
-    pub(crate) fn new(config: HpuConfig) -> (Self, HpuSimHandle) {
-        // Allocate on-board memory emulation
-        let hbm_bank: [HbmBank; hbm::HBM_BANK_NB] = from_fn(|i| HbmBank::new(i));
-
+impl HpuChannel {
+    fn new() -> Self {
         // Allocate channel for communication with ffi
         let (workq_tx, workq_rx) = mpsc::channel();
         let (ackq_tx, ackq_rx) = mpsc::channel();
         let (mem_req_tx, mem_req_rx) = mpsc::channel();
         let (mem_resp_tx, mem_resp_rx) = mpsc::channel();
+
+        Self {
+            host: HpuChannelHost {
+                workq_tx,
+                ackq_rx,
+                mem_req_tx,
+                mem_resp_rx,
+            },
+            sim: HpuChannelSim {
+                workq_rx,
+                ackq_tx,
+                mem_req_rx,
+                mem_resp_tx,
+            },
+        }
+    }
+}
+
+pub(crate) struct HpuSim<T> {
+    config: HpuConfig,
+    rtl_params: HpuParameters,
+    sim_params: HpuSimParameters,
+
+    // Internal simulation components -----------------------------------------
+    // cycle_keeper: usize,
+    /// On-board memory
+    hbm_bank: [HbmBank; hbm::HBM_BANK_NB],
+    /// On-chip regfile
+    regfile: Vec<T>,
+    // ldst_q: ldst_queue::LdStQueue,
+    // alu_store: alu::AluStore,
+    workq_stream: Vec<u8>,
+    // ------------------------------------------------------------------------
+    /// Communication channel with associated Host
+    channel: HpuChannelSim,
+
+    /// Parser for workq_stream
+    iop_parser: asm::Parser<asm::IOp>,
+}
+
+impl<T> HpuSim<T>
+where
+    T: Default + Clone + HpuOps + Send + 'static,
+{
+    pub(crate) fn new(config: HpuConfig) -> (Self, HpuChannelHost) {
+        // Allocate communication channels
+        let HpuChannel { host, sim } = HpuChannel::new();
+
+        // Allocate Simulation ressources
+        let (rtl_params, sim_params) = match &config.fpga.ffi {
+            crate::interface::FFIMode::Sim { rtl, sim } => (rtl.clone(), sim.clone()),
+            _ => panic!("Unsupported ffi config"),
+        };
+
+        // Allocate on-board memory emulation
+        let hbm_bank: [HbmBank; hbm::HBM_BANK_NB] = from_fn(|i| HbmBank::new(i));
+        // Allocate inner regfile and lock abstraction
+        let regfile = (0..sim_params.register)
+            .map(|_| T::default())
+            .collect::<Vec<_>>();
 
         // Allocate IOp parser for workq_stream
         let iops_ref = asm::IOp::iter().collect::<Vec<_>>();
@@ -61,20 +122,15 @@ impl HpuSim {
         (
             Self {
                 config,
+                rtl_params,
+                sim_params,
                 hbm_bank,
-                workq_rx,
+                regfile,
+                channel: sim,
                 workq_stream: Vec::new(),
-                ackq_tx,
-                mem_req_rx,
-                mem_resp_tx,
                 iop_parser,
             },
-            HpuSimHandle {
-                workq_tx,
-                ackq_rx,
-                mem_req_tx,
-                mem_resp_rx,
-            },
+            host,
         )
     }
 
@@ -90,10 +146,10 @@ impl HpuSim {
         std::thread::spawn(move || {
             loop {
                 // Probe memory request
-                match self.mem_req_rx.try_recv() {
+                match self.channel.mem_req_rx.try_recv() {
                     Ok(req) => {
                         let chunk = self.alloc(req);
-                        self.mem_resp_tx.send(chunk).unwrap();
+                        self.channel.mem_resp_tx.send(chunk).unwrap();
                     }
                     Err(TryRecvError::Empty) => { /*Do nothing*/ }
                     Err(TryRecvError::Disconnected) => {
@@ -103,7 +159,7 @@ impl HpuSim {
                 }
 
                 // Probe workq request
-                match self.workq_rx.try_recv() {
+                match self.channel.workq_rx.try_recv() {
                     Ok(word) => {
                         let word_b = word.to_be_bytes();
                         self.workq_stream.extend_from_slice(&word_b);
@@ -133,20 +189,112 @@ impl HpuSim {
     }
 }
 
-impl HpuSim {
+impl<T> HpuSim<T>
+where
+    T: HpuOps + Clone,
+{
     fn simulate(&mut self, iop: asm::IOp) {
-        println!("Simulation start for {iop:?}");
-        self.ucore_translate(&iop);
+        tracing::debug!("Simulation start for {iop:?}");
 
-        // Push ack in stream
-        // Bytes are in little-endian but written from first to last line
-        // To keep correct endianness -> reverse the chunked vector
-        let bytes = iop.bin_encode_le().unwrap();
-        for bytes_chunks in bytes.chunks(std::mem::size_of::<u32>()).rev().take(1) {
-            let word_b = bytes_chunks.try_into().expect("Invalid slice length");
-            let word_u32 = u32::from_le_bytes(word_b);
-            self.ackq_tx.send(word_u32).unwrap()
+        // Retrived Fw and emulate RTL ucore translation
+        let dops = self.ucore_translate(&iop);
+        for dop in dops {
+            // Read operands
+            match dop {
+                asm::DOp::LD(op_impl) => {
+                    let mut dst = &mut self.regfile[op_impl.dst];
+                    let asm::MemSlot{ bid, cid_ofst,..} = op_impl.src;
+                    // TODO error on meaning of ct_pc
+                    let ct_bank = &self.hbm_bank[self.config.board.ct_pc[bid]];
+                    let ct_ofst = cid_ofst * hpu_big_lwe_ciphertext_size(&self.rtl_params); // TODO fixme use correct ct_size => alignement
+                    let ct_chunk = ct_bank.get_chunk(ct_ofst);
+
+                    dst.load(&ct_chunk.hw_view());
+                },
+                asm::DOp::TLDA(_) |
+                asm::DOp::TLDB(_) |
+                asm::DOp::TLDH(_) => panic!("Templated operation mustn't reach the Hpu execution unit. Check ucore translation"),
+
+                asm::DOp::ST(op_impl) => {
+                    let src = & self.regfile[op_impl.src];
+                    let asm::MemSlot{ bid, cid_ofst,..} = op_impl.dst;
+                    let ct_bank = &self.hbm_bank[self.config.board.ct_pc[bid]];
+                    let ct_ofst = cid_ofst * hpu_big_lwe_ciphertext_size(&self.rtl_params); // TODO fixme use correct ct_size => alignement
+                    let ct_chunk = ct_bank.get_chunk(ct_ofst);
+                    src.store(&mut ct_chunk.hw_view());
+                },
+                asm::DOp::TSTD(_) |
+                asm::DOp::TSTH(_) => panic!("Templated operation mustn't reach the Hpu execution unit. Check ucore translation"),
+
+                asm::DOp::ADD(op_impl) => {
+                    let (dst, a, b) = self.get_3regs(op_impl.dst, op_impl.src.0, op_impl.src.1);
+                    dst.add_assign(a,b);
+                },
+                asm::DOp::SUB(op_impl) => {
+                    let (dst, a, b) = self.get_3regs(op_impl.dst, op_impl.src.0, op_impl.src.1);
+                    dst.sub_assign(a,b);
+                },
+                asm::DOp::MAC(op_impl) => {
+                    let (dst, a, b) = self.get_3regs(op_impl.dst, op_impl.src.0, op_impl.src.1);
+                    dst.mac_assign(a,b, op_impl.mul_factor);
+                },
+                asm::DOp::ADDS(op_impl) => {
+                    let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
+                    dst.adds_assign(src,op_impl.msg_cst);
+                },
+                asm::DOp::SUBS(op_impl) => {
+                    let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
+                    dst.subs_assign(src,op_impl.msg_cst);
+                },
+                asm::DOp::SSUB(op_impl) => {
+                    let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
+                    dst.ssub_assign(src,op_impl.msg_cst);
+                },
+                asm::DOp::MULS(op_impl) => {
+                    let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
+                    dst.muls_assign(src,op_impl.msg_cst);
+                },
+                asm::DOp::PBS(op_impl) => {
+                    let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
+                    dst.pbs_assign(src);
+                },
+                asm::DOp::PBS_F(op_impl) => {
+                    let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
+                    dst.pbs_assign(src);
+                },
+
+                asm::DOp::SYNC(_) => {
+                    // Push ack in stream
+                    // Bytes are in little-endian but written from first to last line
+                    // To keep correct endianness -> reverse the chunked vector
+                    let bytes = iop.bin_encode_le().unwrap();
+                    for bytes_chunks in bytes.chunks(std::mem::size_of::<u32>()).rev().take(1) {
+                        let word_b = bytes_chunks.try_into().expect("Invalid slice length");
+                        let word_u32 = u32::from_le_bytes(word_b);
+                        self.channel.ackq_tx.send(word_u32).unwrap()
+                    }
+                },
+            }
         }
+    }
+
+    /// Extract values from register file
+    /// Currently clone the source to prevent issue with borrow checker and custom case
+    /// TODO: Rework with id check and split_at_mut()
+    fn get_2regs(&mut self, id_dst: usize, id_src: usize) -> (&mut T, T) {
+        let src = self.regfile[id_src].clone();
+        let dst = &mut self.regfile[id_dst];
+        (dst, src)
+    }
+
+    /// Extract values from register file
+    /// Currently clone the source to prevent issue with borrow checker and custom case
+    /// TODO: Rework with id check and split_at_mut()
+    fn get_3regs(&mut self, id_dst: usize, id_src_a: usize, id_src_b: usize) -> (&mut T, T, T) {
+        let src_a = self.regfile[id_src_a].clone();
+        let src_b = self.regfile[id_src_b].clone();
+        let dst = &mut self.regfile[id_dst];
+        (dst, src_a, src_b)
     }
 
     /// Retrieve DOp stream from memory and patch template DOp

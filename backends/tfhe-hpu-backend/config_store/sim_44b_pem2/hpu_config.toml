@@ -9,6 +9,7 @@ ks_params =  {width =  21, lbx =  2, lby =  32, lbz =  3}
 pc_params = {ksk_pc= 4,bsk_pc= 4,pem_pc= 2}
 regf_params = {reg_nb= 64, coef_nb= 32}
 isc_params = {min_iop_size = 4}
+isc_sim_params = {reg_nb = 64, isc_depth = 64, alu_cfg ="backends/tfhe-hpu-backend/config/alu_cfg/hpu_coefs32.ron", freq_MHz= 250}
 
 [rtl]
   bpip_used = true
