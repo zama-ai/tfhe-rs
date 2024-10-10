@@ -41,6 +41,11 @@ bitflags = "2.5.0"
 itertools = "0.11.0"
 lru = "0.12.3"
 
+# Dependencies used for Sim feature
+ron = "*"
+getset = "*"
+indexmap = "*"
+
 # Dependencies used for debug feature
 num-traits = { version = "*", optional=true}
 clap = { version = "4.4.4", features = ["derive"], optional=true}

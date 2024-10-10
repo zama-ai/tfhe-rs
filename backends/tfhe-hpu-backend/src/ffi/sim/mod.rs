@@ -8,3 +8,4 @@ mod mem_zone;
 pub(crate) use mem_zone::MemZone;
 
 mod hpu_sim;
+pub use hpu_sim::HpuOps;

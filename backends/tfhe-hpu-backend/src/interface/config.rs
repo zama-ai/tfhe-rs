@@ -14,7 +14,20 @@ pub enum FFIMode {
         kernel: String,
         xclbin: String,
     },
-    Sim(crate::entities::HpuParameters),
+    Sim {
+        rtl: crate::entities::HpuParameters,
+        sim: HpuSimParameters,
+    },
+}
+
+/// Configuration dedicated to simulation ffi backend
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct HpuSimParameters {
+    pub register: usize,
+    pub isc_depth: usize,
+    pub alu_cfg: String,
+    #[allow(non_snake_case)]
+    pub freq_MHz: usize,
 }
 
 /// Configuration of targeted Fpga
@@ -39,7 +52,6 @@ pub struct RtlConfig {
 /// On-board memory configuration
 /// Define the Hbm pc properties and required memory size
 /// NB: Hbm pc must match with `fpga/xr/kernel/${board}/cfg/${config}.cfg`
-///
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct BoardConfig {
     /// Ciphertext memory
