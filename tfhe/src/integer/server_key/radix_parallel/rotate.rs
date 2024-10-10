@@ -20,7 +20,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        self.barrel_shifter(ct, n, BarrelShifterOperation::RightRotate);
+        self.unchecked_shift_rotate_bits_assign(ct, n, BarrelShifterOperation::RightRotate);
     }
 
     pub fn smart_rotate_right_assign_parallelized<T>(&self, ct: &mut T, n: &mut RadixCiphertext)
@@ -149,7 +149,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        self.barrel_shifter(ct, n, BarrelShifterOperation::LeftRotate);
+        self.unchecked_shift_rotate_bits_assign(ct, n, BarrelShifterOperation::LeftRotate);
     }
 
     pub fn smart_rotate_left_assign_parallelized<T>(&self, ct: &mut T, n: &mut RadixCiphertext)

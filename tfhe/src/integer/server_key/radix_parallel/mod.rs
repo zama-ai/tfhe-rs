@@ -2,6 +2,7 @@ mod abs;
 mod add;
 mod bit_extractor;
 mod bitwise_op;
+mod block_shift;
 pub(crate) mod cmux;
 mod comparison;
 mod div_mod;

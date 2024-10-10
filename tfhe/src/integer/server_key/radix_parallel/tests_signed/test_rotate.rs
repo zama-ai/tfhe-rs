@@ -17,85 +17,13 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(
-    integer_signed_unchecked_rotate_right {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // Requires 4 bits, so 1_1 parameters are not supported
-            // until they get their own version of the algorithm
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
-    }
-);
+create_parametrized_test!(integer_signed_unchecked_rotate_right);
 
-create_parametrized_test!(
-    integer_signed_unchecked_rotate_left {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // Requires 4 bits, so 1_1 parameters are not supported
-            // until they get their own version of the algorithm
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
-    }
-);
+create_parametrized_test!(integer_signed_unchecked_rotate_left);
 
-create_parametrized_test!(
-    integer_signed_rotate_right {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // Requires 4 bits, so 1_1 parameters are not supported
-            // until they get their own version of the algorithm
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
-    }
-);
+create_parametrized_test!(integer_signed_rotate_right);
 
-create_parametrized_test!(
-    integer_signed_rotate_left {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // Requires 4 bits, so 1_1 parameters are not supported
-            // until they get their own version of the algorithm
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
-    }
-);
+create_parametrized_test!(integer_signed_rotate_left);
 
 pub(crate) fn signed_default_rotate_left_test<P, T>(param: P, mut executor: T)
 where
