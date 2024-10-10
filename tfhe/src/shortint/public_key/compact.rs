@@ -11,7 +11,7 @@ use crate::shortint::backward_compatibility::public_key::{
 };
 #[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextList;
-use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
+use crate::shortint::ciphertext::{CompactCiphertextList, Degree};
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
@@ -369,7 +369,6 @@ impl CompactPublicKey {
             message_modulus,
             carry_modulus: self.parameters.carry_modulus,
             expansion_kind: self.parameters.expansion_kind,
-            noise_level: NoiseLevel::NOMINAL,
         }
     }
 
@@ -458,7 +457,6 @@ impl CompactPublicKey {
                 message_modulus,
                 carry_modulus: self.parameters.carry_modulus,
                 expansion_kind: self.parameters.expansion_kind,
-                noise_level: NoiseLevel::NOMINAL,
             };
 
             proved_lists.push((ciphertext, proof));
