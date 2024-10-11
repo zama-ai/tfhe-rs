@@ -25,7 +25,10 @@ use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
 use crate::{CompactPublicKey, Tag};
 
 impl crate::FheTypes {
-    fn from_data_kind(data_kind: DataKind, message_modulus: MessageModulus) -> Option<Self> {
+    pub(crate) fn from_data_kind(
+        data_kind: DataKind,
+        message_modulus: MessageModulus,
+    ) -> Option<Self> {
         Some(match data_kind {
             DataKind::Unsigned(n) => {
                 let num_bits_per_block = message_modulus.0.ilog2() as usize;
