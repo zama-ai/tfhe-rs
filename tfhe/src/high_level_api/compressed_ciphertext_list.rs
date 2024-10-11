@@ -252,93 +252,17 @@ impl CiphertextList for CompressedCiphertextList {
 
     fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
         match &self.inner {
-            InnerCompressedCiphertextList::Cpu(inner) => Some(match inner.get_kind_of(index)? {
-                DataKind::Unsigned(n) => {
-                    let num_bits_per_block = inner.packed_list.message_modulus.0.ilog2() as usize;
-                    let num_bits = n * num_bits_per_block;
-                    match num_bits {
-                        2 => crate::FheTypes::Uint2,
-                        4 => crate::FheTypes::Uint4,
-                        6 => crate::FheTypes::Uint6,
-                        8 => crate::FheTypes::Uint8,
-                        10 => crate::FheTypes::Uint10,
-                        12 => crate::FheTypes::Uint12,
-                        14 => crate::FheTypes::Uint14,
-                        16 => crate::FheTypes::Uint16,
-                        32 => crate::FheTypes::Uint32,
-                        64 => crate::FheTypes::Uint64,
-                        128 => crate::FheTypes::Uint128,
-                        160 => crate::FheTypes::Uint160,
-                        256 => crate::FheTypes::Uint256,
-                        _ => return None,
-                    }
-                }
-                DataKind::Signed(n) => {
-                    let num_bits_per_block = inner.packed_list.message_modulus.0.ilog2() as usize;
-                    let num_bits = n * num_bits_per_block;
-                    match num_bits {
-                        2 => crate::FheTypes::Int2,
-                        4 => crate::FheTypes::Int4,
-                        6 => crate::FheTypes::Int6,
-                        8 => crate::FheTypes::Int8,
-                        10 => crate::FheTypes::Int10,
-                        12 => crate::FheTypes::Int12,
-                        14 => crate::FheTypes::Int14,
-                        16 => crate::FheTypes::Int16,
-                        32 => crate::FheTypes::Int32,
-                        64 => crate::FheTypes::Int64,
-                        128 => crate::FheTypes::Int128,
-                        160 => crate::FheTypes::Int160,
-                        256 => crate::FheTypes::Int256,
-                        _ => return None,
-                    }
-                }
-                DataKind::Boolean => crate::FheTypes::Bool,
-            }),
+            InnerCompressedCiphertextList::Cpu(inner) => {
+                inner.get_kind_of(index).and_then(|data_kind| {
+                    crate::FheTypes::from_data_kind(data_kind, inner.packed_list.message_modulus)
+                })
+            }
             #[cfg(feature = "gpu")]
-            InnerCompressedCiphertextList::Cuda(inner) => Some(match inner.get_kind_of(index)? {
-                DataKind::Unsigned(n) => {
-                    let num_bits_per_block = inner.packed_list.message_modulus.0.ilog2() as usize;
-                    let num_bits = n * num_bits_per_block;
-                    match num_bits {
-                        2 => crate::FheTypes::Uint2,
-                        4 => crate::FheTypes::Uint4,
-                        6 => crate::FheTypes::Uint6,
-                        8 => crate::FheTypes::Uint8,
-                        10 => crate::FheTypes::Uint10,
-                        12 => crate::FheTypes::Uint12,
-                        14 => crate::FheTypes::Uint14,
-                        16 => crate::FheTypes::Uint16,
-                        32 => crate::FheTypes::Uint32,
-                        64 => crate::FheTypes::Uint64,
-                        128 => crate::FheTypes::Uint128,
-                        160 => crate::FheTypes::Uint160,
-                        256 => crate::FheTypes::Uint256,
-                        _ => return None,
-                    }
-                }
-                DataKind::Signed(n) => {
-                    let num_bits_per_block = inner.packed_list.message_modulus.0.ilog2() as usize;
-                    let num_bits = n * num_bits_per_block;
-                    match num_bits {
-                        2 => crate::FheTypes::Int2,
-                        4 => crate::FheTypes::Int4,
-                        6 => crate::FheTypes::Int6,
-                        8 => crate::FheTypes::Int8,
-                        10 => crate::FheTypes::Int10,
-                        12 => crate::FheTypes::Int12,
-                        14 => crate::FheTypes::Int14,
-                        16 => crate::FheTypes::Int16,
-                        32 => crate::FheTypes::Int32,
-                        64 => crate::FheTypes::Int64,
-                        128 => crate::FheTypes::Int128,
-                        160 => crate::FheTypes::Int160,
-                        256 => crate::FheTypes::Int256,
-                        _ => return None,
-                    }
-                }
-                DataKind::Boolean => crate::FheTypes::Bool,
-            }),
+            InnerCompressedCiphertextList::Cuda(inner) => {
+                inner.get_kind_of(index).and_then(|data_kind| {
+                    crate::FheTypes::from_data_kind(data_kind, inner.packed_list.message_modulus)
+                })
+            }
         }
     }
 
