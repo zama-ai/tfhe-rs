@@ -1,6 +1,7 @@
 use crate::core_crypto::gpu::{negate_integer_radix_async, CudaStreams};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::server_key::radix_parallel::OutputFlag;
 
 impl CudaServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
@@ -144,7 +145,8 @@ impl CudaServerKey {
         };
 
         let mut res = self.unchecked_neg_async(ct, streams);
-        let _carry = self.propagate_single_carry_assign_async(&mut res, streams);
+        let _carry =
+            self.new_propagate_single_carry_assign_async(&mut res, streams, None, OutputFlag::None);
         res
     }
 }

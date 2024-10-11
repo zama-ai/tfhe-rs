@@ -57,6 +57,27 @@ void cuda_add_lwe_ciphertext_vector_64(void *stream, uint32_t gpu_index,
                           static_cast<const uint64_t *>(lwe_array_in_2),
                           input_lwe_dimension, input_lwe_ciphertext_count);
 }
+// last block it is the packing lhs*message_modulus + rhs
+void cuda_add_lwe_ciphertext_vector_64_with_packing(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_array_in_1, void const *lwe_array_in_2,
+    uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count,
+    uint32_t message_modulus) {
+
+  host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
+                          static_cast<uint64_t *>(lwe_array_out),
+                          static_cast<const uint64_t *>(lwe_array_in_1),
+                          static_cast<const uint64_t *>(lwe_array_in_2),
+                          input_lwe_dimension, input_lwe_ciphertext_count - 1);
+
+  host_pack_for_overflowing_ops<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<const uint64_t *>(lwe_array_in_1),
+      static_cast<const uint64_t *>(lwe_array_in_2), input_lwe_dimension,
+      input_lwe_ciphertext_count, message_modulus);
+}
+
 /*
  * Perform the addition of a u32 input LWE ciphertext vector with a u32
  * plaintext vector. See the equivalent operation on u64 data for more details.

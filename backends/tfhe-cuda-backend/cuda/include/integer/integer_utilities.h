@@ -53,6 +53,12 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
                                  uint32_t carry_modulus,
                                  std::function<Torus(Torus)> f);
 
+template <typename Torus>
+void generate_many_lut_device_accumulator(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
+    uint32_t carry_modulus, std::vector<std::function<Torus(Torus)>> &f);
+
 struct int_radix_params {
   PBS_TYPE pbs_type;
   uint32_t glwe_dimension;
@@ -1116,6 +1122,1267 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     delete scp_mem;
   }
 };
+// For sequential algorithm in group propagation
+template <typename Torus> struct int_seq_group_prop_memory {
+
+  Torus *group_resolved_carries;
+  int_radix_lut<Torus> *lut_sequential_algorithm;
+  uint32_t grouping_size;
+
+  int_seq_group_prop_memory(cudaStream_t const *streams,
+                            uint32_t const *gpu_indexes, uint32_t gpu_count,
+                            int_radix_params params, uint32_t group_size,
+                            uint32_t big_lwe_size_bytes,
+                            bool allocate_gpu_memory) {
+
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+
+    grouping_size = group_size;
+    group_resolved_carries = (Torus *)cuda_malloc_async(
+        (grouping_size)*big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(group_resolved_carries, 0,
+                      (grouping_size)*big_lwe_size_bytes, streams[0],
+                      gpu_indexes[0]);
+
+    int num_seq_luts = grouping_size - 1;
+    Torus *h_seq_lut_indexes = (Torus *)malloc(num_seq_luts * sizeof(Torus));
+    lut_sequential_algorithm = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_seq_luts, num_seq_luts,
+        allocate_gpu_memory);
+    for (int index = 0; index < num_seq_luts; index++) {
+      auto f_lut_sequential = [index](Torus propa_cum_sum_block) {
+        return (propa_cum_sum_block >> (index + 1)) & 1;
+      };
+      auto seq_lut = lut_sequential_algorithm->get_lut(gpu_indexes[0], index);
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], seq_lut, glwe_dimension, polynomial_size,
+          message_modulus, carry_modulus, f_lut_sequential);
+      h_seq_lut_indexes[index] = index;
+    }
+    Torus *seq_lut_indexes =
+        lut_sequential_algorithm->get_lut_indexes(gpu_indexes[0], 0);
+    cuda_memcpy_async_to_gpu(seq_lut_indexes, h_seq_lut_indexes,
+                             num_seq_luts * sizeof(Torus), streams[0],
+                             gpu_indexes[0]);
+
+    lut_sequential_algorithm->broadcast_lut(streams, gpu_indexes,
+                                            gpu_indexes[0]);
+    free(h_seq_lut_indexes);
+  };
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+    cuda_drop_async(group_resolved_carries, streams[0], gpu_indexes[0]);
+    lut_sequential_algorithm->release(streams, gpu_indexes, gpu_count);
+    delete lut_sequential_algorithm;
+  };
+};
+
+// For hillis steele algorithm in group propagation
+template <typename Torus> struct int_hs_group_prop_memory {
+
+  int_radix_lut<Torus> *lut_hillis_steele;
+  uint32_t grouping_size;
+
+  int_hs_group_prop_memory(cudaStream_t const *streams,
+                           uint32_t const *gpu_indexes, uint32_t gpu_count,
+                           int_radix_params params, uint32_t num_groups,
+                           uint32_t big_lwe_size_bytes,
+                           bool allocate_gpu_memory) {
+
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+
+    auto f_lut_hillis_steele = [](Torus msb, Torus lsb) -> Torus {
+      if (msb == 2) {
+        return 1; // Remap Generate to 1
+      } else if (msb == 3) {
+        // MSB propagates
+        if (lsb == 2) {
+          return 1;
+        } else {
+          return lsb;
+        } // also remap here
+      } else {
+        return msb;
+      }
+    };
+
+    lut_hillis_steele =
+        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+                                 num_groups, allocate_gpu_memory);
+
+    auto hillis_steele_lut = lut_hillis_steele->get_lut(gpu_indexes[0], 0);
+    generate_device_accumulator_bivariate<Torus>(
+        streams[0], gpu_indexes[0], hillis_steele_lut, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus, f_lut_hillis_steele);
+
+    lut_hillis_steele->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+  };
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    lut_hillis_steele->release(streams, gpu_indexes, gpu_count);
+    delete lut_hillis_steele;
+  }
+};
+
+// compute_shifted_blocks_and_block_states
+template <typename Torus> struct int_shifted_blocks_and_states_memory {
+  Torus *shifted_blocks_and_states;
+  Torus *shifted_blocks;
+  Torus *block_states;
+
+  int_radix_lut<Torus> *luts_array_first_step;
+
+  int_shifted_blocks_and_states_memory(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, int_radix_params params, uint32_t num_radix_blocks,
+      uint32_t lut_count, uint32_t grouping_size, uint32_t requested_flag,
+      bool allocate_gpu_memory) {
+
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
+    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+
+    shifted_blocks_and_states = (Torus *)cuda_malloc_async(
+        lut_count * num_radix_blocks * big_lwe_size_bytes, streams[0],
+        gpu_indexes[0]);
+    cuda_memset_async(shifted_blocks_and_states, 0,
+                      lut_count * num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
+    shifted_blocks = (Torus *)cuda_malloc_async(
+        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(shifted_blocks, 0, num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
+    block_states = (Torus *)cuda_malloc_async(
+        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(block_states, 0, num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
+
+    uint32_t num_luts_first_step =
+        requested_flag == 1 ? (2 * grouping_size + 2) : 2 * grouping_size + 1;
+
+    luts_array_first_step = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_luts_first_step,
+        num_radix_blocks, allocate_gpu_memory);
+
+    auto f_shift_block = [message_modulus](Torus block) -> Torus {
+      return (block % message_modulus) << 1;
+    };
+
+    auto f_first_block_state = [message_modulus](Torus block) -> Torus {
+      if (block >= message_modulus)
+        return OUTPUT_CARRY::GENERATED;
+      else {
+        return OUTPUT_CARRY::NONE;
+      }
+    };
+    std::vector<std::function<Torus(Torus)>> f_first_grouping_luts = {
+        f_first_block_state, f_shift_block};
+
+    auto first_block_lut = luts_array_first_step->get_lut(gpu_indexes[0], 0);
+
+    generate_many_lut_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0], first_block_lut, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus, f_first_grouping_luts);
+
+    // luts for other blocks of the first grouping
+    for (int lut_id = 1; lut_id < grouping_size; lut_id++) {
+      auto f_state = [message_modulus, lut_id](Torus block) -> Torus {
+        uint64_t r = 0;
+        if (block >= message_modulus) {
+          r = 2; // Generates Carry
+        } else if (block == (message_modulus - 1)) {
+          r = 1; // Propagates a carry
+        } else {
+          r = 0; // Does not generate carry
+        }
+        return r << (lut_id - 1);
+      };
+      std::vector<std::function<Torus(Torus)>> f_grouping_luts = {
+          f_state, f_shift_block};
+      auto lut = luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
+          message_modulus, carry_modulus, f_grouping_luts);
+    }
+
+    // luts for the rest of groupings (except for the last block)
+    for (int i = 0; i < grouping_size; i++) {
+      uint32_t lut_id = i + grouping_size;
+      auto f_state = [message_modulus, i](Torus block) -> Torus {
+        uint64_t r = 0;
+        if (block >= message_modulus) {
+          r = 2; // Generates Carry
+        } else if (block == (message_modulus - 1)) {
+          r = 1; // Propagates a carry
+        } else {
+          r = 0; // Does not borrow
+        }
+        return r << i;
+      };
+      std::vector<std::function<Torus(Torus)>> f_grouping_luts = {
+          f_state, f_shift_block};
+
+      auto lut = luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
+
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
+          message_modulus, carry_modulus, f_grouping_luts);
+    }
+
+    // For the last block we need to generate a new lut
+    auto f_last_block_state = [message_modulus](Torus block) -> Torus {
+      if (block >= message_modulus)
+        return 2 << 1; // Generates
+      else
+        return 0; // Nothing
+    };
+
+    uint32_t lut_id =
+        requested_flag == 1
+            ? num_luts_first_step - 2
+            : num_luts_first_step - 1; // The last lut of the first step
+
+    auto last_block_lut =
+        luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
+
+    if (requested_flag == 1) { // If overflow
+      auto f_overflow_shift_block = [message_modulus](Torus block) -> Torus {
+        Torus lhs = block / message_modulus;
+        Torus rhs = block % message_modulus;
+        return ((lhs + rhs) % message_modulus) << 1;
+      };
+      std::vector<std::function<Torus(Torus)>> f_last_grouping_luts = {
+          f_last_block_state, f_overflow_shift_block};
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], last_block_lut, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus,
+          f_last_grouping_luts);
+
+      // We need an extra lut to handle the case with more than 1 radix
+      // The first of the many luts we will discard it, so we dont care about it
+      lut_id = lut_id + 1;
+      auto extra_block_lut =
+          luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
+
+      std::vector<std::function<Torus(Torus)>> f_last_grouping_luts_overflow = {
+          f_overflow_shift_block, f_overflow_shift_block};
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], extra_block_lut, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus,
+          f_last_grouping_luts_overflow);
+
+    } else {
+      std::vector<std::function<Torus(Torus)>> f_last_grouping_luts = {
+          f_last_block_state, f_shift_block};
+
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], last_block_lut, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus,
+          f_last_grouping_luts);
+    }
+    // Generate the indexes to switch between luts within the pbs
+    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    Torus *h_lut_indexes = (Torus *)malloc(lut_indexes_size);
+
+    for (int index = 0; index < num_radix_blocks; index++) {
+      uint32_t grouping_index = index / grouping_size;
+      bool is_in_first_grouping = (grouping_index == 0);
+      uint32_t index_in_grouping = index % grouping_size;
+      bool is_last_index = (index == (num_radix_blocks - 1));
+      if (is_last_index) {
+        if (num_radix_blocks == 1) {
+          h_lut_indexes[index] = 2 * grouping_size;
+        } else {
+          if (requested_flag == 1) {
+            h_lut_indexes[index] = 2 * grouping_size + 1;
+          } else {
+            h_lut_indexes[index] = 2;
+          }
+        }
+      } else if (is_in_first_grouping) {
+        h_lut_indexes[index] = index_in_grouping;
+      } else {
+        h_lut_indexes[index] = index_in_grouping + grouping_size;
+      }
+    }
+
+    // copy the indexes to the gpu
+    Torus *lut_indexes =
+        luts_array_first_step->get_lut_indexes(gpu_indexes[0], 0);
+    cuda_memcpy_async_to_gpu(lut_indexes, h_lut_indexes, lut_indexes_size,
+                             streams[0], gpu_indexes[0]);
+    // Do I need to do something else for the multi-gpu?
+
+    luts_array_first_step->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+
+    free(h_lut_indexes);
+  };
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    cuda_drop_async(shifted_blocks_and_states, streams[0], gpu_indexes[0]);
+    cuda_drop_async(shifted_blocks, streams[0], gpu_indexes[0]);
+    cuda_drop_async(block_states, streams[0], gpu_indexes[0]);
+
+    luts_array_first_step->release(streams, gpu_indexes, gpu_count);
+    delete luts_array_first_step;
+  };
+};
+
+// compute_propagation simulator and group carries
+template <typename Torus> struct int_prop_simu_group_carries_memory {
+  Torus *scalar_array_cum_sum;
+  Torus *propagation_cum_sums;
+  Torus *simulators;
+  Torus *grouping_pgns;
+  Torus *prepared_blocks;
+
+  Torus *resolved_carries;
+
+  int_radix_lut<Torus> *luts_array_second_step;
+
+  int_seq_group_prop_memory<Torus> *seq_group_prop_mem;
+  int_hs_group_prop_memory<Torus> *hs_group_prop_mem;
+
+  uint32_t group_size;
+  bool use_sequential_algorithm_to_resolver_group_carries;
+
+  int_prop_simu_group_carries_memory(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, int_radix_params params, uint32_t num_radix_blocks,
+      uint32_t grouping_size, uint32_t num_groups, bool allocate_gpu_memory) {
+
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
+    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+
+    uint32_t block_modulus = message_modulus * carry_modulus;
+    uint32_t num_bits_in_block = std::log2(block_modulus);
+
+    group_size = grouping_size;
+
+    scalar_array_cum_sum = (Torus *)cuda_malloc_async(
+        num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+    cuda_memset_async(scalar_array_cum_sum, 0, num_radix_blocks * sizeof(Torus),
+                      streams[0], gpu_indexes[0]);
+    propagation_cum_sums = (Torus *)cuda_malloc_async(
+        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(propagation_cum_sums, 0,
+                      num_radix_blocks * big_lwe_size_bytes, streams[0],
+                      gpu_indexes[0]);
+    simulators = (Torus *)cuda_malloc_async(
+        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(simulators, 0, num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
+
+    grouping_pgns = (Torus *)cuda_malloc_async(num_groups * big_lwe_size_bytes,
+                                               streams[0], gpu_indexes[0]);
+    cuda_memset_async(grouping_pgns, 0, num_groups * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
+
+    prepared_blocks = (Torus *)cuda_malloc_async(
+        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(prepared_blocks, 0, num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
+
+    resolved_carries = (Torus *)cuda_malloc_async(
+        (num_groups + 1) * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(resolved_carries, 0,
+                      (num_groups + 1) * big_lwe_size_bytes, streams[0],
+                      gpu_indexes[0]);
+
+    // create lut objects for step 2
+    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    uint32_t num_carry_to_resolve = num_groups - 1;
+    uint32_t saturated_sub =
+        ((num_carry_to_resolve > 1) ? num_carry_to_resolve - 1 : 0);
+    uint32_t sequential_depth = saturated_sub / (grouping_size - 1);
+    uint32_t hillis_steel_depth;
+
+    if (num_carry_to_resolve == 0) {
+      hillis_steel_depth = 0;
+    } else {
+      hillis_steel_depth = std::ceil(std::log2(num_carry_to_resolve));
+    }
+
+    use_sequential_algorithm_to_resolver_group_carries =
+        sequential_depth <= hillis_steel_depth;
+    uint32_t num_extra_luts = 0;
+    if (use_sequential_algorithm_to_resolver_group_carries) {
+      num_extra_luts = (grouping_size - 1);
+    } else {
+      num_extra_luts = 1;
+    }
+
+    uint32_t num_luts_second_step = 2 * grouping_size + num_extra_luts;
+    luts_array_second_step = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_luts_second_step,
+        num_radix_blocks, allocate_gpu_memory);
+
+    // luts for first group inner propagation
+    for (int lut_id = 0; lut_id < grouping_size - 1; lut_id++) {
+      auto f_first_grouping_inner_propagation =
+          [lut_id](Torus propa_cum_sum_block) -> Torus {
+        uint64_t carry = (propa_cum_sum_block >> lut_id) & 1;
+
+        if (carry != 0) {
+          return 2ull; // Generates Carry
+        } else {
+          return 0ull; // Does not generate carry
+        }
+      };
+
+      auto lut = luts_array_second_step->get_lut(gpu_indexes[0], lut_id);
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
+          message_modulus, carry_modulus, f_first_grouping_inner_propagation);
+    }
+
+    auto f_first_grouping_outer_propagation =
+        [num_bits_in_block](Torus block) -> Torus {
+      return (block >> (num_bits_in_block - 1)) & 1;
+    };
+
+    int lut_id = grouping_size - 1;
+    auto lut_first_group_outer =
+        luts_array_second_step->get_lut(gpu_indexes[0], lut_id);
+    generate_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0], lut_first_group_outer, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
+        f_first_grouping_outer_propagation);
+
+    // for other groupings inner propagation
+    for (int index = 0; index < grouping_size; index++) {
+      uint32_t lut_id = index + grouping_size;
+
+      auto f_other_groupings_inner_propagation =
+          [index](Torus propa_cum_sum_block) -> Torus {
+        uint64_t mask = (2 << index) - 1;
+        if (propa_cum_sum_block >= (2 << index)) {
+          return 2ull; // Generates
+        } else if ((propa_cum_sum_block & mask) == mask) {
+          return 1ull; // Propagate
+        } else {
+          return 0ull; // Nothing
+        }
+      };
+
+      auto lut = luts_array_second_step->get_lut(gpu_indexes[0], lut_id);
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
+          message_modulus, carry_modulus, f_other_groupings_inner_propagation);
+    }
+
+    if (use_sequential_algorithm_to_resolver_group_carries) {
+      for (int index = 0; index < grouping_size - 1; index++) {
+        uint32_t lut_id = index + 2 * grouping_size;
+
+        auto f_group_propagation = [index, block_modulus,
+                                    num_bits_in_block](Torus block) -> Torus {
+          if (block == (block_modulus - 1)) {
+            return 0ull;
+          } else {
+            return ((UINT64_MAX << index) % (1ull << (num_bits_in_block + 1)));
+          }
+        };
+
+        auto lut = luts_array_second_step->get_lut(gpu_indexes[0], lut_id);
+        generate_device_accumulator<Torus>(
+            streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
+            message_modulus, carry_modulus, f_group_propagation);
+      }
+    } else {
+      uint32_t lut_id = 2 * grouping_size;
+      auto f_group_propagation = [block_modulus](Torus block) {
+        if (block == (block_modulus - 1)) {
+          return 2ull;
+        } else {
+          return UINT64_MAX % (block_modulus * 2ull);
+        }
+      };
+
+      auto lut = luts_array_second_step->get_lut(gpu_indexes[0], lut_id);
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
+          message_modulus, carry_modulus, f_group_propagation);
+    }
+
+    Torus *h_second_lut_indexes = (Torus *)malloc(lut_indexes_size);
+
+    Torus *h_scalar_array_cum_sum =
+        (Torus *)malloc(num_radix_blocks * sizeof(Torus));
+
+    for (int index = 0; index < num_radix_blocks; index++) {
+      uint32_t grouping_index = index / grouping_size;
+      bool is_in_first_grouping = (grouping_index == 0);
+      uint32_t index_in_grouping = index % grouping_size;
+
+      if (is_in_first_grouping) {
+        h_second_lut_indexes[index] = index_in_grouping;
+      } else if (index_in_grouping == (grouping_size - 1)) {
+        if (use_sequential_algorithm_to_resolver_group_carries) {
+          int inner_index = (grouping_index - 1) % (grouping_size - 1);
+          h_second_lut_indexes[index] = inner_index + 2 * grouping_size;
+        } else {
+          h_second_lut_indexes[index] = 2 * grouping_size;
+        }
+      } else {
+        h_second_lut_indexes[index] = index_in_grouping + grouping_size;
+      }
+
+      bool may_have_its_padding_bit_set =
+          !is_in_first_grouping && (index_in_grouping == grouping_size - 1);
+
+      if (may_have_its_padding_bit_set) {
+        if (use_sequential_algorithm_to_resolver_group_carries) {
+          h_scalar_array_cum_sum[index] =
+              1 << ((grouping_index - 1) % (grouping_size - 1));
+        } else {
+          h_scalar_array_cum_sum[index] = 1;
+        }
+      } else {
+        h_scalar_array_cum_sum[index] = 0;
+      }
+    }
+
+    // copy the indexes to the gpu
+    Torus *second_lut_indexes =
+        luts_array_second_step->get_lut_indexes(gpu_indexes[0], 0);
+    cuda_memcpy_async_to_gpu(second_lut_indexes, h_second_lut_indexes,
+                             lut_indexes_size, streams[0], gpu_indexes[0]);
+
+    cuda_memcpy_async_to_gpu(scalar_array_cum_sum, h_scalar_array_cum_sum,
+                             num_radix_blocks * sizeof(Torus), streams[0],
+                             gpu_indexes[0]);
+    luts_array_second_step->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+
+    if (use_sequential_algorithm_to_resolver_group_carries) {
+
+      seq_group_prop_mem = new int_seq_group_prop_memory<Torus>(
+          streams, gpu_indexes, gpu_count, params, grouping_size,
+          big_lwe_size_bytes, true);
+
+    } else {
+      hs_group_prop_mem = new int_hs_group_prop_memory<Torus>(
+          streams, gpu_indexes, gpu_count, params, num_groups,
+          big_lwe_size_bytes, true);
+    }
+
+    free(h_scalar_array_cum_sum);
+    free(h_second_lut_indexes);
+  };
+
+  // needed for the divison to update the lut indexes
+  void update_lut_indexes(cudaStream_t const *streams,
+                          uint32_t const *gpu_indexes, Torus *new_lut_indexes,
+                          Torus *new_scalars, uint32_t new_num_blocks) {
+    Torus *lut_indexes =
+        luts_array_second_step->get_lut_indexes(gpu_indexes[0], 0);
+    cuda_memcpy_async_gpu_to_gpu(lut_indexes, new_lut_indexes,
+                                 new_num_blocks * sizeof(Torus), streams[0],
+                                 gpu_indexes[0]);
+
+    luts_array_second_step->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+
+    cuda_memcpy_async_gpu_to_gpu(scalar_array_cum_sum, new_scalars,
+                                 new_num_blocks * sizeof(Torus), streams[0],
+                                 gpu_indexes[0]);
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+    cuda_drop_async(scalar_array_cum_sum, streams[0], gpu_indexes[0]);
+    cuda_drop_async(propagation_cum_sums, streams[0], gpu_indexes[0]);
+    cuda_drop_async(simulators, streams[0], gpu_indexes[0]);
+    cuda_drop_async(grouping_pgns, streams[0], gpu_indexes[0]);
+    cuda_drop_async(prepared_blocks, streams[0], gpu_indexes[0]);
+    cuda_drop_async(resolved_carries, streams[0], gpu_indexes[0]);
+
+    luts_array_second_step->release(streams, gpu_indexes, gpu_count);
+
+    if (use_sequential_algorithm_to_resolver_group_carries) {
+      seq_group_prop_mem->release(streams, gpu_indexes, gpu_count);
+    } else {
+      hs_group_prop_mem->release(streams, gpu_indexes, gpu_count);
+    }
+
+    delete luts_array_second_step;
+  };
+};
+
+template <typename Torus> struct int_fast_sc_prop_memory {
+  uint32_t lut_count;
+  uint32_t lut_stride;
+
+  uint32_t group_size;
+  uint32_t num_groups;
+  Torus *output_flag;
+
+  int_radix_lut<Torus> *lut_message_extract;
+
+  int_radix_lut<Torus> *lut_overflow_flag_prep;
+  int_radix_lut<Torus> *lut_overflow_flag_last;
+  int_radix_lut<Torus> *lut_carry_flag_last;
+
+  int_shifted_blocks_and_states_memory<Torus> *shifted_blocks_state_mem;
+  int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
+
+  int_radix_params params;
+  bool use_sequential_algorithm_to_resolver_group_carries;
+  uint32_t requested_flag;
+
+  uint32_t active_gpu_count;
+  cudaStream_t *sub_streams_1;
+  cudaStream_t *sub_streams_2;
+
+  int_fast_sc_prop_memory(cudaStream_t const *streams,
+                          uint32_t const *gpu_indexes, uint32_t gpu_count,
+                          int_radix_params params, uint32_t num_radix_blocks,
+                          uint32_t requested_flag_in, uint32_t uses_carry,
+                          bool allocate_gpu_memory) {
+    this->params = params;
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
+    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+    requested_flag = requested_flag_in;
+    // for compute shifted blocks and block states
+    uint32_t block_modulus = message_modulus * carry_modulus;
+    uint32_t num_bits_in_block = std::log2(block_modulus);
+    uint32_t grouping_size = num_bits_in_block;
+    group_size = grouping_size;
+    num_groups = (num_radix_blocks + grouping_size - 1) / grouping_size;
+
+    lut_count = 2; // many luts apply 2 luts
+    uint32_t box_size = polynomial_size / block_modulus;
+    lut_stride = (block_modulus / lut_count) * box_size;
+
+    shifted_blocks_state_mem = new int_shifted_blocks_and_states_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks, lut_count,
+        grouping_size, requested_flag, true);
+
+    prop_simu_group_carries_mem = new int_prop_simu_group_carries_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        grouping_size, num_groups, true);
+
+    //  Step 3 elements
+    lut_message_extract =
+        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+                                 num_radix_blocks, allocate_gpu_memory);
+    // lut for the first block in the first grouping
+    auto f_message_extract = [message_modulus](Torus block) -> Torus {
+      return (block >> 1) % message_modulus;
+    };
+
+    auto extract_lut = lut_message_extract->get_lut(gpu_indexes[0], 0);
+
+    generate_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0], extract_lut, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus, f_message_extract);
+
+    lut_message_extract->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+
+    // This store a single block that with be used to store the overflow or
+    // carry results
+    output_flag = (Torus *)cuda_malloc_async(big_lwe_size_bytes, streams[0],
+                                             gpu_indexes[0]);
+    cuda_memset_async(output_flag, 0, big_lwe_size_bytes, streams[0],
+                      gpu_indexes[0]);
+    if (requested_flag == 1) {
+      // For step 1 overflow should be enable only if flag overflow
+      uint32_t num_bits_in_message = std::log2(message_modulus);
+      lut_overflow_flag_prep = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
+
+      auto f_overflow_fp = [num_bits_in_message,
+                            message_modulus](Torus packed_lhsrhs) -> Torus {
+        Torus lhs = packed_lhsrhs / message_modulus;
+        Torus rhs = packed_lhsrhs % message_modulus;
+
+        Torus mask = (1 << (num_bits_in_message - 1)) - 1;
+        Torus lhs_except_last_bit = lhs & mask;
+        Torus rhs_except_last_bit = rhs & mask;
+        Torus input_carry1 = 1;
+        Torus input_carry2 = 0;
+
+        Torus output_carry1 =
+            ((lhs + rhs + input_carry1) >> num_bits_in_message) & 1;
+        Torus output_carry2 =
+            ((lhs + rhs + input_carry2) >> num_bits_in_message) & 1;
+        Torus input_carry_last_bit1 =
+            ((lhs_except_last_bit + rhs_except_last_bit + input_carry1) >>
+             (num_bits_in_message - 1)) &
+            1;
+        Torus input_carry_last_bit2 =
+            ((lhs_except_last_bit + rhs_except_last_bit + input_carry2) >>
+             (num_bits_in_message - 1)) &
+            1;
+
+        Torus output1 = (Torus)(input_carry_last_bit1 != output_carry1);
+        Torus output2 = (Torus)(input_carry_last_bit2 != output_carry2);
+
+        return output1 << 3 | output2 << 2;
+      };
+
+      auto overflow_flag_prep_lut =
+          lut_overflow_flag_prep->get_lut(gpu_indexes[0], 0);
+
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], overflow_flag_prep_lut, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus, f_overflow_fp);
+
+      lut_overflow_flag_prep->broadcast_lut(streams, gpu_indexes,
+                                            gpu_indexes[0]);
+    }
+
+    // For the final cleanup in case of overflow or carry (it seems that I can)
+    // It seems that this lut could be apply together with the other one but for
+    // now we won't do it
+    if (requested_flag == 1) { // Overflow case
+      lut_overflow_flag_last = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
+
+      auto f_overflow_last = [](Torus block) -> Torus {
+        Torus input_carry = (block >> 1) & 1;
+        Torus does_overflow_if_carry_is_1 = (block >> 3) & 1;
+        Torus does_overflow_if_carry_is_0 = (block >> 2) & 1;
+        if (input_carry == 1) {
+          return does_overflow_if_carry_is_1;
+        } else {
+          return does_overflow_if_carry_is_0;
+        }
+      };
+      auto overflow_flag_last =
+          lut_overflow_flag_last->get_lut(gpu_indexes[0], 0);
+
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], overflow_flag_last, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus, f_overflow_last);
+
+      lut_overflow_flag_last->broadcast_lut(streams, gpu_indexes,
+                                            gpu_indexes[0]);
+    }
+    if (requested_flag == 2) { // Carry case
+      lut_carry_flag_last = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
+
+      auto f_carry_last = [](Torus block) -> Torus {
+        return ((block >> 2) & 1);
+      };
+      auto carry_flag_last = lut_carry_flag_last->get_lut(gpu_indexes[0], 0);
+
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], carry_flag_last, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus, f_carry_last);
+
+      lut_carry_flag_last->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+    }
+
+    active_gpu_count = get_active_gpu_count(2 * num_radix_blocks, gpu_count);
+    sub_streams_1 =
+        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    sub_streams_2 =
+        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    for (uint j = 0; j < active_gpu_count; j++) {
+      sub_streams_1[j] = cuda_create_stream(gpu_indexes[j]);
+      sub_streams_2[j] = cuda_create_stream(gpu_indexes[j]);
+    }
+  };
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    shifted_blocks_state_mem->release(streams, gpu_indexes, gpu_count);
+    prop_simu_group_carries_mem->release(streams, gpu_indexes, gpu_count);
+    cuda_drop_async(output_flag, streams[0], gpu_indexes[0]);
+    lut_message_extract->release(streams, gpu_indexes, gpu_count);
+    delete lut_message_extract;
+
+    if (requested_flag == 1) { // In case of overflow
+      lut_overflow_flag_prep->release(streams, gpu_indexes, gpu_count);
+      lut_overflow_flag_last->release(streams, gpu_indexes, gpu_count);
+      delete lut_overflow_flag_prep;
+      delete lut_overflow_flag_last;
+    }
+    if (requested_flag == 2) { // In case of carry
+      lut_carry_flag_last->release(streams, gpu_indexes, gpu_count);
+      delete lut_carry_flag_last;
+    }
+
+    // release sub streams
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_destroy_stream(sub_streams_1[i], gpu_indexes[i]);
+      cuda_destroy_stream(sub_streams_2[i], gpu_indexes[i]);
+    }
+    free(sub_streams_1);
+    free(sub_streams_2);
+  };
+};
+
+template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
+  Torus *shifted_blocks_and_borrow_states;
+  Torus *shifted_blocks;
+  Torus *borrow_states;
+
+  int_radix_lut<Torus> *luts_array_first_step;
+
+  int_shifted_blocks_and_borrow_states_memory(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, int_radix_params params, uint32_t num_radix_blocks,
+      uint32_t lut_count, uint32_t grouping_size, bool allocate_gpu_memory) {
+
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
+    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+
+    shifted_blocks_and_borrow_states = (Torus *)cuda_malloc_async(
+        lut_count * num_radix_blocks * big_lwe_size_bytes, streams[0],
+        gpu_indexes[0]);
+    cuda_memset_async(shifted_blocks_and_borrow_states, 0,
+                      lut_count * num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
+    shifted_blocks = (Torus *)cuda_malloc_async(
+        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(shifted_blocks, 0, num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
+    borrow_states = (Torus *)cuda_malloc_async(
+        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    cuda_memset_async(borrow_states, 0, num_radix_blocks * big_lwe_size_bytes,
+                      streams[0], gpu_indexes[0]);
+
+    uint32_t num_luts_first_step = 2 * grouping_size + 1;
+
+    luts_array_first_step = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_luts_first_step,
+        num_radix_blocks, allocate_gpu_memory);
+
+    auto f_shift_block = [message_modulus](Torus block) -> Torus {
+      uint64_t overflow_guard = message_modulus;
+      uint64_t block_mod = block % message_modulus;
+      return (overflow_guard | block_mod) << 1;
+    };
+
+    auto f_first_block_state = [message_modulus](Torus block) -> Torus {
+      if (block < message_modulus)
+        return 1; // Borrows
+      else {
+        return 0; // Nothing
+      }
+    };
+    std::vector<std::function<Torus(Torus)>> f_first_grouping_luts = {
+        f_first_block_state, f_shift_block};
+
+    auto first_block_lut = luts_array_first_step->get_lut(gpu_indexes[0], 0);
+
+    generate_many_lut_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0], first_block_lut, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus, f_first_grouping_luts);
+
+    // luts for other blocks of the first grouping
+    for (int lut_id = 1; lut_id < grouping_size; lut_id++) {
+      auto f_state = [message_modulus, lut_id](Torus block) -> Torus {
+        uint64_t r = 0;
+        if (block < message_modulus) {
+          r = 2; // Borrows
+        } else if (block == message_modulus) {
+          r = 1; // Propagates a borrow
+        } else {
+          r = 0; // Does not borrow
+        }
+        return r << (lut_id - 1);
+      };
+      std::vector<std::function<Torus(Torus)>> f_grouping_luts = {
+          f_state, f_shift_block};
+      auto lut = luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
+          message_modulus, carry_modulus, f_grouping_luts);
+    }
+
+    // luts for the rest of groupings (except for the last block)
+    for (int i = 0; i < grouping_size; i++) {
+      uint32_t lut_id = i + grouping_size;
+      auto f_state = [message_modulus, i](Torus block) -> Torus {
+        uint64_t r = 0;
+        if (block < message_modulus) {
+          r = 2; // Generates borrow
+        } else if (block == message_modulus) {
+          r = 1; // Propagates a borrow
+        } else {
+          r = 0; // Does not borrow
+        }
+        return r << i;
+      };
+      std::vector<std::function<Torus(Torus)>> f_grouping_luts = {
+          f_state, f_shift_block};
+
+      auto lut = luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
+
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
+          message_modulus, carry_modulus, f_grouping_luts);
+    }
+
+    auto f_last_block_state = [message_modulus](Torus block) -> Torus {
+      if (block < message_modulus)
+        return 2 << 1; // Generates a borrow
+      else
+        return 0; // Nothing
+    };
+
+    uint32_t lut_id = num_luts_first_step - 1; // The last lut of the first step
+
+    auto last_block_lut =
+        luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
+
+    std::vector<std::function<Torus(Torus)>> f_last_grouping_luts = {
+        f_last_block_state, f_shift_block};
+
+    generate_many_lut_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0], last_block_lut, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus, f_last_grouping_luts);
+
+    // Generate the indexes to switch between luts within the pbs
+    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    Torus *h_lut_indexes = (Torus *)malloc(lut_indexes_size);
+
+    for (int index = 0; index < num_radix_blocks; index++) {
+      uint32_t grouping_index = index / grouping_size;
+      bool is_in_first_grouping = (grouping_index == 0);
+      uint32_t index_in_grouping = index % grouping_size;
+      bool is_last_index = (index == (num_radix_blocks - 1));
+      if (is_last_index) {
+        if (num_radix_blocks == 1) {
+          h_lut_indexes[index] = 2 * grouping_size;
+        } else {
+          h_lut_indexes[index] = 2;
+        }
+      } else if (is_in_first_grouping) {
+        h_lut_indexes[index] = index_in_grouping;
+      } else {
+        h_lut_indexes[index] = index_in_grouping + grouping_size;
+      }
+    }
+    // copy the indexes to the gpu
+    Torus *lut_indexes =
+        luts_array_first_step->get_lut_indexes(gpu_indexes[0], 0);
+    cuda_memcpy_async_to_gpu(lut_indexes, h_lut_indexes, lut_indexes_size,
+                             streams[0], gpu_indexes[0]);
+    // Do I need to do something else for the multi-gpu?
+
+    luts_array_first_step->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+
+    free(h_lut_indexes);
+  };
+
+  // needed for the divison to update the lut indexes
+  void update_lut_indexes(cudaStream_t const *streams,
+                          uint32_t const *gpu_indexes, Torus *new_lut_indexes,
+                          uint32_t new_num_blocks) {
+    Torus *lut_indexes =
+        luts_array_first_step->get_lut_indexes(gpu_indexes[0], 0);
+    cuda_memcpy_async_gpu_to_gpu(lut_indexes, new_lut_indexes,
+                                 new_num_blocks * sizeof(Torus), streams[0],
+                                 gpu_indexes[0]);
+    luts_array_first_step->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+  }
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    cuda_drop_async(shifted_blocks_and_borrow_states, streams[0],
+                    gpu_indexes[0]);
+    cuda_drop_async(shifted_blocks, streams[0], gpu_indexes[0]);
+    cuda_drop_async(borrow_states, streams[0], gpu_indexes[0]);
+
+    luts_array_first_step->release(streams, gpu_indexes, gpu_count);
+    delete luts_array_first_step;
+  };
+};
+
+template <typename Torus> struct int_fast_borrow_prop_memory {
+  uint32_t lut_count;
+  uint32_t lut_stride;
+
+  uint32_t group_size;
+  uint32_t num_groups;
+  Torus *overflow_block;
+
+  int_radix_lut<Torus> *lut_message_extract;
+  int_radix_lut<Torus> *lut_borrow_flag;
+
+  int_shifted_blocks_and_borrow_states_memory<Torus>
+      *shifted_blocks_borrow_state_mem;
+  int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
+
+  int_radix_params params;
+
+  Torus **first_indexes_for_div;
+  Torus **second_indexes_for_div;
+  Torus **scalars_for_div;
+  uint32_t active_gpu_count;
+  cudaStream_t *sub_streams_1;
+  cudaStream_t *sub_streams_2;
+
+  cudaEvent_t *incoming_events;
+  cudaEvent_t *outgoing_events1;
+  cudaEvent_t *outgoing_events2;
+
+  bool is_in_div = false;
+  uint32_t max_indexes_to_erase = 0;
+
+  uint32_t compute_overflow;
+  int_fast_borrow_prop_memory(cudaStream_t const *streams,
+                              uint32_t const *gpu_indexes, uint32_t gpu_count,
+                              int_radix_params params,
+                              uint32_t num_radix_blocks,
+                              uint32_t compute_overflow_in,
+                              bool allocate_gpu_memory) {
+    this->params = params;
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
+    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+    compute_overflow = compute_overflow_in;
+    // for compute shifted blocks and block states
+    uint32_t block_modulus = message_modulus * carry_modulus;
+    uint32_t num_bits_in_block = std::log2(block_modulus);
+    uint32_t grouping_size = num_bits_in_block;
+    group_size = grouping_size;
+    num_groups = (num_radix_blocks + grouping_size - 1) / grouping_size;
+
+    lut_count = 2; // many luts apply 2 luts
+    uint32_t box_size = polynomial_size / block_modulus;
+    lut_stride = (block_modulus / lut_count) * box_size;
+
+    shifted_blocks_borrow_state_mem =
+        new int_shifted_blocks_and_borrow_states_memory<Torus>(
+            streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+            lut_count, grouping_size, true);
+
+    prop_simu_group_carries_mem = new int_prop_simu_group_carries_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        grouping_size, num_groups, true);
+
+    overflow_block = (Torus *)cuda_malloc_async(big_lwe_size_bytes, streams[0],
+                                                gpu_indexes[0]);
+    cuda_memset_async(overflow_block, 0, big_lwe_size_bytes, streams[0],
+                      gpu_indexes[0]);
+
+    lut_message_extract =
+        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+                                 num_radix_blocks, allocate_gpu_memory);
+    // lut for the first block in the first grouping
+    auto f_message_extract = [message_modulus](Torus block) -> Torus {
+      return (block >> 1) % message_modulus;
+    };
+
+    auto extract_lut = lut_message_extract->get_lut(gpu_indexes[0], 0);
+
+    generate_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0], extract_lut, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus, f_message_extract);
+
+    lut_message_extract->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+
+    if (compute_overflow) {
+      lut_borrow_flag =
+          new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+                                   num_radix_blocks, allocate_gpu_memory);
+      // lut for the first block in the first grouping
+      auto f_borrow_flag = [](Torus block) -> Torus {
+        return ((block >> 2) & 1);
+      };
+
+      auto borrow_flag_lut = lut_borrow_flag->get_lut(gpu_indexes[0], 0);
+
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], borrow_flag_lut, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus, f_borrow_flag);
+
+      lut_borrow_flag->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+    }
+
+    active_gpu_count = get_active_gpu_count(2 * num_radix_blocks, gpu_count);
+    sub_streams_1 =
+        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    sub_streams_2 =
+        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    for (uint j = 0; j < active_gpu_count; j++) {
+      sub_streams_1[j] = cuda_create_stream(gpu_indexes[j]);
+      sub_streams_2[j] = cuda_create_stream(gpu_indexes[j]);
+    }
+
+    incoming_events =
+        (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
+    outgoing_events1 =
+        (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
+    outgoing_events2 =
+        (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
+    for (uint j = 0; j < active_gpu_count; j++) {
+      cudaEventCreate(&incoming_events[j]);
+      cudaEventCreate(&outgoing_events1[j]);
+      cudaEventCreate(&outgoing_events2[j]);
+    }
+  };
+
+  void create_indexes_for_division(cudaStream_t const *streams,
+                                   uint32_t const *gpu_indexes,
+                                   uint32_t num_blocks) {
+
+    is_in_div = true;
+    max_indexes_to_erase = num_blocks;
+    bool use_seq = prop_simu_group_carries_mem
+                       ->use_sequential_algorithm_to_resolver_group_carries;
+    first_indexes_for_div = (Torus **)malloc(num_blocks * sizeof(Torus *));
+    second_indexes_for_div = (Torus **)malloc(num_blocks * sizeof(Torus *));
+    scalars_for_div = (Torus **)malloc(num_blocks * sizeof(Torus *));
+
+    Torus *h_lut_indexes = (Torus *)malloc(num_blocks * sizeof(Torus));
+    Torus *h_scalar = (Torus *)malloc(num_blocks * sizeof(Torus));
+
+    // Extra indexes for the luts in first step
+    for (int nb = 1; nb <= num_blocks; nb++) {
+      cudaMalloc((void **)&first_indexes_for_div[nb - 1], nb * sizeof(Torus));
+      for (int index = 0; index < nb; index++) {
+        uint32_t grouping_index = index / group_size;
+        bool is_in_first_grouping = (grouping_index == 0);
+        uint32_t index_in_grouping = index % group_size;
+        bool is_last_index = (index == (nb - 1));
+        if (is_last_index) {
+          if (nb == 1) {
+            h_lut_indexes[index] = 2 * group_size;
+          } else {
+            h_lut_indexes[index] = 2;
+          }
+        } else if (is_in_first_grouping) {
+          h_lut_indexes[index] = index_in_grouping;
+        } else {
+          h_lut_indexes[index] = index_in_grouping + group_size;
+        }
+      }
+      cuda_memcpy_async_to_gpu(first_indexes_for_div[nb - 1], h_lut_indexes,
+                               nb * sizeof(Torus), streams[0], gpu_indexes[0]);
+    }
+    // Extra indexes for the luts in second step
+    for (int nb = 1; nb <= num_blocks; nb++) {
+      cudaMalloc((void **)&second_indexes_for_div[nb - 1], nb * sizeof(Torus));
+      cudaMalloc((void **)&scalars_for_div[nb - 1], nb * sizeof(Torus));
+
+      for (int index = 0; index < nb; index++) {
+        uint32_t grouping_index = index / group_size;
+        bool is_in_first_grouping = (grouping_index == 0);
+        uint32_t index_in_grouping = index % group_size;
+
+        if (is_in_first_grouping) {
+          h_lut_indexes[index] = index_in_grouping;
+        } else if (index_in_grouping == (group_size - 1)) {
+          if (use_seq) {
+            int inner_index = (grouping_index - 1) % (group_size - 1);
+            h_lut_indexes[index] = inner_index + 2 * group_size;
+          } else {
+            h_lut_indexes[index] = 2 * group_size;
+          }
+        } else {
+          h_lut_indexes[index] = index_in_grouping + group_size;
+        }
+
+        bool may_have_its_padding_bit_set =
+            !is_in_first_grouping && (index_in_grouping == group_size - 1);
+
+        if (may_have_its_padding_bit_set) {
+          if (use_seq) {
+            h_scalar[index] = 1 << ((grouping_index - 1) % (group_size - 1));
+          } else {
+            h_scalar[index] = 1;
+          }
+        } else {
+          h_scalar[index] = 0;
+        }
+      }
+      cuda_memcpy_async_to_gpu(second_indexes_for_div[nb - 1], h_lut_indexes,
+                               nb * sizeof(Torus), streams[0], gpu_indexes[0]);
+      cuda_memcpy_async_to_gpu(scalars_for_div[nb - 1], h_scalar,
+                               nb * sizeof(Torus), streams[0], gpu_indexes[0]);
+    }
+    free(h_lut_indexes);
+    free(h_scalar);
+  };
+
+  // needed for the divison to update the lut indexes
+  void update_lut_indexes(cudaStream_t const *streams,
+                          uint32_t const *gpu_indexes,
+                          uint32_t new_num_blocks) {
+    assert(max_indexes_to_erase >= new_num_blocks);
+    shifted_blocks_borrow_state_mem->update_lut_indexes(
+        streams, gpu_indexes, first_indexes_for_div[new_num_blocks - 1],
+        new_num_blocks);
+    prop_simu_group_carries_mem->update_lut_indexes(
+        streams, gpu_indexes, second_indexes_for_div[new_num_blocks - 1],
+        scalars_for_div[new_num_blocks - 1], new_num_blocks);
+  }
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    shifted_blocks_borrow_state_mem->release(streams, gpu_indexes, gpu_count);
+    prop_simu_group_carries_mem->release(streams, gpu_indexes, gpu_count);
+    cuda_drop_async(overflow_block, streams[0], gpu_indexes[0]);
+
+    lut_message_extract->release(streams, gpu_indexes, gpu_count);
+    delete lut_message_extract;
+    if (compute_overflow) {
+      lut_borrow_flag->release(streams, gpu_indexes, gpu_count);
+      delete lut_borrow_flag;
+    }
+
+    if (is_in_div) {
+      for (int i = 0; i < max_indexes_to_erase; i++) {
+        cuda_drop_async(first_indexes_for_div[i], streams[0], gpu_indexes[0]);
+        cuda_drop_async(second_indexes_for_div[i], streams[0], gpu_indexes[0]);
+        cuda_drop_async(scalars_for_div[i], streams[0], gpu_indexes[0]);
+      }
+      free(first_indexes_for_div);
+      free(second_indexes_for_div);
+      free(scalars_for_div);
+    }
+    // release sub streams
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_destroy_stream(sub_streams_1[i], gpu_indexes[i]);
+      cuda_destroy_stream(sub_streams_2[i], gpu_indexes[i]);
+    }
+    free(sub_streams_1);
+    free(sub_streams_2);
+
+    // release events
+    for (uint j = 0; j < active_gpu_count; j++) {
+      cudaEventDestroy(incoming_events[j]);
+      cudaEventDestroy(outgoing_events1[j]);
+      cudaEventDestroy(outgoing_events2[j]);
+    }
+    free(incoming_events);
+    free(outgoing_events1);
+    free(outgoing_events2);
+  };
+};
 
 template <typename Torus> struct int_mul_memory {
   Torus *vector_result_sb;
@@ -1124,6 +2391,7 @@ template <typename Torus> struct int_mul_memory {
 
   int_radix_lut<Torus> *luts_array; // lsb msb
   int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_mem;
+  int_fast_sc_prop_memory<Torus> *fast_sc_prop_mem;
 
   int_radix_params params;
 
@@ -1199,6 +2467,11 @@ template <typename Torus> struct int_mul_memory {
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
         2 * num_radix_blocks, block_mul_res, vector_result_sb,
         small_lwe_vector);
+    uint32_t uses_carry = 0;
+    uint32_t requested_flag = 0;
+    fast_sc_prop_mem = new int_fast_sc_prop_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        requested_flag, uses_carry, allocate_gpu_memory);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1209,9 +2482,11 @@ template <typename Torus> struct int_mul_memory {
 
     luts_array->release(streams, gpu_indexes, gpu_count);
     sum_ciphertexts_mem->release(streams, gpu_indexes, gpu_count);
+    fast_sc_prop_mem->release(streams, gpu_indexes, gpu_count);
 
     delete luts_array;
     delete sum_ciphertexts_mem;
+    delete fast_sc_prop_mem;
   }
 };
 
@@ -2271,7 +3546,7 @@ template <typename Torus> struct int_div_rem_memory {
   // memory objects for other operations
   int_logical_scalar_shift_buffer<Torus> *shift_mem_1;
   int_logical_scalar_shift_buffer<Torus> *shift_mem_2;
-  int_overflowing_sub_memory<Torus> *overflow_sub_mem;
+  int_fast_borrow_prop_memory<Torus> *overflow_sub_mem;
   int_comparison_buffer<Torus> *comparison_buffer;
 
   // lookup tables
@@ -2515,8 +3790,12 @@ template <typename Torus> struct int_div_rem_memory {
         streams, gpu_indexes, gpu_count, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
         params, 2 * num_blocks, true);
 
-    overflow_sub_mem = new int_overflowing_sub_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, num_blocks, true);
+    uint32_t compute_overflow = 1;
+    overflow_sub_mem = new int_fast_borrow_prop_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_blocks, compute_overflow,
+        true);
+    overflow_sub_mem->create_indexes_for_division(streams, gpu_indexes,
+                                                  num_blocks);
 
     comparison_buffer = new int_comparison_buffer<Torus>(
         streams, gpu_indexes, gpu_count, COMPARISON_TYPE::NE, params,
@@ -2963,6 +4242,7 @@ template <typename Torus> struct int_scalar_mul_buffer {
   int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_vec_mem;
   Torus *preshifted_buffer;
   Torus *all_shifted_buffer;
+  int_fast_sc_prop_memory<Torus> *fast_sc_prop_mem;
 
   int_scalar_mul_buffer(cudaStream_t const *streams,
                         uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -3001,13 +4281,20 @@ template <typename Torus> struct int_scalar_mul_buffer {
       sum_ciphertexts_vec_mem = new int_sum_ciphertexts_vec_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, num_radix_blocks,
           num_ciphertext_bits, allocate_gpu_memory);
+      uint32_t uses_carry = 0;
+      uint32_t requested_flag = 0;
+      fast_sc_prop_mem = new int_fast_sc_prop_memory<Torus>(
+          streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+          requested_flag, uses_carry, allocate_gpu_memory);
     }
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     sum_ciphertexts_vec_mem->release(streams, gpu_indexes, gpu_count);
+    fast_sc_prop_mem->release(streams, gpu_indexes, gpu_count);
     delete sum_ciphertexts_vec_mem;
+    delete fast_sc_prop_mem;
     cuda_drop_async(all_shifted_buffer, streams[0], gpu_indexes[0]);
   }
 };

@@ -8,9 +8,11 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     unchecked_add_integer_radix_assign_async,
+    unchecked_add_integer_radix_assign_with_packing_async,
     unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async,
     unchecked_signed_overflowing_add_or_sub_radix_kb_assign_async, PBSType,
 };
+use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::NoiseLevel;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -115,7 +117,8 @@ impl CudaServerKey {
             }
         };
         self.unchecked_add_assign_async(lhs, rhs, streams);
-        let _carry = self.propagate_single_carry_assign_async(lhs, streams);
+        let _carry =
+            self.new_propagate_single_carry_assign_async(lhs, streams, None, OutputFlag::None);
     }
 
     pub fn add_assign<T: CudaIntegerRadixCiphertext>(
@@ -173,6 +176,18 @@ impl CudaServerKey {
         result
     }
 
+    pub fn unchecked_add_with_packing<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> T {
+        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        self.unchecked_add_assign_with_packing(&mut result, ct_right, streams);
+
+        result
+    }
+
     /// # Safety
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
@@ -215,6 +230,49 @@ impl CudaServerKey {
         ciphertext_left.info = ciphertext_left.info.after_add(&ciphertext_right.info);
     }
 
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_add_assign_with_packing_async<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &mut T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) {
+        let ciphertext_left = ct_left.as_mut();
+        let ciphertext_right = ct_right.as_ref();
+        assert_eq!(
+            ciphertext_left.d_blocks.lwe_dimension(),
+            ciphertext_right.d_blocks.lwe_dimension(),
+            "Mismatched lwe dimension between ct_left ({:?}) and ct_right ({:?})",
+            ciphertext_left.d_blocks.lwe_dimension(),
+            ciphertext_right.d_blocks.lwe_dimension()
+        );
+
+        assert_eq!(
+            ciphertext_left.d_blocks.ciphertext_modulus(),
+            ciphertext_right.d_blocks.ciphertext_modulus(),
+            "Mismatched moduli between ct_left ({:?}) and ct_right ({:?})",
+            ciphertext_left.d_blocks.ciphertext_modulus(),
+            ciphertext_right.d_blocks.ciphertext_modulus()
+        );
+
+        let lwe_dimension = ciphertext_left.d_blocks.lwe_dimension();
+        let lwe_ciphertext_count = ciphertext_left.d_blocks.lwe_ciphertext_count();
+
+        unchecked_add_integer_radix_assign_with_packing_async(
+            streams,
+            &mut ciphertext_left.d_blocks.0.d_vec,
+            &ciphertext_right.d_blocks.0.d_vec,
+            lwe_dimension,
+            lwe_ciphertext_count.0 as u32,
+            self.message_modulus.0 as u32,
+        );
+
+        ciphertext_left.info = ciphertext_left.info.after_add(&ciphertext_right.info);
+    }
+
     pub fn unchecked_add_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
@@ -223,6 +281,18 @@ impl CudaServerKey {
     ) {
         unsafe {
             self.unchecked_add_assign_async(ct_left, ct_right, streams);
+        }
+        streams.synchronize();
+    }
+
+    pub fn unchecked_add_assign_with_packing<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &mut T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) {
+        unsafe {
+            self.unchecked_add_assign_with_packing_async(ct_left, ct_right, streams);
         }
         streams.synchronize();
     }
@@ -348,7 +418,7 @@ impl CudaServerKey {
             .unchecked_partial_sum_ciphertexts_async(ciphertexts, streams)
             .unwrap();
 
-        self.propagate_single_carry_assign_async(&mut result, streams);
+        self.new_propagate_single_carry_assign_async(&mut result, streams, None, OutputFlag::None);
         assert!(result.block_carries_are_empty());
         result
     }
@@ -535,8 +605,53 @@ impl CudaServerKey {
         rhs: &CudaUnsignedRadixCiphertext,
         stream: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
-        let mut ct_res = self.unchecked_add(lhs, rhs, stream);
-        let mut carry_out = self.propagate_single_carry_assign_async(&mut ct_res, stream);
+        let output_flag = OutputFlag::from_signedness(CudaUnsignedRadixCiphertext::IS_SIGNED);
+
+        let mut ct_res = match output_flag {
+            OutputFlag::Overflow => self.unchecked_add_with_packing(lhs, rhs, stream),
+            _ => self.unchecked_add(lhs, rhs, stream),
+        };
+
+        let mut carry_out =
+            self.new_propagate_single_carry_assign_async(&mut ct_res, stream, None, output_flag);
+
+        ct_res.as_mut().info = ct_res
+            .as_ref()
+            .info
+            .after_overflowing_add(&rhs.as_ref().info);
+
+        if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
+            && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
+        {
+            carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(NoiseLevel::ZERO);
+        } else {
+            carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(NoiseLevel::NOMINAL);
+        }
+
+        let ct_overflowed = CudaBooleanBlock::from_cuda_radix_ciphertext(carry_out.ciphertext);
+
+        (ct_res, ct_overflowed)
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_signed_overflowing_add_async(
+        &self,
+        lhs: &CudaSignedRadixCiphertext,
+        rhs: &CudaSignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock) {
+        let output_flag = OutputFlag::from_signedness(CudaSignedRadixCiphertext::IS_SIGNED);
+
+        let mut ct_res = match output_flag {
+            OutputFlag::Overflow => self.unchecked_add_with_packing(lhs, rhs, stream),
+            _ => self.unchecked_add(lhs, rhs, stream),
+        };
+
+        let mut carry_out =
+            self.new_propagate_single_carry_assign_async(&mut ct_res, stream, None, output_flag);
 
         ct_res.as_mut().info = ct_res
             .as_ref()
@@ -661,6 +776,7 @@ impl CudaServerKey {
             SignedOperation::Addition,
             stream,
         )
+        //}
     }
 
     pub(crate) fn unchecked_signed_overflowing_add_or_sub(

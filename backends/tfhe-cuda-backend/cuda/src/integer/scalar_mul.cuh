@@ -112,10 +112,24 @@ __host__ void host_integer_scalar_mul_radix(
         terms_degree, bsks, ksks, mem->sum_ciphertexts_vec_mem,
         num_radix_blocks, j, nullptr);
 
-    auto scp_mem_ptr = mem->sum_ciphertexts_vec_mem->scp_mem;
-    host_propagate_single_carry<T>(streams, gpu_indexes, gpu_count, lwe_array,
-                                   nullptr, nullptr, scp_mem_ptr, bsks, ksks,
-                                   num_radix_blocks);
+    // uint32_t carry_modulus = message_modulus;
+    // uint32_t block_modulus = message_modulus * carry_modulus;
+    // uint32_t num_bits_in_block = std::log2(block_modulus);
+    // if (num_radix_blocks < num_bits_in_block) {
+    //   auto scp_mem_ptr = mem->sum_ciphertexts_vec_mem->scp_mem;
+    //   host_propagate_single_carry<T>(streams, gpu_indexes, gpu_count,
+    //   lwe_array,
+    //                                  nullptr, nullptr, scp_mem_ptr, bsks,
+    //                                  ksks, num_radix_blocks);
+    // } else {
+    auto fast_scp_mem_ptr = mem->fast_sc_prop_mem;
+    uint32_t requested_flag = 0;
+    uint32_t uses_carry = 0;
+    host_fast_propagate_single_carry<T>(
+        streams, gpu_indexes, gpu_count, lwe_array, nullptr, nullptr,
+        fast_scp_mem_ptr, bsks, ksks, num_radix_blocks, requested_flag,
+        uses_carry);
+    //}
   }
 }
 

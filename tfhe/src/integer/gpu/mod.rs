@@ -15,6 +15,7 @@ use crate::shortint::{CarryModulus, MessageModulus};
 pub use server_key::CudaServerKey;
 use std::cmp::min;
 
+use crate::integer::server_key::radix_parallel::OutputFlag;
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
 
@@ -463,6 +464,41 @@ pub unsafe fn unchecked_add_integer_radix_assign_async<T: UnsignedInteger>(
         radix_lwe_right.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_blocks,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub unsafe fn unchecked_add_integer_radix_assign_with_packing_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    radix_lwe_right: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_blocks: u32,
+    message_modulus: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_right.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    cuda_add_lwe_ciphertext_vector_64_with_packing(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        radix_lwe_left.as_mut_c_ptr(0),
+        radix_lwe_left.as_c_ptr(0),
+        radix_lwe_right.as_c_ptr(0),
+        lwe_dimension.0 as u32,
+        num_blocks,
+        message_modulus,
     );
 }
 
@@ -1078,6 +1114,94 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
         num_blocks,
     );
     cleanup_cuda_propagate_single_carry(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub(crate) unsafe fn propagate_fast_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_input: &mut CudaVec<T>,
+    carry_out: &mut CudaVec<T>,
+    carry_in: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    requested_flag: OutputFlag,
+    uses_carry: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_input.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    scratch_cuda_fast_propagate_single_carry_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        requested_flag as u32,
+        uses_carry as u32,
+        true,
+    );
+    cuda_fast_propagate_single_carry_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        radix_lwe_input.as_mut_c_ptr(0),
+        carry_out.as_mut_c_ptr(0),
+        carry_in.as_c_ptr(0),
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        num_blocks,
+        requested_flag as u32,
+        uses_carry as u32,
+    );
+    cleanup_cuda_fast_propagate_single_carry(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
@@ -2139,107 +2263,107 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
     );
 }
 
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
-pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
-    T: UnsignedInteger,
-    B: Numeric,
->(
-    streams: &CudaStreams,
-    ct_res: &mut CudaVec<T>,
-    ct_overflowed: &mut CudaVec<T>,
-    lhs: &CudaVec<T>,
-    rhs: &CudaVec<T>,
-    bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    big_lwe_dimension: LweDimension,
-    small_lwe_dimension: LweDimension,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    num_blocks: u32,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
-) {
-    assert_eq!(
-        streams.gpu_indexes[0],
-        ct_res.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        ct_overflowed.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        lhs.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        rhs.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
-    );
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_radix_overflowing_sub_kb_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes.as_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        true,
-    );
-    cuda_integer_radix_overflowing_sub_kb_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes.as_ptr(),
-        streams.len() as u32,
-        ct_res.as_mut_c_ptr(0),
-        ct_overflowed.as_mut_c_ptr(0),
-        lhs.as_c_ptr(0),
-        rhs.as_c_ptr(0),
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        num_blocks,
-    );
-    cleanup_cuda_integer_radix_overflowing_sub(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes.as_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
-}
+// #[allow(clippy::too_many_arguments)]
+// /// # Safety
+// ///
+// /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
+// synchronization ///   is required
+// pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
+//     T: UnsignedInteger,
+//     B: Numeric,
+// >(
+//     streams: &CudaStreams,
+//     ct_res: &mut CudaVec<T>,
+//     ct_overflowed: &mut CudaVec<T>,
+//     lhs: &CudaVec<T>,
+//     rhs: &CudaVec<T>,
+//     bootstrapping_key: &CudaVec<B>,
+//     keyswitch_key: &CudaVec<T>,
+//     message_modulus: MessageModulus,
+//     carry_modulus: CarryModulus,
+//     glwe_dimension: GlweDimension,
+//     polynomial_size: PolynomialSize,
+//     big_lwe_dimension: LweDimension,
+//     small_lwe_dimension: LweDimension,
+//     ks_level: DecompositionLevelCount,
+//     ks_base_log: DecompositionBaseLog,
+//     pbs_level: DecompositionLevelCount,
+//     pbs_base_log: DecompositionBaseLog,
+//     num_blocks: u32,
+//     pbs_type: PBSType,
+//     grouping_factor: LweBskGroupingFactor,
+// ) {
+//     assert_eq!(
+//         streams.gpu_indexes[0],
+//         ct_res.gpu_index(0),
+//         "GPU error: all data should reside on the same GPU."
+//     );
+//     assert_eq!(
+//         streams.gpu_indexes[0],
+//         ct_overflowed.gpu_index(0),
+//         "GPU error: all data should reside on the same GPU."
+//     );
+//     assert_eq!(
+//         streams.gpu_indexes[0],
+//         lhs.gpu_index(0),
+//         "GPU error: all data should reside on the same GPU."
+//     );
+//     assert_eq!(
+//         streams.gpu_indexes[0],
+//         rhs.gpu_index(0),
+//         "GPU error: all data should reside on the same GPU."
+//     );
+//     assert_eq!(
+//         streams.gpu_indexes[0],
+//         bootstrapping_key.gpu_index(0),
+//         "GPU error: all data should reside on the same GPU."
+//     );
+//     assert_eq!(
+//         streams.gpu_indexes[0],
+//         keyswitch_key.gpu_index(0),
+//         "GPU error: all data should reside on the same GPU."
+//     );
+//     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+//     scratch_cuda_integer_radix_overflowing_sub_kb_64(
+//         streams.ptr.as_ptr(),
+//         streams.gpu_indexes.as_ptr(),
+//         streams.len() as u32,
+//         std::ptr::addr_of_mut!(mem_ptr),
+//         glwe_dimension.0 as u32,
+//         polynomial_size.0 as u32,
+//         big_lwe_dimension.0 as u32,
+//         small_lwe_dimension.0 as u32,
+//         ks_level.0 as u32,
+//         ks_base_log.0 as u32,
+//         pbs_level.0 as u32,
+//         pbs_base_log.0 as u32,
+//         grouping_factor.0 as u32,
+//         num_blocks,
+//         message_modulus.0 as u32,
+//         carry_modulus.0 as u32,
+//         pbs_type as u32,
+//         true,
+//     );
+//     cuda_integer_radix_overflowing_sub_kb_64(
+//         streams.ptr.as_ptr(),
+//         streams.gpu_indexes.as_ptr(),
+//         streams.len() as u32,
+//         ct_res.as_mut_c_ptr(0),
+//         ct_overflowed.as_mut_c_ptr(0),
+//         lhs.as_c_ptr(0),
+//         rhs.as_c_ptr(0),
+//         mem_ptr,
+//         bootstrapping_key.ptr.as_ptr(),
+//         keyswitch_key.ptr.as_ptr(),
+//         num_blocks,
+//     );
+//     cleanup_cuda_integer_radix_overflowing_sub(
+//         streams.ptr.as_ptr(),
+//         streams.gpu_indexes.as_ptr(),
+//         streams.len() as u32,
+//         std::ptr::addr_of_mut!(mem_ptr),
+//     );
+// }
 
 #[allow(clippy::too_many_arguments)]
 /// # Safety
@@ -2769,4 +2893,96 @@ pub unsafe fn reverse_blocks_inplace_async<T: UnsignedInteger>(
             lwe_size,
         );
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_input: &mut CudaVec<T>,
+    radix_rhs_input: &CudaVec<T>,
+    carry_out: &mut CudaVec<T>,
+    carry_in: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    compute_overflow: bool,
+    uses_input_borrow: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_input.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    scratch_cuda_integer_overflowing_sub_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        compute_overflow as u32,
+        true,
+    );
+    cuda_integer_overflowing_sub_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        radix_lwe_input.as_mut_c_ptr(0),
+        radix_rhs_input.as_c_ptr(0),
+        carry_out.as_mut_c_ptr(0),
+        carry_in.as_c_ptr(0),
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        num_blocks,
+        compute_overflow as u32,
+        uses_input_borrow as u32,
+    );
+    cleanup_cuda_integer_overflowing_sub(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
 }

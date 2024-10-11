@@ -38,15 +38,7 @@ void cuda_integer_radix_overflowing_sub_kb_64(
     void const *radix_lwe_right, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks, uint32_t num_blocks) {
 
-  auto mem = (int_overflowing_sub_memory<uint64_t> *)mem_ptr;
-
-  host_integer_overflowing_sub_kb<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(radix_lwe_out),
-      static_cast<uint64_t *>(radix_lwe_overflowed),
-      static_cast<const uint64_t *>(radix_lwe_left),
-      static_cast<const uint64_t *>(radix_lwe_right), bsks, (uint64_t **)(ksks),
-      mem, num_blocks);
+  // auto mem = (int_overflowing_sub_memory<uint64_t> *)mem_ptr;
 }
 
 void cleanup_cuda_integer_radix_overflowing_sub(void *const *streams,

@@ -425,11 +425,16 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
     auto do_overflowing_sub = [&](cudaStream_t const *streams,
                                   uint32_t const *gpu_indexes,
                                   uint32_t gpu_count) {
-      host_integer_overflowing_sub_kb<Torus>(
+      uint32_t compute_borrow = 1;
+      uint32_t uses_input_borrow = 0;
+      mem_ptr->overflow_sub_mem->update_lut_indexes(
+          streams, gpu_indexes, merged_interesting_remainder.len);
+      host_integer_overflowing_sub<uint64_t>(
           streams, gpu_indexes, gpu_count, new_remainder.data,
-          subtraction_overflowed.data, merged_interesting_remainder.data,
-          interesting_divisor.data, bsks, ksks, mem_ptr->overflow_sub_mem,
-          merged_interesting_remainder.len);
+          (uint64_t *)merged_interesting_remainder.data,
+          interesting_divisor.data, subtraction_overflowed.data,
+          (const Torus *)nullptr, mem_ptr->overflow_sub_mem, bsks, ksks,
+          merged_interesting_remainder.len, compute_borrow, uses_input_borrow);
     };
 
     // fills:
