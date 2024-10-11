@@ -5,7 +5,7 @@
 use tfhe_hpu_backend::prelude::*;
 use tfhe_hpu_backend::{ffi, interface::rtl, interface::rtl::FromRtl};
 
-use hw_hpu::asm::{self, Asm, AsmBin, IOp};
+use tfhe_hpu_backend::asm::{self, Asm, AsmBin, IOp};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use clap_num::maybe_hex;
