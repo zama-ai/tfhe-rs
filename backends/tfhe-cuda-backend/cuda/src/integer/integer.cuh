@@ -128,6 +128,138 @@ host_radix_blocks_reverse_inplace(cudaStream_t const *streams,
       <<<num_blocks, num_threads, 0, streams[0]>>>(src, blocks_count, lwe_size);
 }
 
+// If group_size = 4, the first group of 4 elements will be transformed as
+// follows:
+//  dest[0] = src[0]
+//  dest[1] = src[0] + src[1]
+//  dest[2] = src[0] + src[1] + src[2]
+//  dest[3] = src[0] + src[1] + src[2] + src[3]
+template <typename Torus>
+__global__ void
+radix_cumulative_sum_in_groups(Torus *src, Torus *dest, uint32_t blocks_count,
+                               uint32_t lwe_size, uint32_t group_size) {
+
+  size_t block_offset = blockIdx.x * group_size * lwe_size;
+
+  for (int j = threadIdx.x; j < lwe_size; j += blockDim.x) {
+    size_t idx = j + block_offset;
+    Torus sum = src[idx];
+    dest[idx] = sum;
+    for (int gidx = 1; gidx < group_size; gidx++) {
+      if (gidx + blockIdx.x * group_size <
+          blocks_count) { // in case the last group is not full
+        sum += src[idx + gidx * lwe_size];
+        dest[idx + gidx * lwe_size] = sum;
+      }
+    }
+  }
+}
+
+template <typename Torus>
+__host__ void
+host_radix_cumulative_sum_in_groups(cudaStream_t const *streams,
+                                    uint32_t const *gpu_indexes, Torus *src,
+                                    Torus *dest, uint32_t radix_blocks_count,
+                                    uint32_t lwe_size, uint32_t group_size) {
+  cudaSetDevice(gpu_indexes[0]);
+  // Each CUDA block is responsible for a single group
+  int num_blocks = (radix_blocks_count + group_size - 1) / group_size,
+      num_threads = 512;
+  radix_cumulative_sum_in_groups<Torus>
+      <<<num_blocks, num_threads, 0, streams[0]>>>(
+          src, dest, radix_blocks_count, lwe_size, group_size);
+}
+
+template <typename Torus>
+__global__ void radix_split_simulators_and_grouping_pgns(
+    Torus *src, Torus *simulators, Torus *grouping_pgns, uint32_t blocks_count,
+    uint32_t lwe_size, uint32_t group_size, Torus delta) {
+
+  size_t block_offset = blockIdx.x * lwe_size;
+  if (blockIdx.x % group_size == 0) {
+    if (blockIdx.x == 0) {
+      // save trivial 0
+      for (int j = threadIdx.x; j < lwe_size; j += blockDim.x) {
+        simulators[j] = 0;
+      }
+    } else {
+      // save trivial 1
+      for (int j = threadIdx.x; j < lwe_size - 1; j += blockDim.x) {
+        size_t simu_idx = j + block_offset;
+        simulators[simu_idx] = 0;
+      }
+      if (threadIdx.x == 0) {
+        simulators[lwe_size - 1 + block_offset] = 1 * delta;
+      }
+    }
+
+    if ((blockIdx.x / group_size + 1) <
+        (blocks_count + group_size - 1) / group_size) {
+      size_t src_offset = (blockIdx.x + group_size - 1) * lwe_size;
+      size_t pgns_offset = (blockIdx.x / group_size) * lwe_size;
+      for (int j = threadIdx.x; j < lwe_size; j += blockDim.x) {
+        size_t in_offset = j + src_offset;
+        size_t out_offset = j + pgns_offset;
+        grouping_pgns[out_offset] = src[in_offset];
+      }
+    }
+  } else {
+    // save simulators
+    size_t src_offset = (blockIdx.x - 1) * lwe_size;
+    for (int j = threadIdx.x; j < lwe_size; j += blockDim.x) {
+      simulators[j + block_offset] = src[j + src_offset];
+    }
+  }
+}
+
+template <typename Torus>
+__host__ void host_radix_split_simulators_and_grouping_pgns(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes, Torus *src,
+    Torus *simulators, Torus *grouping_pgns, uint32_t radix_blocks_count,
+    uint32_t lwe_size, uint32_t group_size, Torus delta) {
+  cudaSetDevice(gpu_indexes[0]);
+  // Each CUDA block is responsible for a single group
+  int num_blocks = radix_blocks_count, num_threads = 512;
+  radix_split_simulators_and_grouping_pgns<Torus>
+      <<<num_blocks, num_threads, 0, streams[0]>>>(
+          src, simulators, grouping_pgns, radix_blocks_count, lwe_size,
+          group_size, delta);
+}
+
+// If group_size = 4, the first group of 4 elements will be transformed as
+// follows:
+//  src1 size num_radix_blocks * lwe_size
+//  src2 size num_group * lwe_size
+//  dest[0] = src1[0] + src2[0]
+//  dest[1] = src1[1] + src2[0]
+//  dest[2] = src1[2] + src2[0]
+//  dest[3] = src1[3] + src2[0]
+template <typename Torus>
+__global__ void radix_sum_in_groups(Torus *src1, Torus *src2, Torus *dest,
+                                    uint32_t blocks_count, uint32_t lwe_size,
+                                    uint32_t group_size) {
+
+  size_t src1_offset = blockIdx.x * lwe_size;
+  size_t src2_index = (blockIdx.x / group_size) * lwe_size;
+  for (int j = threadIdx.x; j < lwe_size; j += blockDim.x) {
+    size_t idx = j + src1_offset;
+    dest[idx] = src1[idx] + src2[j + src2_index];
+  }
+}
+
+template <typename Torus>
+__host__ void host_radix_sum_in_groups(cudaStream_t const *streams,
+                                       uint32_t const *gpu_indexes, Torus *src1,
+                                       Torus *src2, Torus *dest,
+                                       uint32_t radix_blocks_count,
+                                       uint32_t lwe_size, uint32_t group_size) {
+  cudaSetDevice(gpu_indexes[0]);
+
+  int num_blocks = radix_blocks_count, num_threads = 512;
+  radix_sum_in_groups<Torus><<<num_blocks, num_threads, 0, streams[0]>>>(
+      src1, src2, dest, radix_blocks_count, lwe_size, group_size);
+}
+
 // polynomial_size threads
 template <typename Torus>
 __global__ void
@@ -480,6 +612,48 @@ void generate_lookup_table(Torus *acc, uint32_t glwe_dimension,
 }
 
 template <typename Torus>
+void generate_many_lookup_table(
+    Torus *acc, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    std::vector<std::function<Torus(Torus)>> &functions) {
+
+  uint32_t modulus_sup = message_modulus * carry_modulus;
+  uint32_t box_size = polynomial_size / modulus_sup;
+  Torus delta = (1ul << 63) / modulus_sup;
+
+  memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
+
+  auto body = &acc[glwe_dimension * polynomial_size];
+
+  size_t fn_counts = functions.size();
+
+  assert(fn_counts <= modulus_sup / 2);
+
+  // Space used for each sub lut
+  uint32_t single_function_sub_lut_size = (modulus_sup / fn_counts) * box_size;
+
+  // This accumulator extracts the carry bits
+  for (int f = 0; f < fn_counts; f++) {
+    int lut_offset = f * single_function_sub_lut_size;
+    for (int i = 0; i < modulus_sup / fn_counts; i++) {
+      int index = i * box_size + lut_offset;
+      for (int j = index; j < index + box_size; j++) {
+        auto f_eval = functions[f](i);
+        body[j] = f_eval * delta;
+      }
+    }
+  }
+  int half_box_size = box_size / 2;
+
+  // Negate the first half_box_size coefficients
+  for (int i = 0; i < half_box_size; i++) {
+    body[i] = -body[i];
+  }
+
+  rotate_left<Torus>(body, half_box_size, polynomial_size);
+}
+
+template <typename Torus>
 void generate_lookup_table_bivariate(Torus *acc, uint32_t glwe_dimension,
                                      uint32_t polynomial_size,
                                      uint32_t message_modulus,
@@ -602,6 +776,37 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
   // fill accumulator
   generate_lookup_table<Torus>(h_lut, glwe_dimension, polynomial_size,
                                message_modulus, carry_modulus, f);
+
+  // copy host lut and lut_indexes_vec to device
+  cuda_memcpy_async_to_gpu(
+      acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
+      stream, gpu_index);
+
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
+}
+
+/*
+ *  generate many lut accumulator for device pointer
+ *    v_stream - cuda stream
+ *    acc - device pointer for accumulator
+ *    ...
+ *    vector<f> - evaluating functions with one Torus input
+ */
+template <typename Torus>
+void generate_many_lut_device_accumulator(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
+    uint32_t carry_modulus,
+    std::vector<std::function<Torus(Torus)>> &functions) {
+
+  // host lut
+  Torus *h_lut =
+      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+
+  // fill accumulator
+  generate_many_lookup_table<Torus>(h_lut, glwe_dimension, polynomial_size,
+                                    message_modulus, carry_modulus, functions);
 
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_async_to_gpu(
@@ -1144,6 +1349,168 @@ void host_apply_bivariate_lut_kb(
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, radix_lwe_in_1,
       radix_lwe_in_2, bsks, ksks, num_blocks, mem, shift);
+}
+
+template <typename Torus>
+void scratch_cuda_fast_propagate_single_carry_kb_inplace(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_fast_sc_prop_memory<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, int_radix_params params,
+    bool allocate_gpu_memory) {
+
+  *mem_ptr = new int_fast_sc_prop_memory<Torus>(streams, gpu_indexes, gpu_count,
+                                                params, num_radix_blocks,
+                                                allocate_gpu_memory);
+}
+
+template <typename Torus>
+void host_fast_propagate_single_carry(cudaStream_t const *streams,
+                                      uint32_t const *gpu_indexes,
+                                      uint32_t gpu_count, Torus *lwe_array,
+                                      Torus *carry_out, Torus *input_carries,
+                                      int_fast_sc_prop_memory<Torus> *mem,
+                                      void *const *bsks, Torus *const *ksks,
+                                      uint32_t num_blocks) {
+  auto params = mem->params;
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  auto message_modulus = params.message_modulus;
+  auto carry_modulus = params.carry_modulus;
+  uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
+  auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+
+  auto shifted_blocks_and_states = mem->shifted_blocks_and_states;
+  auto luts_array_first_step = mem->luts_array_first_step;
+  auto propagation_cum_sums = mem->propagation_cum_sums;
+  auto lut_stride = mem->lut_stride;
+  auto lut_count = mem->lut_count;
+
+  integer_radix_apply_many_univariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, shifted_blocks_and_states, lwe_array,
+      bsks, ksks, num_blocks, luts_array_first_step, lut_count, lut_stride);
+
+  auto shifted_blocks = mem->shifted_blocks;
+  auto block_states = mem->block_states;
+  cuda_memcpy_async_gpu_to_gpu(block_states, shifted_blocks_and_states,
+                               big_lwe_size_bytes * num_blocks, streams[0],
+                               gpu_indexes[0]);
+  cuda_memcpy_async_gpu_to_gpu(
+      shifted_blocks, shifted_blocks_and_states + big_lwe_size * num_blocks,
+      big_lwe_size_bytes * num_blocks, streams[0], gpu_indexes[0]);
+
+  auto group_size = mem->group_size;
+  host_radix_cumulative_sum_in_groups<Torus>(streams, gpu_indexes, block_states,
+                                             propagation_cum_sums, num_blocks,
+                                             big_lwe_size, group_size);
+
+  auto luts_array_second_step = mem->luts_array_second_step;
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, propagation_cum_sums,
+      propagation_cum_sums, bsks, ksks, num_blocks, luts_array_second_step);
+
+  auto scalar_array_cum_sum = mem->scalar_array_cum_sum;
+  auto big_lwe_dimension = big_lwe_size - 1;
+
+  host_integer_radix_scalar_addition_inplace<Torus>(
+      streams, gpu_indexes, gpu_count, propagation_cum_sums,
+      scalar_array_cum_sum, big_lwe_dimension, num_blocks, message_modulus,
+      carry_modulus);
+
+  uint32_t modulus_sup = message_modulus * carry_modulus;
+  Torus delta = (1ull << 63) / modulus_sup;
+  auto simulators = mem->simulators;
+  auto grouping_pgns = mem->grouping_pgns;
+  host_radix_split_simulators_and_grouping_pgns<Torus>(
+      streams, gpu_indexes, propagation_cum_sums, simulators, grouping_pgns,
+      num_blocks, big_lwe_size, group_size, delta);
+
+  auto prepared_blocks = mem->prepared_blocks;
+  host_addition<Torus>(streams[0], gpu_indexes[0], prepared_blocks,
+                       shifted_blocks, simulators, big_lwe_dimension,
+                       num_blocks);
+
+  auto resolved_carries = mem->resolved_carries;
+  if (mem->use_sequential_algorithm_to_resolver_group_carries) {
+    // Resolve carries sequentially
+    auto group_resolved_carries = mem->group_resolved_carries;
+    if (mem->num_groups > 1) {
+      // First carry is just copied
+      cuda_memcpy_async_gpu_to_gpu(resolved_carries + big_lwe_size,
+                                   grouping_pgns, big_lwe_size_bytes,
+                                   streams[0], gpu_indexes[0]);
+      uint32_t solve_per_iter = group_size - 1;
+      uint32_t remaining_carries =
+          mem->num_groups -
+          2; // the first one has been resolved and we ignore the last one
+      uint32_t num_loops =
+          ceil(double(remaining_carries) / (double)(solve_per_iter));
+      uint32_t last_resolved_pos = 1;
+
+      for (int i = 0; i < num_loops; i++) {
+        uint32_t loop_offset = i * solve_per_iter;
+        uint32_t blocks_to_solve = solve_per_iter;
+        // In case the last iteration has to solve less
+        if (loop_offset + blocks_to_solve > mem->num_groups - 2) {
+          blocks_to_solve = remaining_carries - loop_offset;
+        }
+
+        // The group_resolved carries is used as an intermediate array
+        // First we need to copy the last resolved carry
+        cuda_memcpy_async_gpu_to_gpu(
+            group_resolved_carries,
+            resolved_carries + last_resolved_pos * big_lwe_size,
+            big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+
+        // The array is filled with the blocks_to_solve
+        cuda_memcpy_async_gpu_to_gpu(
+            group_resolved_carries + big_lwe_size,
+            grouping_pgns + last_resolved_pos * big_lwe_size,
+            blocks_to_solve * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+
+        // Perform one group cumulative sum
+        host_radix_cumulative_sum_in_groups<Torus>(
+            streams, gpu_indexes, group_resolved_carries,
+            group_resolved_carries, blocks_to_solve + 1, big_lwe_size,
+            group_size);
+
+        // Apply the lut
+        auto luts_sequential = mem->lut_sequential_algorithm;
+        integer_radix_apply_univariate_lookup_table_kb<Torus>(
+            streams, gpu_indexes, gpu_count,
+            group_resolved_carries + big_lwe_size,
+            group_resolved_carries + big_lwe_size, bsks, ksks, blocks_to_solve,
+            luts_sequential);
+
+        // Copy the result to the resolved carries array
+        cuda_memcpy_async_gpu_to_gpu(
+            resolved_carries + (last_resolved_pos + 1) * big_lwe_size,
+            group_resolved_carries + big_lwe_size,
+            blocks_to_solve * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+
+        last_resolved_pos += blocks_to_solve;
+      }
+    }
+  } else {
+    // Resolve carries with hillis steele
+    auto luts_carry_propagation_sum = mem->lut_hillis_steele;
+    host_compute_prefix_sum_hillis_steele<Torus>(
+        streams, gpu_indexes, gpu_count, &resolved_carries[big_lwe_size],
+        grouping_pgns, params, luts_carry_propagation_sum, bsks, ksks,
+        mem->num_groups - 1);
+  }
+  // Ends step 2
+
+  // Add carries and cleanup OutputFlag::None
+  host_radix_sum_in_groups<Torus>(streams, gpu_indexes, prepared_blocks,
+                                  resolved_carries, prepared_blocks, num_blocks,
+                                  big_lwe_size, group_size);
+
+  auto message_extract = mem->lut_message_extract;
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks, bsks, ksks,
+      num_blocks, message_extract);
+
+  // Ends step 3
 }
 
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH

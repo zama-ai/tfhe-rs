@@ -14,8 +14,8 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async, full_propagate_assign_async,
-    propagate_single_carry_assign_async, propagate_single_carry_get_input_carries_assign_async,
-    CudaServerKey, PBSType,
+    propagate_fast_single_carry_assign_async, propagate_single_carry_assign_async,
+    propagate_single_carry_get_input_carries_assign_async, CudaServerKey, PBSType,
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::{fill_accumulator, fill_many_lut_accumulator};
@@ -262,6 +262,97 @@ impl CudaServerKey {
             b.noise_level = NoiseLevel::NOMINAL;
         });
         carry_out
+    }
+
+    /// # Safety
+    ///
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
+    pub unsafe fn propagate_fast_single_carry_assign_async<T>(
+        &self,
+        ct: &mut T,
+        streams: &CudaStreams,
+    ) -> T
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        let mut carry_out: T = self.create_trivial_zero_radix(1, streams);
+        let ciphertext = ct.as_mut();
+        let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                propagate_fast_single_carry_assign_async(
+                    streams,
+                    &mut ciphertext.d_blocks.0.d_vec,
+                    &mut carry_out.as_mut().d_blocks.0.d_vec,
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_bsk.input_lwe_dimension(),
+                    d_bsk.glwe_dimension(),
+                    d_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count(),
+                    d_bsk.decomp_base_log(),
+                    num_blocks,
+                    ciphertext.info.blocks.first().unwrap().message_modulus,
+                    ciphertext.info.blocks.first().unwrap().carry_modulus,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                propagate_fast_single_carry_assign_async(
+                    streams,
+                    &mut ciphertext.d_blocks.0.d_vec,
+                    &mut carry_out.as_mut().d_blocks.0.d_vec,
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_multibit_bsk.input_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension(),
+                    d_multibit_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count(),
+                    d_multibit_bsk.decomp_base_log(),
+                    num_blocks,
+                    ciphertext.info.blocks.first().unwrap().message_modulus,
+                    ciphertext.info.blocks.first().unwrap().carry_modulus,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                );
+            }
+        };
+        ciphertext.info.blocks.iter_mut().for_each(|b| {
+            b.degree = Degree::new(b.message_modulus.0 - 1);
+            b.noise_level = NoiseLevel::NOMINAL;
+        });
+        carry_out.as_mut().info.blocks.iter_mut().for_each(|b| {
+            b.degree = Degree::new(1);
+            b.noise_level = NoiseLevel::NOMINAL;
+        });
+        carry_out
+    }
+
+    /// # Safety
+    ///
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
+    pub(crate) unsafe fn new_propagate_single_carry_assign_async<T>(
+        &self,
+        ct: &mut T,
+        streams: &CudaStreams,
+    ) -> T
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        let min_blocks = self.message_modulus.0 as u32 * self.carry_modulus.0 as u32;
+        if num_blocks < min_blocks.ilog2() {
+            self.propagate_single_carry_assign_async(ct, streams)
+        } else {
+            self.propagate_fast_single_carry_assign_async(ct, streams)
+        }
     }
 
     /// # Safety

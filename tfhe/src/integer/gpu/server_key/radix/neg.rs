@@ -144,7 +144,7 @@ impl CudaServerKey {
         };
 
         let mut res = self.unchecked_neg_async(ct, streams);
-        let _carry = self.propagate_single_carry_assign_async(&mut res, streams);
+        let _carry = self.new_propagate_single_carry_assign_async(&mut res, streams);
         res
     }
 }
