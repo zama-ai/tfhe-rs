@@ -2,6 +2,30 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 
+cudaEvent_t cuda_create_event(uint32_t gpu_index) {
+  check_cuda_error(cudaSetDevice(gpu_index));
+  cudaEvent_t event;
+  check_cuda_error(cudaEventCreate(&event));
+  return event;
+}
+
+void cuda_event_record(cudaEvent_t event, cudaStream_t stream,
+                       uint32_t gpu_index) {
+  check_cuda_error(cudaSetDevice(gpu_index));
+  check_cuda_error(cudaEventRecord(event, stream));
+}
+
+void cuda_stream_wait_event(cudaStream_t stream, cudaEvent_t event,
+                            uint32_t gpu_index) {
+  check_cuda_error(cudaSetDevice(gpu_index));
+  check_cuda_error(cudaStreamWaitEvent(stream, event, 0));
+}
+
+void cuda_event_destroy(cudaEvent_t event, uint32_t gpu_index) {
+  check_cuda_error(cudaSetDevice(gpu_index));
+  check_cuda_error(cudaEventDestroy(event));
+}
+
 /// Unsafe function to create a CUDA stream, must check first that GPU exists
 cudaStream_t cuda_create_stream(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));

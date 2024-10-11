@@ -119,7 +119,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
                  (glwe_dimension + 1) * (glwe_dimension + 1) * polynomial_size *
                  (1 << grouping_factor);
 
-  uint32_t lut_count = 1;
+  uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (int r = 0; r < repetitions; r++) {
     uint64_t *d_bsk = d_bsk_array + (ptrdiff_t)(bsk_size * r);
@@ -137,7 +137,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
           (void *)d_lwe_input_indexes, (void *)d_bsk, pbs_buffer, lwe_dimension,
           glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
-          pbs_level, number_of_inputs, lut_count, lut_stride);
+          pbs_level, number_of_inputs, num_many_lut, lut_stride);
 
       // Copy result to the host memory
       cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,

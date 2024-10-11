@@ -45,7 +45,7 @@ __global__ void device_programmable_bootstrap_cg(
     const double2 *__restrict__ bootstrapping_key, double2 *join_buffer,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, int8_t *device_mem,
-    uint64_t device_memory_size_per_block, uint32_t lut_count,
+    uint64_t device_memory_size_per_block, uint32_t num_many_lut,
     uint32_t lut_stride) {
 
   grid_group grid = this_grid();
@@ -152,8 +152,8 @@ __global__ void device_programmable_bootstrap_cg(
       // but we do the computation at block 0 to avoid waiting for extra blocks,
       // in case they're not synchronized
       sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
-      if (lut_count > 1) {
-        for (int i = 1; i < lut_count; i++) {
+      if (num_many_lut > 1) {
+        for (int i = 1; i < num_many_lut; i++) {
           auto next_lwe_array_out =
               lwe_array_out +
               (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
@@ -168,8 +168,8 @@ __global__ void device_programmable_bootstrap_cg(
       }
     } else if (blockIdx.y == glwe_dimension) {
       sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
-      if (lut_count > 1) {
-        for (int i = 1; i < lut_count; i++) {
+      if (num_many_lut > 1) {
+        for (int i = 1; i < num_many_lut; i++) {
 
           auto next_lwe_array_out =
               lwe_array_out +
@@ -235,7 +235,7 @@ __host__ void host_programmable_bootstrap_cg(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t lut_count, uint32_t lut_stride) {
+    uint32_t num_many_lut, uint32_t lut_stride) {
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
@@ -273,7 +273,7 @@ __host__ void host_programmable_bootstrap_cg(
   kernel_args[10] = &base_log;
   kernel_args[11] = &level_count;
   kernel_args[12] = &d_mem;
-  kernel_args[14] = &lut_count;
+  kernel_args[14] = &num_many_lut;
   kernel_args[15] = &lut_stride;
 
   if (max_shared_memory < partial_sm) {

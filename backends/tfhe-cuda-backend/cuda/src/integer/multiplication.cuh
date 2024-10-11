@@ -209,7 +209,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   auto small_lwe_size = small_lwe_dimension + 1;
 
   // In the case of extracting a single LWE this parameters are dummy
-  uint32_t lut_count = 1;
+  uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
 
   if (num_radix_in_vec == 0)
@@ -370,7 +370,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           glwe_dimension, small_lwe_dimension, polynomial_size,
           mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
           mem_ptr->params.grouping_factor, total_count,
-          mem_ptr->params.pbs_type, lut_count, lut_stride);
+          mem_ptr->params.pbs_type, num_many_lut, lut_stride);
     } else {
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
@@ -418,7 +418,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           glwe_dimension, small_lwe_dimension, polynomial_size,
           mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
           mem_ptr->params.grouping_factor, total_count,
-          mem_ptr->params.pbs_type, lut_count, lut_stride);
+          mem_ptr->params.pbs_type, num_many_lut, lut_stride);
 
       multi_gpu_gather_lwe_async<Torus>(
           streams, gpu_indexes, active_gpu_count, new_blocks, lwe_after_pbs_vec,
@@ -578,10 +578,15 @@ __host__ void host_integer_mult_radix_kb(
       terms_degree, bsks, ksks, mem_ptr->sum_ciphertexts_mem, num_blocks,
       2 * num_blocks, mem_ptr->luts_array);
 
-  auto scp_mem_ptr = mem_ptr->sum_ciphertexts_mem->scp_mem;
-  host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count,
-                                     radix_lwe_out, nullptr, nullptr,
-                                     scp_mem_ptr, bsks, ksks, num_blocks);
+  uint32_t block_modulus = message_modulus * carry_modulus;
+  uint32_t num_bits_in_block = std::log2(block_modulus);
+
+  auto scp_mem_ptr = mem_ptr->sc_prop_mem;
+  uint32_t requested_flag = outputFlag::FLAG_NONE;
+  uint32_t uses_carry = 0;
+  host_propagate_single_carry<Torus>(
+      streams, gpu_indexes, gpu_count, radix_lwe_out, nullptr, nullptr,
+      scp_mem_ptr, bsks, ksks, num_blocks, requested_flag, uses_carry);
 }
 
 template <typename Torus>

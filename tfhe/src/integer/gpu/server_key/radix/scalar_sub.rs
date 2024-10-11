@@ -4,6 +4,7 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::integer::server_key::TwosComplementNegation;
 use crate::prelude::CastInto;
 
@@ -151,7 +152,7 @@ impl CudaServerKey {
         };
 
         self.unchecked_scalar_sub_assign_async(ct, scalar, stream);
-        let _carry = self.propagate_single_carry_assign_async(ct, stream);
+        let _carry = self.propagate_single_carry_assign_async(ct, stream, None, OutputFlag::None);
     }
 
     pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStreams)

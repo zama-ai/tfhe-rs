@@ -69,7 +69,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
     void const *lwe_input_indexes, void const *bootstrapping_key,
     int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t lut_count, uint32_t lut_stride);
+    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride);
 
 void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
@@ -78,7 +78,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     void const *lwe_input_indexes, void const *bootstrapping_key,
     int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t lut_count, uint32_t lut_stride);
+    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride);
 
 void cleanup_cuda_programmable_bootstrap(void *stream, uint32_t gpu_index,
                                          int8_t **pbs_buffer);

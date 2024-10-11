@@ -27,6 +27,15 @@ inline void cuda_error(cudaError_t code, const char *file, int line) {
     std::abort();                                                              \
   }
 
+cudaEvent_t cuda_create_event(uint32_t gpu_index);
+
+void cuda_event_record(cudaEvent_t event, cudaStream_t stream,
+                       uint32_t gpu_index);
+void cuda_stream_wait_event(cudaStream_t stream, cudaEvent_t event,
+                            uint32_t gpu_index);
+
+void cuda_event_destroy(cudaEvent_t event, uint32_t gpu_index);
+
 cudaStream_t cuda_create_stream(uint32_t gpu_index);
 
 void cuda_destroy_stream(cudaStream_t stream, uint32_t gpu_index);

@@ -57,6 +57,7 @@ void cuda_add_lwe_ciphertext_vector_64(void *stream, uint32_t gpu_index,
                           static_cast<const uint64_t *>(lwe_array_in_2),
                           input_lwe_dimension, input_lwe_ciphertext_count);
 }
+
 /*
  * Perform the addition of a u32 input LWE ciphertext vector with a u32
  * plaintext vector. See the equivalent operation on u64 data for more details.

@@ -90,7 +90,6 @@ impl CudaServerKey {
             &d_decomposed_scalar,
             streams,
         );
-        ct.as_mut().info = ct.as_ref().info.after_bitnot();
     }
 
     pub fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(
