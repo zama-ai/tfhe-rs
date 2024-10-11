@@ -112,10 +112,12 @@ __host__ void host_integer_scalar_mul_radix(
         terms_degree, bsks, ksks, mem->sum_ciphertexts_vec_mem,
         num_radix_blocks, j, nullptr);
 
-    auto scp_mem_ptr = mem->sum_ciphertexts_vec_mem->scp_mem;
-    host_propagate_single_carry<T>(streams, gpu_indexes, gpu_count, lwe_array,
-                                   nullptr, nullptr, scp_mem_ptr, bsks, ksks,
-                                   num_radix_blocks);
+    auto scp_mem_ptr = mem->sc_prop_mem;
+    uint32_t requested_flag = outputFlag::FLAG_NONE;
+    uint32_t uses_carry = 0;
+    host_propagate_single_carry<T>(
+        streams, gpu_indexes, gpu_count, lwe_array, nullptr, nullptr,
+        scp_mem_ptr, bsks, ksks, num_radix_blocks, requested_flag, uses_carry);
   }
 }
 

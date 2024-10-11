@@ -173,7 +173,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
   cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
   int bsk_size = (glwe_dimension + 1) * (glwe_dimension + 1) * pbs_level *
                  polynomial_size * (lwe_dimension + 1);
-  uint32_t lut_count = 1;
+  uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   // Here execute the PBS
   for (int r = 0; r < repetitions; r++) {
@@ -192,7 +192,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
           (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, pbs_buffer,
           lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
-          pbs_level, number_of_inputs, lut_count, lut_stride);
+          pbs_level, number_of_inputs, num_many_lut, lut_stride);
       // Copy result back
       cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
                                (glwe_dimension * polynomial_size + 1) *

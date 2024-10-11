@@ -91,7 +91,7 @@ __host__ void scratch_cuda_integer_overflowing_sub_kb(
   *mem_ptr = new int_overflowing_sub_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory);
 }
-
+/*
 template <typename Torus>
 __host__ void host_integer_overflowing_sub_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -111,6 +111,41 @@ __host__ void host_integer_overflowing_sub_kb(
   host_propagate_single_sub_borrow<Torus>(streams, gpu_indexes, gpu_count,
                                           radix_lwe_overflowed, radix_lwe_out,
                                           mem_ptr, bsks, ksks, num_blocks);
+}
+
+*/
+template <typename Torus>
+__host__ void host_integer_overflowing_sub(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_out_array, Torus *lhs_array,
+    const Torus *rhs_array, Torus *overflow_block, const Torus *input_borrow,
+    int_borrow_prop_memory<uint64_t> *mem_ptr, void *const *bsks,
+    Torus *const *ksks, uint32_t num_blocks, uint32_t compute_overflow,
+    uint32_t uses_input_borrow) {
+
+  auto radix_params = mem_ptr->params;
+
+  // We need to recalculate the num_groups, because on the division the number
+  // of num_blocks changes
+  uint32_t block_modulus =
+      radix_params.message_modulus * radix_params.carry_modulus;
+  uint32_t num_bits_in_block = std::log2(block_modulus);
+  uint32_t grouping_size = num_bits_in_block;
+  uint32_t num_groups = (num_blocks + grouping_size - 1) / grouping_size;
+
+  auto stream = (cudaStream_t *)streams;
+  host_unchecked_sub_with_correcting_term<Torus>(
+      stream[0], gpu_indexes[0], static_cast<Torus *>(lwe_out_array),
+      static_cast<Torus *>(lhs_array), static_cast<const Torus *>(rhs_array),
+      radix_params.big_lwe_dimension, num_blocks, radix_params.message_modulus,
+      radix_params.carry_modulus, radix_params.message_modulus - 1);
+
+  host_single_borrow_propagate<Torus>(
+      streams, gpu_indexes, gpu_count, static_cast<Torus *>(lwe_out_array),
+      static_cast<Torus *>(overflow_block),
+      static_cast<const Torus *>(input_borrow),
+      (int_borrow_prop_memory<Torus> *)mem_ptr, bsks, (Torus **)(ksks),
+      num_blocks, num_groups, compute_overflow, uses_input_borrow);
 }
 
 #endif

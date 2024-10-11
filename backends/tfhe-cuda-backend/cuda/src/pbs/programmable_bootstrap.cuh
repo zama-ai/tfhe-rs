@@ -92,7 +92,7 @@ void execute_pbs_async(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                        uint32_t polynomial_size, uint32_t base_log,
                        uint32_t level_count, uint32_t grouping_factor,
                        uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
-                       uint32_t lut_count, uint32_t lut_stride) {
+                       uint32_t num_many_lut, uint32_t lut_stride) {
 
   switch (sizeof(Torus)) {
   case sizeof(uint32_t):
@@ -126,7 +126,7 @@ void execute_pbs_async(cudaStream_t const *streams, uint32_t const *gpu_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, base_log, level_count, num_inputs_on_gpu,
-            lut_count, lut_stride);
+            num_many_lut, lut_stride);
       }
       break;
     default:
@@ -165,7 +165,7 @@ void execute_pbs_async(cudaStream_t const *streams, uint32_t const *gpu_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, grouping_factor, base_log, level_count,
-            num_inputs_on_gpu, lut_count, lut_stride);
+            num_inputs_on_gpu, num_many_lut, lut_stride);
       }
       break;
     case CLASSICAL:
@@ -194,7 +194,7 @@ void execute_pbs_async(cudaStream_t const *streams, uint32_t const *gpu_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, base_log, level_count, num_inputs_on_gpu,
-            lut_count, lut_stride);
+            num_many_lut, lut_stride);
       }
       break;
     default:

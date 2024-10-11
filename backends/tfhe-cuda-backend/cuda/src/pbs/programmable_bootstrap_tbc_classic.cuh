@@ -45,8 +45,8 @@ __global__ void device_programmable_bootstrap_tbc(
     const double2 *__restrict__ bootstrapping_key, double2 *join_buffer,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, int8_t *device_mem,
-    uint64_t device_memory_size_per_block, bool support_dsm, uint32_t lut_count,
-    uint32_t lut_stride) {
+    uint64_t device_memory_size_per_block, bool support_dsm,
+    uint32_t num_many_lut, uint32_t lut_stride) {
 
   cluster_group cluster = this_cluster();
 
@@ -158,8 +158,8 @@ __global__ void device_programmable_bootstrap_tbc(
       // in case they're not synchronized
       sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
 
-      if (lut_count > 1) {
-        for (int i = 1; i < lut_count; i++) {
+      if (num_many_lut > 1) {
+        for (int i = 1; i < num_many_lut; i++) {
           auto next_lwe_array_out =
               lwe_array_out +
               (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
@@ -175,8 +175,8 @@ __global__ void device_programmable_bootstrap_tbc(
     } else if (blockIdx.y == glwe_dimension) {
       sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
 
-      if (lut_count > 1) {
-        for (int i = 1; i < lut_count; i++) {
+      if (num_many_lut > 1) {
+        for (int i = 1; i < num_many_lut; i++) {
 
           auto next_lwe_array_out =
               lwe_array_out +
@@ -261,7 +261,7 @@ __host__ void host_programmable_bootstrap_tbc(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t lut_count, uint32_t lut_stride) {
+    uint32_t num_many_lut, uint32_t lut_stride) {
 
   auto supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
@@ -317,7 +317,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, full_dm,
-        supports_dsm, lut_count, lut_stride));
+        supports_dsm, num_many_lut, lut_stride));
   } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
     config.dynamicSmemBytes = partial_sm + minimum_sm_tbc;
 
@@ -326,7 +326,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem,
-        partial_dm, supports_dsm, lut_count, lut_stride));
+        partial_dm, supports_dsm, num_many_lut, lut_stride));
   } else {
     config.dynamicSmemBytes = full_sm + minimum_sm_tbc;
 
@@ -335,7 +335,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, 0,
-        supports_dsm, lut_count, lut_stride));
+        supports_dsm, num_many_lut, lut_stride));
   }
 }
 

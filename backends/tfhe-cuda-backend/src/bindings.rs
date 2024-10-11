@@ -721,6 +721,32 @@ extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        requested_flag: u32,
+        uses_carry: u32,
+        allocate_gpu_memory: bool,
+    );
+}
+extern "C" {
+    pub fn scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        requested_flag: u32,
+        uses_carry: u32,
         allocate_gpu_memory: bool,
     );
 }
@@ -731,28 +757,90 @@ extern "C" {
         gpu_count: u32,
         lwe_array: *mut ffi::c_void,
         carry_out: *mut ffi::c_void,
+        carry_in: *const ffi::c_void,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
         num_blocks: u32,
+        requested_flag: u32,
+        uses_carry: u32,
     );
 }
 extern "C" {
-    pub fn cuda_propagate_single_carry_get_input_carries_kb_64_inplace(
+    pub fn cuda_add_and_propagate_single_carry_kb_64_inplace(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array: *mut ffi::c_void,
+        lhs_array: *mut ffi::c_void,
+        rhs_array: *const ffi::c_void,
         carry_out: *mut ffi::c_void,
-        input_carries: *mut ffi::c_void,
+        carry_in: *const ffi::c_void,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
         num_blocks: u32,
+        requested_flag: u32,
+        uses_carry: u32,
     );
 }
 extern "C" {
     pub fn cleanup_cuda_propagate_single_carry(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+extern "C" {
+    pub fn cleanup_cuda_add_and_propagate_single_carry(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+extern "C" {
+    pub fn scratch_cuda_integer_overflowing_sub_kb_64_inplace(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        compute_overflow: u32,
+        allocate_gpu_memory: bool,
+    );
+}
+extern "C" {
+    pub fn cuda_integer_overflowing_sub_kb_64_inplace(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lhs_array: *mut ffi::c_void,
+        rhs_array: *const ffi::c_void,
+        overflow_block: *mut ffi::c_void,
+        input_borrow: *const ffi::c_void,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        num_blocks: u32,
+        compute_overflow: u32,
+        uses_input_borrow: u32,
+    );
+}
+extern "C" {
+    pub fn cleanup_cuda_integer_overflowing_sub(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
@@ -797,51 +885,6 @@ extern "C" {
 }
 extern "C" {
     pub fn cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr_void: *mut *mut i8,
-    );
-}
-extern "C" {
-    pub fn scratch_cuda_integer_radix_overflowing_sub_kb_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
-        num_blocks: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        allocate_gpu_memory: bool,
-    );
-}
-extern "C" {
-    pub fn cuda_integer_radix_overflowing_sub_kb_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        radix_lwe_out: *mut ffi::c_void,
-        radix_lwe_overflowed: *mut ffi::c_void,
-        radix_lwe_left: *const ffi::c_void,
-        radix_lwe_right: *const ffi::c_void,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-        num_blocks_in_radix: u32,
-    );
-}
-extern "C" {
-    pub fn cleanup_cuda_integer_radix_overflowing_sub(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
@@ -936,52 +979,6 @@ extern "C" {
 }
 extern "C" {
     pub fn cleanup_cuda_integer_div_rem(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr_void: *mut *mut i8,
-    );
-}
-extern "C" {
-    pub fn scratch_cuda_signed_overflowing_add_or_sub_radix_ciphertext_kb_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
-        num_blocks: u32,
-        signed_operation: i8,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        allocate_gpu_memory: bool,
-    );
-}
-extern "C" {
-    pub fn cuda_signed_overflowing_add_or_sub_radix_ciphertext_kb_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        lhs: *mut ffi::c_void,
-        rhs: *const ffi::c_void,
-        overflowed: *mut ffi::c_void,
-        signed_operation: i8,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-        num_blocks_in_radix: u32,
-    );
-}
-extern "C" {
-    pub fn cleanup_signed_overflowing_add_or_sub(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
@@ -1384,7 +1381,7 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
-        lut_count: u32,
+        num_many_lut: u32,
         lut_stride: u32,
     );
 }
@@ -1406,7 +1403,7 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
-        lut_count: u32,
+        num_many_lut: u32,
         lut_stride: u32,
     );
 }
@@ -1469,7 +1466,7 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
-        lut_count: u32,
+        num_many_lut: u32,
         lut_stride: u32,
     );
 }

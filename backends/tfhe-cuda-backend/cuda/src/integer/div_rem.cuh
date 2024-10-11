@@ -425,11 +425,24 @@ __host__ void host_unsigned_integer_div_rem_kb(
     auto do_overflowing_sub = [&](cudaStream_t const *streams,
                                   uint32_t const *gpu_indexes,
                                   uint32_t gpu_count) {
-      host_integer_overflowing_sub_kb<Torus>(
-          streams, gpu_indexes, gpu_count, new_remainder.data,
-          subtraction_overflowed.data, merged_interesting_remainder.data,
-          interesting_divisor.data, bsks, ksks, mem_ptr->overflow_sub_mem,
+      uint32_t compute_borrow = 1;
+      uint32_t uses_input_borrow = 0;
+      auto first_indexes = mem_ptr->first_indexes_for_overflow_sub
+                               [merged_interesting_remainder.len - 1];
+      auto second_indexes = mem_ptr->second_indexes_for_overflow_sub
+                                [merged_interesting_remainder.len - 1];
+      auto scalar_indexes =
+          mem_ptr
+              ->scalars_for_overflow_sub[merged_interesting_remainder.len - 1];
+      mem_ptr->overflow_sub_mem->update_lut_indexes(
+          streams, gpu_indexes, first_indexes, second_indexes, scalar_indexes,
           merged_interesting_remainder.len);
+      host_integer_overflowing_sub<uint64_t>(
+          streams, gpu_indexes, gpu_count, new_remainder.data,
+          (uint64_t *)merged_interesting_remainder.data,
+          interesting_divisor.data, subtraction_overflowed.data,
+          (const Torus *)nullptr, mem_ptr->overflow_sub_mem, bsks, ksks,
+          merged_interesting_remainder.len, compute_borrow, uses_input_borrow);
     };
 
     // fills:
@@ -657,10 +670,12 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
         int_mem_ptr->negated_quotient, quotient, radix_params.big_lwe_dimension,
         num_blocks, radix_params.message_modulus, radix_params.carry_modulus);
 
-    host_propagate_single_carry<Torus>(int_mem_ptr->sub_streams_1, gpu_indexes,
-                                       gpu_count, int_mem_ptr->negated_quotient,
-                                       nullptr, nullptr, int_mem_ptr->scp_mem_1,
-                                       bsks, ksks, num_blocks);
+    uint32_t requested_flag = outputFlag::FLAG_NONE;
+    uint32_t uses_carry = 0;
+    host_propagate_single_carry<Torus>(
+        int_mem_ptr->sub_streams_1, gpu_indexes, gpu_count,
+        int_mem_ptr->negated_quotient, nullptr, nullptr, int_mem_ptr->scp_mem_1,
+        bsks, ksks, num_blocks, requested_flag, uses_carry);
 
     host_integer_radix_negation(int_mem_ptr->sub_streams_2, gpu_indexes,
                                 gpu_count, int_mem_ptr->negated_remainder,
@@ -671,7 +686,8 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
     host_propagate_single_carry<Torus>(
         int_mem_ptr->sub_streams_2, gpu_indexes, gpu_count,
         int_mem_ptr->negated_remainder, nullptr, nullptr,
-        int_mem_ptr->scp_mem_2, bsks, ksks, num_blocks);
+        int_mem_ptr->scp_mem_2, bsks, ksks, num_blocks, requested_flag,
+        uses_carry);
 
     host_integer_radix_cmux_kb<Torus>(
         int_mem_ptr->sub_streams_1, gpu_indexes, gpu_count, quotient,

@@ -83,6 +83,46 @@ __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index, T *output,
 }
 
 template <typename T>
+__global__ void pack_for_overflowing_ops(T *output, T const *input_1,
+                                         T const *input_2, uint32_t num_entries,
+                                         uint32_t message_modulus) {
+
+  int tid = threadIdx.x;
+  int index = blockIdx.x * blockDim.x + tid;
+  if (index < num_entries) {
+    // Here we take advantage of the wrapping behaviour of uint
+    output[index] = input_1[index] * message_modulus + input_2[index];
+  }
+}
+
+template <typename T>
+__host__ void host_pack_for_overflowing_ops(cudaStream_t stream,
+                                            uint32_t gpu_index, T *output,
+                                            T const *input_1, T const *input_2,
+                                            uint32_t input_lwe_dimension,
+                                            uint32_t input_lwe_ciphertext_count,
+                                            uint32_t message_modulus) {
+
+  cudaSetDevice(gpu_index);
+  // lwe_size includes the presence of the body
+  // whereas lwe_dimension is the number of elements in the mask
+  int lwe_size = input_lwe_dimension + 1;
+  // Create a 1-dimensional grid of threads
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  pack_for_overflowing_ops<T><<<grid, thds, 0, stream>>>(
+      &output[(input_lwe_ciphertext_count - 1) * lwe_size],
+      &input_1[(input_lwe_ciphertext_count - 1) * lwe_size],
+      &input_2[(input_lwe_ciphertext_count - 1) * lwe_size], lwe_size,
+      message_modulus);
+  check_cuda_error(cudaGetLastError());
+}
+
+template <typename T>
 __global__ void subtraction(T *output, T const *input_1, T const *input_2,
                             uint32_t num_entries) {
 
