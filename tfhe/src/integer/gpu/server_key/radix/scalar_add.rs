@@ -186,7 +186,7 @@ impl CudaServerKey {
         };
 
         self.unchecked_scalar_add_assign_async(ct, scalar, streams);
-        let _carry = self.propagate_single_carry_assign_async(ct, streams);
+        let _carry = self.new_propagate_single_carry_assign_async(ct, streams);
     }
 
     pub fn scalar_add_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
