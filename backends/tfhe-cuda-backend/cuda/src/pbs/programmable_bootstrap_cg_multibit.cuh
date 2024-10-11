@@ -32,7 +32,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         uint32_t level_count, uint32_t grouping_factor, uint32_t lwe_offset,
         uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
         int8_t *device_mem, uint64_t device_memory_size_per_block,
-        uint32_t lut_count, uint32_t lut_stride) {
+        uint32_t num_many_lut, uint32_t lut_stride) {
+
   grid_group grid = this_grid();
 
   // We use shared memory for the polynomials that are used often during the
@@ -134,8 +135,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         // default
         sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
 
-        if (lut_count > 1) {
-          for (int i = 1; i < lut_count; i++) {
+        if (num_many_lut > 1) {
+          for (int i = 1; i < num_many_lut; i++) {
             auto next_lwe_array_out =
                 lwe_array_out +
                 (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
@@ -153,8 +154,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
         sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
 
-        if (lut_count > 1) {
-          for (int i = 1; i < lut_count; i++) {
+        if (num_many_lut > 1) {
+          for (int i = 1; i < num_many_lut; i++) {
 
             auto next_lwe_array_out =
                 lwe_array_out +
@@ -293,7 +294,7 @@ __host__ void execute_cg_external_product_loop(
     Torus const *lwe_output_indexes, pbs_buffer<Torus, MULTI_BIT> *buffer,
     uint32_t num_samples, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
-    uint32_t level_count, uint32_t lwe_offset, uint32_t lut_count,
+    uint32_t level_count, uint32_t lwe_offset, uint32_t num_many_lut,
     uint32_t lut_stride) {
 
   uint64_t full_sm =
@@ -343,7 +344,7 @@ __host__ void execute_cg_external_product_loop(
   kernel_args[16] = &chunk_size;
   kernel_args[17] = &keybundle_size_per_input;
   kernel_args[18] = &d_mem;
-  kernel_args[20] = &lut_count;
+  kernel_args[20] = &num_many_lut;
   kernel_args[21] = &lut_stride;
 
   dim3 grid_accumulate(level_count, glwe_dimension + 1, num_samples);
@@ -379,7 +380,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t lut_count, uint32_t lut_stride) {
+    uint32_t num_many_lut, uint32_t lut_stride) {
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
@@ -397,7 +398,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
         stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
         num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, lwe_offset, lut_count,
+        grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
         lut_stride);
   }
 }

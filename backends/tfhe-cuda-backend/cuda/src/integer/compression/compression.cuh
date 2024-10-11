@@ -295,7 +295,7 @@ __host__ void host_integer_decompress(
   extracted_lwe = h_mem_ptr->tmp_extracted_lwe;
 
   // In the case of extracting a single LWE these parameters are dummy
-  uint32_t lut_count = 1;
+  uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
   /// dimension to a big LWE dimension
@@ -311,7 +311,7 @@ __host__ void host_integer_decompress(
         compression_params.small_lwe_dimension,
         encryption_params.polynomial_size, encryption_params.pbs_base_log,
         encryption_params.pbs_level, encryption_params.grouping_factor,
-        num_radix_blocks, encryption_params.pbs_type, lut_count, lut_stride);
+        num_radix_blocks, encryption_params.pbs_type, num_many_lut, lut_stride);
   } else {
     /// For multi GPU execution we create vectors of pointers for inputs and
     /// outputs
@@ -338,7 +338,7 @@ __host__ void host_integer_decompress(
         compression_params.small_lwe_dimension,
         encryption_params.polynomial_size, encryption_params.pbs_base_log,
         encryption_params.pbs_level, encryption_params.grouping_factor,
-        num_radix_blocks, encryption_params.pbs_type, lut_count, lut_stride);
+        num_radix_blocks, encryption_params.pbs_type, num_many_lut, lut_stride);
 
     /// Copy data back to GPU 0 and release vecs
     multi_gpu_gather_lwe_async<Torus>(

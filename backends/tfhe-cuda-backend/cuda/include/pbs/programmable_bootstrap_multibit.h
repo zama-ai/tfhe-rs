@@ -27,7 +27,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     void const *lwe_input_indexes, void const *bootstrapping_key,
     int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples, uint32_t lut_count,
+    uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
 
 void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
