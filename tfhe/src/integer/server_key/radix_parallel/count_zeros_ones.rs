@@ -236,7 +236,7 @@ impl ServerKey {
                 self.create_trivial_radix(-i64::from(max_possible_bit_count), num_signed_blocks),
             );
             let result = self
-                .unchecked_partial_sum_ciphertexts_vec_parallelized(things_to_sum)
+                .unchecked_partial_sum_ciphertexts_vec_parallelized(things_to_sum, None)
                 .expect("internal error, empty ciphertext count");
             let (message_blocks, carry_blocks) = rayon::join(
                 || {
