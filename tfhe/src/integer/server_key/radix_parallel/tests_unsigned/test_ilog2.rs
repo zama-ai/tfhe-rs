@@ -139,7 +139,10 @@ pub(crate) fn default_count_consecutive_bits_test<P, T>(
         let ct_res = executor.execute(&ctxt);
         let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+        assert_eq!(
+            ct_res, tmp,
+            "Failed determinism check, \n\n\n msg: {clear}, \n\n\nctxt: {ctxt:?}\n\n\n"
+        );
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
         let expected_result = compute_expected_clear(clear);
@@ -184,7 +187,10 @@ pub(crate) fn default_count_consecutive_bits_test<P, T>(
         let ct_res = executor.execute(&ctxt);
         let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+        assert_eq!(
+            ct_res, tmp,
+            "Failed determinism check, \n\n\n msg: {clear}, \n\n\nctxt: {ctxt:?}\n\n\n"
+        );
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
         let expected_result = compute_expected_clear(clear);
@@ -285,7 +291,10 @@ where
         let ct_res = executor.execute(&ctxt);
         let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+        assert_eq!(
+            ct_res, tmp,
+            "Failed determinism check, \n\n\n msg: {clear}, \n\n\nctxt: {ctxt:?}\n\n\n"
+        );
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
         let expected_result = clear.ilog2();
@@ -340,7 +349,10 @@ where
         let ct_res = executor.execute(&ctxt);
         let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+        assert_eq!(
+            ct_res, tmp,
+            "Failed determinism check, \n\n\n msg: {clear}, \n\n\nctxt: {ctxt:?}\n\n\n"
+        );
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
         let expected_result = clear.ilog2();
@@ -413,7 +425,10 @@ where
         let (ct_res, is_ok) = executor.execute(&ctxt);
         let (tmp, tmp_is_ok) = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+        assert_eq!(
+            ct_res, tmp,
+            "Failed determinism check, \n\n\n msg: {clear}, \n\n\nctxt: {ctxt:?}\n\n\n"
+        );
         assert_eq!(is_ok, tmp_is_ok);
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);

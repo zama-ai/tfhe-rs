@@ -78,7 +78,8 @@ where
             assert!(q.block_carries_are_empty());
             assert!(r.block_carries_are_empty());
             assert_eq!(q, q2);
-            assert_eq!(r, r2);
+            assert_eq!(q, q2, "Failed determinism check, \n\n\n msg: {clear}, scalar: {scalar}, \n\n\nctxt: {ct:?}\n\n\n");
+            assert_eq!(r, r2, "Failed determinism check, \n\n\n msg: {clear}, scalar: {scalar}, \n\n\nctxt: {ct:?}\n\n\n");
 
             let q_res: u64 = cks.decrypt(&q);
             let r_res: u64 = cks.decrypt(&r);
@@ -95,7 +96,9 @@ where
             assert!(q.block_carries_are_empty());
             assert!(r.block_carries_are_empty());
             assert_eq!(q, q2);
+            assert_eq!(q, q2, "Failed determinism check, \n\n\n msg: {clear}, scalar: {scalar}, \n\n\nctxt: {ct:?}\n\n\n");
             assert_eq!(r, r2);
+            assert_eq!(r, r2, "Failed determinism check, \n\n\n msg: {clear}, scalar: {scalar}, \n\n\nctxt: {ct:?}\n\n\n");
 
             let q_res: u64 = cks.decrypt(&q);
             let r_res: u64 = cks.decrypt(&r);
