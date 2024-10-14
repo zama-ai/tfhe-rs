@@ -22,6 +22,7 @@ import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver import Keys
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
@@ -223,7 +224,10 @@ class Driver:
             if "using deprecated parameters" in log["message"]:
                 continue
 
-            print(f"{log['level']}: {log['message']}")
+            # String pattern is `<server url> <line:col> "<log message>"`
+            # We only care for <log message> part.
+            content = log["message"].split(maxsplit=2)[-1].strip('"')
+            print(f"{log['level']}: {content}")
 
     def _threaded_logs(self):
         while not self.shutting_down:
@@ -231,7 +235,14 @@ class Driver:
             time.sleep(0.2)
 
     def refresh(self):
-        self.get_driver().refresh()
+        match self.browser_kind:
+            case BrowserKind.chrome:
+                self.get_driver().refresh()
+            case BrowserKind.firefox:
+                # Need to force refresh in Firefox to avoid script caching by web workers
+                self.get_driver().find_element(By.TAG_NAME, "body").send_keys(
+                    Keys.CONTROL + Keys.SHIFT + "R"
+                )
 
     def quit(self):
         self.shutting_down = True
