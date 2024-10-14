@@ -205,6 +205,30 @@ impl SerializationConfig {
         }
     }
 
+    /// Returns the size the object would take if serialized using the current config
+    ///
+    /// The size is returned as a u64 to handle the serialization of large buffers under 32b
+    /// architectures.
+    pub fn serialized_size<T: Serialize + Versionize + Named>(
+        &self,
+        object: &T,
+    ) -> bincode::Result<u64> {
+        let options = bincode::DefaultOptions::new().with_fixint_encoding();
+
+        let header = self.create_header::<T>();
+
+        let header_size = options.serialized_size(&header)?;
+
+        let data_size = match self.versioned {
+            SerializationVersioningMode::Versioned { .. } => {
+                options.serialized_size(&object.versionize())?
+            }
+            SerializationVersioningMode::Unversioned { .. } => options.serialized_size(&object)?,
+        };
+
+        Ok(header_size + data_size)
+    }
+
     /// Serializes an object into a [writer](std::io::Write), based on the current config.
     /// The written bytes can be deserialized using [`DeserializationConfig::deserialize_from`].
     pub fn serialize_into<T: Serialize + Versionize + Named>(
@@ -394,6 +418,11 @@ pub fn safe_serialize<T: Serialize + Versionize + Named>(
     SerializationConfig::new(serialized_size_limit).serialize_into(object, writer)
 }
 
+/// Return the size the object would take if serialized using [`safe_serialize`]
+pub fn safe_serialized_size<T: Serialize + Versionize + Named>(object: &T) -> bincode::Result<u64> {
+    SerializationConfig::new_with_unlimited_size().serialized_size(object)
+}
+
 /// Serialize an object with the default configuration (with size limit, header check and
 /// versioning). This is an alias for
 /// `DeserializationConfig::new(serialized_size_limit).disable_conformance().deserialize_from`
@@ -437,10 +466,12 @@ mod test_shortint {
 
         let mut buffer = vec![];
 
-        SerializationConfig::new(1 << 20)
-            .disable_versioning()
-            .serialize_into(&ct, &mut buffer)
-            .unwrap();
+        let config = SerializationConfig::new(1 << 20).disable_versioning();
+
+        let size = config.serialized_size(&ct).unwrap();
+        config.serialize_into(&ct, &mut buffer).unwrap();
+
+        assert_eq!(size as usize, buffer.len());
 
         assert!(DeserializationConfig::new(1 << 20)
             .deserialize_from::<Ciphertext>(
@@ -470,9 +501,12 @@ mod test_shortint {
 
         let mut buffer = vec![];
 
-        SerializationConfig::new(1 << 20)
-            .serialize_into(&ct, &mut buffer)
-            .unwrap();
+        let config = SerializationConfig::new(1 << 20);
+
+        let size = config.serialized_size(&ct).unwrap();
+        config.serialize_into(&ct, &mut buffer).unwrap();
+
+        assert_eq!(size as usize, buffer.len());
 
         assert!(DeserializationConfig::new(1 << 20,)
             .deserialize_from::<Ciphertext>(
@@ -524,10 +558,12 @@ mod test_integer {
 
         let mut buffer = vec![];
 
-        SerializationConfig::new(1 << 20)
-            .disable_versioning()
-            .serialize_into(&ct_list, &mut buffer)
-            .unwrap();
+        let config = SerializationConfig::new(1 << 20).disable_versioning();
+
+        let size = config.serialized_size(&ct_list).unwrap();
+        config.serialize_into(&ct_list, &mut buffer).unwrap();
+
+        assert_eq!(size as usize, buffer.len());
 
         let to_param_set = |list_size_constraint| CompactCiphertextListConformanceParams {
             shortint_params: PARAM_MESSAGE_2_CARRY_2_KS_PBS.to_shortint_conformance_param(),
@@ -601,9 +637,12 @@ mod test_integer {
 
         let mut buffer = vec![];
 
-        SerializationConfig::new(1 << 20)
-            .serialize_into(&ct_list, &mut buffer)
-            .unwrap();
+        let config = SerializationConfig::new(1 << 20);
+
+        let size = config.serialized_size(&ct_list).unwrap();
+        config.serialize_into(&ct_list, &mut buffer).unwrap();
+
+        assert_eq!(size as usize, buffer.len());
 
         let to_param_set = |list_size_constraint| CompactCiphertextListConformanceParams {
             shortint_params: PARAM_MESSAGE_2_CARRY_2_KS_PBS.to_shortint_conformance_param(),
