@@ -253,6 +253,7 @@ where
         let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp_ct);
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
 
         clear = signed_mul_under_modulus(clear_0, clear_1, modulus);
 

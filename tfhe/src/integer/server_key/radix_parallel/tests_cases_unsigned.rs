@@ -1327,6 +1327,7 @@ where
             res = executor.execute((&res, &ctxt_2));
             assert!(res.block_carries_are_empty());
             assert_eq!(res, tmp);
+            assert_eq!(res, tmp, "Failed determinism check, \n\n\n msg0: {clear1}, msg1: {clear2}, \n\n\nctxt0: {ctxt_1:?}, \n\n\nctxt1: {ctxt_2:?}\n\n\n");
             clear = (clear * clear2) % modulus;
         }
         let dec: u64 = cks.decrypt(&res);
