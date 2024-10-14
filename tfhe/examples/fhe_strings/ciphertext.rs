@@ -77,20 +77,18 @@ impl FheString {
         FheString::from(enc_output)
     }
 
-    /// Constructs a trivial `FheString` from a plaintext string and a [`ServerKey`].
-    ///
-    /// ## WARNING:
-    /// This only formats the value to fit the ciphertext. The result is NOT encrypted.
     pub fn trivial(server_key: &ServerKey, str: &str) -> Self {
-        let trivial = server_key
-            .trivial_encrypt_ascii(str)
-            .value()
-            .into_iter()
-            .map(|enc_char| FheAsciiChar { enc_char })
+        assert!(str.is_ascii() & !str.contains('\0'));
+
+        let enc_string: Vec<_> = str
+            .bytes()
+            .map(|char| FheAsciiChar {
+                enc_char: server_key.key().create_trivial_radix(char, 4),
+            })
             .collect();
 
         Self {
-            enc_string: trivial,
+            enc_string,
             padded: false,
         }
     }

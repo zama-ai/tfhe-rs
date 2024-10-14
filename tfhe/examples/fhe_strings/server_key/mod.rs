@@ -35,27 +35,6 @@ impl ServerKey {
     pub fn key(&self) -> &FheServerKey {
         &self.key
     }
-
-    pub fn trivial_encrypt_ascii(&self, str: &str) -> TrivialEncryptOutput {
-        assert!(str.is_ascii() & !str.contains('\0'));
-
-        let enc_chars: Vec<_> = str
-            .bytes()
-            .map(|char| self.key.create_trivial_radix(char, 4))
-            .collect();
-
-        TrivialEncryptOutput { output: enc_chars }
-    }
-}
-
-pub struct TrivialEncryptOutput {
-    output: Vec<RadixCiphertext>,
-}
-
-impl TrivialEncryptOutput {
-    pub fn value(self) -> Vec<RadixCiphertext> {
-        self.output
-    }
 }
 
 // With no padding, the length is just the vector's length (clear result). With padding it requires
