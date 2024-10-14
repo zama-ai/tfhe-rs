@@ -108,12 +108,13 @@ where
         + FheDecrypt<Vec<Clear>>
         + BitOr<Array, Output = Array>
         + for<'a> BitOr<&'a Array, Output = Array>,
-    for<'a> &'a Array: BitOr<Array, Output = Array> + BitOr<&'a Array, Output = Array>,
+    for<'a> &'a Array: BitOr<Array, Output = Array>
+        + BitOr<&'a Array, Output = Array>
+        + BitOr<Array::Slice<'a>, Output = Array>,
     // Bounds for slicing tests
     for<'a, 'b> Array::Slice<'a>: BitOr<Array::Slice<'a>, Output = Array>,
     // for the 2 tested slice/array ops
     for<'a, 'b> Array::Slice<'a>: BitOr<&'b Array, Output = Array>,
-    for<'a, 'b> &'b Array: BitOr<Array::Slice<'a>, Output = Array>,
 {
     let num_values = 5;
     let clear_lhs = draw_random_values::<Clear>(num_values);
