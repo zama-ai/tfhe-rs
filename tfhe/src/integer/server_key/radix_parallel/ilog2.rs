@@ -286,7 +286,7 @@ impl ServerKey {
         );
 
         let result = self
-            .unchecked_partial_sum_ciphertexts_vec_parallelized(cts)
+            .unchecked_partial_sum_ciphertexts_vec_parallelized(cts, None)
             .expect("internal error, empty ciphertext count");
 
         // This is the part where we extract message and carry blocks
