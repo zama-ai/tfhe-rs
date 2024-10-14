@@ -719,19 +719,19 @@ pub(crate) fn signed_neg_under_modulus(lhs: i64, modulus: i64) -> i64 {
 // This is to 'simulate' i8, i16, ixy using i64 integers
 //
 // lhs and rhs must be in [-modulus..modulus[
-pub(crate) fn signed_sub_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> i64 {
+pub(crate) fn signed_sub_under_modulus<T: SignedInteger>(lhs: T, rhs: T, modulus: T) -> T {
     signed_overflowing_sub_under_modulus(lhs, rhs, modulus).0
 }
 
-pub(crate) fn signed_overflowing_sub_under_modulus(
-    lhs: i64,
-    rhs: i64,
-    modulus: i64,
-) -> (i64, bool) {
+pub(crate) fn signed_overflowing_sub_under_modulus<T: SignedInteger>(
+    lhs: T,
+    rhs: T,
+    modulus: T,
+) -> (T, bool) {
     // Technically we should be able to call overflowing_add_under_modulus(lhs, -rhs, ...)
     // but due to -rhs being a 'special case' when rhs == -modulus, we have to
     // so the impl here
-    assert!(modulus > 0);
+    assert!(modulus > T::ZERO);
     assert!((-modulus..modulus).contains(&lhs));
 
     // The code below requires rhs and lhs to be in range -modulus..modulus
@@ -741,14 +741,14 @@ pub(crate) fn signed_overflowing_sub_under_modulus(
         (lhs - rhs, false)
     } else {
         // 2*modulus to get all the bits
-        (lhs - (rhs % (2 * modulus)), true)
+        (lhs - (rhs % (T::TWO * modulus)), true)
     };
 
     if res < -modulus {
         // rem_euclid(modulus) would also work
         res = modulus + (res - -modulus);
         overflowed = true;
-    } else if res > modulus - 1 {
+    } else if res > modulus - T::ONE {
         res = -modulus + (res - modulus);
         overflowed = true;
     }

@@ -21,7 +21,9 @@ use std::sync::Arc;
 create_parametrized_test!(integer_signed_unchecked_sub);
 create_parametrized_test!(integer_signed_unchecked_overflowing_sub);
 create_parametrized_test!(integer_signed_default_sub);
+create_parametrized_test!(integer_extensive_trivial_signed_default_sub);
 create_parametrized_test!(integer_signed_default_overflowing_sub);
+create_parametrized_test!(integer_extensive_trivial_signed_default_overflowing_sub);
 
 fn integer_signed_unchecked_sub<P>(param: P)
 where
@@ -47,6 +49,22 @@ where
     signed_default_sub_test(param, executor);
 }
 
+fn integer_extensive_trivial_signed_default_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
+    extensive_trivial_signed_default_sub_test(param, executor);
+}
+
+fn integer_extensive_trivial_signed_default_overflowing_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::signed_overflowing_sub_parallelized);
+    extensive_trivial_signed_default_overflowing_sub_test(param, executor);
+}
+
 fn integer_signed_default_overflowing_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -54,6 +72,7 @@ where
     let executor = CpuFunctionExecutor::new(&ServerKey::signed_overflowing_sub_parallelized);
     signed_default_overflowing_sub_test(param, executor);
 }
+
 pub(crate) fn signed_default_overflowing_sub_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
@@ -299,6 +318,63 @@ where
     }
 }
 
+/// Although this uses the executor pattern and could be plugged in other backends,
+/// It is not recommended to do so unless the backend is extremely fast on trivial ciphertexts
+/// or extremely extremely fast in general, or if its plugged just as a one time thing.
+pub(crate) fn extensive_trivial_signed_default_overflowing_sub_test<P, T>(
+    param: P,
+    mut overflowing_sub_executor: T,
+) where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        (SignedRadixCiphertext, BooleanBlock),
+    >,
+{
+    let param = param.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    overflowing_sub_executor.setup(&cks, sks.clone());
+
+    let message_modulus = cks.parameters().message_modulus();
+    let block_num_bits = message_modulus.0.ilog2();
+    for bit_size in 2..=64u32 {
+        let num_blocks = bit_size.div_ceil(block_num_bits);
+        let modulus = (cks.parameters().message_modulus().0 as i128).pow(num_blocks) / 2;
+
+        for _ in 0..50 {
+            let clear_0 = rng.gen::<i128>() % modulus;
+            let clear_1 = rng.gen::<i128>() % modulus;
+
+            let ctxt_0 = sks.create_trivial_radix(clear_0, num_blocks as usize);
+            let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);
+
+            let (ct_res, ct_overflow) = overflowing_sub_executor.execute((&ctxt_0, &ctxt_1));
+            let dec_res: i128 = cks.decrypt_signed(&ct_res);
+            let dec_overflow = cks.decrypt_bool(&ct_overflow);
+
+            let (expected_clear, expected_overflow) =
+                signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+            assert_eq!(
+                expected_clear, dec_res,
+                "Invalid result for {clear_0} + {clear_1}, expected: {expected_clear}, got: {dec_res}\n\
+                    num_blocks={num_blocks}, modulus={modulus}"
+            );
+            assert_eq!(
+                expected_overflow, dec_overflow,
+                "Invalid overflow result for {clear_0} + {clear_1}, expected: {expected_overflow}, got: {dec_overflow}\n\
+                    num_blocks={num_blocks}, modulus={modulus}"
+            );
+        }
+    }
+}
+
 pub(crate) fn signed_unchecked_sub_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
@@ -397,6 +473,54 @@ where
 
             // println!("clear = {}, dec_res = {}", clear, dec_res);
             assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+/// Although this uses the executor pattern and could be plugged in other backends,
+/// It is not recommended to do so unless the backend is extremely fast on trivial ciphertexts
+/// or extremely extremely fast in general, or if its plugged just as a one time thing.
+pub(crate) fn extensive_trivial_signed_default_sub_test<P, T>(param: P, mut sub_executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let param = param.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    sub_executor.setup(&cks, sks.clone());
+
+    let message_modulus = cks.parameters().message_modulus();
+    let block_num_bits = message_modulus.0.ilog2();
+    for bit_size in 2..=64u32 {
+        let num_blocks = bit_size.div_ceil(block_num_bits);
+        let modulus = (cks.parameters().message_modulus().0 as i128).pow(num_blocks) / 2;
+
+        for _ in 0..50 {
+            let clear_0 = rng.gen::<i128>() % modulus;
+            let clear_1 = rng.gen::<i128>() % modulus;
+
+            let ctxt_0 = sks.create_trivial_radix(clear_0, num_blocks as usize);
+            let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);
+
+            let ct_res = sub_executor.execute((&ctxt_0, &ctxt_1));
+            let dec_res: i128 = cks.decrypt_signed(&ct_res);
+
+            let expected_clear = signed_sub_under_modulus(clear_0, clear_1, modulus);
+            assert_eq!(
+                expected_clear, dec_res,
+                "Invalid result for {clear_0} - {clear_1}, expected: {expected_clear}, got: {dec_res}\n\
+                    num_blocks={num_blocks}, modulus={modulus}"
+            );
         }
     }
 }

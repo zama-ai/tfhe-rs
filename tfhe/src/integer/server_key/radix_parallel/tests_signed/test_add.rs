@@ -451,10 +451,7 @@ where
 
     let message_modulus = cks.parameters().message_modulus();
     let block_num_bits = message_modulus.0.ilog2();
-    // Contrary to regular add, we do bit_size every block num_bits,
-    // otherwise the bit_size actually encrypted is not exactly the same
-    // leading to false test overflow results.
-    for bit_size in (2..=64u32).step_by(block_num_bits as usize) {
+    for bit_size in 2..=64u32 {
         let num_blocks = bit_size.div_ceil(block_num_bits);
         let modulus = (cks.parameters().message_modulus().0 as i128).pow(num_blocks) / 2;
 
