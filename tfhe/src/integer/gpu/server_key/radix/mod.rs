@@ -976,8 +976,8 @@ impl CudaServerKey {
     ///     // Generate the lookup table for the functions
     ///     // f1: x -> x*x mod 4
     ///     // f2: x -> count_ones(x as binary) mod 4
-    ///     let f1 = |x: u64| x.pow(2) % 4;
-    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
+    ///     let f1 = |x: u64| x.pow(2) % 8;
+    ///     let f2 = |x: u64| x.count_ones() as u64 % 8;
     ///     // Easy to use for generation
     ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
     ///     let vec_res = unsafe { sks.apply_many_lookup_table_async(&d_ct.as_ref(), &luts, &stream) };

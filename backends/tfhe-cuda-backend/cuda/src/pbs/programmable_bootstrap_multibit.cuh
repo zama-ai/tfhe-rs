@@ -330,9 +330,9 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         for (int i = 1; i < lut_count; i++) {
           auto next_lwe_array_out =
               lwe_array_out +
-              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
           auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
                                       (glwe_dimension * polynomial_size + 1) +
                                   blockIdx.y * polynomial_size];
 
@@ -347,9 +347,9 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
           auto next_lwe_array_out =
               lwe_array_out +
-              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
           auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
                                       (glwe_dimension * polynomial_size + 1) +
                                   blockIdx.y * polynomial_size];
 
