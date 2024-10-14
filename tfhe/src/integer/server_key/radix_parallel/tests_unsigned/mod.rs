@@ -150,11 +150,11 @@ pub(crate) fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u
     (rotated & mask) | ((rotated & shifted_mask) >> (u64::BITS - actual_bit_size))
 }
 
-pub(crate) fn overflowing_sub_under_modulus(lhs: u64, rhs: u64, modulus: u64) -> (u64, bool) {
-    assert!(
-        !(modulus.is_power_of_two() && (modulus - 1).overflowing_mul(2).1),
-        "If modulus is not a power of two, then  must not overflow u64"
-    );
+pub(crate) fn overflowing_sub_under_modulus<T: UnsignedInteger>(
+    lhs: T,
+    rhs: T,
+    modulus: T,
+) -> (T, bool) {
     let (result, overflowed) = lhs.overflowing_sub(rhs);
     (result % modulus, overflowed)
 }
