@@ -3,9 +3,6 @@ mod cmd;
 mod config;
 mod device;
 mod memory;
-#[cfg(not(feature = "utils"))]
-pub(crate) mod rtl;
-#[cfg(feature = "utils")]
 pub mod rtl;
 mod variable;
 
@@ -16,7 +13,7 @@ use thiserror::Error;
 
 // Publicly export some types
 pub const ACKQ_EMPTY: u32 = 0xdeadc0de;
-pub use config::{FFIMode, FpgaConfig, HpuConfig, HpuSimParameters};
+pub use config::{FFIMode, HpuConfig};
 pub use device::HpuDevice;
 pub use variable::HpuVarWrapped;
 

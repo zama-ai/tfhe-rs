@@ -1,7 +1,7 @@
 //!
 //! Structure used to handle memory associated with Bsk/Ksk
-//! Huge memory are composed of multiple cut. Furthermore, each cut is allocated on a set of fix-size buffer.
-//! This is to mitigate a limitation of XRT memory allocation.
+//! Huge memory are composed of multiple cut. Furthermore, each cut is allocated on a set of
+//! fix-size buffer. This is to mitigate a limitation of XRT memory allocation.
 
 use crate::ffi;
 
@@ -36,8 +36,8 @@ impl<T: Sized> std::fmt::Debug for HugeMemory<T> {
 
 impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
     /// This function allocate a set of memzone to store HugeMemory block
-    /// HugeMemory block is spread over multiple Hbm cut. Furthermore, due to size and XRT limitation
-    /// each cut is split on multiple buffer of 16MiB.
+    /// HugeMemory block is spread over multiple Hbm cut. Furthermore, due to size and XRT
+    /// limitation each cut is split on multiple buffer of 16MiB.
     /// We allocate 16MiB buffer only ( the last one isn't shrinked to fit the required memory size)
     #[tracing::instrument(level = "trace", skip(ffi_hw), ret)]
     pub fn alloc(ffi_hw: &mut ffi::HpuHw, props: HugeMemoryProperties) -> Self {

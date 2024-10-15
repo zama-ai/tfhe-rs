@@ -15,19 +15,8 @@ pub enum FFIMode {
         xclbin: String,
     },
     Sim {
-        rtl: crate::entities::HpuParameters,
-        sim: HpuSimParameters,
+        ipc_name: String,
     },
-}
-
-/// Configuration dedicated to simulation ffi backend
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct HpuSimParameters {
-    pub register: usize,
-    pub isc_depth: usize,
-    pub alu_cfg: String,
-    #[allow(non_snake_case)]
-    pub freq_MHz: usize,
 }
 
 /// Configuration of targeted Fpga
