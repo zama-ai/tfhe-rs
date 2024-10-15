@@ -544,7 +544,7 @@ impl ServerKey {
                 } else {
                     // u64::MAX is -1 in tow's complement
                     // We apply the modulus including the padding bit
-                    u64::MAX % (1 << (block_modulus + 1))
+                    u64::MAX % (block_modulus * 2)
                 }
             })]
         };

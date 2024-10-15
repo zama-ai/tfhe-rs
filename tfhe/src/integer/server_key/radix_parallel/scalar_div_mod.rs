@@ -42,6 +42,8 @@ pub trait MiniUnsignedInteger:
     fn ilog2(self) -> u32;
 
     fn is_power_of_two(self) -> bool;
+
+    fn wrapping_sub(self, other: Self) -> Self;
 }
 
 impl<T> MiniUnsignedInteger for T
@@ -59,6 +61,10 @@ where
     fn is_power_of_two(self) -> bool {
         <T as UnsignedInteger>::is_power_of_two(self)
     }
+
+    fn wrapping_sub(self, other: Self) -> Self {
+        <T as UnsignedInteger>::wrapping_sub(self, other)
+    }
 }
 
 impl<const N: usize> MiniUnsignedInteger for StaticUnsignedBigInt<N> {
@@ -72,6 +78,10 @@ impl<const N: usize> MiniUnsignedInteger for StaticUnsignedBigInt<N> {
 
     fn is_power_of_two(self) -> bool {
         self.is_power_of_two()
+    }
+
+    fn wrapping_sub(self, other: Self) -> Self {
+        self.wrapping_sub(other)
     }
 }
 
@@ -496,8 +506,9 @@ impl ServerKey {
                     // The subtraction may overflow.
                     // We then cast the result to a signed type.
                     // Overall, this will work fine due to two's complement representation
-                    let cst = chosen_multiplier.multiplier
-                        - (<T::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
+                    let cst = chosen_multiplier.multiplier.wrapping_sub(
+                        <T::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits,
+                    );
                     let cst = T::DoublePrecision::cast_from(cst);
 
                     // MULSH(m - 2^N, n)

@@ -143,20 +143,20 @@ pub(crate) fn bitxor_assign(lhs: &mut [u64], rhs: &[u64]) {
 }
 
 #[inline(always)]
-pub(crate) fn add_with_carry<T: UnsignedInteger>(l: T, r: T, c: bool) -> (T, bool) {
+pub(crate) fn wrapping_add_with_carry<T: UnsignedInteger>(l: T, r: T, c: bool) -> (T, bool) {
     let (lr, o0) = l.overflowing_add(r);
     let (lrc, o1) = lr.overflowing_add(T::cast_from(c));
     (lrc, o0 | o1)
 }
 
-pub(crate) fn add_assign_words<T: UnsignedInteger>(lhs: &mut [T], rhs: &[T]) {
+pub(crate) fn wrapping_add_assign_words<T: UnsignedInteger>(lhs: &mut [T], rhs: &[T]) {
     let iter = lhs
         .iter_mut()
         .zip(rhs.iter().copied().chain(std::iter::repeat(T::ZERO)));
 
     let mut carry = false;
     for (lhs_block, rhs_block) in iter {
-        let (result, out_carry) = add_with_carry(*lhs_block, rhs_block, carry);
+        let (result, out_carry) = wrapping_add_with_carry(*lhs_block, rhs_block, carry);
         *lhs_block = result;
         carry = out_carry;
     }
@@ -188,7 +188,7 @@ pub(crate) fn schoolbook_mul_assign(lhs: &mut [u64], rhs: &[u64]) {
 
     let mut result = terms.pop().unwrap();
     for term in terms {
-        add_assign_words(&mut result, &term);
+        wrapping_add_assign_words(&mut result, &term);
     }
 
     for (lhs_block, result_block) in lhs.iter_mut().zip(result) {

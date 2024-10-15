@@ -264,13 +264,13 @@ fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
         // add the two ciphertexts
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
 
-        let mut clear_result = clear_0 + clear_1;
+        let mut clear_result = clear_0.wrapping_add(clear_1);
 
         // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
         //add multiple times to raise the degree
         for _ in 0..2 {
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
-            clear_result += clear_0;
+            clear_result = clear_result.wrapping_add(clear_0);
 
             let dec_res: u128 = cks.decrypt_radix(&ct_res);
             // println!("clear = {}, dec_res = {}", clear, dec_res);
@@ -629,7 +629,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
     let ct_res = sks.unchecked_scalar_add(&ct_0, scalar);
     let dec_res = cks.decrypt_radix(&ct_res);
 
-    assert_eq!((clear_0 + scalar as u128), dec_res);
+    assert_eq!(clear_0.wrapping_add(scalar as u128), dec_res);
 
     // Check subtraction
     // -----------------
@@ -640,7 +640,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
     let ct_res = sks.unchecked_scalar_sub(&ct_0, scalar);
     let dec_res = cks.decrypt_radix(&ct_res);
 
-    assert_eq!((clear_0 - scalar as u128), dec_res);
+    assert_eq!(clear_0.wrapping_sub(scalar as u128), dec_res);
 }
 
 #[test]
@@ -666,7 +666,7 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
     let ct_res = sks.smart_scalar_mul(&mut ct_0, scalar);
     let dec_res = cks.decrypt_radix(&ct_res);
 
-    assert_eq!((clear_0 * scalar as u128), dec_res);
+    assert_eq!(clear_0.wrapping_mul(scalar as u128), dec_res);
 }
 
 fn integer_default_overflowing_sub<P>(param: P)
@@ -696,6 +696,9 @@ fn integer_create_trivial_min_max(param: impl Into<PBSParameters>) {
         // If num_bits_in_one_block is not a multiple of bit_size, then
         // the actual number of bits is not the same as bit size (we end up with more)
         let actual_num_bits = num_blocks * num_bits_in_one_block;
+        if actual_num_bits >= i128::BITS {
+            break;
+        }
 
         // Unsigned
         {

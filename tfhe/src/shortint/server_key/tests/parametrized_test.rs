@@ -1150,7 +1150,7 @@ where
 
         let dec_res = cks.decrypt(&ct_res);
 
-        assert_eq!((clear - scalar) % message_modulus, dec_res as u8);
+        assert_eq!(clear.wrapping_sub(scalar) % message_modulus, dec_res as u8);
     }
 }
 
@@ -1174,11 +1174,11 @@ where
 
         let mut ct_res = sks.smart_scalar_sub(&mut ctxt_0, clear_1);
 
-        let mut clear = (clear_0 - clear_1) % modulus;
+        let mut clear = clear_0.wrapping_sub(clear_1) % modulus;
 
         for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_scalar_sub(&mut ct_res, clear_1);
-            clear = (clear - clear_1) % modulus;
+            clear = clear.wrapping_sub(clear_1) % modulus;
 
             let dec_res = cks.decrypt(&ct_res);
 
@@ -1427,7 +1427,7 @@ where
 
         let dec = cks.decrypt(&ct_tmp);
 
-        let clear_result = (clear1 - clear2) % modulus;
+        let clear_result = clear1.wrapping_sub(clear2) % modulus;
         assert_eq!(clear_result, dec % modulus);
     }
 }
@@ -1452,10 +1452,10 @@ where
 
         let mut ct_res = sks.smart_sub(&mut ct1, &mut ct2);
 
-        let mut clear_res = (clear1 - clear2) % modulus;
+        let mut clear_res = clear1.wrapping_sub(clear2) % modulus;
         for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_sub(&mut ct_res, &mut ct2);
-            clear_res = (clear_res - clear2) % modulus;
+            clear_res = clear_res.wrapping_sub(clear2) % modulus;
         }
 
         let dec_res = cks.decrypt(&ct_res);
@@ -1625,7 +1625,7 @@ where
 
     let dec_res = cks.decrypt(&res);
 
-    let clear_mux = (msg_true - msg_false) * control_bit + msg_false;
+    let clear_mux = (msg_true.wrapping_sub(msg_false) * control_bit).wrapping_add(msg_false);
     println!("(msg_true - msg_false) * control_bit  + msg_false = {clear_mux}, res = {dec_res}");
     assert_eq!(clear_mux, dec_res);
 }
