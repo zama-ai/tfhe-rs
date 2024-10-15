@@ -111,7 +111,7 @@ impl HbmBank {
         self.chunk.get(&addr).unwrap()
     }
 
-    pub(crate) fn get_chunk_mut(&mut self, addr: u64) -> &mut HbmChunk {
+    pub(crate) fn get_mut_chunk(&mut self, addr: u64) -> &mut HbmChunk {
         self.chunk.get_mut(&addr).unwrap()
     }
 

@@ -22,8 +22,8 @@ pub const ARG_MIN_WIDTH: usize = 16;
 /// TODO rework this comment
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MemSlot {
-    pub(crate) bid: usize,
-    pub(crate) cid_ofst: usize,
+    pub bid: usize,
+    pub cid_ofst: usize,
     pub(crate) mode: MemMode,
     pub(crate) orig: Option<MemOrigin>,
 }

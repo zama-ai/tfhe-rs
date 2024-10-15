@@ -210,10 +210,10 @@ impl HpuBackend {
         // Cut are 4k aligned -> One cut match with page boundary but the second one (with body
         // extra coefs) crossed it => Use an extra page in both to have same addr incr (and
         // match Rtl behavior)
-        let cut_size_b = (hpu_big_lwe_ciphertext_size(&params).div_ceil(params.pc_params.pem_pc)
-            * std::mem::size_of::<u64>())
-        .div_ceil(memory::MEM_PAGE_SIZE_B)
-            * memory::MEM_PAGE_SIZE_B;
+        let cut_size_b = memory::page_align(
+            hpu_big_lwe_ciphertext_size(&params).div_ceil(params.pc_params.pem_pc)
+                * std::mem::size_of::<u64>(),
+        );
         let ct_banks = (0..config::HPU_MEM_BANK_NB)
             .map(|bid| memory::CiphertextMemoryProperties {
                 bank: bid,
