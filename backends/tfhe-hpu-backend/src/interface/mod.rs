@@ -15,6 +15,7 @@ use thiserror::Error;
 pub const ACKQ_EMPTY: u32 = 0xdeadc0de;
 pub use config::{FFIMode, HpuConfig};
 pub use device::HpuDevice;
+pub use memory::page_align;
 pub use variable::HpuVarWrapped;
 
 /// Common error type reported by Hpu

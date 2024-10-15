@@ -1,6 +1,7 @@
 //! Module containing the definition of the HpuLweCiphertext.
 //! Raw typed container without any logic
-//! Conversion from/into tfhers entities should be implemented inside tfhers to prevent dependency loop
+//! Conversion from/into tfhers entities should be implemented inside tfhers to prevent dependency
+//! loop
 
 use super::parameters::*;
 use super::traits::container::*;
@@ -26,7 +27,8 @@ impl<C: ContainerMut> AsMut<[C::Element]> for HpuLweCiphertext<C> {
 
 #[allow(unused)]
 // NB: HPU only handle Big Lwe over it's boundaries
-// Indeed only the Big encryption key-choice is supported and the small lwe stay inside the chip (never reach the host)
+// Indeed only the Big encryption key-choice is supported and the small lwe stay inside the chip
+// (never reach the host)
 pub fn hpu_small_lwe_ciphertext_size(params: &HpuParameters) -> usize {
     params.pbs_params.lwe_dimension + 1
 }
@@ -118,22 +120,26 @@ impl<T: std::clone::Clone, C: Container<Element = T>> HpuLweCiphertext<C> {
 
 impl<T: std::clone::Clone, C: ContainerMut<Element = T>> HpuLweCiphertext<C> {
     /// Filled HpuLweCiphertext from hw_slice view
-    pub fn copy_from_hw_slice(&mut self, hw_slice: &[T]) {
+    pub fn copy_from_hw_slice(&mut self, hw_slice: &[&[T]]) {
         // Infer params from args
         let regf_p = &self.params.regf_params;
         let nb_pc = self.params.pc_params.pem_pc;
 
         match nb_pc {
             1 => {
-                self.data.as_mut().clone_from_slice(hw_slice);
+                self.data.as_mut().clone_from_slice(hw_slice[0]);
             }
             2 => {
-                let (cut_0, cut_1) = hw_slice.split_at(hw_slice.len().div_euclid(2) + 1);
-
                 let mut pos = 0;
+                println!(
+                    "s[0] -> {}, s[1] -> {}, d -> {}",
+                    hw_slice[0].len(),
+                    hw_slice[1].len(),
+                    self.data.as_ref().len(),
+                );
                 std::iter::zip(
-                    cut_0.chunks(regf_p.coef_nb / nb_pc),
-                    cut_1.chunks(regf_p.coef_nb / nb_pc),
+                    hw_slice[0].chunks_exact(regf_p.coef_nb / nb_pc),
+                    hw_slice[1].chunks_exact(regf_p.coef_nb / nb_pc),
                 )
                 .for_each(|(chunk_a, chunk_b)| {
                     for a in chunk_a {
@@ -146,7 +152,7 @@ impl<T: std::clone::Clone, C: ContainerMut<Element = T>> HpuLweCiphertext<C> {
                     }
                 });
                 // copy body
-                self.data.as_mut()[pos] = cut_0.last().unwrap().clone();
+                self.data.as_mut()[pos] = hw_slice[0].last().unwrap().clone();
             }
             _ => panic!("Current implementation only work with up to two slices"),
         }

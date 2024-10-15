@@ -1,8 +1,7 @@
+use lwe_ciphertext::HpuLweCiphertext;
 use std::array::from_fn;
 use std::sync::mpsc;
 use strum::IntoEnumIterator;
-
-use hw_regmap::FlatRegmap;
 
 mod ipc;
 use ipc::Ipc;
@@ -23,7 +22,10 @@ pub struct HpuSim {
     ipc: Ipc,
     regmap: RegisterMap,
 
+    /// On-board memory
     hbm_bank: [HbmBank; HBM_BANK_NB],
+    /// On-chip regfile
+    regfile: Vec<HpuLweCiphertextOwned<u64>>,
 
     // WorkAckq interface -----------------------------------------------------
     workq_rx: mpsc::Receiver<u32>,
@@ -55,10 +57,10 @@ impl HpuSim {
         // Allocate on-board memory emulation
         let hbm_bank: [HbmBank; HBM_BANK_NB] = from_fn(|i| HbmBank::new(i));
 
-        // // Allocate inner regfile and lock abstraction
-        // let regfile = (0..params.isc_sim_params.register)
-        //     .map(|_| T::default())
-        //     .collect::<Vec<_>>();
+        // Allocate inner regfile and lock abstraction
+        let regfile = (0..params.isc_sim_params.register)
+            .map(|_| HpuLweCiphertextOwned::new(0, params.rtl_params.clone()))
+            .collect::<Vec<_>>();
 
         Self {
             config,
@@ -66,6 +68,7 @@ impl HpuSim {
             ipc,
             regmap,
             hbm_bank,
+            regfile,
             workq_rx,
             ackq_tx,
             workq_stream: Vec::new(),
@@ -100,7 +103,7 @@ impl HpuSim {
                         // Triggered Sync event in the inner bank
                         // NB: Sync has no ack over Memory channel, instead rely on raw data ipc to
                         // synced
-                        self.hbm_bank[hbm_pc].get_chunk_mut(addr).sync(mode);
+                        self.hbm_bank[hbm_pc].get_mut_chunk(addr).sync(mode);
                     }
                     MemoryReq::Release { hbm_pc, addr } => {
                         self.hbm_bank[hbm_pc].rm_chunk(addr);
@@ -146,33 +149,63 @@ impl HpuSim {
         for dop in dops {
             // Read operands
             match dop {
-                // asm::DOp::LD(op_impl) => {
-                //     let mut dst = &mut self.regfile[op_impl.dst];
-                //     let asm::MemSlot{ bid, cid_ofst,..} = op_impl.src;
-                //     // TODO error on meaning of ct_pc
-                //     let ct_bank = &self.hbm_bank[self.config.board.ct_pc[bid]];
-                //     let ct_ofst = cid_ofst * hpu_big_lwe_ciphertext_size(&self.rtl_params); //
-                // TODO fixme use correct ct_size => alignement     let ct_chunk =
-                // ct_bank.get_chunk(ct_ofst);
+                asm::DOp::LD(op_impl) => {
+                    let mut dst = &mut self.regfile[op_impl.dst];
+                    let asm::MemSlot { bid, cid_ofst, .. } = op_impl.src;
 
-                //     dst.load(&ct_chunk.hw_view());
-                // },
-                // asm::DOp::TLDA(_) |
-                // asm::DOp::TLDB(_) |
-                // asm::DOp::TLDH(_) => panic!("Templated operation mustn't reach the Hpu execution
-                // unit. Check ucore translation"),
+                    let ct_ofst = cid_ofst
+                        * page_align(
+                            hpu_big_lwe_ciphertext_size(&self.params.rtl_params)
+                                .div_ceil(self.params.rtl_params.pc_params.pem_pc)
+                                * std::mem::size_of::<u64>(),
+                        );
+                    let ct_chunk = self
+                        .config
+                        .board
+                        .ct_pc
+                        .iter()
+                        .map(|pc| self.hbm_bank[*pc].get_chunk(ct_ofst as u64))
+                        .collect::<Vec<_>>();
 
-                // asm::DOp::ST(op_impl) => {
-                //     let src = & self.regfile[op_impl.src];
-                //     let asm::MemSlot{ bid, cid_ofst,..} = op_impl.dst;
-                //     let ct_bank = &self.hbm_bank[self.config.board.ct_pc[bid]];
-                //     let ct_ofst = cid_ofst * hpu_big_lwe_ciphertext_size(&self.rtl_params); //
-                // TODO fixme use correct ct_size => alignement     let ct_chunk =
-                // ct_bank.get_chunk(ct_ofst);     src.store(&mut
-                // ct_chunk.hw_view()); },
-                // asm::DOp::TSTD(_) |
-                // asm::DOp::TSTH(_) => panic!("Templated operation mustn't reach the Hpu execution
-                // unit. Check ucore translation"),
+                    let ct_slice_u64 = ct_chunk
+                        .iter()
+                        .map(|chunk| {
+                            bytemuck::cast_slice::<u8, u64>(&chunk.data.as_slice()[0..8 * 1025])
+                        })
+                        .collect::<Vec<_>>();
+
+                    dst.copy_from_hw_slice(ct_slice_u64.as_slice());
+                }
+                asm::DOp::TLDA(_) | asm::DOp::TLDB(_) | asm::DOp::TLDH(_) => panic!(
+                    "Templated operation mustn't reach the Hpu execution
+                unit. Check ucore translation"
+                ),
+
+                asm::DOp::ST(op_impl) => {
+                    let src = &self.regfile[op_impl.src];
+                    let asm::MemSlot { bid, cid_ofst, .. } = op_impl.dst;
+
+                    let ct_ofst = cid_ofst
+                        * page_align(
+                            hpu_big_lwe_ciphertext_size(&self.params.rtl_params)
+                                .div_ceil(self.params.rtl_params.pc_params.pem_pc)
+                                * std::mem::size_of::<u64>(),
+                        );
+                    for (i, slice) in src.hw_slice().iter().enumerate() {
+                        let ct_chunk =
+                            self.hbm_bank[self.config.board.ct_pc[i]].get_mut_chunk(ct_ofst as u64);
+
+                        let ct_chunk_u64 = bytemuck::cast_slice_mut::<u8, u64>(
+                            &mut ct_chunk.data.as_mut_slice()[0..8 * 1025],
+                        );
+                        println!("@{i} -> {}", slice.len());
+                        // ct_chunk_u64.copy_from_slice(slice.as_slice());
+                    }
+                }
+                asm::DOp::TSTD(_) | asm::DOp::TSTH(_) => panic!(
+                    "Templated operation mustn't reach the Hpu execution
+                unit. Check ucore translation"
+                ),
 
                 // asm::DOp::ADD(op_impl) => {
                 //     let (dst, a, b) = self.get_3regs(op_impl.dst, op_impl.src.0, op_impl.src.1);
