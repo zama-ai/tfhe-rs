@@ -881,8 +881,8 @@ impl ServerKey {
         let block_states = {
             for i in 1..grouping_size {
                 let state_fn = |block| {
-                    let r = (u64::MAX * u64::from(block != 0)) % (packed_modulus * 2);
-                    r << (i - 1)
+                    let r = u64::MAX * u64::from(block != 0);
+                    (r << (i - 1)) % (packed_modulus * 2)
                 };
                 first_grouping_luts.push(self.key.generate_lookup_table(state_fn));
             }
@@ -890,8 +890,8 @@ impl ServerKey {
             let other_block_state_luts = (0..grouping_size)
                 .map(|i| {
                     let state_fn = |block| {
-                        let r = (u64::MAX * u64::from(block != 0)) % (packed_modulus * 2);
-                        r << i
+                        let r = u64::MAX * u64::from(block != 0);
+                        (r << i) % (packed_modulus * 2)
                     };
                     self.key.generate_lookup_table(state_fn)
                 })

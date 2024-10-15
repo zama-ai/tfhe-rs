@@ -1215,12 +1215,12 @@ where
         let mut ctxt_0 = cks.encrypt(clear_0);
 
         let mut ct_res = executor.execute((&mut ctxt_0, clear_1));
-        clear = (clear_0 - clear_1) % modulus;
+        clear = clear_0.wrapping_sub(clear_1) % modulus;
 
         // Sub multiple times to raise the degree
         for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&mut ct_res, clear_1));
-            clear = (clear - clear_1) % modulus;
+            clear = clear.wrapping_sub(clear_1) % modulus;
 
             let dec_res: u64 = cks.decrypt(&ct_res);
 
