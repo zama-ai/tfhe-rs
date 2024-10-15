@@ -13,7 +13,7 @@ pub struct HbmChunk {
     pub(crate) paddr: u64,
     pub(crate) size_b: usize,
 
-    data: Vec<u8>,
+    pub(crate) data: Vec<u8>,
     hw_tx: ipc::IpcSender<ipc::IpcSharedMemory>,
     hw_rx: ipc::IpcReceiver<ipc::IpcSharedMemory>,
 }
@@ -107,7 +107,11 @@ impl HbmBank {
         (paddr, cpu)
     }
 
-    pub(crate) fn get_chunk(&mut self, addr: u64) -> &mut HbmChunk {
+    pub(crate) fn get_chunk(&self, addr: u64) -> &HbmChunk {
+        self.chunk.get(&addr).unwrap()
+    }
+
+    pub(crate) fn get_chunk_mut(&mut self, addr: u64) -> &mut HbmChunk {
         self.chunk.get_mut(&addr).unwrap()
     }
 

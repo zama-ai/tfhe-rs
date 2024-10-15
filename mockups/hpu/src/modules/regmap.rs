@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
 
 use hw_regmap::FlatRegmap;
 use tfhe::tfhe_hpu_backend::interface::rtl::params::*;
@@ -17,31 +18,30 @@ pub struct RegisterMap {
     bsk: KeyState,
     ksk: KeyState,
 
-    workq: VecDeque<u32>,
-    ackq: VecDeque<u32>,
+    workq_tx: mpsc::Sender<u32>,
+    ackq_rx: mpsc::Receiver<u32>,
 }
 
 impl RegisterMap {
-    pub fn new(rtl_params: HpuParameters, regmap: &str) -> Self {
+    pub fn new(
+        rtl_params: HpuParameters,
+        regmap: &str,
+    ) -> (Self, (mpsc::Receiver<u32>, mpsc::Sender<u32>)) {
         let regmap = FlatRegmap::from_file(&regmap);
+        let (workq_tx, workq_rx) = mpsc::channel();
+        let (ackq_tx, ackq_rx) = mpsc::channel();
 
-        Self {
-            rtl_params,
-            regmap,
-            bsk: Default::default(),
-            ksk: Default::default(),
-            workq: VecDeque::new(),
-            ackq: VecDeque::new(),
-        }
-    }
-}
-
-impl RegisterMap {
-    pub(crate) fn workq_pop(&mut self) -> Option<u32> {
-        self.workq.pop_front()
-    }
-    pub(crate) fn ackq_push(&mut self, ack_val: u32) {
-        self.ackq.push_back(ack_val)
+        (
+            Self {
+                rtl_params,
+                regmap,
+                bsk: Default::default(),
+                ksk: Default::default(),
+                workq_tx,
+                ackq_rx,
+            },
+            (workq_rx, ackq_tx),
+        )
     }
 }
 
@@ -164,13 +164,11 @@ impl RegisterMap {
                 // TODO implement finite size queue
                 0
             }
-            "WorkAck::ackq" => {
-                if let Some(ack) = self.ackq.pop_front() {
-                    ack
-                } else {
-                    ACKQ_EMPTY
-                }
-            }
+            "WorkAck::ackq" => match self.ackq_rx.try_recv() {
+                Ok(ack) => ack,
+                Err(mpsc::TryRecvError::Empty) => ACKQ_EMPTY,
+                Err(mpsc::TryRecvError::Disconnected) => panic!("HpuSim inner channel closed"),
+            },
 
             _ => {
                 tracing::warn!("Register {register_name} not hooked for reading, return 0");
@@ -196,7 +194,7 @@ impl RegisterMap {
                     self.ksk.avail.store(false, Ordering::SeqCst);
                 }
             }
-            "WorkAck::workq" => self.workq.push_back(value),
+            "WorkAck::workq" => self.workq_tx.send(value).unwrap(),
             _ => tracing::warn!("Register {register_name} not hooked for writting"),
         }
     }
