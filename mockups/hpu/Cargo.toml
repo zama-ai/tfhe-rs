@@ -14,6 +14,10 @@ tfhe = { path= "../../tfhe", features = ["shortint", "seeder_unix", "x86_64-unix
 ipc-channel = "0.18.3"
 hw_regmap = {git = "ssh://git@github.com/zama-ai/hw_regmap.git", branch="main"}
 
+strum = { version = "0.26.2", features = ["derive"] }
+strum_macros = "0.26.2"
+bytemuck = "1.16.0"
+
 clap = { version = "3.2.1", features = ["derive"] }
 clap-num = "*"
 anyhow = "1.0.82"

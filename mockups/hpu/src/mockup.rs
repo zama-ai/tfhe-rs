@@ -136,6 +136,5 @@ fn main() {
     };
 
     let mut hpu_sim = HpuSim::new(config, params);
-
-    hpu_sim.simulate();
+    hpu_sim.ipc_poll();
 }
