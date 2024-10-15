@@ -156,10 +156,6 @@ jobs:
           persist-credentials: 'false'
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
-      - name: Set up home
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
         with:
@@ -198,7 +194,8 @@ jobs:
       - name: Run js on wasm API tests
         if: needs.should-run.outputs.wasm_test == 'true'
         run: |
-          make test_nodejs_wasm_api_in_docker
+          make install_node
+          make test_nodejs_wasm_api_ci
 
       - name: Gen Keys if required
         if: needs.should-run.outputs.shortint_test == 'true' ||

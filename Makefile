@@ -919,26 +919,16 @@ check_compile_tests_benches_gpu: install_rs_build_toolchain
 		cmake .. -DCMAKE_BUILD_TYPE=Debug -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON -DTFHE_CUDA_BACKEND_BUILD_BENCHMARKS=ON && \
 		"$(MAKE)" -j "$(CPU_COUNT)"
 
-.PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
-build_nodejs_test_docker:
-	DOCKER_BUILDKIT=1 docker build --build-arg RUST_TOOLCHAIN="$(RS_BUILD_TOOLCHAIN)" \
-		-f docker/Dockerfile.wasm_tests --build-arg NODE_VERSION=$(NODE_VERSION) -t tfhe-wasm-tests .
-
-.PHONY: test_nodejs_wasm_api_in_docker # Run tests for the nodejs on wasm API in a docker container
-test_nodejs_wasm_api_in_docker: build_nodejs_test_docker
-	if [[ -t 1 ]]; then RUN_FLAGS="-it"; else RUN_FLAGS="-i"; fi && \
-	docker run --rm "$${RUN_FLAGS}" \
-		-v "$$(pwd)":/tfhe-wasm-tests/tfhe-rs \
-		-v tfhe-rs-root-target-cache:/root/tfhe-rs-target \
-		-v tfhe-rs-pkg-cache:/tfhe-wasm-tests/tfhe-rs/tfhe/pkg \
-		-v tfhe-rs-root-cargo-registry-cache:/root/.cargo/registry \
-		-v tfhe-rs-root-cache:/root/.cache \
-		tfhe-wasm-tests /bin/bash -i -c 'make test_nodejs_wasm_api'
-
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api: build_node_js_api
 	cd tfhe/js_on_wasm_tests && npm install && npm run test
 
+.PHONY: test_nodejs_wasm_api_ci # Run tests for the nodejs on wasm API
+test_nodejs_wasm_api_ci: build_node_js_api
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) test_nodejs_wasm_api
 
 # This is an internal target, not meant to be called on its own.
 run_web_js_api_parallel: build_web_js_api_parallel setup_venv
