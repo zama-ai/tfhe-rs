@@ -1,19 +1,9 @@
-//! HpuHw mockup ffi interface
-//!
-//! Mockup is split in two half:
-//! 1. ffi mockup
-//! 2. Simulation model
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::TryRecvError;
 
-use super::*;
-use crate::entities::HpuLweCiphertextOwned;
-use crate::ffi;
-use crate::prelude::ACKQ_EMPTY;
-use hpu_sim::{HpuChannel, HpuChannelHost, HpuSim};
 use hw_regmap::FlatRegmap;
-
-use crate::interface::rtl::params::*;
+use tfhe::tfhe_hpu_backend::interface::rtl::params::*;
+use tfhe::tfhe_hpu_backend::prelude::*;
 
 #[derive(Default)]
 struct KeyState {
@@ -21,16 +11,43 @@ struct KeyState {
     rst_pdg: AtomicBool,
 }
 
-pub struct HpuHw {
-    rtl_params: ffi::HpuParameters,
+pub struct RegisterMap {
+    rtl_params: HpuParameters,
     regmap: FlatRegmap,
     bsk: KeyState,
     ksk: KeyState,
 
-    channel: HpuChannelHost,
+    workq: VecDeque<u32>,
+    ackq: VecDeque<u32>,
 }
 
-impl HpuHw {
+impl RegisterMap {
+    pub fn new(rtl_params: HpuParameters, regmap: &str) -> Self {
+        let regmap = FlatRegmap::from_file(&regmap);
+
+        Self {
+            rtl_params,
+            regmap,
+            bsk: Default::default(),
+            ksk: Default::default(),
+            workq: VecDeque::new(),
+            ackq: VecDeque::new(),
+        }
+    }
+}
+
+impl RegisterMap {
+    pub(crate) fn workq_pop(&mut self) -> Option<u32> {
+        self.workq.pop_front()
+    }
+    pub(crate) fn ackq_push(&mut self, ack_val: u32) {
+        self.ackq.push_back(ack_val)
+    }
+}
+
+/// Implement revert register access
+/// -> Emulate Rtl response of register read/write
+impl RegisterMap {
     /// Get register name from addr
     fn get_register_name(&self, addr: u64) -> &str {
         let register = self
@@ -42,44 +59,10 @@ impl HpuHw {
 
         register.0
     }
-}
-
-impl HpuHw {
-    /// Handle ffi instanciation
-    #[inline(always)]
-    pub fn new_hpu_hw(config: ffi::HpuConfig) -> HpuHw {
-        // Check config
-        let rtl_params = match &config.fpga.ffi {
-            ffi::FFIMode::Sim { rtl, .. } => rtl.clone(),
-            _ => panic!("Unsupported config type with ffi::sim"),
-        };
-        let regmap = FlatRegmap::from_file(&config.fpga.regmap);
-
-        // Instanciate Hpu simulation
-        let HpuChannel { host, sim } = HpuChannel::new();
-        // let (hpu_sim, channel) = HpuSim::<HpuLweCiphertextOwned<u64>>::new(config);
-        // hpu_sim.spawn();
-
-        Self {
-            regmap,
-            rtl_params,
-            bsk: Default::default(),
-            ksk: Default::default(),
-            channel: host,
-        }
-    }
-
-    pub fn alloc(&mut self, props: ffi::MemZoneProperties) -> MemZone {
-        self.channel.mem_req_tx.send(props).unwrap();
-        let chunk = self.channel.mem_resp_rx.recv().unwrap();
-        MemZone::new(chunk)
-    }
-
-    pub fn release(&mut self, _zone: &MemZone) {}
 
     /// Kind of register reverse
     /// Return register value from parameter value
-    pub fn read_reg(&self, addr: u64) -> u32 {
+    pub fn read_reg(&mut self, addr: u64) -> u32 {
         let register_name = self.get_register_name(addr);
         match register_name {
             "Info::NttInternal" => {
@@ -87,12 +70,12 @@ impl HpuHw {
                 (ntt_p.radix + (ntt_p.psi << 8) /*+(ntt_p.div << 16)*/ + (ntt_p.delta << 24)) as u32
             }
             "Info::NttArch" => match self.rtl_params.ntt_params.core_arch {
-                crate::entities::HpuNttCoreArch::WmmCompact => NTT_CORE_ARCH_OFS + 0,
-                crate::entities::HpuNttCoreArch::WmmPipeline => NTT_CORE_ARCH_OFS + 1,
-                crate::entities::HpuNttCoreArch::WmmUnfold => NTT_CORE_ARCH_OFS + 2,
-                crate::entities::HpuNttCoreArch::WmmCompactPcg => NTT_CORE_ARCH_OFS + 3,
-                crate::entities::HpuNttCoreArch::WmmUnfoldPcg => NTT_CORE_ARCH_OFS + 4,
-                crate::entities::HpuNttCoreArch::GF64(_) => NTT_CORE_ARCH_OFS + 5,
+                HpuNttCoreArch::WmmCompact => NTT_CORE_ARCH_OFS + 0,
+                HpuNttCoreArch::WmmPipeline => NTT_CORE_ARCH_OFS + 1,
+                HpuNttCoreArch::WmmUnfold => NTT_CORE_ARCH_OFS + 2,
+                HpuNttCoreArch::WmmCompactPcg => NTT_CORE_ARCH_OFS + 3,
+                HpuNttCoreArch::WmmUnfoldPcg => NTT_CORE_ARCH_OFS + 4,
+                HpuNttCoreArch::GF64(_) => NTT_CORE_ARCH_OFS + 5,
             },
             "Info::NttPbsNb" => {
                 let ntt_p = &self.rtl_params.ntt_params;
@@ -124,7 +107,10 @@ impl HpuHw {
                 } else if MSG2_CARRY2_64B_FAKE == self.rtl_params.pbs_params {
                     APPLICATION_NAME_OFS + 9
                 } else {
-                    panic!("Unsupported reverse PBS_PARAMS lookup")
+                    panic!(
+                        "Unsupported reverse PBS_PARAMS lookup {:?}",
+                        self.rtl_params.pbs_params
+                    )
                 }
             }
             "Info::KsShape" => {
@@ -178,11 +164,13 @@ impl HpuHw {
                 // TODO implement finite size queue
                 0
             }
-            "WorkAck::ackq" => match self.channel.ackq_rx.try_recv() {
-                Ok(ack) => ack,
-                Err(TryRecvError::Empty) => ACKQ_EMPTY,
-                Err(TryRecvError::Disconnected) => panic!("HpuSimHandle closed"),
-            },
+            "WorkAck::ackq" => {
+                if let Some(ack) = self.ackq.pop_front() {
+                    ack
+                } else {
+                    ACKQ_EMPTY
+                }
+            }
 
             _ => {
                 tracing::warn!("Register {register_name} not hooked for reading, return 0");
@@ -194,7 +182,7 @@ impl HpuHw {
     pub fn write_reg(&mut self, addr: u64, value: u32) {
         let register_name = self.get_register_name(addr);
         match register_name {
-            "Keys_Ksk::avail" => self.ksk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst),
+            "Keys_Bsk::avail" => self.bsk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst),
             "Keys_Bsk::reset" => {
                 if (value & 0x1) == 0x1 {
                     self.bsk.rst_pdg.store(true, Ordering::SeqCst);
@@ -208,9 +196,7 @@ impl HpuHw {
                     self.ksk.avail.store(false, Ordering::SeqCst);
                 }
             }
-            "WorkAck::workq" => {
-                self.channel.workq_tx.send(value);
-            }
+            "WorkAck::workq" => self.workq.push_back(value),
             _ => tracing::warn!("Register {register_name} not hooked for writting"),
         }
     }

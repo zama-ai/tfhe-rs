@@ -4,11 +4,10 @@
 //!
 //! Mainly replacing Xrt(u55c)/Aved(V80) by a simulation interface for ease CI
 
-use crate::entities::HpuParameters;
 use crate::interface::{FFIMode, HpuConfig};
 
 /// Enumeration to define the synchronisation of data between Host and Device
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum SyncMode {
     Host2Device,
     Device2Host,
@@ -70,12 +69,12 @@ impl HpuHw {
 
     /// Handle ffi instanciation
     #[inline(always)]
-    pub fn new_hpu_hw(config: HpuConfig) -> HpuHw {
+    pub fn new_hpu_hw(mode: &FFIMode) -> HpuHw {
         #[cfg(feature = "hw-xrt")]
         {
             use tracing::{enabled, Level};
             // Check config
-            match config.fpga.ffi {
+            match mode {
                 FFIMode::Xrt { id, kernel, xclbin } => {
                     // Extract trace verbosity and convert it in cxx understandable value
                     let verbosity = {
@@ -91,7 +90,12 @@ impl HpuHw {
                             xrt::VerbosityCxx::Error
                         }
                     };
-                    Self(xrt::new_hpu_hw(id, kernel, xclbin, verbosity))
+                    Self(xrt::new_hpu_hw(
+                        id,
+                        kernel.to_string(),
+                        xclbin.to_string(),
+                        verbosity,
+                    ))
                 }
                 _ => panic!("Unsupported config type with ffi::xrt"),
             }
@@ -99,7 +103,10 @@ impl HpuHw {
 
         #[cfg(not(feature = "hw-xrt"))]
         {
-            Self(sim::HpuHw::new_hpu_hw(config))
+            match mode {
+                FFIMode::Sim { ipc_name } => Self(sim::HpuHw::new_hpu_hw(&ipc_name)),
+                _ => panic!("Unsupported config type with ffi::sim"),
+            }
         }
     }
 }

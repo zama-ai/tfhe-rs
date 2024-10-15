@@ -22,8 +22,8 @@ use crate::ffi::{HpuConfig, MemZoneProperties};
 
 /// Hpu communication channels
 pub(crate) struct HpuChannel {
-    host: HpuChannelHost,
-    sim: HpuChannelSim,
+    pub(crate) host: HpuChannelHost,
+    pub(crate) sim: HpuChannelSim,
 }
 
 /// Hpu communication channels Simulation side
@@ -48,7 +48,7 @@ pub(crate) struct HpuChannelHost {
 }
 
 impl HpuChannel {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         // Allocate channel for communication with ffi
         let (workq_tx, workq_rx) = mpsc::channel();
         let (ackq_tx, ackq_rx) = mpsc::channel();

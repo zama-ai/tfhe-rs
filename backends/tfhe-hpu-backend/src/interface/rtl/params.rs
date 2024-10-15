@@ -1,15 +1,16 @@
 //!
 //! Extract architecture properties from RTL registers
 //! Read Rtl parameters from registers.
-//! NB: Some registers contains encoded value that must be converted to concrete one (i.e. apps/ntt_moduls)
+//! NB: Some registers contains encoded value that must be converted to concrete one (i.e.
+//! apps/ntt_moduls)
 use super::*;
 use crate::entities::*;
 
 // Set of constant defined in RTL and associated rust definition
 // -> Cf. fpga/hw/common_lib/common_package/rtl/common_definition_pkg.sv
-pub(crate) const NTT_CORE_ARCH_OFS: u32 = 5 << 8;
-pub(crate) const MOD_NTT_NAME_OFS: u32 = 6 << 8;
-pub(crate) const APPLICATION_NAME_OFS: u32 = 7 << 8;
+pub const NTT_CORE_ARCH_OFS: u32 = 5 << 8;
+pub const MOD_NTT_NAME_OFS: u32 = 6 << 8;
+pub const APPLICATION_NAME_OFS: u32 = 7 << 8;
 
 impl FromRtl for HpuParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
@@ -98,15 +99,15 @@ impl FromRtl for HpuNttParameters {
             );
             match ntt_modulo_val & 0xFF {
                 0 => {
-                    /*Goldilocks64*/
+                    /* Goldilocks64 */
                     ((1_u128 << 64) - (1_u128 << 32) + 1_u128) as u64
                 }
                 1 => {
-                    /*Solinas3_32_17_13*/
+                    /* Solinas3_32_17_13 */
                     ((1_u128 << 32) - (1_u128 << 17) - (1_u128 << 13)) as u64
                 }
                 2 => {
-                    /*Solinas2_44_14*/
+                    /* Solinas2_44_14 */
                     ((1_u128 << 44) - (1_u128 << 14) + 1) as u64
                 }
                 _ => panic!("Unknown NttModName encoding"),
@@ -114,8 +115,8 @@ impl FromRtl for HpuNttParameters {
         };
 
         // Values extracted from Application
-        // Not the cleanest way but some required ntt information are only available in the parameters set
-        // Thus parse extract HpuPBSParameters inside HpuNttParameters
+        // Not the cleanest way but some required ntt information are only available in the
+        // parameters set Thus parse extract HpuPBSParameters inside HpuNttParameters
         let pbs_params = HpuPBSParameters::from_rtl(ffi_hw, regmap);
         let stg_nb = pbs_params.polynomial_size.ilog(radix) as usize;
 
@@ -236,7 +237,7 @@ impl FromRtl for HpuIscParameters {
 
 // Define parameters set as constants
 // Used to easily derived IoMeasure version without duplication
-pub(crate) const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
+pub const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 586,
     glwe_dimension: 2,
     polynomial_size: 512,
@@ -251,7 +252,7 @@ pub(crate) const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: 32,
 };
 
-pub(crate) const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
+pub const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 742,
     glwe_dimension: 1,
     polynomial_size: 2048,
@@ -266,7 +267,7 @@ pub(crate) const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: u64::BITS as usize,
 };
 
-pub(crate) const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
+pub const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 710,
     glwe_dimension: 2,
     polynomial_size: 1024,
@@ -281,7 +282,7 @@ pub(crate) const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: u64::BITS as usize,
 };
 
-pub(crate) const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
+pub const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 724,
     glwe_dimension: 2,
     polynomial_size: 1024,
@@ -296,7 +297,7 @@ pub(crate) const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: 44,
 };
 
-pub(crate) const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
+pub const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 724,
     glwe_dimension: 2,
     polynomial_size: 1024,
@@ -326,7 +327,6 @@ impl FromRtl for HpuPBSParameters {
             "Invalid register encoding. Check register map definition"
         );
 
-        println!("Read pbs_params code {}", pbs_app_val & 0xff);
         match pbs_app_val & 0xFF {
             0 => CONCRETE_BOOLEAN,
             1 => MSG2_CARRY2,

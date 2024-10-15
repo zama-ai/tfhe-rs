@@ -1,0 +1,57 @@
+(
+    rtl_params: (
+        pbs_params: (
+            lwe_dimension:71,
+            glwe_dimension:2,
+            polynomial_size:512,
+            lwe_modular_std_dev:0.0,
+            glwe_modular_std_dev:0.0,
+            pbs_base_log:25,
+            pbs_level:1,
+            ks_base_log:2,
+            ks_level:7,
+            message_width:2,
+            carry_width:2,
+            ciphertext_width:64,
+        ),
+        ntt_params: (
+            core_arch: GF64([5,4]),
+            batch_pbs_nb: 16,
+            total_pbs_nb: 32,
+            ct_width: 64,
+            radix: 2,
+            stg_nb: 9,
+            prime_modulus: 18446744069414584321,
+            psi: 32,
+            delta: 4,
+        ),
+        ks_params: (
+            width: 21,
+            lbx: 2,
+            lby: 32,
+            lbz: 3,
+        ),
+        pc_params: (
+            ksk_pc: 4,
+            bsk_pc: 4,
+            pem_pc: 2,
+        ),
+        regf_params: (
+            reg_nb: 64,
+            coef_nb: 32,
+        ),
+        isc_params: (
+            min_iop_size: 4,
+        ),
+    ),
+    isc_sim_params: (
+        // Number of register in HPU
+        register: 64,
+        // Depth of the instruction scheduler lookahead buffer
+        isc_depth: 64,
+        // Configuration of Hpu ALUs/Pbs units
+        alu_cfg: "config/alu/hpu_ipip_coefs32.ron",
+        // Targeted freq (only used for timing report)
+        freq_MHz: 300,
+    )
+)
