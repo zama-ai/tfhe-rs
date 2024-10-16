@@ -1,4 +1,4 @@
-use crate::ciphertext::FheString;
+use crate::ciphertext::{FheAsciiChar, FheString};
 use tfhe::integer::{ClientKey as FheClientKey, RadixCiphertext};
 use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
 
@@ -24,25 +24,6 @@ impl EncU16 {
     }
 }
 
-/// Output type returned by [`ClientKey::encrypt_ascii`].
-///
-/// It is used as an intermediate type to safely build a [`FheString`].
-pub struct EncryptOutput {
-    output: Vec<RadixCiphertext>,
-    padded: bool,
-}
-
-impl EncryptOutput {
-    /// Extracts the value from the `EncryptOutput`.
-    pub fn value(self) -> Vec<RadixCiphertext> {
-        self.output
-    }
-
-    pub fn is_padded(&self) -> bool {
-        self.padded
-    }
-}
-
 impl ClientKey {
     pub fn new() -> Self {
         Self {
@@ -55,33 +36,34 @@ impl ClientKey {
     }
 
     /// Encrypts an ASCII string, optionally padding it with the specified amount of 0s, and returns
-    /// an [`EncryptOutput`].
+    /// an [`FheString`].
     ///
     /// # Panics
     ///
     /// This function will panic if the provided string is not ASCII or contains null characters
     /// "\0".
-    pub fn encrypt_ascii(&self, str: &str, padding: Option<u32>) -> EncryptOutput {
+    pub fn encrypt_ascii(&self, str: &str, padding: Option<u32>) -> FheString {
         assert!(str.is_ascii() & !str.contains('\0'));
 
         let padded = padding.map_or(false, |p| p != 0);
 
-        let mut enc_chars: Vec<_> = str
+        let mut enc_string: Vec<_> = str
             .bytes()
-            .map(|char| self.key.encrypt_radix(char, 4))
+            .map(|char| FheAsciiChar {
+                enc_char: self.key.encrypt_radix(char, 4),
+            })
             .collect();
 
         // Optional padding
         if let Some(count) = padding {
-            let null = (0..count).map(|_| self.key.encrypt_radix(0u8, 4));
+            let null = (0..count).map(|_| FheAsciiChar {
+                enc_char: self.key.encrypt_radix(0u8, 4),
+            });
 
-            enc_chars.extend(null);
+            enc_string.extend(null);
         }
 
-        EncryptOutput {
-            output: enc_chars,
-            padded,
-        }
+        FheString { enc_string, padded }
     }
 
     /// Decrypts a `FheString`, removes any padding and returns the ASCII string.
