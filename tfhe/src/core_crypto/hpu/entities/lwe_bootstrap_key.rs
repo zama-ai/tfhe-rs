@@ -27,7 +27,8 @@ impl FromWith<LweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyOwne
 }
 
 /// Shuffle BSK for GF64 Ntt architecture
-/// This architectures don't use an internal network, however, inputs polynomial was in a custom order and not bit-reversed one
+/// This architectures don't use an internal network, however, inputs polynomial was in a custom
+/// order and not bit-reversed one
 fn shuffle_gf64(
     ntt_bsk: NttLweBootstrapKey<&[u64]>,
     params: HpuParameters,
@@ -65,7 +66,8 @@ fn shuffle_gf64(
 
     // Compute Gf64 polynomial order based on cut_w
     let mut gf64_order = bsk_order(cut_w);
-    //  gf64_idx must be expressed in bitreverse (to compensate the fact that ntt output is in bitreverse
+    //  gf64_idx must be expressed in bitreverse (to compensate the fact that ntt output is in
+    // bitreverse
     let mut rb_conv = order::RadixBasis::new(2, cut_w.iter().sum::<u8>() as usize);
     gf64_order.iter_mut().for_each(|x| {
         *x = rb_conv.idx_rev(*x);
@@ -103,7 +105,8 @@ fn shuffle_gf64(
 
 /// Shuffle BSK for Wmm Ntt architecture
 /// These architectures used a network internally
-/// With those architecture, the structural order and the iteration order differe and required a custom Bsk layout
+/// With those architecture, the structural order and the iteration order differe and required a
+/// custom Bsk layout
 fn shuffle_wmm(
     ntt_bsk: NttLweBootstrapKey<&[u64]>,
     params: HpuParameters,
@@ -211,5 +214,11 @@ impl FromWith<NttLweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyO
             | HpuNttCoreArch::WmmCompactPcg
             | HpuNttCoreArch::WmmUnfoldPcg => shuffle_wmm(cpu_bsk, params),
         }
+    }
+}
+
+impl<'a> From<HpuLweBootstrapKeyView<'a, u64>> for NttLweBootstrapKeyOwned<u64> {
+    fn from(value: HpuLweBootstrapKeyView<'a, u64>) -> Self {
+        todo!()
     }
 }

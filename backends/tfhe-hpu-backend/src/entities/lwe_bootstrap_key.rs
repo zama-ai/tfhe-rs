@@ -1,6 +1,7 @@
 //! Module containing the definition of the HpuLweBootstrapKey.
 //! Raw typed container without any logic
-//! Conversion from/into tfhers entities should be implemented inside tfhers to prevent dependency loop
+//! Conversion from/into tfhers entities should be implemented inside tfhers to prevent dependency
+//! loop
 
 use super::parameters::*;
 use super::traits::container::*;
@@ -118,6 +119,48 @@ impl<T: std::clone::Clone, C: Container<Element = T>> HpuLweBootstrapKey<C> {
             }
         }
         bsk_slice
+    }
+}
+
+impl<T: std::clone::Clone, C: ContainerMut<Element = T>> HpuLweBootstrapKey<C> {
+    /// Filled HpuLweBootstrapKey from hw_slice view
+    pub fn copy_from_hw_slice(&mut self, hw_slice: &[&[T]]) {
+        // TODO -> Implement the correct copy procedure
+
+        //     // Infer params from args
+        //     let regf_p = &self.params.regf_params;
+        //     let nb_pc = self.params.pc_params.bsk_pc;
+
+        //     // View hw_slice as a mutable array of iterator
+        //     // That will be consumed by sequence of coef_nb/nb_pc
+        //     let mut slice_it = hw_slice.iter().map(|x| x.iter()).collect::<Vec<_>>();
+
+        //     // Stop on first chunk that mismatch the required size
+        //     // TODO try to rewrite in a efficient manner ?!
+        //     let mut stop = false;
+        //     let mut pos = 0;
+        //     while !stop {
+        //         for it in slice_it.iter_mut() {
+        //             let chunk = (0..(regf_p.coef_nb / nb_pc))
+        //                 .map(|_| it.next())
+        //                 .filter(|x| x.is_some())
+        //                 .map(|x| x.unwrap())
+        //                 .collect::<Vec<_>>();
+
+        //             if chunk.len() == (regf_p.coef_nb / nb_pc) {
+        //                 chunk.iter().for_each(|v| {
+        //                     self.data.as_mut()[pos] = (*v).clone();
+        //                     pos += 1;
+        //                 });
+        //             } else {
+        //                 stop = true;
+        //                 break;
+        //             }
+        //         }
+        //     }
+
+        //     // copy body
+        //     self.data.as_mut()[pos] = hw_slice[0].last().unwrap().clone();
     }
 }
 

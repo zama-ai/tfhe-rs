@@ -1,7 +1,24 @@
+use hpu_asm::{DigitParameters, PbsLut};
 use lwe_ciphertext::HpuLweCiphertext;
+use lwe_keyswitch_key::HpuLweKeyswitchKey;
 use std::array::from_fn;
 use std::sync::mpsc;
 use strum::IntoEnumIterator;
+use tfhe::core_crypto::algorithms::{
+    lwe_ciphertext_add_assign, lwe_ciphertext_cleartext_mul_assign, lwe_ciphertext_opposite_assign,
+    lwe_ciphertext_plaintext_add_assign, lwe_ciphertext_plaintext_sub_assign,
+    lwe_ciphertext_sub_assign,
+};
+use tfhe::core_crypto::entities::{
+    Cleartext, LweCiphertextOwned, LweCiphertextView, LweKeyswitchKey, NttLweBootstrapKey,
+    Plaintext,
+};
+use tfhe::core_crypto::hpu::from_with::{FromWith, IntoWith};
+use tfhe::shortint::backward_compatibility::parameters::ClassicPBSParametersVersions;
+use tfhe::shortint::ciphertext::MaxDegree;
+use tfhe::shortint::parameters::{Degree, NoiseLevel};
+use tfhe::shortint::prelude::*;
+use tfhe::shortint::server_key::ShortintBootstrappingKey;
 
 mod ipc;
 use ipc::Ipc;
@@ -33,6 +50,12 @@ pub struct HpuSim {
     workq_stream: Vec<u8>,
     /// Parser for workq_stream
     iop_parser: asm::Parser<asm::IOp>,
+
+    /// Tfhe server keys
+    /// Read from memory after bsk_avail/ksk_avail register are set
+    /// Conversion from Hpu->Cpu is costly. Thuse store it in the object to prevent extra
+    /// computation
+    sks: Option<ServerKey>,
 }
 
 impl HpuSim {
@@ -73,6 +96,7 @@ impl HpuSim {
             ackq_tx,
             workq_stream: Vec::new(),
             iop_parser,
+            sks: None,
         }
     }
 
@@ -167,10 +191,17 @@ impl HpuSim {
                         .map(|pc| self.hbm_bank[*pc].get_chunk(ct_ofst as u64))
                         .collect::<Vec<_>>();
 
+                    // NB: hbm chunk are extended to enforce page align buffer
+                    // -> To prevent error during copy, with shrink the hbm buffer to the real
+                    //   size before-hand
+                    let shrinked_size_b =
+                        (dst.as_ref().len().div_ceil(ct_chunk.len())) * std::mem::size_of::<u64>();
                     let ct_slice_u64 = ct_chunk
                         .iter()
                         .map(|chunk| {
-                            bytemuck::cast_slice::<u8, u64>(&chunk.data.as_slice()[0..8 * 1025])
+                            bytemuck::cast_slice::<u8, u64>(
+                                &chunk.data.as_slice()[0..shrinked_size_b],
+                            )
                         })
                         .collect::<Vec<_>>();
 
@@ -195,11 +226,13 @@ impl HpuSim {
                         let ct_chunk =
                             self.hbm_bank[self.config.board.ct_pc[i]].get_mut_chunk(ct_ofst as u64);
 
+                        // NB: hbm chunk are extended to enforce page align buffer
+                        // -> Shrinked it to slice size to prevent error during copy
                         let ct_chunk_u64 = bytemuck::cast_slice_mut::<u8, u64>(
-                            &mut ct_chunk.data.as_mut_slice()[0..8 * 1025],
+                            &mut ct_chunk.data.as_mut_slice()
+                                [0..(slice.len() * std::mem::size_of::<u64>())],
                         );
-                        println!("@{i} -> {}", slice.len());
-                        // ct_chunk_u64.copy_from_slice(slice.as_slice());
+                        ct_chunk_u64.copy_from_slice(slice.as_slice());
                     }
                 }
                 asm::DOp::TSTD(_) | asm::DOp::TSTH(_) => panic!(
@@ -207,42 +240,71 @@ impl HpuSim {
                 unit. Check ucore translation"
                 ),
 
-                // asm::DOp::ADD(op_impl) => {
-                //     let (dst, a, b) = self.get_3regs(op_impl.dst, op_impl.src.0, op_impl.src.1);
-                //     dst.add_assign(a,b);
-                // },
-                // asm::DOp::SUB(op_impl) => {
-                //     let (dst, a, b) = self.get_3regs(op_impl.dst, op_impl.src.0, op_impl.src.1);
-                //     dst.sub_assign(a,b);
-                // },
-                // asm::DOp::MAC(op_impl) => {
-                //     let (dst, a, b) = self.get_3regs(op_impl.dst, op_impl.src.0, op_impl.src.1);
-                //     dst.mac_assign(a,b, op_impl.mul_factor);
-                // },
-                // asm::DOp::ADDS(op_impl) => {
-                //     let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
-                //     dst.adds_assign(src,op_impl.msg_cst);
-                // },
-                // asm::DOp::SUBS(op_impl) => {
-                //     let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
-                //     dst.subs_assign(src,op_impl.msg_cst);
-                // },
-                // asm::DOp::SSUB(op_impl) => {
-                //     let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
-                //     dst.ssub_assign(src,op_impl.msg_cst);
-                // },
-                // asm::DOp::MULS(op_impl) => {
-                //     let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
-                //     dst.muls_assign(src,op_impl.msg_cst);
-                // },
-                // asm::DOp::PBS(op_impl) => {
-                //     let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
-                //     dst.pbs_assign(src);
-                // },
-                // asm::DOp::PBS_F(op_impl) => {
-                //     let (dst, src) = self.get_2regs(op_impl.dst, op_impl.src);
-                //     dst.pbs_assign(src);
-                // },
+                asm::DOp::ADD(op_impl) => {
+                    // NB: The first src is used as destination to prevent useless allocation
+                    let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
+                    let cpu_s1 = self.reg2cpu(op_impl.src.1);
+                    lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
+                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                }
+                asm::DOp::SUB(op_impl) => {
+                    // NB: The first src is used as destination to prevent useless allocation
+                    let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
+                    let cpu_s1 = self.reg2cpu(op_impl.src.1);
+                    lwe_ciphertext_sub_assign(&mut cpu_s0, &cpu_s1);
+                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                }
+                asm::DOp::MAC(op_impl) => {
+                    // NB: Srcs are used as destination to prevent useless allocation
+                    let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
+                    let mut cpu_s1 = self.reg2cpu(op_impl.src.1);
+
+                    lwe_ciphertext_cleartext_mul_assign(
+                        &mut cpu_s1,
+                        Cleartext(op_impl.mul_factor as u64),
+                    );
+                    lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
+
+                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                }
+                asm::DOp::ADDS(op_impl) => {
+                    // NB: The first src is used as destination to prevent useless allocation
+                    let mut cpu_s0 = self.reg2cpu(op_impl.src);
+                    let msg_encoded =
+                        op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
+                    lwe_ciphertext_plaintext_add_assign(&mut cpu_s0, Plaintext(msg_encoded));
+                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                }
+                asm::DOp::SUBS(op_impl) => {
+                    // NB: The first src is used as destination to prevent useless allocation
+                    let mut cpu_s0 = self.reg2cpu(op_impl.src);
+                    let msg_encoded =
+                        op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
+                    lwe_ciphertext_plaintext_sub_assign(&mut cpu_s0, Plaintext(msg_encoded));
+                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                }
+                asm::DOp::SSUB(op_impl) => {
+                    // NB: The first src is used as destination to prevent useless allocation
+                    let mut cpu_s0 = self.reg2cpu(op_impl.src);
+                    lwe_ciphertext_opposite_assign(&mut cpu_s0);
+                    let msg_encoded =
+                        op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
+                    lwe_ciphertext_plaintext_add_assign(&mut cpu_s0, Plaintext(msg_encoded));
+                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                }
+                asm::DOp::MULS(op_impl) => {
+                    // NB: The first src is used as destination to prevent useless allocation
+                    let mut cpu_s0 = self.reg2cpu(op_impl.src);
+                    lwe_ciphertext_cleartext_mul_assign(
+                        &mut cpu_s0,
+                        Cleartext(op_impl.msg_cst as u64),
+                    );
+                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                }
+                asm::DOp::PBS(op_impl) => self.apply_pbs2reg(op_impl.dst, op_impl.src, op_impl.lut),
+                asm::DOp::PBS_F(op_impl) => {
+                    self.apply_pbs2reg(op_impl.dst, op_impl.src, op_impl.lut)
+                }
                 asm::DOp::SYNC(_) => {
                     // Push ack in stream
                     // Bytes are in little-endian but written from first to last line
@@ -254,12 +316,35 @@ impl HpuSim {
                         self.ackq_tx.send(word_u32).unwrap()
                     }
                 }
-                _ => {
-                    /* Not implemented yet ->NOP */
-                    tracing::debug!("Skip {dop:?}");
-                }
             }
         }
+    }
+
+    /// Compute dst_rid <- Pbs(src_rid, lut)
+    /// Use a function to prevent code duplication in PBS/PBS_F implementation
+    fn apply_pbs2reg(&mut self, dst_rid: usize, src_rid: usize, lut: hpu_asm::Pbs) {
+        let cpu_reg = self.reg2cpu(src_rid);
+
+        let digit_p = DigitParameters {
+            msg_w: self.params.rtl_params.pbs_params.message_width,
+            carry_w: self.params.rtl_params.pbs_params.carry_width,
+        };
+        let sks = self.get_server_key();
+
+        let mut cpu_ct = Ciphertext::new(
+            cpu_reg,
+            Degree::new(sks.max_degree.get()),
+            NoiseLevel::MAX,
+            sks.message_modulus,
+            sks.carry_modulus,
+            sks.pbs_order,
+        );
+
+        let tfhe_lut = sks.generate_lookup_table(|x| lut.eval(&digit_p, x as usize) as u64);
+        sks.apply_lookup_table_assign(&mut cpu_ct, &tfhe_lut);
+
+        // lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
+        self.cpu2reg(dst_rid, cpu_ct.ct.as_view());
     }
 
     /// Retrieve DOp stream from memory and patch template DOp
@@ -379,5 +464,60 @@ impl HpuSim {
         dops_patch.push(asm::DOp::SYNC(Default::default()));
         tracing::debug!("Patch DOp stream => {dops_patch:?}");
         dops_patch
+    }
+
+    // NB: to prevent issues with borrow checker we have to clone the value from
+    // the regfile. A clone is also required for conversion
+    // Thus, directly cast value in Cpu version to prevent extra clone
+    /// Extract a cpu value from register file
+    fn reg2cpu(&self, reg_id: usize) -> LweCiphertextOwned<u64> {
+        let reg = self.regfile[reg_id].as_view();
+        LweCiphertextOwned::from(reg)
+    }
+
+    /// Insert a cpu value into the register file
+    fn cpu2reg(&mut self, reg_id: usize, cpu: LweCiphertextView<u64>) {
+        let hpu = HpuLweCiphertextOwned::<u64>::from_with(cpu, self.params.rtl_params.clone());
+        self.regfile[reg_id].as_mut().copy_from_slice(hpu.as_ref());
+    }
+
+    /// Get the inner server key used for computation
+    /// Check the register state and extract sks from memory if needed
+    fn get_server_key(&mut self) -> &ServerKey {
+        if let Some(sks) = self.sks.as_ref() {
+            sks
+        } else {
+            // TODO check register states
+            // Extract HpuBsk /HpuKsk from hbm
+            let hpu_bsk = HpuLweBootstrapKeyOwned::new(0, self.params.rtl_params.clone());
+            let hpu_ksk = HpuLweKeyswitchKey::new(0, self.params.rtl_params.clone());
+
+            // Construct Shortint server_key
+            let cpu_bsk = NttLweBootstrapKey::from(hpu_bsk.as_view());
+            let cpu_ksk = LweKeyswitchKey::from(hpu_ksk.as_view());
+
+            let sks = {
+                let pbs_p = ClassicPBSParameters::from(self.params.rtl_params.clone());
+                ServerKey {
+                    key_switching_key: cpu_ksk,
+                    bootstrapping_key: ShortintBootstrappingKey::ClassicNtt(cpu_bsk),
+                    message_modulus: pbs_p.message_modulus,
+                    carry_modulus: pbs_p.carry_modulus,
+                    max_degree: MaxDegree::from_msg_carry_modulus(
+                        pbs_p.message_modulus,
+                        pbs_p.carry_modulus,
+                    ),
+                    max_noise_level: MaxNoiseLevel::from_msg_carry_modulus(
+                        pbs_p.message_modulus,
+                        pbs_p.carry_modulus,
+                    ),
+                    ciphertext_modulus: todo!(),
+                    pbs_order: pbs_p.encryption_key_choice.into(),
+                    pbs_mode: pbs_p.encryption_key_choice.into(),
+                }
+            };
+            self.sks = Some(sks);
+            self.sks.as_ref().unwrap()
+        }
     }
 }

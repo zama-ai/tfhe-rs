@@ -20,7 +20,8 @@ pub use glwe_lookuptable::{
 
 pub mod lwe_bootstrap_key;
 pub use lwe_bootstrap_key::{
-    hpu_lwe_bootstrap_key_size, HpuLweBootstrapKey, HpuLweBootstrapKeyOwned,
+    hpu_lwe_bootstrap_key_size, HpuLweBootstrapKeyMutView, HpuLweBootstrapKeyOwned,
+    HpuLweBootstrapKeyView,
 };
 
 pub mod lwe_ciphertext;
