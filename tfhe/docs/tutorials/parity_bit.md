@@ -18,7 +18,7 @@ This function returns a Boolean (`true` or `false`) so that the total count of `
 # Cargo.toml
 
 # Default configuration for x86 Unix machines:
-tfhe = { version = "0.8.0", features = ["integer", "x86_64-unix"]}
+tfhe = { version = "0.9.0", features = ["integer", "x86_64-unix"]}
 ```
 
 Refer to the [installation](../getting\_started/installation.md) for other configurations.
