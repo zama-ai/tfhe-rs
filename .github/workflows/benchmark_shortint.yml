@@ -138,7 +138,7 @@ jobs:
         if: matrix.op_flavor == 'default'
         run: |
           python3 ./ci/benchmark_parser.py tfhe/shortint_key_sizes.csv ${{ env.RESULTS_FILENAME }} \
-          --key-sizes \
+          --object-sizes \
           --append-results
 
       - name: Upload parsed results artifact
