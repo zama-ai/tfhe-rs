@@ -9,13 +9,13 @@ First, add **TFHE-rs** as a dependency in your `Cargo.toml`.
 **For `x86_64` machine running a Unix-like OS:**
 
 ```toml
-tfhe = { version = "0.8.0", features = [ "boolean", "shortint", "integer", "x86_64-unix" ] }
+tfhe = { version = "0.9.0", features = [ "boolean", "shortint", "integer", "x86_64-unix" ] }
 ```
 
 **For `ARM` machine running a Unix-like OS:**
 
 ```toml
-tfhe = { version = "0.8.0", features = [ "boolean", "shortint", "integer", "aarch64-unix" ] }
+tfhe = { version = "0.9.0", features = [ "boolean", "shortint", "integer", "aarch64-unix" ] }
 ```
 
 **For `x86_64` machines with the** [**`rdseed instruction`**](https://en.wikipedia.org/wiki/RDRAND) **running Windows:**
