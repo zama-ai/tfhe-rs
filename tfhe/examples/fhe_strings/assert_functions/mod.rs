@@ -125,6 +125,17 @@ impl Keys {
         assert_eq!(dec, expected);
     }
 
+    pub fn assert_encrypt_decrypt(&self, str: &str, str_pad: Option<u32>) {
+        let enc_str = FheString::new(&self.ck, str, str_pad);
+
+        let dec = self.ck.decrypt_ascii(&enc_str);
+
+        println!("\n\x1b[1mEncrypt/Decrypt:\x1b[0m");
+        result_message(str, str, &dec, Duration::from_nanos(0));
+
+        assert_eq!(str, &dec);
+    }
+
     pub fn assert_contains(
         &self,
         str: &str,
