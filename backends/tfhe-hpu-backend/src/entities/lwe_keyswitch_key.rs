@@ -1,6 +1,7 @@
 //! Module containing the definition of the HpuLweKeyswitchKey.
 //! Raw typed container without any logic
-//! Conversion from/into tfhers entities should be implemented inside tfhers to prevent dependency loop
+//! Conversion from/into tfhers entities should be implemented inside tfhers to prevent dependency
+//! loop
 
 use super::parameters::*;
 use super::traits::container::*;
@@ -118,6 +119,14 @@ impl<T: std::clone::Clone, C: Container<Element = T>> HpuLweKeyswitchKey<C> {
         ksk_slice
     }
 }
+
+impl<T: std::clone::Clone, C: ContainerMut<Element = T>> HpuLweKeyswitchKey<C> {
+    /// Filled HpuLweBootstrapKey from hw_slice view
+    pub fn copy_from_hw_slice(&mut self, hw_slice: &[&[T]]) {
+        // TODO -> Implement the correct copy procedure
+    }
+}
+
 /// A [`HpuLweKeyswitchKey`] owning the memory for its own storage.
 pub type HpuLweKeyswitchKeyOwned<Scalar> = HpuLweKeyswitchKey<Vec<Scalar>>;
 /// A [`HpuLweKeyswitchKey`] immutably borrowing memory for its own storage.

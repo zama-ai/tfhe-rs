@@ -131,12 +131,6 @@ impl<T: std::clone::Clone, C: ContainerMut<Element = T>> HpuLweCiphertext<C> {
             }
             2 => {
                 let mut pos = 0;
-                println!(
-                    "s[0] -> {}, s[1] -> {}, d -> {}",
-                    hw_slice[0].len(),
-                    hw_slice[1].len(),
-                    self.data.as_ref().len(),
-                );
                 std::iter::zip(
                     hw_slice[0].chunks_exact(regf_p.coef_nb / nb_pc),
                     hw_slice[1].chunks_exact(regf_p.coef_nb / nb_pc),

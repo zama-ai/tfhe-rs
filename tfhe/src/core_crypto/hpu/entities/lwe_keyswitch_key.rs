@@ -90,8 +90,9 @@ where
                                     _ => Scalar::ZERO, /* At least one dimension overflow
                                                         * -> return 0 */
                                 };
-                                // NB: Ksk modulus used within Hw could be different that the one used in Sw.
-                                // In Sw, the informations is kept in MSB, but Hw required them in LSB
+                                // NB: Ksk modulus used within Hw could be different that the one
+                                // used in Sw. In Sw, the
+                                // informations is kept in MSB, but Hw required them in LSB
                                 // Handle rounding and bit alignement
                                 let coef_rounded_ralign = {
                                     let coef_orig: u64 = cur_coef.cast_into();
@@ -149,5 +150,14 @@ impl KskIndex {
             .split_into(decomp_level)
             .nth(self.z)
             .unwrap()[self.x]
+    }
+}
+
+impl<'a, Scalar> From<HpuLweKeyswitchKeyView<'a, Scalar>> for LweKeyswitchKeyOwned<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    fn from(value: HpuLweKeyswitchKeyView<'a, Scalar>) -> Self {
+        todo!()
     }
 }
