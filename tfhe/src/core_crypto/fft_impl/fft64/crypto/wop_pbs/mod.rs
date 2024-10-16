@@ -1,9 +1,11 @@
 #![allow(clippy::too_many_arguments)]
 
 use super::super::math::fft::FftView;
-use super::bootstrap::{bootstrap_scratch, FourierLweBootstrapKeyView};
+use super::bootstrap::{
+    blind_rotate_assign_scratch, bootstrap_scratch, FourierLweBootstrapKeyView,
+};
 use super::ggsw::{
-    add_external_product_assign, add_external_product_assign_scratch, cmux, cmux_scratch,
+    add_external_product_assign, add_external_product_assign_scratch, cmux,
     fill_with_forward_fourier_scratch, FourierGgswCiphertextListMutView,
     FourierGgswCiphertextListView,
 };
@@ -838,17 +840,6 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
 
     // sample extract of the RLWE of the Vertical packing
     extract_lwe_sample_from_glwe_ciphertext(&cmux_tree_lut_res, &mut lwe_out, MonomialDegree(0));
-}
-
-pub fn blind_rotate_assign_scratch<Scalar>(
-    glwe_size: GlweSize,
-    polynomial_size: PolynomialSize,
-    fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_all_of([
-        StackReq::try_new_aligned::<Scalar>(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN)?,
-        cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
-    ])
 }
 
 pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
