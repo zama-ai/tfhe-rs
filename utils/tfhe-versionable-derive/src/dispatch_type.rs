@@ -336,6 +336,7 @@ impl DispatchType {
     fn generate_conversion_constructor_owned(&self, arg_name: &str) -> syn::Result<TokenStream> {
         let arg_ident = Ident::new(arg_name, Span::call_site());
         let error_ty: Type = parse_const_str(UNVERSIONIZE_ERROR_NAME);
+        let upgrade_trait: Path = parse_const_str(UPGRADE_TRAIT_NAME);
 
         let match_cases =
             self.orig_type
@@ -354,12 +355,12 @@ impl DispatchType {
                     // Add chained calls to the upgrade method, with error handling
                     let upgrades_chain = (0..upgrades_needed).map(|upgrade_idx| {
                         // Here we can unwrap because src_idx + upgrade_idx < version_count or we wouldn't need to upgrade
+                        let src_type = self.version_type_at(src_idx + upgrade_idx).unwrap();
                         let src_variant = self.variant_at(src_idx + upgrade_idx).unwrap().ident.to_string();
                         let dest_variant = self.variant_at(src_idx + upgrade_idx + 1).unwrap().ident.to_string();
                         quote! {
-                            .and_then(|value| {
-                                value
-                                .upgrade()
+                            .and_then(|value: #src_type| {
+                                #upgrade_trait::upgrade(value)
                                 .map_err(|e|
                                     #error_ty::upgrade(#src_variant, #dest_variant, e)
                                 )
