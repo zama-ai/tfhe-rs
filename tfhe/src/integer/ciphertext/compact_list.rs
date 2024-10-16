@@ -1057,11 +1057,20 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 #[cfg(feature = "zk-pok")]
 #[cfg(test)]
 mod tests {
+    // Test utils for tests here
+    impl ProvenCompactCiphertextList {
+        /// For testing and creating potentially invalid lists
+        fn infos_mut(&mut self) -> &mut Vec<DataKind> {
+            &mut self.info
+        }
+    }
+
+    use super::{DataKind, ProvenCompactCiphertextList};
     use crate::integer::ciphertext::CompactCiphertextList;
     use crate::integer::key_switching_key::KeySwitchingKey;
     use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
     use crate::integer::{
-        ClientKey, CompactPrivateKey, CompactPublicKey, RadixCiphertext, ServerKey,
+        BooleanBlock, ClientKey, CompactPrivateKey, CompactPublicKey, RadixCiphertext, ServerKey,
     };
     use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -1183,6 +1192,116 @@ mod tests {
                 .unwrap();
             let decrypted = cks.decrypt_radix::<u64>(&expanded);
             assert_eq!(msg, decrypted);
+        }
+    }
+
+    #[test]
+    fn test_malicious_boolean_proven_lists() {
+        use super::DataKind;
+
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+
+        let crs_blocks_for_64_bits =
+            64 / ((pke_params.message_modulus.0 * pke_params.carry_modulus.0).ilog2() as usize);
+        let encryption_num_blocks = 64 / (pke_params.message_modulus.0.ilog2() as usize);
+
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, crs_blocks_for_64_bits).unwrap();
+        let cks = ClientKey::new(fhe_params);
+        let sk = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        let msgs = (0..2).map(|_| random::<u64>()).collect::<Vec<_>>();
+
+        let proven_ct = CompactCiphertextList::builder(&pk)
+            .extend_with_num_blocks(msgs.iter().copied(), encryption_num_blocks)
+            .build_with_proof_packed(crs.public_params(), &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        let infos_block_count = {
+            let mut infos_block_count = 0;
+            let proven_ct_len = proven_ct.len();
+            for idx in 0..proven_ct_len {
+                infos_block_count += proven_ct.get_kind_of(idx).unwrap().num_blocks();
+            }
+
+            infos_block_count
+        };
+
+        let mut new_infos = Vec::new();
+
+        let mut curr_block_count = 0;
+        for _ in 0..infos_block_count {
+            let map_to_fake_boolean = random::<u8>() % 2 == 1;
+            if map_to_fake_boolean {
+                if curr_block_count != 0 {
+                    new_infos.push(DataKind::Unsigned(curr_block_count));
+                    curr_block_count = 0;
+                }
+                new_infos.push(DataKind::Boolean);
+            } else {
+                curr_block_count += 1;
+            }
+        }
+        if curr_block_count != 0 {
+            new_infos.push(DataKind::Unsigned(curr_block_count));
+        }
+
+        assert_eq!(
+            new_infos.iter().map(|x| x.num_blocks()).sum::<usize>(),
+            infos_block_count
+        );
+
+        let boolean_block_idx = new_infos
+            .iter()
+            .enumerate()
+            .filter(|(_, kind)| matches!(kind, DataKind::Boolean))
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+
+        let proven_ct = {
+            let mut proven_ct = proven_ct;
+            *proven_ct.infos_mut() = new_infos;
+            proven_ct
+        };
+
+        let expander = proven_ct
+            .verify_and_expand(
+                crs.public_params(),
+                &pk,
+                &metadata,
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            )
+            .unwrap();
+
+        for idx in boolean_block_idx.iter().copied() {
+            let expanded = expander.get::<BooleanBlock>(idx).unwrap().unwrap();
+            let decrypted = cks.key.decrypt_message_and_carry(&expanded.0);
+            // check sanitization is applied even if the original data was not supposed to be
+            // boolean
+            assert!(decrypted < 2);
+        }
+
+        let unverified_expander = proven_ct
+            .expand_without_verification(
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            )
+            .unwrap();
+
+        for idx in boolean_block_idx.iter().copied() {
+            let expanded = unverified_expander
+                .get::<BooleanBlock>(idx)
+                .unwrap()
+                .unwrap();
+            let decrypted = cks.key.decrypt_message_and_carry(&expanded.0);
+            // check sanitization is applied even if the original data was not supposed to be
+            // boolean
+            assert!(decrypted < 2);
         }
     }
 }
