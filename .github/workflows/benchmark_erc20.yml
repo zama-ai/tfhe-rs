@@ -98,7 +98,7 @@ jobs:
       - name: Parse PBS counts
         run: |
           python3 ./ci/benchmark_parser.py tfhe/erc20_pbs_count.csv ${{ env.RESULTS_FILENAME }} \
-          --key-sizes \
+          --object-sizes \
           --append-results
 
       - name: Upload parsed results artifact

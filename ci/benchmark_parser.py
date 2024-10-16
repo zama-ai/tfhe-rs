@@ -70,8 +70,8 @@ parser.add_argument(
     help="Check for results in subdirectories",
 )
 parser.add_argument(
-    "--key-sizes",
-    dest="key_sizes",
+    "--object-sizes",
+    dest="object_sizes",
     action="store_true",
     help="Parse only the results regarding keys size measurements",
 )
@@ -296,7 +296,7 @@ def _parse_key_results(result_file, bench_type):
     return result_values, parsing_failures
 
 
-def parse_key_sizes(result_file):
+def parse_object_sizes(result_file):
     """
     Parse file containing key sizes results. The file must be formatted as CSV.
 
@@ -414,7 +414,7 @@ def check_mandatory_args(input_args):
             "name_suffix",
             "append_results",
             "walk_subdirs",
-            "key_sizes",
+            "object_sizes",
             "key_gen",
             "throughput",
         ]:
@@ -434,10 +434,10 @@ if __name__ == "__main__":
 
     # failures = []
     raw_results = pathlib.Path(args.results)
-    if args.key_sizes or args.key_gen:
-        if args.key_sizes:
+    if args.object_sizes or args.key_gen:
+        if args.object_sizes:
             print("Parsing key sizes results... ")
-            results, failures = parse_key_sizes(raw_results)
+            results, failures = parse_object_sizes(raw_results)
 
         if args.key_gen:
             print("Parsing key generation time results... ")

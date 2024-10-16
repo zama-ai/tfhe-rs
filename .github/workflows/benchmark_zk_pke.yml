@@ -135,7 +135,7 @@ jobs:
       - name: Parse CRS sizes results
         run: |
           python3 ./ci/benchmark_parser.py tfhe/pke_zk_crs_sizes.csv ${{ env.RESULTS_FILENAME }} \
-          --key-sizes \
+          --object-sizes \
           --append-results
 
       - name: Upload parsed results artifact
