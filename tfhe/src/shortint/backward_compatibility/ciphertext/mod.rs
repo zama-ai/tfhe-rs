@@ -43,11 +43,11 @@ pub struct CompactCiphertextListV0 {
     pub noise_level: NoiseLevel,
 }
 
-impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
+impl Upgrade<CompactCiphertextListV1> for CompactCiphertextListV0 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
-        Ok(CompactCiphertextList {
+    fn upgrade(self) -> Result<CompactCiphertextListV1, Self::Error> {
+        Ok(CompactCiphertextListV1 {
             ct_list: self.ct_list,
             degree: self.degree,
             message_modulus: self.message_modulus,
@@ -58,10 +58,35 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
     }
 }
 
+#[derive(Version)]
+pub struct CompactCiphertextListV1 {
+    pub ct_list: LweCompactCiphertextListOwned<u64>,
+    pub degree: Degree,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub expansion_kind: CompactCiphertextListExpansionKind,
+    pub noise_level: NoiseLevel,
+}
+
+impl Upgrade<CompactCiphertextList> for CompactCiphertextListV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
+        Ok(CompactCiphertextList {
+            ct_list: self.ct_list,
+            degree: self.degree,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            expansion_kind: self.expansion_kind,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompactCiphertextListVersions {
     V0(CompactCiphertextListV0),
-    V1(CompactCiphertextList),
+    V1(CompactCiphertextListV1),
+    V2(CompactCiphertextList),
 }
 
 #[cfg(feature = "zk-pok")]
