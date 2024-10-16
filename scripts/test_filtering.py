@@ -66,8 +66,8 @@ parser.add_argument(
 # block PBS are too slow for high params
 # mul_crt_4_4 is extremely flaky (~80% failure)
 # test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
-# test_integer_smart_mul_param_message_4_carry_4_ks_pbs is too slow
-# so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs
+# test_integer_smart_mul_param_message_4_carry_4_ks_pbs_gaussian_2m64 is too slow
+# so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs_gaussian_2m64
 # skip smart_div, smart_rem which are already covered by the smar_div_rem test
 # skip default_div, default_rem which are covered by default_div_rem
 EXCLUDED_INTEGER_TESTS = [
@@ -75,23 +75,23 @@ EXCLUDED_INTEGER_TESTS = [
     "/.*integer_smart_rem_param/",
     "/.*integer_default_div_param/",
     "/.*integer_default_rem_param/",
-    "/.*_block_pbs(_base)?_param_message_[34]_carry_[34]_ks_pbs$/",
-    "~mul_crt_param_message_4_carry_4_ks_pbs",
-    "/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]_ks_pbs$/",
-    "/.*test_integer_smart_mul_param_message_4_carry_4_ks_pbs$/",
-    "/.*test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs$/",
+    "/.*_block_pbs(_base)?_param_message_[34]_carry_[34]_ks_pbs_gaussian_2m64$/",
+    "~mul_crt_param_message_4_carry_4_ks_pbs_gaussian_2m64",
+    "/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]_ks_pbs_gaussian_2m64$/",
+    "/.*test_integer_smart_mul_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
+    "/.*test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
 ]
 
 # skip default_div, default_rem which are covered by default_div_rem
 EXCLUDED_INTEGER_FAST_TESTS = [
     "/.*integer_default_div_param/",
     "/.*integer_default_rem_param/",
-    "/.*_param_message_[14]_carry_[14]_ks_pbs$/",
-    "/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs$/",
+    "/.*_param_message_[14]_carry_[14]_ks_pbs_gaussian_2m64$/",
+    "/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs_gaussian_2m64$/",
 ]
 
 EXCLUDED_BIG_PARAMETERS = [
-    "/.*_param_message_4_carry_4_ks_pbs$/",
+    "/.*_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
 ]
 
 
@@ -122,18 +122,18 @@ def filter_integer_tests(input_args):
 
     if input_args.fast_tests and input_args.nightly_tests:
         filter_expression.append(
-            f"test(/.*_default_.*?_param{multi_bit_filter}_message_[2-3]_carry_[2-3]_.*/)"
+            f"test(/.*_default_.*?_param{multi_bit_filter}_group_[2-3]_message_[2-3]_carry_[2-3]_.*/)"
         )
     elif input_args.fast_tests:
         # Test only fast default operations with only one set of parameters
         filter_expression.append(
-            f"test(/.*_default_.*?_param{multi_bit_filter}_message_2_carry_2_.*/)"
+            f"test(/.*_default_.*?_param{multi_bit_filter}_group_[2-3]_message_2_carry_2_.*/)"
         )
     elif input_args.nightly_tests:
         # Test only fast default operations with only one set of parameters
         # This subset would run slower than fast_tests hence the use of nightly_tests
         filter_expression.append(
-            f"test(/.*_default_.*?_param{multi_bit_filter}_message_3_carry_3_.*/)"
+            f"test(/.*_default_.*?_param{multi_bit_filter}_group_[2-3]_message_3_carry_3_.*/)"
         )
 
     excluded_tests = (
@@ -171,7 +171,7 @@ def filter_shortint_tests(input_args):
             msg_carry_pairs.append((4, 4))
 
     filter_expression = [
-        f"test(/^shortint::.*_param{multi_bit_filter}_message_{msg}_carry_{carry}{group_filter}(_compact_pk)?_ks_pbs/)"
+        f"test(/^shortint::.*_param{multi_bit_filter}{group_filter}_message_{msg}_carry_{carry}(_compact_pk)?_ks_pbs.*/)"
         for msg, carry in msg_carry_pairs
     ]
     filter_expression.append("test(/^shortint::.*_ci_run_filter/)")

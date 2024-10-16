@@ -17,12 +17,13 @@ use crate::shortint::parameters::Degree;
 ///
 /// ```rust
 /// use tfhe::integer::gen_keys_radix;
-/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 /// use tfhe::shortint::PBSParameters;
 ///
 /// // We have 4 * 2 = 8 bits of message
 /// let size = 4;
-/// let (cks, sks) = gen_keys_radix::<PBSParameters>(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(), size);
+/// let (cks, sks) =
+///     gen_keys_radix::<PBSParameters>(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into(), size);
 ///
 /// let clear = 3u8;
 ///
@@ -59,12 +60,13 @@ impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertext {
 ///
 /// ```rust
 /// use tfhe::integer::gen_keys_radix;
-/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 /// use tfhe::shortint::PBSParameters;
 ///
 /// // We have 4 * 2 = 8 bits of message
 /// let size = 4;
-/// let (cks, sks) = gen_keys_radix::<PBSParameters>(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(), size);
+/// let (cks, sks) =
+///     gen_keys_radix::<PBSParameters>(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into(), size);
 ///
 /// let clear = -3i8;
 ///

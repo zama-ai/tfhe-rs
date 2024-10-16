@@ -17,7 +17,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let number_of_blocks = 2;
     ///
@@ -25,9 +25,9 @@ impl CudaServerKey {
     /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, &mut stream);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &mut stream);
     ///
-    /// let modulus = PARAM_MESSAGE_2_CARRY_2_KS_PBS
+    /// let modulus = PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
     ///     .message_modulus
     ///     .0
     ///     .pow(number_of_blocks as u32) as u64;
@@ -144,7 +144,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let number_of_blocks = 2;
     ///
@@ -152,9 +152,9 @@ impl CudaServerKey {
     /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, &mut stream);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &mut stream);
     ///
-    /// let modulus = PARAM_MESSAGE_2_CARRY_2_KS_PBS
+    /// let modulus = PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
     ///     .message_modulus
     ///     .0
     ///     .pow(number_of_blocks as u32) as u64;

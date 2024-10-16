@@ -37,11 +37,11 @@ macro_rules! create_parametrized_test{    (
     ($name:ident)=> {
         create_parametrized_test!($name
         {
-            (PARAM_MESSAGE_2_CARRY_2_KS_PBS, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
             #[cfg(not(tarpaulin))]
-            (PARAM_MESSAGE_3_CARRY_3_KS_PBS, WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
+            (PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
             #[cfg(not(tarpaulin))]
-            (PARAM_MESSAGE_4_CARRY_4_KS_PBS, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
+            (PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
         });
     };
 }
@@ -280,7 +280,7 @@ pub fn test_wopbs_non_reg_trivial_0() {
     use crate::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey, ServerKey};
 
     fn generate_keys() -> (RadixClientKey, ServerKey, WopbsKey) {
-        let (ck, sk) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 16);
+        let (ck, sk) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, 16);
         let wopbs_key = WopbsKey::new_wopbs_key(&ck, &sk, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         (ck, sk, wopbs_key)
     }

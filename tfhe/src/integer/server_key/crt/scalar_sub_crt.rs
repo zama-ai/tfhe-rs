@@ -13,12 +13,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 7;
@@ -52,10 +52,10 @@ impl ServerKey {
     ///```rust
     /// use tfhe::integer::gen_keys_crt;
     /// let basis = vec![2, 3, 5];
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 7;
@@ -90,12 +90,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 8;
@@ -126,12 +126,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 7;
@@ -161,12 +161,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
     /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 7;
