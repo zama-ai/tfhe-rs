@@ -48,10 +48,10 @@ pub trait VersionizeOwned {
     fn versionize_owned(self) -> Self::VersionedOwned;
 }
 
-/// This trait is used as a proxy to be more flexible when deriving Versionize for Vec<T>.
+/// This trait is used as a proxy to be more flexible when deriving Versionize for `Vec<T>`.
 ///
-/// This way, we can chose to skip versioning Vec<T> if T is a native types but still versionize in
-/// a loop if T is a custom type.
+/// This way, we can chose to skip versioning `Vec<T>` if T is a native types but still versionize
+/// in a loop if T is a custom type.
 /// This is used as a workaround for feature(specialization) and to bypass the orphan rule.
 pub trait VersionizeSlice: Sized {
     type VersionedSlice<'vers>: Serialize
