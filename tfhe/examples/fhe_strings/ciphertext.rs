@@ -1,4 +1,4 @@
-use crate::client_key::{ClientKey, EncU16, EncryptOutput};
+use crate::client_key::{ClientKey, EncU16};
 use crate::server_key::ServerKey;
 use crate::N;
 use tfhe::integer::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
@@ -6,14 +6,14 @@ use tfhe::integer::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
 /// Represents a encrypted ASCII character.
 #[derive(Clone)]
 pub struct FheAsciiChar {
-    enc_char: RadixCiphertext,
+    pub enc_char: RadixCiphertext,
 }
 
 /// Represents a encrypted string made up of [`FheAsciiChar`]s.
 #[derive(Clone)]
 pub struct FheString {
-    enc_string: Vec<FheAsciiChar>,
-    padded: bool,
+    pub enc_string: Vec<FheAsciiChar>,
+    pub padded: bool,
 }
 
 // For str functions that require unsigned integers as arguments
@@ -72,9 +72,7 @@ impl FheString {
     ///
     /// This function will panic if the provided string is not ASCII.
     pub fn new(client_key: &ClientKey, str: &str, padding: Option<u32>) -> Self {
-        let enc_output = client_key.encrypt_ascii(str, padding);
-
-        FheString::from(enc_output)
+        client_key.encrypt_ascii(str, padding)
     }
 
     pub fn trivial(server_key: &ServerKey, str: &str) -> Self {
@@ -91,19 +89,6 @@ impl FheString {
             enc_string,
             padded: false,
         }
-    }
-
-    /// Constructs a new `FheString` from an [`EncryptOutput`], which is guaranteed to be correct.
-    pub fn from(enc_output: EncryptOutput) -> Self {
-        let padded = enc_output.is_padded();
-
-        let enc_string = enc_output
-            .value()
-            .into_iter()
-            .map(|enc_char| FheAsciiChar { enc_char })
-            .collect();
-
-        Self { enc_string, padded }
     }
 
     pub fn chars(&self) -> &[FheAsciiChar] {
