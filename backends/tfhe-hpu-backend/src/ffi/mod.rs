@@ -91,7 +91,7 @@ impl HpuHw {
                         }
                     };
                     Self(xrt::new_hpu_hw(
-                        id,
+                        *id,
                         kernel.to_string(),
                         xclbin.to_string(),
                         verbosity,
