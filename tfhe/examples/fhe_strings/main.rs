@@ -105,6 +105,8 @@ fn main() {
     keys.assert_len(str, str_pad);
     keys.assert_is_empty(str, str_pad);
 
+    keys.assert_encrypt_decrypt(str, str_pad);
+
     keys.assert_contains(str, str_pad, pat, pat_pad);
     keys.assert_ends_with(str, str_pad, pat, pat_pad);
     keys.assert_starts_with(str, str_pad, pat, pat_pad);

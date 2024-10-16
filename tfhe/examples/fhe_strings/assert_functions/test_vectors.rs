@@ -141,6 +141,15 @@ fn test_is_empty() {
 }
 
 #[test]
+fn test_encrypt_decrypt() {
+    let keys = Keys::new();
+
+    for (str, str_pad) in TEST_CASES_MATCH {
+        keys.assert_encrypt_decrypt(str, Some(str_pad));
+    }
+}
+
+#[test]
 fn test_contains() {
     let keys = Keys::new();
 
