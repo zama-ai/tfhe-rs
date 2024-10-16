@@ -1,6 +1,7 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
-    SignedDecompositionIter, SignedDecompositionNonNativeIter, ValueSign,
+    SignedDecompositionIter, SignedDecompositionNonNativeIter, SliceSignedDecompositionIter,
+    SliceSignedDecompositionNonNativeIter, ValueSign,
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
@@ -125,6 +126,36 @@ where
         native_closest_representable(input, self.level_count, self.base_log)
     }
 
+    /// Decode a plaintext value using the decoder to compute the closest representable.
+    pub fn decode_plaintext(&self, input: Scalar) -> Scalar {
+        let shift = Scalar::BITS - self.level_count * self.base_log;
+        self.closest_representable(input) >> shift
+    }
+
+    /// Fills a mutable tensor-like objects with the closest representable values from another
+    /// tensor-like object.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer =
+    ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
+    ///
+    /// let input = vec![1_340_987_234_u32; 2];
+    /// let mut closest = vec![0u32; 2];
+    /// decomposer.fill_slice_with_closest_representable(&mut closest, &input);
+    /// assert!(closest.iter().all(|&x| x == 1_341_128_704_u32));
+    /// ```
+    pub fn fill_slice_with_closest_representable(&self, output: &mut [Scalar], input: &[Scalar]) {
+        assert_eq!(output.len(), input.len());
+        output
+            .iter_mut()
+            .zip(input.iter())
+            .for_each(|(dst, &src)| *dst = self.closest_representable(src));
+    }
+
     /// Generate an iterator over the terms of the decomposition of the input.
     ///
     /// # Warning
@@ -189,6 +220,89 @@ where
             Some(decomp.fold(Scalar::ZERO, |acc, term| {
                 acc.wrapping_add(term.to_recomposition_summand())
             }))
+        } else {
+            None
+        }
+    }
+
+    /// Generates an iterator-like object over tensors of terms of the decomposition of the input
+    /// tensor.
+    ///
+    /// # Warning
+    ///
+    /// The returned iterator yields the terms $(\tilde{\theta}^{(a)}\_i)\_{a\in\mathbb{N}}$ in
+    /// order of decreasing $i$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+    /// use tfhe::core_crypto::commons::numeric::UnsignedInteger;
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer =
+    ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
+    /// let decomposable = vec![1_340_987_234_u32, 1_340_987_234_u32];
+    /// let mut decomp = decomposer.decompose_slice(&decomposable);
+    ///
+    /// let mut count = 0;
+    /// while let Some(term) = decomp.next_term() {
+    ///     assert!(1 <= term.level().0);
+    ///     assert!(term.level().0 <= 3);
+    ///     for elmt in term.as_slice().iter() {
+    ///         let signed_term = elmt.into_signed();
+    ///         let half_basis = 2i32.pow(4) / 2i32;
+    ///         assert!(-half_basis <= signed_term);
+    ///         assert!(signed_term < half_basis);
+    ///     }
+    ///     count += 1;
+    /// }
+    /// assert_eq!(count, 3);
+    /// ```
+    pub fn decompose_slice(&self, input: &[Scalar]) -> SliceSignedDecompositionIter<Scalar> {
+        // Note that there would be no sense of making the decomposition on an input which was
+        // not rounded to the closest representable first. We then perform it before decomposing.
+        let mut closest = vec![Scalar::ZERO; input.len()];
+        self.fill_slice_with_closest_representable(&mut closest, input);
+        SliceSignedDecompositionIter::new(
+            &closest,
+            DecompositionBaseLog(self.base_log),
+            DecompositionLevelCount(self.level_count),
+        )
+    }
+
+    /// Fills the output tensor with the recomposition of another tensor.
+    ///
+    /// Returns `Some(())` if the decomposition was fresh, and the output was filled with a
+    /// recomposition, and `None`, if not.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer =
+    ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
+    /// let decomposable = vec![1_340_987_234_u32; 2];
+    /// let mut rounded = vec![0u32; 2];
+    /// decomposer.fill_slice_with_closest_representable(&mut rounded, &decomposable);
+    /// let decomp = decomposer.decompose_slice(&rounded);
+    /// let mut recomposition = vec![0u32; 2];
+    /// decomposer
+    ///     .fill_slice_with_recompose(decomp, &mut recomposition)
+    ///     .unwrap();
+    /// assert_eq!(recomposition, rounded);
+    /// ```
+    pub fn fill_slice_with_recompose(
+        &self,
+        decomp: SliceSignedDecompositionIter<Scalar>,
+        output: &mut [Scalar],
+    ) -> Option<()> {
+        let mut decomp = decomp;
+        if decomp.is_fresh() {
+            while let Some(term) = decomp.next_term() {
+                term.update_slice_with_recomposition_summand_wrapping_addition(output);
+            }
+            Some(())
         } else {
             None
         }
@@ -388,6 +502,26 @@ where
         }
     }
 
+    /// Decode a plaintext value using the decoder modulo a custom modulus.
+    pub fn decode_plaintext(&self, input: Scalar) -> Scalar {
+        let ciphertext_modulus_as_scalar: Scalar =
+            self.ciphertext_modulus.get_custom_modulus().cast_into();
+        let mut negate_input = false;
+        let mut ptxt = input;
+        if input > ciphertext_modulus_as_scalar >> 1 {
+            negate_input = true;
+            ptxt = ptxt.wrapping_neg_custom_mod(ciphertext_modulus_as_scalar);
+        }
+        let number_of_message_bits = self.base_log().0 * self.level_count().0;
+        let delta = ciphertext_modulus_as_scalar >> number_of_message_bits;
+        let half_delta = delta >> 1;
+        let mut decoded = (ptxt + half_delta) / delta;
+        if negate_input {
+            decoded = decoded.wrapping_neg_custom_mod(ciphertext_modulus_as_scalar);
+        }
+        decoded
+    }
+
     #[inline(always)]
     pub fn init_decomposer_state(&self, input: Scalar) -> (Scalar, ValueSign) {
         let ciphertext_modulus_as_scalar: Scalar =
@@ -417,6 +551,36 @@ where
         };
 
         (abs_closest_representable, input_sign)
+    }
+
+    pub fn init_decomposer_state_slice(
+        &self,
+        input: &[Scalar],
+        output: &mut [Scalar],
+        signs: &mut [ValueSign],
+    ) {
+        assert_eq!(input.len(), output.len());
+        assert_eq!(input.len(), signs.len());
+        let ciphertext_modulus_as_scalar: Scalar =
+            self.ciphertext_modulus.get_custom_modulus().cast_into();
+        let shift_to_native = Scalar::BITS - self.ciphertext_modulus_bit_count() as usize;
+
+        input
+            .iter()
+            .zip(output.iter_mut())
+            .zip(signs.iter_mut())
+            .for_each(|((input, output), sign)| {
+                if *input < ciphertext_modulus_as_scalar.div_ceil(Scalar::TWO) {
+                    (*output, *sign) = (*input, ValueSign::Positive)
+                } else {
+                    (*output, *sign) = (ciphertext_modulus_as_scalar - *input, ValueSign::Negative)
+                };
+                *output = native_closest_representable(
+                    *output << shift_to_native,
+                    self.level_count,
+                    self.base_log,
+                ) >> shift_to_native
+            });
     }
 
     /// Generate an iterator over the terms of the decomposition of the input.
@@ -512,6 +676,153 @@ where
                     ciphertext_modulus_as_scalar,
                 )
             }))
+        } else {
+            None
+        }
+    }
+
+    /// Fills a mutable tensor-like objects with the closest representable values from another
+    /// tensor-like object.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::{SignedDecomposerNonNative, ValueSign};
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 48) + 1).unwrap(),
+    /// );
+    ///
+    /// let input = vec![249280154129830u64; 2];
+    /// let mut closest = vec![0u64; 2];
+    /// let mut signs = vec![ValueSign::Positive; 2];
+    /// decomposer.init_decomposer_state_slice(&input, &mut closest, &mut signs);
+    /// assert!(closest.iter().all(|&x| x == 32160715112448u64));
+    /// decomposer.fill_slice_with_closest_representable(&mut closest, &input);
+    /// assert!(closest.iter().all(|&x| x == 249314261598209u64));
+    /// ```
+    pub fn fill_slice_with_closest_representable(&self, output: &mut [Scalar], input: &[Scalar]) {
+        assert_eq!(output.len(), input.len());
+        let mut signs = vec![ValueSign::Positive; input.len()];
+        self.init_decomposer_state_slice(input, output, &mut signs);
+
+        let modulus_as_scalar: Scalar = self.ciphertext_modulus.get_custom_modulus().cast_into();
+        output
+            .iter_mut()
+            .zip(signs.iter())
+            .for_each(|(output, sign)| match sign {
+                ValueSign::Positive => (),
+                ValueSign::Negative => *output = output.wrapping_neg_custom_mod(modulus_as_scalar),
+            });
+    }
+
+    /// Generates an iterator-like object over tensors of terms of the decomposition of the input
+    /// tensor.
+    ///
+    /// # Warning
+    ///
+    /// The returned iterator yields the terms $(\tilde{\theta}^{(a)}\_i)\_{a\in\mathbb{N}}$ in
+    /// order of decreasing $i$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::commons::numeric::UnsignedInteger;
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    ///
+    /// let decomposition_base_log = DecompositionBaseLog(4);
+    /// let decomposition_level_count = DecompositionLevelCount(3);
+    /// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
+    ///
+    /// let decomposer = SignedDecomposerNonNative::new(
+    ///     decomposition_base_log,
+    ///     decomposition_level_count,
+    ///     ciphertext_modulus,
+    /// );
+    ///
+    /// let basis = 2i64.pow(decomposition_base_log.0.try_into().unwrap());
+    /// let half_basis = basis / 2;
+    ///
+    /// let decomposable = [9223372032559808513u64, 1u64 << 63];
+    /// let mut decomp = decomposer.decompose_slice(&decomposable);
+    ///
+    /// let mut count = 0;
+    /// while let Some(term) = decomp.next_term() {
+    ///     assert!(1 <= term.level().0);
+    ///     assert!(term.level().0 <= 3);
+    ///     for elmt in term.as_slice().iter() {
+    ///         let signed_term = elmt.into_signed();
+    ///         assert!(-half_basis <= signed_term);
+    ///         assert!(signed_term <= half_basis);
+    ///     }
+    ///     count += 1;
+    /// }
+    /// assert_eq!(count, 3);
+    /// ```
+    pub fn decompose_slice(
+        &self,
+        input: &[Scalar],
+    ) -> SliceSignedDecompositionNonNativeIter<Scalar> {
+        let mut abs_closest_representables = vec![Scalar::ZERO; input.len()];
+        let mut signs = vec![ValueSign::Positive; input.len()];
+        self.init_decomposer_state_slice(input, &mut abs_closest_representables, &mut signs);
+
+        SliceSignedDecompositionNonNativeIter::new(
+            &abs_closest_representables,
+            &signs,
+            DecompositionBaseLog(self.base_log),
+            DecompositionLevelCount(self.level_count),
+            self.ciphertext_modulus,
+        )
+    }
+
+    /// Fills the output tensor with the recomposition of another tensor.
+    ///
+    /// Returns `Some(())` if the decomposition was fresh, and the output was filled with a
+    /// recomposition, and `None`, if not.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    ///
+    /// let ciphertext_modulus = CiphertextModulus::try_new((1 << 32) - (1 << 16) + 1).unwrap();
+    /// let decomposer = SignedDecomposerNonNative::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     ciphertext_modulus,
+    /// );
+    /// let decomposable = vec![1_340_987_234_u32; 2];
+    /// let mut rounded = vec![0u32; 2];
+    /// decomposer.fill_slice_with_closest_representable(&mut rounded, &decomposable);
+    /// let decomp = decomposer.decompose_slice(&rounded);
+    /// let mut recomposition = vec![0u32; 2];
+    /// decomposer
+    ///     .fill_slice_with_recompose(decomp, &mut recomposition)
+    ///     .unwrap();
+    /// assert_eq!(recomposition, rounded);
+    /// ```
+    pub fn fill_slice_with_recompose(
+        &self,
+        decomp: SliceSignedDecompositionNonNativeIter<Scalar>,
+        output: &mut [Scalar],
+    ) -> Option<()> {
+        let mut decomp = decomp;
+        if decomp.is_fresh() {
+            while let Some(term) = decomp.next_term() {
+                term.update_slice_with_recomposition_summand_wrapping_addition(output);
+            }
+            Some(())
         } else {
             None
         }

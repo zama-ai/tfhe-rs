@@ -334,6 +334,30 @@ pub fn polynomial_wrapping_add_mul_assign_custom_mod<Scalar, OutputCont, InputCo
     }
 }
 
+/// Multiply a polynomial by a scalar modulo a custom modulus.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::entities::*;
+/// let mut pol = Polynomial::from_container(vec![1u8, 2, 3, 4, 5, 6]);
+/// let scalar = 127u8;
+/// let custom_modulus = 249u8;
+/// polynomial_wrapping_scalar_mul_assign_custom_mod(&mut pol, scalar, custom_modulus);
+/// assert_eq!(pol.as_ref(), &[127u8, 5, 132, 10, 137, 15]);
+/// ```
+pub fn polynomial_wrapping_scalar_mul_assign_custom_mod<Scalar, PolyCont>(
+    output: &mut Polynomial<PolyCont>,
+    scalar: Scalar,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    PolyCont: ContainerMut<Element = Scalar>,
+{
+    slice_wrapping_scalar_mul_assign_custom_mod(output.as_mut(), scalar, custom_modulus)
+}
+
 /// Divides (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
 /// $X^{degree}$.
 ///
@@ -917,6 +941,224 @@ pub fn polynomial_wrapping_sub_mul_assign_custom_mod<Scalar, OutputCont, InputCo
     } else {
         polynomial_wrapping_sub_mul_schoolbook_assign_custom_mod(output, lhs, rhs, custom_modulus)
     }
+}
+
+pub fn polynomial_list_wrapping_sub_scalar_mul_assign<Scalar, InputCont, OutputCont, PolyCont>(
+    output_poly_list: &mut PolynomialList<OutputCont>,
+    input_poly_list: &PolynomialList<InputCont>,
+    scalar_poly: &Polynomial<PolyCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        output_poly_list.polynomial_size(),
+        input_poly_list.polynomial_size()
+    );
+    assert_eq!(
+        output_poly_list.polynomial_count(),
+        input_poly_list.polynomial_count()
+    );
+    for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip(input_poly_list.iter()) {
+        polynomial_wrapping_sub_mul_assign(&mut output_poly, &input_poly, scalar_poly)
+    }
+}
+
+pub fn polynomial_list_wrapping_sub_scalar_mul_assign_custom_mod<
+    Scalar,
+    InputCont,
+    OutputCont,
+    PolyCont,
+>(
+    output_poly_list: &mut PolynomialList<OutputCont>,
+    input_poly_list: &PolynomialList<InputCont>,
+    scalar_poly: &Polynomial<PolyCont>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        output_poly_list.polynomial_size(),
+        input_poly_list.polynomial_size()
+    );
+    assert_eq!(
+        output_poly_list.polynomial_count(),
+        input_poly_list.polynomial_count()
+    );
+    for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip(input_poly_list.iter()) {
+        polynomial_wrapping_sub_mul_assign_custom_mod(
+            &mut output_poly,
+            &input_poly,
+            scalar_poly,
+            custom_modulus,
+        )
+    }
+}
+
+/// Apply an automorphism to the input [`Polynomial`](`Polynomial`) and add
+/// the result to the output [`Polynomial`](`Polynomial`).
+///
+/// The automorphism is specified by the exponent to which the polynomial
+/// indeterminate is raised, namely the value e where X is mapped to X^e.
+/// The automorphism exponent needs to be odd as we assume we are working
+/// in a power of two cyclotomic ring.
+pub fn apply_automorphism_wrapping_add_assign<Scalar, OutputCont, PolyCont>(
+    output: &mut Polynomial<OutputCont>,
+    input: &Polynomial<PolyCont>,
+    automorphism_exponent: usize,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    // check input and output polynomials have the same size
+    assert_eq!(input.polynomial_size(), output.polynomial_size());
+
+    // check dimensions are a power of 2
+    assert!(input.polynomial_size().0.is_power_of_two());
+
+    // check the automorphism exponent is odd so the function X -> X^automorphism_exponent is an
+    // automorphism (assumes polysize is a power of 2 which we just checked)
+    assert_eq!(automorphism_exponent % 2, 1);
+
+    let poly_size = input.polynomial_size().0;
+
+    for (index, coef) in input.iter().enumerate() {
+        let new_index = (index * automorphism_exponent) % poly_size;
+        if (index * automorphism_exponent) % (2 * poly_size) == new_index {
+            output[new_index] = output[new_index].wrapping_add(*coef);
+        } else {
+            output[new_index] = output[new_index].wrapping_sub(*coef);
+        }
+    }
+}
+
+/// Apply an automorphism to the input [`Polynomial`](`Polynomial`) and add
+/// the result to the output [`Polynomial`](`Polynomial`) modulo a custom modulus.
+///
+/// The automorphism is specified by the exponent to which the polynomial
+/// indeterminate is raised, namely the value e where X is mapped to X^e.
+/// The automorphism exponent needs to be odd as we assume we are working
+/// in a power of two cyclotomic ring.
+pub fn apply_automorphism_wrapping_add_assign_custom_mod<Scalar, OutputCont, PolyCont>(
+    output: &mut Polynomial<OutputCont>,
+    input: &Polynomial<PolyCont>,
+    automorphism_exponent: usize,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    // check input and output polynomials have the same size
+    assert_eq!(input.polynomial_size(), output.polynomial_size());
+
+    // check dimensions are a power of 2
+    assert!(input.polynomial_size().0.is_power_of_two());
+
+    // check the automorphism exponent is odd so the function X -> X^automorphism_exponent is an
+    // automorphism (assumes polysize is a power of 2 which we just checked)
+    assert_eq!(automorphism_exponent % 2, 1);
+
+    let poly_size = input.polynomial_size().0;
+
+    for (index, coef) in input.iter().enumerate() {
+        let new_index = (index * automorphism_exponent) % poly_size;
+        if (index * automorphism_exponent) % (2 * poly_size) == new_index {
+            output[new_index] = output[new_index].wrapping_add_custom_mod(*coef, custom_modulus);
+        } else {
+            output[new_index] = output[new_index].wrapping_sub_custom_mod(*coef, custom_modulus);
+        }
+    }
+}
+
+/// Apply an automorphism to the input [`Polynomial`](`Polynomial`).
+///
+/// The automorphism is specified by the exponent to which the polynomial
+/// indeterminate is raised, namely the value e where X is mapped to X^e.
+/// The automorphism exponent needs to be odd as we assume we are working
+/// in a power of two cyclotomic ring.
+///
+/// # Example
+///
+/// ```rust
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::commons::parameters::*;
+/// use tfhe::core_crypto::entities::*;
+/// let mut poly = Polynomial::new(1_u8, PolynomialSize(32));
+/// apply_automorphism_assign(&mut poly, 5);
+/// let expected = [
+///     1u8, 1, 1, 255, 255, 1, 1, 1, 255, 255, 1, 1, 1, 255, 255, 1, 1, 1, 255, 255, 1, 1, 1, 255,
+///     255, 1, 1, 1, 255, 255, 1, 1,
+/// ];
+///
+/// poly.as_ref()
+///     .iter()
+///     .zip(expected.iter())
+///     .for_each(|(&x, &y)| assert_eq!(x, y));
+/// ```
+pub fn apply_automorphism_assign<Scalar, PolyCont>(
+    input: &mut Polynomial<PolyCont>,
+    automorphism_exponent: usize,
+) where
+    Scalar: UnsignedInteger,
+    PolyCont: ContainerMut<Element = Scalar>,
+{
+    let mut temp = Polynomial::new(Scalar::ZERO, input.polynomial_size());
+    apply_automorphism_wrapping_add_assign(&mut temp, input, automorphism_exponent);
+    input.as_mut().fill(Scalar::ZERO);
+    polynomial_wrapping_add_assign(input, &temp);
+}
+
+/// Apply an automorphism to the input [`Polynomial`](`Polynomial`)
+/// modulo a custom modulus.
+///
+/// The automorphism is specified by the exponent to which the polynomial
+/// indeterminate is raised, namely the value e where X is mapped to X^e.
+/// The automorphism exponent needs to be odd as we assume we are working
+/// in a power of two cyclotomic ring.
+///
+/// # Example
+///
+/// ```rust
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::commons::parameters::*;
+/// use tfhe::core_crypto::entities::*;
+/// let mut poly = Polynomial::new(1_u8, PolynomialSize(32));
+/// let custom_modulus = 223u8;
+/// apply_automorphism_assign_custom_mod(&mut poly, 5, custom_modulus);
+/// let expected = [
+///     1u8, 1, 1, 222, 222, 1, 1, 1, 222, 222, 1, 1, 1, 222, 222, 1, 1, 1, 222, 222, 1, 1, 1, 222,
+///     222, 1, 1, 1, 222, 222, 1, 1,
+/// ];
+///
+/// poly.as_ref()
+///     .iter()
+///     .zip(expected.iter())
+///     .for_each(|(&x, &y)| assert_eq!(x, y));
+/// ```
+pub fn apply_automorphism_assign_custom_mod<Scalar, PolyCont>(
+    input: &mut Polynomial<PolyCont>,
+    automorphism_exponent: usize,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    PolyCont: ContainerMut<Element = Scalar>,
+{
+    let mut temp = Polynomial::new(Scalar::ZERO, input.polynomial_size());
+    apply_automorphism_wrapping_add_assign_custom_mod(
+        &mut temp,
+        input,
+        automorphism_exponent,
+        custom_modulus,
+    );
+    input.as_mut().fill(Scalar::ZERO);
+    polynomial_wrapping_add_assign_custom_mod(input, &temp, custom_modulus);
 }
 
 /// Fill the output polynomial, with the result of the product of two polynomials, reduced modulo
