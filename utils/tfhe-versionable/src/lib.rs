@@ -6,10 +6,12 @@
 //! that has a variant for each version of the type.
 //! These traits can be generated using the [`tfhe_versionable_derive::Versionize`] proc macro.
 
+pub mod deprecation;
 pub mod derived_traits;
 pub mod upgrade;
 
 use aligned_vec::{ABox, AVec};
+use deprecation::DeprecatedVersionError;
 use num_complex::Complex;
 use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
@@ -89,6 +91,9 @@ pub enum UnversionizeError {
         expected_size: usize,
         found_size: usize,
     },
+
+    /// A deprecated version has been found
+    DeprecatedVersion(DeprecatedVersionError),
 }
 
 impl Display for UnversionizeError {
@@ -114,6 +119,7 @@ impl Display for UnversionizeError {
                     "Expected array of size {expected_size}, found array of size {found_size}"
                 )
             }
+            Self::DeprecatedVersion(deprecation_error) => deprecation_error.fmt(f),
         }
     }
 }
@@ -124,6 +130,7 @@ impl Error for UnversionizeError {
             UnversionizeError::Upgrade { source, .. } => Some(source.as_ref()),
             UnversionizeError::Conversion { source, .. } => Some(source.as_ref()),
             UnversionizeError::ArrayLength { .. } => None,
+            UnversionizeError::DeprecatedVersion(_) => None,
         }
     }
 }
