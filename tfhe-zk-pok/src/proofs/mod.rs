@@ -146,3 +146,196 @@ pub mod pke;
 pub mod pke_v2;
 pub mod range;
 pub mod rlwe;
+
+#[cfg(test)]
+mod test {
+    #![allow(non_snake_case)]
+    use std::fmt::Display;
+
+    use bincode::ErrorKind;
+    use rand::rngs::StdRng;
+    use rand::Rng;
+    use serde::{Deserialize, Serialize};
+
+    use crate::curve_api::Compressible;
+
+    // One of our usecases uses 320 bits of additional metadata
+    pub(super) const METADATA_LEN: usize = (320 / u8::BITS) as usize;
+
+    pub(super) enum Compress {
+        Yes,
+        No,
+    }
+
+    pub(super) fn serialize_then_deserialize<
+        Params: Compressible + Serialize + for<'de> Deserialize<'de>,
+    >(
+        public_params: &Params,
+        compress: Compress,
+    ) -> bincode::Result<Params>
+    where
+        <Params as Compressible>::Compressed: Serialize + for<'de> Deserialize<'de>,
+        <Params as Compressible>::UncompressError: Display,
+    {
+        match compress {
+            Compress::Yes => Params::uncompress(bincode::deserialize(&bincode::serialize(
+                &public_params.compress(),
+            )?)?)
+            .map_err(|e| Box::new(ErrorKind::Custom(format!("Failed to uncompress: {}", e)))),
+            Compress::No => bincode::deserialize(&bincode::serialize(&public_params)?),
+        }
+    }
+
+    pub(super) fn polymul_rev(a: &[i64], b: &[i64]) -> Vec<i64> {
+        assert_eq!(a.len(), b.len());
+        let d = a.len();
+        let mut c = vec![0i64; d];
+
+        for i in 0..d {
+            for j in 0..d {
+                if i + j < d {
+                    c[i + j] = c[i + j].wrapping_add(a[i].wrapping_mul(b[d - j - 1]));
+                } else {
+                    c[i + j - d] = c[i + j - d].wrapping_sub(a[i].wrapping_mul(b[d - j - 1]));
+                }
+            }
+        }
+
+        c
+    }
+
+    #[derive(Copy, Clone)]
+    pub(super) struct PkeTestParameters {
+        pub(super) d: usize,
+        pub(super) k: usize,
+        pub(super) B: u64,
+        pub(super) q: u64,
+        pub(super) t: u64,
+        pub(super) msbs_zero_padding_bit_count: u64,
+    }
+
+    pub(super) struct PkeTestProofInputs {
+        pub(super) a: Vec<i64>,
+        pub(super) e1: Vec<i64>,
+        pub(super) e2: Vec<i64>,
+        pub(super) r: Vec<i64>,
+        pub(super) m: Vec<i64>,
+        pub(super) b: Vec<i64>,
+        pub(super) c1: Vec<i64>,
+        pub(super) c2: Vec<i64>,
+        pub(super) metadata: [u8; METADATA_LEN],
+    }
+
+    impl PkeTestProofInputs {
+        pub(super) fn gen(rng: &mut StdRng, params: PkeTestParameters) -> Self {
+            let PkeTestParameters {
+                d,
+                k,
+                B,
+                q,
+                t,
+                msbs_zero_padding_bit_count,
+            } = params;
+
+            let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+            let delta = {
+                let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+                // delta takes the encoding with the padding bit
+                (q / t as i128) as u64
+            };
+
+            let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+            let s = (0..d)
+                .map(|_| (rng.gen::<u64>() % 2) as i64)
+                .collect::<Vec<_>>();
+            let e = (0..d)
+                .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+                .collect::<Vec<_>>();
+            let e1 = (0..d)
+                .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+                .collect::<Vec<_>>();
+            let e2 = (0..k)
+                .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+                .collect::<Vec<_>>();
+
+            let r = (0..d)
+                .map(|_| (rng.gen::<u64>() % 2) as i64)
+                .collect::<Vec<_>>();
+            let m = (0..k)
+                .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
+                .collect::<Vec<_>>();
+            let b = polymul_rev(&a, &s)
+                .into_iter()
+                .zip(e.iter())
+                .map(|(x, e)| x.wrapping_add(*e))
+                .collect::<Vec<_>>();
+
+            // Encrypt using compact pke
+            let c1 = polymul_rev(&a, &r)
+                .into_iter()
+                .zip(e1.iter())
+                .map(|(x, e1)| x.wrapping_add(*e1))
+                .collect::<Vec<_>>();
+
+            let mut c2 = vec![0i64; k];
+
+            for i in 0..k {
+                let mut dot = 0i64;
+                for j in 0..d {
+                    let b = if i + j < d {
+                        b[d - j - i - 1]
+                    } else {
+                        b[2 * d - j - i - 1].wrapping_neg()
+                    };
+
+                    dot = dot.wrapping_add(r[d - j - 1].wrapping_mul(b));
+                }
+
+                c2[i] = dot
+                    .wrapping_add(e2[i])
+                    .wrapping_add((delta * m[i] as u64) as i64);
+            }
+
+            let mut metadata = [0u8; METADATA_LEN];
+            metadata.fill_with(|| rng.gen::<u8>());
+
+            // Check decryption
+            let mut m_roundtrip = vec![0i64; k];
+            for i in 0..k {
+                let mut dot = 0i128;
+                for j in 0..d {
+                    let c = if i + j < d {
+                        c1[d - j - i - 1]
+                    } else {
+                        c1[2 * d - j - i - 1].wrapping_neg()
+                    };
+
+                    dot += s[d - j - 1] as i128 * c as i128;
+                }
+
+                let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+                let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
+                let div = val.div_euclid(q);
+                let rem = val.rem_euclid(q);
+                let result = div as i64 + (rem > (q / 2)) as i64;
+                let result = result.rem_euclid(effective_cleartext_t as i64);
+                m_roundtrip[i] = result;
+            }
+
+            assert_eq!(m, m_roundtrip);
+
+            Self {
+                a,
+                e1,
+                e2,
+                r,
+                m,
+                b,
+                c1,
+                c2,
+                metadata,
+            }
+        }
+    }
+}
