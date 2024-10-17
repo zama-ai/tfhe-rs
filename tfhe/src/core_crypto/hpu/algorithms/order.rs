@@ -155,6 +155,16 @@ impl RadixBasis {
     }
 }
 
+/// Utility function to get src idx for a given order
+pub fn idx_in_order(idx: usize, into: PolyOrder, rb_conv: &mut RadixBasis) -> usize {
+    match into {
+        PolyOrder::Natural => idx,
+        PolyOrder::Reverse => rb_conv.idx_rev(idx),
+        PolyOrder::RightRotate => rb_conv.idx_rrot(idx),
+        PolyOrder::PseudoReverse(rank) => rb_conv.idx_pdrev(rb_conv.digits_nb(), rank, idx),
+    }
+}
+
 /// Utility function to shuffle a polynomial in a given order
 pub fn poly_order<Scalar, F>(
     dst: &mut [Scalar],
@@ -174,12 +184,7 @@ pub fn poly_order<Scalar, F>(
     );
 
     for (idx, v) in dst.iter_mut().enumerate() {
-        let src_idx = match into {
-            PolyOrder::Natural => idx,
-            PolyOrder::Reverse => rb_conv.idx_rev(idx),
-            PolyOrder::RightRotate => rb_conv.idx_rrot(idx),
-            PolyOrder::PseudoReverse(rank) => rb_conv.idx_pdrev(rb_conv.digits_nb(), rank, idx),
-        };
+        let src_idx = idx_in_order(idx, into, rb_conv);
         *v = f(src[src_idx]);
     }
 }

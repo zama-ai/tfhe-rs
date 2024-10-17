@@ -135,8 +135,8 @@ impl HpuVarWrapped {
         {
             let mut inner = var.inner.lock().unwrap();
 
-            for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct.iter()) {
-                for (id, cut) in ct.hw_slice().iter().enumerate() {
+            for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct.into_iter()) {
+                for (id, cut) in ct.into_container().iter().enumerate() {
                     slot.mz[id].write(0, &cut);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
@@ -165,25 +165,19 @@ impl HpuVarWrapped {
         }
 
         let params = inner.params();
-
-        let blwe_size = hpu_big_lwe_ciphertext_size(&params);
         let mut ct = Vec::new();
-        // TODO: Correctly support pem_pc = 1
-        // Instead of copy use slice in the inner representation !?
-        let mut hw_slice = vec![
-            vec![0_u64; blwe_size.div_euclid(2) + 1],
-            vec![0_u64; blwe_size.div_euclid(2)],
-        ];
+
         for slot in inner.bundle.iter() {
             // Allocate HpuLwe
+            // and view inner buffer as cut
             let mut hpu_lwe = HpuLweCiphertextOwned::<u64>::new(0, params.clone());
+            let mut hw_slice = hpu_lwe.as_mut_view().into_container();
 
-            // View buffer as cut
-            // Copy from Xrt memory and shuffle back to cpu order
+            // Copy from Xrt memory
             std::iter::zip(slot.mz.iter(), hw_slice.iter_mut())
                 .enumerate()
                 .for_each(|(id, (mz, cut))| {
-                    mz.read(0, cut.as_mut_slice());
+                    mz.read(0, cut);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
                         &cut.as_ref(),
@@ -191,7 +185,6 @@ impl HpuVarWrapped {
                         io_dump::DumpId::Slot(slot.id, id),
                     );
                 });
-            hpu_lwe.copy_from_hw_slice(&[hw_slice[0].as_slice(), hw_slice[1].as_slice()]);
             ct.push(hpu_lwe);
         }
 
