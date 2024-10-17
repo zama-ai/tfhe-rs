@@ -68,9 +68,8 @@ impl SplitAsciiWhitespace {
         // Apply the mask to get the result
         result
             .chars_mut()
-            .iter_mut()
-            .zip(mask.chars())
-            .par_bridge()
+            .par_iter_mut()
+            .zip(mask.chars().par_iter())
             .for_each(|(char, mask_u8)| {
                 sk.key
                     .bitand_assign_parallelized(char.ciphertext_mut(), mask_u8.ciphertext());
