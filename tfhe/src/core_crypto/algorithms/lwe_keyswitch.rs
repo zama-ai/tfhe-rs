@@ -216,7 +216,8 @@ pub fn keyswitch_lwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCont
     {
         let decomposition_iter = decomposer.decompose(input_mask_element);
         // Loop over the levels
-        for (level_key_ciphertext, decomposed) in keyswitch_key_block.iter().zip(decomposition_iter)
+        for (level_key_ciphertext, decomposed) in
+            keyswitch_key_block.iter().rev().zip(decomposition_iter)
         {
             slice_wrapping_sub_scalar_mul_assign(
                 output_lwe_ciphertext.as_mut(),
@@ -304,7 +305,8 @@ pub fn keyswitch_lwe_ciphertext_other_mod<Scalar, KSKCont, InputCont, OutputCont
     {
         let decomposition_iter = decomposer.decompose(input_mask_element);
         // Loop over the levels
-        for (level_key_ciphertext, decomposed) in keyswitch_key_block.iter().zip(decomposition_iter)
+        for (level_key_ciphertext, decomposed) in
+            keyswitch_key_block.iter().rev().zip(decomposition_iter)
         {
             slice_wrapping_sub_scalar_mul_assign_custom_modulus(
                 output_lwe_ciphertext.as_mut(),
@@ -436,7 +438,8 @@ pub fn keyswitch_lwe_ciphertext_with_scalar_change<
     {
         let decomposition_iter = input_decomposer.decompose(input_mask_element);
         // Loop over the levels
-        for (level_key_ciphertext, decomposed) in keyswitch_key_block.iter().zip(decomposition_iter)
+        for (level_key_ciphertext, decomposed) in
+            keyswitch_key_block.iter().rev().zip(decomposition_iter)
         {
             slice_wrapping_sub_scalar_mul_assign(
                 output_lwe_ciphertext.as_mut(),
@@ -799,7 +802,7 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count_native_mod_compatible<
                 let decomposition_iter = decomposer.decompose(input_mask_element);
                 // Loop over the levels
                 for (level_key_ciphertext, decomposed) in
-                    keyswitch_key_block.iter().zip(decomposition_iter)
+                    keyswitch_key_block.iter().rev().zip(decomposition_iter)
                 {
                     slice_wrapping_sub_scalar_mul_assign(
                         buffer.as_mut(),
@@ -946,7 +949,7 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count_other_mod<
                 let decomposition_iter = decomposer.decompose(input_mask_element);
                 // Loop over the levels
                 for (level_key_ciphertext, decomposed) in
-                    keyswitch_key_block.iter().zip(decomposition_iter)
+                    keyswitch_key_block.iter().rev().zip(decomposition_iter)
                 {
                     slice_wrapping_sub_scalar_mul_assign_custom_modulus(
                         buffer.as_mut(),

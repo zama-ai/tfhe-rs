@@ -59,7 +59,7 @@ edition = "2021"
 For x86 Unix systems, add the following configuration to include **TFHE-rs**:
 
 ```toml
-tfhe = { version = "0.8.0", features = ["integer", "x86_64-unix"]}
+tfhe = { version = "0.9.0", features = ["integer", "x86_64-unix"]}
 ```
 
 Your updated `Cargo.toml` file should look like this:
@@ -71,7 +71,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tfhe = { version = "0.8.0", features = ["integer", "x86_64-unix"]}
+tfhe = { version = "0.9.0", features = ["integer", "x86_64-unix"]}
 ```
 
 If you are on a different platform please refer to the [installation documentation](installation.md) for configuration options of other supported platforms.

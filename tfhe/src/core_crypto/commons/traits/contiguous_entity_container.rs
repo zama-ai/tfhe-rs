@@ -433,6 +433,17 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
             .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
     }
 
+    fn reverse(&mut self) {
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let container = self.as_mut();
+
+        container.reverse();
+
+        for entity_slot in self.as_mut().chunks_exact_mut(entity_view_pod_size) {
+            entity_slot.reverse();
+        }
+    }
+
     fn par_iter_mut<'this>(
         &'this mut self,
     ) -> ParallelChunksExactWrappingLendingIteratorMut<

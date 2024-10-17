@@ -1,9 +1,14 @@
 use crate::high_level_api::keys::*;
-use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
 use crate::Tag;
 use std::convert::Infallible;
 use std::sync::Arc;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+
+#[derive(Version)]
+pub struct UnsupportedIntegerClientKeyV0;
+
+#[derive(Version)]
+pub struct UnsupportedIntegerClientKeyV1;
 
 #[derive(VersionsDispatch)]
 pub enum ClientKeyVersions {
@@ -184,42 +189,25 @@ pub(crate) enum IntegerConfigVersions {
     V0(IntegerConfig),
 }
 
-#[derive(Version)]
-pub(crate) struct IntegerClientKeyV0 {
-    pub(crate) key: crate::integer::ClientKey,
-    pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
-}
+impl Upgrade<UnsupportedIntegerClientKeyV1> for UnsupportedIntegerClientKeyV0 {
+    type Error = crate::Error;
 
-#[derive(Version)]
-pub(crate) struct IntegerClientKeyV1 {
-    pub(crate) key: crate::integer::ClientKey,
-    pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
-    pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
-    pub(crate) compression_key: Option<CompressionPrivateKeys>,
-}
-
-impl Upgrade<IntegerClientKeyV1> for IntegerClientKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<IntegerClientKeyV1, Self::Error> {
-        Ok(IntegerClientKeyV1 {
-            key: self.key,
-            wopbs_block_parameters: self.wopbs_block_parameters,
-            dedicated_compact_private_key: None,
-            compression_key: None,
-        })
+    fn upgrade(self) -> Result<UnsupportedIntegerClientKeyV1, Self::Error> {
+        Err(crate::Error::new(
+            "Unable to load data this format is unsupported by this TFHE-rs version.".to_string(),
+        ))
     }
 }
 
-impl Upgrade<IntegerClientKeyV2> for IntegerClientKeyV1 {
-    type Error = Infallible;
+impl Upgrade<IntegerClientKeyV2> for UnsupportedIntegerClientKeyV1 {
+    type Error = crate::Error;
 
     fn upgrade(self) -> Result<IntegerClientKeyV2, Self::Error> {
-        Ok(IntegerClientKeyV2 {
-            key: self.key,
-            dedicated_compact_private_key: self.dedicated_compact_private_key,
-            compression_key: self.compression_key,
-        })
+        Err(crate::Error::new(
+            "Unable to load IntegerClientKey, \
+            this format is unsupported by this TFHE-rs version."
+                .to_string(),
+        ))
     }
 }
 
@@ -247,52 +235,39 @@ impl Upgrade<IntegerClientKey> for IntegerClientKeyV2 {
 #[derive(VersionsDispatch)]
 #[allow(unused)]
 pub(crate) enum IntegerClientKeyVersions {
-    V0(IntegerClientKeyV0),
-    V1(IntegerClientKeyV1),
+    V0(UnsupportedIntegerClientKeyV0),
+    V1(UnsupportedIntegerClientKeyV1),
     V2(IntegerClientKeyV2),
     V3(IntegerClientKey),
 }
 
 #[derive(Version)]
-pub struct IntegerServerKeyV0 {
-    pub(crate) key: crate::integer::ServerKey,
-    pub(crate) wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
-}
+pub struct UnsupportedIntegerServerKeyV0;
 
 #[derive(Version)]
-pub struct IntegerServerKeyV1 {
-    pub(crate) key: crate::integer::ServerKey,
-    pub(crate) wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
-    pub(crate) cpk_key_switching_key_material:
-        Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
-    pub(crate) compression_key: Option<CompressionKey>,
-    pub(crate) decompression_key: Option<DecompressionKey>,
-}
+pub struct UnsupportedIntegerServerKeyV1;
 
-impl Upgrade<IntegerServerKeyV1> for IntegerServerKeyV0 {
-    type Error = Infallible;
+impl Upgrade<UnsupportedIntegerServerKeyV1> for UnsupportedIntegerServerKeyV0 {
+    type Error = crate::Error;
 
-    fn upgrade(self) -> Result<IntegerServerKeyV1, Self::Error> {
-        Ok(IntegerServerKeyV1 {
-            key: self.key,
-            wopbs_key: self.wopbs_key,
-            cpk_key_switching_key_material: None,
-            compression_key: None,
-            decompression_key: None,
-        })
+    fn upgrade(self) -> Result<UnsupportedIntegerServerKeyV1, Self::Error> {
+        Err(crate::Error::new(
+            "Unable to load IntegerServerKey, \
+            this format is unsupported by this TFHE-rs version."
+                .to_string(),
+        ))
     }
 }
 
-impl Upgrade<IntegerServerKeyV2> for IntegerServerKeyV1 {
-    type Error = Infallible;
+impl Upgrade<IntegerServerKeyV2> for UnsupportedIntegerServerKeyV1 {
+    type Error = crate::Error;
 
     fn upgrade(self) -> Result<IntegerServerKeyV2, Self::Error> {
-        Ok(IntegerServerKeyV2 {
-            key: self.key,
-            cpk_key_switching_key_material: self.cpk_key_switching_key_material,
-            compression_key: self.compression_key,
-            decompression_key: self.decompression_key,
-        })
+        Err(crate::Error::new(
+            "Unable to load IntegerServerKey, \
+            this format is unsupported by this TFHE-rs version."
+                .to_string(),
+        ))
     }
 }
 
@@ -324,33 +299,30 @@ impl Upgrade<IntegerServerKey> for IntegerServerKeyV2 {
 
 #[derive(VersionsDispatch)]
 pub enum IntegerServerKeyVersions {
-    V0(IntegerServerKeyV0),
-    V1(IntegerServerKeyV1),
+    V0(UnsupportedIntegerServerKeyV0),
+    V1(UnsupportedIntegerServerKeyV1),
     V2(IntegerServerKeyV2),
     V3(IntegerServerKey),
 }
 
 #[derive(Version)]
-pub struct IntegerCompressedServerKeyV0 {
-    pub(crate) key: crate::integer::CompressedServerKey,
-}
+pub struct UnsupportedIntegerCompressedServerKeyV0;
 
-impl Upgrade<IntegerCompressedServerKey> for IntegerCompressedServerKeyV0 {
-    type Error = Infallible;
+impl Upgrade<IntegerCompressedServerKey> for UnsupportedIntegerCompressedServerKeyV0 {
+    type Error = crate::Error;
 
     fn upgrade(self) -> Result<IntegerCompressedServerKey, Self::Error> {
-        Ok(IntegerCompressedServerKey {
-            key: self.key,
-            cpk_key_switching_key_material: None,
-            compression_key: None,
-            decompression_key: None,
-        })
+        Err(crate::Error::new(
+            "Unable to load IntegerCompressedServerKey, \
+            this format is unsupported by this TFHE-rs version."
+                .to_string(),
+        ))
     }
 }
 
 #[derive(VersionsDispatch)]
 pub enum IntegerCompressedServerKeyVersions {
-    V0(IntegerCompressedServerKeyV0),
+    V0(UnsupportedIntegerCompressedServerKeyV0),
     V1(IntegerCompressedServerKey),
 }
 
