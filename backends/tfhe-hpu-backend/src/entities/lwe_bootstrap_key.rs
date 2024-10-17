@@ -7,21 +7,40 @@ use super::parameters::*;
 use super::traits::container::*;
 
 /// A [`Hpu lwe bootstraping key`](`HpuLweBootstrapKey`).
+/// Inner container is split in pc chunks to ease copy from/to hardware
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuLweBootstrapKey<C: Container> {
-    data: C,
+    pc_data: Vec<C>,
     params: HpuParameters,
 }
 
-impl<C: Container> AsRef<[C::Element]> for HpuLweBootstrapKey<C> {
-    fn as_ref(&self) -> &[C::Element] {
-        self.data.as_ref()
+/// Index inside the container abstracing away the inner pc split
+impl<C: Container> std::ops::Index<usize> for HpuLweBootstrapKey<C> {
+    type Output = C::Element;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        let ntt_p = &self.params.ntt_params;
+        let bsk_pc = self.params.pc_params.bsk_pc;
+        let chunk_size = (ntt_p.radix * ntt_p.psi) / bsk_pc;
+        let (pc, ofst) = (
+            (index / chunk_size) % bsk_pc,
+            (((index / chunk_size) / bsk_pc) * chunk_size) + (index % chunk_size),
+        );
+        &self.pc_data[pc].as_ref()[ofst]
     }
 }
 
-impl<C: ContainerMut> AsMut<[C::Element]> for HpuLweBootstrapKey<C> {
-    fn as_mut(&mut self) -> &mut [C::Element] {
-        self.data.as_mut()
+/// IndexMut inside the container abstracing away the inner pc split
+impl<C: ContainerMut> std::ops::IndexMut<usize> for HpuLweBootstrapKey<C> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        let ntt_p = &self.params.ntt_params;
+        let bsk_pc = self.params.pc_params.bsk_pc;
+        let chunk_size = (ntt_p.radix * ntt_p.psi) / bsk_pc;
+        let (pc, ofst) = (
+            (index / chunk_size) % bsk_pc,
+            (((index / chunk_size) / bsk_pc) * chunk_size) + (index % chunk_size),
+        );
+        &mut self.pc_data[pc].as_mut()[ofst]
     }
 }
 
@@ -36,21 +55,36 @@ pub fn hpu_lwe_bootstrap_key_size(params: &HpuParameters) -> usize {
 
 impl<C: Container> HpuLweBootstrapKey<C> {
     /// Create a [`HpuLweBootstrapKey`] from an existing container.
-    pub fn from_container(container: C, params: HpuParameters) -> Self {
-        assert!(
-            container.container_len() > 0,
-            "Got an empty container to create a HpuLweBootstrapKey"
+    pub fn from_container(container: Vec<C>, params: HpuParameters) -> Self {
+        debug_assert_eq!(
+            (params.ntt_params.radix * params.ntt_params.psi) % params.pc_params.bsk_pc,
+            0,
+            "Error: Incompatible (R*PSI: {}, BSK_PC: {})",
+            params.ntt_params.radix * params.ntt_params.psi,
+            params.pc_params.bsk_pc
+        );
+
+        assert_eq!(
+            container.len(),
+            params.pc_params.bsk_pc,
+            "Container chunk mismatch with bsk_pc number"
         );
         assert!(
-            container.container_len() == hpu_lwe_bootstrap_key_size(&params),
+            container.iter().map(|x| x.container_len()).sum::<usize>() > 0,
+            "Got an empty container to create a HpuLweBootstrapKey"
+        );
+        assert_eq!(
+            container.iter().map(|x| x.container_len()).sum::<usize>(),
+            hpu_lwe_bootstrap_key_size(&params),
             "The provided container length is not valid. \
         It needs to match with parameters. \
         Got container length: {} and based on parameters value expect: {}.",
-            container.container_len(),
+            container.iter().map(|x| x.container_len()).sum::<usize>(),
             hpu_lwe_bootstrap_key_size(&params)
         );
+
         Self {
-            data: container,
+            pc_data: container,
             params,
         }
     }
@@ -58,8 +92,8 @@ impl<C: Container> HpuLweBootstrapKey<C> {
     /// Consume the entity and return its underlying container.
     ///
     /// See [`HpuLweBootstrapKey::from_container`] for usage.
-    pub fn into_container(self) -> C {
-        self.data
+    pub fn into_container(self) -> Vec<C> {
+        self.pc_data
     }
 }
 
@@ -71,11 +105,16 @@ impl<C: Container> HpuLweBootstrapKey<C> {
         &self.params
     }
 
+    /// Return the length of the [`HpuLweBootstrapKey`] underlying containers.
+    pub fn len(&self) -> usize {
+        self.pc_data.iter().map(|c| c.container_len()).sum()
+    }
+
     /// Return a view of the [`HpuLweBootstrapKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> HpuLweBootstrapKey<&'_ [C::Element]> {
         HpuLweBootstrapKey {
-            data: self.data.as_ref(),
+            pc_data: self.pc_data.iter().map(|x| x.as_ref()).collect::<Vec<_>>(),
             params: self.params.clone(),
         }
     }
@@ -85,82 +124,13 @@ impl<C: ContainerMut> HpuLweBootstrapKey<C> {
     /// Mutable variant of [`HpuLweBootstrapKey::as_view`].
     pub fn as_mut_view(&mut self) -> HpuLweBootstrapKey<&'_ mut [C::Element]> {
         HpuLweBootstrapKey {
-            data: self.data.as_mut(),
+            pc_data: self
+                .pc_data
+                .iter_mut()
+                .map(|x| x.as_mut())
+                .collect::<Vec<_>>(),
             params: self.params.clone(),
         }
-    }
-}
-
-impl<T: std::clone::Clone, C: Container<Element = T>> HpuLweBootstrapKey<C> {
-    /// Slice key stream in interleaved chunks for each memory cut
-    pub fn hw_slice(&self) -> Vec<Vec<C::Element>> {
-        let ntt_p = &self.params.ntt_params;
-        let nb_pc = self.params.pc_params.bsk_pc;
-
-        debug_assert_eq!(
-            (ntt_p.radix * ntt_p.psi) % nb_pc,
-            0,
-            "Error: Incompatible (R*PSI: {}, BSK_PC: {})",
-            ntt_p.radix * ntt_p.psi,
-            nb_pc
-        );
-
-        let mut bsk_slice = vec![Vec::new(); nb_pc];
-        for (i, chunk) in self
-            .as_ref()
-            .into_chunks((ntt_p.radix * ntt_p.psi) / nb_pc)
-            .enumerate()
-        {
-            let cut_idx = i % nb_pc;
-
-            // Copy in targeted stream_cut
-            for c in chunk.iter() {
-                bsk_slice[cut_idx].push(c.clone());
-            }
-        }
-        bsk_slice
-    }
-}
-
-impl<T: std::clone::Clone, C: ContainerMut<Element = T>> HpuLweBootstrapKey<C> {
-    /// Filled HpuLweBootstrapKey from hw_slice view
-    pub fn copy_from_hw_slice(&mut self, hw_slice: &[&[T]]) {
-        // TODO -> Implement the correct copy procedure
-
-        //     // Infer params from args
-        //     let regf_p = &self.params.regf_params;
-        //     let nb_pc = self.params.pc_params.bsk_pc;
-
-        //     // View hw_slice as a mutable array of iterator
-        //     // That will be consumed by sequence of coef_nb/nb_pc
-        //     let mut slice_it = hw_slice.iter().map(|x| x.iter()).collect::<Vec<_>>();
-
-        //     // Stop on first chunk that mismatch the required size
-        //     // TODO try to rewrite in a efficient manner ?!
-        //     let mut stop = false;
-        //     let mut pos = 0;
-        //     while !stop {
-        //         for it in slice_it.iter_mut() {
-        //             let chunk = (0..(regf_p.coef_nb / nb_pc))
-        //                 .map(|_| it.next())
-        //                 .filter(|x| x.is_some())
-        //                 .map(|x| x.unwrap())
-        //                 .collect::<Vec<_>>();
-
-        //             if chunk.len() == (regf_p.coef_nb / nb_pc) {
-        //                 chunk.iter().for_each(|v| {
-        //                     self.data.as_mut()[pos] = (*v).clone();
-        //                     pos += 1;
-        //                 });
-        //             } else {
-        //                 stop = true;
-        //                 break;
-        //             }
-        //         }
-        //     }
-
-        //     // copy body
-        //     self.data.as_mut()[pos] = hw_slice[0].last().unwrap().clone();
     }
 }
 
@@ -177,6 +147,11 @@ impl<Scalar: std::clone::Clone> HpuLweBootstrapKeyOwned<Scalar> {
     ///
     /// See [`HpuLweBootstrapKey::from_container`] for usage.
     pub fn new(fill_with: Scalar, params: HpuParameters) -> Self {
-        Self::from_container(vec![fill_with; hpu_lwe_bootstrap_key_size(&params)], params)
+        let chunk_size = hpu_lwe_bootstrap_key_size(&params).div_euclid(params.pc_params.bsk_pc);
+        let pc_data = (0..params.pc_params.bsk_pc)
+            .map(|_| vec![fill_with.clone(); chunk_size])
+            .collect::<Vec<_>>();
+
+        Self::from_container(pc_data, params)
     }
 }

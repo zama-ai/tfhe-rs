@@ -91,7 +91,7 @@ fn shuffle_gf64(
                             for r in 0..ntt_p.radix {
                                 let c_idx =
                                     stg_iter * ntt_p.psi * ntt_p.radix + ntt_p.radix * p + r;
-                                hpu_bsk.as_mut()[wr_idx] = p_view[gf64_order[c_idx]];
+                                hpu_bsk[wr_idx] = p_view[gf64_order[c_idx]];
                                 wr_idx += 1;
                             }
                         }
@@ -156,7 +156,7 @@ fn shuffle_wmm(
                                 let c_idx =
                                     stg_iter * ntt_p.psi * ntt_p.radix + ntt_p.radix * p + r;
                                 let c_id = ntw.get_pos_id(ntt_p.ls_delta(), c_idx);
-                                hpu_bsk.as_mut()[wr_idx] = p_view[c_id];
+                                hpu_bsk[wr_idx] = p_view[c_id];
                                 wr_idx += 1;
                             }
                         }
