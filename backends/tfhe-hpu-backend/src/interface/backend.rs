@@ -442,7 +442,7 @@ impl HpuBackend {
             .collect::<Vec<_>>();
 
         // Write key in associated buffer
-        for (id, ksk_cut) in ksk.hw_slice().iter().enumerate() {
+        for (id, ksk_cut) in ksk.as_view().into_container().into_iter().enumerate() {
             ksk_key.write_cut_at(id, 0, ksk_cut);
             #[cfg(feature = "io-dump")]
             io_dump::dump(

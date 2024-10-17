@@ -107,7 +107,7 @@ where
                                 };
                                 acc + (coef_rounded_ralign << (inner_z * ks_p.width))
                             });
-                            hpu_ksk.as_mut()[hw_idx] = pack_z;
+                            hpu_ksk[hw_idx] = pack_z;
                             hw_idx += 1;
                         }
                     }

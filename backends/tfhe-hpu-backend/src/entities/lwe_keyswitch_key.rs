@@ -7,21 +7,38 @@ use super::parameters::*;
 use super::traits::container::*;
 
 /// A [`Hpu Lwe Keyswitch key`](`HpuLweKeyswitchKey`).
+/// Inner container is split in pc chunks to ease copy from/to hardware
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuLweKeyswitchKey<C: Container> {
-    data: C,
+    pc_data: Vec<C>,
     params: HpuParameters,
 }
 
-impl<C: Container> AsRef<[C::Element]> for HpuLweKeyswitchKey<C> {
-    fn as_ref(&self) -> &[C::Element] {
-        self.data.as_ref()
+/// Index inside the container abstracing away the inner pc split
+impl<C: Container> std::ops::Index<usize> for HpuLweKeyswitchKey<C> {
+    type Output = C::Element;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        let ksk_pc = self.params.pc_params.ksk_pc;
+        let chunk_size = self.params.ks_params.lby / ksk_pc;
+        let (pc, ofst) = (
+            (index / chunk_size) % ksk_pc,
+            (((index / chunk_size) / ksk_pc) * chunk_size) + (index % chunk_size),
+        );
+        &self.pc_data[pc].as_ref()[ofst]
     }
 }
 
-impl<C: ContainerMut> AsMut<[C::Element]> for HpuLweKeyswitchKey<C> {
-    fn as_mut(&mut self) -> &mut [C::Element] {
-        self.data.as_mut()
+/// IndexMut inside the container abstracing away the inner pc split
+impl<C: ContainerMut> std::ops::IndexMut<usize> for HpuLweKeyswitchKey<C> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        let ksk_pc = self.params.pc_params.ksk_pc;
+        let chunk_size = self.params.ks_params.lby / ksk_pc;
+        let (pc, ofst) = (
+            (index / chunk_size) % ksk_pc,
+            (((index / chunk_size) / ksk_pc) * chunk_size) + (index % chunk_size),
+        );
+        &mut self.pc_data[pc].as_mut()[ofst]
     }
 }
 
@@ -45,21 +62,27 @@ pub fn hpu_lwe_keyswitch_key_size(params: &HpuParameters) -> usize {
 
 impl<C: Container> HpuLweKeyswitchKey<C> {
     /// Create a [`HpuLweKeyswitchKey`] from an existing container.
-    pub fn from_container(container: C, params: HpuParameters) -> Self {
-        assert!(
-            container.container_len() > 0,
-            "Got an empty container to create a HpuLweKeyswitchKey"
+    pub fn from_container(container: Vec<C>, params: HpuParameters) -> Self {
+        assert_eq!(
+            container.len(),
+            params.pc_params.ksk_pc,
+            "Container chunk mismatch with ksk_pc number"
         );
         assert!(
-            container.container_len() == hpu_lwe_keyswitch_key_size(&params),
+            container.iter().map(|x| x.container_len()).sum::<usize>() > 0,
+            "Got an empty container to create a HpuLweKeyswitchKey"
+        );
+        assert_eq!(
+            container.iter().map(|x| x.container_len()).sum::<usize>(),
+            hpu_lwe_keyswitch_key_size(&params),
             "The provided container length is not valid. \
         It needs to match with parameters. \
         Got container length: {} and based on parameters value expect: {}.",
-            container.container_len(),
+            container.iter().map(|x| x.container_len()).sum::<usize>(),
             hpu_lwe_keyswitch_key_size(&params)
         );
         Self {
-            data: container,
+            pc_data: container,
             params,
         }
     }
@@ -67,8 +90,8 @@ impl<C: Container> HpuLweKeyswitchKey<C> {
     /// Consume the entity and return its underlying container.
     ///
     /// See [`HpuLweKeyswitchKey::from_container`] for usage.
-    pub fn into_container(self) -> C {
-        self.data
+    pub fn into_container(self) -> Vec<C> {
+        self.pc_data
     }
 }
 
@@ -80,11 +103,16 @@ impl<C: Container> HpuLweKeyswitchKey<C> {
         &self.params
     }
 
+    /// Return the length of the [`HpuLweKeyswitchKey`] underlying containers.
+    pub fn len(&self) -> usize {
+        self.pc_data.iter().map(|c| c.container_len()).sum()
+    }
+
     /// Return a view of the [`HpuLweKeyswitchKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> HpuLweKeyswitchKey<&'_ [C::Element]> {
         HpuLweKeyswitchKey {
-            data: self.data.as_ref(),
+            pc_data: self.pc_data.iter().map(|x| x.as_ref()).collect::<Vec<_>>(),
             params: self.params.clone(),
         }
     }
@@ -94,36 +122,13 @@ impl<C: ContainerMut> HpuLweKeyswitchKey<C> {
     /// Mutable variant of [`HpuLweKeyswitchKey::as_view`].
     pub fn as_mut_view(&mut self) -> HpuLweKeyswitchKey<&'_ mut [C::Element]> {
         HpuLweKeyswitchKey {
-            data: self.data.as_mut(),
+            pc_data: self
+                .pc_data
+                .iter_mut()
+                .map(|x| x.as_mut())
+                .collect::<Vec<_>>(),
             params: self.params.clone(),
         }
-    }
-}
-
-impl<T: std::clone::Clone, C: Container<Element = T>> HpuLweKeyswitchKey<C> {
-    /// Slice key stream in interleaved chunks for each memory cut
-    pub fn hw_slice(&self) -> Vec<Vec<C::Element>> {
-        // Infer params from args
-        let ks_p = &self.params.ks_params;
-        let nb_pc = self.params.pc_params.ksk_pc;
-
-        let mut ksk_slice = vec![Vec::new(); nb_pc];
-        for (i, chunk) in self.data.as_ref().into_chunks(ks_p.lby / nb_pc).enumerate() {
-            let cut_idx = i % nb_pc;
-
-            // Copy in targeted stream_cut
-            for c in chunk.iter() {
-                ksk_slice[cut_idx].push(c.clone());
-            }
-        }
-        ksk_slice
-    }
-}
-
-impl<T: std::clone::Clone, C: ContainerMut<Element = T>> HpuLweKeyswitchKey<C> {
-    /// Filled HpuLweBootstrapKey from hw_slice view
-    pub fn copy_from_hw_slice(&mut self, hw_slice: &[&[T]]) {
-        // TODO -> Implement the correct copy procedure
     }
 }
 
@@ -140,6 +145,10 @@ impl<Scalar: std::clone::Clone> HpuLweKeyswitchKeyOwned<Scalar> {
     ///
     /// See [`HpuLweKeyswitchKey::from_container`] for usage.
     pub fn new(fill_with: Scalar, params: HpuParameters) -> Self {
-        Self::from_container(vec![fill_with; hpu_lwe_keyswitch_key_size(&params)], params)
+        let chunk_size = hpu_lwe_keyswitch_key_size(&params).div_euclid(params.pc_params.ksk_pc);
+        let pc_data = (0..params.pc_params.ksk_pc)
+            .map(|_| vec![fill_with.clone(); chunk_size])
+            .collect::<Vec<_>>();
+        Self::from_container(pc_data, params)
     }
 }
