@@ -152,9 +152,8 @@ impl ServerKey {
         // Subtraction by 32 makes the character uppercase
         uppercase
             .chars_mut()
-            .iter_mut()
-            .zip(lowercase_chars)
-            .par_bridge()
+            .par_iter_mut()
+            .zip(lowercase_chars.into_par_iter())
             .for_each(|(char, is_lowercase)| {
                 let mut subtract = self.key.create_trivial_radix(32, 4);
 
@@ -206,9 +205,8 @@ impl ServerKey {
         // Addition by 32 makes the character lowercase
         lowercase
             .chars_mut()
-            .iter_mut()
+            .par_iter_mut()
             .zip(uppercase_chars)
-            .par_bridge()
             .for_each(|(char, is_uppercase)| {
                 let mut add = self.key.create_trivial_radix(32, 4);
 
