@@ -143,6 +143,12 @@ install_tarpaulin: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-tarpaulin --locked || \
 	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
 
+.PHONY: install_cargo_deny # Install cargo-deny to check licenses
+install_cargo_deny: install_rs_build_toolchain
+	@cargo deny --version > /dev/null 2>&1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-deny || \
+	( echo "Unable to install cargo deny, unknown error." && exit 1 )
+
 .PHONY: install_tfhe_lints # Install custom tfhe-rs lints
 install_tfhe_lints:
 	(cd utils/cargo-tfhe-lints-inner && cargo install --path .) && \
@@ -295,6 +301,10 @@ check_newline: check_linelint_installed
 .PHONY: lint_workflow # Run static linter on GitHub workflows
 lint_workflow: check_actionlint_installed
 	actionlint
+
+.PHONY: check_licenses # Run cargo-deny to check dependencies licenses
+check_licenses: install_cargo_deny
+	cargo deny check licenses
 
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
@@ -1251,14 +1261,14 @@ sha256_bool: install_rs_check_toolchain
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
-pcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_tested check_intra_md_links \
+pcc: no_tfhe_typo no_dbg_log check_fmt check_typos check_licenses lint_doc check_md_docs_are_tested check_intra_md_links \
 clippy_all tfhe_lints check_compile_tests
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu check_rust_bindings_did_not_change
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
-fpcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_tested clippy_fast \
+fpcc: no_tfhe_typo no_dbg_log check_fmt check_typos check_licenses lint_doc check_md_docs_are_tested clippy_fast \
 check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
