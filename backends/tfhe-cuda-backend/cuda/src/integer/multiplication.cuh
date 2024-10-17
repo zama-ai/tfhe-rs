@@ -562,10 +562,19 @@ __host__ void host_integer_mult_radix_kb(
       terms_degree, bsks, ksks, mem_ptr->sum_ciphertexts_mem, num_blocks,
       2 * num_blocks, mem_ptr->luts_array);
 
-  auto scp_mem_ptr = mem_ptr->sum_ciphertexts_mem->scp_mem;
-  host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count,
-                                     radix_lwe_out, nullptr, nullptr,
-                                     scp_mem_ptr, bsks, ksks, num_blocks);
+  uint32_t block_modulus = message_modulus * carry_modulus;
+  uint32_t num_bits_in_block = std::log2(block_modulus);
+  if (num_blocks < num_bits_in_block) {
+    auto scp_mem_ptr = mem_ptr->sum_ciphertexts_mem->scp_mem;
+    host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count,
+                                       radix_lwe_out, nullptr, nullptr,
+                                       scp_mem_ptr, bsks, ksks, num_blocks);
+  } else {
+    auto fast_scp_mem_ptr = mem_ptr->fast_sc_prop_mem;
+    host_fast_propagate_single_carry<Torus>(
+        streams, gpu_indexes, gpu_count, radix_lwe_out, nullptr, nullptr,
+        fast_scp_mem_ptr, bsks, ksks, num_blocks);
+  }
 }
 
 template <typename Torus>

@@ -115,7 +115,7 @@ impl CudaServerKey {
             }
         };
         self.unchecked_add_assign_async(lhs, rhs, streams);
-        let _carry = self.propagate_single_carry_assign_async(lhs, streams);
+        let _carry = self.new_propagate_single_carry_assign_async(lhs, streams);
     }
 
     pub fn add_assign<T: CudaIntegerRadixCiphertext>(
@@ -348,7 +348,7 @@ impl CudaServerKey {
             .unchecked_partial_sum_ciphertexts_async(ciphertexts, streams)
             .unwrap();
 
-        self.propagate_single_carry_assign_async(&mut result, streams);
+        self.new_propagate_single_carry_assign_async(&mut result, streams);
         assert!(result.block_carries_are_empty());
         result
     }
