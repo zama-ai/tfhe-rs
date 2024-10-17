@@ -135,15 +135,17 @@ impl ServerKey {
                 || self.no_more_matches(&str_len, &from_is_empty, i, enc_n),
             );
 
+            let num_blocks = skip.blocks().len();
+
             rayon::join(
                 || *result = self.conditional_string(&no_more_matches, prev, result),
                 // If we replace "" to "a" in the "ww" str, we get "awawa". So when `from_is_empty`
                 // we need to move to the next space between letters by adding 1 to the skip value
                 || match &from_is_empty {
-                    FheStringIsEmpty::Padding(enc) => self
-                        .key
-                        .add_assign_parallelized(&mut skip, &enc.clone().into_radix(1, &self.key)),
-
+                    FheStringIsEmpty::Padding(enc) => self.key.add_assign_parallelized(
+                        &mut skip,
+                        &enc.clone().into_radix(num_blocks, &self.key),
+                    ),
                     FheStringIsEmpty::NoPadding(clear) => {
                         self.key
                             .scalar_add_assign_parallelized(&mut skip, *clear as u8);

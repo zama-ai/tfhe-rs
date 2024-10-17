@@ -2,7 +2,7 @@ use crate::ciphertext::{FheAsciiChar, FheString};
 use crate::server_key::{FheStringIsEmpty, FheStringIterator, FheStringLen, ServerKey};
 use rayon::prelude::*;
 use tfhe::integer::prelude::*;
-use tfhe::integer::BooleanBlock;
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 pub struct SplitAsciiWhitespace {
     state: FheString,
@@ -85,11 +85,16 @@ impl SplitAsciiWhitespace {
     fn remaining_string(&mut self, sk: &ServerKey) {
         let mask = self.current_mask.as_ref().unwrap();
 
-        let mut number_of_trues = sk.key.create_trivial_zero_radix(16);
+        let mut number_of_trues: RadixCiphertext = sk.key.create_trivial_zero_radix(16);
         for mask_u8 in mask.chars() {
             let is_true = sk.key.scalar_eq_parallelized(mask_u8.ciphertext(), 255u8);
-            sk.key
-                .add_assign_parallelized(&mut number_of_trues, &is_true.into_radix(1, &sk.key));
+
+            let num_blocks = number_of_trues.blocks().len();
+
+            sk.key.add_assign_parallelized(
+                &mut number_of_trues,
+                &is_true.into_radix(num_blocks, &sk.key),
+            );
         }
 
         let padded = self.state.is_padded();
