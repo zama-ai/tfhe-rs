@@ -1,0 +1,27 @@
+# This section is considered when running `cargo deny check licenses`
+# More documentation for the licenses section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
+[licenses]
+# List of explicitly allowed licenses
+# See https://spdx.org/licenses/ for list of possible licenses
+# [possible values: any SPDX 3.11 short identifier (+ optional exception)].
+allow = [
+    "MIT",
+    "BSD-3-Clause",
+    "ISC",
+    "Apache-2.0",
+    "Unicode-DFS-2016"
+]
+
+exceptions = [
+    { crate = "concrete-csprng", allow = ["BSD-3-Clause-Clear"] },
+    { crate = "concrete-fft", allow = ["BSD-3-Clause-Clear"] },
+    { crate = "concrete-ntt", allow = ["BSD-3-Clause-Clear"] },
+    { crate = "tasks", allow = ["BSD-3-Clause-Clear"] },
+    { crate = "tfhe", allow = ["BSD-3-Clause-Clear"] },
+    { crate = "tfhe-cuda-backend", allow = ["BSD-3-Clause-Clear"] },
+    { crate = "tfhe-trivium", allow = ["BSD-3-Clause-Clear"] },
+    { crate = "tfhe-versionable", allow = ["BSD-3-Clause-Clear"] },
+    { crate = "tfhe-versionable-derive", allow = ["BSD-3-Clause-Clear"] },
+    { crate = "tfhe-zk-pok", allow = ["BSD-3-Clause-Clear"] }
+]
