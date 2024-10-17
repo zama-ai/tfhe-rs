@@ -149,6 +149,12 @@ install_cargo_deny: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-deny || \
 	( echo "Unable to install cargo deny, unknown error." && exit 1 )
 
+.PHONY: install_cargo_vet # Install cargo-vet to audit dependencies
+install_cargo_vet: install_rs_build_toolchain
+	@cargo vet --version > /dev/null 2>&1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-vet || \
+	( echo "Unable to install cargo vet, unknown error." && exit 1 )
+
 .PHONY: install_tfhe_lints # Install custom tfhe-rs lints
 install_tfhe_lints:
 	(cd utils/cargo-tfhe-lints-inner && cargo install --path .) && \
@@ -305,6 +311,10 @@ lint_workflow: check_actionlint_installed
 .PHONY: check_licenses # Run cargo-deny to check dependencies licenses
 check_licenses: install_cargo_deny
 	cargo deny check licenses
+
+.PHONY: audit_deps # Run cargo-vet to audit dependencies
+audit_deps: install_cargo_vet
+	cargo vet
 
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
@@ -1261,14 +1271,14 @@ sha256_bool: install_rs_check_toolchain
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
-pcc: no_tfhe_typo no_dbg_log check_fmt check_typos check_licenses lint_doc check_md_docs_are_tested check_intra_md_links \
+pcc: no_tfhe_typo no_dbg_log check_fmt check_typos check_licenses audit_deps lint_doc check_md_docs_are_tested check_intra_md_links \
 clippy_all tfhe_lints check_compile_tests
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu check_rust_bindings_did_not_change
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
-fpcc: no_tfhe_typo no_dbg_log check_fmt check_typos check_licenses lint_doc check_md_docs_are_tested clippy_fast \
+fpcc: no_tfhe_typo no_dbg_log check_fmt check_typos audit_deps check_licenses lint_doc check_md_docs_are_tested clippy_fast \
 check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
