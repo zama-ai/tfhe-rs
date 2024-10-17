@@ -206,7 +206,7 @@ impl ServerKey {
     pub fn trim_start(&self, str: &FheString) -> FheString {
         let mut result = str.clone();
 
-        if str.len() == 0 || (str.is_padded() && str.len() == 1) {
+        if str.is_empty() {
             return result;
         }
 
@@ -262,7 +262,7 @@ impl ServerKey {
     pub fn trim_end(&self, str: &FheString) -> FheString {
         let mut result = str.clone();
 
-        if str.len() == 0 || (str.is_padded() && str.len() == 1) {
+        if str.is_empty() {
             return result;
         }
 
@@ -300,7 +300,7 @@ impl ServerKey {
     /// assert_eq!(trimmed, "hello world"); // Whitespace at both ends is removed
     /// ```
     pub fn trim(&self, str: &FheString) -> FheString {
-        if str.len() == 0 || (str.is_padded() && str.len() == 1) {
+        if str.is_empty() {
             return str.clone();
         }
 
