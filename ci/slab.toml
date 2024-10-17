@@ -2,11 +2,13 @@
 region = "eu-west-3"
 image_id = "ami-0cd5012d17ae64070"
 instance_type = "m6i.32xlarge"
+user = "ubuntu"
 
 [backend.aws.cpu-big_fallback]
 region = "us-east-1"
 image_id = "ami-04e3bb9aebb6786df"
 instance_type = "m6i.32xlarge"
+user = "ubuntu"
 
 [backend.aws.cpu-small]
 region = "eu-west-3"

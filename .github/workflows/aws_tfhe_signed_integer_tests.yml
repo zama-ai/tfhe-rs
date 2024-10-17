@@ -95,10 +95,6 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
-      - name: Set up home
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
         with:
