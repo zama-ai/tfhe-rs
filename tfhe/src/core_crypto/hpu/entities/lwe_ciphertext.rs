@@ -18,23 +18,28 @@ impl<Scalar: UnsignedInteger> FromWith<LweCiphertextView<'_, Scalar>, HpuParamet
         let mut hpu_lwe = Self::new(Scalar::ZERO, params.clone());
         let ntt_p = &params.ntt_params;
         let pbs_p = &params.pbs_params;
+        let poly_size = pbs_p.polynomial_size;
 
         // NB: Glwe polynomial must be in reversed order
         // Allocate translation buffer and reversed vector here
         let mut rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
-        let lwe_len = hpu_lwe.as_ref().len();
-        // Put lwe mask in reverse order
-        std::iter::zip(
-            hpu_lwe.as_mut()[0..lwe_len - 1].chunks_mut(pbs_p.polynomial_size),
-            cpu_lwe.get_mask().as_ref().chunks(pbs_p.polynomial_size),
-        )
-        .for_each(|(dst, src)| {
-            order::poly_order(dst, src, order::PolyOrder::Reverse, &mut rb_conv, |x| x)
-        });
+        let lwe_len = hpu_lwe.len();
+        // Copy lwe mask in reverse order and update alignement
+        cpu_lwe
+            .get_mask()
+            .as_ref()
+            .chunks(poly_size)
+            .enumerate()
+            .for_each(|(pid, poly)| {
+                (0..poly_size).for_each(|idx| {
+                    let dst_idx = pid * poly_size + idx;
+                    let src_poly_idx =
+                        order::idx_in_order(idx, order::PolyOrder::Reverse, &mut rb_conv);
+                    hpu_lwe[dst_idx] = modswitch::msb2lsb(&params, poly[src_poly_idx]);
+                });
+            });
         // Add body
-        hpu_lwe.as_mut()[lwe_len - 1] = *cpu_lwe.get_body().data;
-        // Align all coefs on lsb
-        modswitch::msb2lsb_align(&params, hpu_lwe.as_mut());
+        hpu_lwe[lwe_len - 1] = modswitch::msb2lsb(&params, *cpu_lwe.get_body().data);
 
         hpu_lwe
     }
@@ -45,34 +50,37 @@ impl<Scalar: UnsignedInteger> From<HpuLweCiphertextView<'_, Scalar>>
 {
     fn from(hpu_lwe: HpuLweCiphertextView<'_, Scalar>) -> Self {
         // NB: HPU only handle Big Lwe over it's boundaries
+        let ntt_p = hpu_lwe.params().ntt_params.clone();
         let pbs_p = &hpu_lwe.params().pbs_params;
+        let poly_size = pbs_p.polynomial_size;
 
         let mut cpu_lwe = Self::new(
             Scalar::ZERO,
-            LweSize(hpu_lwe.as_ref().len()),
+            LweSize(hpu_lwe.len()),
             CiphertextModulus::try_new_power_of_2(pbs_p.ciphertext_width).unwrap(),
         );
-        let ntt_p = hpu_lwe.params().ntt_params.clone();
 
         // Reverse Glwe back to natural order
         // Allocate translation buffer and reversed vector here
         let mut rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
-        let lwe_len = hpu_lwe.as_ref().len();
-        // Put lwe mask in reverse order
-        std::iter::zip(
-            cpu_lwe
-                .get_mut_mask()
-                .as_mut()
-                .chunks_mut(ntt_p.radix.pow(ntt_p.stg_nb as u32)),
-            hpu_lwe.as_ref()[0..lwe_len - 1].chunks(ntt_p.radix.pow(ntt_p.stg_nb as u32)),
-        )
-        .for_each(|(dst, src)| {
-            order::poly_order(dst, src, order::PolyOrder::Reverse, &mut rb_conv, |x| x)
-        });
+        let lwe_len = hpu_lwe.len();
+        // Copy lwe mask in reverse order and update alignement
+        cpu_lwe
+            .get_mut_mask()
+            .as_mut()
+            .chunks_mut(poly_size)
+            .enumerate()
+            .for_each(|(pid, poly)| {
+                (0..poly_size).for_each(|idx| {
+                    let src_poly_idx =
+                        order::idx_in_order(idx, order::PolyOrder::Reverse, &mut rb_conv);
+                    let src_idx = pid * poly_size + src_poly_idx;
+                    poly[idx] = modswitch::lsb2msb(hpu_lwe.params(), hpu_lwe[src_idx]);
+                });
+            });
         // Add body
-        *cpu_lwe.get_mut_body().data = hpu_lwe.as_ref()[lwe_len - 1];
-        // Align all coefs on lsb
-        modswitch::lsb2msb_align(hpu_lwe.params(), cpu_lwe.as_mut());
+        *cpu_lwe.get_mut_body().data = modswitch::lsb2msb(hpu_lwe.params(), hpu_lwe[lwe_len - 1]);
+
         cpu_lwe
     }
 }
