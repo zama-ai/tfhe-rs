@@ -191,21 +191,18 @@ impl HpuSim {
                         .map(|pc| self.hbm_bank[*pc].get_chunk(ct_ofst as u64))
                         .collect::<Vec<_>>();
 
-                    // NB: hbm chunk are extended to enforce page align buffer
-                    // -> To prevent error during copy, with shrink the hbm buffer to the real
-                    //   size before-hand
-                    let shrinked_size_b =
-                        (dst.as_ref().len().div_ceil(ct_chunk.len())) * std::mem::size_of::<u64>();
-                    let ct_slice_u64 = ct_chunk
-                        .iter()
-                        .map(|chunk| {
-                            bytemuck::cast_slice::<u8, u64>(
-                                &chunk.data.as_slice()[0..shrinked_size_b],
-                            )
-                        })
-                        .collect::<Vec<_>>();
-
-                    dst.copy_from_hw_slice(ct_slice_u64.as_slice());
+                    let mut hw_slice = dst.as_mut_view().into_container();
+                    std::iter::zip(hw_slice.into_iter(), ct_chunk.into_iter()).for_each(
+                        |(hpu, hbm)| {
+                            // NB: hbm chunk are extended to enforce page align buffer
+                            // -> To prevent error during copy, with shrink the hbm buffer to the real
+                            //   size before-hand
+                            let size_b = hpu.len() * std::mem::size_of::<u64>();
+                            let hbm_u64 =
+                                bytemuck::cast_slice::<u8, u64>(&hbm.data.as_slice()[0..size_b]);
+                            hpu.clone_from_slice(hbm_u64);
+                        },
+                    );
                 }
                 asm::DOp::TLDA(_) | asm::DOp::TLDB(_) | asm::DOp::TLDH(_) => panic!(
                     "Templated operation mustn't reach the Hpu execution
@@ -222,18 +219,23 @@ impl HpuSim {
                                 .div_ceil(self.params.rtl_params.pc_params.pem_pc)
                                 * std::mem::size_of::<u64>(),
                         );
-                    for (i, slice) in src.hw_slice().iter().enumerate() {
-                        let ct_chunk =
-                            self.hbm_bank[self.config.board.ct_pc[i]].get_mut_chunk(ct_ofst as u64);
+                    src.as_view()
+                        .into_container()
+                        .into_iter()
+                        .enumerate()
+                        .for_each(|(i, hpu)| {
+                            let ct_chunk = self.hbm_bank[self.config.board.ct_pc[i]]
+                                .get_mut_chunk(ct_ofst as u64);
 
-                        // NB: hbm chunk are extended to enforce page align buffer
-                        // -> Shrinked it to slice size to prevent error during copy
-                        let ct_chunk_u64 = bytemuck::cast_slice_mut::<u8, u64>(
-                            &mut ct_chunk.data.as_mut_slice()
-                                [0..(slice.len() * std::mem::size_of::<u64>())],
-                        );
-                        ct_chunk_u64.copy_from_slice(slice.as_slice());
-                    }
+                            // NB: hbm chunk are extended to enforce page align buffer
+                            // -> Shrinked it to slice size to prevent error during copy
+                            let size_b = hpu.len() * std::mem::size_of::<u64>();
+
+                            let ct_chunk_u64 = bytemuck::cast_slice_mut::<u8, u64>(
+                                &mut ct_chunk.data.as_mut_slice()[0..size_b],
+                            );
+                            ct_chunk_u64.copy_from_slice(hpu);
+                        });
                 }
                 asm::DOp::TSTD(_) | asm::DOp::TSTH(_) => panic!(
                     "Templated operation mustn't reach the Hpu execution
@@ -478,7 +480,16 @@ impl HpuSim {
     /// Insert a cpu value into the register file
     fn cpu2reg(&mut self, reg_id: usize, cpu: LweCiphertextView<u64>) {
         let hpu = HpuLweCiphertextOwned::<u64>::from_with(cpu, self.params.rtl_params.clone());
-        self.regfile[reg_id].as_mut().copy_from_slice(hpu.as_ref());
+        std::iter::zip(
+            self.regfile[reg_id]
+                .as_mut_view()
+                .into_container()
+                .into_iter(),
+            hpu.into_container().into_iter(),
+        )
+        .for_each(|(reg, hpu)| {
+            reg.copy_from_slice(hpu.as_slice());
+        });
     }
 
     /// Get the inner server key used for computation
