@@ -224,7 +224,7 @@ impl ServerKey {
 
         let ignore_pat_pad = trivial_or_enc_pat.is_padded();
 
-        let str_len = str.chars().len();
+        let str_len = str.len();
         let (null, ext_iter) = if !str.is_padded() && trivial_or_enc_pat.is_padded() {
             (Some(FheAsciiChar::null(self)), Some(0..str_len + 1))
         } else {

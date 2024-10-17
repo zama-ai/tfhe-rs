@@ -170,6 +170,10 @@ impl FheString {
         self.padded = true;
     }
 
+    pub fn len(&self) -> usize {
+        self.chars().len()
+    }
+
     pub fn empty() -> FheString {
         FheString {
             enc_string: vec![],

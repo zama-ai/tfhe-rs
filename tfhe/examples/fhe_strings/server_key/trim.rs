@@ -11,7 +11,7 @@ pub struct SplitAsciiWhitespace {
 
 impl FheStringIterator for SplitAsciiWhitespace {
     fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
-        let str_len = self.state.chars().len();
+        let str_len = self.state.len();
 
         if str_len == 0 || (self.state.is_padded() && str_len == 1) {
             return (
@@ -206,7 +206,7 @@ impl ServerKey {
     pub fn trim_start(&self, str: &FheString) -> FheString {
         let mut result = str.clone();
 
-        if str.chars().is_empty() || (str.is_padded() && str.chars().len() == 1) {
+        if str.len() == 0 || (str.is_padded() && str.len() == 1) {
             return result;
         }
 
@@ -262,7 +262,7 @@ impl ServerKey {
     pub fn trim_end(&self, str: &FheString) -> FheString {
         let mut result = str.clone();
 
-        if str.chars().is_empty() || (str.is_padded() && str.chars().len() == 1) {
+        if str.len() == 0 || (str.is_padded() && str.len() == 1) {
             return result;
         }
 
@@ -300,7 +300,7 @@ impl ServerKey {
     /// assert_eq!(trimmed, "hello world"); // Whitespace at both ends is removed
     /// ```
     pub fn trim(&self, str: &FheString) -> FheString {
-        if str.chars().is_empty() || (str.is_padded() && str.chars().len() == 1) {
+        if str.len() == 0 || (str.is_padded() && str.len() == 1) {
             return str.clone();
         }
 

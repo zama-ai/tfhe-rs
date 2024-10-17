@@ -30,7 +30,7 @@ impl ServerKey {
 
         let (mut replaced, rhs) = rayon::join(
             || {
-                let str_len = self.key.create_trivial_radix(str.chars().len() as u32, 16);
+                let str_len = self.key.create_trivial_radix(str.len() as u32, 16);
 
                 // Get the [lhs] shifting right by [from, rhs].len()
                 let shift_right = self.key.sub_parallelized(&str_len, find_index);
@@ -200,7 +200,7 @@ impl ServerKey {
     }
 
     fn max_matches(&self, str: &FheString, pat: &FheString) -> u16 {
-        let str_len = str.chars().len() - if str.is_padded() { 1 } else { 0 };
+        let str_len = str.len() - if str.is_padded() { 1 } else { 0 };
 
         // Max number of matches is str_len + 1 when pattern is empty
         let mut max: u16 = (str_len + 1).try_into().expect("str should be shorter");
@@ -209,7 +209,7 @@ impl ServerKey {
         // str_len - pat_len + 1. For instance "xx" matches "xxxx" at most 4 - 2 + 1 = 3 times.
         // This works as long as str_len >= pat_len (guaranteed due to the outer length checks)
         if !pat.is_padded() {
-            let pat_len = pat.chars().len() as u16;
+            let pat_len = pat.len() as u16;
             max = str_len as u16 - pat_len + 1;
         }
 
@@ -282,7 +282,7 @@ impl ServerKey {
 
             IsMatch::Clear(true) => {
                 // If `from` is empty and str too, there's only one match and one replacement
-                if str.chars().is_empty() || (str.is_padded() && str.chars().len() == 1) {
+                if str.len() == 0 || (str.is_padded() && str.len() == 1) {
                     if let UIntArg::Clear(_) = count {
                         return to.clone();
                     }
@@ -390,7 +390,7 @@ impl ServerKey {
             IsMatch::Clear(false) => return result,
             IsMatch::Clear(true) => {
                 // If `from` is empty and str too, there's only one match and one replacement
-                if str.chars().is_empty() || (str.is_padded() && str.chars().len() == 1) {
+                if str.len() == 0 || (str.is_padded() && str.len() == 1) {
                     return to.clone();
                 }
             }

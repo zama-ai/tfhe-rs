@@ -186,8 +186,8 @@ impl ServerKey {
             };
         }
 
-        let str_len = str.chars().len();
-        let pat_len = trivial_or_enc_pat.chars().len();
+        let str_len = str.len();
+        let pat_len = trivial_or_enc_pat.len();
 
         // In the padded pattern case we can remove the last char (as it's always null)
         let pat_chars = &trivial_or_enc_pat.chars()[..pat_len - 1];

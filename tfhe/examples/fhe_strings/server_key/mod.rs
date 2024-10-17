@@ -260,7 +260,7 @@ impl ServerKey {
 
         // If the shifting amount is >= than the str length we get zero i.e. all chars are out of
         // range (instead of wrapping, which is the behavior of Rust and tfhe-rs)
-        let bit_len = (str.chars().len() * 8) as u32;
+        let bit_len = (str.len() * 8) as u32;
         let shift_ge_than_str = self.key.scalar_ge_parallelized(&shift_bits, bit_len);
 
         let result = self.key.if_then_else_parallelized(
@@ -283,7 +283,7 @@ impl ServerKey {
 
         // If the shifting amount is >= than the str length we get zero i.e. all chars are out of
         // range (instead of wrapping, which is the behavior of Rust and tfhe-rs)
-        let bit_len = (str.chars().len() * 8) as u32;
+        let bit_len = (str.len() * 8) as u32;
         let shift_ge_than_str = self.key.scalar_ge_parallelized(&shift_bits, bit_len);
 
         let result = self.key.if_then_else_parallelized(
