@@ -119,6 +119,42 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         }
     }
 
+    /// Read data slice from memory cut_id
+    /// NB: User specify ofset in unit of data.
+    #[tracing::instrument(level = "trace", skip(data), ret)]
+    pub fn read_cut_at(&mut self, cut_id: usize, ofst: usize, data: &mut [T]) {
+        assert!(
+            ofst + data.len() <= self.cut_coefs,
+            "Invalid read size. Read stop beyond the HugeMemory boundaries"
+        );
+        let cut = self.cut_mem.get_mut(cut_id).expect("Invalid cut_id");
+
+        // Underlying memory is view as bytes memory
+        // Extract byte ofst and byte length
+        // NB: Don't use generic write method to prevent misunderstanding of ofst meaning
+        // Indeed, we must used a bytes ofset to compute the sub-bfr id and thus keep a
+        // byte approach everywhere to prevent mismatch
+        let ofst_b = ofst * std::mem::size_of::<T>();
+        let len_b = data.len() * std::mem::size_of::<T>();
+
+        let bid_start = ofst_b / MEM_CHUNK_SIZE_B;
+        let bid_stop = (ofst_b + len_b) / MEM_CHUNK_SIZE_B;
+        let mut bid_ofst = ofst_b % MEM_CHUNK_SIZE_B;
+
+        let mut rmn_data = len_b;
+        let mut data_ofst = 0;
+
+        let data_bytes = bytemuck::cast_slice_mut::<T, u8>(data);
+        for bfr in cut[bid_start..=bid_stop].iter_mut() {
+            let size_b = std::cmp::min(rmn_data, MEM_CHUNK_SIZE_B - bid_ofst);
+            bfr.sync(ffi::SyncMode::Device2Host);
+            bfr.read_bytes(bid_ofst, &mut data_bytes[data_ofst..data_ofst + size_b]);
+            data_ofst += size_b;
+            rmn_data -= size_b;
+            bid_ofst = 0;
+        }
+    }
+
     /// Return paddr of cuts
     /// Use paddr of first buffer for Hw configuration
     #[tracing::instrument(level = "trace", ret)]

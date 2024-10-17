@@ -174,7 +174,7 @@ impl HpuSim {
             // Read operands
             match dop {
                 asm::DOp::LD(op_impl) => {
-                    let mut dst = &mut self.regfile[op_impl.dst];
+                    let dst = &mut self.regfile[op_impl.dst];
                     let asm::MemSlot { bid, cid_ofst, .. } = op_impl.src;
 
                     let ct_ofst = cid_ofst
@@ -191,7 +191,7 @@ impl HpuSim {
                         .map(|pc| self.hbm_bank[*pc].get_chunk(ct_ofst as u64))
                         .collect::<Vec<_>>();
 
-                    let mut hw_slice = dst.as_mut_view().into_container();
+                    let hw_slice = dst.as_mut_view().into_container();
                     std::iter::zip(hw_slice.into_iter(), ct_chunk.into_iter()).for_each(
                         |(hpu, hbm)| {
                             // NB: hbm chunk are extended to enforce page align buffer
@@ -495,13 +495,37 @@ impl HpuSim {
     /// Get the inner server key used for computation
     /// Check the register state and extract sks from memory if needed
     fn get_server_key(&mut self) -> &ServerKey {
-        if let Some(sks) = self.sks.as_ref() {
-            sks
-        } else {
+        if self.sks.is_none() {
             // TODO check register states
             // Extract HpuBsk /HpuKsk from hbm
-            let hpu_bsk = HpuLweBootstrapKeyOwned::new(0, self.params.rtl_params.clone());
-            let hpu_ksk = HpuLweKeyswitchKey::new(0, self.params.rtl_params.clone());
+            let hpu_bsk = {
+                // Create Hpu Bsk container
+                let mut bsk = HpuLweBootstrapKeyOwned::new(0, self.params.rtl_params.clone());
+
+                // Copy content from Hbm
+                let hw_slice = bsk.as_mut_view().into_container();
+                std::iter::zip(hw_slice.into_iter(), self.config.board.bsk_pc.iter()).for_each(
+                    |(hpu, pc)| {
+                        let bank = &self.hbm_bank[*pc];
+                        bank.read_across_chunk(0, hpu);
+                    },
+                );
+                bsk
+            };
+            let hpu_ksk = {
+                // Create Hpu ksk container
+                let mut ksk = HpuLweKeyswitchKeyOwned::new(0, self.params.rtl_params.clone());
+
+                // Copy content from Hbm
+                let hw_slice = ksk.as_mut_view().into_container();
+                std::iter::zip(hw_slice.into_iter(), self.config.board.ksk_pc.iter()).for_each(
+                    |(hpu, pc)| {
+                        let bank = &self.hbm_bank[*pc];
+                        bank.read_across_chunk(0, hpu);
+                    },
+                );
+                ksk
+            };
 
             // Construct Shortint server_key
             let cpu_bsk = NttLweBootstrapKey::from(hpu_bsk.as_view());
@@ -522,13 +546,13 @@ impl HpuSim {
                         pbs_p.message_modulus,
                         pbs_p.carry_modulus,
                     ),
-                    ciphertext_modulus: todo!(),
+                    ciphertext_modulus: pbs_p.ciphertext_modulus,
                     pbs_order: pbs_p.encryption_key_choice.into(),
                     pbs_mode: pbs_p.encryption_key_choice.into(),
                 }
             };
             self.sks = Some(sks);
-            self.sks.as_ref().unwrap()
         }
+        self.sks.as_ref().unwrap()
     }
 }

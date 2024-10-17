@@ -1,12 +1,14 @@
 use ipc_channel::ipc::{self, IpcSharedMemory};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, MutexGuard};
 
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 pub const HBM_BANK_NB: usize = 32;
 const HBM_BANK_SIZE_B: usize = 512 * 1024 * 1024;
 const HBM_PAGE_SIZE_B: usize = 4096;
+
+// WARN: XRT currently not suppor allocation greater than 16MiB
+const HBM_CHUNK_SIZE_B: usize = 16 * 1024 * 1024;
 
 pub struct HbmChunk {
     // Properties
@@ -88,6 +90,11 @@ impl HbmBank {
             ipc::IpcReceiver<ipc::IpcSharedMemory>,
         ),
     ) {
+        assert!(
+            size_b <= HBM_CHUNK_SIZE_B,
+            "XRT don't support allocation greater than {HBM_CHUNK_SIZE_B} Bytes."
+        );
+
         // Compute next paddr
         let paddr = if let Some(key) = self.chunk.keys().max() {
             let chunk = &self.chunk[key];
@@ -117,5 +124,43 @@ impl HbmBank {
 
     pub(crate) fn rm_chunk(&mut self, addr: u64) -> Option<HbmChunk> {
         self.chunk.remove(&addr)
+    }
+
+    /// Read data slice from mutiple chunk
+    /// WARN: To circumvent an XRT limitation with huge buffer, Key's memory are allocated with multiple slot of MEM_CHUNK_SIZE_B (i.e. Currently 16MiB)
+    /// This is abstracted by the HugeMemory in tfhe-hpu-backend
+    /// Mimics the logic here to correctly read Huge object from Hbm model
+    /// NB: User specify ofset in unit of data.
+    pub(crate) fn read_across_chunk<T>(&self, ofst: usize, data: &mut [T])
+    where
+        T: bytemuck::Pod,
+    {
+        // Underlying memory is view as bytes memory
+        // Extract byte ofst and byte length
+        // NB: Don't use generic write method to prevent misunderstanding of ofst meaning
+        // Indeed, we must used a bytes ofset to compute the sub-bfr id and thus keep a
+        // byte approach everywhere to prevent mismatch
+        let ofst_b = ofst * std::mem::size_of::<T>();
+        let len_b = data.len() * std::mem::size_of::<T>();
+
+        let bid_start = ofst_b / HBM_CHUNK_SIZE_B;
+        let bid_stop = (ofst_b + len_b) / HBM_CHUNK_SIZE_B;
+        let mut bid_ofst = ofst_b % HBM_CHUNK_SIZE_B;
+
+        let mut bid_addr = self.chunk.keys().collect::<Vec<_>>();
+        bid_addr.sort();
+
+        let mut rmn_data = len_b;
+        let mut data_ofst = 0;
+
+        let data_bytes = bytemuck::cast_slice_mut::<T, u8>(data);
+        for addr in bid_addr[bid_start..=bid_stop].iter() {
+            let size_b = std::cmp::min(rmn_data, HBM_CHUNK_SIZE_B - bid_ofst);
+            let chunk = self.chunk.get(addr).unwrap();
+            data_bytes[data_ofst..data_ofst + size_b].copy_from_slice(&chunk.data[0..size_b]);
+            data_ofst += size_b;
+            rmn_data -= size_b;
+            bid_ofst = 0;
+        }
     }
 }

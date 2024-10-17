@@ -10,7 +10,7 @@
   bpip_timeout = 100_000
 
 [board]
-  ct_bank = [128, 0, 0, 128]
+  ct_bank = [64, 0, 0, 64]
   ct_pc = [10, 11]
 
   lut_bank = 256
