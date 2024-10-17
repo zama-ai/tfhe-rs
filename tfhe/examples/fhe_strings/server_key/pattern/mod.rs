@@ -170,32 +170,29 @@ impl ServerKey {
 
         let range;
 
-        match (str.is_padded(), pat.is_padded()) {
-            (_, false) => {
-                str_chars = str.chars().iter().collect_vec();
-                pat_chars = pat.chars().iter().collect_vec();
+        if pat.is_padded() {
+            pat_chars = pat.chars()[..pat_len - 1].iter().collect_vec();
 
-                let diff = (str_len - pat_len) - if str.is_padded() { 1 } else { 0 };
-
-                range = 0..diff + 1;
-            }
-            (true, true) => {
+            if str.is_padded() {
                 str_chars = str.chars().iter().collect_vec();
-                pat_chars = pat.chars()[..pat_len - 1].iter().collect_vec();
 
                 range = 0..str_len - 1;
-            }
-            (false, true) => {
+            } else {
                 str_chars = str
                     .chars()
                     .iter()
                     .chain(std::iter::once(null.unwrap()))
                     .collect_vec();
 
-                pat_chars = pat.chars()[..pat_len - 1].iter().collect_vec();
-
                 range = 0..str_len;
             }
+        } else {
+            str_chars = str.chars().iter().collect_vec();
+            pat_chars = pat.chars().iter().collect_vec();
+
+            let diff = (str_len - pat_len) - if str.is_padded() { 1 } else { 0 };
+
+            range = 0..diff + 1;
         }
 
         (str_chars, pat_chars, range)
