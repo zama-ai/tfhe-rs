@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// Generates an impl block for the From trait. This will be:
-/// ```
+/// ```ignore
 /// impl From<Src> for Dest  {
 ///    fn from(value: Src) -> Self {
 ///        ...[constructor]...
@@ -39,7 +39,7 @@ pub(crate) fn generate_from_trait_impl(
 }
 
 /// Generates an impl block for the TryFrom trait. This will be:
-/// ```
+/// ```ignore
 /// impl TryFrom<Src> for Dest  {
 ///    type Error = ErrorType;
 ///    fn from(value: Src) -> Self {
