@@ -282,7 +282,7 @@ impl ServerKey {
 
             IsMatch::Clear(true) => {
                 // If `from` is empty and str too, there's only one match and one replacement
-                if str.len() == 0 || (str.is_padded() && str.len() == 1) {
+                if str.is_empty() {
                     if let UIntArg::Clear(_) = count {
                         return to.clone();
                     }
@@ -390,7 +390,7 @@ impl ServerKey {
             IsMatch::Clear(false) => return result,
             IsMatch::Clear(true) => {
                 // If `from` is empty and str too, there's only one match and one replacement
-                if str.len() == 0 || (str.is_padded() && str.len() == 1) {
+                if str.is_empty() {
                     return to.clone();
                 }
             }

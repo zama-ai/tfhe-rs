@@ -174,6 +174,10 @@ impl FheString {
         self.chars().len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0 || (self.is_padded() && self.len() == 1)
+    }
+
     pub fn empty() -> FheString {
         FheString {
             enc_string: vec![],
