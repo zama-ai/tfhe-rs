@@ -300,21 +300,4 @@ pub trait FheStringIterator {
     fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock);
 }
 
-#[derive(Clone)]
-enum CharIter<'a> {
-    Iter(std::slice::Iter<'a, FheAsciiChar>),
-    Extended(
-        std::iter::Chain<std::slice::Iter<'a, FheAsciiChar>, std::iter::Once<&'a FheAsciiChar>>,
-    ),
-}
-
-impl<'a> Iterator for CharIter<'a> {
-    type Item = &'a FheAsciiChar;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            CharIter::Iter(iter) => iter.next(),
-            CharIter::Extended(iter) => iter.next(),
-        }
-    }
-}
+type CharIter<'a> = Vec<&'a FheAsciiChar>;

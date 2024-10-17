@@ -6,6 +6,7 @@ mod strip;
 
 use crate::ciphertext::{FheAsciiChar, FheString};
 use crate::server_key::{CharIter, FheStringIsEmpty, ServerKey};
+use itertools::Itertools;
 use std::ops::Range;
 use tfhe::integer::BooleanBlock;
 
@@ -65,73 +66,68 @@ impl ServerKey {
         let pat_len = pat.len();
         let str_len = str.len();
 
+        let range;
+
+        let str_chars;
+        let pat_chars;
+
         match (str.is_padded(), pat.is_padded()) {
             // If neither has padding we just check if pat matches the `pat_len` last chars or str
             (false, false) => {
-                let str_chars = str.chars().iter();
-                let pat_chars = pat.chars().iter();
+                str_chars = str.chars().iter().collect_vec();
+                pat_chars = pat.chars().iter().collect_vec();
 
                 let start = str_len - pat_len;
 
-                let range = start..start + 1;
-
-                (CharIter::Iter(str_chars), CharIter::Iter(pat_chars), range)
+                range = start..start + 1;
             }
 
             // If only str is padded we have to check all the possible padding cases. If str is 3
             // chars long, then it could be "xx\0", "x\0\0" or "\0\0\0", where x != '\0'
             (true, false) => {
-                let str_chars = str.chars()[..str_len - 1].iter();
-                let pat_chars = pat.chars().iter().chain(std::iter::once(null.unwrap()));
+                str_chars = str.chars()[..str_len - 1].iter().collect_vec();
+                pat_chars = pat
+                    .chars()
+                    .iter()
+                    .chain(std::iter::once(null.unwrap()))
+                    .collect_vec();
 
                 let diff = (str_len - 1) - pat_len;
 
-                let range = 0..diff + 1;
-
-                (
-                    CharIter::Iter(str_chars),
-                    CharIter::Extended(pat_chars),
-                    range,
-                )
+                range = 0..diff + 1;
             }
 
             // If only pat is padded we have to check all the possible padding cases as well
             // If str = "abc" and pat = "abcd\0", we check if "abc\0" == pat[..4]
             (false, true) => {
-                let (str_chars, pat_chars, range) = if pat_len - 1 > str_len {
+                str_chars = str
+                    .chars()
+                    .iter()
+                    .chain(std::iter::once(null.unwrap()))
+                    .collect_vec();
+                pat_chars = pat.chars().iter().collect_vec();
+
+                if pat_len - 1 > str_len {
                     // Pat without last char is longer than str so we check all the str chars
-                    (
-                        str.chars().iter().chain(std::iter::once(null.unwrap())),
-                        pat.chars().iter(),
-                        0..str_len + 1,
-                    )
+                    range = 0..str_len + 1;
                 } else {
                     // Pat without last char is equal or shorter than str so we check the
                     // `pat_len` - 1 last chars of str
                     let start = str_len - (pat_len - 1);
-                    (
-                        str.chars().iter().chain(std::iter::once(null.unwrap())),
-                        pat.chars()[..pat_len - 1].iter(),
-                        start..start + pat_len,
-                    )
-                };
 
-                (
-                    CharIter::Extended(str_chars),
-                    CharIter::Iter(pat_chars),
-                    range,
-                )
+                    range = start..start + pat_len;
+                };
             }
 
             (true, true) => {
-                let str_chars = str.chars().iter();
-                let pat_chars = pat.chars().iter();
+                str_chars = str.chars().iter().collect_vec();
+                pat_chars = pat.chars().iter().collect_vec();
 
-                let range = 0..str_len;
-
-                (CharIter::Iter(str_chars), CharIter::Iter(pat_chars), range)
+                range = 0..str_len;
             }
         }
+
+        (str_chars, pat_chars, range)
     }
 
     fn clear_ends_with_cases<'a>(
@@ -143,20 +139,20 @@ impl ServerKey {
         let str_len = str.len();
 
         if str.is_padded() {
-            let str_chars = str.chars()[..str_len - 1].iter();
-            let mut pat_chars = pat.to_owned();
-
-            pat_chars.push('\0');
+            let str_chars = str.chars()[..str_len - 1].iter().collect();
+            let pat_chars = format!("{pat}\0");
 
             let diff = (str_len - 1) - pat_len;
             let range = 0..diff + 1;
 
-            (CharIter::Iter(str_chars), pat_chars, range)
+            (str_chars, pat_chars, range)
         } else {
+            let str_chars = str.chars().iter().collect();
+
             let start = str_len - pat_len;
             let range = start..start + 1;
 
-            (CharIter::Iter(str.chars().iter()), pat.to_owned(), range)
+            (str_chars, pat.to_owned(), range)
         }
     }
 
@@ -169,43 +165,39 @@ impl ServerKey {
         let pat_len = pat.len();
         let str_len = str.len();
 
+        let str_chars;
+        let pat_chars;
+
+        let range;
+
         match (str.is_padded(), pat.is_padded()) {
             (_, false) => {
+                str_chars = str.chars().iter().collect_vec();
+                pat_chars = pat.chars().iter().collect_vec();
+
                 let diff = (str_len - pat_len) - if str.is_padded() { 1 } else { 0 };
 
-                let range = 0..diff + 1;
-
-                (
-                    CharIter::Iter(str.chars().iter()),
-                    CharIter::Iter(pat.chars().iter()),
-                    range,
-                )
+                range = 0..diff + 1;
             }
-
             (true, true) => {
-                let pat_chars = pat.chars()[..pat_len - 1].iter();
+                str_chars = str.chars().iter().collect_vec();
+                pat_chars = pat.chars()[..pat_len - 1].iter().collect_vec();
 
-                let range = 0..str_len - 1;
-
-                (
-                    CharIter::Iter(str.chars().iter()),
-                    CharIter::Iter(pat_chars),
-                    range,
-                )
+                range = 0..str_len - 1;
             }
-
             (false, true) => {
-                let pat_chars = pat.chars()[..pat_len - 1].iter();
-                let str_chars = str.chars().iter().chain(std::iter::once(null.unwrap()));
+                str_chars = str
+                    .chars()
+                    .iter()
+                    .chain(std::iter::once(null.unwrap()))
+                    .collect_vec();
 
-                let range = 0..str_len;
+                pat_chars = pat.chars()[..pat_len - 1].iter().collect_vec();
 
-                (
-                    CharIter::Extended(str_chars),
-                    CharIter::Iter(pat_chars),
-                    range,
-                )
+                range = 0..str_len;
             }
         }
+
+        (str_chars, pat_chars, range)
     }
 }
