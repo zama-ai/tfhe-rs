@@ -1,6 +1,7 @@
 use crate::ciphertext::{FheAsciiChar, FheString, GenericPattern};
 use crate::server_key::pattern::{CharIter, IsMatch};
 use crate::server_key::ServerKey;
+use itertools::Itertools;
 use rayon::prelude::*;
 use rayon::range::Iter;
 use tfhe::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext};
@@ -17,18 +18,16 @@ impl ServerKey {
 
         let matched: Vec<_> = par_iter
             .map(|start| {
-                let str_chars = str.clone().skip(start);
-                let pat_chars = pat.clone();
-
                 if ignore_pat_pad {
-                    let str_pat = str_chars.into_iter().zip(pat_chars).par_bridge();
+                    let str_chars = str
+                        .par_iter()
+                        .copied()
+                        .skip(start)
+                        .zip(pat.par_iter().copied());
 
-                    self.asciis_eq_ignore_pat_pad(str_pat)
+                    self.asciis_eq_ignore_pat_pad(str_chars)
                 } else {
-                    let a: Vec<&FheAsciiChar> = str_chars.collect();
-                    let b: Vec<&FheAsciiChar> = pat_chars.collect();
-
-                    self.asciis_eq(a.into_iter(), b.into_iter())
+                    self.asciis_eq(str.iter().copied().skip(start), pat.iter().copied())
                 }
             })
             .collect();
@@ -55,12 +54,7 @@ impl ServerKey {
         let (str, pat) = str_pat;
 
         let matched: Vec<_> = par_iter
-            .map(|start| {
-                let str_chars = str.clone().skip(start);
-                let a: Vec<&FheAsciiChar> = str_chars.collect();
-
-                self.clear_asciis_eq(a.into_iter(), pat)
-            })
+            .map(|start| self.clear_asciis_eq(str.iter().skip(start).copied(), pat))
             .collect();
 
         let block_vec: Vec<_> = matched
@@ -196,12 +190,15 @@ impl ServerKey {
         let str_chars = if !str.is_padded() && (str_len < pat_len - 1) {
             // If str = "xy" and pat = "xyz\0", then str[..] == pat[..2], but instead we have
             // to check if "xy\0" == pat[..3] (i.e. check that the actual pattern isn't longer)
-            CharIter::Extended(str.chars().iter().chain(std::iter::once(&null)))
+            str.chars()
+                .iter()
+                .chain(std::iter::once(&null))
+                .collect_vec()
         } else {
-            CharIter::Iter(str.chars().iter())
+            str.chars().iter().collect_vec()
         };
 
-        let str_pat = str_chars.into_iter().zip(pat_chars).par_bridge();
+        let str_pat = str_chars.par_iter().copied().zip(pat_chars.par_iter());
 
         self.asciis_eq_ignore_pat_pad(str_pat)
     }
