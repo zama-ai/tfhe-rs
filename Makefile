@@ -419,8 +419,8 @@ clippy_cuda_backend: install_rs_check_toolchain
 		-p tfhe-cuda-backend -- --no-deps -D warnings
 
 .PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend
-check_rust_bindings_did_not_change: 
-	cargo build -p tfhe-cuda-backend && \
+check_rust_bindings_did_not_change:
+	cargo build -p tfhe-cuda-backend && "$(MAKE)" fmt_gpu && \
 	git diff --quiet HEAD -- backends/tfhe-cuda-backend/src/bindings.rs || \
 	( echo "Generated bindings have changed! Please run 'git add backends/tfhe-cuda-backend/src/bindings.rs' \
 	and commit the changes." && exit 1 ) 
