@@ -237,7 +237,7 @@ impl ServerKey {
             self.key
                 .if_then_else_parallelized(condition, &true_ct_uint, &false_ct_uint);
 
-        let mut result = FheString::from_uint(result_uint);
+        let mut result = FheString::from_uint(result_uint, false);
         if padded {
             result.set_is_padded(true);
         } else if potentially_padded {
@@ -269,7 +269,7 @@ impl ServerKey {
             &shifted,
         );
 
-        FheString::from_uint(result)
+        FheString::from_uint(result, false)
     }
 
     fn right_shift_chars(&self, str: &FheString, shift: &RadixCiphertext) -> FheString {
@@ -292,7 +292,7 @@ impl ServerKey {
             &shifted,
         );
 
-        FheString::from_uint(result)
+        FheString::from_uint(result, false)
     }
 }
 

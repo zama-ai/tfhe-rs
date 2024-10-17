@@ -113,7 +113,7 @@ impl FheString {
 
     // Converts a `RadixCiphertext` to a `FheString`, building a `FheAsciiChar` for each 4 blocks.
     // Panics if the uint doesn't have a number of blocks that is multiple of 4.
-    pub fn from_uint(uint: RadixCiphertext) -> FheString {
+    pub fn from_uint(uint: RadixCiphertext, padded: bool) -> FheString {
         let blocks_len = uint.blocks().len();
         assert_eq!(blocks_len % 4, 0);
 
@@ -132,8 +132,7 @@ impl FheString {
 
         FheString {
             enc_string: ascii_vec,
-            // We are assuming here there's no padding, so this isn't safe if we don't know it!
-            padded: false,
+            padded,
         }
     }
 
@@ -195,14 +194,14 @@ mod tests {
         let enc = FheString::new(&ck, str, Some(7));
 
         let uint = enc.to_uint(&sk);
-        let mut converted = FheString::from_uint(uint);
+        let mut converted = FheString::from_uint(uint, false);
         converted.set_is_padded(true);
         let dec = ck.decrypt_ascii(&converted);
 
         assert_eq!(dec, str);
 
         let uint_into = enc.into_uint(&sk);
-        let mut converted = FheString::from_uint(uint_into);
+        let mut converted = FheString::from_uint(uint_into, false);
         converted.set_is_padded(true);
         let dec = ck.decrypt_ascii(&converted);
 
