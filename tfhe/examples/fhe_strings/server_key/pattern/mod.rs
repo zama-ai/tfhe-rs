@@ -21,8 +21,8 @@ enum IsMatch {
 // methods below contain logic for the different cases
 impl ServerKey {
     fn length_checks(&self, str: &FheString, pat: &FheString) -> IsMatch {
-        let pat_len = pat.chars().len();
-        let str_len = str.chars().len();
+        let pat_len = pat.len();
+        let str_len = str.len();
 
         // If the pattern is empty it will match any string, this is the behavior of core::str
         // Note that this doesn't handle the case where pattern is empty and has > 1 padding zeros
@@ -62,8 +62,8 @@ impl ServerKey {
         pat: &'a FheString,
         null: Option<&'a FheAsciiChar>,
     ) -> (CharIter<'a>, CharIter<'a>, Range<usize>) {
-        let pat_len = pat.chars().len();
-        let str_len = str.chars().len();
+        let pat_len = pat.len();
+        let str_len = str.len();
 
         match (str.is_padded(), pat.is_padded()) {
             // If neither has padding we just check if pat matches the `pat_len` last chars or str
@@ -140,7 +140,7 @@ impl ServerKey {
         pat: &str,
     ) -> (CharIter<'a>, String, Range<usize>) {
         let pat_len = pat.len();
-        let str_len = str.chars().len();
+        let str_len = str.len();
 
         if str.is_padded() {
             let str_chars = str.chars()[..str_len - 1].iter();
@@ -166,8 +166,8 @@ impl ServerKey {
         pat: &'a FheString,
         null: Option<&'a FheAsciiChar>,
     ) -> (CharIter<'a>, CharIter<'a>, Range<usize>) {
-        let pat_len = pat.chars().len();
-        let str_len = str.chars().len();
+        let pat_len = pat.len();
+        let str_len = str.len();
 
         match (str.is_padded(), pat.is_padded()) {
             (_, false) => {
