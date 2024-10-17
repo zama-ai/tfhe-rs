@@ -50,7 +50,7 @@ impl<Scalar: UnsignedInteger> From<HpuLweCiphertextView<'_, Scalar>>
 {
     fn from(hpu_lwe: HpuLweCiphertextView<'_, Scalar>) -> Self {
         // NB: HPU only handle Big Lwe over it's boundaries
-        let ntt_p = hpu_lwe.params().ntt_params.clone();
+        let ntt_p = &hpu_lwe.params().ntt_params;
         let pbs_p = &hpu_lwe.params().pbs_params;
         let poly_size = pbs_p.polynomial_size;
 

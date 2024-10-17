@@ -218,7 +218,20 @@ impl FromWith<NttLweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyO
 }
 
 impl<'a> From<HpuLweBootstrapKeyView<'a, u64>> for NttLweBootstrapKeyOwned<u64> {
-    fn from(value: HpuLweBootstrapKeyView<'a, u64>) -> Self {
-        todo!()
+    fn from(hpu_bsk: HpuLweBootstrapKeyView<'a, u64>) -> Self {
+        let pbs_p = &hpu_bsk.params().pbs_params;
+
+        let cpu_bsk = Self::new(
+            0,
+            LweDimension(pbs_p.lwe_dimension),
+            GlweDimension(pbs_p.glwe_dimension).to_glwe_size(),
+            PolynomialSize(pbs_p.polynomial_size),
+            DecompositionBaseLog(pbs_p.pbs_base_log),
+            DecompositionLevelCount(pbs_p.pbs_level),
+            CiphertextModulus::new(hpu_bsk.params().ntt_params.prime_modulus as u128),
+        );
+
+        // TODO properly unshuffle Hpu BSK in Cpu one
+        cpu_bsk
     }
 }

@@ -4,8 +4,7 @@ use tfhe_hpu_backend::prelude::*;
 
 use super::algorithms::order;
 use super::FromWith;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::*;
 
 impl<Scalar> FromWith<LweKeyswitchKeyView<'_, Scalar>, HpuParameters>
     for HpuLweKeyswitchKeyOwned<u64>
@@ -157,7 +156,19 @@ impl<'a, Scalar> From<HpuLweKeyswitchKeyView<'a, Scalar>> for LweKeyswitchKeyOwn
 where
     Scalar: UnsignedInteger,
 {
-    fn from(value: HpuLweKeyswitchKeyView<'a, Scalar>) -> Self {
-        todo!()
+    fn from(hpu_ksk: HpuLweKeyswitchKeyView<'a, Scalar>) -> Self {
+        let pbs_p = &hpu_ksk.params().pbs_params;
+
+        let cpu_ksk = Self::new(
+            Scalar::ZERO,
+            DecompositionBaseLog(pbs_p.ks_base_log),
+            DecompositionLevelCount(pbs_p.ks_level),
+            LweDimension(pbs_p.glwe_dimension * pbs_p.polynomial_size),
+            LweDimension(pbs_p.lwe_dimension),
+            CiphertextModulus::new(1_u128 << pbs_p.ciphertext_width),
+        );
+
+        // TODO properly unshuffle Hpu BSK in Cpu one
+        cpu_ksk
     }
 }
