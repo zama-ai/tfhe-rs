@@ -131,6 +131,49 @@ pub fn derive_versions_dispatch(input: TokenStream) -> TokenStream {
 ///
 /// This macro has a mandatory attribute parameter, which is the name of the versioned enum for this
 /// type. This enum can be anywhere in the code but should be in scope.
+///
+/// Example:
+/// ```ignore
+/// // The structure that should be versioned, as defined in your code
+/// #[derive(Versionize)]
+/// // We have to link to the enum type that will holds all the versions of this
+/// // type. This can also be written `#[versionize(dispatch = MyStructVersions)]`.
+/// #[versionize(MyStructVersions)]
+/// struct MyStruct<T> {
+///     attr: T,
+///     builtin: u32,
+/// }
+///
+/// // To avoid polluting your code, the old versions can be defined in another module/file, along with
+/// // the dispatch enum
+/// #[derive(Version)] // Used to mark an old version of the type
+/// struct MyStructV0 {
+///     builtin: u32,
+/// }
+///
+/// // The Upgrade trait tells how to go from the first version to the last. During unversioning, the
+/// // upgrade method will be called on the deserialized value enough times to go to the last variant.
+/// impl<T: Default> Upgrade<MyStruct<T>> for MyStructV0 {
+///     type Error = Infallible;
+///
+///     fn upgrade(self) -> Result<MyStruct<T>, Self::Error> {
+///         Ok(MyStruct {
+///             attr: T::default(),
+///             builtin: self.builtin,
+///         })
+///     }
+/// }
+///
+/// // This is the dispatch enum, that holds one variant for each version of your type.
+/// #[derive(VersionsDispatch)]
+/// // This enum is not directly used but serves as a template to generate a new enum that will be
+/// // serialized. This allows recursive versioning.
+/// #[allow(unused)]
+/// enum MyStructVersions<T> {
+///     V0(MyStructV0),
+///     V1(MyStruct<T>),
+/// }
+/// ```
 #[proc_macro_derive(Versionize, attributes(versionize))]
 pub fn derive_versionize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
