@@ -1,6 +1,6 @@
+use std::env;
 use std::path::PathBuf;
 use std::process::Command;
-use std::{env, fs};
 
 fn main() {
     if let Ok(val) = env::var("DOCS_RS") {
@@ -60,31 +60,26 @@ fn main() {
 
         let out_path = PathBuf::from("src").join("bindings.rs");
 
-        // Check modification times
-        let header_modified = fs::metadata(header_path).unwrap().modified().unwrap();
-        let bindings_modified = if out_path.exists() {
-            fs::metadata(&out_path).unwrap().modified().unwrap()
-        } else {
-            std::time::SystemTime::UNIX_EPOCH // If bindings file doesn't exist, consider it older
-        };
-        // Regenerate bindings only if header has been modified
-        if header_modified > bindings_modified {
-            let bindings = bindgen::Builder::default()
-                .header(header_path)
-                .clang_arg("-x")
-                .clang_arg("c++")
-                .clang_arg("-std=c++17")
-                .clang_arg("-I/usr/include")
-                .clang_arg("-I/usr/local/include")
-                .ctypes_prefix("ffi")
-                .raw_line("use crate::ffi;")
-                .generate()
-                .expect("Unable to generate bindings");
+        let bindings = bindgen::Builder::default()
+            .header(header_path)
+            // allow only what we are interested in, the custom types appearing in the interface
+            .allowlist_type("PBS_TYPE")
+            .allowlist_type("SHIFT_OR_ROTATE_TYPE")
+            // and the functions reachable from the headers included in wrapper.h
+            .allowlist_function(".*")
+            .clang_arg("-x")
+            .clang_arg("c++")
+            .clang_arg("-std=c++17")
+            .clang_arg("-I/usr/include")
+            .clang_arg("-I/usr/local/include")
+            .ctypes_prefix("ffi")
+            .raw_line("use crate::ffi;")
+            .generate()
+            .expect("Unable to generate bindings");
 
-            bindings
-                .write_to_file(&out_path)
-                .expect("Couldn't write bindings!");
-        }
+        bindings
+            .write_to_file(&out_path)
+            .expect("Couldn't write bindings!");
     } else {
         panic!(
             "Error: platform not supported, tfhe-cuda-backend not built (only Linux is supported)"
