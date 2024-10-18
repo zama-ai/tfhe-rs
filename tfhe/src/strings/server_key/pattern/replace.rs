@@ -313,7 +313,7 @@ impl ServerKey {
 
             UIntArg::Enc(enc_n) => {
                 // As we don't know the number n we perform the maximum number of iterations
-                let max = enc_n.max().unwrap_or(u16::MAX);
+                let max = (enc_n.max().unwrap_or(u16::MAX) as usize).min(result.len() + 1) as u16;
 
                 self.replace_n_times(max, &mut result, from, to, Some(enc_n.cipher()));
             }
