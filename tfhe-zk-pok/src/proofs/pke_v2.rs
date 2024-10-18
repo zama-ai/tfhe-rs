@@ -355,13 +355,16 @@ where
     }
 }
 
-/// This is the public part of the commitment. `a` and `b` are the mask and body of the public key,
-/// `c1` and `c2` are the mask and body of the ciphertext.
+/// This is the public part of the commitment.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PublicCommit<G: Curve> {
+    /// Mask of the public key
     a: Vec<i64>,
+    /// Body of the public key
     b: Vec<i64>,
+    /// Mask of the ciphertexts
     c1: Vec<i64>,
+    /// Bodies of the ciphertexts
     c2: Vec<i64>,
     __marker: PhantomData<G>,
 }
@@ -380,9 +383,13 @@ impl<G: Curve> PublicCommit<G> {
 
 #[derive(Clone, Debug)]
 pub struct PrivateCommit<G: Curve> {
+    /// Public key sampling vector
     r: Vec<i64>,
+    /// Error vector associated with the masks
     e1: Vec<i64>,
+    /// Input messages
     m: Vec<i64>,
+    /// Error vector associated with the bodies
     e2: Vec<i64>,
     __marker: PhantomData<G>,
 }
@@ -2308,155 +2315,58 @@ pub fn verify<G: Curve>(
 
 #[cfg(test)]
 mod tests {
+    use super::super::test::*;
     use super::*;
-    use bincode::ErrorKind;
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
 
-    fn polymul_rev(a: &[i64], b: &[i64]) -> Vec<i64> {
-        assert_eq!(a.len(), b.len());
-        let d = a.len();
-        let mut c = vec![0i64; d];
-
-        for i in 0..d {
-            for j in 0..d {
-                if i + j < d {
-                    c[i + j] = c[i + j].wrapping_add(a[i].wrapping_mul(b[d - j - 1]));
-                } else {
-                    c[i + j - d] = c[i + j - d].wrapping_sub(a[i].wrapping_mul(b[d - j - 1]));
-                }
-            }
-        }
-
-        c
-    }
+    /// Compact key params used with pkev2
+    pub(super) const PKEV2_TEST_PARAMS: PkeTestParameters = PkeTestParameters {
+        d: 2048,
+        k: 320,
+        B: 131072, // 2**17
+        q: 0,
+        t: 32, // 2b msg, 2b carry, 1b padding
+        msbs_zero_padding_bit_count: 1,
+    };
 
     #[test]
     fn test_pke() {
-        let d = 2048;
-        let k = 320;
-        let B = 1048576;
-        let q = 0;
-        let t = 1024;
-        let msbs_zero_padding_bit_count = 1;
-        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
 
-        let delta = {
-            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-            // delta takes the encoding with the padding bit
-            (q / t as i128) as u64
-        };
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
         let rng = &mut StdRng::seed_from_u64(0);
 
-        let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
-        let s = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
-            .collect::<Vec<_>>();
-        let e = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-        let e1 = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
+
         let fake_e1 = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-        let e2 = (0..k)
             .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
         let fake_e2 = (0..k)
             .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
 
-        let r = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
-            .collect::<Vec<_>>();
         let fake_r = (0..d)
             .map(|_| (rng.gen::<u64>() % 2) as i64)
             .collect::<Vec<_>>();
 
-        let m = (0..k)
-            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
-            .collect::<Vec<_>>();
         let fake_m = (0..k)
             .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
             .collect::<Vec<_>>();
 
-        let b = polymul_rev(&a, &s)
-            .into_iter()
-            .zip(e.iter())
-            .map(|(x, e)| x.wrapping_add(*e))
-            .collect::<Vec<_>>();
-        let c1 = polymul_rev(&a, &r)
-            .into_iter()
-            .zip(e1.iter())
-            .map(|(x, e1)| x.wrapping_add(*e1))
-            .collect::<Vec<_>>();
-
-        let mut c2 = vec![0i64; k];
-
-        for i in 0..k {
-            let mut dot = 0i64;
-            for j in 0..d {
-                let b = if i + j < d {
-                    b[d - j - i - 1]
-                } else {
-                    b[2 * d - j - i - 1].wrapping_neg()
-                };
-
-                dot = dot.wrapping_add(r[d - j - 1].wrapping_mul(b));
-            }
-
-            c2[i] = dot
-                .wrapping_add(e2[i])
-                .wrapping_add((delta * m[i] as u64) as i64);
-        }
-
-        // One of our usecases uses 320 bits of additional metadata
-        const METADATA_LEN: usize = (320 / u8::BITS) as usize;
-
-        let mut metadata = [0u8; METADATA_LEN];
-        metadata.fill_with(|| rng.gen::<u8>());
-
         let mut fake_metadata = [255u8; METADATA_LEN];
         fake_metadata.fill_with(|| rng.gen::<u8>());
 
-        let mut m_roundtrip = vec![0i64; k];
-        for i in 0..k {
-            let mut dot = 0i128;
-            for j in 0..d {
-                let c = if i + j < d {
-                    c1[d - j - i - 1]
-                } else {
-                    c1[2 * d - j - i - 1].wrapping_neg()
-                };
-
-                dot += s[d - j - 1] as i128 * c as i128;
-            }
-
-            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-            let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
-            let div = val.div_euclid(q);
-            let rem = val.rem_euclid(q);
-            let result = div as i64 + (rem > (q / 2)) as i64;
-            let result = result.rem_euclid(effective_cleartext_t as i64);
-            m_roundtrip[i] = result;
-        }
-
         type Curve = crate::curve_api::Bls12_446;
-
-        let serialize_then_deserialize = |public_param: &PublicParams<Curve>,
-                                          compress: bool|
-         -> bincode::Result<PublicParams<Curve>> {
-            match compress {
-                true => PublicParams::uncompress(bincode::deserialize(&bincode::serialize(
-                    &public_param.clone().compress(),
-                )?)?)
-                .map_err(|e| Box::new(ErrorKind::Custom(format!("Failed to uncompress: {}", e)))),
-                false => bincode::deserialize(&bincode::serialize(&public_param)?),
-            }
-        };
 
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
@@ -2464,9 +2374,9 @@ mod tests {
         let original_public_param =
             crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
         let public_param_that_was_compressed =
-            serialize_then_deserialize(&original_public_param, true).unwrap();
+            serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
         let public_param_that_was_not_compressed =
-            serialize_then_deserialize(&original_public_param, false).unwrap();
+            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
 
         for (
             public_param,
@@ -2488,29 +2398,29 @@ mod tests {
             [false, true]
         ) {
             let (public_commit, private_commit) = commit(
-                a.clone(),
-                b.clone(),
-                c1.clone(),
-                c2.clone(),
+                testcase.a.clone(),
+                testcase.b.clone(),
+                ct.c1.clone(),
+                ct.c2.clone(),
                 if use_fake_r {
                     fake_r.clone()
                 } else {
-                    r.clone()
+                    testcase.r.clone()
                 },
                 if use_fake_e1 {
                     fake_e1.clone()
                 } else {
-                    e1.clone()
+                    testcase.e1.clone()
                 },
                 if use_fake_m {
                     fake_m.clone()
                 } else {
-                    m.clone()
+                    testcase.m.clone()
                 },
                 if use_fake_e2 {
                     fake_e2.clone()
                 } else {
-                    e2.clone()
+                    testcase.e2.clone()
                 },
                 &public_param,
                 rng,
@@ -2520,7 +2430,7 @@ mod tests {
                 let proof = prove(
                     (&public_param, &public_commit),
                     &private_commit,
-                    &metadata,
+                    &testcase.metadata,
                     load,
                     rng,
                 );
@@ -2528,7 +2438,7 @@ mod tests {
                 let verify_metadata = if use_fake_metadata_verify {
                     &fake_metadata
                 } else {
-                    &metadata
+                    &testcase.metadata
                 };
 
                 assert_eq!(
@@ -2545,44 +2455,22 @@ mod tests {
 
     #[test]
     fn test_pke_w_padding_fail_verify() {
-        let d = 2048;
-        let k = 320;
-        let B = 1048576;
-        let q = 0;
-        let t = 1024;
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
 
-        let msbs_zero_padding_bit_count = 1;
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
-
-        let delta = {
-            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-            // delta takes the encoding with the padding bit
-
-            (q / t as i128) as u64
-        };
 
         let rng = &mut StdRng::seed_from_u64(0);
 
-        let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
-        let s = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
-            .collect::<Vec<_>>();
-        let e = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-        let e1 = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-        let e2 = (0..k)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-
-        let r = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
-            .collect::<Vec<_>>();
-
+        let mut testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
         // Generate messages with padding set to fail verification
-        let m = {
+        testcase.m = {
             let mut tmp = (0..k)
                 .map(|_| (rng.gen::<u64>() % t) as i64)
                 .collect::<Vec<_>>();
@@ -2593,77 +2481,9 @@ mod tests {
             tmp
         };
 
-        let b = polymul_rev(&a, &s)
-            .into_iter()
-            .zip(e.iter())
-            .map(|(x, e)| x.wrapping_add(*e))
-            .collect::<Vec<_>>();
-        let c1 = polymul_rev(&a, &r)
-            .into_iter()
-            .zip(e1.iter())
-            .map(|(x, e1)| x.wrapping_add(*e1))
-            .collect::<Vec<_>>();
-
-        let mut c2 = vec![0i64; k];
-
-        for i in 0..k {
-            let mut dot = 0i64;
-            for j in 0..d {
-                let b = if i + j < d {
-                    b[d - j - i - 1]
-                } else {
-                    b[2 * d - j - i - 1].wrapping_neg()
-                };
-
-                dot = dot.wrapping_add(r[d - j - 1].wrapping_mul(b));
-            }
-
-            c2[i] = dot
-                .wrapping_add(e2[i])
-                .wrapping_add((delta * m[i] as u64) as i64);
-        }
-
-        // One of our usecases uses 320 bits of additional metadata
-        const METADATA_LEN: usize = (320 / u8::BITS) as usize;
-
-        let mut metadata = [0u8; METADATA_LEN];
-        metadata.fill_with(|| rng.gen::<u8>());
-
-        let mut m_roundtrip = vec![0i64; k];
-        for i in 0..k {
-            let mut dot = 0i128;
-            for j in 0..d {
-                let c = if i + j < d {
-                    c1[d - j - i - 1]
-                } else {
-                    c1[2 * d - j - i - 1].wrapping_neg()
-                };
-
-                dot += s[d - j - 1] as i128 * c as i128;
-            }
-
-            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-            let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
-            let div = val.div_euclid(q);
-            let rem = val.rem_euclid(q);
-            let result = div as i64 + (rem > (q / 2)) as i64;
-            let result = result.rem_euclid(effective_cleartext_t as i64);
-            m_roundtrip[i] = result;
-        }
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
 
         type Curve = crate::curve_api::Bls12_446;
-
-        let serialize_then_deserialize = |public_param: &PublicParams<Curve>,
-                                          compress: bool|
-         -> bincode::Result<PublicParams<Curve>> {
-            match compress {
-                true => PublicParams::uncompress(bincode::deserialize(&bincode::serialize(
-                    &public_param.clone().compress(),
-                )?)?)
-                .map_err(|e| Box::new(ErrorKind::Custom(format!("Failed to uncompress: {}", e)))),
-                false => bincode::deserialize(&bincode::serialize(&public_param)?),
-            }
-        };
 
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
@@ -2671,9 +2491,9 @@ mod tests {
         let original_public_param =
             crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
         let public_param_that_was_compressed =
-            serialize_then_deserialize(&original_public_param, true).unwrap();
+            serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
         let public_param_that_was_not_compressed =
-            serialize_then_deserialize(&original_public_param, false).unwrap();
+            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
 
         for public_param in [
             original_public_param,
@@ -2681,14 +2501,14 @@ mod tests {
             public_param_that_was_not_compressed,
         ] {
             let (public_commit, private_commit) = commit(
-                a.clone(),
-                b.clone(),
-                c1.clone(),
-                c2.clone(),
-                r.clone(),
-                e1.clone(),
-                m.clone(),
-                e2.clone(),
+                testcase.a.clone(),
+                testcase.b.clone(),
+                ct.c1.clone(),
+                ct.c2.clone(),
+                testcase.r.clone(),
+                testcase.e1.clone(),
+                testcase.m.clone(),
+                testcase.e2.clone(),
                 &public_param,
                 rng,
             );
@@ -2697,131 +2517,33 @@ mod tests {
                 let proof = prove(
                     (&public_param, &public_commit),
                     &private_commit,
-                    &metadata,
+                    &testcase.metadata,
                     load,
                     rng,
                 );
 
-                assert!(verify(&proof, (&public_param, &public_commit), &metadata).is_err());
+                assert!(
+                    verify(&proof, (&public_param, &public_commit), &testcase.metadata).is_err()
+                );
             }
         }
     }
 
     #[test]
     fn test_proof_compression() {
-        let d = 2048;
-        let k = 320;
-        let B = 1048576;
-        let q = 0;
-        let t = 1024;
-
-        let msbs_zero_padding_bit_count = 1;
-        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
-
-        let delta = {
-            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-            (q / t as i128) as u64
-        };
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
 
         let rng = &mut StdRng::seed_from_u64(0);
 
-        let polymul_rev = |a: &[i64], b: &[i64]| -> Vec<i64> {
-            assert_eq!(a.len(), b.len());
-            let d = a.len();
-            let mut c = vec![0i64; d];
-
-            for i in 0..d {
-                for j in 0..d {
-                    if i + j < d {
-                        c[i + j] = c[i + j].wrapping_add(a[i].wrapping_mul(b[d - j - 1]));
-                    } else {
-                        c[i + j - d] = c[i + j - d].wrapping_sub(a[i].wrapping_mul(b[d - j - 1]));
-                    }
-                }
-            }
-
-            c
-        };
-
-        let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
-        let s = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
-            .collect::<Vec<_>>();
-        let e = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-        let e1 = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-        let e2 = (0..k)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
-            .collect::<Vec<_>>();
-
-        let r = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
-            .collect::<Vec<_>>();
-
-        let m = (0..k)
-            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
-            .collect::<Vec<_>>();
-
-        let b = polymul_rev(&a, &s)
-            .into_iter()
-            .zip(e.iter())
-            .map(|(x, e)| x.wrapping_add(*e))
-            .collect::<Vec<_>>();
-        let c1 = polymul_rev(&a, &r)
-            .into_iter()
-            .zip(e1.iter())
-            .map(|(x, e1)| x.wrapping_add(*e1))
-            .collect::<Vec<_>>();
-
-        let mut c2 = vec![0i64; k];
-
-        for i in 0..k {
-            let mut dot = 0i64;
-            for j in 0..d {
-                let b = if i + j < d {
-                    b[d - j - i - 1]
-                } else {
-                    b[2 * d - j - i - 1].wrapping_neg()
-                };
-
-                dot = dot.wrapping_add(r[d - j - 1].wrapping_mul(b));
-            }
-
-            c2[i] = dot
-                .wrapping_add(e2[i])
-                .wrapping_add((delta * m[i] as u64) as i64);
-        }
-
-        // One of our usecases uses 320 bits of additional metadata
-        const METADATA_LEN: usize = (320 / u8::BITS) as usize;
-
-        let mut metadata = [0u8; METADATA_LEN];
-        metadata.fill_with(|| rng.gen::<u8>());
-
-        let mut m_roundtrip = vec![0i64; k];
-        for i in 0..k {
-            let mut dot = 0i128;
-            for j in 0..d {
-                let c = if i + j < d {
-                    c1[d - j - i - 1]
-                } else {
-                    c1[2 * d - j - i - 1].wrapping_neg()
-                };
-
-                dot += s[d - j - 1] as i128 * c as i128;
-            }
-
-            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-            let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
-            let div = val.div_euclid(q);
-            let rem = val.rem_euclid(q);
-            let result = div as i64 + (rem > (q / 2)) as i64;
-            let result = result.rem_euclid(effective_cleartext_t as i64);
-            m_roundtrip[i] = result;
-        }
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
 
         type Curve = crate::curve_api::Bls12_446;
 
@@ -2830,14 +2552,14 @@ mod tests {
         let public_param = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
 
         let (public_commit, private_commit) = commit(
-            a.clone(),
-            b.clone(),
-            c1.clone(),
-            c2.clone(),
-            r.clone(),
-            e1.clone(),
-            m.clone(),
-            e2.clone(),
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
             &public_param,
             rng,
         );
@@ -2846,7 +2568,7 @@ mod tests {
             let proof = prove(
                 (&public_param, &public_commit),
                 &private_commit,
-                &metadata,
+                &testcase.metadata,
                 load,
                 rng,
             );
@@ -2855,7 +2577,7 @@ mod tests {
             let proof =
                 Proof::uncompress(bincode::deserialize(&compressed_proof).unwrap()).unwrap();
 
-            verify(&proof, (&public_param, &public_commit), &metadata).unwrap()
+            verify(&proof, (&public_param, &public_commit), &testcase.metadata).unwrap()
         }
     }
 }
