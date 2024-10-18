@@ -245,24 +245,35 @@ pub fn bootstrap_scratch<Scalar>(
     )
 }
 
+pub fn blind_rotate_assign_scratch<Scalar>(
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    fft: FftView<'_>,
+) -> Result<StackReq, SizeOverflow> {
+    StackReq::try_all_of([
+        StackReq::try_new_aligned::<Scalar>(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN)?,
+        cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
+    ])
+}
+
 impl<'a> FourierLweBootstrapKeyView<'a> {
     // CastInto required for PBS modulus switch which returns a usize
     pub fn blind_rotate_assign<InputScalar, OutputScalar>(
         self,
         mut lut: GlweCiphertextMutView<'_, OutputScalar>,
-        lwe: &[InputScalar],
+        lwe: LweCiphertextView<'_, InputScalar>,
         fft: FftView<'_>,
         mut stack: PodStack<'_>,
     ) where
         InputScalar: UnsignedTorus + CastInto<usize>,
         OutputScalar: UnsignedTorus,
     {
-        let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
+        let (lwe_mask, lwe_body) = lwe.get_mask_and_body();
 
         let lut_poly_size = lut.polynomial_size();
         let ciphertext_modulus = lut.ciphertext_modulus();
         assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-        let monomial_degree = MonomialDegree(pbs_modulus_switch(*lwe_body, lut_poly_size));
+        let monomial_degree = MonomialDegree(pbs_modulus_switch(*lwe_body.data, lut_poly_size));
 
         lut.as_mut_polynomial_list()
             .iter_mut()
@@ -282,7 +293,8 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         let mut ct1 =
             GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
 
-        for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), self.into_ggsw_iter())
+        for (lwe_mask_element, bootstrap_key_ggsw) in
+            izip!(lwe_mask.as_ref().iter(), self.into_ggsw_iter())
         {
             if *lwe_mask_element != InputScalar::ZERO {
                 let monomial_degree =
@@ -358,7 +370,12 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
             accumulator.polynomial_size(),
             accumulator.ciphertext_modulus(),
         );
-        self.blind_rotate_assign(local_accumulator.as_mut_view(), lwe_in.as_ref(), fft, stack);
+        self.blind_rotate_assign(
+            local_accumulator.as_mut_view(),
+            lwe_in.as_view(),
+            fft,
+            stack,
+        );
 
         extract_lwe_sample_from_glwe_ciphertext(
             &local_accumulator,
