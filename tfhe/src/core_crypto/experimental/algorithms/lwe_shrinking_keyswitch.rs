@@ -174,7 +174,8 @@ pub fn shrinking_keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont
     {
         let decomposition_iter = decomposer.decompose(input_mask_element);
         // Loop over the levels
-        for (level_key_ciphertext, decomposed) in keyswitch_key_block.iter().zip(decomposition_iter)
+        for (level_key_ciphertext, decomposed) in
+            keyswitch_key_block.iter().rev().zip(decomposition_iter)
         {
             slice_wrapping_sub_scalar_mul_assign(
                 output_lwe_ciphertext.as_mut(),
