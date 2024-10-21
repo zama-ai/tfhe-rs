@@ -147,12 +147,13 @@ Make sure to update the path of the required clause in the example below to matc
 // Here import assert to check the decryption went well and panic otherwise
 const assert = require('node:assert').strict;
 // Import the Shortint module from the TFHE-rs package generated earlier
-const { Shortint } = require("/path/to/built/tfhe/pkg");
+const { Shortint, ShortintParametersName, ShortintParameters } = require("/path/to/built/tfhe/pkg");
 
 function shortint_example() {
     // Get pre-defined parameters from the shortint module to manage messages with 4 bits of useful
     // information in total (2 bits of "message" and 2 bits of "carry")
-    let params = Shortint.get_parameters(2, 2);
+    let params_name = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let params = new ShortintParameters(params_name);
     // Create a new secret ClientKey, this must not be shared
     console.log("Generating client keys...")
     let cks = Shortint.new_client_key(params);
