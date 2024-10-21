@@ -4,9 +4,9 @@ use crate::server_key::{gen_keys, FheStringIsEmpty, FheStringIterator, FheString
 use clap::{value_parser, Arg, Command};
 use std::time::Instant;
 
-mod ciphertext;
-mod client_key;
-mod server_key;
+pub mod ciphertext;
+pub mod client_key;
+pub mod server_key;
 
 mod assert_functions;
 

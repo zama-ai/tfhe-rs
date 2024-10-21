@@ -10,11 +10,9 @@ const DIR_TO_IGNORE: [&str; 3] = [
     "tfhe/tfhe-backward-compat-data",
 ];
 
-const FILES_TO_IGNORE: [&str; 4] = [
+const FILES_TO_IGNORE: [&str; 3] = [
     // This contains fragments of code that are unrelated to TFHE-rs
     "tfhe/docs/tutorials/sha256_bool.md",
-    // This contains fragments of code coming from the tutorial that cannot be run as a doctest
-    "tfhe/examples/fhe_strings/README.md",
     // TODO: This contains code that could be executed as a trivium docstring
     "apps/trivium/README.md",
     // TODO: should we test this ?
