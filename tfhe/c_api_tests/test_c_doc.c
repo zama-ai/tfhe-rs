@@ -12,8 +12,6 @@ int main(void) {
 
   // Put the builder in a default state without any types enabled
   config_builder_default(&builder);
-  // Use the small LWE key for encryption
-  config_builder_default_with_small_encryption(&builder);
   // Populate the config
   config_builder_build(builder, &config);
 

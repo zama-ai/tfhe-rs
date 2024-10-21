@@ -65,7 +65,10 @@ fn test_integer_compressed() {
 
 #[test]
 fn test_integer_compressed_small() {
-    let config = ConfigBuilder::default_with_small_encryption().build();
+    let config = ConfigBuilder::with_custom_parameters(
+        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+    )
+    .build();
     let (client_key, _) = generate_keys(config);
 
     let clear = 12_837u16;
@@ -153,7 +156,10 @@ fn test_multi_div_rem() {
 
 #[test]
 fn test_small_uint128() {
-    let config = ConfigBuilder::default_with_small_encryption().build();
+    let config = ConfigBuilder::with_custom_parameters(
+        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+    )
+    .build();
 
     let (cks, sks) = generate_keys(config);
 

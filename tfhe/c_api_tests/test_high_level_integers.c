@@ -399,7 +399,7 @@ int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *serve
   deser_view.pointer = value_buffer.pointer;
   deser_view.length = value_buffer.length;
   ok = fhe_uint8_safe_deserialize_conformant(deser_view, max_serialization_size, server_key,
-																						 &deserialized_lhs);
+                                             &deserialized_lhs);
   assert(ok == 0);
 
   uint8_t clear;
@@ -642,8 +642,12 @@ int main(void) {
     ConfigBuilder *builder;
     Config *config;
 
-    ok = config_builder_default_with_small_encryption(&builder);
+    // Set config builder in default state
+    ok = config_builder_default(&builder);
     assert(ok == 0);
+    // Then use small parameters, those are gaussians as we don't have small TUniform params
+    ok = config_builder_use_custom_parameters(
+        &builder, SHORTINT_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ok = config_builder_build(builder, &config);
     assert(ok == 0);
 

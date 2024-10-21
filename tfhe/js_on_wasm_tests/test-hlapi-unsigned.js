@@ -14,7 +14,9 @@ const {
     CompressedFheUint128,
     FheUint128,
     CompressedFheUint256,
-    FheUint256
+    FheUint256,
+    ShortintParameters,
+    ShortintParametersName
 } = require("../pkg/tfhe.js");
 const {
     randomBytes,
@@ -79,7 +81,9 @@ test('hlapi_key_gen_big', (t) => {
 });
 
 test('hlapi_key_gen_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption()
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
         .build();
 
     let clientKey = TfheClientKey.generate(config);
@@ -138,8 +142,10 @@ test('hlapi_compressed_public_client_uint8_big', (t) => {
 });
 
 test('hlapi_public_key_encrypt_decrypt_uint32_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption().build();
-
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
+        .build();
 
     let clientKey = TfheClientKey.generate(config);
     let publicKey = TfhePublicKey.new(clientKey);
@@ -160,8 +166,10 @@ test('hlapi_public_key_encrypt_decrypt_uint32_small', (t) => {
 });
 
 test('hlapi_decompress_public_key_then_encrypt_decrypt_uint32_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption().build();
-
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
+        .build();
 
     let clientKey = TfheClientKey.generate(config);
     var startTime = performance.now()
@@ -231,8 +239,10 @@ test('hlapi_client_key_encrypt_decrypt_uint128_big', (t) => {
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint128_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption().build();
-
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
+        .build();
 
     let clientKey = TfheClientKey.generate(config);
 
@@ -306,8 +316,10 @@ test('hlapi_client_key_encrypt_decrypt_uint256_big', (t) => {
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint256_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption().build();
-
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
+        .build();
 
     let clientKey = TfheClientKey.generate(config);
 
@@ -343,8 +355,10 @@ test('hlapi_client_key_encrypt_decrypt_uint256_small', (t) => {
 });
 
 test('hlapi_decompress_public_key_then_encrypt_decrypt_uint256_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption().build();
-
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
+        .build();
 
     let clientKey = TfheClientKey.generate(config);
     let compressedPublicKey = TfheCompressedPublicKey.new(clientKey);
@@ -367,7 +381,10 @@ test('hlapi_decompress_public_key_then_encrypt_decrypt_uint256_small', (t) => {
 });
 
 test('hlapi_public_key_encrypt_decrypt_uint256_small', (t) => {
-    let config = TfheConfigBuilder.default_with_small_encryption().build();
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
+    let config = TfheConfigBuilder.with_custom_parameters(params_small)
+        .build();
 
     let clientKey = TfheClientKey.generate(config);
     let publicKey = TfhePublicKey.new(clientKey);
