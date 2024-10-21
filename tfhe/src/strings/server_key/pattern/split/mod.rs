@@ -79,8 +79,8 @@ impl ServerKey {
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = (" hello world", " ");
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, &pat, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
     /// let (lhs, rhs, split_occurred) = sk.rsplit_once(&enc_s, &enc_pat);
     ///
@@ -122,7 +122,7 @@ impl ServerKey {
             }
             // This is only returned when str is empty so both sub-strings are empty as well
             IsMatch::Cipher(enc_val) => return (FheString::empty(), FheString::empty(), enc_val),
-            _ => (),
+            IsMatch::None => (),
         }
 
         let (index, is_match) = self.rfind(str, pat);
@@ -149,8 +149,8 @@ impl ServerKey {
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = (" hello world", " ");
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, &pat, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
     /// let (lhs, rhs, split_occurred) = sk.split_once(&enc_s, &enc_pat);
     ///
@@ -192,7 +192,7 @@ impl ServerKey {
             }
             // This is only returned when str is empty so both sub-strings are empty as well
             IsMatch::Cipher(enc_val) => return (FheString::empty(), FheString::empty(), enc_val),
-            _ => (),
+            IsMatch::None => (),
         }
 
         let (index, is_match) = self.find(str, pat);
@@ -233,7 +233,7 @@ impl ServerKey {
         n: UIntArg,
         split_type: SplitType,
     ) -> SplitNInternal {
-        if let SplitType::SplitInclusive = split_type {
+        if matches!(split_type, SplitType::SplitInclusive) {
             panic!("We have either SplitN or RSplitN")
         }
 
@@ -264,7 +264,7 @@ impl ServerKey {
         pat: &GenericPattern,
         split_type: SplitType,
     ) -> SplitNoTrailing {
-        if let SplitType::RSplit = split_type {
+        if matches!(split_type, SplitType::RSplit) {
             panic!("Only Split or SplitInclusive")
         }
 
@@ -346,7 +346,7 @@ impl FheStringIterator for SplitInternal {
 
         let ((mut index, mut is_some), pat_is_empty) = rayon::join(
             || {
-                if let SplitType::RSplit = self.split_type {
+                if matches!(self.split_type, SplitType::RSplit) {
                     sk.rfind(&self.state, &self.pat)
                 } else {
                     sk.find(&self.state, &self.pat)
@@ -366,14 +366,14 @@ impl FheStringIterator for SplitInternal {
             // to manually advance the match index as an empty pattern always matches at the very
             // start (or end in the rsplit case)
 
-            if let SplitType::RSplit = self.split_type {
+            if matches!(self.split_type, SplitType::RSplit) {
                 sk.key.sub_assign_parallelized(&mut index, &pat_is_empty);
             } else {
                 sk.key.add_assign_parallelized(&mut index, &pat_is_empty);
             }
         }
 
-        let (lhs, rhs) = if let SplitType::SplitInclusive = self.split_type {
+        let (lhs, rhs) = if matches!(self.split_type, SplitType::SplitInclusive) {
             sk.split_pat_at_index(&self.state, &self.pat, &index, true)
         } else {
             sk.split_pat_at_index(&self.state, &self.pat, &index, false)
@@ -382,7 +382,7 @@ impl FheStringIterator for SplitInternal {
         let current_is_some = is_some.clone();
 
         // The moment it's None (no match) we return the remaining state
-        let result = if let SplitType::RSplit = self.split_type {
+        let result = if matches!(self.split_type, SplitType::RSplit) {
             let re = sk.conditional_string(&current_is_some, rhs, &self.state);
 
             self.state = lhs;

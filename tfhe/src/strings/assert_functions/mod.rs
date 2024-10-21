@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod test_vectors;
 
+use server_key::split_ascii_whitespace;
+
 use super::*;
 use crate::strings::ciphertext::{ClearString, GenericPattern};
 use std::time::Duration;
@@ -11,12 +13,11 @@ where
 {
     println!(
         "\x1b[1;32m--------------------------------\x1b[0m\n\
-        \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-        \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-        \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-        \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
+        \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{str:?}\x1b[0m\n\
+        \x1b[1;32;1mClear API Result: \x1b[0m{expected:?}\n\
+        \x1b[1;32;1mT-fhe API Result: \x1b[0m{dec:?}\n\
+        \x1b[1;34mExecution Time: \x1b[0m{dur:?}\n\
         \x1b[1;32m--------------------------------\x1b[0m",
-        str, expected, dec, dur,
     );
 }
 
@@ -26,13 +27,12 @@ where
 {
     println!(
         "\x1b[1;32m--------------------------------\x1b[0m\n\
-        \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-        \x1b[1;32;1mPattern: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-        \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-        \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-        \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
+        \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{str:?}\x1b[0m\n\
+        \x1b[1;32;1mPattern: \x1b[0m\x1b[0;33m{pat:?}\x1b[0m\n\
+        \x1b[1;32;1mClear API Result: \x1b[0m{expected:?}\n\
+        \x1b[1;32;1mT-fhe API Result: \x1b[0m{dec:?}\n\
+        \x1b[1;34mExecution Time: \x1b[0m{dur:?}\n\
         \x1b[1;32m--------------------------------\x1b[0m",
-        str, pat, expected, dec, dur,
     );
 }
 
@@ -42,13 +42,12 @@ where
 {
     println!(
         "\x1b[1;32m--------------------------------\x1b[0m\n\
-        \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-        \x1b[1;32;1mPattern (clear): \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-        \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-        \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-        \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
+        \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{str:?}\x1b[0m\n\
+        \x1b[1;32;1mPattern (clear): \x1b[0m\x1b[0;33m{pat:?}\x1b[0m\n\
+        \x1b[1;32;1mClear API Result: \x1b[0m{expected:?}\n\
+        \x1b[1;32;1mT-fhe API Result: \x1b[0m{dec:?}\n\
+        \x1b[1;34mExecution Time: \x1b[0m{dur:?}\n\
         \x1b[1;32m--------------------------------\x1b[0m",
-        str, pat, expected, dec, dur,
     );
 }
 
@@ -58,13 +57,12 @@ where
 {
     println!(
         "\x1b[1;32m--------------------------------\x1b[0m\n\
-        \x1b[1;32;1mLhs: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-        \x1b[1;32;1mRhs: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-        \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-        \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-        \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
+        \x1b[1;32;1mLhs: \x1b[0m\x1b[0;33m{str:?}\x1b[0m\n\
+        \x1b[1;32;1mRhs: \x1b[0m\x1b[0;33m{pat:?}\x1b[0m\n\
+        \x1b[1;32;1mClear API Result: \x1b[0m{expected:?}\n\
+        \x1b[1;32;1mT-fhe API Result: \x1b[0m{dec:?}\n\
+        \x1b[1;34mExecution Time: \x1b[0m{dur:?}\n\
         \x1b[1;32m--------------------------------\x1b[0m",
-        str, pat, expected, dec, dur,
     );
 }
 
@@ -74,13 +72,12 @@ where
 {
     println!(
         "\x1b[1;32m--------------------------------\x1b[0m\n\
-        \x1b[1;32;1mLhs: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-        \x1b[1;32;1mRhs (clear): \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-        \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-        \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-        \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
+        \x1b[1;32;1mLhs: \x1b[0m\x1b[0;33m{str:?}\x1b[0m\n\
+        \x1b[1;32;1mRhs (clear): \x1b[0m\x1b[0;33m{pat:?}\x1b[0m\n\
+        \x1b[1;32;1mClear API Result: \x1b[0m{expected:?}\n\
+        \x1b[1;32;1mT-fhe API Result: \x1b[0m{dec:?}\n\
+        \x1b[1;34mExecution Time: \x1b[0m{dur:?}\n\
         \x1b[1;32m--------------------------------\x1b[0m",
-        str, pat, expected, dec, dur,
     );
 }
 
@@ -729,7 +726,7 @@ impl Keys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.split_ascii_whitespace(&enc_str);
+        let mut split_iter = split_ascii_whitespace(&enc_str);
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }

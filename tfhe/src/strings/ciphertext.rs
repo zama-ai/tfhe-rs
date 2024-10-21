@@ -32,7 +32,7 @@ impl ClearString {
         assert!(str.is_ascii() && !str.contains('\0'));
         assert!(str.len() <= N * 8);
 
-        ClearString { str }
+        Self { str }
     }
 
     pub fn str(&self) -> &str {
@@ -56,7 +56,7 @@ impl FheAsciiChar {
     }
 
     pub fn null(sk: &ServerKey) -> Self {
-        FheAsciiChar {
+        Self {
             enc_char: sk.key().create_trivial_zero_radix(4),
         }
     }
@@ -113,7 +113,7 @@ impl FheString {
 
     // Converts a `RadixCiphertext` to a `FheString`, building a `FheAsciiChar` for each 4 blocks.
     // Panics if the uint doesn't have a number of blocks that is multiple of 4.
-    pub fn from_uint(uint: RadixCiphertext, padded: bool) -> FheString {
+    pub fn from_uint(uint: RadixCiphertext, padded: bool) -> Self {
         let blocks_len = uint.blocks().len();
         assert_eq!(blocks_len % 4, 0);
 
@@ -130,7 +130,7 @@ impl FheString {
             ascii_vec.push(FheAsciiChar { enc_char: byte })
         }
 
-        FheString {
+        Self {
             enc_string: ascii_vec,
             padded,
         }
@@ -178,8 +178,8 @@ impl FheString {
         self.len() == 0 || (self.is_padded() && self.len() == 1)
     }
 
-    pub fn empty() -> FheString {
-        FheString {
+    pub fn empty() -> Self {
+        Self {
             enc_string: vec![],
             padded: false,
         }
@@ -202,15 +202,17 @@ mod tests {
         let enc = FheString::new(&ck, str, Some(7));
 
         let uint = enc.to_uint(&sk);
-        let mut converted = FheString::from_uint(uint, false);
-        converted.set_is_padded(true);
+
+        let converted = FheString::from_uint(uint, true);
+
         let dec = ck.decrypt_ascii(&converted);
 
         assert_eq!(dec, str);
 
         let uint_into = enc.into_uint(&sk);
-        let mut converted = FheString::from_uint(uint_into, false);
-        converted.set_is_padded(true);
+
+        let converted = FheString::from_uint(uint_into, true);
+
         let dec = ck.decrypt_ascii(&converted);
 
         assert_eq!(dec, str);

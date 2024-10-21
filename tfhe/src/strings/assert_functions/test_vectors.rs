@@ -62,6 +62,7 @@ const TEST_CASES_COMP: [(&str, u32); 15] = [
     ("foofoo44", 1),
 ];
 
+#[allow(clippy::type_complexity)]
 const TEST_CASES_SPLIT: [((&str, u32), (&str, u32)); 21] = [
     // Empty strings and patterns with different paddings to test edge cases
     (("", 0), ("", 0)),
@@ -88,6 +89,7 @@ const TEST_CASES_SPLIT: [((&str, u32), (&str, u32)); 21] = [
     (("Ghirahim", 2), ("hi", 0)),
 ];
 
+#[allow(clippy::type_complexity)]
 const TEST_CASES_REPLACE: [((&str, u32), (&str, u32), (&str, u32)); 27] = [
     // Empty string matches with different padding combinations
     (("", 0), ("", 0), ("", 0)),

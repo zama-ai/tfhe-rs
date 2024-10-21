@@ -199,23 +199,6 @@ impl ServerKey {
         no_more_matches
     }
 
-    fn max_matches(&self, str: &FheString, pat: &FheString) -> u16 {
-        let str_len = str.len() - if str.is_padded() { 1 } else { 0 };
-
-        // Max number of matches is str_len + 1 when pattern is empty
-        let mut max: u16 = (str_len + 1).try_into().expect("str should be shorter");
-
-        // If we know the actual `from` length, the max number of matches can be computed as
-        // str_len - pat_len + 1. For instance "xx" matches "xxxx" at most 4 - 2 + 1 = 3 times.
-        // This works as long as str_len >= pat_len (guaranteed due to the outer length checks)
-        if !pat.is_padded() {
-            let pat_len = pat.len() as u16;
-            max = str_len as u16 - pat_len + 1;
-        }
-
-        max
-    }
-
     /// Returns a new encrypted string with a specified number of non-overlapping occurrences of a
     /// pattern (either encrypted or clear) replaced by another specified encrypted pattern.
     ///
@@ -239,9 +222,9 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, from, to) = ("hello", "l", "r");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_from = GenericPattern::Enc(FheString::new(&ck, &from, None));
-    /// let enc_to = FheString::new(&ck, &to, None);
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_from = GenericPattern::Enc(FheString::new(&ck, from, None));
+    /// let enc_to = FheString::new(&ck, to, None);
     ///
     /// // Using Clear count
     /// let clear_count = UIntArg::Clear(1);
@@ -268,7 +251,7 @@ impl ServerKey {
     ) -> FheString {
         let mut result = str.clone();
 
-        if let UIntArg::Clear(0) = count {
+        if matches!(count, UIntArg::Clear(0)) {
             return result;
         }
 
@@ -326,7 +309,7 @@ impl ServerKey {
 
         match count {
             UIntArg::Clear(n) => {
-                let max = self.max_matches(str, &trivial_or_enc_from);
+                let max = max_matches(str, &trivial_or_enc_from);
 
                 // If n > max number of matches we use that max to avoid unnecessary iterations
                 let iterations = if *n > max { max } else { *n };
@@ -364,9 +347,9 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, from, to) = ("hi", "i", "o");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_from = GenericPattern::Enc(FheString::new(&ck, &from, None));
-    /// let enc_to = FheString::new(&ck, &to, None);
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_from = GenericPattern::Enc(FheString::new(&ck, from, None));
+    /// let enc_to = FheString::new(&ck, to, None);
     ///
     /// let result = sk.replace(&enc_s, &enc_from, &enc_to);
     /// let replaced = ck.decrypt_ascii(&result);
@@ -400,10 +383,25 @@ impl ServerKey {
             _ => (),
         }
 
-        let max = self.max_matches(str, &trivial_or_enc_from);
+        let max = max_matches(str, &trivial_or_enc_from);
 
         self.replace_n_times(max, &mut result, from, to, None);
 
         result
+    }
+}
+
+fn max_matches(str: &FheString, pat: &FheString) -> u16 {
+    let str_len = str.len() - if str.is_padded() { 1 } else { 0 };
+
+    if pat.is_padded() {
+        // Max number of matches is str_len + 1 when pattern is empty
+        (str_len + 1).try_into().expect("str should be shorter")
+    } else {
+        // If we know the actual `from` length, the max number of matches can be computed as
+        // str_len - pat_len + 1. For instance "xx" matches "xxxx" at most 4 - 2 + 1 = 3 times.
+        // This works as long as str_len >= pat_len (guaranteed due to the outer length checks)
+        let pat_len = pat.len() as u16;
+        str_len as u16 - pat_len + 1
     }
 }
