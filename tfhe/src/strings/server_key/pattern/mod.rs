@@ -4,11 +4,11 @@ mod replace;
 mod split;
 mod strip;
 
-use crate::ciphertext::{FheAsciiChar, FheString};
-use crate::server_key::{CharIter, FheStringIsEmpty, ServerKey};
+use crate::integer::BooleanBlock;
+use crate::strings::ciphertext::{FheAsciiChar, FheString};
+use crate::strings::server_key::{CharIter, FheStringIsEmpty, ServerKey};
 use itertools::Itertools;
 use std::ops::Range;
-use tfhe::integer::BooleanBlock;
 
 // Useful for handling cases in which we know if there is or there isn't a match just by looking at
 // the lengths
