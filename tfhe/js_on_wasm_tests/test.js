@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const test = require('node:test');
 const assert = require('node:assert').strict;
-const { Boolean, Shortint, BooleanParameterSet } = require("../pkg");
+const { Boolean, Shortint, BooleanParameterSet, ShortintParametersName, ShortintParameters } = require("../pkg");
 
 function genRandomBigIntWithBytes(byteCount) {
     return BigInt('0x' + crypto.randomBytes(byteCount).toString('hex'))
@@ -88,7 +88,8 @@ test('boolean_deterministic_keygen', (t) => {
 
 // Shortint tests
 test('shortint_encrypt_decrypt', (t) => {
-    let params = Shortint.get_parameters(2, 2);
+    let params_name = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let params = new ShortintParameters(params_name);
     let cks = Shortint.new_client_key(params);
     let ct = Shortint.encrypt(cks, BigInt(3));
 
@@ -109,7 +110,8 @@ test('shortint_encrypt_decrypt', (t) => {
     // No equality tests here, as wasm stores pointers which will always differ
 
     // Encryption using small keys
-    let params_small = Shortint.get_parameters_small(2, 2);
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
     let cks_small = Shortint.new_client_key(params_small);
 
     let ct_small = Shortint.encrypt(cks_small, BigInt(3));
@@ -122,7 +124,8 @@ test('shortint_encrypt_decrypt', (t) => {
 });
 
 test('shortint_compressed_encrypt_decrypt', (t) => {
-    let params = Shortint.get_parameters(2, 2);
+    let params_name = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let params = new ShortintParameters(params_name);
     let cks = Shortint.new_client_key(params);
     let ct = Shortint.encrypt_compressed(cks, BigInt(3));
 
@@ -138,7 +141,9 @@ test('shortint_compressed_encrypt_decrypt', (t) => {
     assert.deepStrictEqual(decrypted, BigInt(3));
 
     // Encryption using small keys
-    let params_small = Shortint.get_parameters_small(2, 2);
+    // We don't have TUniform small params so use previous gaussian ones.
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
     let cks_small = Shortint.new_client_key(params_small);
 
     let ct_small = Shortint.encrypt_compressed(cks_small, BigInt(3));
@@ -153,8 +158,9 @@ test('shortint_compressed_encrypt_decrypt', (t) => {
 });
 
 test('shortint_public_encrypt_decrypt', (t) => {
-    let params = Shortint.get_parameters(2, 0);
-    let cks = Shortint.new_client_key(params);
+    let params_name_2_0 = ShortintParametersName.PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64;
+    let params_2_0 = new ShortintParameters(params_name_2_0);
+    let cks = Shortint.new_client_key(params_2_0);
     let pk = Shortint.new_public_key(cks);
 
     let ct = Shortint.encrypt_with_public_key(pk, BigInt(3));
@@ -166,8 +172,9 @@ test('shortint_public_encrypt_decrypt', (t) => {
     assert.deepStrictEqual(decrypted, BigInt(3));
 
     // Small
-    let params_small = Shortint.get_parameters_small(2, 2);
-    let cks_small = Shortint.new_client_key(params_small);
+    let params_name_2_2_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_2_2_small = new ShortintParameters(params_name_2_2_small);
+    let cks_small = Shortint.new_client_key(params_2_2_small);
 
     let pk_small = Shortint.new_public_key(cks_small);
 
@@ -181,7 +188,8 @@ test('shortint_public_encrypt_decrypt', (t) => {
 });
 
 test('shortint_compressed_public_encrypt_decrypt', (t) => {
-    let params = Shortint.get_parameters(1, 1);
+    let params_name = ShortintParametersName.PARAM_MESSAGE_1_CARRY_1_KS_PBS;
+    let params = new ShortintParameters(params_name);
     let cks = Shortint.new_client_key(params);
     let pk = Shortint.new_compressed_public_key(cks);
 
@@ -197,7 +205,8 @@ test('shortint_compressed_public_encrypt_decrypt', (t) => {
     assert.deepStrictEqual(decrypted, BigInt(1));
 
     // Small
-    let params_small = Shortint.get_parameters_small(2, 2);
+    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_small = new ShortintParameters(params_name_small);
     let cks_small = Shortint.new_client_key(params_small);
 
     let pk_small = Shortint.new_compressed_public_key(cks_small);
@@ -220,7 +229,8 @@ test('shortint_deterministic_keygen', (t) => {
     let seed_high_bytes = genRandomBigIntWithBytes(8);
     let seed_low_bytes = genRandomBigIntWithBytes(8);
 
-    let params = Shortint.get_parameters(2, 2);
+    let params_name = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let params = new ShortintParameters(params_name);
     let cks = Shortint.new_client_key_from_seed_and_parameters(seed_high_bytes, seed_low_bytes, params);
     let other_cks = Shortint.new_client_key_from_seed_and_parameters(seed_high_bytes, seed_low_bytes, params);
 
