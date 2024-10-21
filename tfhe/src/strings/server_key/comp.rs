@@ -1,6 +1,6 @@
-use crate::ciphertext::{FheString, GenericPattern};
-use crate::server_key::{FheStringIsEmpty, ServerKey};
-use tfhe::integer::BooleanBlock;
+use crate::integer::BooleanBlock;
+use crate::strings::ciphertext::{FheString, GenericPattern};
+use crate::strings::server_key::{FheStringIsEmpty, ServerKey};
 
 impl ServerKey {
     fn eq_length_checks(&self, lhs: &FheString, rhs: &FheString) -> Option<BooleanBlock> {
@@ -53,8 +53,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("hello", "hello");
@@ -107,8 +107,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("hello", "world");
@@ -134,8 +134,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::FheString;
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::FheString;
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("apple", "banana");
@@ -164,8 +164,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::FheString;
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::FheString;
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("banana", "apple");
@@ -195,8 +195,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::FheString;
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::FheString;
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("apple", "banana");
@@ -226,8 +226,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::FheString;
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::FheString;
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("banana", "apple");

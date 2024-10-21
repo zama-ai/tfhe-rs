@@ -1,4 +1,4 @@
-use crate::Keys;
+use crate::strings::Keys;
 
 const TEST_CASES_MATCH: [(&str, u32); 15] = [
     ("", 0),

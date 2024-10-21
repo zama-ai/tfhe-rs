@@ -3,14 +3,14 @@ mod no_patterns;
 mod pattern;
 mod trim;
 
-use crate::ciphertext::{FheAsciiChar, FheString};
-use crate::client_key::ClientKey;
-use crate::N;
+use crate::integer::bigint::static_unsigned::StaticUnsignedBigInt;
+use crate::integer::prelude::*;
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey as FheServerKey};
+use crate::strings::ciphertext::{FheAsciiChar, FheString};
+use crate::strings::client_key::ClientKey;
+use crate::strings::N;
 use rayon::prelude::*;
 use std::cmp::Ordering;
-use tfhe::integer::bigint::static_unsigned::StaticUnsignedBigInt;
-use tfhe::integer::prelude::*;
-use tfhe::integer::{BooleanBlock, RadixCiphertext, ServerKey as FheServerKey};
 
 /// Represents a server key to operate homomorphically on [`FheString`].
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
