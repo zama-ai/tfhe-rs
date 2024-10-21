@@ -1,10 +1,10 @@
-use crate::ciphertext::{FheAsciiChar, FheString, GenericPattern};
-use crate::server_key::pattern::IsMatch;
-use crate::server_key::{CharIter, FheStringLen, ServerKey};
+use crate::integer::prelude::*;
+use crate::integer::BooleanBlock;
+use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
+use crate::strings::server_key::pattern::IsMatch;
+use crate::strings::server_key::{CharIter, FheStringLen, ServerKey};
 use rayon::prelude::*;
 use std::ops::Range;
-use tfhe::integer::prelude::*;
-use tfhe::integer::BooleanBlock;
 
 impl ServerKey {
     fn compare_shifted_strip(
@@ -105,8 +105,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, prefix, not_prefix) = ("hello world", "hello", "world");
@@ -188,8 +188,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, suffix, not_suffix) = ("hello world", "world", "hello");

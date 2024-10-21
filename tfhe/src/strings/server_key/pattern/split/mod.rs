@@ -1,9 +1,9 @@
 mod split_iters;
 
-use crate::ciphertext::{FheString, GenericPattern, UIntArg};
-use crate::server_key::pattern::IsMatch;
-use crate::server_key::{FheStringIsEmpty, FheStringIterator, FheStringLen, ServerKey};
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
+use crate::integer::{BooleanBlock, RadixCiphertext};
+use crate::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+use crate::strings::server_key::pattern::IsMatch;
+use crate::strings::server_key::{FheStringIsEmpty, FheStringIterator, FheStringLen, ServerKey};
 
 impl ServerKey {
     fn split_pat_at_index(
@@ -74,8 +74,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = (" hello world", " ");
@@ -144,8 +144,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = (" hello world", " ");

@@ -1,8 +1,8 @@
-use crate::ciphertext::{FheString, GenericPattern, UIntArg};
-use crate::server_key::pattern::IsMatch;
-use crate::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
-use tfhe::integer::prelude::*;
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
+use crate::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+use crate::strings::server_key::pattern::IsMatch;
+use crate::strings::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
+use crate::integer::prelude::*;
+use crate::integer::{BooleanBlock, RadixCiphertext};
 
 impl ServerKey {
     // Replaces the pattern ignoring the first `start` chars (i.e. these are not replaced)
@@ -233,8 +233,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern, UIntArg};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, from, to) = ("hello", "l", "r");
@@ -358,8 +358,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, from, to) = ("hi", "i", "o");

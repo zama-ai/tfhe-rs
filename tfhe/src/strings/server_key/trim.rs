@@ -1,8 +1,8 @@
-use crate::ciphertext::{FheAsciiChar, FheString};
-use crate::server_key::{FheStringIsEmpty, FheStringIterator, FheStringLen, ServerKey};
+use crate::integer::prelude::*;
+use crate::integer::{BooleanBlock, RadixCiphertext};
+use crate::strings::ciphertext::{FheAsciiChar, FheString};
+use crate::strings::server_key::{FheStringIsEmpty, FheStringIterator, FheStringLen, ServerKey};
 use rayon::prelude::*;
-use tfhe::integer::prelude::*;
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 pub struct SplitAsciiWhitespace {
     state: FheString,
@@ -189,8 +189,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::FheString;
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::FheString;
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let s = "  hello world";
@@ -245,8 +245,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::FheString;
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::FheString;
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let s = "hello world  ";
@@ -285,8 +285,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::FheString;
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::FheString;
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let s = "  hello world  ";
@@ -319,8 +319,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::FheString;
-    /// use crate::server_key::{gen_keys, FheStringIterator};
+    /// use tfhe::strings::ciphertext::FheString;
+    /// use tfhe::strings::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let s = "hello \t\nworld ";

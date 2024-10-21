@@ -1,9 +1,9 @@
-use crate::ciphertext::{FheString, GenericPattern, UIntArg};
-use crate::server_key::pattern::split::{
+use crate::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+use crate::strings::server_key::pattern::split::{
     SplitInternal, SplitNInternal, SplitNoLeading, SplitNoTrailing, SplitType,
 };
-use crate::server_key::{FheStringIterator, ServerKey};
-use tfhe::integer::BooleanBlock;
+use crate::strings::server_key::{FheStringIterator, ServerKey};
+use crate::integer::BooleanBlock;
 
 pub struct RSplit {
     internal: SplitInternal,
@@ -47,8 +47,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::{gen_keys, FheStringIterator};
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello ", " ");
@@ -92,8 +92,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::{gen_keys, FheStringIterator};
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello ", " ");
@@ -138,8 +138,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern, UIntArg};
-    /// use crate::server_key::{gen_keys, FheStringIterator};
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+    /// use tfhe::strings::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world", " ");
@@ -190,8 +190,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern, UIntArg};
-    /// use crate::server_key::{gen_keys, FheStringIterator};
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+    /// use tfhe::strings::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world", " ");
@@ -240,8 +240,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::{gen_keys, FheStringIterator};
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world ", " ");
@@ -288,8 +288,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::{gen_keys, FheStringIterator};
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world ", " ");
@@ -335,8 +335,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::{gen_keys, FheStringIterator};
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world ", " ");

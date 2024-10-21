@@ -1,10 +1,10 @@
-use crate::ciphertext::{FheAsciiChar, FheString, GenericPattern};
-use crate::server_key::pattern::{CharIter, IsMatch};
-use crate::server_key::ServerKey;
+use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext};
+use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
+use crate::strings::server_key::pattern::{CharIter, IsMatch};
+use crate::strings::server_key::ServerKey;
 use itertools::Itertools;
 use rayon::prelude::*;
 use rayon::range::Iter;
-use tfhe::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext};
 
 impl ServerKey {
     // Compare pat with str, with pat shifted right (in relation to str) the number given by iter
@@ -82,8 +82,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (bananas, nana, apples) = ("bananas", "nana", "apples");
@@ -142,8 +142,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (bananas, ba, nan) = ("bananas", "ba", "nan");
@@ -214,8 +214,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (bananas, anas, nana) = ("bananas", "anas", "nana");

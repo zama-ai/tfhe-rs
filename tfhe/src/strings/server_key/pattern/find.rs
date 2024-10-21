@@ -1,10 +1,10 @@
-use crate::ciphertext::{FheAsciiChar, FheString, GenericPattern};
-use crate::server_key::pattern::IsMatch;
-use crate::server_key::{CharIter, FheStringIsEmpty, FheStringLen, ServerKey};
+use crate::integer::prelude::*;
+use crate::integer::{BooleanBlock, RadixCiphertext};
+use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
+use crate::strings::server_key::pattern::IsMatch;
+use crate::strings::server_key::{CharIter, FheStringIsEmpty, FheStringLen, ServerKey};
 use rayon::prelude::*;
 use rayon::vec::IntoIter;
-use tfhe::integer::prelude::*;
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl ServerKey {
     // Compare pat with str, with pat shifted right (in relation to str) the number of times given
@@ -104,8 +104,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (haystack, needle) = ("hello world", "world");
@@ -173,8 +173,8 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::ciphertext::{FheString, GenericPattern};
-    /// use crate::server_key::gen_keys;
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    /// use tfhe::strings::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (haystack, needle) = ("hello world world", "world");

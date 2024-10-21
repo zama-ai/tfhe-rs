@@ -2,7 +2,7 @@
 mod test_vectors;
 
 use super::*;
-use crate::ciphertext::{ClearString, GenericPattern};
+use crate::strings::ciphertext::{ClearString, GenericPattern};
 use std::time::Duration;
 
 fn result_message<T>(str: &str, expected: T, dec: T, dur: Duration)
