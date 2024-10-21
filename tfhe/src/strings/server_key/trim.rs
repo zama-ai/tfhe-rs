@@ -195,7 +195,7 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let s = "  hello world";
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
+    /// let enc_s = FheString::new(&ck, s, None);
     ///
     /// let result = sk.trim_start(&enc_s);
     /// let trimmed = ck.decrypt_ascii(&result);
@@ -231,10 +231,10 @@ impl ServerKey {
         // If str was not padded originally we don't know if result has nulls at the end or not (we
         // don't know if str was shifted or not) so we ensure it's padded in order to be
         // used in other functions safely
-        if !str.is_padded() {
-            result.append_null(self);
-        } else {
+        if str.is_padded() {
             result.set_is_padded(true);
+        } else {
+            result.append_null(self);
         }
 
         result
@@ -251,7 +251,7 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let s = "hello world  ";
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
+    /// let enc_s = FheString::new(&ck, s, None);
     ///
     /// let result = sk.trim_end(&enc_s);
     /// let trimmed = ck.decrypt_ascii(&result);
@@ -291,7 +291,7 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let s = "  hello world  ";
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
+    /// let enc_s = FheString::new(&ck, s, None);
     ///
     /// let result = sk.trim(&enc_s);
     /// let trimmed = ck.decrypt_ascii(&result);
@@ -306,52 +306,52 @@ impl ServerKey {
         let result = self.trim_start(str);
         self.trim_end(&result)
     }
+}
 
-    /// Creates an iterator over the substrings of this encrypted string, separated by any amount of
-    /// whitespace.
-    ///
-    /// Each call to `next` on the iterator returns a tuple with the next encrypted substring and a
-    /// boolean indicating `Some` (true) or `None` (false) when no more substrings are available.
-    ///
-    /// When the boolean is `true`, the iterator will yield non-empty encrypted substrings. When the
-    /// boolean is `false`, the returned encrypted string is always empty.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::{gen_keys, FheStringIterator};
-    ///
-    /// let (ck, sk) = gen_keys();
-    /// let s = "hello \t\nworld ";
-    ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    ///
-    /// let mut whitespace_iter = sk.split_ascii_whitespace(&enc_s);
-    /// let (first_item, first_is_some) = whitespace_iter.next(&sk);
-    /// let (second_item, second_is_some) = whitespace_iter.next(&sk);
-    /// let (empty, no_more_items) = whitespace_iter.next(&sk); // Attempting to get a third item
-    ///
-    /// let first_decrypted = ck.decrypt_ascii(&first_item);
-    /// let first_is_some = ck.key().decrypt_bool(&first_is_some);
-    /// let second_decrypted = ck.decrypt_ascii(&second_item);
-    /// let second_is_some = ck.key().decrypt_bool(&second_is_some);
-    /// let empty = ck.decrypt_ascii(&empty);
-    /// let no_more_items = ck.key().decrypt_bool(&no_more_items);
-    ///
-    /// assert_eq!(first_decrypted, "hello");
-    /// assert!(first_is_some);
-    /// assert_eq!(second_decrypted, "world");
-    /// assert!(second_is_some);
-    /// assert_eq!(empty, ""); // There are no more items so we get an empty string
-    /// assert!(!no_more_items);
-    /// ```
-    pub fn split_ascii_whitespace(&self, str: &FheString) -> SplitAsciiWhitespace {
-        let result = str.clone();
+/// Creates an iterator over the substrings of this encrypted string, separated by any amount of
+/// whitespace.
+///
+/// Each call to `next` on the iterator returns a tuple with the next encrypted substring and a
+/// boolean indicating `Some` (true) or `None` (false) when no more substrings are available.
+///
+/// When the boolean is `true`, the iterator will yield non-empty encrypted substrings. When the
+/// boolean is `false`, the returned encrypted string is always empty.
+///
+/// # Examples
+///
+/// ```rust
+/// use tfhe::strings::ciphertext::FheString;
+/// use tfhe::strings::server_key::{gen_keys, split_ascii_whitespace, FheStringIterator};
+///
+/// let (ck, sk) = gen_keys();
+/// let s = "hello \t\nworld ";
+///
+/// let enc_s = FheString::new(&ck, s, None);
+///
+/// let mut whitespace_iter = split_ascii_whitespace(&enc_s);
+/// let (first_item, first_is_some) = whitespace_iter.next(&sk);
+/// let (second_item, second_is_some) = whitespace_iter.next(&sk);
+/// let (empty, no_more_items) = whitespace_iter.next(&sk); // Attempting to get a third item
+///
+/// let first_decrypted = ck.decrypt_ascii(&first_item);
+/// let first_is_some = ck.key().decrypt_bool(&first_is_some);
+/// let second_decrypted = ck.decrypt_ascii(&second_item);
+/// let second_is_some = ck.key().decrypt_bool(&second_is_some);
+/// let empty = ck.decrypt_ascii(&empty);
+/// let no_more_items = ck.key().decrypt_bool(&no_more_items);
+///
+/// assert_eq!(first_decrypted, "hello");
+/// assert!(first_is_some);
+/// assert_eq!(second_decrypted, "world");
+/// assert!(second_is_some);
+/// assert_eq!(empty, ""); // There are no more items so we get an empty string
+/// assert!(!no_more_items);
+/// ```
+pub fn split_ascii_whitespace(str: &FheString) -> SplitAsciiWhitespace {
+    let result = str.clone();
 
-        SplitAsciiWhitespace {
-            state: result,
-            current_mask: None,
-        }
+    SplitAsciiWhitespace {
+        state: result,
+        current_mask: None,
     }
 }

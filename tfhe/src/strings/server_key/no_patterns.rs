@@ -20,8 +20,8 @@ impl ServerKey {
     /// let s = "hello";
     /// let number_of_nulls = 3;
     ///
-    /// let enc_s_no_padding = FheString::new(&ck, &s, None);
-    /// let enc_s_with_padding = FheString::new(&ck, &s, Some(number_of_nulls));
+    /// let enc_s_no_padding = FheString::new(&ck, s, None);
+    /// let enc_s_with_padding = FheString::new(&ck, s, Some(number_of_nulls));
     ///
     /// let result_no_padding = sk.len(&enc_s_no_padding);
     /// let result_with_padding = sk.len(&enc_s_with_padding);
@@ -79,8 +79,8 @@ impl ServerKey {
     /// let s = "";
     /// let number_of_nulls = 2;
     ///
-    /// let enc_s_no_padding = FheString::new(&ck, &s, None);
-    /// let enc_s_with_padding = FheString::new(&ck, &s, Some(number_of_nulls));
+    /// let enc_s_no_padding = FheString::new(&ck, s, None);
+    /// let enc_s_with_padding = FheString::new(&ck, s, Some(number_of_nulls));
     ///
     /// let result_no_padding = sk.is_empty(&enc_s_no_padding);
     /// let result_with_padding = sk.is_empty(&enc_s_with_padding);
@@ -125,7 +125,7 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let s = "Hello World";
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
+    /// let enc_s = FheString::new(&ck, s, None);
     ///
     /// let result = sk.to_uppercase(&enc_s);
     /// let uppercased = ck.decrypt_ascii(&result);
@@ -178,7 +178,7 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let s = "Hello World";
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
+    /// let enc_s = FheString::new(&ck, s, None);
     ///
     /// let result = sk.to_lowercase(&enc_s);
     /// let lowercased = ck.decrypt_ascii(&result);
@@ -237,8 +237,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("Hello", "hello");
     ///
-    /// let enc_s1 = FheString::new(&ck, &s1, None);
-    /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, &s2, None));
+    /// let enc_s1 = FheString::new(&ck, s1, None);
+    /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.eq_ignore_case(&enc_s1, &enc_s2);
     /// let are_equal = ck.key().decrypt_bool(&result);
@@ -272,8 +272,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (lhs, rhs) = ("Hello, ", "world!");
     ///
-    /// let enc_lhs = FheString::new(&ck, &lhs, None);
-    /// let enc_rhs = FheString::new(&ck, &rhs, None);
+    /// let enc_lhs = FheString::new(&ck, lhs, None);
+    /// let enc_rhs = FheString::new(&ck, rhs, None);
     ///
     /// let result = sk.concat(&enc_lhs, &enc_rhs);
     /// let concatenated = ck.decrypt_ascii(&result);
@@ -323,7 +323,7 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let s = "hi";
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
+    /// let enc_s = FheString::new(&ck, s, None);
     ///
     /// // Using Clear count
     /// let clear_count = UIntArg::Clear(3);
@@ -342,7 +342,7 @@ impl ServerKey {
     /// assert_eq!(repeated_enc, "hihihi");
     /// ```
     pub fn repeat(&self, str: &FheString, n: &UIntArg) -> FheString {
-        if let UIntArg::Clear(0) = n {
+        if matches!(n, UIntArg::Clear(0)) {
             return FheString::empty();
         }
 

@@ -1,3 +1,4 @@
+use super::contains_cases;
 use crate::integer::prelude::*;
 use crate::integer::{BooleanBlock, RadixCiphertext};
 use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
@@ -110,8 +111,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (haystack, needle) = ("hello world", "world");
     ///
-    /// let enc_haystack = FheString::new(&ck, &haystack, None);
-    /// let enc_needle = GenericPattern::Enc(FheString::new(&ck, &needle, None));
+    /// let enc_haystack = FheString::new(&ck, haystack, None);
+    /// let enc_needle = GenericPattern::Enc(FheString::new(&ck, needle, None));
     ///
     /// let (index, found) = sk.find(&enc_haystack, &enc_needle);
     ///
@@ -135,7 +136,7 @@ impl ServerKey {
 
             // This variant is only returned in the empty string case so in any case index is 0
             IsMatch::Cipher(val) => return (zero, val),
-            _ => (),
+            IsMatch::None => (),
         }
 
         let ignore_pat_pad = trivial_or_enc_pat.is_padded();
@@ -143,8 +144,7 @@ impl ServerKey {
         let null = (!str.is_padded() && trivial_or_enc_pat.is_padded())
             .then_some(FheAsciiChar::null(self));
 
-        let (str_iter, pat_iter, iter) =
-            self.contains_cases(str, &trivial_or_enc_pat, null.as_ref());
+        let (str_iter, pat_iter, iter) = contains_cases(str, &trivial_or_enc_pat, null.as_ref());
 
         let iter_values: Vec<_> = iter.rev().collect();
 
@@ -179,8 +179,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (haystack, needle) = ("hello world world", "world");
     ///
-    /// let enc_haystack = FheString::new(&ck, &haystack, None);
-    /// let enc_needle = GenericPattern::Enc(FheString::new(&ck, &needle, None));
+    /// let enc_haystack = FheString::new(&ck, haystack, None);
+    /// let enc_needle = GenericPattern::Enc(FheString::new(&ck, needle, None));
     ///
     /// let (index, found) = sk.rfind(&enc_haystack, &enc_needle);
     ///
@@ -216,7 +216,7 @@ impl ServerKey {
 
             // This variant is only returned in the empty string case so in any case index is 0
             IsMatch::Cipher(val) => return (zero, val),
-            _ => (),
+            IsMatch::None => (),
         }
 
         let ignore_pat_pad = trivial_or_enc_pat.is_padded();
@@ -228,8 +228,7 @@ impl ServerKey {
             (None, None)
         };
 
-        let (str_iter, pat_iter, iter) =
-            self.contains_cases(str, &trivial_or_enc_pat, null.as_ref());
+        let (str_iter, pat_iter, iter) = contains_cases(str, &trivial_or_enc_pat, null.as_ref());
 
         let iter_values: Vec<_> = ext_iter.unwrap_or(iter).collect();
 
@@ -250,7 +249,7 @@ impl ServerKey {
                 // (the actual length) which doesn't correspond to our `last_match_index`
                 let padded_pat_is_empty = match self.is_empty(&trivial_or_enc_pat) {
                     FheStringIsEmpty::Padding(is_empty) => Some(is_empty),
-                    _ => None,
+                    FheStringIsEmpty::NoPadding(_) => None,
                 };
 
                 // The non padded str case was handled thanks to + 1 in the ext_iter
