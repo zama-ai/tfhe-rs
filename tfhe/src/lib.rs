@@ -119,6 +119,9 @@ mod js_on_wasm_api;
 ))]
 mod test_user_docs;
 
+#[cfg(feature = "strings")]
+pub mod strings;
+
 #[cfg(feature = "integer")]
 /// cbindgen:ignore
 pub(crate) mod high_level_api;
