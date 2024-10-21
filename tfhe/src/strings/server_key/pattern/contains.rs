@@ -1,3 +1,4 @@
+use super::{clear_ends_with_cases, contains_cases, ends_with_cases};
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext};
 use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
 use crate::strings::server_key::pattern::{CharIter, IsMatch};
@@ -88,8 +89,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (bananas, nana, apples) = ("bananas", "nana", "apples");
     ///
-    /// let enc_bananas = FheString::new(&ck, &bananas, None);
-    /// let enc_nana = GenericPattern::Enc(FheString::new(&ck, &nana, None));
+    /// let enc_bananas = FheString::new(&ck, bananas, None);
+    /// let enc_nana = GenericPattern::Enc(FheString::new(&ck, nana, None));
     /// let clear_apples = GenericPattern::Clear(ClearString::new(apples.to_string()));
     ///
     /// let result1 = sk.contains(&enc_bananas, &enc_nana);
@@ -110,7 +111,7 @@ impl ServerKey {
         match self.length_checks(str, &trivial_or_enc_pat) {
             IsMatch::Clear(val) => return self.key.create_trivial_boolean_block(val),
             IsMatch::Cipher(val) => return val,
-            _ => (),
+            IsMatch::None => (),
         }
 
         let ignore_pat_pad = trivial_or_enc_pat.is_padded();
@@ -118,8 +119,7 @@ impl ServerKey {
         let null = (!str.is_padded() && trivial_or_enc_pat.is_padded())
             .then_some(FheAsciiChar::null(self));
 
-        let (str_iter, pat_iter, iter) =
-            self.contains_cases(str, &trivial_or_enc_pat, null.as_ref());
+        let (str_iter, pat_iter, iter) = contains_cases(str, &trivial_or_enc_pat, null.as_ref());
 
         match pat {
             GenericPattern::Clear(pat) => {
@@ -148,8 +148,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (bananas, ba, nan) = ("bananas", "ba", "nan");
     ///
-    /// let enc_bananas = FheString::new(&ck, &bananas, None);
-    /// let enc_ba = GenericPattern::Enc(FheString::new(&ck, &ba, None));
+    /// let enc_bananas = FheString::new(&ck, bananas, None);
+    /// let enc_ba = GenericPattern::Enc(FheString::new(&ck, ba, None));
     /// let clear_nan = GenericPattern::Clear(ClearString::new(nan.to_string()));
     ///
     /// let result1 = sk.starts_with(&enc_bananas, &enc_ba);
@@ -170,7 +170,7 @@ impl ServerKey {
         match self.length_checks(str, &trivial_or_enc_pat) {
             IsMatch::Clear(val) => return self.key.create_trivial_boolean_block(val),
             IsMatch::Cipher(val) => return val,
-            _ => (),
+            IsMatch::None => (),
         }
 
         if !trivial_or_enc_pat.is_padded() {
@@ -220,8 +220,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (bananas, anas, nana) = ("bananas", "anas", "nana");
     ///
-    /// let enc_bananas = FheString::new(&ck, &bananas, None);
-    /// let enc_anas = GenericPattern::Enc(FheString::new(&ck, &anas, None));
+    /// let enc_bananas = FheString::new(&ck, bananas, None);
+    /// let enc_anas = GenericPattern::Enc(FheString::new(&ck, anas, None));
     /// let clear_nana = GenericPattern::Clear(ClearString::new(nana.to_string()));
     ///
     /// let result1 = sk.ends_with(&enc_bananas, &enc_anas);
@@ -242,19 +242,19 @@ impl ServerKey {
         match self.length_checks(str, &trivial_or_enc_pat) {
             IsMatch::Clear(val) => return self.key.create_trivial_boolean_block(val),
             IsMatch::Cipher(val) => return val,
-            _ => (),
+            IsMatch::None => (),
         }
 
         match pat {
             GenericPattern::Clear(pat) => {
-                let (str_iter, clear_pat, iter) = self.clear_ends_with_cases(str, pat.str());
+                let (str_iter, clear_pat, iter) = clear_ends_with_cases(str, pat.str());
 
                 self.clear_compare_shifted((str_iter, &clear_pat), iter.into_par_iter())
             }
             GenericPattern::Enc(pat) => {
                 let null = (str.is_padded() ^ pat.is_padded()).then_some(FheAsciiChar::null(self));
 
-                let (str_iter, pat_iter, iter) = self.ends_with_cases(str, pat, null.as_ref());
+                let (str_iter, pat_iter, iter) = ends_with_cases(str, pat, null.as_ref());
 
                 self.compare_shifted((str_iter, pat_iter), iter.into_par_iter(), false)
             }

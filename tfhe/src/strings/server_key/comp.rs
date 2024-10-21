@@ -23,7 +23,9 @@ impl ServerKey {
         if rhs_len == 0 || (rhs.is_padded() && rhs_len == 1) {
             return match self.is_empty(lhs) {
                 FheStringIsEmpty::Padding(enc_val) => Some(enc_val),
-                _ => Some(self.key.create_trivial_boolean_block(false)),
+                FheStringIsEmpty::NoPadding(_) => {
+                    Some(self.key.create_trivial_boolean_block(false))
+                }
             };
         }
 
@@ -59,8 +61,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("hello", "hello");
     ///
-    /// let enc_s1 = FheString::new(&ck, &s1, None);
-    /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, &s2, None));
+    /// let enc_s1 = FheString::new(&ck, s1, None);
+    /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.eq(&enc_s1, &enc_s2);
     /// let are_equal = ck.key().decrypt_bool(&result);
@@ -113,8 +115,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("hello", "world");
     ///
-    /// let enc_s1 = FheString::new(&ck, &s1, None);
-    /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, &s2, None));
+    /// let enc_s1 = FheString::new(&ck, s1, None);
+    /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.ne(&enc_s1, &enc_s2);
     /// let are_not_equal = ck.key().decrypt_bool(&result);
@@ -140,8 +142,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("apple", "banana");
     ///
-    /// let enc_s1 = FheString::new(&ck, &s1, None);
-    /// let enc_s2 = FheString::new(&ck, &s2, None);
+    /// let enc_s1 = FheString::new(&ck, s1, None);
+    /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
     /// let result = sk.lt(&enc_s1, &enc_s2);
     /// let is_lt = ck.key().decrypt_bool(&result);
@@ -170,8 +172,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("banana", "apple");
     ///
-    /// let enc_s1 = FheString::new(&ck, &s1, None);
-    /// let enc_s2 = FheString::new(&ck, &s2, None);
+    /// let enc_s1 = FheString::new(&ck, s1, None);
+    /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
     /// let result = sk.gt(&enc_s1, &enc_s2);
     /// let is_gt = ck.key().decrypt_bool(&result);
@@ -201,8 +203,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("apple", "banana");
     ///
-    /// let enc_s1 = FheString::new(&ck, &s1, None);
-    /// let enc_s2 = FheString::new(&ck, &s2, None);
+    /// let enc_s1 = FheString::new(&ck, s1, None);
+    /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
     /// let result = sk.le(&enc_s1, &enc_s2);
     /// let is_le = ck.key().decrypt_bool(&result);
@@ -232,8 +234,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("banana", "apple");
     ///
-    /// let enc_s1 = FheString::new(&ck, &s1, None);
-    /// let enc_s2 = FheString::new(&ck, &s2, None);
+    /// let enc_s1 = FheString::new(&ck, s1, None);
+    /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
     /// let result = sk.ge(&enc_s1, &enc_s2);
     /// let is_ge = ck.key().decrypt_bool(&result);

@@ -3,6 +3,8 @@ mod no_patterns;
 mod pattern;
 mod trim;
 
+pub use trim::split_ascii_whitespace;
+
 use crate::integer::bigint::static_unsigned::StaticUnsignedBigInt;
 use crate::integer::prelude::*;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey as FheServerKey};
@@ -104,7 +106,7 @@ impl ServerKey {
                 let diff = str_block_len - pat_block_len;
                 self.key.trim_radix_blocks_lsb_assign(&mut uint_str, diff);
             }
-            _ => (),
+            Ordering::Equal => (),
         }
 
         let clear_pat_uint = self.pad_cipher_and_cleartext_lsb(&mut uint_str, clear_pat);
@@ -181,7 +183,7 @@ impl ServerKey {
                 self.key
                     .extend_radix_with_trivial_zero_blocks_lsb_assign(rhs, diff);
             }
-            _ => (),
+            Ordering::Equal => (),
         }
     }
 
@@ -198,7 +200,7 @@ impl ServerKey {
                 let diff = cipher_len - len;
                 self.key.trim_radix_blocks_msb_assign(cipher, diff);
             }
-            _ => (),
+            Ordering::Equal => (),
         }
     }
 
@@ -215,7 +217,7 @@ impl ServerKey {
                 let diff = lhs_blocks - rhs_blocks;
                 self.key.trim_radix_blocks_lsb_assign(lhs, diff);
             }
-            _ => (),
+            Ordering::Equal => (),
         }
     }
 
