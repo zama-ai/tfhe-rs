@@ -156,7 +156,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@65e6fc1ce697e2df8149d9ae9909acc5ec5599ce
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Shortint full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
@@ -180,7 +180,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        uses: rtCamp/action-slack-notify@65e6fc1ce697e2df8149d9ae9909acc5ec5599ce
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Instance teardown (shortint-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
