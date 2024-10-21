@@ -33,6 +33,18 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for GlweCipher
     }
 }
 
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweCiphertextList<C> {
+    /// Mutable variant of [`GlweCiphertextList::as_view`].
+    pub fn as_mut_view(&mut self) -> GlweCiphertextList<&'_ mut [Scalar]> {
+        GlweCiphertextList {
+            data: self.data.as_mut(),
+            glwe_size: self.glwe_size,
+            polynomial_size: self.polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
+    }
+}
+
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertextList<C> {
     /// Create a [`GlweCiphertextList`] from an existing container.
     ///
@@ -163,6 +175,17 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertextList
     /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
         self.ciphertext_modulus
+    }
+
+    /// Return a view of the [`GlweCiphertext`]. This is useful if an algorithm takes a view by
+    /// value.
+    pub fn as_view(&self) -> GlweCiphertextList<&'_ [Scalar]> {
+        GlweCiphertextList {
+            data: self.data.as_ref(),
+            glwe_size: self.glwe_size,
+            polynomial_size: self.polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
     }
 }
 
