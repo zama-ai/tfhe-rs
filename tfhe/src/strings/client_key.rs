@@ -1,6 +1,6 @@
-use crate::ciphertext::{FheAsciiChar, FheString};
-use tfhe::integer::{ClientKey as FheClientKey, RadixCiphertext};
-use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
+use crate::integer::{ClientKey as FheClientKey, RadixCiphertext};
+use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
+use crate::strings::ciphertext::{FheAsciiChar, FheString};
 
 /// Represents a client key for encryption and decryption of strings.
 #[derive(serde::Serialize, serde::Deserialize, Clone)]

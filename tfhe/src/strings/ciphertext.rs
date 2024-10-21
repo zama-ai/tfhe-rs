@@ -1,7 +1,7 @@
-use crate::client_key::{ClientKey, EncU16};
-use crate::server_key::ServerKey;
-use crate::N;
-use tfhe::integer::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
+use crate::strings::client_key::{ClientKey, EncU16};
+use crate::strings::server_key::ServerKey;
+use crate::strings::N;
+use crate::integer::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
 
 /// Represents a encrypted ASCII character.
 #[derive(Clone)]
@@ -189,7 +189,7 @@ impl FheString {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::server_key::gen_keys;
+    use crate::strings::server_key::gen_keys;
 
     #[test]
     fn test_uint_conversion() {
