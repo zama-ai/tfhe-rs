@@ -779,6 +779,13 @@ test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 		--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,gpu -p $(TFHE_SPEC) \
 		-E "test(/high_level_api::.*gpu.*/)"
 
+.PHONY: test_strings # Run the tests for strings ci
+test_strings: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,strings -p $(TFHE_SPEC) \
+		-- strings::
+
+
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
@@ -792,11 +799,7 @@ test_user_doc_gpu: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC) \
 		-- test_user_docs::
 
-.PHONY: test_fhe_strings # Run tests for fhe_strings example
-test_fhe_strings: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--example fhe_strings \
-		--features=$(TARGET_ARCH_FEATURE),integer
+
 
 .PHONY: test_regex_engine # Run tests for regex_engine example
 test_regex_engine: install_rs_build_toolchain
