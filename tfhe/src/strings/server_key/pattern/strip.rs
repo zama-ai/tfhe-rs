@@ -1,3 +1,4 @@
+use super::{clear_ends_with_cases, ends_with_cases};
 use crate::integer::prelude::*;
 use crate::integer::BooleanBlock;
 use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
@@ -111,8 +112,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, prefix, not_prefix) = ("hello world", "hello", "world");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_prefix = GenericPattern::Enc(FheString::new(&ck, &prefix, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_prefix = GenericPattern::Enc(FheString::new(&ck, prefix, None));
     /// let clear_not_prefix = GenericPattern::Clear(ClearString::new(not_prefix.to_string()));
     ///
     /// let (result, found) = sk.strip_prefix(&enc_s, &enc_prefix);
@@ -142,7 +143,7 @@ impl ServerKey {
 
             // If IsMatch is Cipher it means str is empty so in any case we return the same string
             IsMatch::Cipher(val) => return (result, val),
-            _ => (),
+            IsMatch::None => (),
         }
 
         let (starts_with, real_pat_len) = rayon::join(
@@ -166,10 +167,10 @@ impl ServerKey {
         // If str was not padded originally we don't know if result has nulls at the end or not (we
         // don't know if str was shifted or not) so we ensure it's padded in order to be
         // used in other functions safely
-        if !str.is_padded() {
-            result.append_null(self);
-        } else {
+        if str.is_padded() {
             result.set_is_padded(true);
+        } else {
+            result.append_null(self);
         }
 
         (result, starts_with)
@@ -194,8 +195,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, suffix, not_suffix) = ("hello world", "world", "hello");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_suffix = GenericPattern::Enc(FheString::new(&ck, &suffix, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_suffix = GenericPattern::Enc(FheString::new(&ck, suffix, None));
     /// let clear_not_suffix = GenericPattern::Clear(ClearString::new(not_suffix.to_string()));
     ///
     /// let (result, found) = sk.strip_suffix(&enc_s, &enc_suffix);
@@ -226,19 +227,19 @@ impl ServerKey {
 
             // If IsMatch is Cipher it means str is empty so in any case we return the same string
             IsMatch::Cipher(val) => return (result, val),
-            _ => (),
+            IsMatch::None => (),
         }
 
         let is_match = match pat {
             GenericPattern::Clear(pat) => {
-                let (str_iter, clear_pat, iter) = self.clear_ends_with_cases(str, pat.str());
+                let (str_iter, clear_pat, iter) = clear_ends_with_cases(str, pat.str());
 
                 self.clear_compare_shifted_strip(&mut result, (str_iter, &clear_pat), iter)
             }
             GenericPattern::Enc(pat) => {
                 let null = (str.is_padded() ^ pat.is_padded()).then_some(FheAsciiChar::null(self));
 
-                let (str_iter, pat_iter, iter) = self.ends_with_cases(str, pat, null.as_ref());
+                let (str_iter, pat_iter, iter) = ends_with_cases(str, pat, null.as_ref());
 
                 self.compare_shifted_strip(&mut result, (str_iter, pat_iter), iter)
             }

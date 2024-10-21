@@ -25,6 +25,7 @@ impl EncU16 {
 }
 
 impl ClientKey {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             key: FheClientKey::new(PARAM_MESSAGE_2_CARRY_2),

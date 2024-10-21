@@ -21,6 +21,7 @@ fn test_all2() {
     test_all("", None, "", None, "", None, "", None, 0, 0);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn test_all(
     str: &str,
     str_pad: Option<u32>,
@@ -90,6 +91,6 @@ impl Keys {
     fn new() -> Self {
         let (ck, sk) = gen_keys();
 
-        Keys { ck, sk }
+        Self { ck, sk }
     }
 }

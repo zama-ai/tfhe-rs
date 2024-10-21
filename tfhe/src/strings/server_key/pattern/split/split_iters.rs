@@ -53,8 +53,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello ", " ");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, &pat, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
     /// let mut split_iter = sk.split(&enc_s, &enc_pat);
     /// let (first_item, first_is_some) = split_iter.next(&sk);
@@ -98,8 +98,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello ", " ");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, &pat, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
     /// let mut rsplit_iter = sk.rsplit(&enc_s, &enc_pat);
     /// let (last_item, last_is_some) = rsplit_iter.next(&sk);
@@ -144,8 +144,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world", " ");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, &pat, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
     /// // Using Clear count
     /// let clear_count = UIntArg::Clear(1);
@@ -196,8 +196,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world", " ");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, &pat, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
     /// // Using Clear count
     /// let clear_count = UIntArg::Clear(1);
@@ -246,8 +246,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world ", " ");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, &pat, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
     /// let mut split_terminator_iter = sk.split_terminator(&enc_s, &enc_pat);
     /// let (first_item, first_is_some) = split_terminator_iter.next(&sk);
@@ -294,8 +294,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world ", " ");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, &pat, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
     /// let mut rsplit_terminator_iter = sk.rsplit_terminator(&enc_s, &enc_pat);
     /// let (last_item, last_is_some) = rsplit_terminator_iter.next(&sk);
@@ -341,8 +341,8 @@ impl ServerKey {
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world ", " ");
     ///
-    /// let enc_s = FheString::new(&ck, &s, None);
-    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, &pat, None));
+    /// let enc_s = FheString::new(&ck, s, None);
+    /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
     /// let mut split_inclusive_iter = sk.split_inclusive(&enc_s, &enc_pat);
     /// let (first_item, first_is_some) = split_inclusive_iter.next(&sk);
