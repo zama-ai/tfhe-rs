@@ -54,6 +54,32 @@ impl CompactPkePublicParams {
                 .map_err(into_js_error)
         })
     }
+
+    #[wasm_bindgen]
+    pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
+        let mut buffer = vec![];
+        catch_panic_result(|| {
+            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+                .serialize_into(&self.0, &mut buffer)
+                .map_err(into_js_error)
+        })?;
+
+        Ok(buffer)
+    }
+
+    #[wasm_bindgen]
+    pub fn safe_deserialize(
+        buffer: &[u8],
+        serialized_size_limit: u64,
+    ) -> Result<CompactPkePublicParams, JsError> {
+        catch_panic_result(|| {
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+                .disable_conformance()
+                .deserialize_from(buffer)
+                .map(Self)
+                .map_err(into_js_error)
+        })
+    }
 }
 
 // "wasm bindgen is fragile and prefers the actual type vs. Self"
