@@ -16,6 +16,7 @@ import init, {
   FheUint8,
   ZkComputeLoad,
   CompactPkeCrs,
+  CompactPkePublicParams,
   CompactCiphertextList,
   ProvenCompactCiphertextList,
   ShortintCompactPublicKeyEncryptionParameters,
@@ -56,7 +57,7 @@ async function compressedPublicKeyTest() {
   let compressedPublicKey = TfheCompressedPublicKey.new(clientKey);
   console.timeEnd("CompressedPublicKey Gen");
 
-  let data = compressedPublicKey.serialize();
+  let data = compressedPublicKey.safe_serialize(BigInt(10000000));
   console.log("CompressedPublicKey size:", data.length);
 
   console.time("CompressedPublicKey Decompression");
@@ -67,7 +68,7 @@ async function compressedPublicKeyTest() {
   let encrypted = FheUint8.encrypt_with_public_key(255, publicKey);
   console.timeEnd("FheUint8 encrypt with CompressedPublicKey");
 
-  let ser = encrypted.serialize();
+  let ser = encrypted.safe_serialize(BigInt(10000000));
   console.log("Ciphertext Size", ser.length);
 
   let decrypted = encrypted.decrypt(clientKey);
@@ -89,7 +90,7 @@ async function publicKeyTest() {
   let encrypted = FheUint8.encrypt_with_public_key(255, publicKey);
   console.timeEnd("FheUint8 encrypt with PublicKey");
 
-  let ser = encrypted.serialize();
+  let ser = encrypted.safe_serialize(BigInt(10000000));
   console.log("Ciphertext Size", ser.length);
 
   let decrypted = encrypted.decrypt(clientKey);
@@ -136,13 +137,13 @@ async function compactPublicKeyBench32BitOnConfig(config) {
   console.log("CompactFheUint32List Encrypt bench: ", timing_2, " ms");
   bench_results["compact_fheunit32_list_encrypt_mean"] = timing_2;
 
-  let serialized_list = compact_list.serialize();
+  let serialized_list = compact_list.safe_serialize(BigInt(10000000));
   console.log("Serialized CompactFheUint32List size: ", serialized_list.length);
 
   // Bench the serialization for bench_loops iterations
   start = performance.now();
   for (let i = 0; i < bench_loops; i++) {
-    let _ = compact_list.serialize();
+    let _ = compact_list.safe_serialize(BigInt(10000000));
   }
   end = performance.now();
   const timing_3 = (end - start) / bench_loops;
@@ -196,7 +197,7 @@ async function compressedCompactPublicKeyTest256BitOnConfig(config) {
   let publicKey = TfheCompressedCompactPublicKey.new(clientKey);
   console.timeEnd("CompressedCompactPublicKey Gen");
 
-  let serialized_pk = publicKey.serialize();
+  let serialized_pk = publicKey.safe_serialize(BigInt(10000000));
   console.log(
     "Serialized CompressedCompactPublicKey size: ",
     serialized_pk.length,
@@ -378,6 +379,13 @@ async function compactPublicKeyZeroKnowledgeTest() {
   console.timeEnd("CRS generation");
   let public_params = crs.public_params();
 
+  let serialized = public_params.safe_serialize(BigInt(1000000000));
+  console.log("CompactPkePublicParams size:", serialized.length);
+  let deserialized = CompactPkePublicParams.safe_deserialize(
+    serialized,
+    BigInt(1000000000),
+  );
+
   // 320 bits is a use case we have, 8 bits per byte
   const metadata = new Uint8Array(320 / 8);
   crypto.getRandomValues(metadata);
@@ -400,9 +408,12 @@ async function compactPublicKeyZeroKnowledgeTest() {
       " ms",
     );
 
-    let serialized = list.serialize();
+    let serialized = list.safe_serialize(BigInt(10000000));
     console.log("CompactCiphertextList size:", serialized.length);
-    let deserialized = ProvenCompactCiphertextList.deserialize(serialized);
+    let deserialized = ProvenCompactCiphertextList.safe_deserialize(
+      serialized,
+      BigInt(10000000),
+    );
 
     let expander = deserialized.verify_and_expand(
       public_params,
@@ -529,7 +540,7 @@ async function compactPublicKeyBench256BitOnConfig(config) {
   console.log("CompactFheUint256List Encrypt bench: ", timing_2, " ms");
   bench_results["compact_fheunit256_list_encrypt_mean"] = timing_2;
 
-  let serialized_list = compact_list.serialize();
+  let serialized_list = compact_list.safe_serialize(BigInt(10000000));
   console.log(
     "Serialized CompactFheUint256List size: ",
     serialized_list.length,
@@ -538,7 +549,7 @@ async function compactPublicKeyBench256BitOnConfig(config) {
   // Bench the serialization for bench_loops iterations
   start = performance.now();
   for (let i = 0; i < bench_loops; i++) {
-    let _ = compact_list.serialize();
+    let _ = compact_list.safe_serialize(BigInt(10000000));
   }
   end = performance.now();
   const timing_3 = (end - start) / bench_loops;
@@ -592,13 +603,13 @@ async function compressedServerKeyBenchConfig(config) {
   bench_results["compressed_server_key_gen_mean"] = timing_1;
 
   let serverKey = TfheCompressedServerKey.new(clientKey);
-  let serialized_key = serverKey.serialize();
+  let serialized_key = serverKey.safe_serialize(BigInt(10000000));
   console.log("Serialized ServerKey size: ", serialized_key.length);
 
   // Bench the serialization for bench_loops iterations
   start = performance.now();
   for (let i = 0; i < bench_loops; i++) {
-    let _ = serverKey.serialize();
+    let _ = serverKey.safe_serialize(BigInt(10000000));
   }
   end = performance.now();
   const timing_2 = (end - start) / bench_loops;
@@ -704,7 +715,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
           const end = performance.now();
           console.timeEnd("Loop " + i);
           timing += end - start;
-          serialized_size = list.serialize().length;
+          serialized_size = list.safe_serialize(BigInt(10000000)).length;
         }
         const mean = timing / bench_loops;
         const common_bench_str =
