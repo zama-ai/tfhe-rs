@@ -45,7 +45,7 @@ pub mod shortint_utils {
     use tfhe::shortint::parameters::{
         ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
     };
-    use tfhe::shortint::PBSParameters;
+    use tfhe::shortint::{ClassicPBSParameters, PBSParameters, ShortintParameterSet};
 
     /// An iterator that yields a succession of combinations
     /// of parameters and a num_block to achieve a certain bit_size ciphertext
@@ -140,9 +140,25 @@ pub mod shortint_utils {
         }
     }
 
-    impl From<CompressionParameters> for CryptoParametersRecord<u64> {
-        fn from(_params: CompressionParameters) -> Self {
+    impl From<(CompressionParameters, ClassicPBSParameters)> for CryptoParametersRecord<u64> {
+        fn from((comp_params, pbs_params): (CompressionParameters, ClassicPBSParameters)) -> Self {
+            let pbs_params = ShortintParameterSet::new_pbs_param_set(pbs_params.into());
+            let lwe_dimension = pbs_params.encryption_lwe_dimension();
             CryptoParametersRecord {
+                lwe_dimension: Some(lwe_dimension),
+                br_level: Some(comp_params.br_level),
+                br_base_log: Some(comp_params.br_base_log),
+                packing_ks_level: Some(comp_params.packing_ks_level),
+                packing_ks_base_log: Some(comp_params.packing_ks_base_log),
+                packing_ks_polynomial_size: Some(comp_params.packing_ks_polynomial_size),
+                packing_ks_glwe_dimension: Some(comp_params.packing_ks_glwe_dimension),
+                lwe_per_glwe: Some(comp_params.lwe_per_glwe),
+                storage_log_modulus: Some(comp_params.storage_log_modulus),
+                lwe_noise_distribution: Some(pbs_params.encryption_noise_distribution()),
+                packing_ks_key_noise_distribution: Some(
+                    comp_params.packing_ks_key_noise_distribution,
+                ),
+                ciphertext_modulus: Some(pbs_params.ciphertext_modulus()),
                 ..Default::default()
             }
         }
@@ -157,11 +173,15 @@ pub use shortint_utils::*;
 pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub lwe_dimension: Option<LweDimension>,
     pub glwe_dimension: Option<GlweDimension>,
+    pub packing_ks_glwe_dimension: Option<GlweDimension>,
     pub polynomial_size: Option<PolynomialSize>,
+    pub packing_ks_polynomial_size: Option<PolynomialSize>,
     #[serde(serialize_with = "CryptoParametersRecord::serialize_distribution")]
     pub lwe_noise_distribution: Option<DynamicDistribution<Scalar>>,
     #[serde(serialize_with = "CryptoParametersRecord::serialize_distribution")]
     pub glwe_noise_distribution: Option<DynamicDistribution<Scalar>>,
+    #[serde(serialize_with = "CryptoParametersRecord::serialize_distribution")]
+    pub packing_ks_key_noise_distribution: Option<DynamicDistribution<Scalar>>,
     pub pbs_base_log: Option<DecompositionBaseLog>,
     pub pbs_level: Option<DecompositionLevelCount>,
     pub ks_base_log: Option<DecompositionBaseLog>,
@@ -171,9 +191,15 @@ pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub pfks_std_dev: Option<StandardDev>,
     pub cbs_level: Option<DecompositionLevelCount>,
     pub cbs_base_log: Option<DecompositionBaseLog>,
+    pub br_level: Option<DecompositionLevelCount>,
+    pub br_base_log: Option<DecompositionBaseLog>,
+    pub packing_ks_level: Option<DecompositionLevelCount>,
+    pub packing_ks_base_log: Option<DecompositionBaseLog>,
     pub message_modulus: Option<usize>,
     pub carry_modulus: Option<usize>,
     pub ciphertext_modulus: Option<CiphertextModulus<Scalar>>,
+    pub lwe_per_glwe: Option<LweCiphertextCount>,
+    pub storage_log_modulus: Option<CiphertextModulusLog>,
 }
 
 impl<Scalar: UnsignedInteger> CryptoParametersRecord<Scalar> {

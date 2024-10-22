@@ -230,6 +230,10 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
     let param_compression = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     let param_compression_name = stringify!(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    let params_tuple = (
+        param_compression,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    );
 
     let private_compression_key = cks.new_compression_private_key(param_compression);
     let (compression_key, decompression_key) =
@@ -237,7 +241,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
     measure_serialized_size(
         &compression_key,
-        param_compression,
+        params_tuple,
         param_compression_name,
         "compression_key",
         "CompressionKey",
@@ -245,7 +249,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
     );
     measure_serialized_size(
         &decompression_key,
-        param_compression,
+        params_tuple,
         param_compression_name,
         "decompression_key",
         "CompressionKey",
