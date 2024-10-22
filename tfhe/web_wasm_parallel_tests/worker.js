@@ -74,28 +74,6 @@ async function compressedPublicKeyTest() {
   assert_eq(decrypted, 255);
 }
 
-async function publicKeyTest() {
-  let config = TfheConfigBuilder.default_with_small_encryption().build();
-
-  console.time("ClientKey Gen");
-  let clientKey = TfheClientKey.generate(config);
-  console.timeEnd("ClientKey Gen");
-
-  console.time("PublicKey Gen");
-  let publicKey = TfhePublicKey.new(clientKey);
-  console.timeEnd("PublicKey Gen");
-
-  console.time("FheUint8 encrypt with PublicKey");
-  let encrypted = FheUint8.encrypt_with_public_key(255, publicKey);
-  console.timeEnd("FheUint8 encrypt with PublicKey");
-
-  let ser = encrypted.serialize();
-  console.log("Ciphertext Size", ser.length);
-
-  let decrypted = encrypted.decrypt(clientKey);
-  assert_eq(decrypted, 255);
-}
-
 async function compactPublicKeyBench32BitOnConfig(config) {
   const bench_loops = 100;
   let bench_results = {};
@@ -733,7 +711,6 @@ async function main() {
   await init_panic_hook();
 
   return Comlink.proxy({
-    publicKeyTest,
     compressedPublicKeyTest,
     compressedCompactPublicKeyTest256BitSmall,
     compressedCompactPublicKeyTest256BitBig,
