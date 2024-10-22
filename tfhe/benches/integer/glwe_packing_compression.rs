@@ -58,7 +58,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 
         write_to_json::<u64, _>(
             &bench_id,
-            comp_param,
+            (comp_param, param),
             comp_param.name(),
             "pack",
             &OperatorType::Atomic,
@@ -80,7 +80,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 
         write_to_json::<u64, _>(
             &bench_id,
-            comp_param,
+            (comp_param, param),
             comp_param.name(),
             "unpack",
             &OperatorType::Atomic,
@@ -165,7 +165,7 @@ mod cuda {
 
             write_to_json::<u64, _>(
                 &bench_id,
-                comp_param,
+                (comp_param, param),
                 comp_param.name(),
                 "pack",
                 &OperatorType::Atomic,
@@ -189,7 +189,7 @@ mod cuda {
 
             write_to_json::<u64, _>(
                 &bench_id,
-                comp_param,
+                (comp_param, param),
                 comp_param.name(),
                 "unpack",
                 &OperatorType::Atomic,
