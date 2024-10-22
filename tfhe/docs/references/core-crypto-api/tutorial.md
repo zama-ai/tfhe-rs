@@ -9,7 +9,7 @@ Welcome to this tutorial about `TFHE-rs` `core_crypto` module.
 To use `TFHE-rs`, it first has to be added as a dependency in the `Cargo.toml`:
 
 ```toml
-tfhe = { version = "0.9.0", features = [ "x86_64-unix" ] }
+tfhe = { version = "0.9.0", features = ["x86_64-unix"] }
 ```
 
 This enables the `x86_64-unix` feature to have efficient implementations of various algorithms for `x86_64` CPUs on a Unix-like system. The 'unix' suffix indicates that the `UnixSeeder`, which uses `/dev/random` to generate random numbers, is activated as a fallback if no hardware number generator is available (like `rdseed` on `x86_64` or if the [`Randomization Services`](https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc) on Apple platforms are not available). To avoid having the `UnixSeeder` as a potential fallback or to run on non-Unix systems (e.g., Windows), the `x86_64` feature is sufficient.
