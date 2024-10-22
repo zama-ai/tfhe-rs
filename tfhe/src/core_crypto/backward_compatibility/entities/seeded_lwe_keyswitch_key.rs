@@ -1,22 +1,14 @@
-use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+use tfhe_versionable::VersionsDispatch;
 
 use crate::core_crypto::prelude::{Container, SeededLweKeyswitchKey, UnsignedInteger};
 
-#[derive(Version)]
-pub struct UnsupportedSeededLweKeyswitchKeyV0;
-
-impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> Upgrade<SeededLweKeyswitchKey<C>>
-    for UnsupportedSeededLweKeyswitchKeyV0
+impl<C: Container> Deprecable for SeededLweKeyswitchKey<C>
+where
+    C::Element: UnsignedInteger,
 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<SeededLweKeyswitchKey<C>, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load SeededLweKeyswitchKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+    const TYPE_NAME: &'static str = "SeededLweKeyswitchKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.9";
 }
 
 #[derive(VersionsDispatch)]
@@ -24,6 +16,6 @@ pub enum SeededLweKeyswitchKeyVersions<C: Container>
 where
     C::Element: UnsignedInteger,
 {
-    V0(UnsupportedSeededLweKeyswitchKeyV0),
+    V0(Deprecated<SeededLweKeyswitchKey<C>>),
     V1(SeededLweKeyswitchKey<C>),
 }

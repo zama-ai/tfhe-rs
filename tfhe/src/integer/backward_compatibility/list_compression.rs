@@ -2,7 +2,8 @@ use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
     DecompressionKey,
 };
-use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+use tfhe_versionable::VersionsDispatch;
 
 #[derive(VersionsDispatch)]
 pub enum CompressionKeyVersions {
@@ -14,24 +15,14 @@ pub enum DecompressionKeyVersions {
     V0(DecompressionKey),
 }
 
-#[derive(Version)]
-pub struct UnsupportedCompressedCompressionKeyV0;
-
-impl Upgrade<CompressedCompressionKey> for UnsupportedCompressedCompressionKeyV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<CompressedCompressionKey, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load CompressedCompressionKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+impl Deprecable for CompressedCompressionKey {
+    const TYPE_NAME: &'static str = "CompressedCompressionKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.9";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedCompressionKeyVersions {
-    V0(UnsupportedCompressedCompressionKeyV0),
+    V0(Deprecated<CompressedCompressionKey>),
     V1(CompressedCompressionKey),
 }
 

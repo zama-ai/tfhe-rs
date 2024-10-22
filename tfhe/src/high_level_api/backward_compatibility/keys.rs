@@ -2,6 +2,7 @@ use crate::high_level_api::keys::*;
 use crate::Tag;
 use std::convert::Infallible;
 use std::sync::Arc;
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 #[derive(VersionsDispatch)]
@@ -183,34 +184,9 @@ pub(crate) enum IntegerConfigVersions {
     V0(IntegerConfig),
 }
 
-#[derive(Version)]
-pub struct UnsupportedIntegerClientKeyV0;
-
-#[derive(Version)]
-pub struct UnsupportedIntegerClientKeyV1;
-
-impl Upgrade<UnsupportedIntegerClientKeyV1> for UnsupportedIntegerClientKeyV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<UnsupportedIntegerClientKeyV1, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load IntegerClientKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
-}
-
-impl Upgrade<IntegerClientKeyV2> for UnsupportedIntegerClientKeyV1 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<IntegerClientKeyV2, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load IntegerClientKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+impl Deprecable for IntegerClientKey {
+    const TYPE_NAME: &'static str = "IntegerClientKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.8";
 }
 
 #[derive(Version)]
@@ -237,40 +213,15 @@ impl Upgrade<IntegerClientKey> for IntegerClientKeyV2 {
 #[derive(VersionsDispatch)]
 #[allow(unused)]
 pub(crate) enum IntegerClientKeyVersions {
-    V0(UnsupportedIntegerClientKeyV0),
-    V1(UnsupportedIntegerClientKeyV1),
+    V0(Deprecated<IntegerClientKey>),
+    V1(Deprecated<IntegerClientKey>),
     V2(IntegerClientKeyV2),
     V3(IntegerClientKey),
 }
 
-#[derive(Version)]
-pub struct UnsupportedIntegerServerKeyV0;
-
-#[derive(Version)]
-pub struct UnsupportedIntegerServerKeyV1;
-
-impl Upgrade<UnsupportedIntegerServerKeyV1> for UnsupportedIntegerServerKeyV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<UnsupportedIntegerServerKeyV1, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load IntegerServerKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
-}
-
-impl Upgrade<IntegerServerKeyV2> for UnsupportedIntegerServerKeyV1 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<IntegerServerKeyV2, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load IntegerServerKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+impl Deprecable for IntegerServerKey {
+    const TYPE_NAME: &'static str = "IntegerServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.8";
 }
 
 #[derive(Version)]
@@ -301,30 +252,20 @@ impl Upgrade<IntegerServerKey> for IntegerServerKeyV2 {
 
 #[derive(VersionsDispatch)]
 pub enum IntegerServerKeyVersions {
-    V0(UnsupportedIntegerServerKeyV0),
-    V1(UnsupportedIntegerServerKeyV1),
+    V0(Deprecated<IntegerServerKey>),
+    V1(Deprecated<IntegerServerKey>),
     V2(IntegerServerKeyV2),
     V3(IntegerServerKey),
 }
 
-#[derive(Version)]
-pub struct UnsupportedIntegerCompressedServerKeyV0;
-
-impl Upgrade<IntegerCompressedServerKey> for UnsupportedIntegerCompressedServerKeyV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<IntegerCompressedServerKey, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load IntegerCompressedServerKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+impl Deprecable for IntegerCompressedServerKey {
+    const TYPE_NAME: &'static str = "IntegerCompressedServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.9";
 }
 
 #[derive(VersionsDispatch)]
 pub enum IntegerCompressedServerKeyVersions {
-    V0(UnsupportedIntegerCompressedServerKeyV0),
+    V0(Deprecated<IntegerCompressedServerKey>),
     V1(IntegerCompressedServerKey),
 }
 
