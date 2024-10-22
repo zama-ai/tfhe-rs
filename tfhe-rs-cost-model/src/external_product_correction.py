@@ -10,6 +10,9 @@ import functools
 from pathlib import Path
 
 import numpy as np
+np.set_printoptions(threshold=np.inf)
+np.set_printoptions(linewidth=np.inf)
+
 from scipy.optimize import curve_fit
 from sklearn.ensemble import IsolationForest
 
@@ -420,7 +423,7 @@ def test(x_values, y_values, weights, fft_noise_fun):
             pred_out = max(fft_noise_fun(params, *list(weights))[0], 0.000001)  #TODO make sure this const is OK
             if params[0,0] == big_N:
                 mse += (log_var(real_out) - log_var(pred_out)) ** 2
-                print(f"{log_var(real_out) - log_var(pred_out)}, {params}, {real_out}, {pred_out}") # log_var(real_out) - log_var(pred_out) == log_var(real_out/pred_out)
+                print(f"{log_var(real_out) - log_var(pred_out)}, {params[0]}, {real_out}, {pred_out}") # log_var(real_out) - log_var(pred_out) == log_var(real_out/pred_out)
                 # print(
                 #     f"th: {log_var(params[0, -1])}, pred_fft: {log_var(pred_out)}, "
                 #     f"real: {log_var(real_out)}"

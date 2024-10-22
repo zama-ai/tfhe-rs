@@ -1,8 +1,14 @@
 #!/usr/bin/env gnuplot
 
-DATAFILE = "log_real_to_pred.dat"
+GF = 2
+DATAFILE = "log-real-to-pred-".GF.".dat"
+
+set term pngcairo
+set out "histogram-".GF.".png"
 
 set style fill solid 0.5 # fill style
+set xrange [-4:4]
+set yrange [0:600]
 
 min=-3. # min value
 max= 3. # max value
