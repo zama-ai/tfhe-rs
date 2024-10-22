@@ -517,7 +517,7 @@ pub fn add_external_product_assign<Scalar>(
         let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(
             glwe.as_ref()
                 .iter()
-                .map(|s| decomposer.closest_representable(*s)),
+                .map(|s| decomposer.init_decomposer_state(*s)),
             DecompositionBaseLog(decomposer.base_log),
             DecompositionLevelCount(decomposer.level_count),
             substack0.rb_mut(),

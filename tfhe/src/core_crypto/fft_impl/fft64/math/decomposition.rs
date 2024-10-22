@@ -31,9 +31,7 @@ impl<'buffers, Scalar: UnsignedInteger> TensorSignedDecompositionLendingIter<'bu
         level: DecompositionLevelCount,
         stack: PodStack<'buffers>,
     ) -> (Self, PodStack<'buffers>) {
-        let shift = Scalar::BITS - base_log.0 * level.0;
-        let (states, stack) =
-            stack.collect_aligned(aligned_vec::CACHELINE_ALIGN, input.map(|i| i >> shift));
+        let (states, stack) = stack.collect_aligned(aligned_vec::CACHELINE_ALIGN, input);
         (
             TensorSignedDecompositionLendingIter {
                 base_log: base_log.0,
