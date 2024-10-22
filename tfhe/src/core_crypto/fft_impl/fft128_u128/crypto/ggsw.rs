@@ -87,8 +87,6 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
             let (decomposition_states_hi, mut substack1) =
                 stack.make_aligned_raw::<u64>(poly_size * glwe_size, align);
 
-            let shift = 128 - decomposer.base_log * decomposer.level_count;
-
             for (out_lo, out_hi, in_lo, in_hi) in izip!(
                 &mut *decomposition_states_lo,
                 &mut *decomposition_states_hi,
@@ -96,7 +94,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                 glwe_hi.as_ref(),
             ) {
                 let input = (*in_lo as u128) | ((*in_hi as u128) << 64);
-                let value = decomposer.closest_representable(input) >> shift;
+                let value = decomposer.init_decomposer_state(input);
                 *out_lo = value as u64;
                 *out_hi = (value >> 64) as u64;
             }
