@@ -603,13 +603,13 @@ async function compressedServerKeyBenchConfig(config) {
   bench_results["compressed_server_key_gen_mean"] = timing_1;
 
   let serverKey = TfheCompressedServerKey.new(clientKey);
-  let serialized_key = serverKey.safe_serialize(BigInt(10000000));
+  let serialized_key = serverKey.safe_serialize(BigInt(1000000000));
   console.log("Serialized ServerKey size: ", serialized_key.length);
 
   // Bench the serialization for bench_loops iterations
   start = performance.now();
   for (let i = 0; i < bench_loops; i++) {
-    let _ = serverKey.safe_serialize(BigInt(10000000));
+    let _ = serverKey.safe_serialize(BigInt(1000000000));
   }
   end = performance.now();
   const timing_2 = (end - start) / bench_loops;
