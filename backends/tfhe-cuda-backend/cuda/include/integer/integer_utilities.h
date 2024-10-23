@@ -1395,6 +1395,9 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
     cuda_drop_async(shifted_blocks_and_states, streams[0], gpu_indexes[0]);
     cuda_drop_async(shifted_blocks, streams[0], gpu_indexes[0]);
     cuda_drop_async(block_states, streams[0], gpu_indexes[0]);
+
+    luts_array_first_step->release(streams, gpu_indexes, gpu_count);
+    delete luts_array_first_step;
   };
 };
 
