@@ -242,6 +242,28 @@ impl ClientKey {
         }
     }
 
+    #[cfg(test)]
+    pub fn create_trivial(&self, value: u64) -> Ciphertext {
+        let modular_value = value as usize % self.parameters.message_modulus().0;
+        self.unchecked_create_trivial(modular_value as u64)
+    }
+
+    #[cfg(test)]
+    pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
+        let params = self.parameters;
+
+        let lwe_size = params.encryption_lwe_dimension().to_lwe_size();
+
+        super::ciphertext::unchecked_create_trivial_with_lwe_size(
+            value,
+            lwe_size,
+            params.message_modulus(),
+            params.carry_modulus(),
+            PBSOrder::from(params.encryption_key_choice()),
+            params.ciphertext_modulus(),
+        )
+    }
+
     /// Encrypt a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus

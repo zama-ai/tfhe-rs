@@ -3,8 +3,10 @@ use super::super::parameters::CiphertextConformanceParams;
 use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::{allocate_and_trivially_encrypt_new_lwe_ciphertext, LweSize};
 use crate::shortint::backward_compatibility::ciphertext::CiphertextVersions;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::CiphertextModulus;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
@@ -223,6 +225,35 @@ impl Ciphertext {
             Err(NotTrivialCiphertextError)
         }
     }
+}
+
+pub(crate) fn unchecked_create_trivial_with_lwe_size(
+    value: u64,
+    lwe_size: LweSize,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_order: PBSOrder,
+    ciphertext_modulus: CiphertextModulus,
+) -> Ciphertext {
+    let delta = (1_u64 << 63) / (message_modulus.0 * carry_modulus.0) as u64;
+
+    let shifted_value = value * delta;
+
+    let encoded = Plaintext(shifted_value);
+
+    let ct =
+        allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded, ciphertext_modulus);
+
+    let degree = Degree::new(value as usize);
+
+    Ciphertext::new(
+        ct,
+        degree,
+        NoiseLevel::ZERO,
+        message_modulus,
+        carry_modulus,
+        pbs_order,
+    )
 }
 
 #[cfg(test)]
