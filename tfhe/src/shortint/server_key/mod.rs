@@ -74,6 +74,7 @@ pub use pbs_stats::*;
 use super::backward_compatibility::server_key::{
     SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
 };
+use super::ciphertext::unchecked_create_trivial_with_lwe_size;
 use super::PBSParameters;
 
 /// Error returned when the carry buffer is full.
@@ -1136,27 +1137,13 @@ impl ServerKey {
         value: u64,
         lwe_size: LweSize,
     ) -> Ciphertext {
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
-
-        let shifted_value = value * delta;
-
-        let encoded = Plaintext(shifted_value);
-
-        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+        unchecked_create_trivial_with_lwe_size(
+            value,
             lwe_size,
-            encoded,
-            self.ciphertext_modulus,
-        );
-
-        let degree = Degree::new(value as usize);
-
-        Ciphertext::new(
-            ct,
-            degree,
-            NoiseLevel::ZERO,
             self.message_modulus,
             self.carry_modulus,
             self.pbs_order,
+            self.ciphertext_modulus,
         )
     }
 
