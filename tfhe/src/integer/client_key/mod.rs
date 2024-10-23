@@ -193,6 +193,20 @@ impl ClientKey {
         self.key.parameters.pbs_parameters().unwrap()
     }
 
+    #[cfg(test)]
+    pub fn create_trivial_radix<T, C>(&self, value: T, num_blocks: usize) -> C
+    where
+        T: DecomposableInto<u64>,
+        C: super::IntegerRadixCiphertext + From<Vec<crate::shortint::Ciphertext>>,
+    {
+        encrypt_words_radix_impl(
+            &self.key,
+            value,
+            num_blocks,
+            crate::shortint::ClientKey::create_trivial,
+        )
+    }
+
     /// Encrypts an integer in radix decomposition
     ///
     /// # Example
