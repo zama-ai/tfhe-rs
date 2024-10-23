@@ -1671,18 +1671,23 @@ template <typename Torus> struct int_fast_sc_prop_memory {
 
   uint32_t group_size;
   uint32_t num_groups;
+  Torus *output_flag;
 
   int_radix_lut<Torus> *lut_message_extract;
+
+  int_radix_lut<Torus> *lut_overflow_flag_prep;
+  int_radix_lut<Torus> *lut_overflow_flag_last;
 
   int_shifted_blocks_and_states_memory<Torus> *shifted_blocks_state_mem;
   int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
 
   int_radix_params params;
   bool use_sequential_algorithm_to_resolver_group_carries;
-
+  uint32_t requested_flag;
   int_fast_sc_prop_memory(cudaStream_t const *streams,
                           uint32_t const *gpu_indexes, uint32_t gpu_count,
                           int_radix_params params, uint32_t num_radix_blocks,
+                          uint32_t requested_flag_in, uint32_t uses_carry,
                           bool allocate_gpu_memory) {
     this->params = params;
     auto glwe_dimension = params.glwe_dimension;
@@ -1691,7 +1696,7 @@ template <typename Torus> struct int_fast_sc_prop_memory {
     auto carry_modulus = params.carry_modulus;
     auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
     auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-
+    requested_flag = requested_flag_in;
     // for compute shifted blocks and block states
     uint32_t block_modulus = message_modulus * carry_modulus;
     uint32_t num_bits_in_block = std::log2(block_modulus);
@@ -1711,6 +1716,7 @@ template <typename Torus> struct int_fast_sc_prop_memory {
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
         grouping_size, num_groups, true);
 
+    printf("uses carry %d  option %d\n", uses_carry, requested_flag);
     // Step 3 elements
     lut_message_extract =
         new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
@@ -1727,6 +1733,112 @@ template <typename Torus> struct int_fast_sc_prop_memory {
         polynomial_size, message_modulus, carry_modulus, f_message_extract);
 
     lut_message_extract->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+
+    // This store a single block that with be used to store the overflow or
+    // carry results
+
+    output_flag = (Torus *)cuda_malloc_async(big_lwe_size_bytes, streams[0],
+                                             gpu_indexes[0]);
+    cuda_memset_async(output_flag, 0, big_lwe_size_bytes, streams[0],
+                      gpu_indexes[0]);
+    if (requested_flag == 1) {
+      // For step 1 overflow should be enable only if flag overflow
+      uint32_t num_bits_in_message = std::log2(message_modulus);
+      lut_overflow_flag_prep = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
+
+      auto f_overflow_fp = [num_bits_in_message,
+                            message_modulus](Torus packed_lhsrhs) -> Torus {
+        Torus lhs = packed_lhsrhs / message_modulus;
+        Torus rhs = packed_lhsrhs % message_modulus;
+
+        Torus mask = (1 << (num_bits_in_message - 1)) - 1;
+        Torus lhs_except_last_bit = lhs & mask;
+        Torus rhs_except_last_bit = rhs & mask;
+        Torus input_carry1 = 1;
+        Torus input_carry2 = 0;
+
+        Torus output_carry1 =
+            ((lhs + rhs + input_carry1) >> num_bits_in_message) & 1;
+        Torus output_carry2 =
+            ((lhs + rhs + input_carry2) >> num_bits_in_message) & 1;
+        Torus input_carry_last_bit1 =
+            ((lhs_except_last_bit + rhs_except_last_bit + input_carry1) >>
+             (num_bits_in_message - 1)) &
+            1;
+        Torus input_carry_last_bit2 =
+            ((lhs_except_last_bit + rhs_except_last_bit + input_carry2) >>
+             (num_bits_in_message - 1)) &
+            1;
+
+        Torus output1 = (Torus)(input_carry_last_bit1 != output_carry1);
+        Torus output2 = (Torus)(input_carry_last_bit2 != output_carry2);
+
+        return output1 << 3 | output2 << 2;
+      };
+
+      auto overflow_flag_prep_lut =
+          lut_overflow_flag_prep->get_lut(gpu_indexes[0], 0);
+
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], overflow_flag_prep_lut, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus, f_overflow_fp);
+
+      lut_overflow_flag_prep->broadcast_lut(streams, gpu_indexes,
+                                            gpu_indexes[0]);
+    }
+    // Since i already have the lhs+rhs i will use a univariate lut
+    //  auto f_overflow_fp = [num_bits_in_message](Torus lhs, Torus rhs) ->
+    //  Torus {
+    //    Torus mask = (1 << (num_bits_in_message - 1)) - 1;
+    //    Torus input_carry1 = 1;
+    //    Torus input_carry2 = 0;
+    //    Torus output_carry1 =
+    //        ((lhs + rhs + input_carry1) >> num_bits_in_message) & 1;
+    //    Torus output_carry2 =
+    //        ((lhs + rhs + input_carry2) >> num_bits_in_message) & 1;
+    //    Torus input_carry_last_bit1 =
+    //        ((lhs + rhs + input_carry1) >> (num_bits_in_message - 1)) & 1;
+    //    Torus input_carry_last_bit2 =
+    //        ((lhs + rhs + input_carry2) >> (num_bits_in_message - 1)) & 1;
+
+    //   Torus output1 = (Torus)(input_carry_last_bit1 != output_carry1);
+    //   Torus output2 = (Torus)(input_carry_last_bit2 != output_carry2);
+
+    //   return output1 << 3 | output2 << 2;
+    // };
+
+    // generate_device_accumulator_bivariate<Torus>(
+    //     streams[0], gpu_indexes[0], overflow_flag_prep_lut, glwe_dimension,
+    //     polynomial_size, message_modulus, carry_modulus, lut_overflow_fp);
+
+    // For the final cleanup in case of overflow or carry (it seems that I can)
+    // It seems that this lut could be apply together with the other one but for
+    // now we won't do it
+    if (requested_flag > 0) { // Carry or Overflow case
+      lut_overflow_flag_last = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
+
+      auto f_overflow_last = [](Torus block) -> Torus {
+        Torus input_carry = (block >> 1) & 1;
+        Torus does_overflow_if_carry_is_1 = (block >> 3) & 1;
+        Torus does_overflow_if_carry_is_0 = (block >> 2) & 1;
+        if (input_carry == 1) {
+          return does_overflow_if_carry_is_1;
+        } else {
+          return does_overflow_if_carry_is_0;
+        }
+      };
+      auto overflow_flag_last =
+          lut_overflow_flag_last->get_lut(gpu_indexes[0], 0);
+
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], overflow_flag_last, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus, f_overflow_last);
+
+      lut_overflow_flag_last->broadcast_lut(streams, gpu_indexes,
+                                            gpu_indexes[0]);
+    }
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1734,8 +1846,18 @@ template <typename Torus> struct int_fast_sc_prop_memory {
 
     shifted_blocks_state_mem->release(streams, gpu_indexes, gpu_count);
     prop_simu_group_carries_mem->release(streams, gpu_indexes, gpu_count);
+
     lut_message_extract->release(streams, gpu_indexes, gpu_count);
     delete lut_message_extract;
+
+    if (requested_flag == 1) { // In case of overflow
+      lut_overflow_flag_prep->release(streams, gpu_indexes, gpu_count);
+      delete lut_overflow_flag_prep;
+    }
+    if (requested_flag > 0) { // In case of overflow or carry
+      lut_overflow_flag_last->release(streams, gpu_indexes, gpu_count);
+      delete lut_overflow_flag_last;
+    }
   }
 };
 
@@ -1822,10 +1944,11 @@ template <typename Torus> struct int_mul_memory {
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
         2 * num_radix_blocks, block_mul_res, vector_result_sb,
         small_lwe_vector);
-
+    uint32_t uses_carry = 0;
+    uint32_t requested_flag = 0;
     fast_sc_prop_mem = new int_fast_sc_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        allocate_gpu_memory);
+        requested_flag, uses_carry, allocate_gpu_memory);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -3631,10 +3754,11 @@ template <typename Torus> struct int_scalar_mul_buffer {
       sum_ciphertexts_vec_mem = new int_sum_ciphertexts_vec_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, num_radix_blocks,
           num_ciphertext_bits, allocate_gpu_memory);
-
+      uint32_t uses_carry = 0;
+      uint32_t requested_flag = 0;
       fast_sc_prop_mem = new int_fast_sc_prop_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-          allocate_gpu_memory);
+          requested_flag, uses_carry, allocate_gpu_memory);
     }
   }
 

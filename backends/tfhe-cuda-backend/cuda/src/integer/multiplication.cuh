@@ -571,9 +571,11 @@ __host__ void host_integer_mult_radix_kb(
                                        scp_mem_ptr, bsks, ksks, num_blocks);
   } else {
     auto fast_scp_mem_ptr = mem_ptr->fast_sc_prop_mem;
+    uint32_t requested_flag = 0;
+    uint32_t uses_carry = 0;
     host_fast_propagate_single_carry<Torus>(
         streams, gpu_indexes, gpu_count, radix_lwe_out, nullptr, nullptr,
-        fast_scp_mem_ptr, bsks, ksks, num_blocks);
+        fast_scp_mem_ptr, bsks, ksks, num_blocks, requested_flag, uses_carry);
   }
 }
 

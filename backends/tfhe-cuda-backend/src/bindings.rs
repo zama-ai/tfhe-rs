@@ -774,6 +774,8 @@ extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        requested_flag: u32,
+        uses_carry: u32,
         allocate_gpu_memory: bool,
     );
 }
@@ -784,10 +786,13 @@ extern "C" {
         gpu_count: u32,
         lwe_array: *mut ffi::c_void,
         carry_out: *mut ffi::c_void,
+        carry_in: *const ffi::c_void,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
         num_blocks: u32,
+        requested_flag: u32,
+        uses_carry: u32,
     );
 }
 extern "C" {
@@ -1185,6 +1190,18 @@ extern "C" {
         lwe_array_in_2: *const ffi::c_void,
         input_lwe_dimension: u32,
         input_lwe_ciphertext_count: u32,
+    );
+}
+extern "C" {
+    pub fn cuda_add_lwe_ciphertext_vector_64_with_packing(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_array_in_1: *const ffi::c_void,
+        lwe_array_in_2: *const ffi::c_void,
+        input_lwe_dimension: u32,
+        input_lwe_ciphertext_count: u32,
+        message_modulus: u32,
     );
 }
 extern "C" {

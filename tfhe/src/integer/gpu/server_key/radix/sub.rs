@@ -12,6 +12,7 @@ use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async, PBSType,
 };
+use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {
@@ -272,7 +273,8 @@ impl CudaServerKey {
         };
 
         self.unchecked_sub_assign_async(lhs, rhs, streams);
-        let _carry = self.new_propagate_single_carry_assign_async(lhs, streams);
+        let _carry =
+            self.new_propagate_single_carry_assign_async(lhs, streams, None, OutputFlag::None);
     }
 
     pub fn unsigned_overflowing_sub(

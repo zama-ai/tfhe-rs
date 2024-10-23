@@ -1515,22 +1515,21 @@ template <typename Torus>
 void scratch_cuda_fast_propagate_single_carry_kb_inplace(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_fast_sc_prop_memory<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params,
-    bool allocate_gpu_memory) {
+    uint32_t num_radix_blocks, int_radix_params params, uint32_t requested_flag,
+    uint32_t uses_carry, bool allocate_gpu_memory) {
 
-  *mem_ptr = new int_fast_sc_prop_memory<Torus>(streams, gpu_indexes, gpu_count,
-                                                params, num_radix_blocks,
-                                                allocate_gpu_memory);
+  *mem_ptr = new int_fast_sc_prop_memory<Torus>(
+      streams, gpu_indexes, gpu_count, params, num_radix_blocks, requested_flag,
+      uses_carry, allocate_gpu_memory);
 }
 
 template <typename Torus>
-void host_fast_propagate_single_carry(cudaStream_t const *streams,
-                                      uint32_t const *gpu_indexes,
-                                      uint32_t gpu_count, Torus *lwe_array,
-                                      Torus *carry_out, Torus *input_carries,
-                                      int_fast_sc_prop_memory<Torus> *mem,
-                                      void *const *bsks, Torus *const *ksks,
-                                      uint32_t num_blocks) {
+void host_fast_propagate_single_carry(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, Torus *carry_out,
+    const Torus *input_carries, int_fast_sc_prop_memory<Torus> *mem,
+    void *const *bsks, Torus *const *ksks, uint32_t num_blocks,
+    uint32_t requested_flag, uint32_t uses_carry) {
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
@@ -1538,14 +1537,37 @@ void host_fast_propagate_single_carry(cudaStream_t const *streams,
   auto carry_modulus = params.carry_modulus;
   uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-
+  auto big_lwe_dimension = big_lwe_size - 1;
   auto lut_stride = mem->lut_stride;
   auto lut_count = mem->lut_count;
+
+  enum outputFlag { NONE = 0, OVERFLOW = 1, CARRY = 2 };
+  if (uses_carry == 1) {
+    printf("using carry\n");
+    host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array, lwe_array,
+                         input_carries, big_lwe_dimension, 1);
+  }
 
   host_compute_shifted_blocks_and_states<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, params,
       mem->shifted_blocks_state_mem, bsks, ksks, num_blocks, lut_stride,
       lut_count);
+
+  if (requested_flag == outputFlag::OVERFLOW) {
+    printf("requested flag == 1\n");
+    // This operation could be added to the many lut with some trickery to be in
+    // parallel but first i will try to use different streams
+    auto lut_overflow_prep = mem->lut_overflow_flag_prep;
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, mem->output_flag,
+        lwe_array + (num_blocks - 1) * big_lwe_dimension, bsks, ksks, 1,
+        lut_overflow_prep);
+  } else if (requested_flag == outputFlag::CARRY) {
+    printf("requested_flag ==2 \n");
+    cuda_memcpy_async_gpu_to_gpu(
+        mem->output_flag, lwe_array + (num_blocks - 1) * big_lwe_dimension,
+        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+  }
 
   auto block_states = mem->shifted_blocks_state_mem->block_states;
   host_compute_propagation_simulators_and_group_carries<Torus>(
@@ -1555,13 +1577,21 @@ void host_fast_propagate_single_carry(cudaStream_t const *streams,
 
   auto group_size = mem->prop_simu_group_carries_mem->group_size;
 
-  auto big_lwe_dimension = big_lwe_size - 1;
   auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
   auto shifted_blocks = mem->shifted_blocks_state_mem->shifted_blocks;
   host_addition<Torus>(streams[0], gpu_indexes[0], prepared_blocks,
                        shifted_blocks,
                        mem->prop_simu_group_carries_mem->simulators,
                        big_lwe_dimension, num_blocks);
+
+  if (requested_flag == outputFlag::OVERFLOW ||
+      requested_flag == outputFlag::CARRY) {
+    host_addition<Torus>(streams[0], gpu_indexes[0], mem->output_flag,
+                         mem->output_flag,
+                         mem->prop_simu_group_carries_mem->simulators +
+                             (num_blocks - 1) * big_lwe_dimension,
+                         big_lwe_dimension, 1);
+  }
 
   // Add carries and cleanup OutputFlag::None
   host_radix_sum_in_groups<Torus>(
@@ -1573,6 +1603,25 @@ void host_fast_propagate_single_carry(cudaStream_t const *streams,
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks, bsks, ksks,
       num_blocks, message_extract);
+
+  if (requested_flag == outputFlag::OVERFLOW ||
+      requested_flag == outputFlag::CARRY) {
+    // Here I could also do some trick to try to apply this function in parallel
+    // First i will try sequential, then i improve it
+    host_addition<Torus>(streams[0], gpu_indexes[0], mem->output_flag,
+                         mem->output_flag,
+                         mem->prop_simu_group_carries_mem->resolved_carries +
+                             (mem->num_groups - 1) * big_lwe_dimension,
+                         big_lwe_dimension, 1);
+
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, mem->output_flag, mem->output_flag,
+        bsks, ksks, 1, mem->lut_overflow_flag_last);
+
+    cuda_memcpy_async_gpu_to_gpu(carry_out, mem->output_flag,
+                                 big_lwe_size_bytes, streams[0],
+                                 gpu_indexes[0]);
+  }
 }
 
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH

@@ -27,6 +27,12 @@ void cuda_add_lwe_ciphertext_vector_64(void *stream, uint32_t gpu_index,
                                        void const *lwe_array_in_2,
                                        uint32_t input_lwe_dimension,
                                        uint32_t input_lwe_ciphertext_count);
+void cuda_add_lwe_ciphertext_vector_64_with_packing(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_array_in_1, void const *lwe_array_in_2,
+    uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count,
+    uint32_t message_modulus);
+
 void cuda_add_lwe_ciphertext_vector_plaintext_vector_32(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_array_in, void const *plaintext_array_in,

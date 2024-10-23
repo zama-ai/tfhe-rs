@@ -303,12 +303,14 @@ void scratch_cuda_fast_propagate_single_carry_kb_64_inplace(
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
+    uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
+    uint32_t uses_carry, bool allocate_gpu_memory);
 
 void cuda_fast_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array, void *carry_out, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, uint32_t num_blocks);
+    void *lwe_array, void *carry_out, const void *carry_in, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks, uint32_t num_blocks,
+    uint32_t requested_flag, uint32_t uses_carry);
 
 void cleanup_cuda_fast_propagate_single_carry(void *const *streams,
                                               uint32_t const *gpu_indexes,

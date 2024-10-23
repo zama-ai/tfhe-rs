@@ -6,6 +6,7 @@ use crate::core_crypto::prelude::{
     ContiguousEntityContainerMut, LweBskGroupingFactor, LweCiphertextCount,
 };
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
@@ -17,6 +18,7 @@ use crate::integer::gpu::{
     propagate_fast_single_carry_assign_async, propagate_single_carry_assign_async,
     propagate_single_carry_get_input_carries_assign_async, CudaServerKey, PBSType,
 };
+use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::{fill_accumulator, fill_many_lut_accumulator};
 use crate::shortint::server_key::{
@@ -268,10 +270,12 @@ impl CudaServerKey {
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until streams is synchronized
-    pub unsafe fn propagate_fast_single_carry_assign_async<T>(
+    pub(crate) unsafe fn propagate_fast_single_carry_assign_async<T>(
         &self,
         ct: &mut T,
         streams: &CudaStreams,
+        input_carry: Option<&CudaBooleanBlock>,
+        requested_flag: OutputFlag,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -279,12 +283,23 @@ impl CudaServerKey {
         let mut carry_out: T = self.create_trivial_zero_radix(1, streams);
         let ciphertext = ct.as_mut();
         let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
+        let uses_carry = match input_carry {
+            Some(_block) => 1u32,
+            None => 0u32,
+        };
+        let mut aux_block: T = self.create_trivial_zero_radix(1, streams);
+        let in_carry_dvec = match input_carry {
+            Some(block) => &block.0.ciphertext.d_blocks.0.d_vec,
+            None => &aux_block.as_mut().d_blocks.0.d_vec,
+        };
+
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 propagate_fast_single_carry_assign_async(
                     streams,
                     &mut ciphertext.d_blocks.0.d_vec,
                     &mut carry_out.as_mut().d_blocks.0.d_vec,
+                    in_carry_dvec,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     d_bsk.input_lwe_dimension(),
@@ -299,6 +314,8 @@ impl CudaServerKey {
                     ciphertext.info.blocks.first().unwrap().carry_modulus,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
+                    requested_flag,
+                    uses_carry,
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -306,6 +323,7 @@ impl CudaServerKey {
                     streams,
                     &mut ciphertext.d_blocks.0.d_vec,
                     &mut carry_out.as_mut().d_blocks.0.d_vec,
+                    in_carry_dvec,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     d_multibit_bsk.input_lwe_dimension(),
@@ -320,6 +338,8 @@ impl CudaServerKey {
                     ciphertext.info.blocks.first().unwrap().carry_modulus,
                     PBSType::MultiBit,
                     d_multibit_bsk.grouping_factor,
+                    requested_flag,
+                    uses_carry,
                 );
             }
         };
@@ -342,6 +362,8 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         streams: &CudaStreams,
+        input_carry: Option<&CudaBooleanBlock>,
+        requested_flag: OutputFlag,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -351,7 +373,7 @@ impl CudaServerKey {
         if num_blocks < min_blocks.ilog2() {
             self.propagate_single_carry_assign_async(ct, streams)
         } else {
-            self.propagate_fast_single_carry_assign_async(ct, streams)
+            self.propagate_fast_single_carry_assign_async(ct, streams, input_carry, requested_flag)
         }
     }
 

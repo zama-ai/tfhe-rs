@@ -122,9 +122,12 @@ __host__ void host_integer_scalar_mul_radix(
                                      num_radix_blocks);
     } else {
       auto fast_scp_mem_ptr = mem->fast_sc_prop_mem;
+      uint32_t requested_flag = 0;
+      uint32_t uses_carry = 0;
       host_fast_propagate_single_carry<T>(
           streams, gpu_indexes, gpu_count, lwe_array, nullptr, nullptr,
-          fast_scp_mem_ptr, bsks, ksks, num_radix_blocks);
+          fast_scp_mem_ptr, bsks, ksks, num_radix_blocks, requested_flag,
+          uses_carry);
     }
   }
 }

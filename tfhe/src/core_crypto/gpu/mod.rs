@@ -458,6 +458,33 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
     );
 }
 
+/// Discarding addition of a vector of LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn add_lwe_ciphertext_vector_with_packing_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in_1: &CudaVec<T>,
+    lwe_array_in_2: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+    message_modulus: u32,
+) {
+    cuda_add_lwe_ciphertext_vector_64_with_packing(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in_1.as_c_ptr(0),
+        lwe_array_in_2.as_c_ptr(0),
+        lwe_dimension.0 as u32,
+        num_samples,
+        message_modulus,
+    );
+}
+
 /// Discarding addition of a vector of LWE ciphertexts with a vector of plaintexts
 ///
 /// # Safety
