@@ -4,8 +4,8 @@
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
-    decompress_seeded_lwe_keyswitch_key, keyswitch_lwe_ciphertext, ActivatedRandomGenerator,
-    KeyswitchKeyConformanceParams, LweKeyswitchKeyOwned, SeededLweKeyswitchKeyOwned,
+    keyswitch_lwe_ciphertext, KeyswitchKeyConformanceParams, LweKeyswitchKeyOwned,
+    SeededLweKeyswitchKeyOwned,
 };
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
@@ -783,22 +783,10 @@ pub struct CompressedKeySwitchingKeyMaterial {
 
 impl CompressedKeySwitchingKeyMaterial {
     pub fn decompress(&self) -> KeySwitchingKeyMaterial {
-        let key_switching_key = {
-            let cksk = &self.key_switching_key;
-            let mut decompressed_ksk = LweKeyswitchKeyOwned::new(
-                0u64,
-                cksk.decomposition_base_log(),
-                cksk.decomposition_level_count(),
-                cksk.input_key_lwe_dimension(),
-                cksk.output_key_lwe_dimension(),
-                cksk.ciphertext_modulus(),
-            );
-            decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
-                &mut decompressed_ksk,
-                cksk,
-            );
-            decompressed_ksk
-        };
+        let key_switching_key = self
+            .key_switching_key
+            .as_view()
+            .par_decompress_into_lwe_keyswitch_key();
 
         KeySwitchingKeyMaterial {
             key_switching_key,

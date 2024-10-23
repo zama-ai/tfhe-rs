@@ -162,35 +162,15 @@ impl CompressedServerKey {
 
         let (key_switching_key, bootstrapping_key) = rayon::join(
             || {
-                let mut decompressed_key_switching_key = LweKeyswitchKey::new(
-                    0,
-                    compressed_key_switching_key.decomposition_base_log(),
-                    compressed_key_switching_key.decomposition_level_count(),
-                    compressed_key_switching_key.input_key_lwe_dimension(),
-                    compressed_key_switching_key.output_key_lwe_dimension(),
-                    compressed_key_switching_key.ciphertext_modulus(),
-                );
-                par_decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
-                    &mut decompressed_key_switching_key,
-                    compressed_key_switching_key,
-                );
-                decompressed_key_switching_key
+                compressed_key_switching_key
+                    .as_view()
+                    .par_decompress_into_lwe_keyswitch_key()
             },
             || match compressed_bootstrapping_key {
                 ShortintCompressedBootstrappingKey::Classic(compressed_bootstrapping_key) => {
-                    let mut decompressed_bootstrapping_key = LweBootstrapKey::new(
-                        0,
-                        compressed_bootstrapping_key.glwe_size(),
-                        compressed_bootstrapping_key.polynomial_size(),
-                        compressed_bootstrapping_key.decomposition_base_log(),
-                        compressed_bootstrapping_key.decomposition_level_count(),
-                        compressed_bootstrapping_key.input_lwe_dimension(),
-                        compressed_bootstrapping_key.ciphertext_modulus(),
-                    );
-                    par_decompress_seeded_lwe_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
-                        &mut decompressed_bootstrapping_key,
-                        compressed_bootstrapping_key,
-                    );
+                    let decompressed_bootstrapping_key = compressed_bootstrapping_key
+                        .as_view()
+                        .par_decompress_into_lwe_bootstrap_key();
 
                     let mut fourier_bsk = FourierLweBootstrapKeyOwned::new(
                         decompressed_bootstrapping_key.input_lwe_dimension(),
@@ -211,25 +191,9 @@ impl CompressedServerKey {
                     seeded_bsk: compressed_bootstrapping_key,
                     deterministic_execution,
                 } => {
-                    let mut decompressed_bootstrapping_key = LweMultiBitBootstrapKeyOwned::new(
-                        0,
-                        compressed_bootstrapping_key.glwe_size(),
-                        compressed_bootstrapping_key.polynomial_size(),
-                        compressed_bootstrapping_key.decomposition_base_log(),
-                        compressed_bootstrapping_key.decomposition_level_count(),
-                        compressed_bootstrapping_key.input_lwe_dimension(),
-                        compressed_bootstrapping_key.grouping_factor(),
-                        compressed_bootstrapping_key.ciphertext_modulus(),
-                    );
-                    par_decompress_seeded_lwe_multi_bit_bootstrap_key::<
-                        _,
-                        _,
-                        _,
-                        ActivatedRandomGenerator,
-                    >(
-                        &mut decompressed_bootstrapping_key,
-                        compressed_bootstrapping_key,
-                    );
+                    let decompressed_bootstrapping_key = compressed_bootstrapping_key
+                        .as_view()
+                        .par_decompress_into_lwe_multi_bit_bootstrap_key();
 
                     let mut fourier_bsk = FourierLweMultiBitBootstrapKeyOwned::new(
                         decompressed_bootstrapping_key.input_lwe_dimension(),
