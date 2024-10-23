@@ -1543,7 +1543,6 @@ void host_fast_propagate_single_carry(
 
   enum outputFlag { NONE = 0, OVERFLOW = 1, CARRY = 2 };
   if (uses_carry == 1) {
-    printf("using carry\n");
     host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array, lwe_array,
                          input_carries, big_lwe_dimension, 1);
   }
@@ -1554,7 +1553,6 @@ void host_fast_propagate_single_carry(
       lut_count);
 
   if (requested_flag == outputFlag::OVERFLOW) {
-    printf("requested flag == 1\n");
     // This operation could be added to the many lut with some trickery to be in
     // parallel but first i will try to use different streams
     auto lut_overflow_prep = mem->lut_overflow_flag_prep;
@@ -1563,7 +1561,6 @@ void host_fast_propagate_single_carry(
         lwe_array + (num_blocks - 1) * big_lwe_dimension, bsks, ksks, 1,
         lut_overflow_prep);
   } else if (requested_flag == outputFlag::CARRY) {
-    printf("requested_flag ==2 \n");
     cuda_memcpy_async_gpu_to_gpu(
         mem->output_flag, lwe_array + (num_blocks - 1) * big_lwe_dimension,
         big_lwe_size_bytes, streams[0], gpu_indexes[0]);

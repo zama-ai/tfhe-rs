@@ -1716,8 +1716,8 @@ template <typename Torus> struct int_fast_sc_prop_memory {
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
         grouping_size, num_groups, true);
 
-    printf("uses carry %d  option %d\n", uses_carry, requested_flag);
-    // Step 3 elements
+    // printf("uses carry %d  option %d\n", uses_carry, requested_flag);
+    //  Step 3 elements
     lut_message_extract =
         new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
                                  num_radix_blocks, allocate_gpu_memory);
@@ -1846,7 +1846,7 @@ template <typename Torus> struct int_fast_sc_prop_memory {
 
     shifted_blocks_state_mem->release(streams, gpu_indexes, gpu_count);
     prop_simu_group_carries_mem->release(streams, gpu_indexes, gpu_count);
-
+    cuda_drop_async(output_flag, streams[0], gpu_indexes[0]);
     lut_message_extract->release(streams, gpu_indexes, gpu_count);
     delete lut_message_extract;
 
