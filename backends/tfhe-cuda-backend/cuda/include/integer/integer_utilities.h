@@ -1267,7 +1267,9 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
     cuda_memset_async(block_states, 0, num_radix_blocks * big_lwe_size_bytes,
                       streams[0], gpu_indexes[0]);
 
-    uint32_t num_luts_first_step = 2 * grouping_size + 1;
+    uint32_t num_luts_first_step =
+        requested_flag == 1 ? (2 * grouping_size + 2) : 2 * grouping_size + 1;
+
     luts_array_first_step = new int_radix_lut<Torus>(
         streams, gpu_indexes, gpu_count, params, num_luts_first_step,
         num_radix_blocks, allocate_gpu_memory);
@@ -1345,11 +1347,15 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
         return 0; // Nothing
     };
 
-    uint32_t lut_id = num_luts_first_step - 1; // The last lut of the first step
+    uint32_t lut_id =
+        requested_flag == 1
+            ? num_luts_first_step - 2
+            : num_luts_first_step - 1; // The last lut of the first step
 
     auto last_block_lut =
         luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
-    if (requested_flag == 1) {
+
+    if (requested_flag == 1) { // If overflow
       auto f_overflow_shift_block = [message_modulus](Torus block) -> Torus {
         Torus lhs = block / message_modulus;
         Torus rhs = block % message_modulus;
@@ -1361,6 +1367,20 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
           streams[0], gpu_indexes[0], last_block_lut, glwe_dimension,
           polynomial_size, message_modulus, carry_modulus,
           f_last_grouping_luts);
+
+      // We need an extra lut to handle the case with more than 1 radix
+      // The first of the many luts we will discard it, so we dont care about it
+      lut_id = lut_id + 1;
+      auto extra_block_lut =
+          luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
+
+      std::vector<std::function<Torus(Torus)>> f_last_grouping_luts_overflow = {
+          f_overflow_shift_block, f_overflow_shift_block};
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], extra_block_lut, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus,
+          f_last_grouping_luts_overflow);
+
     } else {
       std::vector<std::function<Torus(Torus)>> f_last_grouping_luts = {
           f_last_block_state, f_shift_block};
@@ -1381,9 +1401,13 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
       bool is_last_index = (index == (num_radix_blocks - 1));
       if (is_last_index) {
         if (num_radix_blocks == 1) {
-          h_lut_indexes[index] = num_luts_first_step - 1;
+          h_lut_indexes[index] = 2 * grouping_size;
         } else {
-          h_lut_indexes[index] = 2;
+          if (requested_flag == 1) {
+            h_lut_indexes[index] = 2 * grouping_size + 1;
+          } else {
+            h_lut_indexes[index] = 2;
+          }
         }
       } else if (is_in_first_grouping) {
         h_lut_indexes[index] = index_in_grouping;

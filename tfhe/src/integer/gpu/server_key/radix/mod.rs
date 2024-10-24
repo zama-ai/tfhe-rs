@@ -370,11 +370,11 @@ impl CudaServerKey {
     {
         let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
         let min_blocks = self.message_modulus.0 as u32 * self.carry_modulus.0 as u32;
-        if num_blocks < min_blocks.ilog2() {
-            self.propagate_single_carry_assign_async(ct, streams)
-        } else {
-            self.propagate_fast_single_carry_assign_async(ct, streams, input_carry, requested_flag)
-        }
+        //if num_blocks <= min_blocks.ilog2() {
+        //    self.propagate_single_carry_assign_async(ct, streams)
+        //} else {
+        self.propagate_fast_single_carry_assign_async(ct, streams, input_carry, requested_flag)
+        //}
     }
 
     /// # Safety

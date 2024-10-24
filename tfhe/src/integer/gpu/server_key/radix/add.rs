@@ -769,20 +769,26 @@ impl CudaServerKey {
             ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 > 0,
             "inputs cannot be empty"
         );
-        let ct_res;
-        let ct_overflowed;
-        unsafe {
-            (ct_res, ct_overflowed) =
-                self.unchecked_signed_overflowing_add_async(ct_left, ct_right, stream);
-        }
-        stream.synchronize();
-        (ct_res, ct_overflowed)
-        // self.unchecked_signed_overflowing_add_or_sub(
-        //     ct_left,
-        //     ct_right,
-        //     SignedOperation::Addition,
-        //     stream,
-        // )
+
+        // let num_blocks = ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        // let min_blocks = self.message_modulus.0 as u32 * self.carry_modulus.0 as u32;
+        // if num_blocks > min_blocks.ilog2() {
+        //     let ct_res;
+        //     let ct_overflowed;
+        //     unsafe {
+        //         (ct_res, ct_overflowed) =
+        //             self.unchecked_signed_overflowing_add_async(ct_left, ct_right, stream);
+        //     }
+        //     stream.synchronize();
+        //     (ct_res, ct_overflowed)
+        // }else{
+        self.unchecked_signed_overflowing_add_or_sub(
+            ct_left,
+            ct_right,
+            SignedOperation::Addition,
+            stream,
+        )
+        //}
     }
 
     pub(crate) fn unchecked_signed_overflowing_add_or_sub(
