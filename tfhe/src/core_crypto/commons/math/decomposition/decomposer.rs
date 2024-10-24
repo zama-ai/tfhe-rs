@@ -46,6 +46,25 @@ pub fn native_closest_representable<Scalar: UnsignedInteger>(
     res << shift
 }
 
+/// With
+///
+/// B = 2^bit_count
+/// val < B
+/// random € [0, 1]
+///
+/// returns 1 if the following if condition is true otherwise 0
+///
+/// (val > B / 2) || ((val == B / 2) && (random == 1))
+#[inline(always)]
+fn balanced_rounding_condition_bit_trick<Scalar: UnsignedInteger>(
+    val: Scalar,
+    bit_count: usize,
+    random: Scalar,
+) -> Scalar {
+    let shifted_random = random << (bit_count - 1);
+    ((val.wrapping_sub(Scalar::ONE) | shifted_random) & val) >> (bit_count - 1)
+}
+
 impl<Scalar> SignedDecomposer<Scalar>
 where
     Scalar: UnsignedInteger,
@@ -125,6 +144,36 @@ where
         native_closest_representable(input, self.level_count, self.base_log)
     }
 
+    #[inline(always)]
+    pub fn init_decomposer_state(&self, input: Scalar) -> Scalar {
+        // The closest number representable by the decomposition can be computed by performing
+        // the rounding at the appropriate bit.
+
+        // We compute the number of least significant bits which can not be represented by the
+        // decomposition
+        // Example with level_count = 3, base_log = 4 and BITS == 64 -> 52
+        let rep_bit_count = self.level_count * self.base_log;
+        let non_rep_bit_count: usize = Scalar::BITS - rep_bit_count;
+        // Move the representable bits + 1 to the LSB, with our example :
+        //       |-----| 64 - (64 - 12 - 1) == 13 bits
+        // 0....0XX...XX
+        let mut res = input >> (non_rep_bit_count - 1);
+        // Fetch the first bit value as we need it for a balanced rounding
+        let rounding_bit = res & Scalar::ONE;
+        // Add one to do the rounding by adding the half interval
+        res += Scalar::ONE;
+        // Discard the LSB which was the one deciding in which direction we round
+        res >>= 1;
+        // Keep the low base_log * level bits
+        let mod_mask = Scalar::MAX >> (Scalar::BITS - rep_bit_count);
+        res &= mod_mask;
+        // Control bit about whether we should balance the state
+        // This is equivalent to res > 2^(base_log * l) || (res == 2^(base_log * l) && random == 1)
+        let need_balance = balanced_rounding_condition_bit_trick(res, rep_bit_count, rounding_bit);
+        // Balance depending on the control bit
+        res.wrapping_sub(need_balance << rep_bit_count)
+    }
+
     /// Generate an iterator over the terms of the decomposition of the input.
     ///
     /// # Warning
@@ -161,7 +210,7 @@ where
         // Note that there would be no sense of making the decomposition on an input which was
         // not rounded to the closest representable first. We then perform it before decomposing.
         SignedDecompositionIter::new(
-            self.closest_representable(input),
+            self.init_decomposer_state(input),
             DecompositionBaseLog(self.base_log),
             DecompositionLevelCount(self.level_count),
         )
@@ -514,6 +563,44 @@ where
             }))
         } else {
             None
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_balanced_rounding_condition_as_bit_trick() {
+        for rep_bit_count in 1..13 {
+            println!("{rep_bit_count}");
+            let b = 1u64 << rep_bit_count;
+            let b_over_2 = b / 2;
+
+            for val in 0..b {
+                for random in [0, 1] {
+                    let test_val = (val > b_over_2) || ((val == b_over_2) && (random == 1));
+                    let bit_trick =
+                        balanced_rounding_condition_bit_trick(val, rep_bit_count, random);
+                    let bit_trick_as_bool = if bit_trick == 1 {
+                        true
+                    } else if bit_trick == 0 {
+                        false
+                    } else {
+                        panic!("Bit trick result was not a bit.");
+                    };
+
+                    assert_eq!(
+                        test_val, bit_trick_as_bool,
+                        "val    ={val}\n\
+                         val_b  ={val:064b}\n\
+                         random ={random}\n\
+                         expected: {test_val}\n\
+                         got     : {bit_trick_as_bool}"
+                    );
+                }
+            }
         }
     }
 }
