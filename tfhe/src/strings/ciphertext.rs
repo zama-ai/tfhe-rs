@@ -1,7 +1,8 @@
-use crate::client_key::{ClientKey, EncU16};
-use crate::server_key::ServerKey;
-use crate::N;
-use tfhe::integer::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
+use crate::integer::{
+    ClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext, ServerKey,
+};
+use crate::strings::client_key::EncU16;
+use crate::strings::N;
 
 /// Represents a encrypted ASCII character.
 #[derive(Clone)]
@@ -32,7 +33,7 @@ impl ClearString {
         assert!(str.is_ascii() && !str.contains('\0'));
         assert!(str.len() <= N * 8);
 
-        ClearString { str }
+        Self { str }
     }
 
     pub fn str(&self) -> &str {
@@ -56,8 +57,8 @@ impl FheAsciiChar {
     }
 
     pub fn null(sk: &ServerKey) -> Self {
-        FheAsciiChar {
-            enc_char: sk.key().create_trivial_zero_radix(4),
+        Self {
+            enc_char: sk.create_trivial_zero_radix(4),
         }
     }
 }
@@ -81,7 +82,7 @@ impl FheString {
         let enc_string: Vec<_> = str
             .bytes()
             .map(|char| FheAsciiChar {
-                enc_char: server_key.key().create_trivial_radix(char, 4),
+                enc_char: server_key.create_trivial_radix(char, 4),
             })
             .collect();
 
@@ -113,7 +114,7 @@ impl FheString {
 
     // Converts a `RadixCiphertext` to a `FheString`, building a `FheAsciiChar` for each 4 blocks.
     // Panics if the uint doesn't have a number of blocks that is multiple of 4.
-    pub fn from_uint(uint: RadixCiphertext, padded: bool) -> FheString {
+    pub fn from_uint(uint: RadixCiphertext, padded: bool) -> Self {
         let blocks_len = uint.blocks().len();
         assert_eq!(blocks_len % 4, 0);
 
@@ -130,7 +131,7 @@ impl FheString {
             ascii_vec.push(FheAsciiChar { enc_char: byte })
         }
 
-        FheString {
+        Self {
             enc_string: ascii_vec,
             padded,
         }
@@ -153,8 +154,7 @@ impl FheString {
         let mut uint = RadixCiphertext::from_blocks(blocks);
 
         if uint.blocks().is_empty() {
-            sk.key()
-                .extend_radix_with_trivial_zero_blocks_lsb_assign(&mut uint, 4);
+            sk.extend_radix_with_trivial_zero_blocks_lsb_assign(&mut uint, 4);
         }
 
         uint
@@ -178,8 +178,8 @@ impl FheString {
         self.len() == 0 || (self.is_padded() && self.len() == 1)
     }
 
-    pub fn empty() -> FheString {
-        FheString {
+    pub fn empty() -> Self {
+        Self {
             enc_string: vec![],
             padded: false,
         }
@@ -189,11 +189,13 @@ impl FheString {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::server_key::gen_keys;
+    use crate::integer::{ClientKey, ServerKey};
+    use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
 
     #[test]
     fn test_uint_conversion() {
-        let (ck, sk) = gen_keys();
+        let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+        let sk = ServerKey::new_radix_server_key(&ck);
 
         let str =
             "Los Sheikah fueron originalmente criados de la Diosa Hylia antes del sellado del \
@@ -202,15 +204,17 @@ mod tests {
         let enc = FheString::new(&ck, str, Some(7));
 
         let uint = enc.to_uint(&sk);
-        let mut converted = FheString::from_uint(uint, false);
-        converted.set_is_padded(true);
+
+        let converted = FheString::from_uint(uint, true);
+
         let dec = ck.decrypt_ascii(&converted);
 
         assert_eq!(dec, str);
 
         let uint_into = enc.into_uint(&sk);
-        let mut converted = FheString::from_uint(uint_into, false);
-        converted.set_is_padded(true);
+
+        let converted = FheString::from_uint(uint_into, true);
+
         let dec = ck.decrypt_ascii(&converted);
 
         assert_eq!(dec, str);
