@@ -1174,8 +1174,8 @@ bench_hlapi_erc20_gpu: install_rs_check_toolchain
 gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 		--example generates_test_keys \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache -- \
-		$(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,experimental,internal-keycache -p $(TFHE_SPEC) \
+		-- $(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
 
 .PHONY: gen_key_cache_core_crypto # Run function to generate keys and cache them for core_crypto tests
 gen_key_cache_core_crypto: install_rs_build_toolchain
