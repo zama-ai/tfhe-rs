@@ -191,9 +191,18 @@ pub struct Proof<G: Curve> {
     c_hat: G::G2,
     c_y: G::G1,
     pi: G::G1,
-    c_hat_t: Option<G::G2>,
-    c_h: Option<G::G1>,
-    pi_kzg: Option<G::G1>,
+    optional_fields: Option<ProofOptionalFields<G>>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
+    serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
+))]
+struct ProofOptionalFields<G: Curve> {
+    c_hat_t: G::G2,
+    c_h: G::G1,
+    pi_kzg: G::G1,
 }
 
 type CompressedG2<G> = <<G as Curve>::G2 as Compressible>::Compressed;
@@ -213,9 +222,22 @@ where
     c_hat: CompressedG2<G>,
     c_y: CompressedG1<G>,
     pi: CompressedG1<G>,
-    c_hat_t: Option<CompressedG2<G>>,
-    c_h: Option<CompressedG1<G>>,
-    pi_kzg: Option<CompressedG1<G>>,
+    optional_fields: Option<CompressedProofOptionalFields<G>>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    deserialize = "G: Curve, CompressedG1<G>: serde::Deserialize<'de>, CompressedG2<G>: serde::Deserialize<'de>",
+    serialize = "G: Curve, CompressedG1<G>: serde::Serialize, CompressedG2<G>: serde::Serialize"
+))]
+struct CompressedProofOptionalFields<G: Curve>
+where
+    G::G1: Compressible,
+    G::G2: Compressible,
+{
+    c_hat_t: CompressedG2<G>,
+    c_h: CompressedG1<G>,
+    pi_kzg: CompressedG1<G>,
 }
 
 impl<G: Curve> Compressible for Proof<G>
@@ -232,18 +254,24 @@ where
             c_hat,
             c_y,
             pi,
-            c_hat_t,
-            c_h,
-            pi_kzg,
+            optional_fields,
         } = self;
 
         CompressedProof {
             c_hat: c_hat.compress(),
             c_y: c_y.compress(),
             pi: pi.compress(),
-            c_hat_t: c_hat_t.map(|val| val.compress()),
-            c_h: c_h.map(|val| val.compress()),
-            pi_kzg: pi_kzg.map(|val| val.compress()),
+            optional_fields: optional_fields.as_ref().map(
+                |ProofOptionalFields {
+                     c_hat_t,
+                     c_h,
+                     pi_kzg,
+                 }| CompressedProofOptionalFields {
+                    c_hat_t: c_hat_t.compress(),
+                    c_h: c_h.compress(),
+                    pi_kzg: pi_kzg.compress(),
+                },
+            ),
         }
     }
 
@@ -252,28 +280,29 @@ where
             c_hat,
             c_y,
             pi,
-            c_hat_t,
-            c_h,
-            pi_kzg,
+            optional_fields,
         } = compressed;
 
         Ok(Proof {
             c_hat: G::G2::uncompress(c_hat)?,
             c_y: G::G1::uncompress(c_y)?,
             pi: G::G1::uncompress(pi)?,
-            c_hat_t: c_hat_t.map(G::G2::uncompress).transpose()?,
-            c_h: c_h.map(G::G1::uncompress).transpose()?,
-            pi_kzg: pi_kzg.map(G::G1::uncompress).transpose()?,
-        })
-    }
-}
 
-impl<G: Curve> Proof<G> {
-    pub fn content_is_usable(&self) -> bool {
-        matches!(
-            (self.c_hat_t, self.c_h, self.pi_kzg),
-            (None, None, None) | (Some(_), Some(_), Some(_))
-        )
+            optional_fields: if let Some(CompressedProofOptionalFields {
+                c_hat_t,
+                c_h,
+                pi_kzg,
+            }) = optional_fields
+            {
+                Some(ProofOptionalFields {
+                    c_hat_t: G::G2::uncompress(c_hat_t)?,
+                    c_h: G::G1::uncompress(c_h)?,
+                    pi_kzg: G::G1::uncompress(pi_kzg)?,
+                })
+            } else {
+                None
+            },
+        })
     }
 }
 
@@ -793,18 +822,18 @@ pub fn prove<G: Curve>(
             c_hat,
             c_y,
             pi,
-            c_hat_t: Some(c_hat_t),
-            c_h: Some(c_h),
-            pi_kzg: Some(pi_kzg),
+            optional_fields: Some(ProofOptionalFields {
+                c_hat_t,
+                c_h,
+                pi_kzg,
+            }),
         }
     } else {
         Proof {
             c_hat,
             c_y,
             pi,
-            c_hat_t: None,
-            c_h: None,
-            pi_kzg: None,
+            optional_fields: None,
         }
     }
 }
@@ -935,14 +964,18 @@ pub fn verify<G: Curve>(
     public: (&PublicParams<G>, &PublicCommit<G>),
     metadata: &[u8],
 ) -> Result<(), ()> {
-    let &Proof {
+    let Proof {
         c_hat,
         c_y,
         pi,
-        c_hat_t,
-        c_h,
-        pi_kzg,
+        optional_fields,
     } = proof;
+
+    let c_hat = *c_hat;
+    let c_y = *c_y;
+    let pi = *pi;
+    let optional_fields = optional_fields.clone();
+
     let e = G::Gt::pairing;
 
     let &PublicParams {
@@ -1081,7 +1114,12 @@ pub fn verify<G: Curve>(
     let [delta_eq, delta_y] = delta;
     let delta = [delta_eq, delta_y, delta_theta];
 
-    if let (Some(pi_kzg), Some(c_hat_t), Some(c_h)) = (pi_kzg, c_hat_t, c_h) {
+    if let Some(ProofOptionalFields {
+        c_hat_t,
+        c_h,
+        pi_kzg,
+    }) = optional_fields
+    {
         let mut z = G::Zp::ZERO;
         G::Zp::hash(
             core::array::from_mut(&mut z),

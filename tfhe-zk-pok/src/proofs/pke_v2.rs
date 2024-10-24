@@ -243,8 +243,13 @@ pub struct Proof<G: Curve> {
     pi: G::G1,
     pi_kzg: G::G1,
 
-    C_hat_h3: Option<G::G2>,
-    C_hat_w: Option<G::G2>,
+    optional_fields: Option<ProofOptionalFields<G>>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+struct ProofOptionalFields<G: Curve> {
+    C_hat_h3: G::G2,
+    C_hat_w: G::G2,
 }
 
 type CompressedG2<G> = <<G as Curve>::G2 as Compressible>::Compressed;
@@ -273,8 +278,21 @@ where
     pi: CompressedG1<G>,
     pi_kzg: CompressedG1<G>,
 
-    C_hat_h3: Option<CompressedG2<G>>,
-    C_hat_w: Option<CompressedG2<G>>,
+    optional_fields: Option<CompressedProofOptionalFields<G>>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    deserialize = "G: Curve, CompressedG1<G>: serde::Deserialize<'de>, CompressedG2<G>: serde::Deserialize<'de>",
+    serialize = "G: Curve, CompressedG1<G>: serde::Serialize, CompressedG2<G>: serde::Serialize"
+))]
+struct CompressedProofOptionalFields<G: Curve>
+where
+    G::G1: Compressible,
+    G::G2: Compressible,
+{
+    C_hat_h3: CompressedG2<G>,
+    C_hat_w: CompressedG2<G>,
 }
 
 impl<G: Curve> Compressible for Proof<G>
@@ -299,8 +317,7 @@ where
             C_hat_t,
             pi,
             pi_kzg,
-            C_hat_h3,
-            C_hat_w,
+            optional_fields,
         } = self;
 
         CompressedProof {
@@ -315,8 +332,13 @@ where
             C_hat_t: C_hat_t.compress(),
             pi: pi.compress(),
             pi_kzg: pi_kzg.compress(),
-            C_hat_h3: C_hat_h3.map(|val| val.compress()),
-            C_hat_w: C_hat_w.map(|val| val.compress()),
+
+            optional_fields: optional_fields.as_ref().map(
+                |ProofOptionalFields { C_hat_h3, C_hat_w }| CompressedProofOptionalFields {
+                    C_hat_h3: C_hat_h3.compress(),
+                    C_hat_w: C_hat_w.compress(),
+                },
+            ),
         }
     }
 
@@ -333,8 +355,7 @@ where
             C_hat_t,
             pi,
             pi_kzg,
-            C_hat_h3,
-            C_hat_w,
+            optional_fields,
         } = compressed;
 
         Ok(Proof {
@@ -349,8 +370,17 @@ where
             C_hat_t: G::G2::uncompress(C_hat_t)?,
             pi: G::G1::uncompress(pi)?,
             pi_kzg: G::G1::uncompress(pi_kzg)?,
-            C_hat_h3: C_hat_h3.map(G::G2::uncompress).transpose()?,
-            C_hat_w: C_hat_w.map(G::G2::uncompress).transpose()?,
+
+            optional_fields: if let Some(CompressedProofOptionalFields { C_hat_h3, C_hat_w }) =
+                optional_fields
+            {
+                Some(ProofOptionalFields {
+                    C_hat_h3: G::G2::uncompress(C_hat_h3)?,
+                    C_hat_w: G::G2::uncompress(C_hat_w)?,
+                })
+            } else {
+                None
+            },
         })
     }
 }
@@ -1383,42 +1413,49 @@ pub fn prove<G: Curve>(
         .collect::<Box<[_]>>();
     scalars.reverse();
     let C_h2 = G::G1::multi_mul_scalar(&g_list[..n], &scalars);
-    let (C_hat_h3, C_hat_w) = match load {
-        ComputeLoad::Proof => rayon::join(
-            || {
-                Some(G::G2::multi_mul_scalar(
-                    &g_hat_list[n - (d + k)..n],
-                    &(0..d + k)
-                        .rev()
-                        .map(|j| {
-                            let mut acc = G::Zp::ZERO;
-                            for (i, &phi) in phi.iter().enumerate() {
-                                match R(i, d + k + 4 + j) {
-                                    0 => {}
-                                    1 => acc += phi,
-                                    -1 => acc -= phi,
-                                    _ => unreachable!(),
+    let optional_fields = match load {
+        ComputeLoad::Proof => {
+            let (C_hat_h3, C_hat_w) = rayon::join(
+                || {
+                    G::G2::multi_mul_scalar(
+                        &g_hat_list[n - (d + k)..n],
+                        &(0..d + k)
+                            .rev()
+                            .map(|j| {
+                                let mut acc = G::Zp::ZERO;
+                                for (i, &phi) in phi.iter().enumerate() {
+                                    match R(i, d + k + 4 + j) {
+                                        0 => {}
+                                        1 => acc += phi,
+                                        -1 => acc -= phi,
+                                        _ => unreachable!(),
+                                    }
                                 }
-                            }
-                            delta_r * acc - delta_theta_q * theta[j]
-                        })
-                        .collect::<Box<[_]>>(),
-                ))
-            },
-            || {
-                Some(G::G2::multi_mul_scalar(
-                    &g_hat_list[..d + k + 4],
-                    &w[..d + k + 4],
-                ))
-            },
-        ),
-        ComputeLoad::Verify => (None, None),
+                                delta_r * acc - delta_theta_q * theta[j]
+                            })
+                            .collect::<Box<[_]>>(),
+                    )
+                },
+                || G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &w[..d + k + 4]),
+            );
+
+            Some(ProofOptionalFields { C_hat_h3, C_hat_w })
+        }
+        ComputeLoad::Verify => None,
     };
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_le_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_le_bytes);
-    let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
-    let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
+    let byte_generators = if let Some(ProofOptionalFields { C_hat_h3, C_hat_w }) = optional_fields {
+        Some((G::G2::to_le_bytes(C_hat_h3), G::G2::to_le_bytes(C_hat_w)))
+    } else {
+        None
+    };
+
+    let (C_hat_h3_bytes, C_hat_w_bytes): (&[u8], &[u8]) =
+        if let Some((C_hat_h3_bytes_owner, C_hat_w_bytes_owner)) = byte_generators.as_ref() {
+            (C_hat_h3_bytes_owner.as_ref(), C_hat_w_bytes_owner.as_ref())
+        } else {
+            (&[], &[])
+        };
 
     let C_hat_t = G::G2::multi_mul_scalar(g_hat_list, &t);
 
@@ -1622,10 +1659,9 @@ pub fn prove<G: Curve>(
         C_h1,
         C_h2,
         C_hat_t,
-        C_hat_h3,
-        C_hat_w,
         pi,
         pi_kzg,
+        optional_fields,
     }
 }
 
@@ -1737,7 +1773,7 @@ pub fn verify<G: Curve>(
     public: (&PublicParams<G>, &PublicCommit<G>),
     metadata: &[u8],
 ) -> Result<(), ()> {
-    let &Proof {
+    let Proof {
         C_hat_e,
         C_e,
         C_r_tilde,
@@ -1747,11 +1783,24 @@ pub fn verify<G: Curve>(
         C_h1,
         C_h2,
         C_hat_t,
-        C_hat_h3,
-        C_hat_w,
         pi,
         pi_kzg,
+        optional_fields,
     } = proof;
+
+    let C_hat_e = *C_hat_e;
+    let C_e = *C_e;
+    let C_r_tilde = *C_r_tilde;
+    let C_R = *C_R;
+    let C_hat_bin = *C_hat_bin;
+    let C_y = *C_y;
+    let C_h1 = *C_h1;
+    let C_h2 = *C_h2;
+    let C_hat_t = *C_hat_t;
+    let pi = *pi;
+    let pi_kzg = *pi_kzg;
+    let optional_fields = optional_fields.clone();
+
     let pairing = G::Gt::pairing;
 
     let &PublicParams {
@@ -1803,10 +1852,18 @@ pub fn verify<G: Curve>(
         return Err(());
     }
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_le_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_le_bytes);
-    let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
-    let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
+    let byte_generators = if let Some(ProofOptionalFields { C_hat_h3, C_hat_w }) = optional_fields {
+        Some((G::G2::to_le_bytes(C_hat_h3), G::G2::to_le_bytes(C_hat_w)))
+    } else {
+        None
+    };
+
+    let (C_hat_h3_bytes, C_hat_w_bytes): (&[u8], &[u8]) =
+        if let Some((C_hat_h3_bytes_owner, C_hat_w_bytes_owner)) = byte_generators.as_ref() {
+            (C_hat_h3_bytes_owner.as_ref(), C_hat_w_bytes_owner.as_ref())
+        } else {
+            (&[], &[])
+        };
 
     let x_bytes = &*[
         q.to_le_bytes().as_slice(),
@@ -2059,8 +2116,11 @@ pub fn verify<G: Curve>(
 
         let lhs2 = pairing(
             C_r_tilde,
-            match C_hat_h3 {
-                Some(C_hat_h3) => C_hat_h3,
+            match optional_fields {
+                Some(ProofOptionalFields {
+                    C_hat_h3,
+                    C_hat_w: _,
+                }) => C_hat_h3,
                 None => G::G2::multi_mul_scalar(
                     &g_hat_list[n - (d + k)..n],
                     &(0..d + k)
@@ -2093,8 +2153,11 @@ pub fn verify<G: Curve>(
         );
         let lhs4 = pairing(
             C_e.mul_scalar(delta_e),
-            match C_hat_w {
-                Some(C_hat_w) => C_hat_w,
+            match optional_fields {
+                Some(ProofOptionalFields {
+                    C_hat_h3: _,
+                    C_hat_w,
+                }) => C_hat_w,
                 None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &w[..d + k + 4]),
             },
         );
@@ -2140,7 +2203,7 @@ pub fn verify<G: Curve>(
         ],
     );
 
-    let load = if C_hat_h3.is_some() && C_hat_w.is_some() {
+    let load = if optional_fields.is_some() {
         ComputeLoad::Proof
     } else {
         ComputeLoad::Verify
@@ -2293,10 +2356,8 @@ pub fn verify<G: Curve>(
         g,
         {
             let mut C_hat = C_hat_t.mul_scalar(chi2);
-            if let Some(C_hat_h3) = C_hat_h3 {
+            if let Some(ProofOptionalFields { C_hat_h3, C_hat_w }) = optional_fields {
                 C_hat += C_hat_h3.mul_scalar(chi3);
-            }
-            if let Some(C_hat_w) = C_hat_w {
                 C_hat += C_hat_w.mul_scalar(chi4);
             }
             C_hat
