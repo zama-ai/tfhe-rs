@@ -1,10 +1,11 @@
 #!/usr/bin/env gnuplot
 
 GF = 2
-DATAFILE = "log-real-to-pred-".GF.".dat"
+SFX = "-tanh" # -tanh
+DATAFILE = "log-real-to-pred-".GF.SFX.".dat"
 
-set term pngcairo
-set out "histogram-".GF.".png"
+set term pngcairo size 1200,900 linewidth 2
+set out "histogram-".GF.SFX.".png"
 
 set style fill solid 0.5 # fill style
 set xrange [-4:4]
