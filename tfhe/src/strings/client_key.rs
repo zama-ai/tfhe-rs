@@ -1,14 +1,6 @@
-use crate::integer::{ClientKey as FheClientKey, RadixCiphertext};
-use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
+use crate::integer::{ClientKey, RadixCiphertext};
 use crate::strings::ciphertext::{FheAsciiChar, FheString};
 
-/// Represents a client key for encryption and decryption of strings.
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub struct ClientKey {
-    key: FheClientKey,
-}
-
-/// Encrypted u16 value. It contains an optional `max` to restrict the range of the value.
 pub struct EncU16 {
     cipher: RadixCiphertext,
     max: Option<u16>,
@@ -25,17 +17,6 @@ impl EncU16 {
 }
 
 impl ClientKey {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Self {
-            key: FheClientKey::new(PARAM_MESSAGE_2_CARRY_2),
-        }
-    }
-
-    pub fn key(&self) -> &FheClientKey {
-        &self.key
-    }
-
     /// Encrypts an ASCII string, optionally padding it with the specified amount of 0s, and returns
     /// an [`FheString`].
     ///
@@ -51,14 +32,14 @@ impl ClientKey {
         let mut enc_string: Vec<_> = str
             .bytes()
             .map(|char| FheAsciiChar {
-                enc_char: self.key.encrypt_radix(char, 4),
+                enc_char: self.encrypt_radix(char, 4),
             })
             .collect();
 
         // Optional padding
         if let Some(count) = padding {
             let null = (0..count).map(|_| FheAsciiChar {
-                enc_char: self.key.encrypt_radix(0u8, 4),
+                enc_char: self.encrypt_radix(0u8, 4),
             });
 
             enc_string.extend(null);
@@ -81,7 +62,7 @@ impl ClientKey {
             .chars()
             .iter()
             .filter_map(|enc_char| {
-                let byte = self.key.decrypt_radix(enc_char.ciphertext());
+                let byte = self.decrypt_radix(enc_char.ciphertext());
 
                 if byte == 0 {
                     prev_was_null = true;
@@ -123,7 +104,7 @@ impl ClientKey {
         }
 
         EncU16 {
-            cipher: self.key.encrypt_radix(val, 8),
+            cipher: self.encrypt_radix(val, 8),
             max,
         }
     }

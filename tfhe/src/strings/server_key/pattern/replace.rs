@@ -1,8 +1,8 @@
+use crate::integer::prelude::*;
+use crate::integer::{BooleanBlock, RadixCiphertext};
 use crate::strings::ciphertext::{FheString, GenericPattern, UIntArg};
 use crate::strings::server_key::pattern::IsMatch;
 use crate::strings::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
-use crate::integer::prelude::*;
-use crate::integer::{BooleanBlock, RadixCiphertext};
 
 impl ServerKey {
     // Replaces the pattern ignoring the first `start` chars (i.e. these are not replaced)
@@ -30,10 +30,10 @@ impl ServerKey {
 
         let (mut replaced, rhs) = rayon::join(
             || {
-                let str_len = self.key.create_trivial_radix(str.len() as u32, 16);
+                let str_len = self.create_trivial_radix(str.len() as u32, 16);
 
                 // Get the [lhs] shifting right by [from, rhs].len()
-                let shift_right = self.key.sub_parallelized(&str_len, find_index);
+                let shift_right = self.sub_parallelized(&str_len, find_index);
                 let mut lhs = self.right_shift_chars(str, &shift_right);
                 // As lhs is shifted right we know there aren't nulls on the right, unless empty
                 lhs.set_is_padded(false);
@@ -50,11 +50,9 @@ impl ServerKey {
                 // Get the [rhs] shifting left by [lhs, from].len()
                 let shift_left = match from_len {
                     FheStringLen::NoPadding(len) => {
-                        self.key.scalar_add_parallelized(find_index, *len as u32)
+                        self.scalar_add_parallelized(find_index, *len as u32)
                     }
-                    FheStringLen::Padding(enc_len) => {
-                        self.key.add_parallelized(find_index, enc_len)
-                    }
+                    FheStringLen::Padding(enc_len) => self.add_parallelized(find_index, enc_len),
                 };
 
                 let mut rhs = self.left_shift_chars(str, &shift_left);
@@ -71,12 +69,12 @@ impl ServerKey {
             || self.conditional_string(replace, replaced, str),
             || {
                 // If there's match we return [lhs, to].len(), else we return 0 (index default)
-                let add_to_index = self.key.if_then_else_parallelized(
+                let add_to_index = self.if_then_else_parallelized(
                     replace,
                     enc_to_len,
-                    &self.key.create_trivial_zero_radix(16),
+                    &self.create_trivial_zero_radix(16),
                 );
-                self.key.add_parallelized(find_index, &add_to_index)
+                self.add_parallelized(find_index, &add_to_index)
             },
         )
     }
@@ -89,7 +87,7 @@ impl ServerKey {
         to: &FheString,
         enc_n: Option<&RadixCiphertext>,
     ) {
-        let mut skip = self.key.create_trivial_zero_radix(16);
+        let mut skip = self.create_trivial_zero_radix(16);
         let trivial_or_enc_from = match from {
             GenericPattern::Clear(from) => FheString::trivial(self, from.str()),
             GenericPattern::Enc(from) => from.clone(),
@@ -107,9 +105,7 @@ impl ServerKey {
                     || self.len(result),
                     || match self.len(to) {
                         FheStringLen::Padding(enc_val) => enc_val,
-                        FheStringLen::NoPadding(val) => {
-                            self.key.create_trivial_radix(val as u32, 16)
-                        }
+                        FheStringLen::NoPadding(val) => self.create_trivial_radix(val as u32, 16),
                     },
                 )
             },
@@ -127,7 +123,7 @@ impl ServerKey {
                     let (mut index, is_match) = self.find(&shifted_str, from);
 
                     // We add `skip` to get the actual index of the pattern (in the non shifted str)
-                    self.key.add_assign_parallelized(&mut index, &skip);
+                    self.add_assign_parallelized(&mut index, &skip);
 
                     (*result, skip) =
                         self.replace_once(&is_match, &index, &from_len, &enc_to_len, result, to);
@@ -142,13 +138,12 @@ impl ServerKey {
                 // If we replace "" to "a" in the "ww" str, we get "awawa". So when `from_is_empty`
                 // we need to move to the next space between letters by adding 1 to the skip value
                 || match &from_is_empty {
-                    FheStringIsEmpty::Padding(enc) => self.key.add_assign_parallelized(
+                    FheStringIsEmpty::Padding(enc) => self.add_assign_parallelized(
                         &mut skip,
-                        &enc.clone().into_radix(num_blocks, &self.key),
+                        &enc.clone().into_radix(num_blocks, self),
                     ),
                     FheStringIsEmpty::NoPadding(clear) => {
-                        self.key
-                            .scalar_add_assign_parallelized(&mut skip, *clear as u8);
+                        self.scalar_add_assign_parallelized(&mut skip, *clear as u8);
                     }
                 },
             );
@@ -171,29 +166,26 @@ impl ServerKey {
             || {
                 let no_more_matches = match &str_len {
                     FheStringLen::Padding(enc) => {
-                        self.key.scalar_lt_parallelized(enc, current_iteration)
+                        self.scalar_lt_parallelized(enc, current_iteration)
                     }
-                    FheStringLen::NoPadding(clear) => self
-                        .key
-                        .create_trivial_boolean_block(*clear < current_iteration as usize),
+                    FheStringLen::NoPadding(clear) => {
+                        self.create_trivial_boolean_block(*clear < current_iteration as usize)
+                    }
                 };
 
                 match &from_is_empty {
-                    FheStringIsEmpty::Padding(enc) => {
-                        self.key.boolean_bitand(&no_more_matches, enc)
-                    }
+                    FheStringIsEmpty::Padding(enc) => self.boolean_bitand(&no_more_matches, enc),
                     FheStringIsEmpty::NoPadding(clear) => {
-                        let trivial = self.key.create_trivial_boolean_block(*clear);
-                        self.key.boolean_bitand(&no_more_matches, &trivial)
+                        let trivial = self.create_trivial_boolean_block(*clear);
+                        self.boolean_bitand(&no_more_matches, &trivial)
                     }
                 }
             },
-            || enc_n.map(|n| self.key.scalar_le_parallelized(n, current_iteration)),
+            || enc_n.map(|n| self.scalar_le_parallelized(n, current_iteration)),
         );
 
         if let Some(exceeded) = enc_n_is_exceeded {
-            self.key
-                .boolean_bitor_assign(&mut no_more_matches, &exceeded);
+            self.boolean_bitor_assign(&mut no_more_matches, &exceeded);
         }
 
         no_more_matches
@@ -216,10 +208,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{FheString, GenericPattern, UIntArg};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s, from, to) = ("hello", "l", "r");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -272,7 +266,7 @@ impl ServerKey {
 
                     // We have to take into account that encrypted n could be 0
                     if let UIntArg::Enc(enc_n) = count {
-                        let n_is_zero = self.key.scalar_eq_parallelized(enc_n.cipher(), 0);
+                        let n_is_zero = self.scalar_eq_parallelized(enc_n.cipher(), 0);
 
                         let mut re = self.conditional_string(&n_is_zero, result, to);
 
@@ -292,8 +286,8 @@ impl ServerKey {
                 }
 
                 if let UIntArg::Enc(enc_n) = count {
-                    let n_not_zero = self.key.scalar_ne_parallelized(enc_n.cipher(), 0);
-                    let and_val = self.key.boolean_bitand(&n_not_zero, &val);
+                    let n_not_zero = self.scalar_ne_parallelized(enc_n.cipher(), 0);
+                    let and_val = self.boolean_bitand(&n_not_zero, &val);
 
                     let mut re = self.conditional_string(&and_val, to.clone(), str);
 
@@ -341,10 +335,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s, from, to) = ("hi", "i", "o");
     ///
     /// let enc_s = FheString::new(&ck, s, None);

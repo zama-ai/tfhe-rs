@@ -1,9 +1,7 @@
+use crate::integer::{ClientKey, ServerKey};
+use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
 use crate::strings::ciphertext::{FheString, UIntArg};
-use crate::strings::client_key::ClientKey;
-use crate::strings::server_key::{
-    gen_keys, FheStringIsEmpty, FheStringIterator, FheStringLen, ServerKey,
-};
-// use clap::{value_parser, Arg, Command};
+use crate::strings::server_key::{FheStringIsEmpty, FheStringIterator, FheStringLen};
 use std::time::Instant;
 
 pub mod ciphertext;
@@ -89,7 +87,8 @@ struct Keys {
 
 impl Keys {
     fn new() -> Self {
-        let (ck, sk) = gen_keys();
+        let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+        let sk = ServerKey::new_radix_server_key(&ck);
 
         Self { ck, sk }
     }

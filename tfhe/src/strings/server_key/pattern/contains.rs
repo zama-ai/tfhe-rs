@@ -36,7 +36,7 @@ impl ServerKey {
         let block_vec: Vec<_> = matched
             .into_iter()
             .map(|bool| {
-                let radix: RadixCiphertext = bool.into_radix(1, &self.key);
+                let radix: RadixCiphertext = bool.into_radix(1, self);
                 radix.into_blocks()[0].clone()
             })
             .collect();
@@ -44,7 +44,7 @@ impl ServerKey {
         // This will be 0 if there was no match, non-zero otherwise
         let combined_radix = RadixCiphertext::from(block_vec);
 
-        self.key.scalar_ne_parallelized(&combined_radix, 0)
+        self.scalar_ne_parallelized(&combined_radix, 0)
     }
 
     fn clear_compare_shifted(
@@ -61,7 +61,7 @@ impl ServerKey {
         let block_vec: Vec<_> = matched
             .into_iter()
             .map(|bool| {
-                let radix: RadixCiphertext = bool.into_radix(1, &self.key);
+                let radix: RadixCiphertext = bool.into_radix(1, self);
                 radix.into_blocks()[0].clone()
             })
             .collect();
@@ -69,7 +69,7 @@ impl ServerKey {
         // This will be 0 if there was no match, non-zero otherwise
         let combined_radix = RadixCiphertext::from(block_vec);
 
-        self.key.scalar_ne_parallelized(&combined_radix, 0)
+        self.scalar_ne_parallelized(&combined_radix, 0)
     }
 
     /// Returns `true` if the given pattern (either encrypted or clear) matches a substring of this
@@ -83,10 +83,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (bananas, nana, apples) = ("bananas", "nana", "apples");
     ///
     /// let enc_bananas = FheString::new(&ck, bananas, None);
@@ -96,8 +98,8 @@ impl ServerKey {
     /// let result1 = sk.contains(&enc_bananas, &enc_nana);
     /// let result2 = sk.contains(&enc_bananas, &clear_apples);
     ///
-    /// let should_be_true = ck.key().decrypt_bool(&result1);
-    /// let should_be_false = ck.key().decrypt_bool(&result2);
+    /// let should_be_true = ck.decrypt_bool(&result1);
+    /// let should_be_false = ck.decrypt_bool(&result2);
     ///
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
@@ -109,7 +111,7 @@ impl ServerKey {
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
-            IsMatch::Clear(val) => return self.key.create_trivial_boolean_block(val),
+            IsMatch::Clear(val) => return self.create_trivial_boolean_block(val),
             IsMatch::Cipher(val) => return val,
             IsMatch::None => (),
         }
@@ -142,10 +144,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (bananas, ba, nan) = ("bananas", "ba", "nan");
     ///
     /// let enc_bananas = FheString::new(&ck, bananas, None);
@@ -155,8 +159,8 @@ impl ServerKey {
     /// let result1 = sk.starts_with(&enc_bananas, &enc_ba);
     /// let result2 = sk.starts_with(&enc_bananas, &clear_nan);
     ///
-    /// let should_be_true = ck.key().decrypt_bool(&result1);
-    /// let should_be_false = ck.key().decrypt_bool(&result2);
+    /// let should_be_true = ck.decrypt_bool(&result1);
+    /// let should_be_false = ck.decrypt_bool(&result2);
     ///
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
@@ -168,7 +172,7 @@ impl ServerKey {
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
-            IsMatch::Clear(val) => return self.key.create_trivial_boolean_block(val),
+            IsMatch::Clear(val) => return self.create_trivial_boolean_block(val),
             IsMatch::Cipher(val) => return val,
             IsMatch::None => (),
         }
@@ -214,10 +218,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{ClearString, FheString, GenericPattern};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (bananas, anas, nana) = ("bananas", "anas", "nana");
     ///
     /// let enc_bananas = FheString::new(&ck, bananas, None);
@@ -227,8 +233,8 @@ impl ServerKey {
     /// let result1 = sk.ends_with(&enc_bananas, &enc_anas);
     /// let result2 = sk.ends_with(&enc_bananas, &clear_nana);
     ///
-    /// let should_be_true = ck.key().decrypt_bool(&result1);
-    /// let should_be_false = ck.key().decrypt_bool(&result2);
+    /// let should_be_true = ck.decrypt_bool(&result1);
+    /// let should_be_false = ck.decrypt_bool(&result2);
     ///
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
@@ -240,7 +246,7 @@ impl ServerKey {
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
-            IsMatch::Clear(val) => return self.key.create_trivial_boolean_block(val),
+            IsMatch::Clear(val) => return self.create_trivial_boolean_block(val),
             IsMatch::Cipher(val) => return val,
             IsMatch::None => (),
         }

@@ -1,7 +1,8 @@
-use crate::strings::client_key::{ClientKey, EncU16};
-use crate::strings::server_key::ServerKey;
+use crate::integer::{
+    ClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext, ServerKey,
+};
+use crate::strings::client_key::EncU16;
 use crate::strings::N;
-use crate::integer::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
 
 /// Represents a encrypted ASCII character.
 #[derive(Clone)]
@@ -57,7 +58,7 @@ impl FheAsciiChar {
 
     pub fn null(sk: &ServerKey) -> Self {
         Self {
-            enc_char: sk.key().create_trivial_zero_radix(4),
+            enc_char: sk.create_trivial_zero_radix(4),
         }
     }
 }
@@ -81,7 +82,7 @@ impl FheString {
         let enc_string: Vec<_> = str
             .bytes()
             .map(|char| FheAsciiChar {
-                enc_char: server_key.key().create_trivial_radix(char, 4),
+                enc_char: server_key.create_trivial_radix(char, 4),
             })
             .collect();
 
@@ -153,8 +154,7 @@ impl FheString {
         let mut uint = RadixCiphertext::from_blocks(blocks);
 
         if uint.blocks().is_empty() {
-            sk.key()
-                .extend_radix_with_trivial_zero_blocks_lsb_assign(&mut uint, 4);
+            sk.extend_radix_with_trivial_zero_blocks_lsb_assign(&mut uint, 4);
         }
 
         uint
@@ -189,11 +189,13 @@ impl FheString {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::strings::server_key::gen_keys;
+    use crate::integer::{ClientKey, ServerKey};
+    use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
 
     #[test]
     fn test_uint_conversion() {
-        let (ck, sk) = gen_keys();
+        let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+        let sk = ServerKey::new_radix_server_key(&ck);
 
         let str =
             "Los Sheikah fueron originalmente criados de la Diosa Hylia antes del sellado del \
