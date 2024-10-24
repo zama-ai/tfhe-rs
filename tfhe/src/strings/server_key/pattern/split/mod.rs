@@ -13,17 +13,17 @@ impl ServerKey {
         index: &RadixCiphertext,
         inclusive: bool,
     ) -> (FheString, FheString) {
-        let str_len = self.key.create_trivial_radix(str.len() as u32, 16);
+        let str_len = self.create_trivial_radix(str.len() as u32, 16);
         let trivial_or_enc_pat = match pat {
             GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
             GenericPattern::Enc(pat) => pat.clone(),
         };
 
         let (mut shift_right, real_pat_len) = rayon::join(
-            || self.key.sub_parallelized(&str_len, index),
+            || self.sub_parallelized(&str_len, index),
             || match self.len(&trivial_or_enc_pat) {
                 FheStringLen::Padding(enc_val) => enc_val,
-                FheStringLen::NoPadding(val) => self.key.create_trivial_radix(val as u32, 16),
+                FheStringLen::NoPadding(val) => self.create_trivial_radix(val as u32, 16),
             },
         );
 
@@ -31,8 +31,7 @@ impl ServerKey {
             || {
                 if inclusive {
                     // Remove the real pattern length from the amount to shift
-                    self.key
-                        .sub_assign_parallelized(&mut shift_right, &real_pat_len);
+                    self.sub_assign_parallelized(&mut shift_right, &real_pat_len);
                 }
 
                 let lhs = self.right_shift_chars(str, &shift_right);
@@ -42,7 +41,7 @@ impl ServerKey {
                 self.left_shift_chars(&lhs, &shift_right)
             },
             || {
-                let shift_left = self.key.add_parallelized(&real_pat_len, index);
+                let shift_left = self.add_parallelized(&real_pat_len, index);
 
                 self.left_shift_chars(str, &shift_left)
             },
@@ -74,10 +73,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s, pat) = (" hello world", " ");
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
@@ -86,7 +87,7 @@ impl ServerKey {
     ///
     /// let lhs_decrypted = ck.decrypt_ascii(&lhs);
     /// let rhs_decrypted = ck.decrypt_ascii(&rhs);
-    /// let split_occurred = ck.key().decrypt_bool(&split_occurred);
+    /// let split_occurred = ck.decrypt_bool(&split_occurred);
     ///
     /// assert_eq!(lhs_decrypted, " hello");
     /// assert_eq!(rhs_decrypted, "world");
@@ -109,14 +110,14 @@ impl ServerKey {
                     (
                         str.clone(),
                         FheString::empty(),
-                        self.key.create_trivial_boolean_block(true),
+                        self.create_trivial_boolean_block(true),
                     )
                 } else {
                     // There's no match so we default to empty string and str
                     (
                         FheString::empty(),
                         str.clone(),
-                        self.key.create_trivial_boolean_block(false),
+                        self.create_trivial_boolean_block(false),
                     )
                 };
             }
@@ -144,10 +145,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s, pat) = (" hello world", " ");
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
@@ -156,7 +159,7 @@ impl ServerKey {
     ///
     /// let lhs_decrypted = ck.decrypt_ascii(&lhs);
     /// let rhs_decrypted = ck.decrypt_ascii(&rhs);
-    /// let split_occurred = ck.key().decrypt_bool(&split_occurred);
+    /// let split_occurred = ck.decrypt_bool(&split_occurred);
     ///
     /// assert_eq!(lhs_decrypted, "");
     /// assert_eq!(rhs_decrypted, "hello world");
@@ -179,14 +182,14 @@ impl ServerKey {
                     (
                         FheString::empty(),
                         str.clone(),
-                        self.key.create_trivial_boolean_block(true),
+                        self.create_trivial_boolean_block(true),
                     )
                 } else {
                     // There's no match so we default to empty string and str
                     (
                         FheString::empty(),
                         str.clone(),
-                        self.key.create_trivial_boolean_block(false),
+                        self.create_trivial_boolean_block(false),
                     )
                 };
             }
@@ -210,19 +213,19 @@ impl ServerKey {
     ) -> SplitInternal {
         let mut max_counter = match self.len(str) {
             FheStringLen::Padding(enc_val) => enc_val,
-            FheStringLen::NoPadding(val) => self.key.create_trivial_radix(val as u32, 16),
+            FheStringLen::NoPadding(val) => self.create_trivial_radix(val as u32, 16),
         };
 
-        self.key.scalar_add_assign_parallelized(&mut max_counter, 1);
+        self.scalar_add_assign_parallelized(&mut max_counter, 1);
 
         SplitInternal {
             split_type,
             state: str.clone(),
             pat: pat.clone(),
-            prev_was_some: self.key.create_trivial_boolean_block(true),
+            prev_was_some: self.create_trivial_boolean_block(true),
             counter: 0,
             max_counter,
-            counter_lt_max: self.key.create_trivial_boolean_block(true),
+            counter_lt_max: self.create_trivial_boolean_block(true),
         }
     }
 
@@ -240,12 +243,12 @@ impl ServerKey {
         let uint_not_0 = match &n {
             UIntArg::Clear(val) => {
                 if *val != 0 {
-                    self.key.create_trivial_boolean_block(true)
+                    self.create_trivial_boolean_block(true)
                 } else {
-                    self.key.create_trivial_boolean_block(false)
+                    self.create_trivial_boolean_block(false)
                 }
             }
-            UIntArg::Enc(enc) => self.key.scalar_ne_parallelized(enc.cipher(), 0),
+            UIntArg::Enc(enc) => self.scalar_ne_parallelized(enc.cipher(), 0),
         };
 
         let internal = self.split_internal(str, pat, split_type);
@@ -270,17 +273,17 @@ impl ServerKey {
 
         let max_counter = match self.len(str) {
             FheStringLen::Padding(enc_val) => enc_val,
-            FheStringLen::NoPadding(val) => self.key.create_trivial_radix(val as u32, 16),
+            FheStringLen::NoPadding(val) => self.create_trivial_radix(val as u32, 16),
         };
 
         let internal = SplitInternal {
             split_type,
             state: str.clone(),
             pat: pat.clone(),
-            prev_was_some: self.key.create_trivial_boolean_block(true),
+            prev_was_some: self.create_trivial_boolean_block(true),
             counter: 0,
             max_counter,
-            counter_lt_max: self.key.create_trivial_boolean_block(true),
+            counter_lt_max: self.create_trivial_boolean_block(true),
         };
 
         SplitNoTrailing { internal }
@@ -293,7 +296,7 @@ impl ServerKey {
 
         let leading_empty_str = match self.is_empty(&prev_return.0) {
             FheStringIsEmpty::Padding(enc) => enc,
-            FheStringIsEmpty::NoPadding(clear) => self.key.create_trivial_boolean_block(clear),
+            FheStringIsEmpty::NoPadding(clear) => self.create_trivial_boolean_block(clear),
         };
 
         SplitNoLeading {
@@ -353,8 +356,8 @@ impl FheStringIterator for SplitInternal {
                 }
             },
             || match sk.is_empty(&trivial_or_enc_pat) {
-                FheStringIsEmpty::Padding(enc) => enc.into_radix(16, &sk.key),
-                FheStringIsEmpty::NoPadding(clear) => sk.key.create_trivial_radix(clear as u32, 16),
+                FheStringIsEmpty::Padding(enc) => enc.into_radix(16, sk),
+                FheStringIsEmpty::NoPadding(clear) => sk.create_trivial_radix(clear as u32, 16),
             },
         );
 
@@ -367,9 +370,9 @@ impl FheStringIterator for SplitInternal {
             // start (or end in the rsplit case)
 
             if matches!(self.split_type, SplitType::RSplit) {
-                sk.key.sub_assign_parallelized(&mut index, &pat_is_empty);
+                sk.sub_assign_parallelized(&mut index, &pat_is_empty);
             } else {
-                sk.key.add_assign_parallelized(&mut index, &pat_is_empty);
+                sk.add_assign_parallelized(&mut index, &pat_is_empty);
             }
         }
 
@@ -396,18 +399,14 @@ impl FheStringIterator for SplitInternal {
 
         // Even if there isn't match, we return Some if there was match in the previous next call,
         // as we are returning the remaining state "wrapped" in Some
-        sk.key
-            .boolean_bitor_assign(&mut is_some, &self.prev_was_some);
+        sk.boolean_bitor_assign(&mut is_some, &self.prev_was_some);
 
         // If pattern is empty, `is_some` is always true, so we make it false when we have reached
         // the last possible counter value
-        sk.key
-            .boolean_bitand_assign(&mut is_some, &self.counter_lt_max);
+        sk.boolean_bitand_assign(&mut is_some, &self.counter_lt_max);
 
         self.prev_was_some = current_is_some;
-        self.counter_lt_max = sk
-            .key
-            .scalar_gt_parallelized(&self.max_counter, self.counter);
+        self.counter_lt_max = sk.scalar_gt_parallelized(&self.max_counter, self.counter);
 
         self.counter += 1;
 
@@ -422,8 +421,7 @@ impl FheStringIterator for SplitNInternal {
         let (mut result, mut is_some) = self.internal.next(sk);
 
         // This keeps the original `is_some` value unless we have exceeded n
-        sk.key
-            .boolean_bitand_assign(&mut is_some, &self.not_exceeded);
+        sk.boolean_bitand_assign(&mut is_some, &self.not_exceeded);
 
         // The moment counter is at least one less than n we return the remaining state, and make
         // `not_exceeded` false such that next calls are always None
@@ -431,25 +429,24 @@ impl FheStringIterator for SplitNInternal {
             UIntArg::Clear(clear_n) => {
                 if self.counter >= clear_n - 1 {
                     result = state;
-                    self.not_exceeded = sk.key.create_trivial_boolean_block(false);
+                    self.not_exceeded = sk.create_trivial_boolean_block(false);
                 }
             }
             UIntArg::Enc(enc_n) => {
                 // Note that when `enc_n` is zero `n_minus_one` wraps to a very large number and so
                 // `exceeded` will be false. Nonetheless the initial value of `not_exceeded`
                 // was set to false in the n is zero case, so we return None
-                let n_minus_one = sk.key.scalar_sub_parallelized(enc_n.cipher(), 1);
-                let exceeded = sk.key.scalar_le_parallelized(&n_minus_one, self.counter);
+                let n_minus_one = sk.scalar_sub_parallelized(enc_n.cipher(), 1);
+                let exceeded = sk.scalar_le_parallelized(&n_minus_one, self.counter);
 
                 rayon::join(
                     || result = sk.conditional_string(&exceeded, state, &result),
                     || {
-                        let current_not_exceeded = sk.key.boolean_bitnot(&exceeded);
+                        let current_not_exceeded = sk.boolean_bitnot(&exceeded);
 
                         // If current is not exceeded we use the previous not_exceeded value,
                         // or false if it's exceeded
-                        sk.key
-                            .boolean_bitand_assign(&mut self.not_exceeded, &current_not_exceeded);
+                        sk.boolean_bitand_assign(&mut self.not_exceeded, &current_not_exceeded);
                     },
                 );
             }
@@ -471,19 +468,18 @@ impl FheStringIterator for SplitNoTrailing {
             // string, we return None to remove it
             || match sk.is_empty(&result) {
                 FheStringIsEmpty::Padding(enc) => enc,
-                FheStringIsEmpty::NoPadding(clear) => sk.key.create_trivial_boolean_block(clear),
+                FheStringIsEmpty::NoPadding(clear) => sk.create_trivial_boolean_block(clear),
             },
-            || sk.key.boolean_bitnot(&self.internal.prev_was_some),
+            || sk.boolean_bitnot(&self.internal.prev_was_some),
         );
 
-        let trailing_empty_str = sk.key.boolean_bitand(&result_is_empty, &prev_was_none);
+        let trailing_empty_str = sk.boolean_bitand(&result_is_empty, &prev_was_none);
 
-        let not_trailing_empty_str = sk.key.boolean_bitnot(&trailing_empty_str);
+        let not_trailing_empty_str = sk.boolean_bitnot(&trailing_empty_str);
 
         // If there's no empty trailing string we get the previous `is_some`,
         // else we get false (None)
-        sk.key
-            .boolean_bitand_assign(&mut is_some, &not_trailing_empty_str);
+        sk.boolean_bitand_assign(&mut is_some, &not_trailing_empty_str);
 
         (result, is_some)
     }
@@ -504,18 +500,18 @@ impl FheStringIterator for SplitNoLeading {
             || {
                 let (lhs, rhs) = rayon::join(
                     // This is `is_some` if `leading_empty_str` is true, false otherwise
-                    || sk.key.boolean_bitand(&self.leading_empty_str, &is_some),
+                    || sk.boolean_bitand(&self.leading_empty_str, &is_some),
                     // This is the flag from the previous next call if `leading_empty_str` is true,
                     // false otherwise
                     || {
-                        sk.key.boolean_bitand(
-                            &sk.key.boolean_bitnot(&self.leading_empty_str),
+                        sk.boolean_bitand(
+                            &sk.boolean_bitnot(&self.leading_empty_str),
                             &self.prev_return.1,
                         )
                     },
                 );
 
-                sk.key.boolean_bitor(&lhs, &rhs)
+                sk.boolean_bitor(&lhs, &rhs)
             },
         );
 

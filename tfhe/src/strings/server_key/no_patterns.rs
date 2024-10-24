@@ -13,10 +13,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::{gen_keys, FheStringLen};
-    ///
-    /// let (ck, sk) = gen_keys();
+    /// use tfhe::strings::server_key::FheStringLen;
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let s = "hello";
     /// let number_of_nulls = 3;
     ///
@@ -35,7 +37,7 @@ impl ServerKey {
     ///     FheStringLen::NoPadding(_) => panic!("Unexpected no padding"),
     ///     FheStringLen::Padding(ciphertext) => {
     ///         // Homomorphically computed length, requires decryption for actual length
-    ///         let length = ck.key().decrypt_radix::<u32>(&ciphertext);
+    ///         let length = ck.decrypt_radix::<u32>(&ciphertext);
     ///         assert_eq!(length, 5)
     ///     }
     /// }
@@ -46,14 +48,13 @@ impl ServerKey {
                 .chars()
                 .par_iter()
                 .map(|char| {
-                    let bool = self.key.scalar_ne_parallelized(char.ciphertext(), 0u8);
-                    bool.into_radix(16, &self.key)
+                    let bool = self.scalar_ne_parallelized(char.ciphertext(), 0u8);
+                    bool.into_radix(16, self)
                 })
                 .collect();
 
             // If we add the number of non-zero elements we get the actual length, without padding
             let len = self
-                .key
                 .sum_ciphertexts_parallelized(non_zero_chars.iter())
                 .expect("There's at least one padding character");
 
@@ -72,10 +73,13 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::{gen_keys, FheStringIsEmpty};
+    /// use tfhe::strings::server_key::FheStringIsEmpty;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let s = "";
     /// let number_of_nulls = 2;
     ///
@@ -94,7 +98,7 @@ impl ServerKey {
     ///     FheStringIsEmpty::NoPadding(_) => panic!("Unexpected no padding"),
     ///     FheStringIsEmpty::Padding(ciphertext) => {
     ///         // Homomorphically computed emptiness, requires decryption for actual value
-    ///         let is_empty = ck.key().decrypt_bool(&ciphertext);
+    ///         let is_empty = ck.decrypt_bool(&ciphertext);
     ///         assert!(is_empty)
     ///     }
     /// }
@@ -102,11 +106,11 @@ impl ServerKey {
     pub fn is_empty(&self, str: &FheString) -> FheStringIsEmpty {
         if str.is_padded() {
             if str.len() == 1 {
-                return FheStringIsEmpty::Padding(self.key.create_trivial_boolean_block(true));
+                return FheStringIsEmpty::Padding(self.create_trivial_boolean_block(true));
             }
 
             let str_uint = str.to_uint(self);
-            let result = self.key.scalar_eq_parallelized(&str_uint, 0u8);
+            let result = self.scalar_eq_parallelized(&str_uint, 0u8);
 
             FheStringIsEmpty::Padding(result)
         } else {
@@ -119,10 +123,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let s = "Hello World";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -141,11 +147,11 @@ impl ServerKey {
             .par_iter()
             .map(|char| {
                 let (ge_97, le_122) = rayon::join(
-                    || self.key.scalar_ge_parallelized(char.ciphertext(), 97u8),
-                    || self.key.scalar_le_parallelized(char.ciphertext(), 122u8),
+                    || self.scalar_ge_parallelized(char.ciphertext(), 97u8),
+                    || self.scalar_le_parallelized(char.ciphertext(), 122u8),
                 );
 
-                self.key.boolean_bitand(&ge_97, &le_122)
+                self.boolean_bitand(&ge_97, &le_122)
             })
             .collect();
 
@@ -155,13 +161,11 @@ impl ServerKey {
             .par_iter_mut()
             .zip(lowercase_chars.into_par_iter())
             .for_each(|(char, is_lowercase)| {
-                let mut subtract = self.key.create_trivial_radix(32, 4);
+                let mut subtract = self.create_trivial_radix(32, 4);
 
-                self.key
-                    .mul_assign_parallelized(&mut subtract, &is_lowercase.into_radix(1, &self.key));
+                self.mul_assign_parallelized(&mut subtract, &is_lowercase.into_radix(1, self));
 
-                self.key
-                    .sub_assign_parallelized(char.ciphertext_mut(), &subtract);
+                self.sub_assign_parallelized(char.ciphertext_mut(), &subtract);
             });
 
         uppercase
@@ -172,10 +176,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let s = "Hello World";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -194,11 +200,11 @@ impl ServerKey {
             .par_iter()
             .map(|char| {
                 let (ge_65, le_90) = rayon::join(
-                    || self.key.scalar_ge_parallelized(char.ciphertext(), 65u8),
-                    || self.key.scalar_le_parallelized(char.ciphertext(), 90u8),
+                    || self.scalar_ge_parallelized(char.ciphertext(), 65u8),
+                    || self.scalar_le_parallelized(char.ciphertext(), 90u8),
                 );
 
-                self.key.boolean_bitand(&ge_65, &le_90)
+                self.boolean_bitand(&ge_65, &le_90)
             })
             .collect();
 
@@ -208,13 +214,11 @@ impl ServerKey {
             .par_iter_mut()
             .zip(uppercase_chars)
             .for_each(|(char, is_uppercase)| {
-                let mut add = self.key.create_trivial_radix(32, 4);
+                let mut add = self.create_trivial_radix(32, 4);
 
-                self.key
-                    .mul_assign_parallelized(&mut add, &is_uppercase.into_radix(1, &self.key));
+                self.mul_assign_parallelized(&mut add, &is_uppercase.into_radix(1, self));
 
-                self.key
-                    .add_assign_parallelized(char.ciphertext_mut(), &add);
+                self.add_assign_parallelized(char.ciphertext_mut(), &add);
             });
 
         lowercase
@@ -231,17 +235,19 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s1, s2) = ("Hello", "hello");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.eq_ignore_case(&enc_s1, &enc_s2);
-    /// let are_equal = ck.key().decrypt_bool(&result);
+    /// let are_equal = ck.decrypt_bool(&result);
     ///
     /// assert!(are_equal);
     /// ```
@@ -266,10 +272,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (lhs, rhs) = ("Hello, ", "world!");
     ///
     /// let enc_lhs = FheString::new(&ck, lhs, None);
@@ -293,8 +301,8 @@ impl ServerKey {
             // If lhs is padded we can shift it right such that all nulls move to the start, then
             // we append the rhs and shift it left again to move the nulls to the new end
             FheStringLen::Padding(len) => {
-                let padded_len = self.key.create_trivial_radix(lhs.len() as u32, 16);
-                let number_of_nulls = self.key.sub_parallelized(&padded_len, &len);
+                let padded_len = self.create_trivial_radix(lhs.len() as u32, 16);
+                let number_of_nulls = self.sub_parallelized(&padded_len, &len);
 
                 result = self.right_shift_chars(&result, &number_of_nulls);
 
@@ -317,10 +325,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{FheString, UIntArg};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let s = "hi";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -361,11 +371,11 @@ impl ServerKey {
                 }
             }
             UIntArg::Enc(enc_n) => {
-                let n_is_zero = self.key.scalar_eq_parallelized(enc_n.cipher(), 0);
+                let n_is_zero = self.scalar_eq_parallelized(enc_n.cipher(), 0);
                 result = self.conditional_string(&n_is_zero, FheString::empty(), &result);
 
                 for i in 0..enc_n.max().unwrap_or(u16::MAX) - 1 {
-                    let n_is_exceeded = self.key.scalar_le_parallelized(enc_n.cipher(), i + 1);
+                    let n_is_exceeded = self.scalar_le_parallelized(enc_n.cipher(), i + 1);
                     let append = self.conditional_string(&n_is_exceeded, FheString::empty(), str);
 
                     result = self.concat(&result, &append);
