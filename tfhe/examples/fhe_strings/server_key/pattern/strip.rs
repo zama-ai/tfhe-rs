@@ -16,31 +16,28 @@ impl ServerKey {
         let mut result = self.key.create_trivial_boolean_block(false);
         let (str, pat) = str_pat;
 
-        let pat_len = pat.clone().count();
-        let str_len = str.clone().count();
+        let pat_len = pat.len();
+        let str_len = str.len();
+
         for start in iter {
-            let str_chars = str.clone().skip(start);
-            let pat_chars = pat.clone();
-
-            let a: Vec<&FheAsciiChar> = str_chars.collect();
-            let b: Vec<&FheAsciiChar> = pat_chars.collect();
-
-            let is_matched = self.asciis_eq(a.into_iter(), b.into_iter());
+            let is_matched = self.asciis_eq(str.iter().copied().skip(start), pat.iter().copied());
 
             let mut mask = is_matched.clone().into_radix(4, &self.key);
 
             // If mask == 0u8, it will now be 255u8. If it was 1u8, it will now be 0u8
             self.key.scalar_sub_assign_parallelized(&mut mask, 1);
 
-            let mutate_chars = if start + pat_len < str_len {
-                &mut strip_str.chars_mut()[start..start + pat_len]
-            } else {
-                &mut strip_str.chars_mut()[start..]
-            };
+            let mutate_chars = strip_str.chars_mut().par_iter_mut().skip(start).take(
+                if start + pat_len < str_len {
+                    pat_len
+                } else {
+                    str_len
+                },
+            );
 
             rayon::join(
                 || {
-                    mutate_chars.par_iter_mut().for_each(|char| {
+                    mutate_chars.for_each(|char| {
                         self.key
                             .bitand_assign_parallelized(char.ciphertext_mut(), &mask);
                     });
@@ -63,27 +60,26 @@ impl ServerKey {
         let (str, pat) = str_pat;
 
         let pat_len = pat.len();
-        let str_len = str.clone().count();
+        let str_len = str.len();
         for start in iter {
-            let str_chars = str.clone().skip(start);
-            let a: Vec<&FheAsciiChar> = str_chars.collect();
-
-            let is_matched = self.clear_asciis_eq(a.into_iter(), pat);
+            let is_matched = self.clear_asciis_eq(str.iter().copied().skip(start), pat);
 
             let mut mask = is_matched.clone().into_radix(4, &self.key);
 
             // If mask == 0u8, it will now be 255u8. If it was 1u8, it will now be 0u8
             self.key.scalar_sub_assign_parallelized(&mut mask, 1);
 
-            let mutate_chars = if start + pat_len < str_len {
-                &mut strip_str.chars_mut()[start..start + pat_len]
-            } else {
-                &mut strip_str.chars_mut()[start..]
-            };
+            let mutate_chars = strip_str.chars_mut().par_iter_mut().skip(start).take(
+                if start + pat_len < str_len {
+                    pat_len
+                } else {
+                    str_len
+                },
+            );
 
             rayon::join(
                 || {
-                    mutate_chars.par_iter_mut().for_each(|char| {
+                    mutate_chars.for_each(|char| {
                         self.key
                             .bitand_assign_parallelized(char.ciphertext_mut(), &mask);
                     });

@@ -22,18 +22,16 @@ impl ServerKey {
 
         let matched: Vec<_> = par_iter
             .map(|start| {
-                let str_chars = str.clone().skip(start);
-                let pat_chars = pat.clone();
-
                 let is_matched = if ignore_pat_pad {
-                    let str_pat = str_chars.into_iter().zip(pat_chars).par_bridge();
+                    let str_pat = str
+                        .par_iter()
+                        .copied()
+                        .skip(start)
+                        .zip(pat.par_iter().copied());
 
                     self.asciis_eq_ignore_pat_pad(str_pat)
                 } else {
-                    let a: Vec<&FheAsciiChar> = str_chars.collect();
-                    let b: Vec<&FheAsciiChar> = pat_chars.collect();
-
-                    self.asciis_eq(a.into_iter(), b.into_iter())
+                    self.asciis_eq(str.iter().skip(start).copied(), pat.iter().copied())
                 };
 
                 (start, is_matched)
@@ -68,10 +66,9 @@ impl ServerKey {
 
         let matched: Vec<_> = par_iter
             .map(|start| {
-                let str_chars = str.clone().skip(start);
+                let str_chars = &str[start..];
 
-                let a: Vec<&FheAsciiChar> = str_chars.collect();
-                let is_matched = self.clear_asciis_eq(a.into_iter(), pat);
+                let is_matched = self.clear_asciis_eq(str_chars.iter().copied(), pat);
 
                 (start, is_matched)
             })
@@ -224,7 +221,7 @@ impl ServerKey {
 
         let ignore_pat_pad = trivial_or_enc_pat.is_padded();
 
-        let str_len = str.chars().len();
+        let str_len = str.len();
         let (null, ext_iter) = if !str.is_padded() && trivial_or_enc_pat.is_padded() {
             (Some(FheAsciiChar::null(self)), Some(0..str_len + 1))
         } else {

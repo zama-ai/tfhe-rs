@@ -1,4 +1,4 @@
-use crate::client_key::{ClientKey, EncU16, EncryptOutput};
+use crate::client_key::{ClientKey, EncU16};
 use crate::server_key::ServerKey;
 use crate::N;
 use tfhe::integer::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
@@ -6,14 +6,14 @@ use tfhe::integer::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
 /// Represents a encrypted ASCII character.
 #[derive(Clone)]
 pub struct FheAsciiChar {
-    enc_char: RadixCiphertext,
+    pub enc_char: RadixCiphertext,
 }
 
 /// Represents a encrypted string made up of [`FheAsciiChar`]s.
 #[derive(Clone)]
 pub struct FheString {
-    enc_string: Vec<FheAsciiChar>,
-    padded: bool,
+    pub enc_string: Vec<FheAsciiChar>,
+    pub padded: bool,
 }
 
 // For str functions that require unsigned integers as arguments
@@ -72,40 +72,23 @@ impl FheString {
     ///
     /// This function will panic if the provided string is not ASCII.
     pub fn new(client_key: &ClientKey, str: &str, padding: Option<u32>) -> Self {
-        let enc_output = client_key.encrypt_ascii(str, padding);
-
-        FheString::from(enc_output)
+        client_key.encrypt_ascii(str, padding)
     }
 
-    /// Constructs a trivial `FheString` from a plaintext string and a [`ServerKey`].
-    ///
-    /// ## WARNING:
-    /// This only formats the value to fit the ciphertext. The result is NOT encrypted.
     pub fn trivial(server_key: &ServerKey, str: &str) -> Self {
-        let trivial = server_key
-            .trivial_encrypt_ascii(str)
-            .value()
-            .into_iter()
-            .map(|enc_char| FheAsciiChar { enc_char })
+        assert!(str.is_ascii() & !str.contains('\0'));
+
+        let enc_string: Vec<_> = str
+            .bytes()
+            .map(|char| FheAsciiChar {
+                enc_char: server_key.key().create_trivial_radix(char, 4),
+            })
             .collect();
 
         Self {
-            enc_string: trivial,
+            enc_string,
             padded: false,
         }
-    }
-
-    /// Constructs a new `FheString` from an [`EncryptOutput`], which is guaranteed to be correct.
-    pub fn from(enc_output: EncryptOutput) -> Self {
-        let padded = enc_output.is_padded();
-
-        let enc_string = enc_output
-            .value()
-            .into_iter()
-            .map(|enc_char| FheAsciiChar { enc_char })
-            .collect();
-
-        Self { enc_string, padded }
     }
 
     pub fn chars(&self) -> &[FheAsciiChar] {
@@ -130,7 +113,7 @@ impl FheString {
 
     // Converts a `RadixCiphertext` to a `FheString`, building a `FheAsciiChar` for each 4 blocks.
     // Panics if the uint doesn't have a number of blocks that is multiple of 4.
-    pub fn from_uint(uint: RadixCiphertext) -> FheString {
+    pub fn from_uint(uint: RadixCiphertext, padded: bool) -> FheString {
         let blocks_len = uint.blocks().len();
         assert_eq!(blocks_len % 4, 0);
 
@@ -149,8 +132,7 @@ impl FheString {
 
         FheString {
             enc_string: ascii_vec,
-            // We are assuming here there's no padding, so this isn't safe if we don't know it!
-            padded: false,
+            padded,
         }
     }
 
@@ -188,6 +170,14 @@ impl FheString {
         self.padded = true;
     }
 
+    pub fn len(&self) -> usize {
+        self.chars().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0 || (self.is_padded() && self.len() == 1)
+    }
+
     pub fn empty() -> FheString {
         FheString {
             enc_string: vec![],
@@ -212,14 +202,14 @@ mod tests {
         let enc = FheString::new(&ck, str, Some(7));
 
         let uint = enc.to_uint(&sk);
-        let mut converted = FheString::from_uint(uint);
+        let mut converted = FheString::from_uint(uint, false);
         converted.set_is_padded(true);
         let dec = ck.decrypt_ascii(&converted);
 
         assert_eq!(dec, str);
 
         let uint_into = enc.into_uint(&sk);
-        let mut converted = FheString::from_uint(uint_into);
+        let mut converted = FheString::from_uint(uint_into, false);
         converted.set_is_padded(true);
         let dec = ck.decrypt_ascii(&converted);
 

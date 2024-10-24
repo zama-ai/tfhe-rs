@@ -59,7 +59,7 @@ impl ServerKey {
 
             FheStringLen::Padding(len)
         } else {
-            FheStringLen::NoPadding(str.chars().len())
+            FheStringLen::NoPadding(str.len())
         }
     }
 
@@ -101,7 +101,7 @@ impl ServerKey {
     /// ```
     pub fn is_empty(&self, str: &FheString) -> FheStringIsEmpty {
         if str.is_padded() {
-            if str.chars().len() == 1 {
+            if str.len() == 1 {
                 return FheStringIsEmpty::Padding(self.key.create_trivial_boolean_block(true));
             }
 
@@ -110,7 +110,7 @@ impl ServerKey {
 
             FheStringIsEmpty::Padding(result)
         } else {
-            FheStringIsEmpty::NoPadding(str.chars().is_empty())
+            FheStringIsEmpty::NoPadding(str.len() == 0)
         }
     }
 
@@ -152,9 +152,8 @@ impl ServerKey {
         // Subtraction by 32 makes the character uppercase
         uppercase
             .chars_mut()
-            .iter_mut()
-            .zip(lowercase_chars)
-            .par_bridge()
+            .par_iter_mut()
+            .zip(lowercase_chars.into_par_iter())
             .for_each(|(char, is_lowercase)| {
                 let mut subtract = self.key.create_trivial_radix(32, 4);
 
@@ -206,9 +205,8 @@ impl ServerKey {
         // Addition by 32 makes the character lowercase
         lowercase
             .chars_mut()
-            .iter_mut()
+            .par_iter_mut()
             .zip(uppercase_chars)
-            .par_bridge()
             .for_each(|(char, is_uppercase)| {
                 let mut add = self.key.create_trivial_radix(32, 4);
 
@@ -295,7 +293,7 @@ impl ServerKey {
             // If lhs is padded we can shift it right such that all nulls move to the start, then
             // we append the rhs and shift it left again to move the nulls to the new end
             FheStringLen::Padding(len) => {
-                let padded_len = self.key.create_trivial_radix(lhs.chars().len() as u32, 16);
+                let padded_len = self.key.create_trivial_radix(lhs.len() as u32, 16);
                 let number_of_nulls = self.key.sub_parallelized(&padded_len, &len);
 
                 result = self.right_shift_chars(&result, &number_of_nulls);
@@ -348,7 +346,7 @@ impl ServerKey {
             return FheString::empty();
         }
 
-        let str_len = str.chars().len();
+        let str_len = str.len();
         if str_len == 0 || (str.is_padded() && str_len == 1) {
             return FheString::empty();
         }

@@ -35,27 +35,6 @@ impl ServerKey {
     pub fn key(&self) -> &FheServerKey {
         &self.key
     }
-
-    pub fn trivial_encrypt_ascii(&self, str: &str) -> TrivialEncryptOutput {
-        assert!(str.is_ascii() & !str.contains('\0'));
-
-        let enc_chars: Vec<_> = str
-            .bytes()
-            .map(|char| self.key.create_trivial_radix(char, 4))
-            .collect();
-
-        TrivialEncryptOutput { output: enc_chars }
-    }
-}
-
-pub struct TrivialEncryptOutput {
-    output: Vec<RadixCiphertext>,
-}
-
-impl TrivialEncryptOutput {
-    pub fn value(self) -> Vec<RadixCiphertext> {
-        self.output
-    }
 }
 
 // With no padding, the length is just the vector's length (clear result). With padding it requires
@@ -258,7 +237,7 @@ impl ServerKey {
             self.key
                 .if_then_else_parallelized(condition, &true_ct_uint, &false_ct_uint);
 
-        let mut result = FheString::from_uint(result_uint);
+        let mut result = FheString::from_uint(result_uint, false);
         if padded {
             result.set_is_padded(true);
         } else if potentially_padded {
@@ -281,7 +260,7 @@ impl ServerKey {
 
         // If the shifting amount is >= than the str length we get zero i.e. all chars are out of
         // range (instead of wrapping, which is the behavior of Rust and tfhe-rs)
-        let bit_len = (str.chars().len() * 8) as u32;
+        let bit_len = (str.len() * 8) as u32;
         let shift_ge_than_str = self.key.scalar_ge_parallelized(&shift_bits, bit_len);
 
         let result = self.key.if_then_else_parallelized(
@@ -290,7 +269,7 @@ impl ServerKey {
             &shifted,
         );
 
-        FheString::from_uint(result)
+        FheString::from_uint(result, false)
     }
 
     fn right_shift_chars(&self, str: &FheString, shift: &RadixCiphertext) -> FheString {
@@ -304,7 +283,7 @@ impl ServerKey {
 
         // If the shifting amount is >= than the str length we get zero i.e. all chars are out of
         // range (instead of wrapping, which is the behavior of Rust and tfhe-rs)
-        let bit_len = (str.chars().len() * 8) as u32;
+        let bit_len = (str.len() * 8) as u32;
         let shift_ge_than_str = self.key.scalar_ge_parallelized(&shift_bits, bit_len);
 
         let result = self.key.if_then_else_parallelized(
@@ -313,7 +292,7 @@ impl ServerKey {
             &shifted,
         );
 
-        FheString::from_uint(result)
+        FheString::from_uint(result, false)
     }
 }
 
@@ -321,21 +300,4 @@ pub trait FheStringIterator {
     fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock);
 }
 
-#[derive(Clone)]
-enum CharIter<'a> {
-    Iter(std::slice::Iter<'a, FheAsciiChar>),
-    Extended(
-        std::iter::Chain<std::slice::Iter<'a, FheAsciiChar>, std::iter::Once<&'a FheAsciiChar>>,
-    ),
-}
-
-impl<'a> Iterator for CharIter<'a> {
-    type Item = &'a FheAsciiChar;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            CharIter::Iter(iter) => iter.next(),
-            CharIter::Extended(iter) => iter.next(),
-        }
-    }
-}
+type CharIter<'a> = Vec<&'a FheAsciiChar>;

@@ -11,7 +11,7 @@ pub struct SplitAsciiWhitespace {
 
 impl FheStringIterator for SplitAsciiWhitespace {
     fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
-        let str_len = self.state.chars().len();
+        let str_len = self.state.len();
 
         if str_len == 0 || (self.state.is_padded() && str_len == 1) {
             return (
@@ -68,9 +68,8 @@ impl SplitAsciiWhitespace {
         // Apply the mask to get the result
         result
             .chars_mut()
-            .iter_mut()
-            .zip(mask.chars())
-            .par_bridge()
+            .par_iter_mut()
+            .zip(mask.chars().par_iter())
             .for_each(|(char, mask_u8)| {
                 sk.key
                     .bitand_assign_parallelized(char.ciphertext_mut(), mask_u8.ciphertext());
@@ -206,7 +205,7 @@ impl ServerKey {
     pub fn trim_start(&self, str: &FheString) -> FheString {
         let mut result = str.clone();
 
-        if str.chars().is_empty() || (str.is_padded() && str.chars().len() == 1) {
+        if str.is_empty() {
             return result;
         }
 
@@ -262,7 +261,7 @@ impl ServerKey {
     pub fn trim_end(&self, str: &FheString) -> FheString {
         let mut result = str.clone();
 
-        if str.chars().is_empty() || (str.is_padded() && str.chars().len() == 1) {
+        if str.is_empty() {
             return result;
         }
 
@@ -300,7 +299,7 @@ impl ServerKey {
     /// assert_eq!(trimmed, "hello world"); // Whitespace at both ends is removed
     /// ```
     pub fn trim(&self, str: &FheString) -> FheString {
-        if str.chars().is_empty() || (str.is_padded() && str.chars().len() == 1) {
+        if str.is_empty() {
             return str.clone();
         }
 

@@ -13,7 +13,7 @@ impl ServerKey {
         index: &RadixCiphertext,
         inclusive: bool,
     ) -> (FheString, FheString) {
-        let str_len = self.key.create_trivial_radix(str.chars().len() as u32, 16);
+        let str_len = self.key.create_trivial_radix(str.len() as u32, 16);
         let trivial_or_enc_pat = match pat {
             GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
             GenericPattern::Enc(pat) => pat.clone(),

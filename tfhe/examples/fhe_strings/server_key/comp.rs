@@ -4,8 +4,8 @@ use tfhe::integer::BooleanBlock;
 
 impl ServerKey {
     fn eq_length_checks(&self, lhs: &FheString, rhs: &FheString) -> Option<BooleanBlock> {
-        let lhs_len = lhs.chars().len();
-        let rhs_len = rhs.chars().len();
+        let lhs_len = lhs.len();
+        let rhs_len = rhs.len();
 
         // If lhs is empty, rhs must also be empty in order to be equal (the case where lhs is
         // empty with > 1 padding zeros is handled next)
@@ -28,14 +28,14 @@ impl ServerKey {
         }
 
         // Two strings without padding that have different lengths cannot be equal
-        if (!lhs.is_padded() && !rhs.is_padded()) && (lhs.chars().len() != rhs.chars().len()) {
+        if (!lhs.is_padded() && !rhs.is_padded()) && (lhs.len() != rhs.len()) {
             return Some(self.key.create_trivial_boolean_block(false));
         }
 
         // A string without padding cannot be equal to a string with padding that has the same or
         // lower length
-        if (!lhs.is_padded() && rhs.is_padded()) && (rhs.chars().len() <= lhs.chars().len())
-            || (!rhs.is_padded() && lhs.is_padded()) && (lhs.chars().len() <= rhs.chars().len())
+        if (!lhs.is_padded() && rhs.is_padded()) && (rhs.len() <= lhs.len())
+            || (!rhs.is_padded() && lhs.is_padded()) && (lhs.len() <= rhs.len())
         {
             return Some(self.key.create_trivial_boolean_block(false));
         }
