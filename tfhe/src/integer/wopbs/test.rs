@@ -37,11 +37,11 @@ macro_rules! create_parametrized_test{    (
     ($name:ident)=> {
         create_parametrized_test!($name
         {
-            (PARAM_MESSAGE_2_CARRY_2_KS_PBS, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
             #[cfg(not(tarpaulin))]
-            (PARAM_MESSAGE_3_CARRY_3_KS_PBS, WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
+            (PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
             #[cfg(not(tarpaulin))]
-            (PARAM_MESSAGE_4_CARRY_4_KS_PBS, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
+            (PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
         });
     };
 }
@@ -255,12 +255,9 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         let mut ct2 = cks.encrypt_crt(clear2, basis.clone());
         //artificially modify the degree
         for (ct_1, ct_2) in ct1.blocks.iter_mut().zip(ct2.blocks.iter_mut()) {
-            let degree = params.0.message_modulus.0
-                * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
-            ct_1.degree = Degree::new(degree);
-            let degree = params.0.message_modulus.0
-                * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
-            ct_2.degree = Degree::new(degree);
+            // Do not go too far otherwise we explode the RAM for larger parameters
+            ct_1.degree = Degree::new(ct_1.degree.get() * 2);
+            ct_1.degree = Degree::new(ct_2.degree.get() * 2);
         }
 
         let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);
@@ -280,7 +277,7 @@ pub fn test_wopbs_non_reg_trivial_0() {
     use crate::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey, ServerKey};
 
     fn generate_keys() -> (RadixClientKey, ServerKey, WopbsKey) {
-        let (ck, sk) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 16);
+        let (ck, sk) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, 16);
         let wopbs_key = WopbsKey::new_wopbs_key(&ck, &sk, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         (ck, sk, wopbs_key)
     }

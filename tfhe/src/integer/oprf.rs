@@ -13,13 +13,13 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let ct_res = sks.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64);
     ///
@@ -83,13 +83,13 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let random_bits_count = 3;
     ///
@@ -164,13 +164,13 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let ct_res = sks.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64);
     ///
@@ -211,7 +211,7 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
@@ -219,7 +219,7 @@ impl ServerKey {
     /// let random_bits_count = 3;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let ct_res = sks.par_generate_oblivious_pseudo_random_signed_integer_bounded(
     ///     Seed(0),
@@ -306,8 +306,8 @@ pub(crate) mod test {
         let num_blocks = 2;
 
         use crate::integer::gen_keys_radix;
-        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let (ck, sk) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+        let (ck, sk) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
 
         let test_uniformity = |distinct_values: u64, f: &(dyn Fn(usize) -> u64 + Sync)| {
             test_uniformity(sample_count, p_value_limit, distinct_values, f)

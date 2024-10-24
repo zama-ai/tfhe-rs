@@ -1,7 +1,7 @@
 use crate::{TransCiphering, TriviumStream, TriviumStreamByte, TriviumStreamShortint};
 use tfhe::prelude::*;
+use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
 use tfhe::{generate_keys, ConfigBuilder, FheBool, FheUint64, FheUint8};
-
 // Values for these tests come from the github repo cantora/avr-crypto-lib, commit 2a5b018,
 // file testvectors/trivium-80.80.test-vectors
 
@@ -357,7 +357,8 @@ fn trivium_test_shortint_long() {
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key, server_key): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),

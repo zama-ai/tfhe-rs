@@ -23,16 +23,16 @@ macro_rules! create_parametrized_test {
                 COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
             },
             no_coverage => {
-                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+                PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
             }
         });
     };
@@ -65,10 +65,10 @@ macro_rules! create_parametrized_test_classical_params {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             },
             no_coverage => {
-                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                PARAM_MESSAGE_4_CARRY_4_KS_PBS
+                PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+                PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
             }
         });
     };

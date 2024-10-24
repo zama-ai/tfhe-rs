@@ -186,12 +186,12 @@ fn main() -> Result<(), std::io::Error> {
     println!("key gen start");
     let config = match args.multibit {
         None => ConfigBuilder::default(),
-        Some(2) => {
-            ConfigBuilder::with_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS)
-        }
-        Some(3) => {
-            ConfigBuilder::with_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS)
-        }
+        Some(2) => ConfigBuilder::with_custom_parameters(
+            PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        ),
+        Some(3) => ConfigBuilder::with_custom_parameters(
+            PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        ),
         Some(v) => {
             panic!("Invalid multibit setting {v}");
         }

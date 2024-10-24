@@ -110,14 +110,18 @@ impl CudaUnsignedRadixCiphertext {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// let size = 4;
     ///
     /// let gpu_index = 0;
     /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ///     size,
+    ///     &mut streams,
+    /// );
     ///
     /// let clear: u64 = 255;
     ///
@@ -200,14 +204,18 @@ impl CudaUnsignedRadixCiphertext {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
     /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ///     num_blocks,
+    ///     &mut streams,
+    /// );
     ///
     /// let msg1 = 10u32;
     /// let ct1 = cks.encrypt(msg1);
@@ -256,14 +264,18 @@ impl CudaSignedRadixCiphertext {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// let size = 4;
     ///
     /// let gpu_index = 0;
     /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ///     size,
+    ///     &mut streams,
+    /// );
     ///
     /// let clear: i64 = 255;
     ///
@@ -353,14 +365,18 @@ impl CudaSignedRadixCiphertext {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
     /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ///     num_blocks,
+    ///     &mut streams,
+    /// );
     ///
     /// let msg1 = 10i32;
     /// let ct1 = cks.encrypt_signed(msg1);
@@ -403,14 +419,18 @@ impl CudaRadixCiphertext {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
     /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ///     num_blocks,
+    ///     &mut streams,
+    /// );
     ///
     /// let msg = 10i32;
     /// let ct = cks.encrypt_signed(msg);

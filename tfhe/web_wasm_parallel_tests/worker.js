@@ -47,7 +47,10 @@ function append_param_name(bench_results, params_name) {
 }
 
 async function compressedPublicKeyTest() {
-  let config = TfheConfigBuilder.default_with_small_encryption().build();
+  let params_name_small =
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+  let params_small = new ShortintParameters(params_name_small);
+  let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
 
   console.time("ClientKey Gen");
   let clientKey = TfheClientKey.generate(config);
@@ -76,7 +79,10 @@ async function compressedPublicKeyTest() {
 }
 
 async function publicKeyTest() {
-  let config = TfheConfigBuilder.default_with_small_encryption().build();
+  let params_name_small =
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+  let params_small = new ShortintParameters(params_name_small);
+  let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
 
   console.time("ClientKey Gen");
   let clientKey = TfheClientKey.generate(config);

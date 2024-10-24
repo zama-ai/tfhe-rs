@@ -65,7 +65,10 @@ fn test_integer_compressed() {
 
 #[test]
 fn test_integer_compressed_small() {
-    let config = ConfigBuilder::default_with_small_encryption().build();
+    let config = ConfigBuilder::with_custom_parameters(
+        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+    )
+    .build();
     let (client_key, _) = generate_keys(config);
 
     let clear = 12_837u16;
@@ -108,7 +111,7 @@ fn test_uint32_shift() {
 #[test]
 fn test_uint32_shift_multibit() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS)
+        .use_custom_parameters(PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
         .build();
 
     let (client_key, server_key) = generate_keys(config);
@@ -131,7 +134,9 @@ fn test_uint32_rotate() {
 
 #[test]
 fn test_multi_bit_rotate() {
-    let client_key = setup_cpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_cpu(Some(
+        PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ));
     super::test_case_uint32_rotate(&client_key);
 }
 
@@ -143,13 +148,18 @@ fn test_uint32_div_rem() {
 
 #[test]
 fn test_multi_div_rem() {
-    let client_key = setup_cpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_cpu(Some(
+        PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ));
     super::test_case_uint32_div_rem(&client_key);
 }
 
 #[test]
 fn test_small_uint128() {
-    let config = ConfigBuilder::default_with_small_encryption().build();
+    let config = ConfigBuilder::with_custom_parameters(
+        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+    )
+    .build();
 
     let (cks, sks) = generate_keys(config);
 
@@ -411,7 +421,7 @@ fn test_sum() {
 
 #[test]
 fn test_safe_deserialize_conformant_fhe_uint32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     let (client_key, server_key) =
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key.clone());

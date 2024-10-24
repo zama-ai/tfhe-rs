@@ -1,4 +1,4 @@
-use crate::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
 use crate::shortint::{ClassicPBSParameters, PBSParameters};
 use crate::{set_server_key, ClientKey, ConfigBuilder};
 
@@ -34,7 +34,7 @@ fn test_uint8_quickstart_gpu() {
 
 #[test]
 fn test_uint8_quickstart_gpu_multibit() {
-    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_uint8_quickstart(&client_key);
 }
 
@@ -46,7 +46,7 @@ fn test_uint32_quickstart_gpu() {
 
 #[test]
 fn test_uint32_quickstart_gpu_multibit() {
-    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_uint32_quickstart(&client_key);
 }
 
@@ -58,7 +58,7 @@ fn test_uint64_quickstart_gpu() {
 
 #[test]
 fn test_uint64_quickstart_gpu_multibit() {
-    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_uint64_quickstart(&client_key);
 }
 
@@ -82,7 +82,7 @@ fn test_uint32_bitwise_gpu() {
 
 #[test]
 fn test_uint32_bitwise_gpu_multibit() {
-    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_uint32_bitwise(&client_key);
 }
 
@@ -94,7 +94,7 @@ fn test_if_then_else_gpu() {
 
 #[test]
 fn test_if_then_else_gpu_multibit() {
-    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_if_then_else(&client_key);
 }
 
@@ -106,7 +106,7 @@ fn test_sum_gpu() {
 
 #[test]
 fn test_sum_gpu_multibit() {
-    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_sum(&client_key);
 }
 
@@ -118,7 +118,7 @@ fn test_is_even_is_odd_gpu() {
 
 #[test]
 fn test_is_even_is_odd_gpu_multibit() {
-    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_is_even_is_odd(&client_key);
 }
 
@@ -130,7 +130,7 @@ fn test_leading_trailing_zeros_ones_gpu() {
 
 #[test]
 fn test_leading_trailing_zeros_ones_gpu_multibit() {
-    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_leading_trailing_zeros_ones(&client_key);
 }
 
@@ -142,6 +142,6 @@ fn test_ilog2_gpu() {
 
 #[test]
 fn test_ilog2_multibit() {
-    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_ilog2(&client_key);
 }

@@ -1,7 +1,7 @@
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::MaxNoiseLevel;
-use crate::shortint::parameters::multi_bit::MultiBitPBSParameters;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::MultiBitPBSParameters;
 
 // p-fail = 2^-65.348, algorithmic cost ~ 41, 2-norm = 1
 pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64: MultiBitPBSParameters =

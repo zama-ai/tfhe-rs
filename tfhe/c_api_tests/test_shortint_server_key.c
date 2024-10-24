@@ -535,17 +535,19 @@ void test_server_key(void) {
   ShortintServerKey *deser_sks = NULL;
   ShortintClientKey *cks_small = NULL;
   ShortintServerKey *sks_small = NULL;
-  ShortintPBSParameters params = {0};
-  ShortintPBSParameters params_small = {0};
 
   const uint32_t message_bits = 2;
   const uint32_t carry_bits = 2;
 
-  int get_params_ok = shortint_get_parameters(message_bits, carry_bits, &params);
-  assert(get_params_ok == 0);
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+  // We don't have TUniform small params, use gaussian instead
+  ShortintPBSParameters params_small = SHORTINT_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
 
-  int get_params_small_ok = shortint_get_parameters_small(message_bits, carry_bits, &params_small);
-  assert(get_params_small_ok == 0);
+  assert(params.message_modulus == 1 << message_bits);
+  assert(params.carry_modulus == 1 << carry_bits);
+
+  assert(params_small.message_modulus == 1 << message_bits);
+  assert(params_small.carry_modulus == 1 << carry_bits);
 
   int gen_cks_ok = shortint_gen_client_key(params, &cks);
   assert(gen_cks_ok == 0);

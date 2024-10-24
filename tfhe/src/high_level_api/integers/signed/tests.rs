@@ -1,7 +1,7 @@
 use crate::integer::I256;
 use crate::prelude::*;
 use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::{
     generate_keys, set_server_key, ClientKey, CompactCiphertextList, CompactPublicKey,
     CompressedFheInt16, CompressedFheInt32, Config, ConfigBuilder, FheInt16, FheInt256, FheInt32,
@@ -25,7 +25,10 @@ fn test_signed_integer_compressed() {
 fn test_integer_compressed_small() {
     let mut rng = thread_rng();
 
-    let config = ConfigBuilder::default_with_small_encryption().build();
+    let config = ConfigBuilder::with_custom_parameters(
+        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+    )
+    .build();
     let (client_key, _) = generate_keys(config);
 
     let clear = rng.gen::<i16>();
@@ -278,7 +281,7 @@ fn test_int64_rotate() {
 fn test_multi_bit_rotate() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-            crate::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            crate::shortint::parameters::PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         )
         .build();
     fhe_int64_rotate(config);
@@ -366,7 +369,7 @@ fn test_int32_div_rem() {
 fn test_multi_div_rem() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-            crate::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            crate::shortint::parameters::PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         )
         .build();
     fhe_int32_div_rem(config);
@@ -529,7 +532,10 @@ fn test_trivial_fhe_int8() {
 
 #[test]
 fn test_trivial_fhe_int256_small() {
-    let config = ConfigBuilder::default_with_small_encryption().build();
+    let config = ConfigBuilder::with_custom_parameters(
+        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+    )
+    .build();
     let (client_key, sks) = generate_keys(config);
 
     set_server_key(sks);
@@ -640,7 +646,7 @@ fn test_leading_trailing_zeros_ones() {
 
 #[test]
 fn test_safe_deserialize_conformant_fhe_int32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     let (client_key, server_key) =
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key.clone());
@@ -665,7 +671,7 @@ fn test_safe_deserialize_conformant_fhe_int32() {
 
 #[test]
 fn test_safe_deserialize_conformant_compressed_fhe_int32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     let (client_key, server_key) =
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key.clone());

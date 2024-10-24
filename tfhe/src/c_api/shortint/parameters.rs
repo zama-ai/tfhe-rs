@@ -1,4 +1,3 @@
-use crate::c_api::utils::*;
 pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
@@ -6,7 +5,6 @@ pub use crate::core_crypto::commons::parameters::{
 pub use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::*;
-use std::os::raw::c_int;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -288,47 +286,47 @@ macro_rules! expose_as_shortint_pbs_parameters(
 );
 
 expose_as_shortint_pbs_parameters!(
-    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_7_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2M64,
     // Small params
-    PARAM_MESSAGE_1_CARRY_1_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_2_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_3_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_4_PBS_KS,
+    PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64,
     // CPK
     PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS,
     PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS,
@@ -365,125 +363,7 @@ expose_as_shortint_pbs_parameters!(
     PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS,
     // TUniform
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    // Aliases to remove eventually
-    PARAM_MESSAGE_1_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_1,
-    PARAM_MESSAGE_2_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_2,
-    PARAM_MESSAGE_2_CARRY_1,
-    PARAM_MESSAGE_3_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_3,
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_1,
-    PARAM_MESSAGE_4_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_4,
-    PARAM_MESSAGE_2_CARRY_3,
-    PARAM_MESSAGE_3_CARRY_2,
-    PARAM_MESSAGE_4_CARRY_1,
-    PARAM_MESSAGE_5_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_5,
-    PARAM_MESSAGE_2_CARRY_4,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_2,
-    PARAM_MESSAGE_5_CARRY_1,
-    PARAM_MESSAGE_6_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_6,
-    PARAM_MESSAGE_2_CARRY_5,
-    PARAM_MESSAGE_3_CARRY_4,
-    PARAM_MESSAGE_4_CARRY_3,
-    PARAM_MESSAGE_5_CARRY_2,
-    PARAM_MESSAGE_6_CARRY_1,
-    PARAM_MESSAGE_7_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_7,
-    PARAM_MESSAGE_2_CARRY_6,
-    PARAM_MESSAGE_3_CARRY_5,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MESSAGE_5_CARRY_3,
-    PARAM_MESSAGE_6_CARRY_2,
-    PARAM_MESSAGE_7_CARRY_1,
-    PARAM_MESSAGE_8_CARRY_0,
-    // Small params
-    PARAM_SMALL_MESSAGE_1_CARRY_1,
-    PARAM_SMALL_MESSAGE_2_CARRY_2,
-    PARAM_SMALL_MESSAGE_3_CARRY_3,
-    PARAM_SMALL_MESSAGE_4_CARRY_4,
 );
-
-#[no_mangle]
-pub unsafe extern "C" fn shortint_get_parameters(
-    message_bits: u32,
-    carry_bits: u32,
-    result: *mut ShortintPBSParameters,
-) -> c_int {
-    catch_panic(|| {
-        check_ptr_is_non_null_and_aligned(result).unwrap();
-        let params: Option<_> = match (message_bits, carry_bits) {
-            (1, 0) => Some(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_0_KS_PBS),
-            (1, 1) => Some(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS),
-            (2, 0) => Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_0_KS_PBS),
-            (1, 2) => Some(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_2_KS_PBS),
-            (2, 1) => Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_1_KS_PBS),
-            (3, 0) => Some(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_0_KS_PBS),
-            (1, 3) => Some(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_3_KS_PBS),
-            (2, 2) => Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS),
-            (3, 1) => Some(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_1_KS_PBS),
-            (4, 0) => Some(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_0_KS_PBS),
-            (1, 4) => Some(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_4_KS_PBS),
-            (2, 3) => Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_3_KS_PBS),
-            (3, 2) => Some(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_2_KS_PBS),
-            (4, 1) => Some(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_1_KS_PBS),
-            (5, 0) => Some(crate::shortint::parameters::PARAM_MESSAGE_5_CARRY_0_KS_PBS),
-            (1, 5) => Some(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_5_KS_PBS),
-            (2, 4) => Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_4_KS_PBS),
-            (3, 3) => Some(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS),
-            (4, 2) => Some(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_2_KS_PBS),
-            (5, 1) => Some(crate::shortint::parameters::PARAM_MESSAGE_5_CARRY_1_KS_PBS),
-            (6, 0) => Some(crate::shortint::parameters::PARAM_MESSAGE_6_CARRY_0_KS_PBS),
-            (1, 6) => Some(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_6_KS_PBS),
-            (2, 5) => Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_5_KS_PBS),
-            (3, 4) => Some(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_4_KS_PBS),
-            (4, 3) => Some(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_3_KS_PBS),
-            (5, 2) => Some(crate::shortint::parameters::PARAM_MESSAGE_5_CARRY_2_KS_PBS),
-            (6, 1) => Some(crate::shortint::parameters::PARAM_MESSAGE_6_CARRY_1_KS_PBS),
-            (7, 0) => Some(crate::shortint::parameters::PARAM_MESSAGE_7_CARRY_0_KS_PBS),
-            (1, 7) => Some(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_7_KS_PBS),
-            (2, 6) => Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_6_KS_PBS),
-            (3, 5) => Some(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_5_KS_PBS),
-            (4, 4) => Some(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS),
-            (5, 3) => Some(crate::shortint::parameters::PARAM_MESSAGE_5_CARRY_3_KS_PBS),
-            (6, 2) => Some(crate::shortint::parameters::PARAM_MESSAGE_6_CARRY_2_KS_PBS),
-            (7, 1) => Some(crate::shortint::parameters::PARAM_MESSAGE_7_CARRY_1_KS_PBS),
-            (8, 0) => Some(crate::shortint::parameters::PARAM_MESSAGE_8_CARRY_0_KS_PBS),
-            _ => None,
-        };
-
-        if let Some(params) = params {
-            *result = params.into();
-        }
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn shortint_get_parameters_small(
-    message_bits: u32,
-    carry_bits: u32,
-    result: *mut ShortintPBSParameters,
-) -> c_int {
-    catch_panic(|| {
-        check_ptr_is_non_null_and_aligned(result).unwrap();
-        let params: Option<_> = match (message_bits, carry_bits) {
-            (1, 1) => Some(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_PBS_KS),
-            (2, 2) => Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS),
-            (3, 3) => Some(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_PBS_KS),
-            (4, 4) => Some(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_PBS_KS),
-            _ => None,
-        };
-
-        if let Some(params) = params {
-            *result = params.into();
-        }
-    })
-}
 
 pub struct CompressionParameters(
     pub(crate) crate::shortint::parameters::list_compression::CompressionParameters,

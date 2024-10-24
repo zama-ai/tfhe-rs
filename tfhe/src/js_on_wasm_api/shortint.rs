@@ -307,47 +307,47 @@ macro_rules! expose_predefined_parameters {
 }
 
 expose_predefined_parameters! {
-    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_7_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2M64,
     // Small params
-    PARAM_MESSAGE_1_CARRY_1_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_2_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_3_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_4_PBS_KS,
+    PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64,
     // CPK
     PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS,
     PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS,
@@ -383,126 +383,10 @@ expose_predefined_parameters! {
     PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS,
     // TUniform
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    // Aliases to remove eventually
-    PARAM_MESSAGE_1_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_1,
-    PARAM_MESSAGE_2_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_2,
-    PARAM_MESSAGE_2_CARRY_1,
-    PARAM_MESSAGE_3_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_3,
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_1,
-    PARAM_MESSAGE_4_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_4,
-    PARAM_MESSAGE_2_CARRY_3,
-    PARAM_MESSAGE_3_CARRY_2,
-    PARAM_MESSAGE_4_CARRY_1,
-    PARAM_MESSAGE_5_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_5,
-    PARAM_MESSAGE_2_CARRY_4,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_2,
-    PARAM_MESSAGE_5_CARRY_1,
-    PARAM_MESSAGE_6_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_6,
-    PARAM_MESSAGE_2_CARRY_5,
-    PARAM_MESSAGE_3_CARRY_4,
-    PARAM_MESSAGE_4_CARRY_3,
-    PARAM_MESSAGE_5_CARRY_2,
-    PARAM_MESSAGE_6_CARRY_1,
-    PARAM_MESSAGE_7_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_7,
-    PARAM_MESSAGE_2_CARRY_6,
-    PARAM_MESSAGE_3_CARRY_5,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MESSAGE_5_CARRY_3,
-    PARAM_MESSAGE_6_CARRY_2,
-    PARAM_MESSAGE_7_CARRY_1,
-    PARAM_MESSAGE_8_CARRY_0,
-    // Small params
-    PARAM_SMALL_MESSAGE_1_CARRY_1,
-    PARAM_SMALL_MESSAGE_2_CARRY_2,
-    PARAM_SMALL_MESSAGE_3_CARRY_3,
-    PARAM_SMALL_MESSAGE_4_CARRY_4,
 }
 
 #[wasm_bindgen]
 impl Shortint {
-    #[wasm_bindgen]
-    pub fn get_parameters(
-        message_bits: usize,
-        carry_bits: usize,
-    ) -> Result<ShortintParameters, JsError> {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        match (message_bits, carry_bits) {
-            (1, 0) => Ok(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_0_KS_PBS),
-            (1, 1) => Ok(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS),
-            (2, 0) => Ok(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_0_KS_PBS),
-            (1, 2) => Ok(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_2_KS_PBS),
-            (2, 1) => Ok(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_1_KS_PBS),
-            (3, 0) => Ok(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_0_KS_PBS),
-            (1, 3) => Ok(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_3_KS_PBS),
-            (2, 2) => Ok(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS),
-            (3, 1) => Ok(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_1_KS_PBS),
-            (4, 0) => Ok(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_0_KS_PBS),
-            (1, 4) => Ok(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_4_KS_PBS),
-            (2, 3) => Ok(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_3_KS_PBS),
-            (3, 2) => Ok(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_2_KS_PBS),
-            (4, 1) => Ok(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_1_KS_PBS),
-            (5, 0) => Ok(crate::shortint::parameters::PARAM_MESSAGE_5_CARRY_0_KS_PBS),
-            (1, 5) => Ok(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_5_KS_PBS),
-            (2, 4) => Ok(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_4_KS_PBS),
-            (3, 3) => Ok(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS),
-            (4, 2) => Ok(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_2_KS_PBS),
-            (5, 1) => Ok(crate::shortint::parameters::PARAM_MESSAGE_5_CARRY_1_KS_PBS),
-            (6, 0) => Ok(crate::shortint::parameters::PARAM_MESSAGE_6_CARRY_0_KS_PBS),
-            (1, 6) => Ok(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_6_KS_PBS),
-            (2, 5) => Ok(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_5_KS_PBS),
-            (3, 4) => Ok(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_4_KS_PBS),
-            (4, 3) => Ok(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_3_KS_PBS),
-            (5, 2) => Ok(crate::shortint::parameters::PARAM_MESSAGE_5_CARRY_2_KS_PBS),
-            (6, 1) => Ok(crate::shortint::parameters::PARAM_MESSAGE_6_CARRY_1_KS_PBS),
-            (7, 0) => Ok(crate::shortint::parameters::PARAM_MESSAGE_7_CARRY_0_KS_PBS),
-            (1, 7) => Ok(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_7_KS_PBS),
-            (2, 6) => Ok(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_6_KS_PBS),
-            (3, 5) => Ok(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_5_KS_PBS),
-            (4, 4) => Ok(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS),
-            (5, 3) => Ok(crate::shortint::parameters::PARAM_MESSAGE_5_CARRY_3_KS_PBS),
-            (6, 2) => Ok(crate::shortint::parameters::PARAM_MESSAGE_6_CARRY_2_KS_PBS),
-            (7, 1) => Ok(crate::shortint::parameters::PARAM_MESSAGE_7_CARRY_1_KS_PBS),
-            (8, 0) => Ok(crate::shortint::parameters::PARAM_MESSAGE_8_CARRY_0_KS_PBS),
-            _ => Err(wasm_bindgen::JsError::new(
-                format!(
-                "No parameters for {message_bits} bits of message and {carry_bits} bits of carry"
-            )
-                .as_str(),
-            )),
-        }
-        .map(ShortintParameters)
-    }
-
-    #[wasm_bindgen]
-    pub fn get_parameters_small(
-        message_bits: usize,
-        carry_bits: usize,
-    ) -> Result<ShortintParameters, JsError> {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        match (message_bits, carry_bits) {
-            (1, 1) => Ok(crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_PBS_KS),
-            (2, 2) => Ok(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS),
-            (3, 3) => Ok(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_PBS_KS),
-            (4, 4) => Ok(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_PBS_KS),
-            _ => Err(wasm_bindgen::JsError::new(
-                format!(
-                "No parameters for {message_bits} bits of message and {carry_bits} bits of carry"
-            )
-                .as_str(),
-            )),
-        }
-        .map(ShortintParameters)
-    }
-
     #[wasm_bindgen]
     pub fn new_gaussian_from_std_dev(std_dev: f64) -> ShortintNoiseDistribution {
         use crate::core_crypto::prelude::*;
