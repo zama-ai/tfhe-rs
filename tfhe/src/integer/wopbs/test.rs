@@ -255,12 +255,9 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         let mut ct2 = cks.encrypt_crt(clear2, basis.clone());
         //artificially modify the degree
         for (ct_1, ct_2) in ct1.blocks.iter_mut().zip(ct2.blocks.iter_mut()) {
-            let degree = params.0.message_modulus.0
-                * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
-            ct_1.degree = Degree::new(degree);
-            let degree = params.0.message_modulus.0
-                * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
-            ct_2.degree = Degree::new(degree);
+            // Do not go too far otherwise we explode the RAM for larger parameters
+            ct_1.degree = Degree::new(ct_1.degree.get() * 2);
+            ct_1.degree = Degree::new(ct_2.degree.get() * 2);
         }
 
         let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);
