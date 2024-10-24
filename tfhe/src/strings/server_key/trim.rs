@@ -14,10 +14,7 @@ impl FheStringIterator for SplitAsciiWhitespace {
         let str_len = self.state.len();
 
         if str_len == 0 || (self.state.is_padded() && str_len == 1) {
-            return (
-                FheString::empty(),
-                sk.key.create_trivial_boolean_block(false),
-            );
+            return (FheString::empty(), sk.create_trivial_boolean_block(false));
         }
 
         // If we aren't in the first next call `current_mask` is some
@@ -34,7 +31,7 @@ impl FheStringIterator for SplitAsciiWhitespace {
                 // If state after trim_start is empty it means the remaining string was either
                 // empty or only whitespace. Hence, there are no more elements to return
                 if let FheStringIsEmpty::Padding(val) = sk.is_empty(&state_after_trim) {
-                    sk.key.boolean_bitnot(&val)
+                    sk.boolean_bitnot(&val)
                 } else {
                     panic!("Empty str case was handled so 'state_after_trim' is padded")
                 }
@@ -49,16 +46,16 @@ impl SplitAsciiWhitespace {
         let mut mask = self.state.clone();
         let mut result = self.state.clone();
 
-        let mut prev_was_not = sk.key.create_trivial_boolean_block(true);
+        let mut prev_was_not = sk.create_trivial_boolean_block(true);
         for char in mask.chars_mut().iter_mut() {
             let mut is_not_ws = sk.is_not_whitespace(char);
-            sk.key.boolean_bitand_assign(&mut is_not_ws, &prev_was_not);
+            sk.boolean_bitand_assign(&mut is_not_ws, &prev_was_not);
 
-            let mut mask_u8 = is_not_ws.clone().into_radix(4, &sk.key);
+            let mut mask_u8 = is_not_ws.clone().into_radix(4, sk);
 
             // 0u8 is kept the same, but 1u8 is transformed into 255u8
-            sk.key.scalar_sub_assign_parallelized(&mut mask_u8, 1);
-            sk.key.bitnot_assign(&mut mask_u8);
+            sk.scalar_sub_assign_parallelized(&mut mask_u8, 1);
+            sk.bitnot_assign(&mut mask_u8);
 
             *char.ciphertext_mut() = mask_u8;
 
@@ -71,8 +68,7 @@ impl SplitAsciiWhitespace {
             .par_iter_mut()
             .zip(mask.chars().par_iter())
             .for_each(|(char, mask_u8)| {
-                sk.key
-                    .bitand_assign_parallelized(char.ciphertext_mut(), mask_u8.ciphertext());
+                sk.bitand_assign_parallelized(char.ciphertext_mut(), mask_u8.ciphertext());
             });
 
         self.current_mask = Some(mask);
@@ -84,16 +80,13 @@ impl SplitAsciiWhitespace {
     fn remaining_string(&mut self, sk: &ServerKey) {
         let mask = self.current_mask.as_ref().unwrap();
 
-        let mut number_of_trues: RadixCiphertext = sk.key.create_trivial_zero_radix(16);
+        let mut number_of_trues: RadixCiphertext = sk.create_trivial_zero_radix(16);
         for mask_u8 in mask.chars() {
-            let is_true = sk.key.scalar_eq_parallelized(mask_u8.ciphertext(), 255u8);
+            let is_true = sk.scalar_eq_parallelized(mask_u8.ciphertext(), 255u8);
 
             let num_blocks = number_of_trues.blocks().len();
 
-            sk.key.add_assign_parallelized(
-                &mut number_of_trues,
-                &is_true.into_radix(num_blocks, &sk.key),
-            );
+            sk.add_assign_parallelized(&mut number_of_trues, &is_true.into_radix(num_blocks, sk));
         }
 
         let padded = self.state.is_padded();
@@ -119,39 +112,33 @@ impl ServerKey {
                     rayon::join(
                         || {
                             rayon::join(
-                                || self.key.scalar_eq_parallelized(char.ciphertext(), 0x20u8),
-                                || self.key.scalar_eq_parallelized(char.ciphertext(), 0x09u8),
+                                || self.scalar_eq_parallelized(char.ciphertext(), 0x20u8),
+                                || self.scalar_eq_parallelized(char.ciphertext(), 0x09u8),
                             )
                         },
                         || {
                             rayon::join(
-                                || self.key.scalar_eq_parallelized(char.ciphertext(), 0x0Au8),
-                                || self.key.scalar_eq_parallelized(char.ciphertext(), 0x0Cu8),
+                                || self.scalar_eq_parallelized(char.ciphertext(), 0x0Au8),
+                                || self.scalar_eq_parallelized(char.ciphertext(), 0x0Cu8),
                             )
                         },
                     )
                 },
                 || {
                     rayon::join(
-                        || self.key.scalar_eq_parallelized(char.ciphertext(), 0x0Du8),
-                        || {
-                            or_null
-                                .then_some(self.key.scalar_eq_parallelized(char.ciphertext(), 0u8))
-                        },
+                        || self.scalar_eq_parallelized(char.ciphertext(), 0x0Du8),
+                        || or_null.then_some(self.scalar_eq_parallelized(char.ciphertext(), 0u8)),
                     )
                 },
             );
 
-        let mut is_whitespace = self.key.boolean_bitor(&is_space, &is_tab);
-        self.key
-            .boolean_bitor_assign(&mut is_whitespace, &is_new_line);
-        self.key
-            .boolean_bitor_assign(&mut is_whitespace, &is_form_feed);
-        self.key
-            .boolean_bitor_assign(&mut is_whitespace, &is_carriage_return);
+        let mut is_whitespace = self.boolean_bitor(&is_space, &is_tab);
+        self.boolean_bitor_assign(&mut is_whitespace, &is_new_line);
+        self.boolean_bitor_assign(&mut is_whitespace, &is_form_feed);
+        self.boolean_bitor_assign(&mut is_whitespace, &is_carriage_return);
 
         if let Some(is_null) = op_is_null {
-            self.key.boolean_bitor_assign(&mut is_whitespace, &is_null);
+            self.boolean_bitor_assign(&mut is_whitespace, &is_null);
         }
 
         is_whitespace
@@ -160,22 +147,21 @@ impl ServerKey {
     fn is_not_whitespace(&self, char: &FheAsciiChar) -> BooleanBlock {
         let result = self.is_whitespace(char, false);
 
-        self.key.boolean_bitnot(&result)
+        self.boolean_bitnot(&result)
     }
 
     fn compare_and_trim<'a, I>(&self, strip_str: I, starts_with_null: bool)
     where
         I: Iterator<Item = &'a mut FheAsciiChar>,
     {
-        let mut prev_was_ws = self.key.create_trivial_boolean_block(true);
+        let mut prev_was_ws = self.create_trivial_boolean_block(true);
         for char in strip_str {
             let mut is_whitespace = self.is_whitespace(char, starts_with_null);
-            self.key
-                .boolean_bitand_assign(&mut is_whitespace, &prev_was_ws);
+            self.boolean_bitand_assign(&mut is_whitespace, &prev_was_ws);
 
-            *char.ciphertext_mut() = self.key.if_then_else_parallelized(
+            *char.ciphertext_mut() = self.if_then_else_parallelized(
                 &is_whitespace,
-                &self.key.create_trivial_zero_radix(4),
+                &self.create_trivial_zero_radix(4),
                 char.ciphertext(),
             );
 
@@ -189,10 +175,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let s = "  hello world";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -218,12 +206,10 @@ impl ServerKey {
         if let FheStringLen::Padding(len_after_trim) = self.len(&result) {
             let original_str_len = match self.len(str) {
                 FheStringLen::Padding(enc_val) => enc_val,
-                FheStringLen::NoPadding(val) => self.key.create_trivial_radix(val as u32, 16),
+                FheStringLen::NoPadding(val) => self.create_trivial_radix(val as u32, 16),
             };
 
-            let shift_left = self
-                .key
-                .sub_parallelized(&original_str_len, &len_after_trim);
+            let shift_left = self.sub_parallelized(&original_str_len, &len_after_trim);
 
             result = self.left_shift_chars(&result, &shift_left);
         }
@@ -245,10 +231,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let s = "hello world  ";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -285,10 +273,12 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let s = "  hello world  ";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -320,10 +310,13 @@ impl ServerKey {
 /// # Examples
 ///
 /// ```rust
+/// use tfhe::integer::{ClientKey, ServerKey};
+/// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
 /// use tfhe::strings::ciphertext::FheString;
-/// use tfhe::strings::server_key::{gen_keys, split_ascii_whitespace, FheStringIterator};
+/// use tfhe::strings::server_key::{split_ascii_whitespace, FheStringIterator};
 ///
-/// let (ck, sk) = gen_keys();
+/// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+/// let sk = ServerKey::new_radix_server_key(&ck);
 /// let s = "hello \t\nworld ";
 ///
 /// let enc_s = FheString::new(&ck, s, None);
@@ -334,11 +327,11 @@ impl ServerKey {
 /// let (empty, no_more_items) = whitespace_iter.next(&sk); // Attempting to get a third item
 ///
 /// let first_decrypted = ck.decrypt_ascii(&first_item);
-/// let first_is_some = ck.key().decrypt_bool(&first_is_some);
+/// let first_is_some = ck.decrypt_bool(&first_is_some);
 /// let second_decrypted = ck.decrypt_ascii(&second_item);
-/// let second_is_some = ck.key().decrypt_bool(&second_is_some);
+/// let second_is_some = ck.decrypt_bool(&second_is_some);
 /// let empty = ck.decrypt_ascii(&empty);
-/// let no_more_items = ck.key().decrypt_bool(&no_more_items);
+/// let no_more_items = ck.decrypt_bool(&no_more_items);
 ///
 /// assert_eq!(first_decrypted, "hello");
 /// assert!(first_is_some);
