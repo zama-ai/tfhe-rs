@@ -1551,7 +1551,7 @@ void host_fast_propagate_single_carry(
       streams, gpu_indexes, gpu_count, lwe_array, params,
       mem->shifted_blocks_state_mem, bsks, ksks, num_blocks, lut_stride,
       lut_count);
-
+  auto block_states = mem->shifted_blocks_state_mem->block_states;
   if (requested_flag == outputFlag::OVERFLOW) {
     // This operation could be added to the many lut with some trickery to be in
     // parallel but first i will try to use different streams
@@ -1562,11 +1562,10 @@ void host_fast_propagate_single_carry(
         lut_overflow_prep);
   } else if (requested_flag == outputFlag::CARRY) {
     cuda_memcpy_async_gpu_to_gpu(
-        mem->output_flag, lwe_array + (num_blocks - 1) * big_lwe_size,
+        mem->output_flag, block_states + (num_blocks - 1) * big_lwe_size,
         big_lwe_size_bytes, streams[0], gpu_indexes[0]);
   }
 
-  auto block_states = mem->shifted_blocks_state_mem->block_states;
   host_compute_propagation_simulators_and_group_carries<Torus>(
       streams, gpu_indexes, gpu_count, block_states, params,
       mem->prop_simu_group_carries_mem, bsks, ksks, num_blocks,
@@ -1610,10 +1609,15 @@ void host_fast_propagate_single_carry(
                          mem->prop_simu_group_carries_mem->resolved_carries +
                              (mem->num_groups - 1) * big_lwe_size,
                          big_lwe_dimension, 1);
-
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, mem->output_flag, mem->output_flag,
-        bsks, ksks, 1, mem->lut_overflow_flag_last);
+    if (requested_flag == outputFlag::OVERFLOW) {
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          streams, gpu_indexes, gpu_count, mem->output_flag, mem->output_flag,
+          bsks, ksks, 1, mem->lut_overflow_flag_last);
+    } else {
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          streams, gpu_indexes, gpu_count, mem->output_flag, mem->output_flag,
+          bsks, ksks, 1, mem->lut_carry_flag_last);
+    }
 
     cuda_memcpy_async_gpu_to_gpu(carry_out, mem->output_flag,
                                  big_lwe_size_bytes, streams[0],

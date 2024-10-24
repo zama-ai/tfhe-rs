@@ -1680,6 +1680,7 @@ template <typename Torus> struct int_fast_sc_prop_memory {
 
   int_radix_lut<Torus> *lut_overflow_flag_prep;
   int_radix_lut<Torus> *lut_overflow_flag_last;
+  int_radix_lut<Torus> *lut_carry_flag_last;
 
   int_shifted_blocks_and_states_memory<Torus> *shifted_blocks_state_mem;
   int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
@@ -1818,7 +1819,7 @@ template <typename Torus> struct int_fast_sc_prop_memory {
     // For the final cleanup in case of overflow or carry (it seems that I can)
     // It seems that this lut could be apply together with the other one but for
     // now we won't do it
-    if (requested_flag > 0) { // Carry or Overflow case
+    if (requested_flag == 1) { // Overflow case
       lut_overflow_flag_last = new int_radix_lut<Torus>(
           streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
 
@@ -1842,6 +1843,21 @@ template <typename Torus> struct int_fast_sc_prop_memory {
       lut_overflow_flag_last->broadcast_lut(streams, gpu_indexes,
                                             gpu_indexes[0]);
     }
+    if (requested_flag == 2) { // Carry case
+      lut_carry_flag_last = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
+
+      auto f_carry_last = [](Torus block) -> Torus {
+        return ((block >> 2) & 1);
+      };
+      auto carry_flag_last = lut_carry_flag_last->get_lut(gpu_indexes[0], 0);
+
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], carry_flag_last, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus, f_carry_last);
+
+      lut_carry_flag_last->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+    }
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1855,11 +1871,13 @@ template <typename Torus> struct int_fast_sc_prop_memory {
 
     if (requested_flag == 1) { // In case of overflow
       lut_overflow_flag_prep->release(streams, gpu_indexes, gpu_count);
-      delete lut_overflow_flag_prep;
-    }
-    if (requested_flag > 0) { // In case of overflow or carry
       lut_overflow_flag_last->release(streams, gpu_indexes, gpu_count);
+      delete lut_overflow_flag_prep;
       delete lut_overflow_flag_last;
+    }
+    if (requested_flag == 2) { // In case of carry
+      lut_carry_flag_last->release(streams, gpu_indexes, gpu_count);
+      delete lut_carry_flag_last;
     }
   }
 };
