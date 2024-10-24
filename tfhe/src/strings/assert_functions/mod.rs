@@ -93,7 +93,7 @@ impl Keys {
 
         let dec = match result {
             FheStringLen::NoPadding(clear_len) => clear_len,
-            FheStringLen::Padding(enc_len) => self.ck.key().decrypt_radix::<u32>(&enc_len) as usize,
+            FheStringLen::Padding(enc_len) => self.ck.decrypt_radix::<u32>(&enc_len) as usize,
         };
 
         println!("\n\x1b[1mLen:\x1b[0m");
@@ -113,7 +113,7 @@ impl Keys {
 
         let dec = match result {
             FheStringIsEmpty::NoPadding(clear_len) => clear_len,
-            FheStringIsEmpty::Padding(enc_len) => self.ck.key().decrypt_bool(&enc_len),
+            FheStringIsEmpty::Padding(enc_len) => self.ck.decrypt_bool(&enc_len),
         };
 
         println!("\n\x1b[1mIs_empty:\x1b[0m");
@@ -150,7 +150,7 @@ impl Keys {
         let result = self.sk.contains(&enc_str, &enc_pat);
         let end = Instant::now();
 
-        let dec = self.ck.key().decrypt_bool(&result);
+        let dec = self.ck.decrypt_bool(&result);
 
         println!("\n\x1b[1mContains:\x1b[0m");
         result_message_pat(str, pat, expected, dec, end.duration_since(start));
@@ -161,7 +161,7 @@ impl Keys {
         let result = self.sk.contains(&enc_str, &clear_pat);
         let end = Instant::now();
 
-        let dec = self.ck.key().decrypt_bool(&result);
+        let dec = self.ck.decrypt_bool(&result);
 
         println!("\n\x1b[1mContains:\x1b[0m");
         result_message_clear_pat(str, pat, expected, dec, end.duration_since(start));
@@ -186,7 +186,7 @@ impl Keys {
         let result = self.sk.ends_with(&enc_str, &enc_pat);
         let end = Instant::now();
 
-        let dec = self.ck.key().decrypt_bool(&result);
+        let dec = self.ck.decrypt_bool(&result);
 
         println!("\n\x1b[1mEnds_with:\x1b[0m");
         result_message_pat(str, pat, expected, dec, end.duration_since(start));
@@ -197,7 +197,7 @@ impl Keys {
         let result = self.sk.ends_with(&enc_str, &clear_pat);
         let end = Instant::now();
 
-        let dec = self.ck.key().decrypt_bool(&result);
+        let dec = self.ck.decrypt_bool(&result);
 
         println!("\n\x1b[1mEnds_with:\x1b[0m");
         result_message_clear_pat(str, pat, expected, dec, end.duration_since(start));
@@ -222,7 +222,7 @@ impl Keys {
         let result = self.sk.starts_with(&enc_str, &enc_pat);
         let end = Instant::now();
 
-        let dec = self.ck.key().decrypt_bool(&result);
+        let dec = self.ck.decrypt_bool(&result);
 
         println!("\n\x1b[1mStarts_with:\x1b[0m");
         result_message_pat(str, pat, expected, dec, end.duration_since(start));
@@ -233,7 +233,7 @@ impl Keys {
         let result = self.sk.starts_with(&enc_str, &clear_pat);
         let end = Instant::now();
 
-        let dec = self.ck.key().decrypt_bool(&result);
+        let dec = self.ck.decrypt_bool(&result);
 
         println!("\n\x1b[1mStarts_with:\x1b[0m");
         result_message_clear_pat(str, pat, expected, dec, end.duration_since(start));
@@ -252,8 +252,8 @@ impl Keys {
         let (index, is_some) = self.sk.find(&enc_str, &enc_pat);
         let end = Instant::now();
 
-        let dec_index = self.ck.key().decrypt_radix::<u32>(&index);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_index = self.ck.decrypt_radix::<u32>(&index);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
 
         let dec = dec_is_some.then_some(dec_index as usize);
 
@@ -266,8 +266,8 @@ impl Keys {
         let (index, is_some) = self.sk.find(&enc_str, &clear_pat);
         let end = Instant::now();
 
-        let dec_index = self.ck.key().decrypt_radix::<u32>(&index);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_index = self.ck.decrypt_radix::<u32>(&index);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
 
         let dec = dec_is_some.then_some(dec_index as usize);
 
@@ -288,8 +288,8 @@ impl Keys {
         let (index, is_some) = self.sk.rfind(&enc_str, &enc_pat);
         let end = Instant::now();
 
-        let dec_index = self.ck.key().decrypt_radix::<u32>(&index);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_index = self.ck.decrypt_radix::<u32>(&index);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
 
         let dec = dec_is_some.then_some(dec_index as usize);
 
@@ -302,8 +302,8 @@ impl Keys {
         let (index, is_some) = self.sk.rfind(&enc_str, &clear_pat);
         let end = Instant::now();
 
-        let dec_index = self.ck.key().decrypt_radix::<u32>(&index);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_index = self.ck.decrypt_radix::<u32>(&index);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
 
         let dec = dec_is_some.then_some(dec_index as usize);
 
@@ -331,7 +331,7 @@ impl Keys {
         let end = Instant::now();
 
         let dec_result = self.ck.decrypt_ascii(&result);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
         if !dec_is_some {
             // When it's None, the FheString returned is the original str
             assert_eq!(dec_result, str);
@@ -349,7 +349,7 @@ impl Keys {
         let end = Instant::now();
 
         let dec_result = self.ck.decrypt_ascii(&result);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
         if !dec_is_some {
             // When it's None, the FheString returned is the original str
             assert_eq!(dec_result, str);
@@ -381,7 +381,7 @@ impl Keys {
         let end = Instant::now();
 
         let dec_result = self.ck.decrypt_ascii(&result);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
         if !dec_is_some {
             // When it's None, the FheString returned is the original str
             assert_eq!(dec_result, str);
@@ -399,7 +399,7 @@ impl Keys {
         let end = Instant::now();
 
         let dec_result = self.ck.decrypt_ascii(&result);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
         if !dec_is_some {
             // When it's None, the FheString returned is the original str
             assert_eq!(dec_result, str);
@@ -430,7 +430,7 @@ impl Keys {
         let result = self.sk.eq_ignore_case(&enc_lhs, &enc_rhs);
         let end = Instant::now();
 
-        let dec = self.ck.key().decrypt_bool(&result);
+        let dec = self.ck.decrypt_bool(&result);
 
         println!("\n\x1b[1mEq_ignore_case:\x1b[0m");
         result_message_rhs(str, rhs, expected, dec, end.duration_since(start));
@@ -441,7 +441,7 @@ impl Keys {
         let result = self.sk.eq_ignore_case(&enc_lhs, &clear_rhs);
         let end = Instant::now();
 
-        let dec = self.ck.key().decrypt_bool(&result);
+        let dec = self.ck.decrypt_bool(&result);
 
         println!("\n\x1b[1mEq_ignore_case:\x1b[0m");
         result_message_clear_rhs(str, rhs, expected, dec, end.duration_since(start));
@@ -461,7 +461,7 @@ impl Keys {
         let result_eq = self.sk.eq(&enc_lhs, &enc_rhs);
         let end = Instant::now();
 
-        let dec_eq = self.ck.key().decrypt_bool(&result_eq);
+        let dec_eq = self.ck.decrypt_bool(&result_eq);
 
         println!("\n\x1b[1mEq:\x1b[0m");
         result_message_rhs(str, rhs, expected_eq, dec_eq, end.duration_since(start));
@@ -472,7 +472,7 @@ impl Keys {
         let result_eq = self.sk.eq(&enc_lhs, &clear_rhs);
         let end = Instant::now();
 
-        let dec_eq = self.ck.key().decrypt_bool(&result_eq);
+        let dec_eq = self.ck.decrypt_bool(&result_eq);
 
         println!("\n\x1b[1mEq:\x1b[0m");
         result_message_clear_rhs(str, rhs, expected_eq, dec_eq, end.duration_since(start));
@@ -485,7 +485,7 @@ impl Keys {
         let result_ne = self.sk.ne(&enc_lhs, &enc_rhs);
         let end = Instant::now();
 
-        let dec_ne = self.ck.key().decrypt_bool(&result_ne);
+        let dec_ne = self.ck.decrypt_bool(&result_ne);
 
         println!("\n\x1b[1mNe:\x1b[0m");
         result_message_rhs(str, rhs, expected_ne, dec_ne, end.duration_since(start));
@@ -496,7 +496,7 @@ impl Keys {
         let result_ne = self.sk.ne(&enc_lhs, &clear_rhs);
         let end = Instant::now();
 
-        let dec_ne = self.ck.key().decrypt_bool(&result_ne);
+        let dec_ne = self.ck.decrypt_bool(&result_ne);
 
         println!("\n\x1b[1mNe:\x1b[0m");
         result_message_clear_rhs(str, rhs, expected_ne, dec_ne, end.duration_since(start));
@@ -511,7 +511,7 @@ impl Keys {
         let result_ge = self.sk.ge(&enc_lhs, &enc_rhs);
         let end = Instant::now();
 
-        let dec_ge = self.ck.key().decrypt_bool(&result_ge);
+        let dec_ge = self.ck.decrypt_bool(&result_ge);
 
         println!("\n\x1b[1mGe:\x1b[0m");
         result_message_rhs(str, rhs, expected_ge, dec_ge, end.duration_since(start));
@@ -524,7 +524,7 @@ impl Keys {
         let result_le = self.sk.le(&enc_lhs, &enc_rhs);
         let end = Instant::now();
 
-        let dec_le = self.ck.key().decrypt_bool(&result_le);
+        let dec_le = self.ck.decrypt_bool(&result_le);
 
         println!("\n\x1b[1mLe:\x1b[0m");
         result_message_rhs(str, rhs, expected_le, dec_le, end.duration_since(start));
@@ -537,7 +537,7 @@ impl Keys {
         let result_gt = self.sk.gt(&enc_lhs, &enc_rhs);
         let end = Instant::now();
 
-        let dec_gt = self.ck.key().decrypt_bool(&result_gt);
+        let dec_gt = self.ck.decrypt_bool(&result_gt);
 
         println!("\n\x1b[1mGt:\x1b[0m");
         result_message_rhs(str, rhs, expected_gt, dec_gt, end.duration_since(start));
@@ -550,7 +550,7 @@ impl Keys {
         let result_lt = self.sk.lt(&enc_lhs, &enc_rhs);
         let end = Instant::now();
 
-        let dec_lt = self.ck.key().decrypt_bool(&result_lt);
+        let dec_lt = self.ck.decrypt_bool(&result_lt);
 
         println!("\n\x1b[1mLt:\x1b[0m");
         result_message_rhs(str, rhs, expected_lt, dec_lt, end.duration_since(start));
@@ -736,7 +736,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
                 let dec_result = self.ck.decrypt_ascii(result);
                 if !dec_is_some {
                     // When it's None, the FheString returned is always empty
@@ -776,7 +776,7 @@ impl Keys {
 
         let dec_lhs = self.ck.decrypt_ascii(&lhs);
         let dec_rhs = self.ck.decrypt_ascii(&rhs);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
 
         let dec = dec_is_some.then_some((dec_lhs.as_str(), dec_rhs.as_str()));
 
@@ -804,7 +804,7 @@ impl Keys {
 
         let dec_lhs = self.ck.decrypt_ascii(&lhs);
         let dec_rhs = self.ck.decrypt_ascii(&rhs);
-        let dec_is_some = self.ck.key().decrypt_bool(&is_some);
+        let dec_is_some = self.ck.decrypt_bool(&is_some);
 
         let dec = dec_is_some.then_some((dec_lhs.as_str(), dec_rhs.as_str()));
 
@@ -835,7 +835,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
 
                 dec_is_some.then_some(self.ck.decrypt_ascii(result))
             })
@@ -873,7 +873,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
 
                 dec_is_some.then_some(self.ck.decrypt_ascii(result))
             })
@@ -917,7 +917,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
 
                 dec_is_some.then_some(self.ck.decrypt_ascii(result))
             })
@@ -961,7 +961,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
 
                 dec_is_some.then_some(self.ck.decrypt_ascii(result))
             })
@@ -1005,7 +1005,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
 
                 dec_is_some.then_some(self.ck.decrypt_ascii(result))
             })
@@ -1051,7 +1051,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
 
                 dec_is_some.then_some(self.ck.decrypt_ascii(result))
             })
@@ -1097,7 +1097,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
 
                 dec_is_some.then_some(self.ck.decrypt_ascii(result))
             })
@@ -1158,7 +1158,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
 
                 dec_is_some.then_some(self.ck.decrypt_ascii(result))
             })
@@ -1204,7 +1204,7 @@ impl Keys {
         let dec: Vec<_> = results
             .iter()
             .map(|(result, is_some)| {
-                let dec_is_some = self.ck.key().decrypt_bool(is_some);
+                let dec_is_some = self.ck.decrypt_bool(is_some);
 
                 dec_is_some.then_some(self.ck.decrypt_ascii(result))
             })

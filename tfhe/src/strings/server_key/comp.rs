@@ -12,9 +12,7 @@ impl ServerKey {
         if lhs_len == 0 || (lhs.is_padded() && lhs_len == 1) {
             return match self.is_empty(rhs) {
                 FheStringIsEmpty::Padding(enc_val) => Some(enc_val),
-                FheStringIsEmpty::NoPadding(val) => {
-                    Some(self.key.create_trivial_boolean_block(val))
-                }
+                FheStringIsEmpty::NoPadding(val) => Some(self.create_trivial_boolean_block(val)),
             };
         }
 
@@ -23,15 +21,13 @@ impl ServerKey {
         if rhs_len == 0 || (rhs.is_padded() && rhs_len == 1) {
             return match self.is_empty(lhs) {
                 FheStringIsEmpty::Padding(enc_val) => Some(enc_val),
-                FheStringIsEmpty::NoPadding(_) => {
-                    Some(self.key.create_trivial_boolean_block(false))
-                }
+                FheStringIsEmpty::NoPadding(_) => Some(self.create_trivial_boolean_block(false)),
             };
         }
 
         // Two strings without padding that have different lengths cannot be equal
         if (!lhs.is_padded() && !rhs.is_padded()) && (lhs.len() != rhs.len()) {
-            return Some(self.key.create_trivial_boolean_block(false));
+            return Some(self.create_trivial_boolean_block(false));
         }
 
         // A string without padding cannot be equal to a string with padding that has the same or
@@ -39,7 +35,7 @@ impl ServerKey {
         if (!lhs.is_padded() && rhs.is_padded()) && (rhs.len() <= lhs.len())
             || (!rhs.is_padded() && lhs.is_padded()) && (lhs.len() <= rhs.len())
         {
-            return Some(self.key.create_trivial_boolean_block(false));
+            return Some(self.create_trivial_boolean_block(false));
         }
 
         None
@@ -55,17 +51,19 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s1, s2) = ("hello", "hello");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.eq(&enc_s1, &enc_s2);
-    /// let are_equal = ck.key().decrypt_bool(&result);
+    /// let are_equal = ck.decrypt_bool(&result);
     ///
     /// assert!(are_equal);
     /// ```
@@ -86,14 +84,14 @@ impl ServerKey {
             GenericPattern::Clear(rhs) => {
                 let rhs_clear_uint = self.pad_cipher_and_cleartext_lsb(&mut lhs_uint, rhs.str());
 
-                self.key.scalar_eq_parallelized(&lhs_uint, rhs_clear_uint)
+                self.scalar_eq_parallelized(&lhs_uint, rhs_clear_uint)
             }
             GenericPattern::Enc(rhs) => {
                 let mut rhs_uint = rhs.to_uint(self);
 
                 self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-                self.key.eq_parallelized(&lhs_uint, &rhs_uint)
+                self.eq_parallelized(&lhs_uint, &rhs_uint)
             }
         }
     }
@@ -109,24 +107,26 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s1, s2) = ("hello", "world");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.ne(&enc_s1, &enc_s2);
-    /// let are_not_equal = ck.key().decrypt_bool(&result);
+    /// let are_not_equal = ck.decrypt_bool(&result);
     ///
     /// assert!(are_not_equal);
     /// ```
     pub fn ne(&self, lhs: &FheString, rhs: &GenericPattern) -> BooleanBlock {
         let eq = self.eq(lhs, rhs);
 
-        self.key.boolean_bitnot(&eq)
+        self.boolean_bitnot(&eq)
     }
 
     /// Returns `true` if the first encrypted string is less than the second encrypted string.
@@ -136,17 +136,19 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s1, s2) = ("apple", "banana");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
     /// let result = sk.lt(&enc_s1, &enc_s2);
-    /// let is_lt = ck.key().decrypt_bool(&result);
+    /// let is_lt = ck.decrypt_bool(&result);
     ///
     /// assert!(is_lt); // "apple" is less than "banana"
     /// ```
@@ -156,7 +158,7 @@ impl ServerKey {
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-        self.key.lt_parallelized(&lhs_uint, &rhs_uint)
+        self.lt_parallelized(&lhs_uint, &rhs_uint)
     }
 
     /// Returns `true` if the first encrypted string is greater than the second encrypted string.
@@ -166,17 +168,19 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s1, s2) = ("banana", "apple");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
     /// let result = sk.gt(&enc_s1, &enc_s2);
-    /// let is_gt = ck.key().decrypt_bool(&result);
+    /// let is_gt = ck.decrypt_bool(&result);
     ///
     /// assert!(is_gt); // "banana" is greater than "apple"
     /// ```
@@ -186,7 +190,7 @@ impl ServerKey {
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-        self.key.gt_parallelized(&lhs_uint, &rhs_uint)
+        self.gt_parallelized(&lhs_uint, &rhs_uint)
     }
 
     /// Returns `true` if the first encrypted string is less than or equal to the second encrypted
@@ -197,17 +201,19 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s1, s2) = ("apple", "banana");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
     /// let result = sk.le(&enc_s1, &enc_s2);
-    /// let is_le = ck.key().decrypt_bool(&result);
+    /// let is_le = ck.decrypt_bool(&result);
     ///
     /// assert!(is_le); // "apple" is less than or equal to "banana"
     /// ```
@@ -217,7 +223,7 @@ impl ServerKey {
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-        self.key.le_parallelized(&lhs_uint, &rhs_uint)
+        self.le_parallelized(&lhs_uint, &rhs_uint)
     }
 
     /// Returns `true` if the first encrypted string is greater than or equal to the second
@@ -228,17 +234,19 @@ impl ServerKey {
     /// # Examples
     ///
     /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::strings::ciphertext::FheString;
-    /// use tfhe::strings::server_key::gen_keys;
     ///
-    /// let (ck, sk) = gen_keys();
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (s1, s2) = ("banana", "apple");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
     /// let result = sk.ge(&enc_s1, &enc_s2);
-    /// let is_ge = ck.key().decrypt_bool(&result);
+    /// let is_ge = ck.decrypt_bool(&result);
     ///
     /// assert!(is_ge); // "banana" is greater than or equal to "apple"
     /// ```
@@ -248,6 +256,6 @@ impl ServerKey {
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-        self.key.ge_parallelized(&lhs_uint, &rhs_uint)
+        self.ge_parallelized(&lhs_uint, &rhs_uint)
     }
 }
