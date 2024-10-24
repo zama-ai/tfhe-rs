@@ -1537,7 +1537,7 @@ void host_fast_propagate_single_carry(
   auto carry_modulus = params.carry_modulus;
   uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-  auto big_lwe_dimension = big_lwe_size - 1;
+  auto big_lwe_dimension = big_lwe_size - 1; // For host addition
   auto lut_stride = mem->lut_stride;
   auto lut_count = mem->lut_count;
 
@@ -1558,11 +1558,11 @@ void host_fast_propagate_single_carry(
     auto lut_overflow_prep = mem->lut_overflow_flag_prep;
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, mem->output_flag,
-        lwe_array + (num_blocks - 1) * big_lwe_dimension, bsks, ksks, 1,
+        lwe_array + (num_blocks - 1) * big_lwe_size, bsks, ksks, 1,
         lut_overflow_prep);
   } else if (requested_flag == outputFlag::CARRY) {
     cuda_memcpy_async_gpu_to_gpu(
-        mem->output_flag, lwe_array + (num_blocks - 1) * big_lwe_dimension,
+        mem->output_flag, lwe_array + (num_blocks - 1) * big_lwe_size,
         big_lwe_size_bytes, streams[0], gpu_indexes[0]);
   }
 
@@ -1586,7 +1586,7 @@ void host_fast_propagate_single_carry(
     host_addition<Torus>(streams[0], gpu_indexes[0], mem->output_flag,
                          mem->output_flag,
                          mem->prop_simu_group_carries_mem->simulators +
-                             (num_blocks - 1) * big_lwe_dimension,
+                             (num_blocks - 1) * big_lwe_size,
                          big_lwe_dimension, 1);
   }
 
@@ -1608,7 +1608,7 @@ void host_fast_propagate_single_carry(
     host_addition<Torus>(streams[0], gpu_indexes[0], mem->output_flag,
                          mem->output_flag,
                          mem->prop_simu_group_carries_mem->resolved_carries +
-                             (mem->num_groups - 1) * big_lwe_dimension,
+                             (mem->num_groups - 1) * big_lwe_size,
                          big_lwe_dimension, 1);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(

@@ -183,7 +183,6 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(streams) };
-        //self.unchecked_add_assign(&mut result, ct_right, streams);
         self.unchecked_add_assign_with_packing(&mut result, ct_right, streams);
 
         result
