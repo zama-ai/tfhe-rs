@@ -1,11 +1,13 @@
 #[cfg(test)]
 mod test_vectors;
 
-use server_key::split_ascii_whitespace;
-
-use super::*;
+use super::ciphertext::{FheString, UIntArg};
+use super::server_key::{
+    split_ascii_whitespace, FheStringIsEmpty, FheStringIterator, FheStringLen,
+};
+use super::Keys;
 use crate::strings::ciphertext::{ClearString, GenericPattern};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn result_message<T>(str: &str, expected: T, dec: T, dur: Duration)
 where
