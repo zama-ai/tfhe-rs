@@ -761,7 +761,7 @@ pub fn vertical_packing_scratch<Scalar>(
         // cmux_tree_lut_res
         StackReq::try_new_aligned::<Scalar>(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN)?,
         StackReq::try_any_of([
-            blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
+            wop_blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
             cmux_tree_memory_optimized_scratch::<Scalar>(
                 glwe_size,
                 polynomial_size,
@@ -840,7 +840,7 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
     extract_lwe_sample_from_glwe_ciphertext(&cmux_tree_lut_res, &mut lwe_out, MonomialDegree(0));
 }
 
-pub fn blind_rotate_assign_scratch<Scalar>(
+pub fn wop_blind_rotate_assign_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,

@@ -217,7 +217,7 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
 }
 
 /// Return the required memory for [`FourierLweBootstrapKeyView::blind_rotate_assign`].
-pub fn blind_rotate_scratch<Scalar>(
+pub fn blind_rotate_assign_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
@@ -240,7 +240,7 @@ pub fn bootstrap_scratch<Scalar>(
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    blind_rotate_scratch::<Scalar>(glwe_size, polynomial_size, fft)?.try_and(
+    blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?.try_and(
         StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
     )
 }
