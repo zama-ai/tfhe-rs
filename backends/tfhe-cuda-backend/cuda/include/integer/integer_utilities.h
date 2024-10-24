@@ -1242,7 +1242,8 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
   int_shifted_blocks_and_states_memory(
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, int_radix_params params, uint32_t num_radix_blocks,
-      uint32_t lut_count, uint32_t grouping_size, bool allocate_gpu_memory) {
+      uint32_t lut_count, uint32_t grouping_size, uint32_t requested_flag,
+      bool allocate_gpu_memory) {
 
     auto glwe_dimension = params.glwe_dimension;
     auto polynomial_size = params.polynomial_size;
@@ -1344,18 +1345,31 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
         return 0; // Nothing
     };
 
-    std::vector<std::function<Torus(Torus)>> f_last_grouping_luts = {
-        f_last_block_state, f_shift_block};
-
     uint32_t lut_id = num_luts_first_step - 1; // The last lut of the first step
 
     auto last_block_lut =
         luts_array_first_step->get_lut(gpu_indexes[0], lut_id);
+    if (requested_flag == 1) {
+      auto f_overflow_shift_block = [message_modulus](Torus block) -> Torus {
+        Torus lhs = block / message_modulus;
+        Torus rhs = block % message_modulus;
+        return ((lhs + rhs) % message_modulus) << 1;
+      };
+      std::vector<std::function<Torus(Torus)>> f_last_grouping_luts = {
+          f_last_block_state, f_overflow_shift_block};
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], last_block_lut, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus,
+          f_last_grouping_luts);
+    } else {
+      std::vector<std::function<Torus(Torus)>> f_last_grouping_luts = {
+          f_last_block_state, f_shift_block};
 
-    generate_many_lut_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], last_block_lut, glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_last_grouping_luts);
-
+      generate_many_lut_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], last_block_lut, glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus,
+          f_last_grouping_luts);
+    }
     // Generate the indexes to switch between luts within the pbs
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
     Torus *h_lut_indexes = (Torus *)malloc(lut_indexes_size);
@@ -1714,7 +1728,7 @@ template <typename Torus> struct int_fast_sc_prop_memory {
 
     shifted_blocks_state_mem = new int_shifted_blocks_and_states_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks, lut_count,
-        grouping_size, true);
+        grouping_size, requested_flag, true);
 
     prop_simu_group_carries_mem = new int_prop_simu_group_carries_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
