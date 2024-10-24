@@ -260,12 +260,12 @@ def fft_noise(x, a, b, c, log2_q):
     # ~ print(x[:,1])
     # ~ print(x[:,-1])
     # ~ print("----")
-    return (k + 1) * level * (
+    return k * (k + 1) * level * (   # tanh:  * 2.**(1.-(1.+a/(2.**logbase))*.5*(np.tanh(b*(level-(N/50.)/logbase))+1.))
         # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
         # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
         a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2                 # in theory, not present
-        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
-        # ~ + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
+        + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
+        + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
     ) + theoretical_var
 
 
@@ -283,12 +283,12 @@ def fft_noise_128(x, a, b, c, log2_q):
     logbase = x[:, 3]
     theoretical_var = x[:, -1]
     # we lose 2 * 11 bits of mantissa per conversion 22 * 2 = 44
-    return (k + 1) * level * (
+    return k * (k + 1) * level * (   # tanh:  * 2.**(1.-(1.+a/(2.**logbase))*.5*(np.tanh(b*(level-(N/50.)/logbase))+1.))
         # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
         # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
         a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
-        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
-        # ~ + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
+        + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
+        + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
     ) + theoretical_var
 
 def log_fft_noise_fun(x, a, b, c, fft_noise_fun):
@@ -423,7 +423,7 @@ def test(x_values, y_values, weights, fft_noise_fun):
             pred_out = max(fft_noise_fun(params, *list(weights))[0], 0.000001)  #TODO make sure this const is OK
             if params[0,0] == big_N:
                 mse += (log_var(real_out) - log_var(pred_out)) ** 2
-                print(f"{log_var(real_out) - log_var(pred_out)}, {params[0]}, {real_out}, {pred_out}") # log_var(real_out) - log_var(pred_out) == log_var(real_out/pred_out)
+                print(f"{log_var(real_out) - log_var(pred_out)}, {params[0][0]}, {params[0][1]}, {params[0][2]}, {params[0][3]}, {params[0][4]}, {real_out}, {pred_out}") # log_var(real_out) - log_var(pred_out) == log_var(real_out/pred_out)
                 # print(
                 #     f"th: {log_var(params[0, -1])}, pred_fft: {log_var(pred_out)}, "
                 #     f"real: {log_var(real_out)}"
@@ -433,7 +433,7 @@ def test(x_values, y_values, weights, fft_noise_fun):
             # print(log_var(params[0, -1]))
             # mse_without_correction += (log_var(real_out) ) ** 2
 
-        print()
+        # print()
         count = max(count, 1)
 
         mse /= count  # len(x_values)
