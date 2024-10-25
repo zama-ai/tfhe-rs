@@ -8,7 +8,7 @@ pub use trim::split_ascii_whitespace;
 use crate::integer::bigint::static_unsigned::StaticUnsignedBigInt;
 use crate::integer::prelude::*;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
-use crate::strings::ciphertext::{FheAsciiChar, FheString};
+use crate::strings::ciphertext::{num_ascii_blocks, FheAsciiChar, FheString};
 use crate::strings::N;
 use rayon::prelude::*;
 use std::cmp::Ordering;
@@ -27,6 +27,12 @@ pub enum FheStringIsEmpty {
 
 // A few helper functions for the implementations
 impl ServerKey {
+    pub(super) fn num_ascii_blocks(&self) -> usize {
+        assert_eq!(self.message_modulus().0, self.carry_modulus().0);
+
+        num_ascii_blocks(self.message_modulus())
+    }
+
     // If an iterator is longer than the other, the "excess" characters are ignored. This function
     // performs the equality check by transforming the `str` and `pat` chars into two UInts
     fn asciis_eq<'a, I, U>(&self, str: I, pat: U) -> BooleanBlock
@@ -58,6 +64,8 @@ impl ServerKey {
     where
         I: DoubleEndedIterator<Item = &'a FheAsciiChar>,
     {
+        let num_blocks = self.num_ascii_blocks();
+
         let blocks_str: Vec<_> = str
             .into_iter()
             .rev()
@@ -66,15 +74,16 @@ impl ServerKey {
         let mut clear_pat = pat;
 
         let str_block_len = blocks_str.len();
-        let pat_block_len = clear_pat.len() * 4;
+        let pat_block_len = clear_pat.len() * num_blocks;
 
         let mut uint_str = RadixCiphertext::from_blocks(blocks_str);
 
         // Trim the str or pat such that the exceeding bytes are removed
         match str_block_len.cmp(&pat_block_len) {
             Ordering::Less => {
-                // `str_block_len` is always a multiple of 4 as each char is 4 blocks
-                clear_pat = &clear_pat[..str_block_len / 4];
+                // `str_block_len` is always a multiple of num_blocks as each char is num_blocks
+                // blocks
+                clear_pat = &clear_pat[..str_block_len / num_blocks];
             }
             Ordering::Greater => {
                 let diff = str_block_len - pat_block_len;
@@ -119,19 +128,21 @@ impl ServerKey {
         &self,
         lhs: &mut RadixCiphertext,
         rhs: &str,
-    ) -> StaticUnsignedBigInt<N> {
+    ) -> StaticUnsignedBigInt<{ N * 8 / 64 }> {
+        let num_blocks = self.num_ascii_blocks();
+
         let mut rhs_bytes = rhs.as_bytes().to_vec();
 
-        // Resize rhs with nulls at the end such that it matches the N const u64 length (for the
+        // Resize rhs with nulls at the end such that it matches the N const u8 length (for the
         // StaticUnsignedBigInt)
-        rhs_bytes.resize(N * 8, 0);
+        rhs_bytes.resize(N, 0);
 
-        let mut rhs_clear_uint = StaticUnsignedBigInt::<N>::from(0u8);
+        let mut rhs_clear_uint = StaticUnsignedBigInt::<{ N * 8 / 64 }>::from(0u8);
         rhs_clear_uint.copy_from_be_byte_slice(&rhs_bytes);
 
         // Also fill the lhs with null blocks at the end
-        if lhs.blocks().len() < N * 8 * 4 {
-            let diff = N * 8 * 4 - lhs.blocks().len();
+        if lhs.blocks().len() < N * num_blocks {
+            let diff = N * num_blocks - lhs.blocks().len();
             self.extend_radix_with_trivial_zero_blocks_lsb_assign(lhs, diff);
         }
 
