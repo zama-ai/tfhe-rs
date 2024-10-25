@@ -7,16 +7,17 @@ use serde::Serialize;
 use tfhe::boolean::prelude::*;
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
+use tfhe::shortint::parameters::{
+    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+};
 #[cfg(feature = "gpu")]
 use tfhe::shortint::parameters::{
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-};
-use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
 };
 #[cfg(not(feature = "gpu"))]
 use tfhe::shortint::parameters::{
@@ -523,9 +524,6 @@ mod cuda {
 
 #[cfg(feature = "gpu")]
 use cuda::cuda_keyswitch_group;
-use tfhe::shortint::parameters::{
-    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-};
 
 pub fn keyswitch_group() {
     let mut criterion: Criterion<_> = (Criterion::default()
