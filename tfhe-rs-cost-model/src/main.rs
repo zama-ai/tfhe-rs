@@ -1,5 +1,4 @@
 mod ks_pbs_timing;
-mod noise_estimation;
 mod operators;
 
 use crate::operators::classic_pbs::{
@@ -10,11 +9,13 @@ use crate::operators::multi_bit_pbs::{
     multi_bit_pbs_external_product, std_multi_bit_pbs_external_product,
 };
 use clap::Parser;
-use concrete_security_curves::gaussian::security::minimal_variance_glwe;
 use itertools::iproduct;
 use std::fs::OpenOptions;
 use std::io::Write;
 use tfhe::core_crypto::algorithms::misc::torus_modular_diff;
+use tfhe::core_crypto::commons::noise_formulas::external_product_no_fft::external_product_no_fft_additive_variance132_bits_security_gaussian;
+use tfhe::core_crypto::commons::noise_formulas::multi_bit_external_product_no_fft::multi_bit_external_product_no_fft_additive_variance_132_bits_security_gaussian;
+use tfhe::core_crypto::commons::noise_formulas::secure_noise::minimal_glwe_variance_for_132_bits_security_gaussian;
 use tfhe::core_crypto::prelude::*;
 
 pub const DEBUG: bool = false;
@@ -134,8 +135,13 @@ fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
     let _ = file.write(data_to_save.as_bytes()).unwrap();
 }
 
-fn minimal_variance_for_security(k: GlweDimension, size: PolynomialSize, modulus_log2: u32) -> f64 {
-    minimal_variance_glwe(k.0 as u64, size.0 as u64, modulus_log2, 128)
+fn minimal_variance_for_security(
+    k: GlweDimension,
+    size: PolynomialSize,
+    modulus_log2: u32,
+) -> Variance {
+    let modulus = 2.0f64.powi(modulus_log2 as i32);
+    minimal_glwe_variance_for_132_bits_security_gaussian(k, size, modulus)
 }
 
 fn mean(data: &[f64]) -> Option<f64> {
@@ -430,11 +436,7 @@ fn main() {
                 println!("Chunk part: {:?}/{chunk_size:?} done", curr_idx + 1);
                 let sample_size = base_sample_size * max_polynomial_size.0 / polynomial_size.0;
                 let ggsw_noise = Gaussian::from_dispersion_parameter(
-                    Variance::from_variance(minimal_variance_for_security(
-                        glwe_dimension,
-                        polynomial_size,
-                        modulus_log2,
-                    )),
+                    minimal_variance_for_security(glwe_dimension, polynomial_size, modulus_log2),
                     0.0,
                 );
                 // We measure the noise added to a GLWE ciphertext,here we can choose to have no
@@ -443,8 +445,7 @@ fn main() {
                 // during computations,it's an assumption we apparently already make ("small noise
                 // regime")
                 let glwe_noise = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
-                // Variance::from_variance(minimal_variance_for_security_64(glwe_dimension,
-                // poly_size));
+                // minimal_variance_for_security_64(glwe_dimension, poly_size);
 
                 let parameters = GlweCiphertextGgswCiphertextExternalProductParameters::<u64> {
                     ggsw_noise,
@@ -459,36 +460,34 @@ fn main() {
 
                 println!("params: {parameters:?}");
 
-                let noise_prediction =
-        match algo.as_str() {
-            EXT_PROD_ALGO => noise_estimation::classic_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
-                polynomial_size,
-                glwe_dimension,
-                ggsw_noise.standard_dev(),
-                decomposition_base_log,
-                decomposition_level_count,
-                modulus_log2,
-            ),
-            MULTI_BIT_EXT_PROD_ALGO => noise_estimation::multi_bit_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
-                polynomial_size,
-                glwe_dimension,
-                ggsw_noise.standard_dev(),
-                decomposition_base_log,
-                decomposition_level_count,
-                modulus_log2,
-                grouping_factor.unwrap(),
-            ),
-            STD_MULTI_BIT_EXT_PROD_ALGO => noise_estimation::multi_bit_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
-                polynomial_size,
-                glwe_dimension,
-                ggsw_noise.standard_dev(),
-                decomposition_base_log,
-                decomposition_level_count,
-                modulus_log2,
-                grouping_factor.unwrap(),
-            ),
-            _ => unreachable!(),
-        };
+                let noise_prediction = match algo.as_str() {
+                    EXT_PROD_ALGO => {
+                        external_product_no_fft_additive_variance132_bits_security_gaussian(
+                            glwe_dimension,
+                            polynomial_size,
+                            decomposition_base_log,
+                            decomposition_level_count,
+                            2.0f64.powi(modulus_log2 as i32),
+                        )
+                    }
+                    MULTI_BIT_EXT_PROD_ALGO =>multi_bit_external_product_no_fft_additive_variance_132_bits_security_gaussian(
+                        glwe_dimension,
+                        polynomial_size,
+                        decomposition_base_log,
+                        decomposition_level_count,
+                        grouping_factor.unwrap().0 as f64,
+                        2.0f64.powi(modulus_log2 as i32),
+                    ),
+                    STD_MULTI_BIT_EXT_PROD_ALGO => multi_bit_external_product_no_fft_additive_variance_132_bits_security_gaussian(
+                        glwe_dimension,
+                        polynomial_size,
+                        decomposition_base_log,
+                        decomposition_level_count,
+                        grouping_factor.unwrap().0 as f64,
+                        2.0f64.powi(modulus_log2 as i32),
+                    ),
+                    _ => unreachable!(),
+                };
 
                 let fft = Fft::new(parameters.polynomial_size);
                 let mut computation_buffers = ComputationBuffers::new();
@@ -640,11 +639,7 @@ fn main() {
                 println!("Chunk part: {:?}/{chunk_size:?} done", curr_idx + 1);
                 let sample_size = base_sample_size * max_polynomial_size.0 / polynomial_size.0;
                 let ggsw_noise = Gaussian::from_dispersion_parameter(
-                    Variance::from_variance(minimal_variance_for_security(
-                        glwe_dimension,
-                        polynomial_size,
-                        modulus_log2,
-                    )),
+                    minimal_variance_for_security(glwe_dimension, polynomial_size, modulus_log2),
                     0.0,
                 );
                 // We measure the noise added to a GLWE ciphertext,here we can choose to have no
@@ -653,8 +648,7 @@ fn main() {
                 // during computations,it's an assumption we apparently already make ("small noise
                 // regime")
                 let glwe_noise = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
-                // Variance::from_variance(minimal_variance_for_security_64(glwe_dimension,
-                // poly_size));
+                // minimal_variance_for_security_64(glwe_dimension, poly_size));
 
                 let parameters = GlweCiphertextGgswCiphertextExternalProductParameters::<u128> {
                     ggsw_noise,
@@ -669,18 +663,18 @@ fn main() {
 
                 println!("params: {parameters:?}");
 
-                let noise_prediction =
-        match algo.as_str() {
-            EXT_PROD_U128_SPLIT_ALGO | EXT_PROD_U128_ALGO => noise_estimation::classic_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
-                polynomial_size,
-                glwe_dimension,
-                ggsw_noise.standard_dev(),
-                decomposition_base_log,
-                decomposition_level_count,
-                modulus_log2,
-            ),
-            _ => unreachable!(),
-        };
+                let noise_prediction = match algo.as_str() {
+                    EXT_PROD_U128_SPLIT_ALGO | EXT_PROD_U128_ALGO => {
+                        external_product_no_fft_additive_variance132_bits_security_gaussian(
+                            glwe_dimension,
+                            polynomial_size,
+                            decomposition_base_log,
+                            decomposition_level_count,
+                            2.0f64.powi(modulus_log2 as i32),
+                        )
+                    }
+                    _ => unreachable!(),
+                };
 
                 let fft = Fft128::new(parameters.polynomial_size);
                 let mut computation_buffers = ComputationBuffers::new();

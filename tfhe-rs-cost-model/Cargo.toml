@@ -7,8 +7,6 @@ edition = "2021"
 
 [dependencies]
 aligned-vec = { version = "0.5", features = ["serde"] }
-concrete-cpu-noise-model = { path = "../concrete-cpu-noise-model" }
-concrete-security-curves = { path = "../concrete-security-curves-rust" }
 clap = { version = "3.1", features = ["derive"] }
 itertools = "0.8.0"
 indicatif = "0.16.2"

@@ -1258,10 +1258,6 @@ external_product_noise_measurement: setup_venv install_rs_check_toolchain
 clippy_noise_measurement: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-rs-cost-model -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		-p concrete-cpu-noise-model -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		-p concrete-security-curves -- --no-deps -D warnings
 
 .PHONY: setup_venv
 setup_venv:

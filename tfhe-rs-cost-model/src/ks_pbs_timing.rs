@@ -1,15 +1,17 @@
 use super::*;
 
-use concrete_cpu_noise_model::gaussian_noise::noise::blind_rotate::variance_blind_rotate;
-use concrete_cpu_noise_model::gaussian_noise::noise::keyswitch::variance_keyswitch;
-use concrete_cpu_noise_model::gaussian_noise::noise::modulus_switching::estimate_modulus_switching_noise_with_binary_key;
-use concrete_security_curves::gaussian::security::minimal_variance_lwe;
 use itertools::Itertools;
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
+use tfhe::core_crypto::commons::noise_formulas::lwe_keyswitch::keyswitch_additive_variance_132_bits_security_gaussian;
+use tfhe::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::pbs_variance_132_bits_security_gaussian;
+use tfhe::core_crypto::commons::noise_formulas::secure_noise::{
+    minimal_glwe_variance_for_132_bits_security_gaussian,
+    minimal_lwe_variance_for_132_bits_security_gaussian,
+};
 
-pub const SECURITY_LEVEL: u64 = 128;
+// pub const SECURITY_LEVEL: u64 = 132;
 // Variance of uniform distribution over [0; 1)
 pub const UNIFORM_NOISE_VARIANCE: f64 = 1. / 12.;
 
@@ -76,6 +78,35 @@ impl NoiseVariances {
     }
 }
 
+// TODO
+// This needs to be updated with the research optimizer
+// This was taken from concrete CPU temporarily
+pub fn estimate_modulus_switching_noise_with_binary_key(
+    internal_ks_output_lwe_dimension: LweDimension,
+    glwe_polynomial_size: PolynomialSize,
+    modulus: f64,
+) -> Variance {
+    let ciphertext_modulus_log = modulus.log2() as u32;
+
+    fn modular_variance_variance_ratio(ciphertext_modulus_log: u32) -> f64 {
+        2_f64.powi(2 * ciphertext_modulus_log as i32)
+    }
+
+    fn modular_variance_to_variance(modular_variance: f64, ciphertext_modulus_log: u32) -> f64 {
+        modular_variance / modular_variance_variance_ratio(ciphertext_modulus_log)
+    }
+
+    let nb_msb = glwe_polynomial_size.0.ilog2() + 1;
+
+    let w = 2_f64.powi(nb_msb as i32);
+    let n = internal_ks_output_lwe_dimension.0 as f64;
+
+    Variance(
+        (1. / 12. + n / 24.) / (w * w)
+            + modular_variance_to_variance(-1. / 12. + n / 48., ciphertext_modulus_log),
+    )
+}
+
 fn lwe_glwe_noise_ap_estimate(
     Params {
         lwe_dimension,
@@ -87,49 +118,36 @@ fn lwe_glwe_noise_ap_estimate(
         ks_level,
     }: Params,
     ciphertext_modulus_log: u32,
-    preserved_mantissa: usize,
 ) -> NoiseVariances {
-    let lwe_noise_variance = Variance(minimal_variance_lwe(
-        lwe_dimension.0.try_into().unwrap(),
-        ciphertext_modulus_log,
-        SECURITY_LEVEL,
-    ));
+    let modulus = 2.0f64.powi(ciphertext_modulus_log as i32);
+    let lwe_noise_variance =
+        minimal_lwe_variance_for_132_bits_security_gaussian(lwe_dimension, modulus);
 
-    let glwe_noise_variance = Variance(minimal_variance_glwe(
-        glwe_dimension.0.try_into().unwrap(),
-        polynomial_size.0.try_into().unwrap(),
-        ciphertext_modulus_log,
-        SECURITY_LEVEL,
-    ));
+    let glwe_noise_variance = minimal_glwe_variance_for_132_bits_security_gaussian(
+        glwe_dimension,
+        polynomial_size,
+        modulus,
+    );
 
-    let estimated_pbs_noise_variance = Variance(variance_blind_rotate(
-        lwe_dimension.0.try_into().unwrap(),
-        glwe_dimension.0.try_into().unwrap(),
-        polynomial_size.0.try_into().unwrap(),
-        pbs_base_log.0.try_into().unwrap(),
-        pbs_level.0.try_into().unwrap(),
-        ciphertext_modulus_log,
-        preserved_mantissa.try_into().unwrap(),
-        glwe_noise_variance.0,
-    ));
+    let estimated_pbs_noise_variance = pbs_variance_132_bits_security_gaussian(
+        lwe_dimension,
+        glwe_dimension,
+        polynomial_size,
+        pbs_base_log,
+        pbs_level,
+        modulus,
+    );
 
-    let estimated_ks_noise_variance = Variance(variance_keyswitch(
-        glwe_dimension
-            .to_equivalent_lwe_dimension(polynomial_size)
-            .0
-            .try_into()
-            .unwrap(),
-        ks_base_log.0.try_into().unwrap(),
-        ks_level.0.try_into().unwrap(),
-        ciphertext_modulus_log,
-        lwe_noise_variance.0,
-    ));
+    let estimated_ks_noise_variance = keyswitch_additive_variance_132_bits_security_gaussian(
+        glwe_dimension.to_equivalent_lwe_dimension(polynomial_size),
+        lwe_dimension,
+        ks_base_log,
+        ks_level,
+        modulus,
+    );
 
-    let ms_noise_variance = Variance(estimate_modulus_switching_noise_with_binary_key(
-        lwe_dimension.0.try_into().unwrap(),
-        polynomial_size.0.ilog2().into(),
-        ciphertext_modulus_log,
-    ));
+    let ms_noise_variance =
+        estimate_modulus_switching_noise_with_binary_key(lwe_dimension, polynomial_size, modulus);
 
     let br_to_ms_noise_variance = Variance(
         estimated_pbs_noise_variance.0 + estimated_ks_noise_variance.0 + ms_noise_variance.0,
@@ -309,17 +327,15 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
                     ks_base_log: ks_base_log_level.base,
                     ks_level: ks_base_log_level.level,
                 };
-                let variances = lwe_glwe_noise_ap_estimate(
-                    params,
-                    modulus_log2.try_into().unwrap(),
-                    preserved_mantissa,
-                );
+                let variances =
+                    lwe_glwe_noise_ap_estimate(params, modulus_log2.try_into().unwrap());
                 (params, variances)
             },
         )
         .filter(|(_params, variances)| {
             // let noise_ok = variances.all_noises_are_not_uniformly_random();
-            // let base_logs_not_too_small = params.pbs_base_log.0 != 1 && params.ks_base_log.0 != 1;
+            // let base_logs_not_too_small = params.pbs_base_log.0 != 1 && params.ks_base_log.0 !=
+            // 1;
 
             // noise_ok && base_logs_not_too_small
 

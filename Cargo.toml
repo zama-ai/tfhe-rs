@@ -9,12 +9,7 @@ members = [
     "backends/tfhe-cuda-backend",
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",
-    "tfhe-rs-cost-model",
-    "concrete-cpu-noise-model",
-    "concrete-security-curves-rust",
-    "tfhe-rs-cost-model",
-    "concrete-cpu-noise-model",
-    "concrete-security-curves-rust",
+    "tfhe-rs-cost-model"
 ]
 exclude = ["tfhe/backward_compatibility_tests"]
 
