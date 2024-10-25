@@ -627,27 +627,27 @@ async function compressedServerKeyBenchConfig(config) {
 
 async function compressedServerKeyBenchMessage1Carry1() {
   const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    ShortintParametersName.PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
   );
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
     .build();
   return append_param_name(
     await compressedServerKeyBenchConfig(config),
-    "PARAM_MESSAGE_1_CARRY_1_KS_PBS",
+    "PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64",
   );
 }
 
 async function compressedServerKeyBenchMessage2Carry2() {
   const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
   );
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
     .build();
   return append_param_name(
     await compressedServerKeyBenchConfig(config),
-    "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+    "PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64",
   );
 }
 
