@@ -12,7 +12,8 @@ use tfhe::core_crypto::fft_impl::fft64::math::fft::FftView;
 use tfhe::core_crypto::prelude::{
     add_external_product_assign_mem_optimized, allocate_and_generate_new_binary_glwe_secret_key,
     convert_standard_ggsw_ciphertext_to_fourier_mem_optimized, decrypt_glwe_ciphertext,
-    encrypt_constant_ggsw_ciphertext, encrypt_glwe_ciphertext, ActivatedRandomGenerator,
+    encrypt_constant_ggsw_ciphertext, encrypt_glwe_ciphertext,
+    karatsuba_add_external_product_assign_mem_optimized, ActivatedRandomGenerator,
     CiphertextModulus, Cleartext, ComputationBuffers, EncryptionRandomGenerator, GgswCiphertext,
     GlweCiphertext, GlweCiphertextMutView, GlweCiphertextView, Numeric, PlaintextCount,
     PlaintextList, SecretRandomGenerator,
@@ -26,6 +27,7 @@ pub fn classic_pbs_external_product(
     sample_size: usize,
     secret_random_generator: &mut SecretRandomGenerator<ActivatedRandomGenerator>,
     encryption_random_generator: &mut EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    use_fft: bool,
     fft: FftView,
     computation_buffers: &mut ComputationBuffers,
 ) -> (u128, u128) {
@@ -61,12 +63,14 @@ pub fn classic_pbs_external_product(
         std_ggsw.decomposition_level_count(),
     );
 
-    convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
-        &std_ggsw,
-        &mut fourier_ggsw,
-        fft,
-        computation_buffers.stack(),
-    );
+    if use_fft {
+        convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
+            &std_ggsw,
+            &mut fourier_ggsw,
+            fft,
+            computation_buffers.stack(),
+        );
+    }
 
     let mut sample_runtime_ns = 0u128;
 
@@ -115,13 +119,22 @@ pub fn classic_pbs_external_product(
 
         let start = std::time::Instant::now();
 
-        add_external_product_assign_mem_optimized(
-            &mut output_glwe_ciphertext,
-            &fourier_ggsw,
-            &input_glwe_ciphertext,
-            fft,
-            computation_buffers.stack(),
-        );
+        if use_fft {
+            add_external_product_assign_mem_optimized(
+                &mut output_glwe_ciphertext,
+                &fourier_ggsw,
+                &input_glwe_ciphertext,
+                fft,
+                computation_buffers.stack(),
+            );
+        } else {
+            karatsuba_add_external_product_assign_mem_optimized(
+                &mut output_glwe_ciphertext,
+                &std_ggsw,
+                &input_glwe_ciphertext,
+                computation_buffers.stack(),
+            );
+        }
 
         if !ciphertext_modulus.is_native_modulus() {
             // When we convert back from the fourier domain, integer values will contain up to 53

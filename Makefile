@@ -1245,7 +1245,7 @@ sha256_bool: install_rs_check_toolchain
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
 .PHONY: external_product_noise_measurement # Run scripts to run noise measurement for external_product
-external_product_noise_measurement: setup_venv install_rs_check_toolchain
+external_product_noise_measurement: setup_venv_noise_measurement install_rs_check_toolchain
 	source venv/bin/activate && \
 	cd tfhe-rs-cost-model/src/ && \
 	python3 external_product_correction.py \
@@ -1254,13 +1254,23 @@ external_product_noise_measurement: setup_venv install_rs_check_toolchain
 		--algorithm multi-bit-ext-prod \
 		--multi-bit-grouping-factor 2
 
+
+.PHONY: external_product_noise_measurement_classic # Run scripts to run noise measurement for external_product
+external_product_noise_measurement_classic: setup_venv_noise_measurement install_rs_check_toolchain
+	source venv/bin/activate && \
+	cd tfhe-rs-cost-model/src/ && \
+	python3 external_product_correction.py \
+		--rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--chunks "$$(nproc)" -- \
+		--algorithm ext-prod
+
 .PHONY: clippy_noise_measurement # Run clippy lints on noise measurement tool
 clippy_noise_measurement: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-rs-cost-model -- --no-deps -D warnings
 
-.PHONY: setup_venv
-setup_venv:
+.PHONY: setup_venv_noise_measurement
+setup_venv_noise_measurement:
 	python3 -m venv venv
 	source venv/bin/activate && \
 	pip install -U pip wheel setuptools && \

@@ -8,11 +8,12 @@ use tfhe::core_crypto::prelude::{
     add_external_product_assign_mem_optimized, allocate_and_generate_new_binary_glwe_secret_key,
     allocate_and_generate_new_lwe_multi_bit_bootstrap_key,
     convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized, decrypt_glwe_ciphertext,
-    encrypt_glwe_ciphertext, modulus_switch_multi_bit, prepare_multi_bit_ggsw_mem_optimized,
-    std_prepare_multi_bit_ggsw, ActivatedRandomGenerator, ComputationBuffers,
-    ContiguousEntityContainer, EncryptionRandomGenerator, FourierLweMultiBitBootstrapKey,
-    GgswCiphertext, GlweCiphertext, LweBskGroupingFactor, LweSecretKey, MonomialDegree, Numeric,
-    PlaintextCount, PlaintextList, SecretRandomGenerator,
+    encrypt_glwe_ciphertext, karatsuba_add_external_product_assign_mem_optimized,
+    modulus_switch_multi_bit, prepare_multi_bit_ggsw_mem_optimized, std_prepare_multi_bit_ggsw,
+    ActivatedRandomGenerator, ComputationBuffers, ContiguousEntityContainer,
+    EncryptionRandomGenerator, FourierLweMultiBitBootstrapKey, GgswCiphertext, GlweCiphertext,
+    LweBskGroupingFactor, LweSecretKey, MonomialDegree, Numeric, PlaintextCount, PlaintextList,
+    SecretRandomGenerator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -23,6 +24,7 @@ pub fn multi_bit_pbs_external_product(
     sample_size: usize,
     secret_random_generator: &mut SecretRandomGenerator<ActivatedRandomGenerator>,
     encryption_random_generator: &mut EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    use_fft: bool,
     fft: FftView,
     computation_buffers: &mut ComputationBuffers,
     grouping_factor: LweBskGroupingFactor,
@@ -54,13 +56,16 @@ pub fn multi_bit_pbs_external_product(
         bsk.grouping_factor(),
     );
 
-    convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized(
-        &bsk,
-        &mut fbsk,
-        fft,
-        computation_buffers.stack(),
-    );
+    if use_fft {
+        convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized(
+            &bsk,
+            &mut fbsk,
+            fft,
+            computation_buffers.stack(),
+        );
+    }
 
+    let std_ggsw_vec: Vec<_> = bsk.iter().collect();
     let ggsw_vec: Vec<_> = fbsk.ggsw_iter().collect();
 
     let grouping_factor = fbsk.grouping_factor();
@@ -80,6 +85,24 @@ pub fn multi_bit_pbs_external_product(
 
     let mut fourier_a_monomial = FourierPolynomial::new(fbsk.polynomial_size());
 
+    let mut std_ggsw = GgswCiphertext::new(
+        0u64,
+        bsk.glwe_size(),
+        bsk.polynomial_size(),
+        bsk.decomposition_base_log(),
+        bsk.decomposition_level_count(),
+        bsk.ciphertext_modulus(),
+    );
+
+    let mut tmp_std_ggsw = GgswCiphertext::new(
+        0u64,
+        bsk.glwe_size(),
+        bsk.polynomial_size(),
+        bsk.decomposition_base_log(),
+        bsk.decomposition_level_count(),
+        bsk.ciphertext_modulus(),
+    );
+
     let mut fourier_ggsw = FourierGgswCiphertext::new(
         fbsk.glwe_size(),
         fbsk.polynomial_size(),
@@ -88,17 +111,30 @@ pub fn multi_bit_pbs_external_product(
     );
 
     let prep_start = std::time::Instant::now();
-    prepare_multi_bit_ggsw_mem_optimized(
-        &mut fourier_ggsw,
-        &ggsw_vec,
-        modulus_switch_multi_bit(
-            fbsk.polynomial_size().to_blind_rotation_input_modulus_log(),
-            grouping_factor,
-            &random_mask,
-        ),
-        &mut fourier_a_monomial,
-        fft,
-    );
+    if use_fft {
+        prepare_multi_bit_ggsw_mem_optimized(
+            &mut fourier_ggsw,
+            &ggsw_vec,
+            modulus_switch_multi_bit(
+                fbsk.polynomial_size().to_blind_rotation_input_modulus_log(),
+                grouping_factor,
+                &random_mask,
+            ),
+            &mut fourier_a_monomial,
+            fft,
+        );
+    } else {
+        std_prepare_multi_bit_ggsw(
+            &mut std_ggsw,
+            &mut tmp_std_ggsw,
+            &std_ggsw_vec,
+            modulus_switch_multi_bit(
+                bsk.polynomial_size().to_blind_rotation_input_modulus_log(),
+                grouping_factor,
+                &random_mask,
+            ),
+        );
+    }
     let prep_time_ns = prep_start.elapsed().as_nanos();
 
     let mut sample_runtime_ns = 0u128;
@@ -138,13 +174,22 @@ pub fn multi_bit_pbs_external_product(
 
         let start = std::time::Instant::now();
 
-        add_external_product_assign_mem_optimized(
-            &mut output_glwe_ciphertext,
-            &fourier_ggsw,
-            &input_glwe_ciphertext,
-            fft,
-            computation_buffers.stack(),
-        );
+        if use_fft {
+            add_external_product_assign_mem_optimized(
+                &mut output_glwe_ciphertext,
+                &fourier_ggsw,
+                &input_glwe_ciphertext,
+                fft,
+                computation_buffers.stack(),
+            );
+        } else {
+            karatsuba_add_external_product_assign_mem_optimized(
+                &mut output_glwe_ciphertext,
+                &std_ggsw,
+                &input_glwe_ciphertext,
+                computation_buffers.stack(),
+            );
+        }
 
         let elapsed = start.elapsed().as_nanos();
         sample_runtime_ns += elapsed;
@@ -180,6 +225,7 @@ pub fn std_multi_bit_pbs_external_product(
     sample_size: usize,
     secret_random_generator: &mut SecretRandomGenerator<ActivatedRandomGenerator>,
     encryption_random_generator: &mut EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    use_fft: bool,
     fft: FftView,
     computation_buffers: &mut ComputationBuffers,
     grouping_factor: LweBskGroupingFactor,
@@ -255,11 +301,15 @@ pub fn std_multi_bit_pbs_external_product(
             &random_mask,
         ),
     );
-    fourier_ggsw.as_mut_view().fill_with_forward_fourier(
-        std_ggsw.as_view(),
-        fft,
-        computation_buffers.stack(),
-    );
+
+    if use_fft {
+        fourier_ggsw.as_mut_view().fill_with_forward_fourier(
+            std_ggsw.as_view(),
+            fft,
+            computation_buffers.stack(),
+        );
+    }
+
     let prep_time_ns = prep_start.elapsed().as_nanos();
 
     let mut sample_runtime_ns = 0u128;
@@ -299,13 +349,22 @@ pub fn std_multi_bit_pbs_external_product(
 
         let start = std::time::Instant::now();
 
-        add_external_product_assign_mem_optimized(
-            &mut output_glwe_ciphertext,
-            &fourier_ggsw,
-            &input_glwe_ciphertext,
-            fft,
-            computation_buffers.stack(),
-        );
+        if use_fft {
+            add_external_product_assign_mem_optimized(
+                &mut output_glwe_ciphertext,
+                &fourier_ggsw,
+                &input_glwe_ciphertext,
+                fft,
+                computation_buffers.stack(),
+            );
+        } else {
+            karatsuba_add_external_product_assign_mem_optimized(
+                &mut output_glwe_ciphertext,
+                &std_ggsw,
+                &input_glwe_ciphertext,
+                computation_buffers.stack(),
+            );
+        }
 
         let elapsed = start.elapsed().as_nanos();
         sample_runtime_ns += elapsed;

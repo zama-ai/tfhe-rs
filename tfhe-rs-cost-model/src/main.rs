@@ -68,6 +68,8 @@ struct Args {
     ],default_value = "")]
     algorithm: String,
     #[clap(long)]
+    use_fft: bool,
+    #[clap(long)]
     multi_bit_grouping_factor: Option<usize>,
     #[clap(long, short = 'q')]
     modulus_log2: Option<u32>,
@@ -273,6 +275,7 @@ fn main() {
     let algo = args.algorithm;
     let dir = &args.dir;
     let timing_only = args.timing_only;
+    let use_fft = args.use_fft;
 
     if algo.is_empty() {
         panic!("No algorithm provided")
@@ -527,6 +530,7 @@ fn main() {
                                 sample_size,
                                 secret_rng,
                                 encrypt_rng,
+                                use_fft,
                                 fft.as_view(),
                                 &mut computation_buffers,
                             ),
@@ -537,6 +541,7 @@ fn main() {
                                 sample_size,
                                 secret_rng,
                                 encrypt_rng,
+                                use_fft,
                                 fft.as_view(),
                                 &mut computation_buffers,
                                 grouping_factor.unwrap(),
@@ -548,6 +553,7 @@ fn main() {
                                 sample_size,
                                 secret_rng,
                                 encrypt_rng,
+                                use_fft,
                                 fft.as_view(),
                                 &mut computation_buffers,
                                 grouping_factor.unwrap(),
