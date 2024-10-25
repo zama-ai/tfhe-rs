@@ -1,5 +1,5 @@
 use crate::integer::{ClientKey, RadixCiphertext};
-use crate::strings::ciphertext::{FheAsciiChar, FheString};
+use crate::strings::ciphertext::{num_ascii_blocks, FheAsciiChar, FheString};
 
 pub struct EncU16 {
     cipher: RadixCiphertext,
@@ -29,23 +29,34 @@ impl ClientKey {
 
         let padded = padding.map_or(false, |p| p != 0);
 
+        let num_blocks = self.num_ascii_blocks();
+
         let mut enc_string: Vec<_> = str
             .bytes()
             .map(|char| FheAsciiChar {
-                enc_char: self.encrypt_radix(char, 4),
+                enc_char: self.encrypt_radix(char, num_blocks),
             })
             .collect();
 
         // Optional padding
         if let Some(count) = padding {
             let null = (0..count).map(|_| FheAsciiChar {
-                enc_char: self.encrypt_radix(0u8, 4),
+                enc_char: self.encrypt_radix(0u8, num_blocks),
             });
 
             enc_string.extend(null);
         }
 
         FheString { enc_string, padded }
+    }
+
+    fn num_ascii_blocks(&self) -> usize {
+        assert_eq!(
+            self.parameters().message_modulus().0,
+            self.parameters().carry_modulus().0
+        );
+
+        num_ascii_blocks(self.parameters().message_modulus())
     }
 
     /// Decrypts a `FheString`, removes any padding and returns the ASCII string.

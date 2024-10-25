@@ -23,7 +23,7 @@ impl ServerKey {
         for start in iter {
             let is_matched = self.asciis_eq(str.iter().copied().skip(start), pat.iter().copied());
 
-            let mut mask = is_matched.clone().into_radix(4, self);
+            let mut mask = is_matched.clone().into_radix(self.num_ascii_blocks(), self);
 
             // If mask == 0u8, it will now be 255u8. If it was 1u8, it will now be 0u8
             self.scalar_sub_assign_parallelized(&mut mask, 1);
@@ -64,7 +64,7 @@ impl ServerKey {
         for start in iter {
             let is_matched = self.clear_asciis_eq(str.iter().copied().skip(start), pat);
 
-            let mut mask = is_matched.clone().into_radix(4, self);
+            let mut mask = is_matched.clone().into_radix(self.num_ascii_blocks(), self);
 
             // If mask == 0u8, it will now be 255u8. If it was 1u8, it will now be 0u8
             self.scalar_sub_assign_parallelized(&mut mask, 1);

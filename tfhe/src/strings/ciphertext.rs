@@ -1,6 +1,7 @@
 use crate::integer::{
     ClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext, ServerKey,
 };
+use crate::shortint::MessageModulus;
 use crate::strings::client_key::EncU16;
 use crate::strings::N;
 
@@ -31,7 +32,7 @@ pub struct ClearString {
 impl ClearString {
     pub fn new(str: String) -> Self {
         assert!(str.is_ascii() && !str.contains('\0'));
-        assert!(str.len() <= N * 8);
+        assert!(str.len() <= N);
 
         Self { str }
     }
@@ -58,7 +59,7 @@ impl FheAsciiChar {
 
     pub fn null(sk: &ServerKey) -> Self {
         Self {
-            enc_char: sk.create_trivial_zero_radix(4),
+            enc_char: sk.create_trivial_zero_radix(sk.num_ascii_blocks()),
         }
     }
 }
@@ -82,7 +83,7 @@ impl FheString {
         let enc_string: Vec<_> = str
             .bytes()
             .map(|char| FheAsciiChar {
-                enc_char: server_key.create_trivial_radix(char, 4),
+                enc_char: server_key.create_trivial_radix(char, server_key.num_ascii_blocks()),
             })
             .collect();
 
@@ -112,18 +113,25 @@ impl FheString {
         self.padded = to;
     }
 
-    // Converts a `RadixCiphertext` to a `FheString`, building a `FheAsciiChar` for each 4 blocks.
-    // Panics if the uint doesn't have a number of blocks that is multiple of 4.
+    // Converts a `RadixCiphertext` to a `FheString`, building a `FheAsciiChar` for each
+    // num_ascii_blocks blocks.
     pub fn from_uint(uint: RadixCiphertext, padded: bool) -> Self {
+        assert_eq!(
+            uint.blocks()[0].message_modulus.0,
+            uint.blocks()[0].carry_modulus.0
+        );
+
+        let num_blocks = num_ascii_blocks(uint.blocks()[0].message_modulus);
+
         let blocks_len = uint.blocks().len();
-        assert_eq!(blocks_len % 4, 0);
+        assert_eq!(blocks_len % num_blocks, 0);
 
         let mut ciphertexts = uint.into_blocks().into_iter().rev();
 
         let mut ascii_vec = vec![];
 
-        for _ in 0..blocks_len / 4 {
-            let mut byte_vec: Vec<_> = ciphertexts.by_ref().take(4).collect();
+        for _ in 0..blocks_len / num_blocks {
+            let mut byte_vec: Vec<_> = ciphertexts.by_ref().take(num_blocks).collect();
             byte_vec.reverse();
 
             let byte = RadixCiphertext::from_blocks(byte_vec);
@@ -154,7 +162,7 @@ impl FheString {
         let mut uint = RadixCiphertext::from_blocks(blocks);
 
         if uint.blocks().is_empty() {
-            sk.extend_radix_with_trivial_zero_blocks_lsb_assign(&mut uint, 4);
+            sk.extend_radix_with_trivial_zero_blocks_lsb_assign(&mut uint, sk.num_ascii_blocks());
         }
 
         uint
@@ -184,6 +192,16 @@ impl FheString {
             padded: false,
         }
     }
+}
+
+pub(super) fn num_ascii_blocks(message_modulus: MessageModulus) -> usize {
+    let message_modulus = message_modulus.0;
+
+    assert!(message_modulus.is_power_of_two());
+
+    assert_eq!(8 % message_modulus.ilog2(), 0);
+
+    8 / message_modulus.ilog2() as usize
 }
 
 #[cfg(test)]

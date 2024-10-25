@@ -51,7 +51,7 @@ impl SplitAsciiWhitespace {
             let mut is_not_ws = sk.is_not_whitespace(char);
             sk.boolean_bitand_assign(&mut is_not_ws, &prev_was_not);
 
-            let mut mask_u8 = is_not_ws.clone().into_radix(4, sk);
+            let mut mask_u8 = is_not_ws.clone().into_radix(sk.num_ascii_blocks(), sk);
 
             // 0u8 is kept the same, but 1u8 is transformed into 255u8
             sk.scalar_sub_assign_parallelized(&mut mask_u8, 1);
@@ -161,7 +161,7 @@ impl ServerKey {
 
             *char.ciphertext_mut() = self.if_then_else_parallelized(
                 &is_whitespace,
-                &self.create_trivial_zero_radix(4),
+                &self.create_trivial_zero_radix(self.num_ascii_blocks()),
                 char.ciphertext(),
             );
 

@@ -161,7 +161,7 @@ impl ServerKey {
             .par_iter_mut()
             .zip(lowercase_chars.into_par_iter())
             .for_each(|(char, is_lowercase)| {
-                let mut subtract = self.create_trivial_radix(32, 4);
+                let mut subtract = self.create_trivial_radix(32, self.num_ascii_blocks());
 
                 self.mul_assign_parallelized(&mut subtract, &is_lowercase.into_radix(1, self));
 
@@ -214,7 +214,7 @@ impl ServerKey {
             .par_iter_mut()
             .zip(uppercase_chars)
             .for_each(|(char, is_uppercase)| {
-                let mut add = self.create_trivial_radix(32, 4);
+                let mut add = self.create_trivial_radix(32, self.num_ascii_blocks());
 
                 self.mul_assign_parallelized(&mut add, &is_uppercase.into_radix(1, self));
 
