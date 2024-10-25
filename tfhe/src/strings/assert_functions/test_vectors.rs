@@ -1,3 +1,4 @@
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 use crate::strings::Keys;
 
 const TEST_CASES_MATCH: [(&str, u32); 15] = [
@@ -126,7 +127,7 @@ const TEST_CASES_REPLACE: [((&str, u32), (&str, u32), (&str, u32)); 27] = [
 
 #[test]
 fn test_len() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_CASES_MATCH {
         keys.assert_len(str, Some(str_pad));
@@ -135,7 +136,7 @@ fn test_len() {
 
 #[test]
 fn test_is_empty() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_CASES_MATCH {
         keys.assert_is_empty(str, Some(str_pad));
@@ -144,7 +145,7 @@ fn test_is_empty() {
 
 #[test]
 fn test_encrypt_decrypt() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_CASES_MATCH {
         keys.assert_encrypt_decrypt(str, Some(str_pad));
@@ -153,7 +154,7 @@ fn test_encrypt_decrypt() {
 
 #[test]
 fn test_contains() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     // 225 different cases
     for (str, str_pad) in TEST_CASES_MATCH {
@@ -165,7 +166,7 @@ fn test_contains() {
 
 #[test]
 fn test_ends_with() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     // 225 different cases
     for (str, str_pad) in TEST_CASES_MATCH {
@@ -177,7 +178,7 @@ fn test_ends_with() {
 
 #[test]
 fn test_starts_with() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     // 225 different cases
     for (str, str_pad) in TEST_CASES_MATCH {
@@ -189,7 +190,7 @@ fn test_starts_with() {
 
 #[test]
 fn test_strip_prefix() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     // 225 different cases
     for (str, str_pad) in TEST_CASES_MATCH {
@@ -201,7 +202,7 @@ fn test_strip_prefix() {
 
 #[test]
 fn test_strip_suffix() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     // 225 different cases
     for (str, str_pad) in TEST_CASES_MATCH {
@@ -213,7 +214,7 @@ fn test_strip_suffix() {
 
 #[test]
 fn test_rfind() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     // 225 different cases
     for (str, str_pad) in TEST_CASES_MATCH {
@@ -225,7 +226,7 @@ fn test_rfind() {
 
 #[test]
 fn test_find() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     // 225 different cases
     for (str, str_pad) in TEST_CASES_MATCH {
@@ -237,7 +238,7 @@ fn test_find() {
 
 #[test]
 fn test_trim() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_WHITESPACE {
         keys.assert_trim(str, Some(str_pad));
@@ -246,7 +247,7 @@ fn test_trim() {
 
 #[test]
 fn test_trim_start() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_WHITESPACE {
         keys.assert_trim_start(str, Some(str_pad));
@@ -255,7 +256,7 @@ fn test_trim_start() {
 
 #[test]
 fn test_trim_end() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_WHITESPACE {
         keys.assert_trim_end(str, Some(str_pad));
@@ -264,7 +265,7 @@ fn test_trim_end() {
 
 #[test]
 fn test_comparisons() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_CASES_COMP {
         for (rhs, rhs_pad) in TEST_CASES_COMP {
@@ -275,7 +276,7 @@ fn test_comparisons() {
 
 #[test]
 fn test_to_lowercase() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_CASES_COMP {
         keys.assert_to_lowercase(str, Some(str_pad));
@@ -284,7 +285,7 @@ fn test_to_lowercase() {
 
 #[test]
 fn test_to_uppercase() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_CASES_COMP {
         keys.assert_to_uppercase(str, Some(str_pad));
@@ -293,7 +294,7 @@ fn test_to_uppercase() {
 
 #[test]
 fn test_eq_ignore_case() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_CASES_COMP {
         for (rhs, rhs_pad) in TEST_CASES_COMP {
@@ -304,7 +305,7 @@ fn test_eq_ignore_case() {
 
 #[test]
 fn test_split_ascii_whitespace() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_WHITESPACE {
         keys.assert_split_ascii_whitespace(str, Some(str_pad));
@@ -313,7 +314,7 @@ fn test_split_ascii_whitespace() {
 
 #[test]
 fn test_rsplit_once() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_CASES_MATCH {
         for (pat, pat_pad) in TEST_CASES_MATCH {
@@ -324,7 +325,7 @@ fn test_rsplit_once() {
 
 #[test]
 fn test_split_once() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in TEST_CASES_MATCH {
         for (pat, pat_pad) in TEST_CASES_MATCH {
@@ -335,7 +336,7 @@ fn test_split_once() {
 
 #[test]
 fn test_rsplit_real() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), (pat, pat_pad)) in TEST_CASES_SPLIT {
         keys.assert_rsplit(str, Some(str_pad), pat, Some(pat_pad));
@@ -344,7 +345,7 @@ fn test_rsplit_real() {
 
 #[test]
 fn test_split_real() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), (pat, pat_pad)) in TEST_CASES_SPLIT {
         keys.assert_split(str, Some(str_pad), pat, Some(pat_pad));
@@ -353,7 +354,7 @@ fn test_split_real() {
 
 #[test]
 fn test_rsplitn() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), (pat, pat_pad)) in TEST_CASES_SPLIT {
         for n in 0..=3 {
@@ -364,7 +365,7 @@ fn test_rsplitn() {
 
 #[test]
 fn test_splitn() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), (pat, pat_pad)) in TEST_CASES_SPLIT {
         for n in 0..=3 {
@@ -375,7 +376,7 @@ fn test_splitn() {
 
 #[test]
 fn test_split_terminator() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), (pat, pat_pad)) in TEST_CASES_SPLIT {
         keys.assert_split_terminator(str, Some(str_pad), pat, Some(pat_pad));
@@ -384,7 +385,7 @@ fn test_split_terminator() {
 
 #[test]
 fn test_rsplit_terminator() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), (pat, pat_pad)) in TEST_CASES_SPLIT {
         keys.assert_rsplit_terminator(str, Some(str_pad), pat, Some(pat_pad));
@@ -393,7 +394,7 @@ fn test_rsplit_terminator() {
 
 #[test]
 fn test_split_inclusive() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), (pat, pat_pad)) in TEST_CASES_SPLIT {
         keys.assert_split_inclusive(str, Some(str_pad), pat, Some(pat_pad));
@@ -402,7 +403,7 @@ fn test_split_inclusive() {
 
 #[test]
 fn test_concat() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for (str, str_pad) in [
         ("", 0),
@@ -429,7 +430,7 @@ fn test_concat() {
 
 #[test]
 fn test_repeat() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), n) in [
         (("", 0), 3),
@@ -448,7 +449,7 @@ fn test_repeat() {
 
 #[test]
 fn test_replacen() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), (from, from_pad), (to, to_pad)) in TEST_CASES_REPLACE {
         for n in 0..=3 {
@@ -465,7 +466,7 @@ fn test_replacen() {
 
 #[test]
 fn test_replace_real() {
-    let keys = Keys::new();
+    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
 
     for ((str, str_pad), (from, from_pad), (to, to_pad)) in TEST_CASES_REPLACE {
         keys.assert_replace(str, Some(str_pad), from, Some(from_pad), to, Some(to_pad));

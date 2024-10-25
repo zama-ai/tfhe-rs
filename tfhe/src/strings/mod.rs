@@ -5,9 +5,9 @@ pub mod server_key;
 #[cfg(test)]
 mod assert_functions;
 
-// Used as the const argument for StaticUnsignedBigInt, specifying the max u64 length of a
+// Used as the const argument for StaticUnsignedBigInt, specifying the max chars length of a
 // ClearString
-const N: usize = 4;
+const N: usize = 32;
 
 #[cfg(test)]
 pub(crate) use test::Keys;
@@ -15,15 +15,43 @@ pub(crate) use test::Keys;
 #[cfg(test)]
 mod test {
     use crate::integer::{ClientKey, ServerKey};
+    use crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
     use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
+    use crate::shortint::ClassicPBSParameters;
 
     #[test]
     fn test_all2() {
-        test_all("", Some(0), "", Some(0), "", Some(0), "", Some(0), 1, 1);
+        test_all(
+            PARAM_MESSAGE_2_CARRY_2,
+            "",
+            None,
+            "",
+            None,
+            "",
+            None,
+            "",
+            None,
+            0,
+            0,
+        );
+        test_all(
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            "",
+            None,
+            "",
+            None,
+            "",
+            None,
+            "",
+            None,
+            0,
+            0,
+        );
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn test_all(
+        params: ClassicPBSParameters,
         str: &str,
         str_pad: Option<u32>,
         pat: &str,
@@ -35,7 +63,7 @@ mod test {
         n: u16,
         max: u16,
     ) {
-        let keys = Keys::new();
+        let keys = Keys::new(params);
 
         keys.assert_len(str, str_pad);
         keys.assert_is_empty(str, str_pad);
@@ -89,8 +117,8 @@ mod test {
     }
 
     impl Keys {
-        pub(crate) fn new() -> Self {
-            let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+        pub(crate) fn new(params: ClassicPBSParameters) -> Self {
+            let ck = ClientKey::new(params);
             let sk = ServerKey::new_radix_server_key(&ck);
 
             Self { ck, sk }
