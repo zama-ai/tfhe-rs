@@ -8,7 +8,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
-    blind_rotate_assign_scratch, bootstrap_scratch,
+    batch_bootstrap_scratch, blind_rotate_assign_scratch, bootstrap_scratch,
 };
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign as impl_add_external_product_assign,
@@ -1071,4 +1071,92 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<OutputSca
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, fft)
+}
+
+/// This function takes list as input and output and computes the programmable bootstrap for each
+/// slot progressively loading the bootstrapping key only once. The caller must provide
+/// a properly configured [`FftView`] object and a `PodStack` used as a memory buffer having a
+/// capacity at least as large as the result of
+/// [`batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement`].
+pub fn batch_programmable_bootstrap_lwe_ciphertext_mem_optimized<
+    InputScalar,
+    OutputScalar,
+    InputCont,
+    OutputCont,
+    AccCont,
+    KeyCont,
+>(
+    input: &LweCiphertextList<InputCont>,
+    output: &mut LweCiphertextList<OutputCont>,
+    accumulator: &GlweCiphertextList<AccCont>,
+    fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
+    fft: FftView<'_>,
+    stack: PodStack<'_>,
+) where
+    // CastInto required for PBS modulus switch which returns a usize
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
+    KeyCont: Container<Element = c64>,
+{
+    assert_eq!(
+        accumulator.ciphertext_modulus(),
+        output.ciphertext_modulus(),
+        "Mismatched moduli between accumulator ({:?}) and output ({:?})",
+        accumulator.ciphertext_modulus(),
+        output.ciphertext_modulus()
+    );
+
+    assert_eq!(
+        fourier_bsk.input_lwe_dimension(),
+        input.lwe_size().to_lwe_dimension(),
+        "Mismatched input LweDimension. \
+        FourierLweBootstrapKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        fourier_bsk.input_lwe_dimension(),
+        input.lwe_size().to_lwe_dimension(),
+    );
+    assert_eq!(
+        fourier_bsk.output_lwe_dimension(),
+        output.lwe_size().to_lwe_dimension(),
+        "Mismatched output LweDimension. \
+        FourierLweBootstrapKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        fourier_bsk.output_lwe_dimension(),
+        output.lwe_size().to_lwe_dimension(),
+    );
+    assert_eq!(
+        input.lwe_ciphertext_count().0,
+        output.lwe_ciphertext_count().0,
+        "Mismatched list length. \
+     input LweCiphertextList length: {:?}, output LweCiphertextList length {:?}.",
+        input.lwe_ciphertext_count().0,
+        output.lwe_ciphertext_count().0,
+    );
+    assert_eq!(
+        input.lwe_ciphertext_count().0,
+        accumulator.glwe_ciphertext_count().0,
+        "Mismatched list length. \
+     input LweCiphertextList length: {:?}, accumulator GlweCiphertextList length {:?}.",
+        input.lwe_ciphertext_count().0,
+        accumulator.glwe_ciphertext_count().0,
+    );
+
+    fourier_bsk.as_view().batch_bootstrap(
+        output.as_mut_view(),
+        input.as_view(),
+        &accumulator.as_view(),
+        fft,
+        stack,
+    );
+}
+
+/// Return the required memory for [`batch_programmable_bootstrap_lwe_ciphertext_mem_optimized`].
+pub fn batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<OutputScalar>(
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    ciphertext_count: CiphertextCount,
+    fft: FftView<'_>,
+) -> Result<StackReq, SizeOverflow> {
+    batch_bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, ciphertext_count, fft)
 }
