@@ -163,8 +163,8 @@ install_web_resource:
 	rm checksum && \
 	$(decompress_cmd) $(filename)
 
-install_chrome_browser: url = "https://storage.googleapis.com/chrome-for-testing-public/128.0.6613.137/linux64/chrome-linux64.zip"
-install_chrome_browser: checksum = "c5d7da679f3a353ae4e4420ab113de06d4bd459152f5b17558390c02d9520566"
+install_chrome_browser: url = "https://storage.googleapis.com/chrome-for-testing-public/130.0.6723.69/linux64/chrome-linux64.zip"
+install_chrome_browser: checksum = "f789d53911a50cfa4a2bc1f09cde57567247f52515436d92b1aa9de93c2787d0"
 install_chrome_browser: dest = "$(WEB_RUNNER_DIR)/chrome"
 install_chrome_browser: filename = "chrome-linux64.zip"
 install_chrome_browser: decompress_cmd = unzip
@@ -172,8 +172,8 @@ install_chrome_browser: decompress_cmd = unzip
 .PHONY: install_chrome_browser # Install Chrome browser for Linux
 install_chrome_browser: install_web_resource
 
-install_chrome_web_driver: url = "https://storage.googleapis.com/chrome-for-testing-public/128.0.6613.137/linux64/chromedriver-linux64.zip"
-install_chrome_web_driver: checksum = "f041092f403fb7455a6da2871070b6587c32814a3e3c2b0a794d3d4aa4739151"
+install_chrome_web_driver: url = "https://storage.googleapis.com/chrome-for-testing-public/130.0.6723.69/linux64/chromedriver-linux64.zip"
+install_chrome_web_driver: checksum = "90fe8dedf33eefe4b72704f626fa9f5834427c042235cfeb4251f18c9f0336ea"
 install_chrome_web_driver: dest = "$(WEB_RUNNER_DIR)/chrome"
 install_chrome_web_driver: filename = "chromedriver-linux64.zip"
 install_chrome_web_driver: decompress_cmd = unzip
