@@ -44,7 +44,7 @@ jobs:
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
@@ -72,7 +72,7 @@ jobs:
           echo "branch=${BRANCH}" >> "${GITHUB_OUTPUT}"
 
       - name: Clone test data
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
           repository: zama-ai/tfhe-backward-compat-data
