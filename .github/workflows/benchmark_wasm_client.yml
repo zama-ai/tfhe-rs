@@ -33,7 +33,7 @@ jobs:
       wasm_bench: ${{ steps.changed-files.outputs.wasm_bench_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
 
@@ -84,7 +84,7 @@ jobs:
         browser: [ chrome, firefox ]
     steps:
       - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
@@ -145,7 +145,7 @@ jobs:
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: zama-ai/slab
           path: slab

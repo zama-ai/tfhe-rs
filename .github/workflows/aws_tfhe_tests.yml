@@ -57,7 +57,7 @@ jobs:
       any_file_changed: ${{ env.IS_PULL_REQUEST == 'false' || steps.aggregated-changes.outputs.any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
 
@@ -151,7 +151,7 @@ jobs:
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
