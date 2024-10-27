@@ -165,7 +165,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Send message
-        uses: rtCamp/action-slack-notify@65e6fc1ce697e2df8149d9ae9909acc5ec5599ce
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ needs.cuda-erc20-benchmarks.result }}
           SLACK_MESSAGE: "Integer GPU benchmarks finished with status: ${{ needs.cuda-erc20-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
@@ -189,7 +189,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@65e6fc1ce697e2df8149d9ae9909acc5ec5599ce
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Instance teardown (cuda-erc20-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
