@@ -30,8 +30,15 @@ env:
   NPM_TAG: ""
 
 jobs:
+  verify_tag:
+    uses: ./.github/workflows/verify_tagged_commit.yml
+    secrets:
+      RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+
   package:
     runs-on: ubuntu-latest
+    needs: verify_tag
     outputs:
       hash: ${{ steps.hash.outputs.hash }}
     steps:
