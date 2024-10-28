@@ -182,6 +182,15 @@ impl<G: Curve> PublicParams<G> {
     pub fn exclusive_max_noise(&self) -> u64 {
         self.b
     }
+
+    /// Check if the crs can be used to generate or verify a proof
+    ///
+    /// This means checking that the points are:
+    /// - valid points of the curve
+    /// - in the correct subgroup
+    pub fn is_usable(&self) -> bool {
+        self.g_lists.is_valid()
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
@@ -195,6 +204,38 @@ pub struct Proof<G: Curve> {
     pub(crate) c_y: G::G1,
     pub(crate) pi: G::G1,
     pub(crate) compute_load_proof_fields: Option<ComputeLoadProofFields<G>>,
+}
+
+impl<G: Curve> Proof<G> {
+    /// Check if the proof can be used by the Verifier.
+    ///
+    /// This means checking that the points in the proof are:
+    /// - valid points of the curve
+    /// - in the correct subgroup
+    pub fn is_usable(&self) -> bool {
+        let &Proof {
+            c_hat,
+            c_y,
+            pi,
+            ref compute_load_proof_fields,
+        } = self;
+
+        c_hat.validate_projective()
+            && c_y.validate_projective()
+            && pi.validate_projective()
+            && compute_load_proof_fields.as_ref().map_or(
+                true,
+                |&ComputeLoadProofFields {
+                     c_hat_t,
+                     c_h,
+                     pi_kzg,
+                 }| {
+                    c_hat_t.validate_projective()
+                        && c_h.validate_projective()
+                        && pi_kzg.validate_projective()
+                },
+            )
+    }
 }
 
 /// These fields can be pre-computed on the prover side in the faster Verifier scheme. If that's the
@@ -1260,6 +1301,8 @@ pub fn verify<G: Curve>(
 
 #[cfg(test)]
 mod tests {
+    use crate::curve_api::{self, bls12_446};
+
     use super::super::test::*;
     use super::*;
     use rand::rngs::StdRng;
@@ -1312,7 +1355,7 @@ mod tests {
         let mut fake_metadata = [255u8; METADATA_LEN];
         fake_metadata.fill_with(|| rng.gen::<u8>());
 
-        type Curve = crate::curve_api::Bls12_446;
+        type Curve = curve_api::Bls12_446;
 
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
@@ -1429,7 +1472,7 @@ mod tests {
         };
 
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
-        type Curve = crate::curve_api::Bls12_446;
+        type Curve = curve_api::Bls12_446;
 
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
@@ -1491,7 +1534,7 @@ mod tests {
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
 
-        type Curve = crate::curve_api::Bls12_446;
+        type Curve = curve_api::Bls12_446;
 
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
 
@@ -1524,6 +1567,150 @@ mod tests {
                 Proof::uncompress(bincode::deserialize(&compressed_proof).unwrap()).unwrap();
 
             verify(&proof, (&public_param, &public_commit), &testcase.metadata).unwrap()
+        }
+    }
+
+    #[test]
+    fn test_proof_usable() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV1_TEST_PARAMS;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
+        let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
+
+        type Curve = curve_api::Bls12_446;
+
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let public_param = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        let (public_commit, private_commit) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &public_param,
+            rng,
+        );
+
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            let valid_proof = prove(
+                (&public_param, &public_commit),
+                &private_commit,
+                &testcase.metadata,
+                load,
+                rng,
+            );
+
+            let compressed_proof = bincode::serialize(&valid_proof.compress()).unwrap();
+            let proof_that_was_compressed: Proof<Curve> =
+                Proof::uncompress(bincode::deserialize(&compressed_proof).unwrap()).unwrap();
+
+            assert!(valid_proof.is_usable());
+            assert!(proof_that_was_compressed.is_usable());
+
+            let not_on_curve_g1 = bls12_446::G1::projective(bls12_446::G1Affine {
+                inner: point_not_on_curve(rng),
+            });
+
+            let not_on_curve_g2 = bls12_446::G2::projective(bls12_446::G2Affine {
+                inner: point_not_on_curve(rng),
+            });
+
+            let not_in_group_g1 = bls12_446::G1::projective(bls12_446::G1Affine {
+                inner: point_on_curve_wrong_subgroup(rng),
+            });
+
+            let not_in_group_g2 = bls12_446::G2::projective(bls12_446::G2Affine {
+                inner: point_on_curve_wrong_subgroup(rng),
+            });
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.c_hat = not_on_curve_g2;
+                assert!(!proof.is_usable());
+                proof.c_hat = not_in_group_g2;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.c_y = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.c_y = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            {
+                let mut proof = valid_proof.clone();
+                proof.pi = not_on_curve_g1;
+                assert!(!proof.is_usable());
+                proof.pi = not_in_group_g1;
+                assert!(!proof.is_usable());
+            }
+
+            if let Some(ref valid_compute_proof_fields) = valid_proof.compute_load_proof_fields {
+                {
+                    let mut proof = valid_proof.clone();
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        c_hat_t: not_on_curve_g2,
+                        ..valid_compute_proof_fields.clone()
+                    });
+
+                    assert!(!proof.is_usable());
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        c_hat_t: not_in_group_g2,
+                        ..valid_compute_proof_fields.clone()
+                    });
+
+                    assert!(!proof.is_usable());
+                }
+
+                {
+                    let mut proof = valid_proof.clone();
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        c_h: not_on_curve_g1,
+                        ..valid_compute_proof_fields.clone()
+                    });
+
+                    assert!(!proof.is_usable());
+
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        c_h: not_in_group_g1,
+                        ..valid_compute_proof_fields.clone()
+                    });
+
+                    assert!(!proof.is_usable());
+                }
+
+                {
+                    let mut proof = valid_proof.clone();
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        pi_kzg: not_on_curve_g1,
+                        ..valid_compute_proof_fields.clone()
+                    });
+
+                    assert!(!proof.is_usable());
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        pi_kzg: not_in_group_g1,
+                        ..valid_compute_proof_fields.clone()
+                    });
+
+                    assert!(!proof.is_usable());
+                }
+            }
         }
     }
 }
