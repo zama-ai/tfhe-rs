@@ -11,9 +11,7 @@ pub struct SplitAsciiWhitespace {
 
 impl FheStringIterator for SplitAsciiWhitespace {
     fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
-        let str_len = self.state.len();
-
-        if str_len == 0 || (self.state.is_padded() && str_len == 1) {
+        if self.state.is_empty() {
             return (FheString::empty(), sk.create_trivial_boolean_block(false));
         }
 

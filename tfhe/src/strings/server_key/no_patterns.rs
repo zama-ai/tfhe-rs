@@ -356,8 +356,7 @@ impl ServerKey {
             return FheString::empty();
         }
 
-        let str_len = str.len();
-        if str_len == 0 || (str.is_padded() && str_len == 1) {
+        if str.is_empty() {
             return FheString::empty();
         }
 

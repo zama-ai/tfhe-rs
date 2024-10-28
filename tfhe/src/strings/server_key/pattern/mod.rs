@@ -27,13 +27,13 @@ impl ServerKey {
 
         // If the pattern is empty it will match any string, this is the behavior of core::str
         // Note that this doesn't handle the case where pattern is empty and has > 1 padding zeros
-        if pat_len == 0 || (pat.is_padded() && pat_len == 1) {
+        if pat.is_empty() {
             return IsMatch::Clear(true);
         }
 
         // If our string is an empty string we are just looking if the pattern is also empty (the
         // only case remaining is if pattern padding > 1).
-        if str_len == 0 || (str.is_padded() && str_len == 1) {
+        if str.is_empty() {
             return match self.is_empty(pat) {
                 FheStringIsEmpty::Padding(value) => IsMatch::Cipher(value),
                 FheStringIsEmpty::NoPadding(_) => IsMatch::Clear(false),
