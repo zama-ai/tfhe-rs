@@ -1,0 +1,32 @@
+# Verify a tagged commit
+name: Verify tagged commit
+
+on:
+  workflow_call:
+    secrets:
+      RELEASE_TEAM:
+        required: true
+      READ_ORG_TOKEN:
+        required: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      # Check triggering actor membership
+      - name: Actor verification
+        id: actor_check
+        uses: morfien101/actions-authorized-user@4a3cfbf0bcb3cafe4a71710a278920c5d94bb38b
+        with:
+          username: ${{ github.triggering_actor }}
+          org: ${{ github.repository_owner }}
+          team: ${{ secrets.RELEASE_TEAM }}
+          github_token: ${{ secrets.READ_ORG_TOKEN }}
+
+      - name: Actor authorized
+        run: |
+          if [ "${{ steps.actor_check.outputs.authorized }}" == "false" ]; then
+            echo "Actor '${{ github.triggering_actor }}' is not authorized to perform release"
+            exit 1
+          fi
