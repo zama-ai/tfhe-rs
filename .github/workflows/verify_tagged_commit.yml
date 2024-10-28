@@ -1,0 +1,61 @@
+# Verify a tagged commit
+name: Verify tagged commit
+
+on:
+  workflow_call:
+    secrets:
+      RELEASE_TEAM:
+        required: true
+      READ_ORG_TOKEN:
+        required: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Get commit details
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "COMMITTER_LOGIN=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }} --jq '.committer.login')";
+            echo "VERIFICATION_STATUS=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }} --jq '.commit.verification.verified')";
+          } >> "${GITHUB_ENV}"
+
+      # Check author of the tag membership
+      - name: Author verification
+        id: author_check
+        uses: morfien101/actions-authorized-user@4a3cfbf0bcb3cafe4a71710a278920c5d94bb38b
+        with:
+          username: ${{ env.COMMITTER_LOGIN }}
+          org: ${{ github.repository_owner }}
+          team: ${{ secrets.RELEASE_TEAM }}
+          github_token: ${{ secrets.READ_ORG_TOKEN }}
+
+      # Check triggering actor membership
+      - name: Actor verification
+        id: actor_check
+        uses: morfien101/actions-authorized-user@4a3cfbf0bcb3cafe4a71710a278920c5d94bb38b
+        with:
+          username: ${{ github.actor }}
+          org: ${{ github.repository_owner }}
+          team: ${{ secrets.RELEASE_TEAM }}
+          github_token: ${{ secrets.READ_ORG_TOKEN }}
+
+      - name: Commit verification
+        run: |
+          if [ "${{ steps.author_check.outputs.authorized }}" == "false" ]; then
+            echo "Author '${{ env.COMMITTER_LOGIN }}' is not part of authorized team"
+            exit 1
+          fi
+          
+          if [ "${{ steps.actor_check.outputs.authorized }}" == "false" ]; then
+            echo "Actor '${{ github.actor }}' is not authorized to perform release"
+            exit 1
+          fi
+
+          if [ "${{ env.VERIFICATION_STATUS }}" == "false" ]; then
+            echo "Commit is not verified"
+            exit 1
+          fi
