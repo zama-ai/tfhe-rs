@@ -562,6 +562,21 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
         tfhe::core_crypto::prelude::CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
 
     for (name, params) in throughput_benchmark_parameters_64bits().iter_mut() {
+        if let (Some(lwe_noise), Some(glwe_noise)) = (
+            params.lwe_noise_distribution,
+            params.glwe_noise_distribution,
+        ) {
+            match (lwe_noise, glwe_noise) {
+                (DynamicDistribution::Gaussian(_), DynamicDistribution::Gaussian(_)) => (),
+                _ => {
+                    println!(
+                        "Skip {name} parameters set: custom modulus generation is not supported"
+                    );
+                    continue;
+                }
+            }
+        };
+
         let name = format!("{name}_PLACEHOLDER_NTT");
 
         params.ciphertext_modulus = Some(custom_ciphertext_modulus);
