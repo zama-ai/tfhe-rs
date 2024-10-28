@@ -71,9 +71,8 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
 
     // This loop distribution seems to benefit the global mem reads
     for (int i = start_i; i < end_i; i++) {
-      Torus a_i = round_to_closest_multiple(block_lwe_array_in[i], base_log,
-                                            level_count);
-      Torus state = a_i >> (sizeof(Torus) * 8 - base_log * level_count);
+      Torus state =
+          init_decomposer_state(block_lwe_array_in[i], base_log, level_count);
 
       for (int j = 0; j < level_count; j++) {
         auto ksk_block =
@@ -201,9 +200,8 @@ __device__ void packing_keyswitch_lwe_ciphertext_into_glwe_ciphertext(
     // Iterate through all lwe elements
     for (int i = 0; i < lwe_dimension_in; i++) {
       // Round and prepare decomposition
-      Torus a_i = round_to_closest_multiple(lwe_in[i], base_log, level_count);
+      Torus state = init_decomposer_state(lwe_in[i], base_log, level_count);
 
-      Torus state = a_i >> (sizeof(Torus) * 8 - base_log * level_count);
       Torus mod_b_mask = (1ll << base_log) - 1ll;
 
       // block of key for current lwe coefficient (cur_input_lwe[i])

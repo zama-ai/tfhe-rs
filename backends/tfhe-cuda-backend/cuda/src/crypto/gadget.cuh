@@ -34,11 +34,6 @@ public:
 
     mask_mod_b = (1ll << base_log) - 1ll;
     current_level = level_count;
-    int tid = threadIdx.x;
-    for (int i = 0; i < num_poly * params::opt; i++) {
-      state[tid] >>= (sizeof(T) * 8 - base_log * level_count);
-      tid += params::degree / params::opt;
-    }
     synchronize_threads_in_block();
   }
 
