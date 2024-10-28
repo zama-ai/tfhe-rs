@@ -427,7 +427,7 @@ impl FheStringIterator for SplitNInternal {
         // `not_exceeded` false such that next calls are always None
         match &self.n {
             UIntArg::Clear(clear_n) => {
-                if self.counter >= clear_n - 1 {
+                if self.counter + 1 >= *clear_n {
                     result = state;
                     self.not_exceeded = sk.create_trivial_boolean_block(false);
                 }
