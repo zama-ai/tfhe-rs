@@ -17,6 +17,33 @@ impl EncU16 {
 }
 
 impl ClientKey {
+    #[cfg(test)]
+    pub fn trivial_encrypt_ascii(&self, str: &str, padding: Option<u32>) -> FheString {
+        assert!(str.is_ascii() & !str.contains('\0'));
+
+        let padded = padding.map_or(false, |p| p != 0);
+
+        let num_blocks = self.num_ascii_blocks();
+
+        let mut enc_string: Vec<_> = str
+            .bytes()
+            .map(|char| FheAsciiChar {
+                enc_char: self.create_trivial_radix(char, num_blocks),
+            })
+            .collect();
+
+        // Optional padding
+        if let Some(count) = padding {
+            let null = (0..count).map(|_| FheAsciiChar {
+                enc_char: self.create_trivial_radix(0u8, num_blocks),
+            });
+
+            enc_string.extend(null);
+        }
+
+        FheString { enc_string, padded }
+    }
+
     /// Encrypts an ASCII string, optionally padding it with the specified amount of 0s, and returns
     /// an [`FheString`].
     ///
@@ -101,6 +128,18 @@ impl ClientKey {
         }
 
         String::from_utf8(bytes).unwrap()
+    }
+
+    #[cfg(test)]
+    pub fn trivial_encrypt_u16(&self, val: u16, max: Option<u16>) -> EncU16 {
+        if let Some(max_val) = max {
+            assert!(val <= max_val, "val cannot be greater than max")
+        }
+
+        EncU16 {
+            cipher: self.create_trivial_radix(val, 8),
+            max,
+        }
     }
 
     /// Encrypts a u16 value. It also takes an optional `max` value to restrict the range
