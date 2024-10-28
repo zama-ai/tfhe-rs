@@ -4,12 +4,9 @@ use crate::strings::server_key::{FheStringIsEmpty, ServerKey};
 
 impl ServerKey {
     fn eq_length_checks(&self, lhs: &FheString, rhs: &FheString) -> Option<BooleanBlock> {
-        let lhs_len = lhs.len();
-        let rhs_len = rhs.len();
-
         // If lhs is empty, rhs must also be empty in order to be equal (the case where lhs is
         // empty with > 1 padding zeros is handled next)
-        if lhs_len == 0 || (lhs.is_padded() && lhs_len == 1) {
+        if lhs.is_empty() {
             return match self.is_empty(rhs) {
                 FheStringIsEmpty::Padding(enc_val) => Some(enc_val),
                 FheStringIsEmpty::NoPadding(val) => Some(self.create_trivial_boolean_block(val)),
@@ -18,7 +15,7 @@ impl ServerKey {
 
         // If rhs is empty, lhs must also be empty in order to be equal (only case remaining is if
         // lhs padding zeros > 1)
-        if rhs_len == 0 || (rhs.is_padded() && rhs_len == 1) {
+        if rhs.is_empty() {
             return match self.is_empty(lhs) {
                 FheStringIsEmpty::Padding(enc_val) => Some(enc_val),
                 FheStringIsEmpty::NoPadding(_) => Some(self.create_trivial_boolean_block(false)),
