@@ -96,8 +96,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   for (int i = 0; (i + lwe_offset) < lwe_dimension && i < lwe_chunk_size; i++) {
     // Perform a rounding to increase the accuracy of the
     // bootstrapped ciphertext
-    round_to_closest_multiple_inplace<Torus, params::opt,
-                                      params::degree / params::opt>(
+    init_decomposer_state_inplace<Torus, params::opt,
+                                  params::degree / params::opt>(
         accumulator_rotated, base_log, level_count);
 
     // Decompose the accumulator_rotated. Each block gets one level of the
