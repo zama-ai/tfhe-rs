@@ -4,6 +4,8 @@ use crate::integer::{
 use crate::shortint::MessageModulus;
 use crate::strings::client_key::EncU16;
 use crate::strings::N;
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+use rayon::slice::ParallelSlice;
 
 /// Represents a encrypted ASCII character.
 #[derive(Clone)]
@@ -123,26 +125,18 @@ impl FheString {
 
         let num_blocks = num_ascii_blocks(uint.blocks()[0].message_modulus);
 
-        let blocks_len = uint.blocks().len();
-        assert_eq!(blocks_len % num_blocks, 0);
+        assert_eq!(uint.blocks.len() % num_blocks, 0);
 
-        let mut ciphertexts = uint.into_blocks().into_iter().rev();
+        let enc_string = uint
+            .into_blocks()
+            .par_chunks_exact(num_blocks)
+            .rev()
+            .map(|bytes| FheAsciiChar {
+                enc_char: RadixCiphertext::from_blocks(bytes.to_vec()),
+            })
+            .collect();
 
-        let mut ascii_vec = vec![];
-
-        for _ in 0..blocks_len / num_blocks {
-            let mut byte_vec: Vec<_> = ciphertexts.by_ref().take(num_blocks).collect();
-            byte_vec.reverse();
-
-            let byte = RadixCiphertext::from_blocks(byte_vec);
-
-            ascii_vec.push(FheAsciiChar { enc_char: byte })
-        }
-
-        Self {
-            enc_string: ascii_vec,
-            padded,
-        }
+        Self { enc_string, padded }
     }
 
     // Converts a `FheString` to a `RadixCiphertext`, taking 4 blocks for each `FheAsciiChar`.
