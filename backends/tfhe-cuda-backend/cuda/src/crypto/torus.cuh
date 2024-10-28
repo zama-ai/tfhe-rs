@@ -13,6 +13,11 @@ __host__ __device__ __forceinline__ constexpr double get_two_pow_torus_bits() {
 }
 
 template <typename T>
+__host__ __device__ __forceinline__ constexpr T scalar_max() {
+  return std::numeric_limits<T>::max();
+}
+
+template <typename T>
 __device__ inline void typecast_double_to_torus(double x, T &r) {
   r = T(x);
 }
@@ -60,14 +65,21 @@ __device__ inline void typecast_torus_to_double<uint64_t>(uint64_t x,
 }
 
 template <typename T>
-__device__ inline T round_to_closest_multiple(T x, uint32_t base_log,
-                                              uint32_t level_count) {
-  const T non_rep_bit_count = sizeof(T) * 8 - level_count * base_log;
-  const T shift = non_rep_bit_count - 1;
-  T res = x >> shift;
-  res += 1;
-  res &= (T)(-2);
-  return res << shift;
+__device__ inline T init_decomposer_state(T input, uint32_t base_log,
+                                          uint32_t level_count) {
+  const T rep_bit_count = level_count * base_log;
+  const T non_rep_bit_count = sizeof(T) * 8 - rep_bit_count;
+  T res = input >> (non_rep_bit_count - 1);
+  T rounding_bit = res & (T)(1);
+  res++;
+  res >>= 1;
+  T torus_max = scalar_max<T>();
+  T mod_mask = torus_max >> non_rep_bit_count;
+  res &= mod_mask;
+  T shifted_random = rounding_bit << (rep_bit_count - 1);
+  T need_balance =
+      (((res - (T)(1)) | shifted_random) & res) >> (rep_bit_count - 1);
+  return res - (need_balance << rep_bit_count);
 }
 
 template <typename T>

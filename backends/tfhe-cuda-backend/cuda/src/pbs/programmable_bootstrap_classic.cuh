@@ -106,8 +106,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   // Perform a rounding to increase the accuracy of the
   // bootstrapped ciphertext
-  round_to_closest_multiple_inplace<Torus, params::opt,
-                                    params::degree / params::opt>(
+  init_decomposer_state_inplace<Torus, params::opt,
+                                params::degree / params::opt>(
       accumulator, base_log, level_count);
 
   synchronize_threads_in_block();
