@@ -67,6 +67,11 @@ impl FheAsciiChar {
 }
 
 impl FheString {
+    #[cfg(test)]
+    pub fn new_trivial(client_key: &ClientKey, str: &str, padding: Option<u32>) -> Self {
+        client_key.trivial_encrypt_ascii(str, padding)
+    }
+
     /// Constructs a new `FheString` from a plaintext string, a [`ClientKey`] and an optional
     /// padding length.
     ///
