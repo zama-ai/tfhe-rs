@@ -116,6 +116,10 @@ pub trait CurveGroupOps<Zp>:
     fn to_le_bytes(self) -> impl AsRef<[u8]>;
     fn double(self) -> Self;
     fn normalize(self) -> Self::Affine;
+    fn validate_projective(&self) -> bool {
+        Self::validate_affine(&self.normalize())
+    }
+    fn validate_affine(affine: &Self::Affine) -> bool;
 }
 
 /// Mark that an element can be compressed, by storing only the 'x' coordinates of the affine
@@ -231,6 +235,10 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G1 {
             inner: self.inner.into_affine(),
         }
     }
+
+    fn validate_affine(affine: &Self::Affine) -> bool {
+        affine.validate()
+    }
 }
 
 impl CurveGroupOps<bls12_381::Zp> for bls12_381::G2 {
@@ -270,6 +278,10 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G2 {
         Self::Affine {
             inner: self.inner.into_affine(),
         }
+    }
+
+    fn validate_affine(affine: &Self::Affine) -> bool {
+        affine.validate()
     }
 }
 
@@ -368,6 +380,10 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G1 {
             inner: self.inner.into_affine(),
         }
     }
+
+    fn validate_affine(affine: &Self::Affine) -> bool {
+        affine.validate()
+    }
 }
 
 impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
@@ -407,6 +423,10 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
         Self::Affine {
             inner: self.inner.into_affine(),
         }
+    }
+
+    fn validate_affine(affine: &Self::Affine) -> bool {
+        affine.validate()
     }
 }
 
