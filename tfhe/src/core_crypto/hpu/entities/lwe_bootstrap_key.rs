@@ -30,7 +30,7 @@ impl FromWith<LweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyOwne
 /// This architectures don't use an internal network, however, inputs polynomial was in a custom
 /// order and not bit-reversed one
 fn shuffle_gf64(
-    ntt_bsk: NttLweBootstrapKey<&[u64]>,
+    ntt_bsk: NttLweBootstrapKeyView<u64>,
     params: HpuParameters,
     cut_w: &[u8],
 ) -> HpuLweBootstrapKeyOwned<u64> {
@@ -103,12 +103,96 @@ fn shuffle_gf64(
     hpu_bsk
 }
 
+/// UnShuffle BSK for GF64 Ntt architecture
+fn unshuffle_gf64(
+    hpu_bsk: HpuLweBootstrapKeyView<u64>,
+    cut_w: &[u8],
+) -> NttLweBootstrapKeyOwned<u64> {
+    // Extract params inner values for ease of writting
+    let params = hpu_bsk.params();
+    let ntt_p = &params.ntt_params;
+    let pbs_p = &params.pbs_params;
+    let glwe_n = pbs_p.polynomial_size;
+    let glwe_kp1 = pbs_p.glwe_dimension + 1;
+    let pbs_l = pbs_p.pbs_level;
+
+    let mut ntt_bsk = NttLweBootstrapKeyOwned::new(
+        0,
+        LweDimension(pbs_p.lwe_dimension),
+        GlweDimension(pbs_p.glwe_dimension).to_glwe_size(),
+        PolynomialSize(pbs_p.polynomial_size),
+        DecompositionBaseLog(pbs_p.pbs_base_log),
+        DecompositionLevelCount(pbs_p.pbs_level),
+        CiphertextModulus::new(hpu_bsk.params().ntt_params.prime_modulus as u128),
+    );
+
+    // Recursive function used to define the expected polynomial order
+    fn bsk_order(cut_w: &[u8]) -> Vec<usize> {
+        if cut_w.len() == 1 {
+            (0..2_usize.pow(cut_w[0] as u32))
+                .map(|x| x as usize)
+                .collect::<Vec<usize>>()
+        } else {
+            let coefs_left = 2_usize.pow(cut_w[0] as u32);
+            let sub_order = bsk_order(&cut_w[1..]);
+
+            (0..coefs_left)
+                .flat_map(|j| {
+                    sub_order
+                        .iter()
+                        .map(|idx| coefs_left * idx + j)
+                        .collect::<Vec<usize>>()
+                })
+                .collect::<Vec<usize>>()
+        }
+    }
+
+    // Compute Gf64 polynomial order based on cut_w
+    let mut gf64_order = bsk_order(cut_w);
+    //  gf64_idx must be expressed in bitreverse (to compensate the fact that ntt output is in
+    // bitreverse
+    let mut rb_conv = order::RadixBasis::new(2, cut_w.iter().sum::<u8>() as usize);
+    gf64_order.iter_mut().for_each(|x| {
+        *x = rb_conv.idx_rev(*x);
+    });
+
+    let mut rd_idx = 0;
+    for mut ggsw in ntt_bsk.as_mut_view().into_ggsw_iter() {
+        // Arch dependant iterations
+        for glwe_idx in 0..glwe_kp1 {
+            for stg_iter in 0..ntt_p.stg_iter(glwe_n) {
+                for g_idx in 0..glwe_kp1 {
+                    for l_idx in (0..pbs_l).rev() {
+                        let p_view = GgswIndex {
+                            s_dim: g_idx,
+                            lvl_dim: l_idx,
+                            glwe_dim: glwe_idx,
+                        }
+                        .poly_mut_view(&mut ggsw);
+
+                        for p in 0..ntt_p.psi {
+                            for r in 0..ntt_p.radix {
+                                let c_idx =
+                                    stg_iter * ntt_p.psi * ntt_p.radix + ntt_p.radix * p + r;
+                                p_view[gf64_order[c_idx]] = hpu_bsk[rd_idx];
+                                rd_idx += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    ntt_bsk
+}
+
 /// Shuffle BSK for Wmm Ntt architecture
 /// These architectures used a network internally
 /// With those architecture, the structural order and the iteration order differe and required a
 /// custom Bsk layout
 fn shuffle_wmm(
-    ntt_bsk: NttLweBootstrapKey<&[u64]>,
+    ntt_bsk: NttLweBootstrapKeyView<u64>,
     params: HpuParameters,
 ) -> HpuLweBootstrapKeyOwned<u64> {
     let mut hpu_bsk = HpuLweBootstrapKeyOwned::<u64>::new(0_u64, params.clone());
@@ -168,6 +252,65 @@ fn shuffle_wmm(
     hpu_bsk
 }
 
+/// UnShuffle BSK for Wmm Ntt architecture
+fn unshuffle_wmm(hpu_bsk: HpuLweBootstrapKeyView<u64>) -> NttLweBootstrapKeyOwned<u64> {
+    // Extract params inner values for ease of writting
+    let params = hpu_bsk.params();
+    let ntt_p = &params.ntt_params;
+    let pbs_p = &params.pbs_params;
+    let glwe_n = pbs_p.polynomial_size;
+    let glwe_kp1 = pbs_p.glwe_dimension + 1;
+    let pbs_l = pbs_p.pbs_level;
+
+    let mut ntt_bsk = NttLweBootstrapKeyOwned::new(
+        0,
+        LweDimension(pbs_p.lwe_dimension),
+        GlweDimension(pbs_p.glwe_dimension).to_glwe_size(),
+        PolynomialSize(pbs_p.polynomial_size),
+        DecompositionBaseLog(pbs_p.pbs_base_log),
+        DecompositionLevelCount(pbs_p.pbs_level),
+        CiphertextModulus::new(hpu_bsk.params().ntt_params.prime_modulus as u128),
+    );
+
+    // Instanciate Ntt network
+    let mut ntw = match &ntt_p.core_arch {
+        HpuNttCoreArch::WmmCompactPcg | HpuNttCoreArch::WmmUnfoldPcg => {
+            order::Network::new(order::NetworkKind::Pcg, ntt_p.radix, ntt_p.stg_nb)
+        }
+        _ => order::Network::new(order::NetworkKind::RRot, ntt_p.radix, ntt_p.stg_nb),
+    };
+
+    let mut rd_idx = 0;
+    for mut ggsw in ntt_bsk.as_mut_view().into_ggsw_iter() {
+        // Arch dependant iterations
+        for glwe_idx in 0..glwe_kp1 {
+            for stg_iter in 0..ntt_p.stg_iter(glwe_n) {
+                for g_idx in 0..glwe_kp1 {
+                    for l_idx in (0..pbs_l).rev() {
+                        let p_view = GgswIndex {
+                            s_dim: g_idx,
+                            lvl_dim: l_idx,
+                            glwe_dim: glwe_idx,
+                        }
+                        .poly_mut_view(&mut ggsw);
+
+                        for p in 0..ntt_p.psi {
+                            for r in 0..ntt_p.radix {
+                                let c_idx =
+                                    stg_iter * ntt_p.psi * ntt_p.radix + ntt_p.radix * p + r;
+                                let c_id = ntw.get_pos_id(ntt_p.ls_delta(), c_idx);
+                                p_view[c_id] = hpu_bsk[rd_idx];
+                                rd_idx += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ntt_bsk
+}
+
 /// Uploading BSK on HW required custom polynomial interleaving.
 /// The following structure enable OutOfOrder access of GGSW polynomial to ease
 /// the interleaving description
@@ -200,10 +343,33 @@ impl GgswIndex {
             .nth(self.glwe_dim)
             .unwrap()
     }
+
+    /// Ease out of order iteration over a mutable Ggsw ciphertext.
+    /// This is usefull for Bootstrapping key shuffling to match expected HW
+    /// order
+    pub fn poly_mut_view<'a, Scalar: UnsignedInteger>(
+        self,
+        ggsw: &'a mut NttGgswCiphertextMutView<Scalar>,
+    ) -> &'a mut [Scalar] {
+        let decomp_level = ggsw.decomposition_level_count().0;
+        let row_cnt = ggsw.glwe_size().0;
+        let poly_cnt = ggsw.glwe_size().0;
+
+        ggsw.as_mut()
+            .split_into(decomp_level)
+            .nth(self.lvl_dim)
+            .unwrap()
+            .split_into(row_cnt)
+            .nth(self.s_dim)
+            .unwrap()
+            .split_into(poly_cnt)
+            .nth(self.glwe_dim)
+            .unwrap()
+    }
 }
 
-impl FromWith<NttLweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyOwned<u64> {
-    fn from_with(cpu_bsk: NttLweBootstrapKey<&[u64]>, params: HpuParameters) -> Self {
+impl<'a> FromWith<NttLweBootstrapKeyView<'a, u64>, HpuParameters> for HpuLweBootstrapKeyOwned<u64> {
+    fn from_with(cpu_bsk: NttLweBootstrapKeyView<'a, u64>, params: HpuParameters) -> Self {
         match params.ntt_params.core_arch.clone() {
             // Shuffle required by GF64 Ntt without internal network
             HpuNttCoreArch::GF64(cut_w) => shuffle_gf64(cpu_bsk, params, &cut_w),
@@ -219,19 +385,15 @@ impl FromWith<NttLweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyO
 
 impl<'a> From<HpuLweBootstrapKeyView<'a, u64>> for NttLweBootstrapKeyOwned<u64> {
     fn from(hpu_bsk: HpuLweBootstrapKeyView<'a, u64>) -> Self {
-        let pbs_p = &hpu_bsk.params().pbs_params;
-
-        let cpu_bsk = Self::new(
-            0,
-            LweDimension(pbs_p.lwe_dimension),
-            GlweDimension(pbs_p.glwe_dimension).to_glwe_size(),
-            PolynomialSize(pbs_p.polynomial_size),
-            DecompositionBaseLog(pbs_p.pbs_base_log),
-            DecompositionLevelCount(pbs_p.pbs_level),
-            CiphertextModulus::new(hpu_bsk.params().ntt_params.prime_modulus as u128),
-        );
-
-        // TODO properly unshuffle Hpu BSK in Cpu one
-        cpu_bsk
+        match hpu_bsk.params().ntt_params.core_arch.clone() {
+            // Shuffle required by GF64 Ntt without internal network
+            HpuNttCoreArch::GF64(cut_w) => unshuffle_gf64(hpu_bsk, &cut_w),
+            // Legacy shuffle required by WmmNtt with internal network
+            HpuNttCoreArch::WmmCompact
+            | HpuNttCoreArch::WmmPipeline
+            | HpuNttCoreArch::WmmUnfold
+            | HpuNttCoreArch::WmmCompactPcg
+            | HpuNttCoreArch::WmmUnfoldPcg => unshuffle_wmm(hpu_bsk),
+        }
     }
 }
