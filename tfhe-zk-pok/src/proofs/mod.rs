@@ -1,4 +1,5 @@
 use crate::backward_compatibility::GroupElementsVersions;
+
 use crate::curve_api::{Compressible, Curve, CurveGroupOps, FieldOps, PairingGroupOps};
 use crate::serialization::{
     InvalidSerializedGroupElementsError, SerializableG1Affine, SerializableG2Affine,
@@ -6,6 +7,7 @@ use crate::serialization::{
 };
 use core::ops::{Index, IndexMut};
 use rand::{Rng, RngCore};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, Versionize)]
@@ -108,6 +110,16 @@ impl<G: Curve> GroupElements<G> {
             message_len,
         }
     }
+
+    /// Check if the elements are valid for their respective groups
+    pub fn is_valid(&self) -> bool {
+        let (g_list_valid, g_hat_list_valid) = rayon::join(
+            || self.g_list.0.par_iter().all(G::G1::validate_affine),
+            || self.g_hat_list.0.par_iter().all(G::G2::validate_affine),
+        );
+
+        g_list_valid && g_hat_list_valid
+    }
 }
 
 impl<G: Curve> Compressible for GroupElements<G>
@@ -152,6 +164,8 @@ mod test {
     #![allow(non_snake_case)]
     use std::fmt::Display;
 
+    use ark_ec::{short_weierstrass, CurveConfig};
+    use ark_ff::UniformRand;
     use bincode::ErrorKind;
     use rand::rngs::StdRng;
     use rand::Rng;
@@ -357,6 +371,49 @@ mod test {
             assert_eq!(self.m, m_roundtrip);
 
             PkeTestCiphertext { c1, c2 }
+        }
+    }
+
+    /// Return a point with coordinates (x, y) that is randomly chosen and not on the curve
+    pub(super) fn point_not_on_curve<Config: short_weierstrass::SWCurveConfig>(
+        rng: &mut StdRng,
+    ) -> short_weierstrass::Affine<Config> {
+        loop {
+            let fake_x = <Config as CurveConfig>::BaseField::rand(rng);
+            let fake_y = <Config as CurveConfig>::BaseField::rand(rng);
+
+            let point = short_weierstrass::Affine::new_unchecked(fake_x, fake_y);
+
+            if !point.is_on_curve() {
+                return point;
+            }
+        }
+    }
+
+    /// Return a random point on the curve
+    pub(super) fn point_on_curve<Config: short_weierstrass::SWCurveConfig>(
+        rng: &mut StdRng,
+    ) -> short_weierstrass::Affine<Config> {
+        loop {
+            let x = <Config as CurveConfig>::BaseField::rand(rng);
+            let is_positive = bool::rand(rng);
+            if let Some(point) =
+                short_weierstrass::Affine::get_point_from_x_unchecked(x, is_positive)
+            {
+                return point;
+            }
+        }
+    }
+
+    /// Return a random point that is on the curve but not in the correct subgroup
+    pub(super) fn point_on_curve_wrong_subgroup<Config: short_weierstrass::SWCurveConfig>(
+        rng: &mut StdRng,
+    ) -> short_weierstrass::Affine<Config> {
+        loop {
+            let point = point_on_curve(rng);
+            if !Config::is_in_correct_subgroup_assuming_on_curve(&point) {
+                return point;
+            }
         }
     }
 }

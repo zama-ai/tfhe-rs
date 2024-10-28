@@ -90,6 +90,10 @@ mod g1 {
                 .unwrap(),
             }
         }
+
+        pub fn validate(&self) -> bool {
+            self.inner.is_on_curve() && self.inner.is_in_correct_subgroup_assuming_on_curve()
+        }
     }
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
@@ -309,6 +313,10 @@ mod g2 {
                 )
                 .unwrap(),
             }
+        }
+
+        pub fn validate(&self) -> bool {
+            self.inner.is_on_curve() && self.inner.is_in_correct_subgroup_assuming_on_curve()
         }
     }
 
