@@ -75,19 +75,19 @@ pub fn classic_pbs_external_product(
     let mut sample_runtime_ns = 0u128;
 
     for _ in 0..sample_size {
-        let mut input_plaintext_list =
+        let input_plaintext_list =
             PlaintextList::new(0u64, PlaintextCount(parameters.polynomial_size.0));
-        encryption_random_generator
-            .fill_slice_with_random_uniform_mask(input_plaintext_list.as_mut());
-        let scaling_to_native_torus = parameters
-            .ciphertext_modulus
-            .get_power_of_two_scaling_to_native_torus();
-        // Shift to match the behavior of the previous concrete-core fixtures
-        // Divide as encryption will encode the power of two in the MSBs
-        input_plaintext_list.as_mut().iter_mut().for_each(|x| {
-            *x = (*x << (<u64 as Numeric>::BITS - parameters.decomposition_base_log.0))
-                / scaling_to_native_torus
-        });
+        // encryption_random_generator
+        //     .fill_slice_with_random_uniform_mask(input_plaintext_list.as_mut());
+        // let scaling_to_native_torus = parameters
+        //     .ciphertext_modulus
+        //     .get_power_of_two_scaling_to_native_torus();
+        // // Shift to match the behavior of the previous concrete-core fixtures
+        // // Divide as encryption will encode the power of two in the MSBs
+        // input_plaintext_list.as_mut().iter_mut().for_each(|x| {
+        //     *x = (*x << (<u64 as Numeric>::BITS - parameters.decomposition_base_log.0))
+        //         / scaling_to_native_torus
+        // });
 
         // Sanity check
         if !ciphertext_modulus.is_native_modulus() {

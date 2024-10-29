@@ -100,7 +100,7 @@ fn prepare_output_file_header(dir: &str, id: usize) {
     let mut file = get_analysis_output_file(dir, id);
     let header =
         "polynomial_size,glwe_dimension,decomposition_level_count,decomposition_base_log,\
-    ggsw_encrypted_value,input_variance,output_variance,single_ggsw_variance,predicted_variance,mean_runtime_ns,\
+    ggsw_encrypted_value,input_variance,output_variance,predicted_variance,single_ggsw_variance,mean_runtime_ns,\
     prep_time_ns\n";
     let _ = file.write(header.as_bytes()).unwrap();
 }
@@ -126,8 +126,8 @@ fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
         params.ggsw_encrypted_value,
         input_stddev.get_variance(),
         output_stddev.get_variance(),
-        single_ggsw_stddev.get_variance(),
         pred_stddev.get_variance(),
+        single_ggsw_stddev.get_variance(),
         mean_runtime_ns,
         mean_prep_time_ns,
     );
