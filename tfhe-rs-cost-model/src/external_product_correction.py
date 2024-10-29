@@ -165,6 +165,7 @@ def extract_from_acquisitions(filename):
 
             if exp_output_var < 0.083:
                 params.append(th_output_var)
+                # ~ params.append(single_ggsw_var)
                 parameters.append(params)
                 exp_output_variance.append(exp_output_var)
                 th_output_variance.append(th_output_var)
@@ -173,7 +174,7 @@ def extract_from_acquisitions(filename):
 
     num_samples = len(parameters)
 
-    print(f"There is {num_samples} samples ...")
+    print(f"# There are {num_samples} samples ...")
 
     return (
         (
@@ -232,9 +233,11 @@ def remove_outlier(bits, x_values, y_values):
     # select all rows that are not outliers
     mask = yhat != -1
     previous_size = len(x_values)
+    # was: x_values, y_values = x_values[mask, :], y_values[mask]
+    # ~ mask = [xi[2]*xi[3] < 30 for xi in x_values]
     # ~ x_values, y_values = x_values[mask, :], y_values[mask]
     new_size = len(x_values)
-    print(f"Removing {previous_size - new_size} outliers ...")
+    print(f"# Removing {previous_size - new_size} outliers ...")
     x_values = x_values.astype(np.float64)
     # Scale the values from variance to modular variance after the filtering was done to avoid
     # overflowing the isolation forest from sklearn
@@ -263,9 +266,10 @@ def fft_noise(x, a, b, c, log2_q):
     return k * (k + 1) * level * (   # tanh:  * 2.**(1.-(1.+a/(2.**logbase))*.5*(np.tanh(b*(level-(N/50.)/logbase))+1.))
         # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
         # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
-        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2                 # in theory, not present
-        + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
-        + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
+        # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2                 # in theory, not present
+        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
+        # ~ + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
+        0
     ) + theoretical_var
 
 
@@ -286,9 +290,10 @@ def fft_noise_128(x, a, b, c, log2_q):
     return k * (k + 1) * level * (   # tanh:  * 2.**(1.-(1.+a/(2.**logbase))*.5*(np.tanh(b*(level-(N/50.)/logbase))+1.))
         # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
         # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
-        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
-        + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
-        + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
+        # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
+        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
+        # ~ + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
+        0
     ) + theoretical_var
 
 def log_fft_noise_fun(x, a, b, c, fft_noise_fun):
@@ -333,7 +338,7 @@ def write_to_file(filename, obj):
     except Exception as err:
         print(f"Exception occurred while writing to {filename}: {err}")
     else:
-        print(f"Results written to {filename}")
+        print(f"# Correction coefficients written to {filename}")
 
 
 def build_sampler(rust_toolchain) -> bool:
@@ -423,6 +428,7 @@ def test(x_values, y_values, weights, fft_noise_fun):
             pred_out = max(fft_noise_fun(params, *list(weights))[0], 0.000001)  #TODO make sure this const is OK
             if params[0,0] == big_N:
                 mse += (log_var(real_out) - log_var(pred_out)) ** 2
+                #                                                 N               k               l               log B           theo
                 print(f"{log_var(real_out) - log_var(params[0][4])}, {params[0][0]}, {params[0][1]}, {params[0][2]}, {params[0][3]}, {params[0][4]}, {real_out} # {pred_out}") # log_var(real_out) - log_var(pred_out) == log_var(real_out/pred_out)
                 # print(
                 #     f"th: {log_var(params[0, -1])}, pred_fft: {log_var(pred_out)}, "
@@ -465,7 +471,7 @@ def test(x_values, y_values, weights, fft_noise_fun):
     mse = .5 * mse ** .5
     mse_without_correction /= count  # len(x_values)
     mse_without_correction = .5 * mse_without_correction ** .5
-    print(f"½ √mse (all N): {mse} .. {2 ** (2*mse)} \n½ √MSE without correction: {mse_without_correction} .. {2 ** (2*mse_without_correction)}")
+    print(f"# ½ √mse (all N): {mse} .. {2 ** (2*mse)} \n# ½ √MSE without correction: {mse_without_correction} .. {2 ** (2*mse_without_correction)}")
     return mse, mse_without_correction
 
 

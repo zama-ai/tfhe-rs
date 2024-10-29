@@ -1,7 +1,7 @@
 #!/usr/bin/env gnuplot
 
 GF = 2
-SFX = "-tanh" # -tanh
+SFX = "-new" # -tanh
 # sort by 4-th column
 DATAFILE = "< sort -nk4 log-real-to-pred-".GF.SFX.".dat"
 
@@ -9,11 +9,12 @@ set term pngcairo size 1800,600 linewidth 2
 
 set grid
 set xtics 2
+set yrange [-.6:1.2]
 
 do for [nu=9:14] {
 do for [k=1:2] {
     N = 2**nu
-    set out "logratio-".GF."-k=".k."-N=".N.SFX.".png"
+    set out "new/logratio-".GF."-k=".k."-N=".N.SFX.".png"
 
     x0 = y0 = NaN
     plot \
