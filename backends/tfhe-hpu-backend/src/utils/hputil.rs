@@ -1,9 +1,10 @@
 //!
 //! Utility application used to probe Hpu status
 //! Enable manual step by step debug
-//!
+use tfhe_hpu_backend::ffi;
+use tfhe_hpu_backend::interface::rtl;
+use tfhe_hpu_backend::interface::rtl::FromRtl;
 use tfhe_hpu_backend::prelude::*;
-use tfhe_hpu_backend::{ffi, interface::rtl, interface::rtl::FromRtl};
 
 use tfhe_hpu_backend::asm::{self, Asm, AsmBin, IOp};
 

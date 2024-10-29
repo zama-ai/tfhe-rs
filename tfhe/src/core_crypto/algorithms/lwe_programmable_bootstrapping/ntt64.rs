@@ -225,10 +225,8 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         ntt: Ntt64View<'_>,
         mut stack: PodStack<'_>,
     ) {
-        use crate::core_crypto::{
-            fft_impl::common::pbs_modulus_switch,
-            prelude::polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign,
-        };
+        use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
+        use crate::core_crypto::prelude::polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign;
 
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
         let modulus = ntt.custom_modulus();
@@ -335,12 +333,10 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         ntt: Ntt64View<'_>,
         mut stack: PodStack<'_>,
     ) {
-        use crate::core_crypto::{
-            fft_impl::common::pbs_modulus_switch,
-            prelude::polynomial_algorithms::{
-                polynomial_wrapping_monic_monomial_div_assign,
-                polynomial_wrapping_monic_monomial_mul_assign,
-            },
+        use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
+        use crate::core_crypto::prelude::polynomial_algorithms::{
+            polynomial_wrapping_monic_monomial_div_assign,
+            polynomial_wrapping_monic_monomial_mul_assign,
         };
 
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
@@ -698,9 +694,9 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
         let mut is_output_uninit = true;
 
         {
-            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
-            // In this section, we perform the external product in the ntt domain, and accumulate
-            // the result in the output_fft_buffer variable.
+            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
+            // DOMAIN In this section, we perform the external product in the ntt
+            // domain, and accumulate the result in the output_fft_buffer variable.
             let (mut decomposition, mut substack1) =
                 TensorSignedDecompositionLendingIterNonNative::new(
                     &decomposer,
@@ -709,7 +705,8 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
                     substack0.rb_mut(),
                 );
 
-            // We loop through the levels (we reverse to match the order of the decomposition iterator.)
+            // We loop through the levels (we reverse to match the order of the decomposition
+            // iterator.)
             ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
                 // We retrieve the decomposition of this level.
                 let (glwe_level, glwe_decomp_term, mut substack2) =
@@ -790,13 +787,9 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
     {
         // Check that modswitch is really needed around cmux
 
-        use crate::core_crypto::{
-            fft_impl::fft64::{
-                crypto::ggsw::collect_next_term,
-                math::decomposition::TensorSignedDecompositionLendingIter,
-            },
-            prelude::SignedDecomposer,
-        };
+        use crate::core_crypto::fft_impl::fft64::crypto::ggsw::collect_next_term;
+        use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
+        use crate::core_crypto::prelude::SignedDecomposer;
         assert!(
             glwe.ciphertext_modulus()
                 .is_compatible_with_native_modulus(),
@@ -833,9 +826,9 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
         let mut is_output_uninit = true;
 
         {
-            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
-            // In this section, we perform the external product in the ntt domain, and accumulate
-            // the result in the output_fft_buffer variable.
+            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
+            // DOMAIN In this section, we perform the external product in the ntt
+            // domain, and accumulate the result in the output_fft_buffer variable.
             let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(
                 glwe.as_ref()
                     .iter()
@@ -845,7 +838,8 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
                 substack0.rb_mut(),
             );
 
-            // We loop through the levels (we reverse to match the order of the decomposition iterator.)
+            // We loop through the levels (we reverse to match the order of the decomposition
+            // iterator.)
             ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
                 // We retrieve the decomposition of this level.
                 let (glwe_level, glwe_decomp_term, mut substack2) =

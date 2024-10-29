@@ -329,8 +329,8 @@ pub enum PBSOrder {
 #[versionize(PBSModeVersions)]
 pub enum PBSMode {
     /// Bootstrap involved a lot of polynomial multiplication.
-    /// To enhance performance, those polynomial multiplication could rely on FFT or NTT implementation.
-    /// This have impact on bootstrap key format
+    /// To enhance performance, those polynomial multiplication could rely on FFT or NTT
+    /// implementation. This have impact on bootstrap key format
     FFT,
 
     /// NTT implementation required a custom prime modulus encoded in the enum
