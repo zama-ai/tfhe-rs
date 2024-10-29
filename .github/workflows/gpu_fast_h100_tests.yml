@@ -48,10 +48,9 @@ jobs:
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
-              - Makefile
               - '.github/workflows/gpu_fast_h100_tests.yml'
-              - scripts/**
-              - ci/**
+              - scripts/integer-tests.sh
+              - ci/slab.toml
 
   setup-instance:
     name: Setup instance (cuda-h100-tests)
