@@ -1,6 +1,4 @@
 use hpu_asm::{DigitParameters, PbsLut};
-use lwe_ciphertext::HpuLweCiphertext;
-use lwe_keyswitch_key::HpuLweKeyswitchKey;
 use std::array::from_fn;
 use std::sync::mpsc;
 use strum::IntoEnumIterator;
@@ -13,8 +11,7 @@ use tfhe::core_crypto::entities::{
     Cleartext, LweCiphertextOwned, LweCiphertextView, LweKeyswitchKey, NttLweBootstrapKey,
     Plaintext,
 };
-use tfhe::core_crypto::hpu::from_with::{FromWith, IntoWith};
-use tfhe::shortint::backward_compatibility::parameters::ClassicPBSParametersVersions;
+use tfhe::core_crypto::hpu::from_with::FromWith;
 use tfhe::shortint::ciphertext::MaxDegree;
 use tfhe::shortint::parameters::{Degree, NoiseLevel};
 use tfhe::shortint::prelude::*;
@@ -78,7 +75,7 @@ impl HpuSim {
         let iop_parser = asm::Parser::new(iops_ref);
 
         // Allocate on-board memory emulation
-        let hbm_bank: [HbmBank; HBM_BANK_NB] = from_fn(|i| HbmBank::new(i));
+        let hbm_bank: [HbmBank; HBM_BANK_NB] = from_fn(HbmBank::new);
 
         // Allocate inner regfile and lock abstraction
         let regfile = (0..params.isc_sim_params.register)
@@ -205,7 +202,7 @@ impl HpuSim {
                             // NB: hbm chunk are extended to enforce page align buffer
                             // -> To prevent error during copy, with shrink the hbm buffer to the
                             // real   size before-hand
-                            let size_b = hpu.len() * std::mem::size_of::<u64>();
+                            let size_b = std::mem::size_of_val(hpu);
                             let hbm_u64 =
                                 bytemuck::cast_slice::<u8, u64>(&hbm.data.as_slice()[0..size_b]);
                             hpu.clone_from_slice(hbm_u64);
@@ -237,7 +234,7 @@ impl HpuSim {
 
                             // NB: hbm chunk are extended to enforce page align buffer
                             // -> Shrinked it to slice size to prevent error during copy
-                            let size_b = hpu.len() * std::mem::size_of::<u64>();
+                            let size_b = std::mem::size_of_val(hpu);
 
                             let ct_chunk_u64 = bytemuck::cast_slice_mut::<u8, u64>(
                                 &mut ct_chunk.data.as_mut_slice()[0..size_b],
@@ -267,7 +264,7 @@ impl HpuSim {
                 asm::DOp::MAC(op_impl) => {
                     // NB: Srcs are used as destination to prevent useless allocation
                     let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
-                    let mut cpu_s1 = self.reg2cpu(op_impl.src.1);
+                    let cpu_s1 = self.reg2cpu(op_impl.src.1);
 
                     lwe_ciphertext_cleartext_mul_assign(
                         &mut cpu_s0,
@@ -489,11 +486,8 @@ impl HpuSim {
     fn cpu2reg(&mut self, reg_id: usize, cpu: LweCiphertextView<u64>) {
         let hpu = HpuLweCiphertextOwned::<u64>::from_with(cpu, self.params.rtl_params.clone());
         std::iter::zip(
-            self.regfile[reg_id]
-                .as_mut_view()
-                .into_container()
-                .into_iter(),
-            hpu.into_container().into_iter(),
+            self.regfile[reg_id].as_mut_view().into_container(),
+            hpu.into_container(),
         )
         .for_each(|(reg, hpu)| {
             reg.copy_from_slice(hpu.as_slice());
@@ -513,12 +507,10 @@ impl HpuSim {
 
                 // Copy content from Hbm
                 let hw_slice = bsk.as_mut_view().into_container();
-                std::iter::zip(hw_slice.into_iter(), self.config.board.bsk_pc.iter()).for_each(
-                    |(hpu, pc)| {
-                        let bank = &self.hbm_bank[*pc];
-                        bank.read_across_chunk(0, hpu);
-                    },
-                );
+                std::iter::zip(hw_slice, self.config.board.bsk_pc.iter()).for_each(|(hpu, pc)| {
+                    let bank = &self.hbm_bank[*pc];
+                    bank.read_across_chunk(0, hpu);
+                });
                 bsk
             };
             let hpu_ksk = {
@@ -527,12 +519,10 @@ impl HpuSim {
 
                 // Copy content from Hbm
                 let hw_slice = ksk.as_mut_view().into_container();
-                std::iter::zip(hw_slice.into_iter(), self.config.board.ksk_pc.iter()).for_each(
-                    |(hpu, pc)| {
-                        let bank = &self.hbm_bank[*pc];
-                        bank.read_across_chunk(0, hpu);
-                    },
-                );
+                std::iter::zip(hw_slice, self.config.board.ksk_pc.iter()).for_each(|(hpu, pc)| {
+                    let bank = &self.hbm_bank[*pc];
+                    bank.read_across_chunk(0, hpu);
+                });
                 ksk
             };
 

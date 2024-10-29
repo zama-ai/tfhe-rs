@@ -31,7 +31,7 @@ pub struct IscSimParameters {
 /// Provide Serde mechanims in ron file
 impl MockupParameters {
     pub fn from_ron(params: &str) -> Self {
-        let params_f = File::open(params).expect(&format!("Failed opening file: {params}"));
+        let params_f = File::open(params).unwrap_or_else(|_| panic!("Failed opening file: {params}"));
         match from_reader(params_f) {
             Ok(data) => data,
             Err(err) => {

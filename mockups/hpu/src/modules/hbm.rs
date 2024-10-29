@@ -57,7 +57,7 @@ impl HbmChunk {
         match mode {
             SyncMode::Host2Device => {
                 let hw_data = sync_rx.recv().unwrap();
-                data.copy_from_slice(&*hw_data);
+                data.copy_from_slice(&hw_data);
             }
             SyncMode::Device2Host => {
                 let cpu_data = IpcSharedMemory::from_bytes(data.as_slice());
@@ -141,7 +141,7 @@ impl HbmBank {
         // Indeed, we must used a bytes ofset to compute the sub-bfr id and thus keep a
         // byte approach everywhere to prevent mismatch
         let ofst_b = ofst * std::mem::size_of::<T>();
-        let len_b = data.len() * std::mem::size_of::<T>();
+        let len_b = std::mem::size_of_val(data);
 
         let bid_start = ofst_b / HBM_CHUNK_SIZE_B;
         let bid_stop = (ofst_b + len_b) / HBM_CHUNK_SIZE_B;
