@@ -9,7 +9,8 @@
 pub use serial_test::serial;
 use std::str::FromStr;
 
-pub use hpu_asm::{strum::IntoEnumIterator, Asm, IOp, IOpName};
+pub use hpu_asm::strum::IntoEnumIterator;
+pub use hpu_asm::{Asm, IOp, IOpName};
 pub use tfhe::prelude::*;
 pub use tfhe::*;
 pub use tfhe_hpu_backend::prelude::*;

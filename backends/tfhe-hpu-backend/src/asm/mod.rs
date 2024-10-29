@@ -20,8 +20,7 @@ pub use iop::*;
 pub use pbs::*;
 
 use rand::rngs::StdRng;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};

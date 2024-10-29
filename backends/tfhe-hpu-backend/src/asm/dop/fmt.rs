@@ -2,7 +2,8 @@
 //! Define binary format encoding of instructions
 //! Rely on `deku` crate to define bit-accurate insn format and enable serde to byte-stream
 //!
-//! Also propose a `trait` that should be implemented by Op to be enable conversion between Op <-> byte-stream
+//! Also propose a `trait` that should be implemented by Op to be enable conversion between Op <->
+//! byte-stream
 
 use deku::prelude::*;
 

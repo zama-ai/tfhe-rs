@@ -6,7 +6,9 @@
 //! Cpu and Hpu.
 
 use super::*;
-use crate::{high_level_api::traits::HwXfer, integer::hpu::ciphertext::HpuRadixCiphertext, Tag};
+use crate::high_level_api::traits::HwXfer;
+use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
+use crate::Tag;
 use tfhe_hpu_backend::prelude::*;
 
 /// An explicit Hpu FHE unsigned integer

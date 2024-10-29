@@ -1,8 +1,7 @@
 use super::*;
 
 // Exposed types
-pub use extern_cxx::new_hpu_hw;
-pub use extern_cxx::{HpuHw, MemZone, MemZonePropertiesCxx, SyncModeCxx, VerbosityCxx};
+pub use extern_cxx::{new_hpu_hw, HpuHw, MemZone, MemZonePropertiesCxx, SyncModeCxx, VerbosityCxx};
 
 #[cxx::bridge(namespace=ffi)]
 mod extern_cxx {
