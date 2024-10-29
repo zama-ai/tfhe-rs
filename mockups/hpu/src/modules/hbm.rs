@@ -127,10 +127,10 @@ impl HbmBank {
     }
 
     /// Read data slice from mutiple chunk
-    /// WARN: To circumvent an XRT limitation with huge buffer, Key's memory are allocated with multiple slot of MEM_CHUNK_SIZE_B (i.e. Currently 16MiB)
-    /// This is abstracted by the HugeMemory in tfhe-hpu-backend
-    /// Mimics the logic here to correctly read Huge object from Hbm model
-    /// NB: User specify ofset in unit of data.
+    /// WARN: To circumvent an XRT limitation with huge buffer, Key's memory are allocated with
+    /// multiple slot of MEM_CHUNK_SIZE_B (i.e. Currently 16MiB) This is abstracted by the
+    /// HugeMemory in tfhe-hpu-backend Mimics the logic here to correctly read Huge object from
+    /// Hbm model NB: User specify ofset in unit of data.
     pub(crate) fn read_across_chunk<T>(&self, ofst: usize, data: &mut [T])
     where
         T: bytemuck::Pod,

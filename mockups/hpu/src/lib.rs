@@ -27,7 +27,7 @@ mod mockup_params;
 pub use mockup_params::MockupParameters;
 
 mod modules;
-use modules::{HbmBank, RegisterMap, HBM_BANK_NB};
+use modules::{HbmBank, RegisterEvent, RegisterMap, HBM_BANK_NB};
 
 use asm::{Asm, AsmBin};
 use tfhe::tfhe_hpu_backend::asm;
@@ -110,7 +110,14 @@ impl HpuSim {
                         self.ipc.register_ack(RegisterAck::Read(val));
                     }
                     RegisterReq::Write { addr, value } => {
-                        self.regmap.write_reg(addr, value);
+                        let evt = self.regmap.write_reg(addr, value);
+                        match evt {
+                            RegisterEvent::None => { /* Nothing to do */ }
+                            RegisterEvent::KeyReset => {
+                                // Reset associated key option
+                                self.sks = None;
+                            }
+                        }
                         self.ipc.register_ack(RegisterAck::Write);
                     }
                 }
@@ -165,12 +172,13 @@ impl HpuSim {
 
 impl HpuSim {
     fn simulate(&mut self, iop: asm::IOp) {
-        tracing::debug!("Simulation start for {iop:?}");
+        tracing::info!("Simulation start for {iop:?}");
 
         // Retrived Fw and emulate RTL ucore translation
         let dops = self.ucore_translate(&iop);
 
         for dop in dops {
+            tracing::debug!("Simulate execution of DOp: {dop:?}");
             // Read operands
             match dop {
                 asm::DOp::LD(op_impl) => {
@@ -195,8 +203,8 @@ impl HpuSim {
                     std::iter::zip(hw_slice.into_iter(), ct_chunk.into_iter()).for_each(
                         |(hpu, hbm)| {
                             // NB: hbm chunk are extended to enforce page align buffer
-                            // -> To prevent error during copy, with shrink the hbm buffer to the real
-                            //   size before-hand
+                            // -> To prevent error during copy, with shrink the hbm buffer to the
+                            // real   size before-hand
                             let size_b = hpu.len() * std::mem::size_of::<u64>();
                             let hbm_u64 =
                                 bytemuck::cast_slice::<u8, u64>(&hbm.data.as_slice()[0..size_b]);
@@ -262,7 +270,7 @@ impl HpuSim {
                     let mut cpu_s1 = self.reg2cpu(op_impl.src.1);
 
                     lwe_ciphertext_cleartext_mul_assign(
-                        &mut cpu_s1,
+                        &mut cpu_s0,
                         Cleartext(op_impl.mul_factor as u64),
                     );
                     lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
@@ -464,7 +472,7 @@ impl HpuSim {
 
         // Ucore is in charge of Sync insertion
         dops_patch.push(asm::DOp::SYNC(Default::default()));
-        tracing::debug!("Patch DOp stream => {dops_patch:?}");
+        tracing::trace!("Patch DOp stream => {dops_patch:?}");
         dops_patch
     }
 
@@ -496,6 +504,7 @@ impl HpuSim {
     /// Check the register state and extract sks from memory if needed
     fn get_server_key(&mut self) -> &ServerKey {
         if self.sks.is_none() {
+            tracing::debug!("Reload Bsk/Ksk from memory");
             // TODO check register states
             // Extract HpuBsk /HpuKsk from hbm
             let hpu_bsk = {

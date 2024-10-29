@@ -42,6 +42,27 @@ impl std::fmt::Debug for CiphertextSlot {
     }
 }
 
+impl CiphertextSlot {
+    fn alloc(ffi_hw: &mut ffi::HpuHw, id: SlotId, props: &CiphertextMemoryProperties) -> Self {
+        let mz = props
+            .hbm_cut
+            .iter()
+            .map(|hbm_pc| {
+                let cut_props = ffi::MemZoneProperties {
+                    hbm_pc: *hbm_pc,
+                    size_b: props.cut_size_b,
+                };
+                ffi_hw.alloc(cut_props)
+            })
+            .collect::<Vec<_>>();
+        CiphertextSlot { id, mz }
+    }
+
+    fn release(&mut self, ffi_hw: &mut ffi::HpuHw) {
+        self.mz.iter_mut().for_each(|mz| ffi_hw.release(mz));
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CiphertextMemoryProperties {
     pub bank: usize,
@@ -106,7 +127,7 @@ impl CiphertextMemory {
             let bank = (0..p.slot_nb)
                 .map(|cid| {
                     let id = SlotId { bid: p.bank, cid };
-                    Self::alloc_slot(ffi_hw, id, p)
+                    CiphertextSlot::alloc(ffi_hw, id, p)
                 })
                 .collect::<Vec<_>>();
 
@@ -173,23 +194,9 @@ impl CiphertextMemory {
         }
     }
 
-    fn alloc_slot(
-        ffi_hw: &mut ffi::HpuHw,
-        id: SlotId,
-        props: &CiphertextMemoryProperties,
-    ) -> CiphertextSlot {
-        let mz = props
-            .hbm_cut
-            .iter()
-            .map(|hbm_pc| {
-                let cut_props = ffi::MemZoneProperties {
-                    hbm_pc: *hbm_pc,
-                    size_b: props.cut_size_b,
-                };
-                ffi_hw.alloc(cut_props)
-            })
-            .collect::<Vec<_>>();
-        CiphertextSlot { id, mz }
+    #[tracing::instrument(level = "trace", skip(ffi_hw), ret)]
+    pub fn release(&mut self, ffi_hw: &mut ffi::HpuHw) {
+        self.pool.iter_mut().for_each(|slot| slot.release(ffi_hw));
     }
 }
 

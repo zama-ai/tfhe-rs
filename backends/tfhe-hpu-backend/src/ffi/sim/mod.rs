@@ -57,7 +57,7 @@ impl HpuHw {
         }
     }
     /// Handle on-board memory de-allocation
-    pub fn release(&mut self, zone: &MemZone) {
+    pub fn release(&mut self, zone: &mut MemZone) {
         let (req, ack) = {
             let IpcFfi { memory, .. } = &self.ipc;
             let MemoryFfi { req, ack } = memory;
@@ -68,14 +68,18 @@ impl HpuHw {
             hbm_pc: zone.hbm_pc,
             addr: zone.addr,
         };
+        tracing::trace!("Req => {cmd:?}");
         req.send(cmd).unwrap();
 
         // Wait for ack
         match ack.recv() {
-            Ok(ack) => match ack {
-                MemoryAck::Release => {}
-                _ => panic!("Ack mismatch with sent request"),
-            },
+            Ok(ack) => {
+                tracing::trace!("Ack => {ack:?}");
+                match ack {
+                    MemoryAck::Release => {}
+                    _ => panic!("Ack mismatch with sent request"),
+                }
+            }
             Err(err) => panic!("Ipc recv {err:?}"),
         }
     }

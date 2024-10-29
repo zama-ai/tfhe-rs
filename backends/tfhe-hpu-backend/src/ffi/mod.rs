@@ -63,8 +63,16 @@ impl HpuHw {
 
     /// Handle on-board memory deallocation through ffi
     #[inline(always)]
-    pub fn release(&mut self, zone: &MemZone) {
-        todo!("Handle memory release");
+    pub fn release(&mut self, zone: &mut MemZone) {
+        #[cfg(feature = "hw-xrt")]
+        {
+            todo!("Handle memory release");
+        }
+
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            self.0.release(&mut zone.0);
+        }
     }
 
     /// Handle ffi instanciation
