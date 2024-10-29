@@ -321,7 +321,8 @@ fn main() {
     // TODO manage moduli < 2^53
     let (stepped_levels_cutoff, max_base_log_inclusive, preserved_mantissa) = match algo.as_str() {
         EXT_PROD_U128_ALGO | EXT_PROD_U128_SPLIT_ALGO => (41, 128, 106),
-        _ => (21, 64, 53),
+        //~ _ => (21, 64, 53),
+        _ => (21, 5, 53),
     };
 
     if timing_only {
@@ -335,21 +336,21 @@ fn main() {
 
     // Parameter Grid
     let polynomial_sizes = vec![
-        PolynomialSize(1 << 8),
-        PolynomialSize(1 << 9),
+        //~ PolynomialSize(1 << 8),
+        //~ PolynomialSize(1 << 9),
         PolynomialSize(1 << 10),
         PolynomialSize(1 << 11),
-        PolynomialSize(1 << 12),
-        PolynomialSize(1 << 13),
-        PolynomialSize(1 << 14),
+        //~ PolynomialSize(1 << 12),
+        //~ PolynomialSize(1 << 13),
+        //~ PolynomialSize(1 << 14),
     ];
     let max_polynomial_size = polynomial_sizes.iter().copied().max().unwrap();
     let glwe_dimensions = vec![
         GlweDimension(1),
-        GlweDimension(2),
-        GlweDimension(3),
-        GlweDimension(4),
-        GlweDimension(5),
+        //~ GlweDimension(2),
+        //~ GlweDimension(3),
+        //~ GlweDimension(4),
+        //~ GlweDimension(5),
     ];
 
     let base_logs: Vec<_> = (1..=max_base_log_inclusive).collect();
@@ -454,7 +455,7 @@ fn main() {
                     ggsw_noise,
                     glwe_noise,
                     glwe_dimension,
-                    ggsw_encrypted_value: 1,
+                    ggsw_encrypted_value: 0, //JKL change to 0 to check amplified GGSW noise only
                     polynomial_size,
                     decomposition_base_log,
                     decomposition_level_count,

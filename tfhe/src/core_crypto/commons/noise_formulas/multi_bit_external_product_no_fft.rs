@@ -49,7 +49,7 @@ pub fn multi_bit_external_product_no_fft_additive_variance_132_bits_security_gau
             * glwe_dimension
             * polynomial_size
             * (0.0208333333333333 * modulus.powf(-2.0)
-                + 0.0416666666666667 * decomposition_base.powf(-2.0 * decomposition_level_count))
+                + 0.0416666666666667 * decomposition_base.powf(-2.0 * decomposition_level_count)) //JKL remove this term if the GGSW-encrypted value == 0
         + (1_f64 / 12.0) * modulus.powf(-2.0)
         + (1_f64 / 24.0) * decomposition_base.powf(-2.0 * decomposition_level_count)
 }

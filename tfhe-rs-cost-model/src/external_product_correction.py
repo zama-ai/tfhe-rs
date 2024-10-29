@@ -100,8 +100,8 @@ class SamplingLine:
         ]
         # polynomial_size, glwe_dimension, decomposition_level_count, decomposition_base_log
         ggsw_value = int(line["ggsw_encrypted_value"])
-        if ggsw_value != 1:
-            raise ValueError(f"GGSW value is not 1, it's: {ggsw_value}")
+        if ggsw_value != 0:   #JKL check != 0
+            raise ValueError(f"GGSW value is not 0, it's: {ggsw_value}")
 
 
 def concatenate_result_files(dir_):
@@ -550,7 +550,7 @@ def main():
         max_a = weights["a"]
         max_b = weights["b"]
         max_c = weights["c"]
-        for _ in range(1000):
+        for _ in range(1000):   #JKL this is doing what?
             weights = get_weights(result_file, fft_noise_fun, bits)
             max_a = max(max_a, weights["a"])
             max_b = max(max_b, weights["b"])
