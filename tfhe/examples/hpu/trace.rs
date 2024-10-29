@@ -1,6 +1,7 @@
 use core_crypto::entities::LweCiphertextOwned;
 use core_crypto::hpu::from_with::{FromWith, IntoWith};
-pub use hpu_asm::{strum::IntoEnumIterator, Asm};
+pub use hpu_asm::strum::IntoEnumIterator;
+pub use hpu_asm::Asm;
 use integer::hpu::ciphertext::HpuRadixCiphertext;
 use shortint::parameters::{Degree, NoiseLevel};
 use shortint::{Ciphertext, ClassicPBSParameters};
@@ -10,13 +11,11 @@ pub use tfhe_hpu_backend::prelude::*;
 
 pub use rand::rngs::StdRng;
 pub use rand::{Rng, SeedableRng};
-pub use std::{
-    collections::HashMap,
-    fs::OpenOptions,
-    io::Write,
-    path::Path,
-    time::{Duration, Instant},
-};
+pub use std::collections::HashMap;
+pub use std::fs::OpenOptions;
+pub use std::io::Write;
+pub use std::path::Path;
+pub use std::time::{Duration, Instant};
 
 /// Define CLI arguments
 pub use clap::Parser;

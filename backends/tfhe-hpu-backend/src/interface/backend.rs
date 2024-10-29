@@ -329,11 +329,7 @@ impl HpuBackend {
         for (id, bsk_cut) in bsk.as_view().into_container().into_iter().enumerate() {
             bsk_key.write_cut_at(id, 0, bsk_cut);
             #[cfg(feature = "io-dump")]
-            io_dump::dump(
-                &bsk_cut.as_slice(),
-                io_dump::DumpKind::Bsk,
-                io_dump::DumpId::Key(id),
-            );
+            io_dump::dump(&bsk_cut, io_dump::DumpKind::Bsk, io_dump::DumpId::Key(id));
         }
 
         // Write pc_addr in memory
@@ -445,11 +441,7 @@ impl HpuBackend {
         for (id, ksk_cut) in ksk.as_view().into_container().into_iter().enumerate() {
             ksk_key.write_cut_at(id, 0, ksk_cut);
             #[cfg(feature = "io-dump")]
-            io_dump::dump(
-                &ksk_cut.as_slice(),
-                io_dump::DumpKind::Ksk,
-                io_dump::DumpId::Key(id),
-            );
+            io_dump::dump(&ksk_cut, io_dump::DumpKind::Ksk, io_dump::DumpId::Key(id));
         }
 
         // Write pc_addr in memory
@@ -742,5 +734,18 @@ impl HpuBackend {
 
         self.ct_mem.gc_bundle();
         Ok(())
+    }
+}
+
+impl Drop for HpuBackend {
+    fn drop(&mut self) {
+        // Release ffi allocated memory
+        // Couldn't rely on Drop trait of inner objects since it required reference to associated
+        // ffi backend
+        self.bsk_key.release(&mut self.hpu_hw);
+        self.ksk_key.release(&mut self.hpu_hw);
+        self.lut_mem.release(&mut self.hpu_hw);
+        self.fw_mem.release(&mut self.hpu_hw);
+        self.ct_mem.release(&mut self.hpu_hw);
     }
 }

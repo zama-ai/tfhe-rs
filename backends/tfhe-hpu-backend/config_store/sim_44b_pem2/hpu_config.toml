@@ -28,3 +28,4 @@
   custom_iop.CUST_0 = "backends/tfhe-hpu-backend/config/custom_iop/cust_0.asm"
   custom_iop.CUST_1 = "backends/tfhe-hpu-backend/config/custom_iop/cust_1.asm"
   custom_iop.CUST_2 = "backends/tfhe-hpu-backend/config/custom_iop/cust_2.asm"
+  custom_iop.CUST_6 = "backends/tfhe-hpu-backend/config/custom_iop/cust_6.asm"

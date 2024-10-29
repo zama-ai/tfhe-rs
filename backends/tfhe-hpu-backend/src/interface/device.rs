@@ -12,6 +12,7 @@ pub struct HpuDevice {
     config: HpuConfig,
     pub(crate) backend: backend::HpuBackendWrapped,
     bg_poll: Arc<atomic::AtomicBool>,
+    bg_handle: Option<std::thread::JoinHandle<()>>,
 }
 
 /// Provide constructor
@@ -27,11 +28,12 @@ impl HpuDevice {
 
     pub fn new(fpga_id: u32, config: HpuConfig) -> Self {
         let backend = backend::HpuBackendWrapped::new_wrapped(fpga_id, &config);
-        let device = Self {
+        let mut device = Self {
             fpga_id,
             config,
             backend,
             bg_poll: Arc::new(atomic::AtomicBool::new(false)),
+            bg_handle: None,
         };
 
         // Start polling thread in the background
@@ -45,6 +47,12 @@ impl Drop for HpuDevice {
         // Required background polling thread to stop
         // This enable proper release of the associated HpuBackend
         self.bg_poll.store(false, atomic::Ordering::SeqCst);
+
+        if let Some(handle) = self.bg_handle.take() {
+            handle
+                .join()
+                .expect("Background thread failed to stop properly");
+        }
     }
 }
 
@@ -147,7 +155,7 @@ impl HpuDevice {
 /// WARN: Variable still required lock on HpuBackend for allocation. Thus ensure to relase the lock
 /// periodically NB: This should be replaced by Irq when available
 impl HpuDevice {
-    fn run_polling(&self) {
+    fn run_polling(&mut self) {
         let backend = self.backend.clone();
         let bg_poll = self.bg_poll.clone();
         let tick = std::time::Duration::from_micros(self.config.fpga.polling_us);
@@ -159,7 +167,7 @@ impl HpuDevice {
         };
 
         bg_poll.store(true, atomic::Ordering::SeqCst);
-        std::thread::spawn(move || {
+        self.bg_handle = Some(std::thread::spawn(move || {
             while bg_poll.load(atomic::Ordering::SeqCst) {
                 std::thread::sleep(tick);
                 {
@@ -167,6 +175,6 @@ impl HpuDevice {
                     be.run_step().expect("Hpu encounter internal error");
                 }
             }
-        });
+        }));
     }
 }

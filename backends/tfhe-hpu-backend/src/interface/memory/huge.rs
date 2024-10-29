@@ -83,6 +83,15 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         }
     }
 
+    /// This function release associated memzone
+    #[tracing::instrument(level = "trace", skip(ffi_hw), ret)]
+    pub fn release(&mut self, ffi_hw: &mut ffi::HpuHw) {
+        self.cut_mem
+            .iter_mut()
+            .flatten()
+            .for_each(|mz| ffi_hw.release(mz));
+    }
+
     /// Write data slice into memory cut_id
     /// NB: User specify ofset in unit of data.
     #[tracing::instrument(level = "trace", skip(data), ret)]

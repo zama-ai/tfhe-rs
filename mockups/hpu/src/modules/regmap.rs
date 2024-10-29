@@ -22,6 +22,11 @@ pub struct RegisterMap {
     ackq_rx: mpsc::Receiver<u32>,
 }
 
+pub enum RegisterEvent {
+    None,
+    KeyReset,
+}
+
 impl RegisterMap {
     pub fn new(
         rtl_params: HpuParameters,
@@ -177,25 +182,43 @@ impl RegisterMap {
         }
     }
 
-    pub fn write_reg(&mut self, addr: u64, value: u32) {
+    pub fn write_reg(&mut self, addr: u64, value: u32) -> RegisterEvent {
         let register_name = self.get_register_name(addr);
         match register_name {
-            "Keys_Bsk::avail" => self.bsk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst),
+            "Keys_Bsk::avail" => {
+                self.bsk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst);
+                RegisterEvent::None
+            }
             "Keys_Bsk::reset" => {
                 if (value & 0x1) == 0x1 {
                     self.bsk.rst_pdg.store(true, Ordering::SeqCst);
                     self.bsk.avail.store(false, Ordering::SeqCst);
+                    RegisterEvent::KeyReset
+                } else {
+                    RegisterEvent::None
                 }
             }
-            "Keys_Ksk::avail" => self.ksk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst),
+            "Keys_Ksk::avail" => {
+                self.ksk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst);
+                RegisterEvent::None
+            }
             "Keys_Ksk::reset" => {
                 if (value & 0x1) == 0x1 {
                     self.ksk.rst_pdg.store(true, Ordering::SeqCst);
                     self.ksk.avail.store(false, Ordering::SeqCst);
+                    RegisterEvent::KeyReset
+                } else {
+                    RegisterEvent::None
                 }
             }
-            "WorkAck::workq" => self.workq_tx.send(value).unwrap(),
-            _ => tracing::warn!("Register {register_name} not hooked for writting"),
+            "WorkAck::workq" => {
+                self.workq_tx.send(value).unwrap();
+                RegisterEvent::None
+            }
+            _ => {
+                tracing::warn!("Register {register_name} not hooked for writting");
+                RegisterEvent::None
+            }
         }
     }
 }

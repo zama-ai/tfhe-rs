@@ -27,7 +27,9 @@ impl HpuPBSParameters {
     /// Compute associated encoding delta.
     /// Used for scalar encoding
     pub fn delta(&self) -> u64 {
-        1_u64 << (self.ciphertext_width - (self.message_width + self.carry_width))
+        1_u64
+            << (self.ciphertext_width
+                - (self.message_width + self.carry_width + /* padding_bit */ 1))
     }
 }
 
