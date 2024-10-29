@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 
@@ -32,7 +31,7 @@ impl RegisterMap {
         rtl_params: HpuParameters,
         regmap: &str,
     ) -> (Self, (mpsc::Receiver<u32>, mpsc::Sender<u32>)) {
-        let regmap = FlatRegmap::from_file(&regmap);
+        let regmap = FlatRegmap::from_file(regmap);
         let (workq_tx, workq_rx) = mpsc::channel();
         let (ackq_tx, ackq_rx) = mpsc::channel();
 

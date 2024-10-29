@@ -8,16 +8,11 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::path::Path;
-
 use hpu_sim::{HpuSim, MockupParameters};
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 /// Define CLI arguments
 use clap::Parser;
-use clap_num::maybe_hex;
 #[derive(clap::Parser, Debug, Clone)]
 #[clap(long_about = "Hpu Simulation mockup.")]
 pub struct Args {
