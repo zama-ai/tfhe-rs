@@ -22,7 +22,6 @@ on:
     types:
       - opened
       - synchronize
-      - labeled
   schedule:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
@@ -57,9 +56,8 @@ jobs:
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
               - '.github/workflows/gpu_signed_integer_tests.yml'
-              - Makefile
-              - scripts/**
-              - ci/**
+              - scripts/integer-tests.sh
+              - ci/slab.toml
 
   setup-instance:
     name: Setup instance (cuda-signed-integer-tests)
@@ -67,7 +65,7 @@ jobs:
     needs: should-run
     if: (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name == 'workflow_dispatch' ||
-      (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true')
+      needs.should-run.outputs.gpu_test == 'true'
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
