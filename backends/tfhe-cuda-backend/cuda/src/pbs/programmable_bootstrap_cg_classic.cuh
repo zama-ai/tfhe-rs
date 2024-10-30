@@ -67,12 +67,12 @@ __global__ void device_programmable_bootstrap_cg(
 
   // We always compute the pointer with most restrictive alignment to avoid
   // alignment issues
-  double2 *accumulator_fft = (double2 *)selected_memory;
-  Torus *accumulator =
-      (Torus *)accumulator_fft +
-      (ptrdiff_t)(sizeof(double2) * polynomial_size / 2 / sizeof(Torus));
+  Torus *accumulator = (Torus *)selected_memory;
   Torus *accumulator_rotated =
-      (Torus *)accumulator + (ptrdiff_t)polynomial_size;
+      (Torus *)accumulator + (ptrdiff_t)(polynomial_size);
+  double2 *accumulator_fft =
+      (double2 *)(accumulator_rotated) +
+      (ptrdiff_t)(polynomial_size * sizeof(Torus) / sizeof(double2));
 
   if constexpr (SMD == PARTIALSM)
     accumulator_fft = (double2 *)sharedmem;
