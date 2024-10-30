@@ -34,7 +34,7 @@ impl Ipc {
 
         match req.try_recv() {
             Ok(cmd) => {
-                tracing::trace!("RegisterReq Recv {cmd:?}");
+                tracing::trace!("RegisterReq Recv {cmd:x?}");
                 Some(cmd)
             }
             Err(err) => match &err {
@@ -72,7 +72,7 @@ impl Ipc {
 
         match req.try_recv() {
             Ok(cmd) => {
-                tracing::trace!("MemoryReq recv {cmd:?}");
+                tracing::trace!("MemoryReq recv {cmd:x?}");
                 Some(cmd)
             }
             Err(err) => match &err {

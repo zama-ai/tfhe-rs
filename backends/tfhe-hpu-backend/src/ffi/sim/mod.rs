@@ -38,13 +38,13 @@ impl HpuHw {
             hbm_pc: props.hbm_pc,
             size_b: props.size_b,
         };
-        tracing::trace!("Req => {cmd:?}");
+        tracing::trace!("Req => {cmd:x?}");
         req.send(cmd).unwrap();
 
         // Wait for ack
         match ack.recv() {
             Ok(ack) => {
-                tracing::trace!("Ack => {ack:?}");
+                tracing::trace!("Ack => {ack:x?}");
                 match ack {
                     MemoryAck::Allocate { addr, tx, rx } => {
                         let ipc = IpcMemZone::new(req.clone(), tx, rx);
@@ -68,13 +68,13 @@ impl HpuHw {
             hbm_pc: zone.hbm_pc,
             addr: zone.addr,
         };
-        tracing::trace!("Req => {cmd:?}");
+        tracing::trace!("Req => {cmd:x?}");
         req.send(cmd).unwrap();
 
         // Wait for ack
         match ack.recv() {
             Ok(ack) => {
-                tracing::trace!("Ack => {ack:?}");
+                tracing::trace!("Ack => {ack:x?}");
                 match ack {
                     MemoryAck::Release => {}
                     _ => panic!("Ack mismatch with sent request"),
@@ -93,14 +93,18 @@ impl HpuHw {
         };
         // Send request
         let cmd = RegisterReq::Read { addr };
+        tracing::trace!("Req => {cmd:x?}");
         req.send(cmd).unwrap();
 
         // Wait for ack
         let val = match ack.recv() {
-            Ok(ack) => match ack {
-                RegisterAck::Read(val) => val,
-                RegisterAck::Write => panic!("Ack mismatch with sent request"),
-            },
+            Ok(ack) => {
+                tracing::trace!("Ack => {ack:x?}");
+                match ack {
+                    RegisterAck::Read(val) => val,
+                    RegisterAck::Write => panic!("Ack mismatch with sent request"),
+                }
+            }
             Err(err) => panic!("Ipc recv {err:?}"),
         };
         val
@@ -115,14 +119,18 @@ impl HpuHw {
 
         // Send request
         let cmd = RegisterReq::Write { addr, value };
+        tracing::trace!("Req => {cmd:x?}");
         req.send(cmd).unwrap();
 
         // Wait for ack
         match ack.recv() {
-            Ok(ack) => match ack {
-                RegisterAck::Write => {}
-                RegisterAck::Read(_) => panic!("Ack mismatch with sent request"),
-            },
+            Ok(ack) => {
+                tracing::trace!("Ack => {ack:x?}");
+                match ack {
+                    RegisterAck::Write => {}
+                    RegisterAck::Read(_) => panic!("Ack mismatch with sent request"),
+                }
+            }
             Err(err) => panic!("Ipc recv {err:?}"),
         }
     }
@@ -183,23 +191,23 @@ impl MemZone {
                 let hw_data = IpcSharedMemory::from_bytes(data.as_slice());
                 ipc.tx.send(hw_data).unwrap();
                 // And notify
-                ipc.notify_req
-                    .send(MemoryReq::Sync {
-                        hbm_pc: *hbm_pc,
-                        addr: *addr,
-                        mode,
-                    })
-                    .unwrap();
+                let cmd = MemoryReq::Sync {
+                    hbm_pc: *hbm_pc,
+                    addr: *addr,
+                    mode,
+                };
+                tracing::trace!("Req => {cmd:x?}");
+                ipc.notify_req.send(cmd).unwrap();
             }
             ffi::SyncMode::Device2Host => {
                 // Notify
-                ipc.notify_req
-                    .send(MemoryReq::Sync {
-                        hbm_pc: *hbm_pc,
-                        addr: *addr,
-                        mode,
-                    })
-                    .unwrap();
+                let cmd = MemoryReq::Sync {
+                    hbm_pc: *hbm_pc,
+                    addr: *addr,
+                    mode,
+                };
+                tracing::trace!("Req => {cmd:x?}");
+                ipc.notify_req.send(cmd).unwrap();
                 // Read bytes from Device
                 let hw_data = ipc.rx.recv().unwrap();
                 data.copy_from_slice(&*hw_data);
