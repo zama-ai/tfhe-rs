@@ -221,7 +221,7 @@ pub fn prove<G: Curve>(
             core::slice::from_mut(s),
             &[
                 hash_s,
-                &i.to_le_bytes(),
+                &(i as u64).to_le_bytes(),
                 v_hat.to_bytes().as_ref(),
                 c_hat.to_bytes().as_ref(),
                 c_y.to_bytes().as_ref(),
@@ -328,7 +328,7 @@ pub fn verify<G: Curve>(
             core::slice::from_mut(s),
             &[
                 hash_s,
-                &i.to_le_bytes(),
+                &(i as u64).to_le_bytes(),
                 v_hat.to_bytes().as_ref(),
                 c_hat.to_bytes().as_ref(),
                 c_y.to_bytes().as_ref(),
