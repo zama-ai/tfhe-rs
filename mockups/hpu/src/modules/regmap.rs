@@ -7,24 +7,29 @@ use tfhe::tfhe_hpu_backend::interface::rtl::params::*;
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 #[derive(Default)]
-struct KeyState {
+pub(crate) struct KeyState {
     avail: AtomicBool,
     rst_pdg: AtomicBool,
 }
-
-#[derive(Default)]
-struct BpipState {
-    used: bool,
-    timeout: u32,
+impl KeyState {
+    pub fn is_avail(&self) -> bool {
+        self.avail.load(Ordering::SeqCst)
+    }
 }
 
 #[derive(Default)]
-struct AddrOffset {
-    bsk: [(u32, u32); hbm::HBM_BSK_PC_MAX],
-    ksk: [(u32, u32); hbm::HBM_KSK_PC_MAX],
-    fw: (u32, u32),
-    lut: (u32, u32),
-    ct_bid: [[(u32, u32); hbm::HBM_CT_PC_MAX]; hbm::HBM_CT_BANK_MAX],
+pub(crate) struct BpipState {
+    pub(crate) used: bool,
+    pub(crate) timeout: u32,
+}
+
+#[derive(Default)]
+pub(crate) struct AddrOffset {
+    pub(crate) bsk: [(u32, u32); hbm::HBM_BSK_PC_MAX],
+    pub(crate) ksk: [(u32, u32); hbm::HBM_KSK_PC_MAX],
+    pub(crate) fw: (u32, u32),
+    pub(crate) lut: (u32, u32),
+    pub(crate) ldst_bid: [[(u32, u32); hbm::HBM_CT_PC_MAX]; hbm::HBM_CT_BANK_MAX],
 }
 
 pub struct RegisterMap {
@@ -66,6 +71,19 @@ impl RegisterMap {
             },
             (workq_rx, ackq_tx),
         )
+    }
+
+    pub fn bsk_state(&self) -> &KeyState {
+        &self.bsk
+    }
+    pub fn ksk_state(&self) -> &KeyState {
+        &self.ksk
+    }
+    pub fn bpip_state(&self) -> &BpipState {
+        &self.bpip
+    }
+    pub fn addr_offset(&self) -> &AddrOffset {
+        &self.addr_ofst
     }
 }
 
@@ -188,22 +206,22 @@ impl RegisterMap {
             "Bpip::timeout" => self.bpip.timeout,
 
             // Add offset configuration registers
-            "LdSt_bank0::addr_pc0_msb" => self.addr_ofst.ct_bid[0][0].0,
-            "LdSt_bank0::addr_pc0_lsb" => self.addr_ofst.ct_bid[0][0].1,
-            "LdSt_bank0::addr_pc1_msb" => self.addr_ofst.ct_bid[0][1].0,
-            "LdSt_bank0::addr_pc1_lsb" => self.addr_ofst.ct_bid[0][1].1,
-            "LdSt_bank1::addr_pc0_msb" => self.addr_ofst.ct_bid[1][0].0,
-            "LdSt_bank1::addr_pc0_lsb" => self.addr_ofst.ct_bid[1][0].1,
-            "LdSt_bank1::addr_pc1_msb" => self.addr_ofst.ct_bid[1][1].0,
-            "LdSt_bank1::addr_pc1_lsb" => self.addr_ofst.ct_bid[1][1].1,
-            "LdSt_bank2::addr_pc0_msb" => self.addr_ofst.ct_bid[2][0].0,
-            "LdSt_bank2::addr_pc0_lsb" => self.addr_ofst.ct_bid[2][0].1,
-            "LdSt_bank2::addr_pc1_msb" => self.addr_ofst.ct_bid[2][1].0,
-            "LdSt_bank2::addr_pc1_lsb" => self.addr_ofst.ct_bid[2][1].1,
-            "LdSt_bank3::addr_pc0_msb" => self.addr_ofst.ct_bid[3][0].0,
-            "LdSt_bank3::addr_pc0_lsb" => self.addr_ofst.ct_bid[3][0].1,
-            "LdSt_bank3::addr_pc1_msb" => self.addr_ofst.ct_bid[3][1].0,
-            "LdSt_bank3::addr_pc1_lsb" => self.addr_ofst.ct_bid[3][1].1,
+            "LdSt_bank0::addr_pc0_msb" => self.addr_ofst.ldst_bid[0][0].0,
+            "LdSt_bank0::addr_pc0_lsb" => self.addr_ofst.ldst_bid[0][0].1,
+            "LdSt_bank0::addr_pc1_msb" => self.addr_ofst.ldst_bid[0][1].0,
+            "LdSt_bank0::addr_pc1_lsb" => self.addr_ofst.ldst_bid[0][1].1,
+            "LdSt_bank1::addr_pc0_msb" => self.addr_ofst.ldst_bid[1][0].0,
+            "LdSt_bank1::addr_pc0_lsb" => self.addr_ofst.ldst_bid[1][0].1,
+            "LdSt_bank1::addr_pc1_msb" => self.addr_ofst.ldst_bid[1][1].0,
+            "LdSt_bank1::addr_pc1_lsb" => self.addr_ofst.ldst_bid[1][1].1,
+            "LdSt_bank2::addr_pc0_msb" => self.addr_ofst.ldst_bid[2][0].0,
+            "LdSt_bank2::addr_pc0_lsb" => self.addr_ofst.ldst_bid[2][0].1,
+            "LdSt_bank2::addr_pc1_msb" => self.addr_ofst.ldst_bid[2][1].0,
+            "LdSt_bank2::addr_pc1_lsb" => self.addr_ofst.ldst_bid[2][1].1,
+            "LdSt_bank3::addr_pc0_msb" => self.addr_ofst.ldst_bid[3][0].0,
+            "LdSt_bank3::addr_pc0_lsb" => self.addr_ofst.ldst_bid[3][0].1,
+            "LdSt_bank3::addr_pc1_msb" => self.addr_ofst.ldst_bid[3][1].0,
+            "LdSt_bank3::addr_pc1_lsb" => self.addr_ofst.ldst_bid[3][1].1,
             "Keys_Bsk::addr_pc_pc0_msb" => self.addr_ofst.bsk[0].0,
             "Keys_Bsk::addr_pc_pc0_lsb" => self.addr_ofst.bsk[0].1,
             "Keys_Bsk::addr_pc_pc1_msb" => self.addr_ofst.bsk[1].0,
@@ -301,67 +319,67 @@ impl RegisterMap {
             }
             // Add offset configuration registers
             "LdSt_bank0::addr_pc0_msb" => {
-                self.addr_ofst.ct_bid[0][0].0 = value;
+                self.addr_ofst.ldst_bid[0][0].0 = value;
                 RegisterEvent::None
             }
             "LdSt_bank0::addr_pc0_lsb" => {
-                self.addr_ofst.ct_bid[0][0].1 = value;
+                self.addr_ofst.ldst_bid[0][0].1 = value;
                 RegisterEvent::None
             }
             "LdSt_bank0::addr_pc1_msb" => {
-                self.addr_ofst.ct_bid[0][1].0 = value;
+                self.addr_ofst.ldst_bid[0][1].0 = value;
                 RegisterEvent::None
             }
             "LdSt_bank0::addr_pc1_lsb" => {
-                self.addr_ofst.ct_bid[0][1].1 = value;
+                self.addr_ofst.ldst_bid[0][1].1 = value;
                 RegisterEvent::None
             }
             "LdSt_bank1::addr_pc0_msb" => {
-                self.addr_ofst.ct_bid[1][0].0 = value;
+                self.addr_ofst.ldst_bid[1][0].0 = value;
                 RegisterEvent::None
             }
             "LdSt_bank1::addr_pc0_lsb" => {
-                self.addr_ofst.ct_bid[1][0].1 = value;
+                self.addr_ofst.ldst_bid[1][0].1 = value;
                 RegisterEvent::None
             }
             "LdSt_bank1::addr_pc1_msb" => {
-                self.addr_ofst.ct_bid[1][1].0 = value;
+                self.addr_ofst.ldst_bid[1][1].0 = value;
                 RegisterEvent::None
             }
             "LdSt_bank1::addr_pc1_lsb" => {
-                self.addr_ofst.ct_bid[1][1].1 = value;
+                self.addr_ofst.ldst_bid[1][1].1 = value;
                 RegisterEvent::None
             }
             "LdSt_bank2::addr_pc0_msb" => {
-                self.addr_ofst.ct_bid[2][0].0 = value;
+                self.addr_ofst.ldst_bid[2][0].0 = value;
                 RegisterEvent::None
             }
             "LdSt_bank2::addr_pc0_lsb" => {
-                self.addr_ofst.ct_bid[2][0].1 = value;
+                self.addr_ofst.ldst_bid[2][0].1 = value;
                 RegisterEvent::None
             }
             "LdSt_bank2::addr_pc1_msb" => {
-                self.addr_ofst.ct_bid[2][1].0 = value;
+                self.addr_ofst.ldst_bid[2][1].0 = value;
                 RegisterEvent::None
             }
             "LdSt_bank2::addr_pc1_lsb" => {
-                self.addr_ofst.ct_bid[2][1].1 = value;
+                self.addr_ofst.ldst_bid[2][1].1 = value;
                 RegisterEvent::None
             }
             "LdSt_bank3::addr_pc0_msb" => {
-                self.addr_ofst.ct_bid[3][0].0 = value;
+                self.addr_ofst.ldst_bid[3][0].0 = value;
                 RegisterEvent::None
             }
             "LdSt_bank3::addr_pc0_lsb" => {
-                self.addr_ofst.ct_bid[3][0].1 = value;
+                self.addr_ofst.ldst_bid[3][0].1 = value;
                 RegisterEvent::None
             }
             "LdSt_bank3::addr_pc1_msb" => {
-                self.addr_ofst.ct_bid[3][1].0 = value;
+                self.addr_ofst.ldst_bid[3][1].0 = value;
                 RegisterEvent::None
             }
             "LdSt_bank3::addr_pc1_lsb" => {
-                self.addr_ofst.ct_bid[3][1].1 = value;
+                self.addr_ofst.ldst_bid[3][1].1 = value;
                 RegisterEvent::None
             }
             "Keys_Bsk::addr_pc_pc0_msb" => {

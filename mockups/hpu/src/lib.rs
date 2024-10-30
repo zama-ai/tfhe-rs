@@ -182,6 +182,7 @@ impl HpuSim {
                     let dst = &mut self.regfile[op_impl.dst];
                     let asm::MemSlot { bid, cid_ofst, .. } = op_impl.src;
 
+                    // Ct_ofst is equal over PC
                     let ct_ofst = cid_ofst
                         * page_align(
                             hpu_big_lwe_ciphertext_size(&self.params.rtl_params)
@@ -193,7 +194,14 @@ impl HpuSim {
                         .board
                         .ct_pc
                         .iter()
-                        .map(|pc| self.hbm_bank[*pc].get_chunk(ct_ofst as u64))
+                        .enumerate()
+                        .map(|(id, pc)| {
+                            let bid_ofst = {
+                                let (msb, lsb) = self.regmap.addr_offset().ldst_bid[bid][id];
+                                ((msb as u64) << 32) + lsb as u64
+                            };
+                            self.hbm_bank[*pc].get_chunk(bid_ofst + ct_ofst as u64)
+                        })
                         .collect::<Vec<_>>();
 
                     let hw_slice = dst.as_mut_view().into_container();
@@ -218,6 +226,7 @@ impl HpuSim {
                     let src = &self.regfile[op_impl.src];
                     let asm::MemSlot { bid, cid_ofst, .. } = op_impl.dst;
 
+                    // Ct_ofst is equal over PC
                     let ct_ofst = cid_ofst
                         * page_align(
                             hpu_big_lwe_ciphertext_size(&self.params.rtl_params)
@@ -228,9 +237,13 @@ impl HpuSim {
                         .into_container()
                         .into_iter()
                         .enumerate()
-                        .for_each(|(i, hpu)| {
-                            let ct_chunk = self.hbm_bank[self.config.board.ct_pc[i]]
-                                .get_mut_chunk(ct_ofst as u64);
+                        .for_each(|(id, hpu)| {
+                            let bid_ofst = {
+                                let (msb, lsb) = self.regmap.addr_offset().ldst_bid[bid][id];
+                                ((msb as u64) << 32) + lsb as u64
+                            };
+                            let ct_chunk = self.hbm_bank[self.config.board.ct_pc[id]]
+                                .get_mut_chunk(bid_ofst + ct_ofst as u64);
 
                             // NB: hbm chunk are extended to enforce page align buffer
                             // -> Shrinked it to slice size to prevent error during copy
@@ -329,6 +342,8 @@ impl HpuSim {
 
     /// Compute dst_rid <- Pbs(src_rid, lut)
     /// Use a function to prevent code duplication in PBS/PBS_F implementation
+    /// NB: Current Pbs lookup function arn't reverted from Hbm memory
+    /// TODO: Read PbsLut from Hbm instead of online generation based on Pbs Id
     fn apply_pbs2reg(&mut self, dst_rid: usize, src_rid: usize, lut: hpu_asm::Pbs) {
         let cpu_reg = self.reg2cpu(src_rid);
 
@@ -366,7 +381,8 @@ impl HpuSim {
 
             // Bypass fw_ofst register value
             // Expect to have only one memzone in fw bank allocated in 0
-            // TODO correctly read associated register value
+            // NB: Fw memory bank is linked to ucore and there is no associated offset register
+            // -> Stick with Offset 0
             let fw_bank = &self.hbm_bank[self.config.board.fw_pc];
             let fw_chunk = fw_bank.get_chunk(0);
             let fw_view = &fw_chunk.data;
@@ -499,7 +515,15 @@ impl HpuSim {
     fn get_server_key(&mut self) -> &ServerKey {
         if self.sks.is_none() {
             tracing::debug!("Reload Bsk/Ksk from memory");
-            // TODO check register states
+            assert!(
+                self.regmap.bsk_state().is_avail(),
+                "Bsk avail bit was not set. Hw will hang on Pbs computation, Mockup panic instead"
+            );
+            assert!(
+                self.regmap.ksk_state().is_avail(),
+                "Ksk avail bit was not set. Hw will hang on Pbs computation, Mockup panic instead"
+            );
+
             // Extract HpuBsk /HpuKsk from hbm
             let hpu_bsk = {
                 // Create Hpu Bsk container
@@ -507,10 +531,16 @@ impl HpuSim {
 
                 // Copy content from Hbm
                 let hw_slice = bsk.as_mut_view().into_container();
-                std::iter::zip(hw_slice, self.config.board.bsk_pc.iter()).for_each(|(hpu, pc)| {
-                    let bank = &self.hbm_bank[*pc];
-                    bank.read_across_chunk(0, hpu);
-                });
+                std::iter::zip(hw_slice, self.config.board.bsk_pc.iter())
+                    .enumerate()
+                    .for_each(|(id, (hpu, pc))| {
+                        let bank = &self.hbm_bank[*pc];
+                        let ofst = {
+                            let (msb, lsb) = self.regmap.addr_offset().bsk[id];
+                            ((msb as usize) << 32) + lsb as usize
+                        };
+                        bank.read_across_chunk(ofst, hpu);
+                    });
                 bsk
             };
             let hpu_ksk = {
@@ -519,10 +549,16 @@ impl HpuSim {
 
                 // Copy content from Hbm
                 let hw_slice = ksk.as_mut_view().into_container();
-                std::iter::zip(hw_slice, self.config.board.ksk_pc.iter()).for_each(|(hpu, pc)| {
-                    let bank = &self.hbm_bank[*pc];
-                    bank.read_across_chunk(0, hpu);
-                });
+                std::iter::zip(hw_slice, self.config.board.ksk_pc.iter())
+                    .enumerate()
+                    .for_each(|(id, (hpu, pc))| {
+                        let bank = &self.hbm_bank[*pc];
+                        let ofst = {
+                            let (msb, lsb) = self.regmap.addr_offset().ksk[id];
+                            ((msb as usize) << 32) + lsb as usize
+                        };
+                        bank.read_across_chunk(ofst, hpu);
+                    });
                 ksk
             };
 
