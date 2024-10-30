@@ -119,6 +119,7 @@ jobs:
           repository: zama-ai/tfhe-backward-compat-data
           path: tfhe/tfhe-backward-compat-data
           lfs: 'true'
+          ref: 'v0.1'
 
       - name: Run backward compatibility tests
         run: |
