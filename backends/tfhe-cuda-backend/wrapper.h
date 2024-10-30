@@ -1,3 +1,4 @@
+// These files must be added to the headers vec in the build.rs to check for file changes
 #include "cuda/include/ciphertext.h"
 #include "cuda/include/integer/compression/compression.h"
 #include "cuda/include/integer/integer.h"
