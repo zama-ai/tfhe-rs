@@ -2,7 +2,7 @@
 
 GF = 2
 PATH = "bsk-0"
-SFX = "-mrdky" # -suffix
+SFX = "-s-1-corr-2x" # -suffix
 # sort by 4-th column
 DATAFILE = "< sort -nk4 ".PATH."/gf-".GF.SFX.".dat"
 
@@ -58,7 +58,7 @@ do for [k=1:1] {
     # ====    Log of Measured / Predicted Noise    =============================
     #~ unset logscale y
     #~ set yrange [-.6:1.2]
-    set yrange [.5:8]
+    set yrange [.5:4]
     x0 = y0 = NaN
     plot \
         DATAFILE u (($2 == N && $3 == k && $5 == 1) ? (y0=$7/$6,x0=$4) : x0):(y0) w lp lt 1 t 'B = 2^1', \

@@ -455,7 +455,7 @@ fn main() {
                     ggsw_noise,
                     glwe_noise,
                     glwe_dimension,
-                    ggsw_encrypted_value: 0, //JKL change to 0 to check amplified GGSW noise only
+                    ggsw_encrypted_value: 1, //JKL change to 0 to check amplified GGSW noise only
                     polynomial_size,
                     decomposition_base_log,
                     decomposition_level_count,
