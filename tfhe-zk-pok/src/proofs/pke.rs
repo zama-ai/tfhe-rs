@@ -582,7 +582,7 @@ pub fn prove<G: Curve>(
 
     let x_bytes = &*[
         q.to_le_bytes().as_slice(),
-        d.to_le_bytes().as_slice(),
+        (d as u64).to_le_bytes().as_slice(),
         b_i.to_le_bytes().as_slice(),
         t.to_le_bytes().as_slice(),
         msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
@@ -1027,7 +1027,7 @@ pub fn verify<G: Curve>(
 
     let x_bytes = &*[
         q.to_le_bytes().as_slice(),
-        d.to_le_bytes().as_slice(),
+        (d as u64).to_le_bytes().as_slice(),
         b_i.to_le_bytes().as_slice(),
         t.to_le_bytes().as_slice(),
         msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
