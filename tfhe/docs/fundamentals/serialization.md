@@ -158,7 +158,7 @@ In the following example, we use [bincode](https://crates.io/crates/bincode) for
 
 [dependencies]
 # ...
-tfhe = { version = "0.8.6", features = ["integer", "x86_64-unix"] }
+tfhe = { version = "0.8.7", features = ["integer", "x86_64-unix"] }
 bincode = "1.3.3"
 ```
 
