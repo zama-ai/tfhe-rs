@@ -5,9 +5,9 @@ mod split;
 mod strip;
 
 use crate::integer::BooleanBlock;
+use crate::strings::char_iter::CharIter;
 use crate::strings::ciphertext::{FheAsciiChar, FheString};
-use crate::strings::server_key::{CharIter, FheStringIsEmpty, ServerKey};
-use itertools::Itertools;
+use crate::strings::server_key::{FheStringIsEmpty, ServerKey};
 use std::ops::Range;
 
 // Useful for handling cases in which we know if there is or there isn't a match just by looking at
@@ -73,8 +73,8 @@ fn ends_with_cases<'a>(
     match (str.is_padded(), pat.is_padded()) {
         // If neither has padding we just check if pat matches the `pat_len` last chars or str
         (false, false) => {
-            str_chars = str.chars().iter().collect_vec();
-            pat_chars = pat.chars().iter().collect_vec();
+            str_chars = CharIter::new(str.chars(), None);
+            pat_chars = CharIter::new(pat.chars(), None);
 
             let start = str_len - pat_len;
 
@@ -84,27 +84,18 @@ fn ends_with_cases<'a>(
         // If only str is padded we have to check all the possible padding cases. If str is 3
         // chars long, then it could be "xx\0", "x\0\0" or "\0\0\0", where x != '\0'
         (true, false) => {
-            str_chars = str.chars()[..str_len - 1].iter().collect_vec();
-            pat_chars = pat
-                .chars()
-                .iter()
-                .chain(std::iter::once(null.unwrap()))
-                .collect_vec();
+            str_chars = CharIter::new(&str.chars()[..str_len - 1], None);
+            pat_chars = CharIter::new(pat.chars(), Some(null.unwrap()));
 
             let diff = (str_len - 1) - pat_len;
 
             range = 0..diff + 1;
         }
-
         // If only pat is padded we have to check all the possible padding cases as well
         // If str = "abc" and pat = "abcd\0", we check if "abc\0" == pat[..4]
         (false, true) => {
-            str_chars = str
-                .chars()
-                .iter()
-                .chain(std::iter::once(null.unwrap()))
-                .collect_vec();
-            pat_chars = pat.chars().iter().collect_vec();
+            str_chars = CharIter::new(str.chars(), Some(null.unwrap()));
+            pat_chars = CharIter::new(pat.chars(), None);
 
             if pat_len - 1 > str_len {
                 // Pat without last char is longer than str so we check all the str chars
@@ -119,8 +110,8 @@ fn ends_with_cases<'a>(
         }
 
         (true, true) => {
-            str_chars = str.chars().iter().collect_vec();
-            pat_chars = pat.chars().iter().collect_vec();
+            str_chars = CharIter::new(str.chars(), None);
+            pat_chars = CharIter::new(pat.chars(), None);
 
             range = 0..str_len;
         }
@@ -137,7 +128,7 @@ fn clear_ends_with_cases<'a>(
     let str_len = str.len();
 
     if str.is_padded() {
-        let str_chars = str.chars()[..str_len - 1].iter().collect();
+        let str_chars = CharIter::new(&str.chars()[..str_len - 1], None);
         let pat_chars = format!("{pat}\0");
 
         let diff = (str_len - 1) - pat_len;
@@ -145,7 +136,7 @@ fn clear_ends_with_cases<'a>(
 
         (str_chars, pat_chars, range)
     } else {
-        let str_chars = str.chars().iter().collect();
+        let str_chars = CharIter::new(str.chars(), None);
 
         let start = str_len - pat_len;
         let range = start..start + 1;
@@ -168,24 +159,20 @@ fn contains_cases<'a>(
     let range;
 
     if pat.is_padded() {
-        pat_chars = pat.chars()[..pat_len - 1].iter().collect_vec();
+        pat_chars = CharIter::new(&pat.chars()[..pat_len - 1], None);
 
         if str.is_padded() {
-            str_chars = str.chars().iter().collect_vec();
+            str_chars = CharIter::new(str.chars(), None);
 
             range = 0..str_len - 1;
         } else {
-            str_chars = str
-                .chars()
-                .iter()
-                .chain(std::iter::once(null.unwrap()))
-                .collect_vec();
+            str_chars = CharIter::new(str.chars(), Some(null.unwrap()));
 
             range = 0..str_len;
         }
     } else {
-        str_chars = str.chars().iter().collect_vec();
-        pat_chars = pat.chars().iter().collect_vec();
+        str_chars = CharIter::new(str.chars(), None);
+        pat_chars = CharIter::new(pat.chars(), None);
 
         let diff = (str_len - pat_len) - if str.is_padded() { 1 } else { 0 };
 

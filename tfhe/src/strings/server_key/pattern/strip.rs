@@ -1,9 +1,10 @@
 use super::{clear_ends_with_cases, ends_with_cases};
 use crate::integer::prelude::*;
 use crate::integer::BooleanBlock;
+use crate::strings::char_iter::CharIter;
 use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
 use crate::strings::server_key::pattern::IsMatch;
-use crate::strings::server_key::{CharIter, FheStringLen, ServerKey};
+use crate::strings::server_key::{FheStringLen, ServerKey};
 use rayon::prelude::*;
 use std::ops::Range;
 
@@ -21,7 +22,7 @@ impl ServerKey {
         let str_len = str.len();
 
         for start in iter {
-            let is_matched = self.asciis_eq(str.iter().copied().skip(start), pat.iter().copied());
+            let is_matched = self.asciis_eq(str.into_iter().skip(start), pat.into_iter());
 
             let mut mask = is_matched.clone().into_radix(self.num_ascii_blocks(), self);
 
@@ -62,7 +63,7 @@ impl ServerKey {
         let pat_len = pat.len();
         let str_len = str.len();
         for start in iter {
-            let is_matched = self.clear_asciis_eq(str.iter().copied().skip(start), pat);
+            let is_matched = self.clear_asciis_eq(str.into_iter().skip(start), pat);
 
             let mut mask = is_matched.clone().into_radix(self.num_ascii_blocks(), self);
 
