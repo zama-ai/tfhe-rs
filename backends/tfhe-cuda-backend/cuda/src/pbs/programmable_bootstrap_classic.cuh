@@ -162,10 +162,10 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   // We always compute the pointer with most restrictive alignment to avoid
   // alignment issues
-  double2 *accumulator_fft = (double2 *)selected_memory;
-  Torus *accumulator =
-      (Torus *)accumulator_fft +
-      (ptrdiff_t)(sizeof(double2) * params::degree / 2 / sizeof(Torus));
+  Torus *accumulator = (Torus *)selected_memory;
+  double2 *accumulator_fft =
+      (double2 *)accumulator +
+      (ptrdiff_t)(sizeof(Torus) * params::degree / sizeof(double2));
 
   if constexpr (SMD == PARTIALSM)
     accumulator_fft = (double2 *)sharedmem;
