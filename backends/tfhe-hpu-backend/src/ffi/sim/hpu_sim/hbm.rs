@@ -7,6 +7,10 @@ pub const HBM_BANK_NB: usize = 32;
 const HBM_BANK_SIZE_B: usize = 512 * 1024 * 1024;
 const HBM_PAGE_SIZE_B: usize = 4096;
 
+pub const HBM_BSK_PC_MAX: usize = 8;
+pub const HBM_KSK_PC_MAX: usize = 8;
+pub const HBM_CT_BANK_MAX: usize = 4;
+
 pub struct HbmChunk {
     // Properties
     pub(crate) paddr: usize,
