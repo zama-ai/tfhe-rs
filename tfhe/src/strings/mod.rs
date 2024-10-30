@@ -4,6 +4,7 @@ pub mod server_key;
 
 #[cfg(test)]
 mod assert_functions;
+mod char_iter;
 
 // Used as the const argument for StaticUnsignedBigInt, specifying the max chars length of a
 // ClearString

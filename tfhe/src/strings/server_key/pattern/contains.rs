@@ -1,7 +1,8 @@
 use super::{clear_ends_with_cases, contains_cases, ends_with_cases};
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext};
+use crate::strings::char_iter::CharIter;
 use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
-use crate::strings::server_key::pattern::{CharIter, IsMatch};
+use crate::strings::server_key::pattern::IsMatch;
 use crate::strings::server_key::ServerKey;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -20,15 +21,11 @@ impl ServerKey {
         let matched: Vec<_> = par_iter
             .map(|start| {
                 if ignore_pat_pad {
-                    let str_chars = str
-                        .par_iter()
-                        .copied()
-                        .skip(start)
-                        .zip(pat.par_iter().copied());
+                    let str_chars = str.par_iter().skip(start).zip(pat.par_iter());
 
                     self.asciis_eq_ignore_pat_pad(str_chars)
                 } else {
-                    self.asciis_eq(str.iter().copied().skip(start), pat.iter().copied())
+                    self.asciis_eq(str.into_iter().skip(start), pat.into_iter())
                 }
             })
             .collect();
@@ -55,7 +52,7 @@ impl ServerKey {
         let (str, pat) = str_pat;
 
         let matched: Vec<_> = par_iter
-            .map(|start| self.clear_asciis_eq(str.iter().skip(start).copied(), pat))
+            .map(|start| self.clear_asciis_eq(str.into_iter().skip(start), pat))
             .collect();
 
         let block_vec: Vec<_> = matched

@@ -277,5 +277,3 @@ impl ServerKey {
 pub trait FheStringIterator {
     fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock);
 }
-
-type CharIter<'a> = Vec<&'a FheAsciiChar>;
