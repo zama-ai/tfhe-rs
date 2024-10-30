@@ -1,2 +1,2 @@
 beautifulsoup4==4.12.3
-selenium==4.24.0
+selenium==4.26.0
