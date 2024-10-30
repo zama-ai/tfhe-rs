@@ -2,7 +2,7 @@
 
 This document explains how to save and load versioned data using the data versioning feature.
 
-Starting from v0.6.4, **TFHE-rs** supports versioned data types. This allows you to store data and load it in the future without compatibility concerns. This feature is done by the `tfhe-versionable` crate.
+Starting from v0.6.5, **TFHE-rs** supports versioned data types. This allows you to store data and load it in the future without compatibility concerns. This feature is done by the `tfhe-versionable` crate.
 
 This versioning scheme is compatible with all the [data formats](https://serde.rs/#data-formats) supported by serde.
 
@@ -16,7 +16,7 @@ You can load serialized data with the `unversionize` function, even in newer ver
 
 [dependencies]
 # ...
-tfhe = { version = "0.6.4", features = ["integer","x86_64-unix"]}
+tfhe = { version = "0.6.5", features = ["integer","x86_64-unix"]}
 tfhe-versionable = "0.1.0"
 bincode = "1.3.3"
 ```
