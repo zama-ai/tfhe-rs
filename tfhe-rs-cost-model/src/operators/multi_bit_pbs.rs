@@ -30,11 +30,15 @@ pub fn multi_bit_pbs_external_product(
     grouping_factor: LweBskGroupingFactor,
 ) -> (u128, u128) {
     let lwe_sk = LweSecretKey::from_container(vec![1u64; grouping_factor.0]);
-    let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+    let mut glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
         parameters.glwe_dimension,
         parameters.polynomial_size,
         secret_random_generator,
     );
+    let glwe_secret_key_len = glwe_secret_key.as_ref().len();
+    glwe_secret_key.as_mut().fill(0);
+    glwe_secret_key.as_mut()[..glwe_secret_key_len/2].fill(1);
+
 
     let bsk = allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
         &lwe_sk,
@@ -231,11 +235,14 @@ pub fn std_multi_bit_pbs_external_product(
     grouping_factor: LweBskGroupingFactor,
 ) -> (u128, u128) {
     let lwe_sk = LweSecretKey::from_container(vec![1u64; grouping_factor.0]);
-    let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+    let mut glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
         parameters.glwe_dimension,
         parameters.polynomial_size,
         secret_random_generator,
     );
+    let glwe_secret_key_len = glwe_secret_key.as_ref().len();
+    glwe_secret_key.as_mut().fill(0);
+    glwe_secret_key.as_mut()[..glwe_secret_key_len/2].fill(1);
 
     let bsk = allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
         &lwe_sk,
