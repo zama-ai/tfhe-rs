@@ -7,7 +7,7 @@ pub use super::asm as hpu_asm;
 /// Load Hw-interface stuff
 /// Warn: Enabling this feature required xrt for build and run
 pub use super::interface::{
-    page_align, FFIMode, HpuConfig, HpuDevice, HpuError, HpuVarWrapped, ACKQ_EMPTY,
+    page_align, BoardConfig, FFIMode, HpuConfig, HpuDevice, HpuError, HpuVarWrapped, ACKQ_EMPTY,
 };
 
 #[cfg(feature = "io-dump")]

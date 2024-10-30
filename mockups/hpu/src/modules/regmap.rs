@@ -1,5 +1,5 @@
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc;
 
 use super::*;
 use hw_regmap::FlatRegmap;
@@ -35,42 +35,32 @@ pub(crate) struct AddrOffset {
 pub struct RegisterMap {
     rtl_params: HpuParameters,
     regmap: FlatRegmap,
+
     bsk: KeyState,
     ksk: KeyState,
     bpip: BpipState,
     addr_ofst: AddrOffset,
-
-    workq_tx: mpsc::Sender<u32>,
-    ackq_rx: mpsc::Receiver<u32>,
+    ackq_pdg: VecDeque<u32>,
 }
 
 pub enum RegisterEvent {
     None,
     KeyReset,
+    WorkQ(u32),
 }
 
 impl RegisterMap {
-    pub fn new(
-        rtl_params: HpuParameters,
-        regmap: &str,
-    ) -> (Self, (mpsc::Receiver<u32>, mpsc::Sender<u32>)) {
+    pub fn new(rtl_params: HpuParameters, regmap: &str) -> Self {
         let regmap = FlatRegmap::from_file(regmap);
-        let (workq_tx, workq_rx) = mpsc::channel();
-        let (ackq_tx, ackq_rx) = mpsc::channel();
-
-        (
-            Self {
-                rtl_params,
-                regmap,
-                bsk: Default::default(),
-                ksk: Default::default(),
-                bpip: Default::default(),
-                addr_ofst: Default::default(),
-                workq_tx,
-                ackq_rx,
-            },
-            (workq_rx, ackq_tx),
-        )
+        Self {
+            rtl_params,
+            regmap,
+            bsk: Default::default(),
+            ksk: Default::default(),
+            bpip: Default::default(),
+            addr_ofst: Default::default(),
+            ackq_pdg: VecDeque::new(),
+        }
     }
 
     pub fn bsk_state(&self) -> &KeyState {
@@ -84,6 +74,10 @@ impl RegisterMap {
     }
     pub fn addr_offset(&self) -> &AddrOffset {
         &self.addr_ofst
+    }
+
+    pub fn ack_pdg(&mut self, ack: u32) {
+        self.ackq_pdg.push_back(ack)
     }
 }
 
@@ -262,14 +256,13 @@ impl RegisterMap {
                 // TODO implement finite size queue
                 0
             }
-            "WorkAck::ackq" => match self.ackq_rx.try_recv() {
-                Ok(ack) => {
-                    println!("Response with Ack {ack}");
+            "WorkAck::ackq" => {
+                if let Some(ack) = self.ackq_pdg.pop_front() {
                     ack
+                } else {
+                    ACKQ_EMPTY
                 }
-                Err(mpsc::TryRecvError::Empty) => ACKQ_EMPTY,
-                Err(mpsc::TryRecvError::Disconnected) => panic!("HpuSim inner channel closed"),
-            },
+            }
 
             _ => {
                 tracing::warn!("Register {register_name} not hooked for reading, return 0");
@@ -519,10 +512,7 @@ impl RegisterMap {
                 RegisterEvent::None
             }
 
-            "WorkAck::workq" => {
-                self.workq_tx.send(value).unwrap();
-                RegisterEvent::None
-            }
+            "WorkAck::workq" => RegisterEvent::WorkQ(value),
             _ => {
                 tracing::warn!("Register {register_name} not hooked for writting");
                 RegisterEvent::None

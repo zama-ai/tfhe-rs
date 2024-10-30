@@ -1,6 +1,5 @@
-use hpu_asm::{DigitParameters, PbsLut};
 use std::array::from_fn;
-use std::sync::mpsc;
+use std::collections::VecDeque;
 use strum::IntoEnumIterator;
 use tfhe::core_crypto::algorithms::{
     lwe_ciphertext_add_assign, lwe_ciphertext_cleartext_mul_assign, lwe_ciphertext_opposite_assign,
@@ -24,10 +23,9 @@ mod mockup_params;
 pub use mockup_params::MockupParameters;
 
 mod modules;
-use modules::{HbmBank, RegisterEvent, RegisterMap, HBM_BANK_NB};
+use modules::{HbmBank, InstructionScheduler, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 
-use asm::{Asm, AsmBin};
-use tfhe::tfhe_hpu_backend::asm;
+use hpu_asm::{AsmBin, PbsLut};
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 pub struct HpuSim {
@@ -41,12 +39,18 @@ pub struct HpuSim {
     /// On-chip regfile
     regfile: Vec<HpuLweCiphertextOwned<u64>>,
 
+    /// UCore model
+    ucore: UCore,
+
+    /// Instruction scheduler
+    isc: InstructionScheduler,
+
     // WorkAckq interface -----------------------------------------------------
-    workq_rx: mpsc::Receiver<u32>,
-    ackq_tx: mpsc::Sender<u32>,
     workq_stream: Vec<u8>,
     /// Parser for workq_stream
-    iop_parser: asm::Parser<asm::IOp>,
+    iop_parser: hpu_asm::Parser<hpu_asm::IOp>,
+    /// Pending Iop
+    iop_pdg: VecDeque<hpu_asm::IOp>,
 
     /// Tfhe server keys
     /// Read from memory after bsk_avail/ksk_avail register are set
@@ -67,12 +71,11 @@ impl HpuSim {
         };
 
         // Allocate register map emulation
-        let (regmap, (workq_rx, ackq_tx)) =
-            RegisterMap::new(params.rtl_params.clone(), &config.fpga.regmap);
+        let regmap = RegisterMap::new(params.rtl_params.clone(), &config.fpga.regmap);
 
         // Allocate IOp parser for workq_stream
-        let iops_ref = asm::IOp::iter().collect::<Vec<_>>();
-        let iop_parser = asm::Parser::new(iops_ref);
+        let iops_ref = hpu_asm::IOp::iter().collect::<Vec<_>>();
+        let iop_parser = hpu_asm::Parser::new(iops_ref);
 
         // Allocate on-board memory emulation
         let hbm_bank: [HbmBank; HBM_BANK_NB] = from_fn(HbmBank::new);
@@ -82,6 +85,13 @@ impl HpuSim {
             .map(|_| HpuLweCiphertextOwned::new(0, params.rtl_params.clone()))
             .collect::<Vec<_>>();
 
+        // Allocate Ucore Fw translation
+        let ucore = UCore::new(config.board.clone());
+
+        // Allocate InstructionScheduler
+        // This module is also in charge of performances estimation
+        let isc = InstructionScheduler::new(params.isc_sim_params.clone());
+
         Self {
             config,
             params,
@@ -89,10 +99,11 @@ impl HpuSim {
             regmap,
             hbm_bank,
             regfile,
-            workq_rx,
-            ackq_tx,
+            ucore,
+            isc,
             workq_stream: Vec::new(),
             iop_parser,
+            iop_pdg: VecDeque::new(),
             sks: None,
         }
     }
@@ -113,6 +124,24 @@ impl HpuSim {
                             RegisterEvent::KeyReset => {
                                 // Reset associated key option
                                 self.sks = None;
+                            }
+                            RegisterEvent::WorkQ(word) => {
+                                // Append to workq_stream and try to extract an iop
+                                let word_b = word.to_be_bytes();
+                                self.workq_stream.extend_from_slice(&word_b);
+                                match self
+                                    .iop_parser
+                                    .from_be_bytes::<hpu_asm::FmtIOp>(self.workq_stream.as_slice())
+                                {
+                                    Ok(iop) => {
+                                        // Iop properly parsed, consume the stream
+                                        self.workq_stream.clear();
+                                        self.iop_pdg.push_back(iop);
+                                    }
+                                    Err(_) => {
+                                        // not enough data to match
+                                    }
+                                }
                             }
                         }
                         self.ipc.register_ack(RegisterAck::Write);
@@ -140,201 +169,181 @@ impl HpuSim {
                 }
             }
 
-            // Probe workq request
-            match self.workq_rx.try_recv() {
-                Ok(word) => {
-                    let word_b = word.to_be_bytes();
-                    self.workq_stream.extend_from_slice(&word_b);
-                    match self
-                        .iop_parser
-                        .from_be_bytes::<asm::FmtIOp>(self.workq_stream.as_slice())
-                    {
-                        Ok(iop) => {
-                            // Iop properly parsed, consume the stream
-                            self.workq_stream.clear();
-                            self.simulate(iop)
-                        }
-                        Err(_) => {
-                            // not enough data to match
-                            continue;
-                        }
-                    }
+            // Simulate execution of an IOp if any
+            while let Some(iop) = self.iop_pdg.front() {
+                let dops = self.ucore.translate(self.hbm_bank.as_slice(), iop);
+                let dops_exec = self.isc.schedule(dops);
+                for dop in dops_exec {
+                    self.exec(dop);
                 }
-                Err(mpsc::TryRecvError::Empty) => { /*Do nothing*/ }
-                Err(mpsc::TryRecvError::Disconnected) => panic!("HpuSim inner channel closed"),
             }
         }
     }
 }
 
 impl HpuSim {
-    fn simulate(&mut self, iop: asm::IOp) {
-        tracing::info!("Simulation start for {iop:?}");
+    fn exec(&mut self, dop: hpu_asm::DOp) {
+        tracing::debug!("Simulate execution of DOp: {dop:?}");
+        // Read operands
+        match dop {
+            hpu_asm::DOp::LD(op_impl) => {
+                let dst = &mut self.regfile[op_impl.dst];
+                let hpu_asm::MemSlot { bid, cid_ofst, .. } = op_impl.src;
 
-        // Retrived Fw and emulate RTL ucore translation
-        let dops = self.ucore_translate(&iop);
-
-        for dop in dops {
-            tracing::debug!("Simulate execution of DOp: {dop:?}");
-            // Read operands
-            match dop {
-                asm::DOp::LD(op_impl) => {
-                    let dst = &mut self.regfile[op_impl.dst];
-                    let asm::MemSlot { bid, cid_ofst, .. } = op_impl.src;
-
-                    // Ct_ofst is equal over PC
-                    let ct_ofst = cid_ofst
-                        * page_align(
-                            hpu_big_lwe_ciphertext_size(&self.params.rtl_params)
-                                .div_ceil(self.params.rtl_params.pc_params.pem_pc)
-                                * std::mem::size_of::<u64>(),
-                        );
-                    let ct_chunk = self
-                        .config
-                        .board
-                        .ct_pc
-                        .iter()
-                        .enumerate()
-                        .map(|(id, pc)| {
-                            let bid_ofst = {
-                                let (msb, lsb) = self.regmap.addr_offset().ldst_bid[bid][id];
-                                ((msb as u64) << 32) + lsb as u64
-                            };
-                            self.hbm_bank[*pc].get_chunk(bid_ofst + ct_ofst as u64)
-                        })
-                        .collect::<Vec<_>>();
-
-                    let hw_slice = dst.as_mut_view().into_container();
-                    std::iter::zip(hw_slice.into_iter(), ct_chunk.into_iter()).for_each(
-                        |(hpu, hbm)| {
-                            // NB: hbm chunk are extended to enforce page align buffer
-                            // -> To prevent error during copy, with shrink the hbm buffer to the
-                            // real   size before-hand
-                            let size_b = std::mem::size_of_val(hpu);
-                            let hbm_u64 =
-                                bytemuck::cast_slice::<u8, u64>(&hbm.data.as_slice()[0..size_b]);
-                            hpu.clone_from_slice(hbm_u64);
-                        },
+                // Ct_ofst is equal over PC
+                let ct_ofst = cid_ofst
+                    * page_align(
+                        hpu_big_lwe_ciphertext_size(&self.params.rtl_params)
+                            .div_ceil(self.params.rtl_params.pc_params.pem_pc)
+                            * std::mem::size_of::<u64>(),
                     );
-                }
-                asm::DOp::TLDA(_) | asm::DOp::TLDB(_) | asm::DOp::TLDH(_) => panic!(
-                    "Templated operation mustn't reach the Hpu execution
+                let ct_chunk = self
+                    .config
+                    .board
+                    .ct_pc
+                    .iter()
+                    .enumerate()
+                    .map(|(id, pc)| {
+                        let bid_ofst = {
+                            let (msb, lsb) = self.regmap.addr_offset().ldst_bid[bid][id];
+                            ((msb as u64) << 32) + lsb as u64
+                        };
+                        self.hbm_bank[*pc].get_chunk(bid_ofst + ct_ofst as u64)
+                    })
+                    .collect::<Vec<_>>();
+
+                let hw_slice = dst.as_mut_view().into_container();
+                std::iter::zip(hw_slice.into_iter(), ct_chunk.into_iter()).for_each(
+                    |(hpu, hbm)| {
+                        // NB: hbm chunk are extended to enforce page align buffer
+                        // -> To prevent error during copy, with shrink the hbm buffer to the
+                        // real   size before-hand
+                        let size_b = std::mem::size_of_val(hpu);
+                        let hbm_u64 =
+                            bytemuck::cast_slice::<u8, u64>(&hbm.data.as_slice()[0..size_b]);
+                        hpu.clone_from_slice(hbm_u64);
+                    },
+                );
+            }
+            hpu_asm::DOp::TLDA(_) | hpu_asm::DOp::TLDB(_) | hpu_asm::DOp::TLDH(_) => panic!(
+                "Templated operation mustn't reach the Hpu execution
                 unit. Check ucore translation"
-                ),
+            ),
 
-                asm::DOp::ST(op_impl) => {
-                    let src = &self.regfile[op_impl.src];
-                    let asm::MemSlot { bid, cid_ofst, .. } = op_impl.dst;
+            hpu_asm::DOp::ST(op_impl) => {
+                let src = &self.regfile[op_impl.src];
+                let hpu_asm::MemSlot { bid, cid_ofst, .. } = op_impl.dst;
 
-                    // Ct_ofst is equal over PC
-                    let ct_ofst = cid_ofst
-                        * page_align(
-                            hpu_big_lwe_ciphertext_size(&self.params.rtl_params)
-                                .div_ceil(self.params.rtl_params.pc_params.pem_pc)
-                                * std::mem::size_of::<u64>(),
+                // Ct_ofst is equal over PC
+                let ct_ofst = cid_ofst
+                    * page_align(
+                        hpu_big_lwe_ciphertext_size(&self.params.rtl_params)
+                            .div_ceil(self.params.rtl_params.pc_params.pem_pc)
+                            * std::mem::size_of::<u64>(),
+                    );
+                src.as_view()
+                    .into_container()
+                    .into_iter()
+                    .enumerate()
+                    .for_each(|(id, hpu)| {
+                        let bid_ofst = {
+                            let (msb, lsb) = self.regmap.addr_offset().ldst_bid[bid][id];
+                            ((msb as u64) << 32) + lsb as u64
+                        };
+                        let ct_chunk = self.hbm_bank[self.config.board.ct_pc[id]]
+                            .get_mut_chunk(bid_ofst + ct_ofst as u64);
+
+                        // NB: hbm chunk are extended to enforce page align buffer
+                        // -> Shrinked it to slice size to prevent error during copy
+                        let size_b = std::mem::size_of_val(hpu);
+
+                        let ct_chunk_u64 = bytemuck::cast_slice_mut::<u8, u64>(
+                            &mut ct_chunk.data.as_mut_slice()[0..size_b],
                         );
-                    src.as_view()
-                        .into_container()
-                        .into_iter()
-                        .enumerate()
-                        .for_each(|(id, hpu)| {
-                            let bid_ofst = {
-                                let (msb, lsb) = self.regmap.addr_offset().ldst_bid[bid][id];
-                                ((msb as u64) << 32) + lsb as u64
-                            };
-                            let ct_chunk = self.hbm_bank[self.config.board.ct_pc[id]]
-                                .get_mut_chunk(bid_ofst + ct_ofst as u64);
-
-                            // NB: hbm chunk are extended to enforce page align buffer
-                            // -> Shrinked it to slice size to prevent error during copy
-                            let size_b = std::mem::size_of_val(hpu);
-
-                            let ct_chunk_u64 = bytemuck::cast_slice_mut::<u8, u64>(
-                                &mut ct_chunk.data.as_mut_slice()[0..size_b],
-                            );
-                            ct_chunk_u64.copy_from_slice(hpu);
-                        });
-                }
-                asm::DOp::TSTD(_) | asm::DOp::TSTH(_) => panic!(
-                    "Templated operation mustn't reach the Hpu execution
+                        ct_chunk_u64.copy_from_slice(hpu);
+                    });
+            }
+            hpu_asm::DOp::TSTD(_) | hpu_asm::DOp::TSTH(_) => panic!(
+                "Templated operation mustn't reach the Hpu execution
                 unit. Check ucore translation"
-                ),
+            ),
 
-                asm::DOp::ADD(op_impl) => {
-                    // NB: The first src is used as destination to prevent useless allocation
-                    let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
-                    let cpu_s1 = self.reg2cpu(op_impl.src.1);
-                    lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
-                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
-                }
-                asm::DOp::SUB(op_impl) => {
-                    // NB: The first src is used as destination to prevent useless allocation
-                    let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
-                    let cpu_s1 = self.reg2cpu(op_impl.src.1);
-                    lwe_ciphertext_sub_assign(&mut cpu_s0, &cpu_s1);
-                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
-                }
-                asm::DOp::MAC(op_impl) => {
-                    // NB: Srcs are used as destination to prevent useless allocation
-                    let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
-                    let cpu_s1 = self.reg2cpu(op_impl.src.1);
+            hpu_asm::DOp::ADD(op_impl) => {
+                // NB: The first src is used as destination to prevent useless allocation
+                let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
+                let cpu_s1 = self.reg2cpu(op_impl.src.1);
+                lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
+                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+            }
+            hpu_asm::DOp::SUB(op_impl) => {
+                // NB: The first src is used as destination to prevent useless allocation
+                let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
+                let cpu_s1 = self.reg2cpu(op_impl.src.1);
+                lwe_ciphertext_sub_assign(&mut cpu_s0, &cpu_s1);
+                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+            }
+            hpu_asm::DOp::MAC(op_impl) => {
+                // NB: Srcs are used as destination to prevent useless allocation
+                let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
+                let cpu_s1 = self.reg2cpu(op_impl.src.1);
 
-                    lwe_ciphertext_cleartext_mul_assign(
-                        &mut cpu_s0,
-                        Cleartext(op_impl.mul_factor as u64),
-                    );
-                    lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
+                lwe_ciphertext_cleartext_mul_assign(
+                    &mut cpu_s0,
+                    Cleartext(op_impl.mul_factor as u64),
+                );
+                lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
 
-                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
-                }
-                asm::DOp::ADDS(op_impl) => {
-                    // NB: The first src is used as destination to prevent useless allocation
-                    let mut cpu_s0 = self.reg2cpu(op_impl.src);
-                    let msg_encoded =
-                        op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
-                    lwe_ciphertext_plaintext_add_assign(&mut cpu_s0, Plaintext(msg_encoded));
-                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
-                }
-                asm::DOp::SUBS(op_impl) => {
-                    // NB: The first src is used as destination to prevent useless allocation
-                    let mut cpu_s0 = self.reg2cpu(op_impl.src);
-                    let msg_encoded =
-                        op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
-                    lwe_ciphertext_plaintext_sub_assign(&mut cpu_s0, Plaintext(msg_encoded));
-                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
-                }
-                asm::DOp::SSUB(op_impl) => {
-                    // NB: The first src is used as destination to prevent useless allocation
-                    let mut cpu_s0 = self.reg2cpu(op_impl.src);
-                    lwe_ciphertext_opposite_assign(&mut cpu_s0);
-                    let msg_encoded =
-                        op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
-                    lwe_ciphertext_plaintext_add_assign(&mut cpu_s0, Plaintext(msg_encoded));
-                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
-                }
-                asm::DOp::MULS(op_impl) => {
-                    // NB: The first src is used as destination to prevent useless allocation
-                    let mut cpu_s0 = self.reg2cpu(op_impl.src);
-                    lwe_ciphertext_cleartext_mul_assign(
-                        &mut cpu_s0,
-                        Cleartext(op_impl.msg_cst as u64),
-                    );
-                    self.cpu2reg(op_impl.dst, cpu_s0.as_view());
-                }
-                asm::DOp::PBS(op_impl) => self.apply_pbs2reg(op_impl.dst, op_impl.src, op_impl.lut),
-                asm::DOp::PBS_F(op_impl) => {
-                    self.apply_pbs2reg(op_impl.dst, op_impl.src, op_impl.lut)
-                }
-                asm::DOp::SYNC(_) => {
-                    // Push ack in stream
-                    // Bytes are in little-endian but written from first to last line
-                    // To keep correct endianness -> reverse the chunked vector
-                    let bytes = iop.bin_encode_le().unwrap();
-                    for bytes_chunks in bytes.chunks(std::mem::size_of::<u32>()).rev().take(1) {
-                        let word_b = bytes_chunks.try_into().expect("Invalid slice length");
-                        let word_u32 = u32::from_le_bytes(word_b);
-                        self.ackq_tx.send(word_u32).unwrap()
-                    }
+                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+            }
+            hpu_asm::DOp::ADDS(op_impl) => {
+                // NB: The first src is used as destination to prevent useless allocation
+                let mut cpu_s0 = self.reg2cpu(op_impl.src);
+                let msg_encoded =
+                    op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
+                lwe_ciphertext_plaintext_add_assign(&mut cpu_s0, Plaintext(msg_encoded));
+                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+            }
+            hpu_asm::DOp::SUBS(op_impl) => {
+                // NB: The first src is used as destination to prevent useless allocation
+                let mut cpu_s0 = self.reg2cpu(op_impl.src);
+                let msg_encoded =
+                    op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
+                lwe_ciphertext_plaintext_sub_assign(&mut cpu_s0, Plaintext(msg_encoded));
+                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+            }
+            hpu_asm::DOp::SSUB(op_impl) => {
+                // NB: The first src is used as destination to prevent useless allocation
+                let mut cpu_s0 = self.reg2cpu(op_impl.src);
+                lwe_ciphertext_opposite_assign(&mut cpu_s0);
+                let msg_encoded =
+                    op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
+                lwe_ciphertext_plaintext_add_assign(&mut cpu_s0, Plaintext(msg_encoded));
+                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+            }
+            hpu_asm::DOp::MULS(op_impl) => {
+                // NB: The first src is used as destination to prevent useless allocation
+                let mut cpu_s0 = self.reg2cpu(op_impl.src);
+                lwe_ciphertext_cleartext_mul_assign(&mut cpu_s0, Cleartext(op_impl.msg_cst as u64));
+                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+            }
+            hpu_asm::DOp::PBS(op_impl) => self.apply_pbs2reg(op_impl.dst, op_impl.src, op_impl.lut),
+            hpu_asm::DOp::PBS_F(op_impl) => {
+                self.apply_pbs2reg(op_impl.dst, op_impl.src, op_impl.lut)
+            }
+            hpu_asm::DOp::SYNC(_) => {
+                // Push ack in stream
+                let iop = self
+                    .iop_pdg
+                    .pop_front()
+                    .expect("SYNC received but no pending IOp to acknowledge");
+
+                // Bytes are in little-endian but written from first to last line
+                // To keep correct endianness -> reverse the chunked vector
+                let bytes = iop.bin_encode_le().unwrap();
+                for bytes_chunks in bytes.chunks(std::mem::size_of::<u32>()).rev().take(1) {
+                    let word_b = bytes_chunks.try_into().expect("Invalid slice length");
+                    let word_u32 = u32::from_le_bytes(word_b);
+                    self.regmap.ack_pdg(word_u32);
                 }
             }
         }
@@ -347,7 +356,7 @@ impl HpuSim {
     fn apply_pbs2reg(&mut self, dst_rid: usize, src_rid: usize, lut: hpu_asm::Pbs) {
         let cpu_reg = self.reg2cpu(src_rid);
 
-        let digit_p = DigitParameters {
+        let digit_p = hpu_asm::DigitParameters {
             msg_w: self.params.rtl_params.pbs_params.message_width,
             carry_w: self.params.rtl_params.pbs_params.carry_width,
         };
@@ -367,126 +376,6 @@ impl HpuSim {
 
         // lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
         self.cpu2reg(dst_rid, cpu_ct.ct.as_view());
-    }
-
-    /// Retrieve DOp stream from memory and patch template DOp
-    fn ucore_translate(&self, iop: &asm::IOp) -> Vec<asm::DOp> {
-        // Retrieved DOp stream in memory
-        let dops = {
-            let iop_code = {
-                let mut bytes = iop.bin_encode_le().unwrap();
-                bytes.reverse();
-                bytes[0] as u32
-            };
-
-            // Bypass fw_ofst register value
-            // Expect to have only one memzone in fw bank allocated in 0
-            // NB: Fw memory bank is linked to ucore and there is no associated offset register
-            // -> Stick with Offset 0
-            let fw_bank = &self.hbm_bank[self.config.board.fw_pc];
-            let fw_chunk = fw_bank.get_chunk(0);
-            let fw_view = &fw_chunk.data;
-            let fw_view_u32 = bytemuck::cast_slice::<u8, u32>(fw_view.as_slice());
-
-            // WARN: fw ofst are in byte addr and we addr the fw array as 32b word
-            let dop_ofst = fw_view_u32[iop_code as usize] as usize / std::mem::size_of::<u32>();
-            let dop_len = fw_view_u32[dop_ofst] as usize;
-            let (start, end) = (dop_ofst + 1, dop_ofst + 1 + dop_len);
-            let dop_stream = &fw_view_u32[start..end];
-
-            let dops = {
-                // Allocate DOp parser
-                let dops_ref = asm::DOp::iter().collect::<Vec<_>>();
-                let mut dop_parser = asm::Parser::new(dops_ref);
-                dop_stream
-                    .iter()
-                    .map(|bin| {
-                        let be_bytes = bin.to_be_bytes();
-                        dop_parser.from_be_bytes::<asm::FmtDOp>(&be_bytes).unwrap()
-                    })
-                    .collect::<Vec<asm::DOp>>()
-            };
-            dops
-        };
-
-        // Rtl ucore emulation
-        // Ucore is in charge of patching DOp stream in-flight and to replace Templated LD/ST with
-        // explicit one
-        // NB: Currently heap is always the last defined bid
-        let heap = asm::MemRegion {
-            bid: self.config.board.ct_bank.len() - 1,
-            size: *self.config.board.ct_bank.last().unwrap(),
-        };
-
-        let iop_args = iop.args();
-        let mut dops_patch = dops
-            .iter()
-            .map(|dop| {
-                fn fuse_tmem_user(dop_ms: &asm::MemSlot, iop_arg: &asm::Arg) -> asm::MemSlot {
-                    if let asm::Arg::MemId(iop_ms) = iop_arg {
-                        asm::MemSlot::new_uncheck(
-                            iop_ms.bid(),
-                            iop_ms.cid() + dop_ms.cid(),
-                        asm::MemMode::Raw,
-                        None,
-                        )
-                    } else {
-                        panic!("Dop template arg patching only work on MemId")
-                    }
-                }
-
-                fn fuse_tmem_heap(dop_ms: &asm::MemSlot, heap: &asm::MemRegion) -> asm::MemSlot {
-                    assert!(heap.size >= dop_ms.cid(),
-                    "Asm heap overflow, request more heap than the one allocated for simulation. Check fw/simulation parameters");
-                    asm::MemSlot::new_uncheck(
-                        heap.bid,
-                        dop_ms.cid(),
-                        asm::MemMode::Raw,
-                        None,
-                    )
-                }
-                match dop {
-                    // NB: Templated Load are patch with LD
-                    asm::DOp::TLDA(op) => {
-                        let mut patch_op = asm::DOpLd::default();
-                        patch_op.src = fuse_tmem_user(&op.src, &iop_args[1]);
-                        patch_op.dst = op.dst;
-                        asm::DOp::LD(patch_op)
-                    }
-                    asm::DOp::TLDB(op) => {
-                        let mut patch_op = asm::DOpLd::default();
-                        patch_op.src = fuse_tmem_user(&op.src, &iop_args[2]);
-                        patch_op.dst = op.dst;
-                        asm::DOp::LD(patch_op)
-                    }
-                    asm::DOp::TLDH(op) => {
-                        let mut patch_op = asm::DOpLd::default();
-                        patch_op.src = fuse_tmem_heap(&op.src, &heap);
-                        patch_op.dst = op.dst;
-                        asm::DOp::LD(patch_op)
-                    }
-                    // NB: Templated Store are patch with ST
-                    asm::DOp::TSTD(op) => {
-                        let mut patch_op = asm::DOpSt::default();
-                        patch_op.dst = fuse_tmem_user(&op.dst, &iop_args[0]);
-                        patch_op.src = op.src;
-                        asm::DOp::ST(patch_op)
-                    }
-                    asm::DOp::TSTH(op) => {
-                        let mut patch_op = asm::DOpSt::default();
-                        patch_op.dst = fuse_tmem_heap(&op.dst, &heap);
-                        patch_op.src = op.src;
-                        asm::DOp::ST(patch_op)
-                    }
-                    _ => dop.clone(),
-                }
-            })
-            .collect::<Vec<_>>();
-
-        // Ucore is in charge of Sync insertion
-        dops_patch.push(asm::DOp::SYNC(Default::default()));
-        tracing::trace!("Patch DOp stream => {dops_patch:?}");
-        dops_patch
     }
 
     // NB: to prevent issues with borrow checker we have to clone the value from
