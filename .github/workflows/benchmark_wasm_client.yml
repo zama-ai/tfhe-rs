@@ -102,9 +102,35 @@ jobs:
         with:
           toolchain: nightly
 
-      - name: Install web resources
+      - name: Get Node version
+        run: |
+          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
+
+      - name: Node cache restoration
+        id: node-cache
+        uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a #v4.1.2
+        with:
+          path: |
+            ~/.nvm
+            ~/.npm
+          key: node-${{ env.NODE_VERSION }}
+
+      - name: Install Node
+        if: steps.node-cache.outputs.cache-hit != 'true'
         run: |
           make install_node
+
+      - name: Node cache save
+        uses: actions/cache/save@6849a6489940f00c2f30c0fb92c6274307ccb58a #v4.1.2
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.nvm
+            ~/.npm
+          key: node-${{ env.NODE_VERSION }}
+
+      - name: Install web resources
+        run: |
           make install_${{ matrix.browser }}_browser
           make install_${{ matrix.browser }}_web_driver
 
