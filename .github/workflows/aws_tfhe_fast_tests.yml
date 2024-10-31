@@ -191,10 +191,36 @@ jobs:
         run: |
           make test_user_doc
 
+      - name: Get Node version
+        run: |
+          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
+
+      - name: Node cache restoration
+        id: node-cache
+        uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a #v4.1.2
+        with:
+          path: |
+            ~/.nvm
+            ~/.npm
+          key: node-${{ env.NODE_VERSION }}
+
+      - name: Install Node
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: |
+          make install_node
+
+      - name: Node cache save
+        uses: actions/cache/save@6849a6489940f00c2f30c0fb92c6274307ccb58a #v4.1.2
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.nvm
+            ~/.npm
+          key: node-${{ env.NODE_VERSION }}
+
       - name: Run js on wasm API tests
         if: needs.should-run.outputs.wasm_test == 'true'
         run: |
-          make install_node
           make test_nodejs_wasm_api_ci
 
       - name: Gen Keys if required
