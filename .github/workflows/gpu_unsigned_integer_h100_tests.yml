@@ -49,7 +49,7 @@ jobs:
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
-              - '.github/workflows/gpu_unsigned_integer_tests.yml'
+              - '.github/workflows/gpu_unsigned_integer_h100_tests.yml'
               - scripts/integer-tests.sh
               - ci/slab.toml
 
@@ -142,10 +142,6 @@ jobs:
       - name: Check device is detected
         if: ${{ !cancelled() }}
         run: nvidia-smi
-
-      - name: Run unsigned integer tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_gpu_ci
 
       - name: Run unsigned integer multi-bit tests
         run: |
