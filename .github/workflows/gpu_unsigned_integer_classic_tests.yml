@@ -1,5 +1,5 @@
-# Signed integer GPU tests on an H100 VM on hyperstack
-name: TFHE Cuda Backend - Signed integer tests on H100
+# Test unsigned integers on an RTXA6000 VM on hyperstack with the classical PBS
+name: TFHE Cuda Backend - Unsigned integer tests with classical PBS
 
 env:
   CARGO_TERM_COLOR: always
@@ -49,12 +49,12 @@ jobs:
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
-              - '.github/workflows/gpu_signed_integer_h100_tests.yml'
+              - '.github/workflows/gpu_unsigned_integer_classic_tests.yml'
               - scripts/integer-tests.sh
               - ci/slab.toml
 
   setup-instance:
-    name: Setup instance (cuda-h100-tests)
+    name: Setup instance (cuda-unsigned-classic-tests)
     needs: should-run
     if: github.event_name != 'pull_request' ||
       (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true') ||
@@ -72,10 +72,10 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: hyperstack
-          profile: single-h100
+          profile: gpu-test
 
   cuda-tests-linux:
-    name: CUDA H100 signed integer tests
+    name: CUDA unsigned integer tests with classical PBS
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -143,9 +143,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: nvidia-smi
 
-      - name: Run signed integer multi-bit tests
+      - name: Run unsigned integer tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_signed_integer_multi_bit_gpu_ci
+          BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_gpu_ci
 
   slack-notify:
     name: Slack Notification
@@ -158,10 +158,10 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Integer GPU H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Unsigned integer GPU classic tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (cuda-h100-tests)
+    name: Teardown instance (cuda-unsigned-classic-tests)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
@@ -182,4 +182,4 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-h100-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (cuda-unsigned-classic-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
