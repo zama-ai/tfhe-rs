@@ -2,9 +2,10 @@
 
 GF = 2
 SFX = "-new-nofft" # -tanh
-DATAFILE = "log-real-to-pred-".GF.SFX.".dat"
+DATAFILE = PATH."/gf=".GF.SFX.".dat"
 
 set term pngcairo size 640,480
+set datafile separator ","
 set out "new/histogram-".GF.SFX.".png"
 
 set style fill solid 0.5 # fill style

@@ -2,11 +2,12 @@
 
 GF = 2
 PATH = "bsk-0"
-SFX = "-s-1-corr-2x" # -suffix
+SFX = "" # -suffix
 # sort by 4-th column
-DATAFILE = "< sort -nk4 ".PATH."/gf-".GF.SFX.".dat"
+DATAFILE = "< sort -nk4 ".PATH."/gf=".GF.SFX.".dat"
 
 set term pngcairo size 1800,1000 # linewidth 2
+set datafile separator ","
 
 set grid
 set xtics 2
