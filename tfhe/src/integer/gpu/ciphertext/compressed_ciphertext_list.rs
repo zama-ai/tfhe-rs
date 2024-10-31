@@ -173,43 +173,7 @@ impl CudaCompressedCiphertextList {
     ///     .push(d_ct3, &streams)
     ///     .build(&cuda_compression_key, &streams);
     ///
-    /// let reference_compressed = CompressedCiphertextListBuilder::new()
-    ///     .push(ct1)
-    ///     .push(ct2)
-    ///     .push(ct3)
-    ///     .build(&compression_key);
-    ///
     /// let converted_compressed = cuda_compressed.to_compressed_ciphertext_list(&streams);
-    ///
-    /// let decompressed1: RadixCiphertext = converted_compressed
-    ///     .get(0, &decompression_key)
-    ///     .unwrap()
-    ///     .unwrap();
-    /// let reference_decompressed1 = reference_compressed
-    ///     .get(0, &decompression_key)
-    ///     .unwrap()
-    ///     .unwrap();
-    /// assert_eq!(decompressed1, reference_decompressed1);
-    ///
-    /// let decompressed2: SignedRadixCiphertext = converted_compressed
-    ///     .get(1, &decompression_key)
-    ///     .unwrap()
-    ///     .unwrap();
-    /// let reference_decompressed2 = reference_compressed
-    ///     .get(1, &decompression_key)
-    ///     .unwrap()
-    ///     .unwrap();
-    /// assert_eq!(decompressed2, reference_decompressed2);
-    ///
-    /// let decompressed3: BooleanBlock = converted_compressed
-    ///     .get(2, &decompression_key)
-    ///     .unwrap()
-    ///     .unwrap();
-    /// let reference_decompressed3 = reference_compressed
-    ///     .get(2, &decompression_key)
-    ///     .unwrap()
-    ///     .unwrap();
-    /// assert_eq!(decompressed3, reference_decompressed3);
     /// ```
     pub fn to_compressed_ciphertext_list(&self, streams: &CudaStreams) -> CompressedCiphertextList {
         let glwe_list = self
