@@ -228,7 +228,11 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 
         let mut remaining_len = *total_expected_lwe_count;
 
-        for (compact_ct_list, _proof) in proved_lists {
+        for (compact_ct_list, proof) in proved_lists {
+            if !proof.is_conformant(&()) {
+                return false;
+            }
+
             if remaining_len == 0 {
                 return false;
             }
