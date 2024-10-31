@@ -23,7 +23,8 @@ mod mockup_params;
 pub use mockup_params::MockupParameters;
 
 mod modules;
-use modules::{HbmBank, InstructionScheduler, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
+pub use modules::isc;
+use modules::{HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 
 use hpu_asm::{AsmBin, PbsLut};
 use tfhe::tfhe_hpu_backend::prelude::*;
@@ -43,13 +44,14 @@ pub struct HpuSim {
     ucore: UCore,
 
     /// Instruction scheduler
-    isc: InstructionScheduler,
+    isc: isc::Scheduler,
 
     // WorkAckq interface -----------------------------------------------------
     workq_stream: Vec<u8>,
     /// Parser for workq_stream
     iop_parser: hpu_asm::Parser<hpu_asm::IOp>,
     /// Pending Iop
+    iop_req: VecDeque<hpu_asm::IOp>,
     iop_pdg: VecDeque<hpu_asm::IOp>,
 
     /// Tfhe server keys
@@ -90,7 +92,7 @@ impl HpuSim {
 
         // Allocate InstructionScheduler
         // This module is also in charge of performances estimation
-        let isc = InstructionScheduler::new(params.isc_sim_params.clone());
+        let isc = isc::Scheduler::new(params.isc_sim_params.clone());
 
         Self {
             config,
@@ -103,6 +105,7 @@ impl HpuSim {
             isc,
             workq_stream: Vec::new(),
             iop_parser,
+            iop_req: VecDeque::new(),
             iop_pdg: VecDeque::new(),
             sks: None,
         }
@@ -136,7 +139,7 @@ impl HpuSim {
                                     Ok(iop) => {
                                         // Iop properly parsed, consume the stream
                                         self.workq_stream.clear();
-                                        self.iop_pdg.push_back(iop);
+                                        self.iop_req.push_back(iop);
                                     }
                                     Err(_) => {
                                         // not enough data to match
@@ -169,10 +172,22 @@ impl HpuSim {
                 }
             }
 
-            // Simulate execution of an IOp if any
-            while let Some(iop) = self.iop_pdg.front() {
-                let dops = self.ucore.translate(self.hbm_bank.as_slice(), iop);
-                let dops_exec = self.isc.schedule(dops);
+            // Issue IOp requests to isc
+            while let Some(iop) = self.iop_req.pop_front() {
+                let dops = self.ucore.translate(self.hbm_bank.as_slice(), &iop);
+                self.isc.insert_dops(dops);
+                self.iop_pdg.push_back(iop);
+            }
+
+            // Advance simulation for quantum_us time
+            // Quantum is used here to keep the mockup responsive to IPC
+            if !self.iop_pdg.is_empty() {
+                let bpip_timeout = if self.regmap.bpip_state().used {
+                    Some(self.regmap.bpip_state().timeout)
+                } else {
+                    None
+                };
+                let dops_exec = self.isc.schedule(bpip_timeout);
                 for dop in dops_exec {
                     self.exec(dop);
                 }
