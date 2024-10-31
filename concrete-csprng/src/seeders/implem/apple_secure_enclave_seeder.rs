@@ -51,8 +51,7 @@ pub struct AppleSecureEnclaveSeeder;
 
 impl Seeder for AppleSecureEnclaveSeeder {
     fn seed(&mut self) -> Seed {
-        // 16 bytes == 128 bits
-        let mut bytes = [0u8; 16];
+        let mut bytes = [0u8; std::mem::size_of::<u128>() / std::mem::size_of::<u8>()];
         secure_enclave::generate_random_bytes(&mut bytes)
             .expect("Failure while using Apple secure enclave: {err:?}");
 
@@ -60,71 +59,13 @@ impl Seeder for AppleSecureEnclaveSeeder {
     }
 
     fn is_available() -> bool {
-        let os_version_sysctl_name = match std::ffi::CString::new("kern.osproductversion") {
-            Ok(c_str) => c_str,
-            _ => return false,
-        };
-
-        // Big enough buffer to get a version output as an ASCII string
-        const OUTPUT_BUFFER_SIZE: usize = 64;
-        let mut output_buffer_size = OUTPUT_BUFFER_SIZE;
-        let mut output_buffer = [0u8; OUTPUT_BUFFER_SIZE];
-        let res = unsafe {
-            libc::sysctlbyname(
-                os_version_sysctl_name.as_ptr() as *const _ as *const _,
-                &mut output_buffer as *mut _ as *mut _,
-                &mut output_buffer_size as *mut _ as *mut _,
-                std::ptr::null_mut(),
-                0,
-            )
-        };
-
-        if res != 0 {
-            return false;
-        }
-
-        let result_c_str =
-            match std::ffi::CStr::from_bytes_with_nul(&output_buffer[..output_buffer_size]) {
-                Ok(c_str) => c_str,
-                _ => return false,
-            };
-
-        let result_string = match result_c_str.to_str() {
-            Ok(str) => str,
-            _ => return false,
-        };
-
-        // Normally we get a major version and minor version
-        let split_string: Vec<&str> = result_string.split('.').collect();
-
-        let mut major = -1;
-        let mut minor = -1;
-
-        // Major part of the version string
-        if !split_string.is_empty() {
-            major = match split_string[0].parse() {
-                Ok(major_from_str) => major_from_str,
-                _ => return false,
-            };
-        }
-
-        // SecRandomCopyBytes is available starting with mac OS 10.7
+        // SecRandomCopyBytes is available starting with macOS 10.7
         // https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc
-        // This match pattern is recommended by clippy, so we oblige here
-        match major.cmp(&10) {
-            Ordering::Greater => true,
-            Ordering::Equal => {
-                // Minor part of the version string
-                if split_string.len() >= 2 {
-                    minor = match split_string[1].parse() {
-                        Ok(minor_from_str) => minor_from_str,
-                        _ => return false,
-                    };
-                }
-                minor >= 7
-            }
-            Ordering::Less => false,
-        }
+        //
+        // Since Rust 1.74, rust supports macOS >= 10.12
+        // https://blog.rust-lang.org/2023/09/25/Increasing-Apple-Version-Requirements.html
+        // Thus SecRandomCopyBytes is always expected to be available
+        true
     }
 }
 
