@@ -122,6 +122,10 @@ install_node:
 	$(SHELL) -i -c 'nvm install $(NODE_VERSION)' || \
 	( echo "Unable to install node, unknown error." && exit 1 )
 
+.PHONY: node_version  # Return Node version that will be installed
+node_version:
+	@echo "$(NODE_VERSION)"
+
 .PHONY: install_dieharder # Install dieharder for apt distributions or macOS
 install_dieharder:
 	@dieharder -h > /dev/null 2>&1 || \
