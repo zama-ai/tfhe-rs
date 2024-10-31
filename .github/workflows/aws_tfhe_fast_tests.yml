@@ -248,6 +248,10 @@ jobs:
         run: |
           make test_safe_deserialization
 
+      - name: Run zk tests
+        run: |
+          make test_zk
+
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
