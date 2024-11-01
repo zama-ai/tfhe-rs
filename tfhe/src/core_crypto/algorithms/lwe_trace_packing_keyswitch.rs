@@ -17,9 +17,9 @@ use crate::core_crypto::entities::*;
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
 /// // Define parameters for LweTracePackingKeyswitchKey creation
-/// let lwe_dimension = LweDimension(742);
-/// let lwe_count = LweCiphertextCount(2048);
-/// let polynomial_size = PolynomialSize(2048);
+/// let lwe_dimension = LweDimension(2048);
+/// let lwe_count = LweCiphertextCount(100);
+/// let polynomial_size = PolynomialSize(512);
 /// let glwe_dim = (lwe_dimension.0 - 1) / polynomial_size.0 + 1;
 /// let glwe_dimension = GlweDimension(glwe_dim);
 /// let lwe_noise_distribution =
@@ -29,7 +29,7 @@ use crate::core_crypto::entities::*;
 ///     0.0,
 /// );
 /// let ciphertext_modulus = CiphertextModulus::new_native();
-/// let delta: u64 = 1 << 60;
+/// let delta: u64 = 1 << 59;
 ///
 /// let mut seeder = new_seeder();
 /// let mut secret_generator =
@@ -46,7 +46,7 @@ use crate::core_crypto::entities::*;
 ///     &mut secret_generator,
 /// );
 ///
-/// let decomp_base_log = DecompositionBaseLog(23);
+/// let decomp_base_log = DecompositionBaseLog(28);
 /// let decomp_level_count = DecompositionLevelCount(1);
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
@@ -117,7 +117,7 @@ use crate::core_crypto::entities::*;
 ///
 /// // Round and remove encoding
 /// // First create a decomposer working on the high 4 bits corresponding to our encoding.
-/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(5), DecompositionLevelCount(1));
 ///
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();

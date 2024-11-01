@@ -43,7 +43,7 @@ pub mod shortint_utils {
     #[cfg(not(feature = "gpu"))]
     use tfhe::shortint::parameters::PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     use tfhe::shortint::parameters::{
-        ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        GlweMultParameters, ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
     };
     use tfhe::shortint::{ClassicPBSParameters, PBSParameters, ShortintParameterSet};
 
@@ -160,6 +160,25 @@ pub mod shortint_utils {
                     comp_params.packing_ks_key_noise_distribution,
                 ),
                 ciphertext_modulus: Some(pbs_params.ciphertext_modulus()),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<GlweMultParameters> for CryptoParametersRecord<u64> {
+        fn from(glwe_mult_params: GlweMultParameters) -> Self {
+            CryptoParametersRecord {
+                lwe_dimension: Some(glwe_mult_params.lwe_dimension),
+                packing_ks_level: Some(glwe_mult_params.packing_ks_level),
+                packing_ks_base_log: Some(glwe_mult_params.packing_ks_base_log),
+                packing_ks_polynomial_size: Some(glwe_mult_params.packing_ks_polynomial_size),
+                packing_ks_glwe_dimension: Some(glwe_mult_params.packing_ks_glwe_dimension),
+                lwe_per_glwe: Some(glwe_mult_params.lwe_per_glwe),
+                packing_ks_key_noise_distribution: Some(glwe_mult_params.packing_ks_key_noise_distribution),
+                lwe_noise_distribution: Some(glwe_mult_params.lwe_noise_distribution),
+                ciphertext_modulus: Some(glwe_mult_params.ciphertext_modulus),
+                message_modulus: Some(glwe_mult_params.message_modulus.0),
+                carry_modulus: Some(glwe_mult_params.carry_modulus.0),
                 ..Default::default()
             }
         }

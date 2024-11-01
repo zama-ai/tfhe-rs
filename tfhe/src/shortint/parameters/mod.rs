@@ -25,6 +25,7 @@ pub mod classic;
 pub mod compact_public_key_only;
 #[cfg(tarpaulin)]
 pub mod coverage_parameters;
+pub mod glwe_multiplication;
 pub mod key_switching;
 pub mod list_compression;
 pub mod multi_bit;
@@ -44,6 +45,9 @@ pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pb
 pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::pbs_ks::*;
 pub use crate::shortint::parameters::list_compression::{
     CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+};
+pub use crate::shortint::parameters::glwe_multiplication::{
+    GlweMultParameters, MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100,
 };
 pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs_gpu::*;

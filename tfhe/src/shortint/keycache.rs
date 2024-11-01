@@ -268,6 +268,23 @@ impl NamedParam for CompressionParameters {
     }
 }
 
+impl NamedParam for GlweMultParameters {
+    fn name(&self) -> String {
+        named_params_impl!(expose MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100);
+        named_params_impl!(
+            {
+                *self;
+                Self
+            } == (MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100)
+        );
+
+        format!(
+            "MULT_PARAM_NOISE_DISTRIB_{}",
+            self.packing_ks_key_noise_distribution
+        )
+    }
+}
+
 impl From<PBSParameters> for (ClientKey, ServerKey) {
     fn from(param: PBSParameters) -> Self {
         let param_set = ShortintParameterSet::from(param);

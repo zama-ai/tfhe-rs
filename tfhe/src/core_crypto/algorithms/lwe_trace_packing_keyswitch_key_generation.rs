@@ -220,14 +220,15 @@ pub fn generate_lwe_trace_packing_keyswitch_key_native_mod_compatible<
 
     let automorphism_index_iter = 1..=polynomial_size.log2().0;
 
-    let gen_iter = generator
-        .try_fork_from_config(lwe_tpksk.encryption_fork_config(Uniform, noise_distribution))
-        .unwrap();
+    //let gen_iter = generator
+    //    .try_fork_from_config(lwe_tpksk.encryption_fork_config(Uniform, noise_distribution))
+    //    .unwrap();
 
     // loop over the before key blocks
-    for ((auto_index, glwe_keyswitch_block), mut loop_generator) in automorphism_index_iter
+    //for ((auto_index, glwe_keyswitch_block), mut loop_generator) in automorphism_index_iter
+    for (auto_index, glwe_keyswitch_block) in automorphism_index_iter
         .zip(lwe_tpksk.iter_mut())
-        .zip(gen_iter)
+        //.zip(gen_iter)
     {
         let mut auto_glwe_sk_poly_list = PolynomialList::new(
             Scalar::ZERO,
@@ -259,7 +260,8 @@ pub fn generate_lwe_trace_packing_keyswitch_key_native_mod_compatible<
             input_glwe_secret_key,
             &mut glwe_ksk,
             noise_distribution,
-            &mut loop_generator,
+            //&mut loop_generator,
+            generator,
         );
     }
 }

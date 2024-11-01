@@ -9,6 +9,7 @@ use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::{
     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100,
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
 };
@@ -116,6 +117,13 @@ fn benchmark_compression_parameters() -> Vec<(String, CryptoParametersRecord<u64
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         )
             .into(),
+    )]
+}
+
+fn benchmark_trace_packing_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
+    vec![(
+        MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100.name(),
+        MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100.into(),
     )]
 }
 
@@ -290,6 +298,109 @@ fn packing_keyswitch<Scalar, F>(
             *params,
             name,
             "packing_ks",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+fn trace_packing_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
+    criterion: &mut Criterion,
+    bench_name: &str,
+    parameters: &[(String, CryptoParametersRecord<Scalar>)],
+) {
+    let bench_name = format!("core_crypto::{bench_name}");
+    let mut bench_group = criterion.benchmark_group(&bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    
+    for (name, params) in parameters.iter() {
+        let lwe_dimension = params.lwe_dimension.unwrap();
+        let packing_ks_glwe_dimension = params.packing_ks_glwe_dimension.unwrap();
+        let packing_ks_polynomial_size = params.packing_ks_polynomial_size.unwrap();
+        let packing_ks_decomp_base_log = params.packing_ks_base_log.unwrap();
+        let packing_ks_decomp_level_count = params.packing_ks_level.unwrap();
+        let ciphertext_modulus = params.ciphertext_modulus.unwrap();
+        let count = params.lwe_per_glwe.unwrap();
+
+        let lwe_sk =
+            allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+        
+        let mut glwe_sk = GlweSecretKey::new_empty_key(Scalar::ZERO, packing_ks_glwe_dimension, packing_ks_polynomial_size);
+
+        generate_tpksk_output_glwe_secret_key(
+            &lwe_sk,
+            &mut glwe_sk,
+            ciphertext_modulus,
+            &mut secret_generator,
+        );
+
+        let lwe_tpksk = allocate_and_generate_new_lwe_trace_packing_keyswitch_key(
+            lwe_dimension.to_lwe_size(),
+            &glwe_sk,
+            packing_ks_decomp_base_log,
+            packing_ks_decomp_level_count,
+            params.packing_ks_key_noise_distribution.unwrap(),
+            ciphertext_modulus,
+            &mut encryption_generator,
+        );
+
+        //let delta = (ciphertext_modulus.get_custom_modulus / params.message_modulus.unwrap() as u128).cast_into();
+        let lwe_plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(count.0));
+        let mut lwe_list = LweCiphertextList::new(
+            Scalar::ZERO,
+            lwe_dimension.to_lwe_size(),
+            count,
+            ciphertext_modulus,
+        );
+        encrypt_lwe_ciphertext_list(
+            &lwe_sk,
+            &mut lwe_list,
+            &lwe_plaintext_list,
+            params.lwe_noise_distribution.unwrap(),
+            &mut encryption_generator,
+        );
+        
+        let mut output_glwe_ciphertext = GlweCiphertext::new(
+            Scalar::ZERO,
+            packing_ks_glwe_dimension.to_glwe_size(),
+            packing_ks_polynomial_size,
+            ciphertext_modulus,
+        );
+
+        let mut indices = vec![0usize; count.0];
+        for (index, item) in indices.iter_mut().enumerate() {
+            *item = index;
+        }
+
+        let id = format!("{bench_name}::{name}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext(
+                        &lwe_tpksk,
+                        &mut output_glwe_ciphertext,
+                        &lwe_list,
+                        &indices,
+                    );
+                    black_box(&mut output_glwe_ciphertext);
+                })
+            });
+        }
+
+        let bit_size = (params.message_modulus.unwrap_or(2) as u64).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "trace_packing_ks",
             &OperatorType::Atomic,
             bit_size,
             vec![bit_size],
@@ -553,7 +664,32 @@ pub fn packing_keyswitch_group() {
     );
 }
 
+pub fn trace_packing_keyswitch_group() {
+    let mut criterion: Criterion<_> = (Criterion::default()
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(60)))
+    .configure_from_args();
+    trace_packing_keyswitch(
+        &mut criterion,
+        "trace_packing_keyswitch",
+        &benchmark_trace_packing_parameters(),
+    );
+}
+
+pub fn not_trace_packing_keyswitch_group() {
+    let mut criterion: Criterion<_> = (Criterion::default()
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(60)))
+    .configure_from_args();
+    packing_keyswitch(
+        &mut criterion,
+        "not_trace_packing_keyswitch",
+        &benchmark_trace_packing_parameters(),
+        keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext,
+    );
+}
+
 #[cfg(not(feature = "gpu"))]
-criterion_main!(keyswitch_group, packing_keyswitch_group);
+criterion_main!(keyswitch_group, packing_keyswitch_group, trace_packing_keyswitch_group, not_trace_packing_keyswitch_group);
 #[cfg(feature = "gpu")]
 criterion_main!(cuda_keyswitch_group);
