@@ -20,11 +20,11 @@ use tfhe::core_crypto::prelude::{
 pub fn multi_bit_pbs_external_product(
     parameters: &GlweCiphertextGgswCiphertextExternalProductParameters<u64>,
     raw_inputs: &mut Vec<Vec<u64>>,
-    outputs: &mut Vec<Vec<u64>>,
+    outputs_fft: &mut Vec<Vec<u64>>,
+    outputs_kara: &mut Vec<Vec<u64>>,
     sample_size: usize,
     secret_random_generator: &mut SecretRandomGenerator<ActivatedRandomGenerator>,
     encryption_random_generator: &mut EncryptionRandomGenerator<ActivatedRandomGenerator>,
-    use_fft: bool,
     fft: FftView,
     computation_buffers: &mut ComputationBuffers,
     grouping_factor: LweBskGroupingFactor,
@@ -60,14 +60,14 @@ pub fn multi_bit_pbs_external_product(
         bsk.grouping_factor(),
     );
 
-    if use_fft {
+    // if use_fft {
         convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized(
             &bsk,
             &mut fbsk,
             fft,
             computation_buffers.stack(),
         );
-    }
+    // }
 
     let std_ggsw_vec: Vec<_> = bsk.iter().collect();
     let ggsw_vec: Vec<_> = fbsk.ggsw_iter().collect();
@@ -115,7 +115,7 @@ pub fn multi_bit_pbs_external_product(
     );
 
     let prep_start = std::time::Instant::now();
-    if use_fft {
+    // if use_fft {
         prepare_multi_bit_ggsw_mem_optimized(
             &mut fourier_ggsw,
             &ggsw_vec,
@@ -127,7 +127,7 @@ pub fn multi_bit_pbs_external_product(
             &mut fourier_a_monomial,
             fft,
         );
-    } else {
+    // } else {
         std_prepare_multi_bit_ggsw(
             &mut std_ggsw,
             &mut tmp_std_ggsw,
@@ -138,7 +138,7 @@ pub fn multi_bit_pbs_external_product(
                 &random_mask,
             ),
         );
-    }
+    // }
     let prep_time_ns = prep_start.elapsed().as_nanos();
 
     let mut sample_runtime_ns = 0u128;
@@ -169,7 +169,13 @@ pub fn multi_bit_pbs_external_product(
             encryption_random_generator,
         );
 
-        let mut output_glwe_ciphertext = GlweCiphertext::new(
+        let mut output_glwe_ciphertext_fft = GlweCiphertext::new(
+            0u64,
+            parameters.glwe_dimension.to_glwe_size(),
+            parameters.polynomial_size,
+            parameters.ciphertext_modulus,
+        );
+        let mut output_glwe_ciphertext_kara = GlweCiphertext::new(
             0u64,
             parameters.glwe_dimension.to_glwe_size(),
             parameters.polynomial_size,
@@ -178,44 +184,56 @@ pub fn multi_bit_pbs_external_product(
 
         let start = std::time::Instant::now();
 
-        if use_fft {
+        //~ if use_fft {
             add_external_product_assign_mem_optimized(
-                &mut output_glwe_ciphertext,
+                &mut output_glwe_ciphertext_fft,
                 &fourier_ggsw,
                 &input_glwe_ciphertext,
                 fft,
                 computation_buffers.stack(),
             );
-        } else {
+        //~ } else {
             karatsuba_add_external_product_assign_mem_optimized(
-                &mut output_glwe_ciphertext,
+                &mut output_glwe_ciphertext_kara,
                 &std_ggsw,
                 &input_glwe_ciphertext,
                 computation_buffers.stack(),
             );
-        }
+        //~ }
 
         let elapsed = start.elapsed().as_nanos();
         sample_runtime_ns += elapsed;
 
-        let mut output_plaintext_list = input_plaintext_list.clone();
+        let mut output_plaintext_list_fft = input_plaintext_list.clone();
         decrypt_glwe_ciphertext(
             &glwe_secret_key,
-            &output_glwe_ciphertext,
-            &mut output_plaintext_list,
+            &output_glwe_ciphertext_fft,
+            &mut output_plaintext_list_fft,
         );
+        let mut output_pt_list_as_polynomial_fft = output_plaintext_list_fft.as_mut_polynomial();
 
-        let mut output_pt_list_as_polynomial = output_plaintext_list.as_mut_polynomial();
+        let mut output_plaintext_list_kara = input_plaintext_list.clone();
+        decrypt_glwe_ciphertext(
+            &glwe_secret_key,
+            &output_glwe_ciphertext_kara,
+            &mut output_plaintext_list_kara,
+        );
+        let mut output_pt_list_as_polynomial_kara = output_plaintext_list_kara.as_mut_polynomial();
 
         // As we performed a monomial multiplication, we need to apply a monomial div to get outputs
         // in the right order
         polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign(
-            &mut output_pt_list_as_polynomial,
+            &mut output_pt_list_as_polynomial_fft,
+            equivalent_monomial_degree,
+        );
+        polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign(
+            &mut output_pt_list_as_polynomial_kara,
             equivalent_monomial_degree,
         );
 
         raw_inputs.push(input_plaintext_list.into_container());
-        outputs.push(output_plaintext_list.into_container());
+        outputs_fft.push(output_plaintext_list_fft.into_container());
+        outputs_kara.push(output_plaintext_list_kara.into_container());
     }
 
     (sample_runtime_ns, prep_time_ns)

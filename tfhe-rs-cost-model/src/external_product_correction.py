@@ -78,18 +78,18 @@ class SamplingLine:
     Extract output variance parameter from a sampling result string.
 
     :param line: :class:`str` formatted as ``polynomial_size, glwe_dimension,
-        decomposition_level_count, decomposition_base_log, input_variance, output_variance,
+        decomposition_level_count, decomposition_base_log, input_variance, output_variance_fft_kara,
         predicted_variance``
     """
 
     parameters: list
     input_variance: float
-    output_variance_exp: float
+    output_variance_fft_kara: float
     output_variance_th: float
 
     def __init__(self, line: dict):
         self.input_variance = float(line["input_variance"])
-        self.output_variance_exp = float(line["output_variance"])
+        self.output_variance_fft_kara = float(line["output_variance_fft_kara"])
         self.single_ggsw_variance = float(line["single_ggsw_variance"])
         self.output_variance_th = float(line["predicted_variance"])
         self.parameters = [
@@ -141,7 +141,7 @@ def extract_from_acquisitions(filename):
     :return: :class:`tuple` of :class:`numpy.array`
     """
     parameters = []
-    exp_output_variance = []
+    exp_output_variance_fft_kara = []
     th_output_variance = []
     single_ggsw_variance = []
     input_variance = []
@@ -157,17 +157,17 @@ def extract_from_acquisitions(filename):
                 print(f"Exception while parsing line (error: {err}, line: {line})")
                 continue
 
-            exp_output_var = sampled_line.output_variance_exp
+            exp_output_var_fft_kara = sampled_line.output_variance_fft_kara
             th_output_var = sampled_line.output_variance_th
             single_ggsw_var = sampled_line.single_ggsw_variance
             input_var = sampled_line.input_variance
             params = sampled_line.parameters
 
-            if exp_output_var < 0.083:
+            if exp_output_var_fft_kara < 0.083:
                 params.append(th_output_var)
                 # ~ params.append(single_ggsw_var)
                 parameters.append(params)
-                exp_output_variance.append(exp_output_var)
+                exp_output_variance_fft_kara.append(exp_output_var_fft_kara)
                 th_output_variance.append(th_output_var)
                 single_ggsw_variance.append(single_ggsw_var)
                 input_variance.append(input_var)
@@ -179,7 +179,7 @@ def extract_from_acquisitions(filename):
     return (
         (
             np.array(parameters),
-            np.array(exp_output_variance),
+            np.array(exp_output_variance_fft_kara),
             np.array(th_output_variance),
             np.array(single_ggsw_variance),
             np.array(input_variance),
@@ -200,12 +200,13 @@ def get_input(filename):
 
     (
         parameters,
-        exp_output_variance,
+        exp_output_variance_fft_kara,
         _th_output_variance,
         _single_ggsw_variance,
         input_variance,
     ) = acquisition_samples
-    y_values = np.maximum(0.0, (exp_output_variance - input_variance)) #TODO return a NaN if exp_output_variance <= input_variance ??
+
+    y_values = np.maximum(1.0e-32, (exp_output_variance_fft_kara)) #TODO return a NaN if exp_output_variance <= input_variance ??
     x_values = parameters
     return x_values, y_values
 
@@ -242,7 +243,7 @@ def remove_outlier(bits, x_values, y_values):
     # Scale the values from variance to modular variance after the filtering was done to avoid
     # overflowing the isolation forest from sklearn
     x_values[:, -1] = x_values[:, -1] * np.float64(2 ** (bits * 2))
-    y_values = y_values.astype(np.float64) * np.float64(2 ** (bits * 2))
+    y_values = y_values.astype(np.float64) * np.float64(2 ** (bits * 2)) #JKL why scaling here?
     return x_values, y_values
 
 
@@ -258,19 +259,18 @@ def fft_noise(x, a, b, c, log2_q):
     k = x[:, 1]
     level = x[:, 2]
     logbase = x[:, 3]
-    theoretical_var = x[:, -1]
+    # ~ theoretical_var = x[:, -1]
     # ~ print(x[:,0])
     # ~ print(x[:,1])
     # ~ print(x[:,-1])
     # ~ print("----")
-    return k * (k + 1) * level * (   # tanh:  * 2.**(1.-(1.+a/(2.**logbase))*.5*(np.tanh(b*(level-(N/50.)/logbase))+1.))
+    return k * (k + 1) * level * (
         # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
         # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
-        # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2                 # in theory, not present
-        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
-        # ~ + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
-        0
-    ) + theoretical_var
+        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2                 # in theory, not present
+        + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
+        + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
+    )
 
 
 def fft_noise_128(x, a, b, c, log2_q):
@@ -285,16 +285,15 @@ def fft_noise_128(x, a, b, c, log2_q):
     k = x[:, 1]
     level = x[:, 2]
     logbase = x[:, 3]
-    theoretical_var = x[:, -1]
+    # ~ theoretical_var = x[:, -1]
     # we lose 2 * 11 bits of mantissa per conversion 22 * 2 = 44
-    return k * (k + 1) * level * (   # tanh:  * 2.**(1.-(1.+a/(2.**logbase))*.5*(np.tanh(b*(level-(N/50.)/logbase))+1.))
+    return k * (k + 1) * level * (
         # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
         # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
-        # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
-        # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
-        # ~ + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
-        0
-    ) + theoretical_var
+        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
+        + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
+        + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
+    )
 
 def log_fft_noise_fun(x, a, b, c, fft_noise_fun):
     return np.log2(fft_noise_fun(x, a, b, c))

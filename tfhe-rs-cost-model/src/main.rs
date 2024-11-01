@@ -100,7 +100,7 @@ fn prepare_output_file_header(dir: &str, id: usize) {
     let mut file = get_analysis_output_file(dir, id);
     let header =
         "polynomial_size,glwe_dimension,decomposition_level_count,decomposition_base_log,\
-    ggsw_encrypted_value,input_variance,output_variance,predicted_variance,single_ggsw_variance,mean_runtime_ns,\
+    ggsw_encrypted_value,input_variance,output_variance_fft_kara,predicted_variance,single_ggsw_variance,mean_runtime_ns,\
     prep_time_ns\n";
     let _ = file.write(header.as_bytes()).unwrap();
 }
@@ -109,7 +109,7 @@ fn prepare_output_file_header(dir: &str, id: usize) {
 fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
     params: &GlweCiphertextGgswCiphertextExternalProductParameters<Scalar>,
     input_stddev: StandardDev,
-    output_stddev: StandardDev,
+    output_stddev_fft_kara: StandardDev,
     single_ggsw_stddev: StandardDev,
     pred_stddev: StandardDev,
     mean_runtime_ns: u128,
@@ -125,7 +125,7 @@ fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
         params.decomposition_base_log.0,
         params.ggsw_encrypted_value,
         input_stddev.get_variance(),
-        output_stddev.get_variance(),
+        output_stddev_fft_kara.get_variance(),
         pred_stddev.get_variance(),
         single_ggsw_stddev.get_variance(),
         mean_runtime_ns,
@@ -275,7 +275,6 @@ fn main() {
     let algo = args.algorithm;
     let dir = &args.dir;
     let timing_only = args.timing_only;
-    let use_fft = args.use_fft;
 
     if algo.is_empty() {
         panic!("No algorithm provided")
@@ -336,19 +335,19 @@ fn main() {
 
     // Parameter Grid
     let polynomial_sizes = vec![
-        //~ PolynomialSize(1 << 8),
-        //~ PolynomialSize(1 << 9),
+        PolynomialSize(1 << 8),
+        PolynomialSize(1 << 9),
         PolynomialSize(1 << 10),
         PolynomialSize(1 << 11),
-        //~ PolynomialSize(1 << 12),
+        PolynomialSize(1 << 12),
         //~ PolynomialSize(1 << 13),
         //~ PolynomialSize(1 << 14),
     ];
     let max_polynomial_size = polynomial_sizes.iter().copied().max().unwrap();
     let glwe_dimensions = vec![
         GlweDimension(1),
-        //~ GlweDimension(2),
-        //~ GlweDimension(3),
+        GlweDimension(2),
+        GlweDimension(3),
         //~ GlweDimension(4),
         //~ GlweDimension(5),
     ];
@@ -474,7 +473,7 @@ fn main() {
                             2.0f64.powi(modulus_log2 as i32),
                         )
                     }
-                    MULTI_BIT_EXT_PROD_ALGO =>multi_bit_external_product_no_fft_additive_variance_132_bits_security_gaussian(
+                    MULTI_BIT_EXT_PROD_ALGO => multi_bit_external_product_no_fft_additive_variance_132_bits_security_gaussian(
                         glwe_dimension,
                         polynomial_size,
                         decomposition_base_log,
@@ -511,54 +510,55 @@ fn main() {
                     ),
                 );
 
-                let mut errors = vec![0.; sample_size * polynomial_size.0 * total_repetitions];
+                let mut errors_fft_kara = vec![0.; sample_size * polynomial_size.0 * total_repetitions];
 
                 if noise_prediction.get_variance() < 1. / 12. {
                     let mut total_runtime_ns = 0u128;
                     let mut total_prep_time_ns = 0u128;
 
-                    for (_, errs) in (0..total_repetitions)
-                        .zip(errors.chunks_mut(sample_size * polynomial_size.0))
+                    for (_, errs_fft_kara) in (0..total_repetitions)
+                        .zip(errors_fft_kara.chunks_mut(sample_size * polynomial_size.0))
                     {
                         let mut raw_inputs = Vec::with_capacity(sample_size);
-                        let mut outputs = Vec::with_capacity(sample_size);
+                        let mut outputs_fft = Vec::with_capacity(sample_size);
+                        let mut outputs_kara = Vec::with_capacity(sample_size);
 
                         let (sample_runtime_ns, prep_time_ns) = match algo.as_str() {
-                            EXT_PROD_ALGO => classic_pbs_external_product(
-                                &parameters,
-                                &mut raw_inputs,
-                                &mut outputs,
-                                sample_size,
-                                secret_rng,
-                                encrypt_rng,
-                                use_fft,
-                                fft.as_view(),
-                                &mut computation_buffers,
-                            ),
+                            //~ EXT_PROD_ALGO => classic_pbs_external_product(
+                                //~ &parameters,
+                                //~ &mut raw_inputs,
+                                //~ &mut outputs,
+                                //~ sample_size,
+                                //~ secret_rng,
+                                //~ encrypt_rng,
+                                //~ use_fft,
+                                //~ fft.as_view(),
+                                //~ &mut computation_buffers,
+                            //~ ),
                             MULTI_BIT_EXT_PROD_ALGO => multi_bit_pbs_external_product(
                                 &parameters,
                                 &mut raw_inputs,
-                                &mut outputs,
+                                &mut outputs_fft,
+                                &mut outputs_kara,
                                 sample_size,
                                 secret_rng,
                                 encrypt_rng,
-                                use_fft,
                                 fft.as_view(),
                                 &mut computation_buffers,
                                 grouping_factor.unwrap(),
                             ),
-                            STD_MULTI_BIT_EXT_PROD_ALGO => std_multi_bit_pbs_external_product(
-                                &parameters,
-                                &mut raw_inputs,
-                                &mut outputs,
-                                sample_size,
-                                secret_rng,
-                                encrypt_rng,
-                                use_fft,
-                                fft.as_view(),
-                                &mut computation_buffers,
-                                grouping_factor.unwrap(),
-                            ),
+                            //~ STD_MULTI_BIT_EXT_PROD_ALGO => std_multi_bit_pbs_external_product(
+                                //~ &parameters,
+                                //~ &mut raw_inputs,
+                                //~ &mut outputs,
+                                //~ sample_size,
+                                //~ secret_rng,
+                                //~ encrypt_rng,
+                                //~ use_fft,
+                                //~ fft.as_view(),
+                                //~ &mut computation_buffers,
+                                //~ grouping_factor.unwrap(),
+                            //~ ),
                             _ => unreachable!(),
                         };
 
@@ -567,19 +567,21 @@ fn main() {
 
                         let raw_input_plaintext_vector =
                             raw_inputs.into_iter().flatten().collect::<Vec<_>>();
-                        let output_plaintext_vector =
-                            outputs.into_iter().flatten().collect::<Vec<_>>();
+                        let output_plaintext_vector_fft =
+                            outputs_fft.into_iter().flatten().collect::<Vec<_>>();
+                        let output_plaintext_vector_kara =
+                            outputs_kara.into_iter().flatten().collect::<Vec<_>>();
 
                         compute_torus_diff(
-                            errs,
-                            output_plaintext_vector,
-                            raw_input_plaintext_vector,
+                            errs_fft_kara,
+                            output_plaintext_vector_fft,
+                            output_plaintext_vector_kara,
                             parameters.ciphertext_modulus,
                             parameters.ggsw_encrypted_value,
                         );
                     }
-                    let _mean_err = mean(&errors).unwrap();
-                    let std_err = std_deviation(&errors).unwrap();
+                    let _mean_err_fft_kara = mean(&errors_fft_kara).unwrap();
+                    let std_err_fft_kara = std_deviation(&errors_fft_kara).unwrap();
                     let mean_runtime_ns =
                         total_runtime_ns / ((total_repetitions * sample_size) as u128);
                     // GGSW is prepared only once per sample
@@ -587,7 +589,7 @@ fn main() {
                     write_to_file(
                         &parameters,
                         parameters.glwe_noise.standard_dev(),
-                        std_err,
+                        std_err_fft_kara,
                         ggsw_noise.standard_dev(),
                         variance_to_stddev(noise_prediction),
                         mean_runtime_ns,
@@ -613,190 +615,190 @@ fn main() {
             }
         };
 
-    let u128_tool =
-        |secret_rng: &mut SecretRandomGenerator<ActivatedRandomGenerator>,
-         encrypt_rng: &mut EncryptionRandomGenerator<ActivatedRandomGenerator>| {
-            for (
-                curr_idx,
-                HyperCubeParams {
-                    glwe_dimension,
-                    base_level:
-                        BaseLevel {
-                            base: decomposition_base_log,
-                            level: decomposition_level_count,
-                        },
-                    polynomial_size,
-                },
-            ) in chunk.iter().enumerate()
-            {
-                let glwe_dimension = *glwe_dimension;
-                let decomposition_base_log = *decomposition_base_log;
-                let decomposition_level_count = *decomposition_level_count;
-                let polynomial_size = *polynomial_size;
-                let ciphertext_modulus = CiphertextModulus::try_new(modulus).unwrap();
+    //~ let u128_tool =
+        //~ |secret_rng: &mut SecretRandomGenerator<ActivatedRandomGenerator>,
+         //~ encrypt_rng: &mut EncryptionRandomGenerator<ActivatedRandomGenerator>| {
+            //~ for (
+                //~ curr_idx,
+                //~ HyperCubeParams {
+                    //~ glwe_dimension,
+                    //~ base_level:
+                        //~ BaseLevel {
+                            //~ base: decomposition_base_log,
+                            //~ level: decomposition_level_count,
+                        //~ },
+                    //~ polynomial_size,
+                //~ },
+            //~ ) in chunk.iter().enumerate()
+            //~ {
+                //~ let glwe_dimension = *glwe_dimension;
+                //~ let decomposition_base_log = *decomposition_base_log;
+                //~ let decomposition_level_count = *decomposition_level_count;
+                //~ let polynomial_size = *polynomial_size;
+                //~ let ciphertext_modulus = CiphertextModulus::try_new(modulus).unwrap();
 
-                let modulus_log2 = if ciphertext_modulus.is_native_modulus() {
-                    u128::BITS
-                } else if ciphertext_modulus.is_power_of_two() {
-                    ciphertext_modulus.get_custom_modulus().ilog2()
-                } else {
-                    todo!("Non power of 2 moduli are currently not supported")
-                };
+                //~ let modulus_log2 = if ciphertext_modulus.is_native_modulus() {
+                    //~ u128::BITS
+                //~ } else if ciphertext_modulus.is_power_of_two() {
+                    //~ ciphertext_modulus.get_custom_modulus().ilog2()
+                //~ } else {
+                    //~ todo!("Non power of 2 moduli are currently not supported")
+                //~ };
 
-                println!("Chunk part: {:?}/{chunk_size:?} done", curr_idx + 1);
-                let sample_size = base_sample_size * max_polynomial_size.0 / polynomial_size.0;
-                let ggsw_noise = Gaussian::from_dispersion_parameter(
-                    minimal_variance_for_security(glwe_dimension, polynomial_size, modulus_log2),
-                    0.0,
-                );
-                // We measure the noise added to a GLWE ciphertext,here we can choose to have no
-                // input noise
-                // It also avoid potential cases where the noise is so big it gets decomposed
-                // during computations,it's an assumption we apparently already make ("small noise
-                // regime")
-                let glwe_noise = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
-                // minimal_variance_for_security_64(glwe_dimension, poly_size));
+                //~ println!("Chunk part: {:?}/{chunk_size:?} done", curr_idx + 1);
+                //~ let sample_size = base_sample_size * max_polynomial_size.0 / polynomial_size.0;
+                //~ let ggsw_noise = Gaussian::from_dispersion_parameter(
+                    //~ minimal_variance_for_security(glwe_dimension, polynomial_size, modulus_log2),
+                    //~ 0.0,
+                //~ );
+                //~ // We measure the noise added to a GLWE ciphertext,here we can choose to have no
+                //~ // input noise
+                //~ // It also avoid potential cases where the noise is so big it gets decomposed
+                //~ // during computations,it's an assumption we apparently already make ("small noise
+                //~ // regime")
+                //~ let glwe_noise = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
+                //~ // minimal_variance_for_security_64(glwe_dimension, poly_size));
 
-                let parameters = GlweCiphertextGgswCiphertextExternalProductParameters::<u128> {
-                    ggsw_noise,
-                    glwe_noise,
-                    glwe_dimension,
-                    ggsw_encrypted_value: 1,
-                    polynomial_size,
-                    decomposition_base_log,
-                    decomposition_level_count,
-                    ciphertext_modulus,
-                };
+                //~ let parameters = GlweCiphertextGgswCiphertextExternalProductParameters::<u128> {
+                    //~ ggsw_noise,
+                    //~ glwe_noise,
+                    //~ glwe_dimension,
+                    //~ ggsw_encrypted_value: 1,
+                    //~ polynomial_size,
+                    //~ decomposition_base_log,
+                    //~ decomposition_level_count,
+                    //~ ciphertext_modulus,
+                //~ };
 
-                println!("params: {parameters:?}");
+                //~ println!("params: {parameters:?}");
 
-                let noise_prediction = match algo.as_str() {
-                    EXT_PROD_U128_SPLIT_ALGO | EXT_PROD_U128_ALGO => {
-                        external_product_no_fft_additive_variance132_bits_security_gaussian(
-                            glwe_dimension,
-                            polynomial_size,
-                            decomposition_base_log,
-                            decomposition_level_count,
-                            2.0f64.powi(modulus_log2 as i32),
-                        )
-                    }
-                    _ => unreachable!(),
-                };
+                //~ let noise_prediction = match algo.as_str() {
+                    //~ EXT_PROD_U128_SPLIT_ALGO | EXT_PROD_U128_ALGO => {
+                        //~ external_product_no_fft_additive_variance132_bits_security_gaussian(
+                            //~ glwe_dimension,
+                            //~ polynomial_size,
+                            //~ decomposition_base_log,
+                            //~ decomposition_level_count,
+                            //~ 2.0f64.powi(modulus_log2 as i32),
+                        //~ )
+                    //~ }
+                    //~ _ => unreachable!(),
+                //~ };
 
-                let fft = Fft128::new(parameters.polynomial_size);
-                let mut computation_buffers = ComputationBuffers::new();
-                computation_buffers.resize(
-                    programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement::<u128>(
-                        parameters.glwe_dimension.to_glwe_size(),
-                        parameters.polynomial_size,
-                        fft.as_view(),
-                    )
-                    .unwrap()
-                    .unaligned_bytes_required()
-                    .max(
-                        fft.as_view()
-                            .backward_scratch()
-                            .unwrap()
-                            .unaligned_bytes_required(),
-                    ),
-                );
+                //~ let fft = Fft128::new(parameters.polynomial_size);
+                //~ let mut computation_buffers = ComputationBuffers::new();
+                //~ computation_buffers.resize(
+                    //~ programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement::<u128>(
+                        //~ parameters.glwe_dimension.to_glwe_size(),
+                        //~ parameters.polynomial_size,
+                        //~ fft.as_view(),
+                    //~ )
+                    //~ .unwrap()
+                    //~ .unaligned_bytes_required()
+                    //~ .max(
+                        //~ fft.as_view()
+                            //~ .backward_scratch()
+                            //~ .unwrap()
+                            //~ .unaligned_bytes_required(),
+                    //~ ),
+                //~ );
 
-                let mut errors = vec![0.; sample_size * polynomial_size.0 * total_repetitions];
+                //~ let mut errors = vec![0.; sample_size * polynomial_size.0 * total_repetitions];
 
-                if noise_prediction.get_variance() < 1. / 12. {
-                    let mut total_runtime_ns = 0u128;
-                    let mut total_prep_time_ns = 0u128;
+                //~ if noise_prediction.get_variance() < 1. / 12. {
+                    //~ let mut total_runtime_ns = 0u128;
+                    //~ let mut total_prep_time_ns = 0u128;
 
-                    for (_, errs) in (0..total_repetitions)
-                        .zip(errors.chunks_mut(sample_size * polynomial_size.0))
-                    {
-                        let mut raw_inputs = Vec::with_capacity(sample_size);
-                        let mut outputs = Vec::with_capacity(sample_size);
+                    //~ for (_, errs) in (0..total_repetitions)
+                        //~ .zip(errors.chunks_mut(sample_size * polynomial_size.0))
+                    //~ {
+                        //~ let mut raw_inputs = Vec::with_capacity(sample_size);
+                        //~ let mut outputs = Vec::with_capacity(sample_size);
 
-                        let (sample_runtime_ns, prep_time_ns) = match algo.as_str() {
-                            EXT_PROD_U128_SPLIT_ALGO => classic_pbs_external_product_u128_split(
-                                &parameters,
-                                &mut raw_inputs,
-                                &mut outputs,
-                                sample_size,
-                                secret_rng,
-                                encrypt_rng,
-                                fft.as_view(),
-                                &mut computation_buffers,
-                            ),
-                            EXT_PROD_U128_ALGO => classic_pbs_external_product_u128(
-                                &parameters,
-                                &mut raw_inputs,
-                                &mut outputs,
-                                sample_size,
-                                secret_rng,
-                                encrypt_rng,
-                                fft.as_view(),
-                                &mut computation_buffers,
-                            ),
-                            _ => unreachable!(),
-                        };
+                        //~ let (sample_runtime_ns, prep_time_ns) = match algo.as_str() {
+                            //~ EXT_PROD_U128_SPLIT_ALGO => classic_pbs_external_product_u128_split(
+                                //~ &parameters,
+                                //~ &mut raw_inputs,
+                                //~ &mut outputs,
+                                //~ sample_size,
+                                //~ secret_rng,
+                                //~ encrypt_rng,
+                                //~ fft.as_view(),
+                                //~ &mut computation_buffers,
+                            //~ ),
+                            //~ EXT_PROD_U128_ALGO => classic_pbs_external_product_u128(
+                                //~ &parameters,
+                                //~ &mut raw_inputs,
+                                //~ &mut outputs,
+                                //~ sample_size,
+                                //~ secret_rng,
+                                //~ encrypt_rng,
+                                //~ fft.as_view(),
+                                //~ &mut computation_buffers,
+                            //~ ),
+                            //~ _ => unreachable!(),
+                        //~ };
 
-                        total_runtime_ns += sample_runtime_ns;
-                        total_prep_time_ns += prep_time_ns;
+                        //~ total_runtime_ns += sample_runtime_ns;
+                        //~ total_prep_time_ns += prep_time_ns;
 
-                        let raw_input_plaintext_vector =
-                            raw_inputs.into_iter().flatten().collect::<Vec<_>>();
-                        let output_plaintext_vector =
-                            outputs.into_iter().flatten().collect::<Vec<_>>();
+                        //~ let raw_input_plaintext_vector =
+                            //~ raw_inputs.into_iter().flatten().collect::<Vec<_>>();
+                        //~ let output_plaintext_vector =
+                            //~ outputs.into_iter().flatten().collect::<Vec<_>>();
 
-                        compute_torus_diff(
-                            errs,
-                            output_plaintext_vector,
-                            raw_input_plaintext_vector,
-                            parameters.ciphertext_modulus,
-                            parameters.ggsw_encrypted_value,
-                        );
-                    }
-                    let _mean_err = mean(&errors).unwrap();
-                    let std_err = std_deviation(&errors).unwrap();
-                    let mean_runtime_ns =
-                        total_runtime_ns / ((total_repetitions * sample_size) as u128);
-                    // GGSW is prepared only once per sample
-                    let mean_prep_time_ns = total_prep_time_ns / (total_repetitions as u128);
-                    write_to_file(
-                        &parameters,
-                        parameters.glwe_noise.standard_dev(),
-                        std_err,
-                        ggsw_noise.standard_dev(),
-                        variance_to_stddev(noise_prediction),
-                        mean_runtime_ns,
-                        mean_prep_time_ns,
-                        dir,
-                        id,
-                    );
+                        //~ compute_torus_diff(
+                            //~ errs,
+                            //~ output_plaintext_vector,
+                            //~ raw_input_plaintext_vector,
+                            //~ parameters.ciphertext_modulus,
+                            //~ parameters.ggsw_encrypted_value,
+                        //~ );
+                    //~ }
+                    //~ let _mean_err = mean(&errors).unwrap();
+                    //~ let std_err = std_deviation(&errors).unwrap();
+                    //~ let mean_runtime_ns =
+                        //~ total_runtime_ns / ((total_repetitions * sample_size) as u128);
+                    //~ // GGSW is prepared only once per sample
+                    //~ let mean_prep_time_ns = total_prep_time_ns / (total_repetitions as u128);
+                    //~ write_to_file(
+                        //~ &parameters,
+                        //~ parameters.glwe_noise.standard_dev(),
+                        //~ std_err,
+                        //~ ggsw_noise.standard_dev(),
+                        //~ variance_to_stddev(noise_prediction),
+                        //~ mean_runtime_ns,
+                        //~ mean_prep_time_ns,
+                        //~ dir,
+                        //~ id,
+                    //~ );
 
-                    // TODO output raw data
-                } else {
-                    write_to_file(
-                        &parameters,
-                        parameters.glwe_noise.standard_dev(),
-                        variance_to_stddev(Variance::from_variance(1. / 12.)),
-                        ggsw_noise.standard_dev(),
-                        variance_to_stddev(Variance::from_variance(1. / 12.)),
-                        0,
-                        0,
-                        dir,
-                        id,
-                    )
-                }
-            }
-        };
+                    //~ // TODO output raw data
+                //~ } else {
+                    //~ write_to_file(
+                        //~ &parameters,
+                        //~ parameters.glwe_noise.standard_dev(),
+                        //~ variance_to_stddev(Variance::from_variance(1. / 12.)),
+                        //~ ggsw_noise.standard_dev(),
+                        //~ variance_to_stddev(Variance::from_variance(1. / 12.)),
+                        //~ 0,
+                        //~ 0,
+                        //~ dir,
+                        //~ id,
+                    //~ )
+                //~ }
+            //~ }
+        //~ };
 
     match algo.as_str() {
         EXT_PROD_ALGO | MULTI_BIT_EXT_PROD_ALGO | STD_MULTI_BIT_EXT_PROD_ALGO => u64_tool(
             &mut secret_random_generator,
             &mut encryption_random_generator,
         ),
-        EXT_PROD_U128_ALGO | EXT_PROD_U128_SPLIT_ALGO => u128_tool(
-            &mut secret_random_generator,
-            &mut encryption_random_generator,
-        ),
+        //~ EXT_PROD_U128_ALGO | EXT_PROD_U128_SPLIT_ALGO => u128_tool(
+            //~ &mut secret_random_generator,
+            //~ &mut encryption_random_generator,
+        //~ ),
         _ => unreachable!(),
     };
 }
