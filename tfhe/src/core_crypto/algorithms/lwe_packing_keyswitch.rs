@@ -1,3 +1,8 @@
+use std::fmt::Debug;
+use std::fs;
+use std::fs::File;
+use std::io::{BufWriter, Write};
+
 use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul_assign;
 use crate::core_crypto::algorithms::slice_algorithms::{
     slice_wrapping_add_assign, slice_wrapping_sub_scalar_mul_assign,
@@ -185,6 +190,7 @@ pub fn keyswitch_lwe_ciphertext_into_glwe_ciphertext<Scalar, KeyCont, InputCont,
             );
         }
     }
+    println!();
 }
 
 /// Apply a keyswitch on each [`LWE ciphertext`](`LweCiphertext`) of an input [`LWE ciphertext
@@ -367,9 +373,31 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
         output_glwe_ciphertext.polynomial_size(),
         output_glwe_ciphertext.ciphertext_modulus(),
     );
+    let mut f = BufWriter::new(File::create("/home/stoiana/ksk.csv").expect("cannot open"));
+    for glwe_ksk in lwe_pksk.as_glwe_ciphertext_list().iter() {
+        for glwe_value in glwe_ksk.as_ref().iter() {
+            write!(f, "{:?},", glwe_value);
+        }
+        writeln!(f);
+    }
+
     // for each ciphertext, call mono_key_switch
     for (degree, input_ciphertext) in input_lwe_ciphertext.iter().enumerate() {
+        let mut f = BufWriter::new(File::create("/home/stoiana/lwe.csv").expect("cannot open"));
+        for lwe_value in input_ciphertext.as_ref().iter() {
+            write!(f, "{:?},", lwe_value);
+        }
+        writeln!(f);
+        
+        
         keyswitch_lwe_ciphertext_into_glwe_ciphertext(lwe_pksk, &input_ciphertext, &mut buffer);
+        
+        let mut f = BufWriter::new(File::create("/home/stoiana/glwe_body.csv").expect("cannot open"));
+        for glwe_value in buffer.as_ref().iter() {
+            write!(f, "{:?},", glwe_value);
+        }
+        writeln!(f);
+        break;
         buffer
             .as_mut_polynomial_list()
             .iter_mut()
