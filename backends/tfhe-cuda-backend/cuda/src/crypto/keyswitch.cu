@@ -1,6 +1,8 @@
+#include "fast_packing_keyswitch.cuh"
 #include "keyswitch.cuh"
 #include "keyswitch.h"
 #include <cstdint>
+#include <stdio.h>
 
 /* Perform keyswitch on a batch of 32 bits input LWE ciphertexts.
  * Head out to the equivalent operation on 64 bits for more details.
@@ -53,15 +55,17 @@ void cuda_keyswitch_lwe_ciphertext_vector_64(
 
 void scratch_packing_keyswitch_lwe_list_to_glwe_64(
     void *stream, uint32_t gpu_index, int8_t **fp_ks_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t num_lwes,
-    bool allocate_gpu_memory) {
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t num_lwes, bool allocate_gpu_memory) {
   scratch_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
-      static_cast<cudaStream_t>(stream), gpu_index, fp_ks_buffer,
+      static_cast<cudaStream_t>(stream), gpu_index, fp_ks_buffer, lwe_dimension,
       glwe_dimension, polynomial_size, num_lwes, allocate_gpu_memory);
 }
+
 /* Perform functional packing keyswitch on a batch of 64 bits input LWE
  * ciphertexts.
  */
+
 void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     void *stream, uint32_t gpu_index, void *glwe_array_out,
     void const *lwe_array_in, void const *fp_ksk_array, int8_t *fp_ks_buffer,
@@ -69,13 +73,24 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     uint32_t output_polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_lwes) {
 
-  host_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
-      static_cast<cudaStream_t>(stream), gpu_index,
-      static_cast<uint64_t *>(glwe_array_out),
-      static_cast<const uint64_t *>(lwe_array_in),
-      static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
-      input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
-      base_log, level_count, num_lwes);
+  if (can_use_pks_fast_path(input_lwe_dimension, num_lwes,
+                            output_polynomial_size, level_count,
+                            output_glwe_dimension)) {
+    host_fast_packing_keyswitch_lwe_list_to_glwe<uint64_t, ulonglong4>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        static_cast<uint64_t *>(glwe_array_out),
+        static_cast<const uint64_t *>(lwe_array_in),
+        static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
+        input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
+        base_log, level_count, num_lwes);
+  } else
+    host_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        static_cast<uint64_t *>(glwe_array_out),
+        static_cast<const uint64_t *>(lwe_array_in),
+        static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
+        input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
+        base_log, level_count, num_lwes);
 }
 
 void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,
