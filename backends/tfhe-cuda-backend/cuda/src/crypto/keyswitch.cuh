@@ -158,16 +158,20 @@ void execute_keyswitch_async(cudaStream_t const *streams,
 template <typename Torus>
 __host__ void scratch_packing_keyswitch_lwe_list_to_glwe(
     cudaStream_t stream, uint32_t gpu_index, int8_t **fp_ks_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t num_lwes,
-    bool allocate_gpu_memory) {
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t num_lwes, bool allocate_gpu_memory) {
   cudaSetDevice(gpu_index);
 
   int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
 
-  if (allocate_gpu_memory)
+  int memory_unit = glwe_accumulator_size > lwe_dimension
+                        ? glwe_accumulator_size
+                        : lwe_dimension;
+
+  if (allocate_gpu_memory) {
     *fp_ks_buffer = (int8_t *)cuda_malloc_async(
-        2 * num_lwes * glwe_accumulator_size * sizeof(Torus), stream,
-        gpu_index);
+        2 * num_lwes * memory_unit * sizeof(Torus), stream, gpu_index);
+  }
 }
 
 // public functional packing keyswitch for a single LWE ciphertext
@@ -241,6 +245,7 @@ __global__ void packing_keyswitch_lwe_list_to_glwe(
   auto lwe_in = lwe_array_in + input_id * lwe_size;
   auto ks_glwe_out = d_mem + input_id * glwe_accumulator_size;
   auto glwe_out = glwe_array_out + input_id * glwe_accumulator_size;
+
   // KS LWE to GLWE
   packing_keyswitch_lwe_ciphertext_into_glwe_ciphertext<Torus>(
       ks_glwe_out, lwe_in, fp_ksk, lwe_dimension_in, glwe_dimension,
@@ -293,8 +298,18 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
   dim3 grid(num_blocks, num_lwes);
   dim3 threads(num_threads);
 
+  // The fast path of PKS uses the scratch buffer (d_mem) differently:
+  // it needs to store the decomposed masks in the first half of this buffer
+  // and the keyswitched GLWEs in the second half of the buffer. Thus the
+  // scratch buffer for the fast path must determine the half-size of the
+  // scratch buffer as the max between the size of the GLWE and the size of the
+  // LWE-mask
+  int memory_unit = glwe_accumulator_size > lwe_dimension_in
+                        ? glwe_accumulator_size
+                        : lwe_dimension_in;
+
   auto d_mem = (Torus *)fp_ks_buffer;
-  auto d_tmp_glwe_array_out = d_mem + num_lwes * glwe_accumulator_size;
+  auto d_tmp_glwe_array_out = d_mem + num_lwes * memory_unit;
 
   // individually keyswitch each lwe
   packing_keyswitch_lwe_list_to_glwe<Torus><<<grid, threads, 0, stream>>>(

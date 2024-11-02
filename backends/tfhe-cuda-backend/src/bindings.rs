@@ -1229,6 +1229,7 @@ extern "C" {
         stream: *mut ffi::c_void,
         gpu_index: u32,
         fp_ks_buffer: *mut *mut i8,
+        lwe_dimension: u32,
         glwe_dimension: u32,
         polynomial_size: u32,
         num_lwes: u32,
