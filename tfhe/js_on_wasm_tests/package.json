@@ -7,5 +7,5 @@
     "test": "node --test --test-reporter=tap"
   },
   "author": "",
-  "license": "ISC"
+  "license": "BSD-3-Clause"
 }
