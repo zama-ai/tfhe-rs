@@ -137,7 +137,7 @@ __global__ void device_programmable_bootstrap_amortized(
     // Now that the rotation is done, decompose the resulting polynomial
     // coefficients so as to multiply each decomposed level with the
     // corresponding part of the bootstrapping key
-    for (int level = level_count - 1; level >= 0; level--) {
+    for (int level = 0; level < level_count; level++) {
       for (int i = 0; i < (glwe_dimension + 1); i++) {
         gadget.decompose_and_compress_next_polynomial(accumulator_fft, i);
 
