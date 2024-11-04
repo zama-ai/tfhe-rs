@@ -133,18 +133,17 @@ __global__ void device_programmable_bootstrap_tbc(
     GadgetMatrix<Torus, params> gadget_acc(base_log, level_count,
                                            accumulator_rotated);
     gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
-
-    // We are using the same memory space for accumulator_fft and
-    // accumulator_rotated, so we need to synchronize here to make sure they
-    // don't modify the same memory space at the same time
+    NSMFFT_direct<HalfDegree<params>>(accumulator_fft);
     synchronize_threads_in_block();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe<Torus, cluster_group, params>(
-        accumulator, accumulator_fft, block_join_buffer, bootstrapping_key,
-        polynomial_size, glwe_dimension, level_count, i, cluster, support_dsm);
-
+    mul_ggsw_glwe_in_fourier_domain<cluster_group, params>(
+        accumulator_fft, block_join_buffer, bootstrapping_key, i, cluster,
+        support_dsm);
+    NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
     synchronize_threads_in_block();
+
+    add_to_torus<Torus, params>(accumulator_fft, accumulator);
   }
 
   auto block_lwe_array_out =
@@ -152,42 +151,44 @@ __global__ void device_programmable_bootstrap_tbc(
                          (glwe_dimension * polynomial_size + 1) +
                      blockIdx.y * polynomial_size];
 
-  if (blockIdx.x == 0 && blockIdx.y < glwe_dimension) {
-    // Perform a sample extract. At this point, all blocks have the result, but
-    // we do the computation at block 0 to avoid waiting for extra blocks, in
-    // case they're not synchronized
-    sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+  if (blockIdx.x == 0) {
+    if (blockIdx.y < glwe_dimension) {
+      // Perform a sample extract. At this point, all blocks have the result,
+      // but we do the computation at block 0 to avoid waiting for extra blocks,
+      // in case they're not synchronized
+      sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
 
-    if (lut_count > 1) {
-      for (int i = 1; i < lut_count; i++) {
-        auto next_lwe_array_out =
-            lwe_array_out +
-            (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
-        auto next_block_lwe_array_out =
-            &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
-                                    (glwe_dimension * polynomial_size + 1) +
-                                blockIdx.y * polynomial_size];
+      if (lut_count > 1) {
+        for (int i = 1; i < lut_count; i++) {
+          auto next_lwe_array_out =
+              lwe_array_out +
+              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+          auto next_block_lwe_array_out =
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                                      (glwe_dimension * polynomial_size + 1) +
+                                  blockIdx.y * polynomial_size];
 
-        sample_extract_mask<Torus, params>(next_block_lwe_array_out,
-                                           accumulator, 1, i * lut_stride);
+          sample_extract_mask<Torus, params>(next_block_lwe_array_out,
+                                             accumulator, 1, i * lut_stride);
+        }
       }
-    }
-  } else if (blockIdx.x == 0 && blockIdx.y == glwe_dimension) {
-    sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+    } else if (blockIdx.y == glwe_dimension) {
+      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
 
-    if (lut_count > 1) {
-      for (int i = 1; i < lut_count; i++) {
+      if (lut_count > 1) {
+        for (int i = 1; i < lut_count; i++) {
 
-        auto next_lwe_array_out =
-            lwe_array_out +
-            (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
-        auto next_block_lwe_array_out =
-            &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
-                                    (glwe_dimension * polynomial_size + 1) +
-                                blockIdx.y * polynomial_size];
+          auto next_lwe_array_out =
+              lwe_array_out +
+              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+          auto next_block_lwe_array_out =
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                                      (glwe_dimension * polynomial_size + 1) +
+                                  blockIdx.y * polynomial_size];
 
-        sample_extract_body<Torus, params>(next_block_lwe_array_out,
-                                           accumulator, 0, i * lut_stride);
+          sample_extract_body<Torus, params>(next_block_lwe_array_out,
+                                             accumulator, 0, i * lut_stride);
+        }
       }
     }
   }
@@ -287,7 +288,7 @@ __host__ void host_programmable_bootstrap_tbc(
   uint64_t partial_dm = full_dm - partial_sm;
 
   int8_t *d_mem = buffer->d_mem;
-  double2 *buffer_fft = buffer->global_accumulator_fft;
+  double2 *buffer_fft = buffer->global_join_buffer;
 
   int thds = polynomial_size / params::opt;
   dim3 grid(level_count, glwe_dimension + 1, input_lwe_ciphertext_count);

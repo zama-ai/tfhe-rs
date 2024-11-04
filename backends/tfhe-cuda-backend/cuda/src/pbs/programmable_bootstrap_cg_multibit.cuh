@@ -33,7 +33,6 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
         int8_t *device_mem, uint64_t device_memory_size_per_block,
         uint32_t lut_count, uint32_t lut_stride) {
-
   grid_group grid = this_grid();
 
   // We use shared memory for the polynomials that are used often during the
@@ -50,9 +49,9 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
-  Torus *accumulator = (Torus *)selected_memory;
+  Torus *accumulator_rotated = (Torus *)selected_memory;
   double2 *accumulator_fft =
-      (double2 *)accumulator +
+      (double2 *)accumulator_rotated +
       (ptrdiff_t)(sizeof(Torus) * polynomial_size / sizeof(double2));
 
   if constexpr (SMD == PARTIALSM)
@@ -71,13 +70,12 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       &join_buffer[blockIdx.z * level_count * (glwe_dimension + 1) *
                    params::degree / 2];
 
-  Torus *global_slice =
-      global_accumulator +
-      (blockIdx.y + blockIdx.z * (glwe_dimension + 1)) * params::degree;
+  Torus *global_accumulator_slice =
+      &global_accumulator[(blockIdx.y + blockIdx.z * (glwe_dimension + 1)) *
+                          params::degree];
 
-  const double2 *keybundle = keybundle_array +
-                             // select the input
-                             blockIdx.z * keybundle_size_per_input;
+  const double2 *keybundle =
+      &keybundle_array[blockIdx.z * keybundle_size_per_input];
 
   if (lwe_offset == 0) {
     // Put "b" in [0, 2N[
@@ -87,12 +85,12 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
     divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                           params::degree / params::opt>(
-        accumulator, &block_lut_vector[blockIdx.y * params::degree], b_hat,
-        false);
+        accumulator_rotated, &block_lut_vector[blockIdx.y * params::degree],
+        b_hat, false);
   } else {
-    // Load the accumulator calculated in previous iterations
+    // Load the accumulator_rotated calculated in previous iterations
     copy_polynomial<Torus, params::opt, params::degree / params::opt>(
-        global_slice, accumulator);
+        global_accumulator_slice, accumulator_rotated);
   }
 
   for (int i = 0; (i + lwe_offset) < lwe_dimension && i < lwe_chunk_size; i++) {
@@ -100,79 +98,82 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     // bootstrapped ciphertext
     round_to_closest_multiple_inplace<Torus, params::opt,
                                       params::degree / params::opt>(
-        accumulator, base_log, level_count);
+        accumulator_rotated, base_log, level_count);
 
-    // Decompose the accumulator. Each block gets one level of the
+    // Decompose the accumulator_rotated. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
-    // accumulator decomposed at level 0, 1 at 1, etc.)
-    GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator);
+    // accumulator_rotated decomposed at level 0, 1 at 1, etc.)
+    GadgetMatrix<Torus, params> gadget_acc(base_log, level_count,
+                                           accumulator_rotated);
     gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
-
-    // We are using the same memory space for accumulator_fft and
-    // accumulator_rotated, so we need to synchronize here to make sure they
-    // don't modify the same memory space at the same time
+    NSMFFT_direct<HalfDegree<params>>(accumulator_fft);
     synchronize_threads_in_block();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe<Torus, grid_group, params>(
-        accumulator, accumulator_fft, block_join_buffer, keybundle,
-        polynomial_size, glwe_dimension, level_count, i, grid);
-
+    mul_ggsw_glwe_in_fourier_domain<grid_group, params>(
+        accumulator_fft, block_join_buffer, keybundle, i, grid);
+    NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
     synchronize_threads_in_block();
+
+    add_to_torus<Torus, params>(accumulator_fft, accumulator_rotated, true);
   }
 
-  if (lwe_offset + lwe_chunk_size >= (lwe_dimension / grouping_factor)) {
-    auto block_lwe_array_out =
-        &lwe_array_out[lwe_output_indexes[blockIdx.z] *
-                           (glwe_dimension * polynomial_size + 1) +
-                       blockIdx.y * polynomial_size];
+  auto accumulator = accumulator_rotated;
 
-    if (blockIdx.x == 0 && blockIdx.y < glwe_dimension) {
-      // Perform a sample extract. At this point, all blocks have the result,
-      // but we do the computation at block 0 to avoid waiting for extra blocks,
-      // in case they're not synchronized
-      // Always extract one by default
-      sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+  if (blockIdx.x == 0) {
+    if (lwe_offset + lwe_chunk_size >= (lwe_dimension / grouping_factor)) {
+      auto block_lwe_array_out =
+          &lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                             (glwe_dimension * polynomial_size + 1) +
+                         blockIdx.y * polynomial_size];
 
-      if (lut_count > 1) {
-        for (int i = 1; i < lut_count; i++) {
-          auto next_lwe_array_out =
-              lwe_array_out +
-              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
-          auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
-                                      (glwe_dimension * polynomial_size + 1) +
-                                  blockIdx.y * polynomial_size];
+      if (blockIdx.y < glwe_dimension) {
+        // Perform a sample extract. At this point, all blocks have the result,
+        // but we do the computation at block 0 to avoid waiting for extra
+        // blocks, in case they're not synchronized Always extract one by
+        // default
+        sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
 
-          sample_extract_mask<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, 1, i * lut_stride);
+        if (lut_count > 1) {
+          for (int i = 1; i < lut_count; i++) {
+            auto next_lwe_array_out =
+                lwe_array_out +
+                (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+            auto next_block_lwe_array_out =
+                &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                                        (glwe_dimension * polynomial_size + 1) +
+                                    blockIdx.y * polynomial_size];
+
+            sample_extract_mask<Torus, params>(next_block_lwe_array_out,
+                                               accumulator, 1, i * lut_stride);
+          }
+        }
+
+      } else if (blockIdx.y == glwe_dimension) {
+
+        sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+
+        if (lut_count > 1) {
+          for (int i = 1; i < lut_count; i++) {
+
+            auto next_lwe_array_out =
+                lwe_array_out +
+                (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+            auto next_block_lwe_array_out =
+                &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                                        (glwe_dimension * polynomial_size + 1) +
+                                    blockIdx.y * polynomial_size];
+
+            sample_extract_body<Torus, params>(next_block_lwe_array_out,
+                                               accumulator, 0, i * lut_stride);
+          }
         }
       }
-
-    } else if (blockIdx.x == 0 && blockIdx.y == glwe_dimension) {
-
-      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
-
-      if (lut_count > 1) {
-        for (int i = 1; i < lut_count; i++) {
-
-          auto next_lwe_array_out =
-              lwe_array_out +
-              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
-          auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
-                                      (glwe_dimension * polynomial_size + 1) +
-                                  blockIdx.y * polynomial_size];
-
-          sample_extract_body<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, 0, i * lut_stride);
-        }
-      }
+    } else {
+      // Load the accumulator calculated in previous iterations
+      copy_polynomial<Torus, params::opt, params::degree / params::opt>(
+          accumulator, global_accumulator_slice);
     }
-  } else {
-    // Load the accumulator calculated in previous iterations
-    copy_polynomial<Torus, params::opt, params::degree / params::opt>(
-        accumulator, global_slice);
   }
 }
 
@@ -295,15 +296,18 @@ __host__ void execute_cg_external_product_loop(
     uint32_t level_count, uint32_t lwe_offset, uint32_t lut_count,
     uint32_t lut_stride) {
 
-  auto lwe_chunk_size = buffer->lwe_chunk_size;
-  uint64_t full_dm =
+  uint64_t full_sm =
       get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(
           polynomial_size);
-  uint64_t partial_dm =
+  uint64_t partial_sm =
       get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap<Torus>(
           polynomial_size);
+
+  auto full_dm = full_sm;
+  auto partial_dm = full_sm - partial_sm;
   uint64_t no_dm = 0;
 
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
   int max_shared_memory = cuda_get_max_shared_memory(0);
   cudaSetDevice(gpu_index);
 
@@ -313,13 +317,11 @@ __host__ void execute_cg_external_product_loop(
 
   uint32_t chunk_size =
       std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
-  if (chunk_size == 0)
-    return;
 
   auto d_mem = buffer->d_mem_acc_cg;
   auto keybundle_fft = buffer->keybundle_fft;
   auto global_accumulator = buffer->global_accumulator;
-  auto buffer_fft = buffer->global_accumulator_fft;
+  auto join_buffer = buffer->global_join_buffer;
 
   void *kernel_args[22];
   kernel_args[0] = &lwe_array_out;
@@ -329,7 +331,7 @@ __host__ void execute_cg_external_product_loop(
   kernel_args[4] = &lwe_array_in;
   kernel_args[5] = &lwe_input_indexes;
   kernel_args[6] = &keybundle_fft;
-  kernel_args[7] = &buffer_fft;
+  kernel_args[7] = &join_buffer;
   kernel_args[8] = &global_accumulator;
   kernel_args[9] = &lwe_dimension;
   kernel_args[10] = &glwe_dimension;
@@ -358,13 +360,13 @@ __host__ void execute_cg_external_product_loop(
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)device_multi_bit_programmable_bootstrap_cg_accumulate<
             Torus, params, PARTIALSM>,
-        grid_accumulate, thds, (void **)kernel_args, partial_dm, stream));
+        grid_accumulate, thds, (void **)kernel_args, partial_sm, stream));
   } else {
     kernel_args[19] = &no_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)device_multi_bit_programmable_bootstrap_cg_accumulate<
             Torus, params, FULLSM>,
-        grid_accumulate, thds, (void **)kernel_args, full_dm, stream));
+        grid_accumulate, thds, (void **)kernel_args, full_sm, stream));
   }
 }
 

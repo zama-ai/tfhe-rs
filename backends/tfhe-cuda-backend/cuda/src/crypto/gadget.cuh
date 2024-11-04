@@ -1,6 +1,7 @@
 #ifndef CNCRT_CRYPTO_CUH
 #define CNCRT_CRPYTO_CUH
 
+#include "crypto/torus.cuh"
 #include "device.h"
 #include <cstdint>
 
@@ -21,7 +22,6 @@ private:
   uint32_t base_log;
   uint32_t mask;
   uint32_t num_poly;
-  int current_level;
   T mask_mod_b;
   T *state;
 
@@ -32,7 +32,6 @@ public:
         state(state) {
 
     mask_mod_b = (1ll << base_log) - 1ll;
-    current_level = level_count;
     int tid = threadIdx.x;
     for (int i = 0; i < num_poly * params::opt; i++) {
       state[tid] >>= (sizeof(T) * 8 - base_log * level_count);
@@ -52,8 +51,6 @@ public:
   // Decomposes a single polynomial
   __device__ void decompose_and_compress_next_polynomial(double2 *result,
                                                          int j) {
-    if (j == 0)
-      current_level -= 1;
 
     int tid = threadIdx.x;
     auto state_slice = state + j * params::degree;
@@ -72,8 +69,8 @@ public:
       res_re -= carry_re << base_log;
       res_im -= carry_im << base_log;
 
-      result[tid].x = (int32_t)res_re;
-      result[tid].y = (int32_t)res_im;
+      typecast_torus_to_double(res_re, result[tid].x);
+      typecast_torus_to_double(res_im, result[tid].y);
 
       tid += params::degree / params::opt;
     }

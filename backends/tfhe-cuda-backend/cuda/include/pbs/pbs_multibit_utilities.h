@@ -106,7 +106,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   uint32_t lwe_chunk_size;
   double2 *keybundle_fft;
   Torus *global_accumulator;
-  double2 *global_accumulator_fft;
+  double2 *global_join_buffer;
 
   PBS_VARIANT pbs_variant;
 
@@ -225,10 +225,12 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
           num_blocks_keybundle * (polynomial_size / 2) * sizeof(double2),
           stream, gpu_index);
       global_accumulator = (Torus *)cuda_malloc_async(
-          num_blocks_acc_step_one * polynomial_size * sizeof(Torus), stream,
-          gpu_index);
-      global_accumulator_fft = (double2 *)cuda_malloc_async(
-          num_blocks_acc_step_one * (polynomial_size / 2) * sizeof(double2),
+          input_lwe_ciphertext_count * (glwe_dimension + 1) * polynomial_size *
+              sizeof(Torus),
+          stream, gpu_index);
+      global_join_buffer = (double2 *)cuda_malloc_async(
+          level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count *
+              (polynomial_size / 2) * sizeof(double2),
           stream, gpu_index);
     }
   }
@@ -260,7 +262,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 
     cuda_drop_async(keybundle_fft, stream, gpu_index);
     cuda_drop_async(global_accumulator, stream, gpu_index);
-    cuda_drop_async(global_accumulator_fft, stream, gpu_index);
+    cuda_drop_async(global_join_buffer, stream, gpu_index);
   }
 };
 

@@ -7,6 +7,7 @@
 #include "fft/bnsmfft.cuh"
 #include "helper_multi_gpu.h"
 #include "pbs/programmable_bootstrap_multibit.h"
+#include "polynomial/polynomial_math.cuh"
 
 using namespace cooperative_groups;
 namespace cg = cooperative_groups;
@@ -20,59 +21,43 @@ get_join_buffer_element(int level_id, int glwe_id, G &group,
                         double2 *global_memory_buffer, uint32_t polynomial_size,
                         uint32_t glwe_dimension, bool support_dsm);
 
-template <typename Torus, typename G, class params>
+/** Perform the matrix multiplication between the GGSW and the GLWE,
+ * each block operating on a single level for mask and body.
+ * Both operands should be at fourier domain
+ *
+ * This function assumes:
+ *  - Thread blocks at dimension x relates to the decomposition level.
+ *  - Thread blocks at dimension y relates to the glwe dimension.
+ *  - polynomial_size / params::opt threads are available per block
+ */
+template <typename G, class params>
 __device__ void
-mul_ggsw_glwe(Torus *accumulator, double2 *fft, double2 *join_buffer,
-              const double2 *__restrict__ bootstrapping_key,
-              int polynomial_size, uint32_t glwe_dimension, int level_count,
-              int iteration, G &group, bool support_dsm = false) {
-
-  // Switch to the FFT space
-  NSMFFT_direct<HalfDegree<params>>(fft);
-  synchronize_threads_in_block();
-
-  // Get the pieces of the bootstrapping key that will be needed for the
-  // external product; blockIdx.x is the ID of the block that's executing
-  // this function, so we end up getting the lines of the bootstrapping key
-  // needed to perform the external product in this block (corresponding to
-  // the same decomposition level)
-  auto bsk_slice = get_ith_mask_kth_block(
-      bootstrapping_key, iteration, blockIdx.y, blockIdx.x, polynomial_size,
-      glwe_dimension, level_count);
-
-  // Perform the matrix multiplication between the GGSW and the GLWE,
-  // each block operating on a single level for mask and body
+mul_ggsw_glwe_in_fourier_domain(double2 *fft, double2 *join_buffer,
+                                const double2 *__restrict__ bootstrapping_key,
+                                int iteration, G &group,
+                                bool support_dsm = false) {
+  const uint32_t polynomial_size = params::degree;
+  const uint32_t glwe_dimension = gridDim.y - 1;
+  const uint32_t level_count = gridDim.x;
 
   // The first product is used to initialize level_join_buffer
-  auto bsk_poly = bsk_slice + blockIdx.y * params::degree / 2;
   auto this_block_rank = get_this_block_rank<G>(group, support_dsm);
-  auto buffer_slice =
-      get_join_buffer_element<G>(blockIdx.x, blockIdx.y, group, join_buffer,
-                                 polynomial_size, glwe_dimension, support_dsm);
-
-  int tid = threadIdx.x;
-  for (int i = 0; i < params::opt / 2; i++) {
-    buffer_slice[tid] = fft[tid] * bsk_poly[tid];
-    tid += params::degree / params::opt;
-  }
-
-  group.sync();
 
   // Continues multiplying fft by every polynomial in that particular bsk level
   // Each y-block accumulates in a different polynomial at each iteration
-  for (int j = 1; j < (glwe_dimension + 1); j++) {
+  auto bsk_slice = get_ith_mask_kth_block(
+      bootstrapping_key, iteration, blockIdx.y, blockIdx.x, polynomial_size,
+      glwe_dimension, level_count);
+  for (int j = 0; j < glwe_dimension + 1; j++) {
     int idx = (j + this_block_rank) % (glwe_dimension + 1);
 
-    auto bsk_poly = bsk_slice + idx * params::degree / 2;
+    auto bsk_poly = bsk_slice + idx * polynomial_size / 2;
     auto buffer_slice = get_join_buffer_element<G>(blockIdx.x, idx, group,
                                                    join_buffer, polynomial_size,
                                                    glwe_dimension, support_dsm);
 
-    int tid = threadIdx.x;
-    for (int i = 0; i < params::opt / 2; i++) {
-      buffer_slice[tid] += fft[tid] * bsk_poly[tid];
-      tid += params::degree / params::opt;
-    }
+    polynomial_product_accumulate_in_fourier_domain<params, double2>(
+        buffer_slice, fft, bsk_poly, j == 0);
     group.sync();
   }
 
@@ -80,40 +65,16 @@ mul_ggsw_glwe(Torus *accumulator, double2 *fft, double2 *join_buffer,
   // All blocks are synchronized here; after this sync, level_join_buffer has
   // the values needed from every other block
 
-  auto src_acc =
-      get_join_buffer_element<G>(0, blockIdx.y, group, join_buffer,
-                                 polynomial_size, glwe_dimension, support_dsm);
-
-  // copy first product into fft buffer
-  tid = threadIdx.x;
-  for (int i = 0; i < params::opt / 2; i++) {
-    fft[tid] = src_acc[tid];
-    tid += params::degree / params::opt;
-  }
-  synchronize_threads_in_block();
-
   // accumulate rest of the products into fft buffer
-  for (int l = 1; l < gridDim.x; l++) {
+  for (int l = 0; l < level_count; l++) {
     auto cur_src_acc = get_join_buffer_element<G>(l, blockIdx.y, group,
                                                   join_buffer, polynomial_size,
                                                   glwe_dimension, support_dsm);
-    tid = threadIdx.x;
-    for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] += cur_src_acc[tid];
-      tid += params::degree / params::opt;
-    }
+
+    polynomial_accumulate_in_fourier_domain<params>(fft, cur_src_acc, l == 0);
   }
 
   synchronize_threads_in_block();
-
-  // Perform the inverse FFT on the result of the GGSW x GLWE and add to the
-  // accumulator
-  NSMFFT_inverse<HalfDegree<params>>(fft);
-  synchronize_threads_in_block();
-
-  add_to_torus<Torus, params>(fft, accumulator);
-
-  __syncthreads();
 }
 
 template <typename Torus>

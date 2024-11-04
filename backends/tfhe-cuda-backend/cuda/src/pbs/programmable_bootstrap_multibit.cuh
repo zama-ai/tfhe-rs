@@ -50,7 +50,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     uint64_t device_memory_size_per_block) {
 
   extern __shared__ int8_t sharedmem[];
-  int8_t *selected_memory = sharedmem;
+  int8_t *selected_memory;
 
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
@@ -190,14 +190,14 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                   (glwe_dimension + 1)];
 
   Torus *global_slice =
-      global_accumulator +
-      (blockIdx.y + blockIdx.z * (glwe_dimension + 1)) * params::degree;
+      &global_accumulator[(blockIdx.y + blockIdx.z * (glwe_dimension + 1)) *
+                          params::degree];
 
   double2 *global_fft_slice =
-      global_accumulator_fft +
-      (blockIdx.y + blockIdx.x * (glwe_dimension + 1) +
-       blockIdx.z * level_count * (glwe_dimension + 1)) *
-          (polynomial_size / 2);
+      &global_accumulator_fft[(blockIdx.y + blockIdx.x * (glwe_dimension + 1) +
+                               blockIdx.z * level_count *
+                                   (glwe_dimension + 1)) *
+                              (polynomial_size / 2)];
 
   if (lwe_iteration == 0) {
     // First iteration
@@ -249,8 +249,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     device_multi_bit_programmable_bootstrap_accumulate_step_two(
         Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
         const double2 *__restrict__ keybundle_array, Torus *global_accumulator,
-        double2 *global_accumulator_fft, uint32_t lwe_dimension,
-        uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+        double2 *join_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
+        uint32_t polynomial_size, uint32_t level_count,
         uint32_t grouping_factor, uint32_t iteration, uint32_t lwe_offset,
         uint32_t lwe_chunk_size, int8_t *device_mem,
         uint64_t device_memory_size_per_block, uint32_t lut_count,
@@ -274,30 +274,29 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   double2 *accumulator_fft = (double2 *)selected_memory;
 
   //
-  const double2 *keybundle = keybundle_array +
-                             // select the input
-                             blockIdx.x * lwe_chunk_size * level_count *
-                                 (glwe_dimension + 1) * (glwe_dimension + 1) *
-                                 (polynomial_size / 2);
+  const double2 *keybundle =
+      &keybundle_array[blockIdx.x * lwe_chunk_size * level_count *
+                       (glwe_dimension + 1) * (glwe_dimension + 1) *
+                       (polynomial_size / 2)];
 
-  double2 *global_accumulator_fft_input =
-      global_accumulator_fft +
-      blockIdx.x * level_count * (glwe_dimension + 1) * (polynomial_size / 2);
+  double2 *join_buffer_slice =
+      &join_buffer[blockIdx.x * level_count * (glwe_dimension + 1) *
+                   (polynomial_size / 2)];
 
   for (int level = 0; level < level_count; level++) {
     double2 *global_fft_slice =
-        global_accumulator_fft_input +
-        level * (glwe_dimension + 1) * (polynomial_size / 2);
+        &join_buffer_slice[level * (glwe_dimension + 1) *
+                           (polynomial_size / 2)];
 
     for (int j = 0; j < (glwe_dimension + 1); j++) {
-      double2 *fft = global_fft_slice + j * params::degree / 2;
+      double2 *fft = &global_fft_slice[j * params::degree / 2];
 
       // Get the bootstrapping key piece necessary for the multiplication
       // It is already in the Fourier domain
       auto bsk_slice =
           get_ith_mask_kth_block(keybundle, iteration, j, level,
                                  polynomial_size, glwe_dimension, level_count);
-      auto bsk_poly = bsk_slice + blockIdx.y * params::degree / 2;
+      auto bsk_poly = &bsk_slice[blockIdx.y * params::degree / 2];
 
       polynomial_product_accumulate_in_fourier_domain<params, double2>(
           accumulator_fft, fft, bsk_poly, !level && !j);
@@ -308,8 +307,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // accumulator
   NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
   Torus *global_slice =
-      global_accumulator +
-      (blockIdx.y + blockIdx.x * (glwe_dimension + 1)) * params::degree;
+      &global_accumulator[(blockIdx.y + blockIdx.x * (glwe_dimension + 1)) *
+                          params::degree];
 
   add_to_torus<Torus, params>(accumulator_fft, global_slice, true);
   synchronize_threads_in_block();
@@ -499,8 +498,6 @@ __host__ void execute_compute_keybundle(
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   uint32_t chunk_size =
       std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
-  if (chunk_size == 0)
-    return;
 
   uint32_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
@@ -559,7 +556,7 @@ execute_step_one(cudaStream_t stream, uint32_t gpu_index,
   //
   auto d_mem = buffer->d_mem_acc_step_one;
   auto global_accumulator = buffer->global_accumulator;
-  auto global_accumulator_fft = buffer->global_accumulator_fft;
+  auto global_accumulator_fft = buffer->global_join_buffer;
 
   dim3 grid_accumulate_step_one(level_count, glwe_dimension + 1, num_samples);
   dim3 thds(polynomial_size / params::opt, 1, 1);
@@ -611,7 +608,7 @@ __host__ void execute_step_two(
   auto d_mem = buffer->d_mem_acc_step_two;
   auto keybundle_fft = buffer->keybundle_fft;
   auto global_accumulator = buffer->global_accumulator;
-  auto global_accumulator_fft = buffer->global_accumulator_fft;
+  auto global_accumulator_fft = buffer->global_join_buffer;
 
   dim3 grid_accumulate_step_two(num_samples, glwe_dimension + 1);
   dim3 thds(polynomial_size / params::opt, 1, 1);
