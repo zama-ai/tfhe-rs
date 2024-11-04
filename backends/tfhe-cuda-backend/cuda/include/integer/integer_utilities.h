@@ -2929,6 +2929,10 @@ template <typename Torus> struct int_cmux_buffer {
   int_zero_out_if_buffer<Torus> *zero_if_false_buffer;
 
   int_radix_params params;
+  cudaEvent_t* ingoing_events;
+  cudaEvent_t* outgoing_events1;
+  cudaEvent_t* outgoing_events2;
+  
 
   int_cmux_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                   uint32_t gpu_count,
@@ -2998,6 +3002,15 @@ template <typename Torus> struct int_cmux_buffer {
       inverted_predicate_lut->broadcast_lut(streams, gpu_indexes,
                                             gpu_indexes[0]);
       message_extract_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+
+      ingoing_events = (cudaEvent_t*)malloc(gpu_count * sizeof(cudaEvent_t));
+      outgoing_events1 = (cudaEvent_t*)malloc(gpu_count * sizeof(cudaEvent_t));
+      outgoing_events2 = (cudaEvent_t*)malloc(gpu_count * sizeof(cudaEvent_t));
+      for (uint j = 0; j < gpu_count; j++) {
+        cudaEventCreate(&ingoing_events[j]);
+        cudaEventCreate(&outgoing_events1[j]);
+        cudaEventCreate(&outgoing_events2[j]);
+      }
     }
   }
 
@@ -3017,6 +3030,15 @@ template <typename Torus> struct int_cmux_buffer {
 
     cuda_drop_async(tmp_true_ct, streams[0], gpu_indexes[0]);
     cuda_drop_async(tmp_false_ct, streams[0], gpu_indexes[0]);
+
+    for (uint j = 0; j < gpu_count; j++) {
+      cudaEventDestroy(ingoing_events[j]);
+      cudaEventDestroy(outgoing_events1[j]);
+      cudaEventDestroy(outgoing_events2[j]);
+    }
+    free(ingoing_events);
+    free(outgoing_events1);
+    free(outgoing_events2);
   }
 };
 
