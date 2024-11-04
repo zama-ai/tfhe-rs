@@ -1,80 +1,44 @@
-use serde::{Deserialize, Serialize};
-use tfhe_versionable::{UnversionizeError, Upgrade, Version, VersionsDispatch};
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, IntoContainerOwned};
+use crate::core_crypto::prelude::Container;
 use crate::shortint::server_key::*;
 
-#[derive(Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum SerializableShortintBootstrappingKeyVersioned<'vers> {
-    V0(SerializableShortintBootstrappingKeyVersion<'vers>),
+#[derive(VersionsDispatch)]
+pub enum SerializableShortintBootstrappingKeyVersions<C: Container<Element = concrete_fft::c64>> {
+    V0(SerializableShortintBootstrappingKey<C>),
 }
 
-impl<'vers, C: Container<Element = concrete_fft::c64>>
-    From<&'vers SerializableShortintBootstrappingKey<C>>
-    for SerializableShortintBootstrappingKeyVersioned<'vers>
-{
-    fn from(value: &'vers SerializableShortintBootstrappingKey<C>) -> Self {
-        Self::V0(value.into())
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum SerializableShortintBootstrappingKeyVersionedOwned {
-    V0(SerializableShortintBootstrappingKeyVersionOwned),
-}
-
-impl<C: Container<Element = concrete_fft::c64>> From<SerializableShortintBootstrappingKey<C>>
-    for SerializableShortintBootstrappingKeyVersionedOwned
-{
-    fn from(value: SerializableShortintBootstrappingKey<C>) -> Self {
-        Self::V0(value.into())
-    }
-}
-
-impl<C: IntoContainerOwned<Element = concrete_fft::c64>>
-    TryFrom<SerializableShortintBootstrappingKeyVersionedOwned>
-    for SerializableShortintBootstrappingKey<C>
-{
-    type Error = UnversionizeError;
-
-    fn try_from(
-        value: SerializableShortintBootstrappingKeyVersionedOwned,
-    ) -> Result<Self, Self::Error> {
-        match value {
-            SerializableShortintBootstrappingKeyVersionedOwned::V0(v0) => v0.try_into(),
-        }
-    }
+impl Deprecable for ServerKey {
+    const TYPE_NAME: &'static str = "ServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum ServerKeyVersions {
-    V0(ServerKey),
+    V0(Deprecated<ServerKey>),
+    V1(ServerKey),
+}
+
+impl Deprecable for ShortintCompressedBootstrappingKey {
+    const TYPE_NAME: &'static str = "ShortintCompressedBootstrappingKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum ShortintCompressedBootstrappingKeyVersions {
-    V0(ShortintCompressedBootstrappingKey),
+    V0(Deprecated<ShortintCompressedBootstrappingKey>),
+    V1(ShortintCompressedBootstrappingKey),
 }
 
-#[derive(Version)]
-pub struct UnsupportedCompressedServerKeyV0;
-
-impl Upgrade<CompressedServerKey> for UnsupportedCompressedServerKeyV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<CompressedServerKey, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load CompressedServerKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+impl Deprecable for CompressedServerKey {
+    const TYPE_NAME: &'static str = "CompressedServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedServerKeyVersions {
-    V0(UnsupportedCompressedServerKeyV0),
-    V1(CompressedServerKey),
+    V0(Deprecated<CompressedServerKey>),
+    V1(Deprecated<CompressedServerKey>),
+    V2(CompressedServerKey),
 }

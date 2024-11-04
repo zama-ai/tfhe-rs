@@ -24,8 +24,8 @@ __device__ const T *get_ith_mask_kth_block(const T *ptr, int i, int k,
                                            uint32_t level_count) {
   return &ptr[get_start_ith_ggsw(i, polynomial_size, glwe_dimension,
                                  level_count) +
-              level * polynomial_size / 2 * (glwe_dimension + 1) *
-                  (glwe_dimension + 1) +
+              (level_count - level - 1) * polynomial_size / 2 *
+                  (glwe_dimension + 1) * (glwe_dimension + 1) +
               k * polynomial_size / 2 * (glwe_dimension + 1)];
 }
 
@@ -35,8 +35,8 @@ __device__ T *get_ith_mask_kth_block(T *ptr, int i, int k, int level,
                                      int glwe_dimension, uint32_t level_count) {
   return &ptr[get_start_ith_ggsw(i, polynomial_size, glwe_dimension,
                                  level_count) +
-              level * polynomial_size / 2 * (glwe_dimension + 1) *
-                  (glwe_dimension + 1) +
+              (level_count - level - 1) * polynomial_size / 2 *
+                  (glwe_dimension + 1) * (glwe_dimension + 1) +
               k * polynomial_size / 2 * (glwe_dimension + 1)];
 }
 template <typename T>
@@ -45,8 +45,8 @@ __device__ T *get_ith_body_kth_block(T *ptr, int i, int k, int level,
                                      int glwe_dimension, uint32_t level_count) {
   return &ptr[get_start_ith_ggsw(i, polynomial_size, glwe_dimension,
                                  level_count) +
-              level * polynomial_size / 2 * (glwe_dimension + 1) *
-                  (glwe_dimension + 1) +
+              (level_count - level - 1) * polynomial_size / 2 *
+                  (glwe_dimension + 1) * (glwe_dimension + 1) +
               k * polynomial_size / 2 * (glwe_dimension + 1) +
               glwe_dimension * polynomial_size / 2];
 }

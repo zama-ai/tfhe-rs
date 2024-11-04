@@ -1,4 +1,5 @@
-use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+use tfhe_versionable::VersionsDispatch;
 
 use crate::shortint::key_switching_key::{
     CompressedKeySwitchingKeyMaterial, KeySwitchingKeyMaterial,
@@ -15,44 +16,26 @@ pub enum KeySwitchingKeyVersions {
     V0(KeySwitchingKey),
 }
 
-#[derive(Version)]
-pub struct UnsupportedCompressedKeySwitchingKeyMaterialV0;
-
-impl Upgrade<CompressedKeySwitchingKeyMaterial> for UnsupportedCompressedKeySwitchingKeyMaterialV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<CompressedKeySwitchingKeyMaterial, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load CompressedKeySwitchingKeyMaterial, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+impl Deprecable for CompressedKeySwitchingKeyMaterial {
+    const TYPE_NAME: &'static str = "CompressedKeySwitchingKeyMaterial";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedKeySwitchingKeyMaterialVersions {
-    V0(UnsupportedCompressedKeySwitchingKeyMaterialV0),
-    V1(CompressedKeySwitchingKeyMaterial),
+    V0(Deprecated<CompressedKeySwitchingKeyMaterial>),
+    V1(Deprecated<CompressedKeySwitchingKeyMaterial>),
+    V2(CompressedKeySwitchingKeyMaterial),
 }
 
-#[derive(Version)]
-pub struct UnsupportedCompressedKeySwitchingKeyV0;
-
-impl Upgrade<CompressedKeySwitchingKey> for UnsupportedCompressedKeySwitchingKeyV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<CompressedKeySwitchingKey, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load CompressedKeySwitchingKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+impl Deprecable for CompressedKeySwitchingKey {
+    const TYPE_NAME: &'static str = "CompressedKeySwitchingKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedKeySwitchingKeyVersions {
-    V0(UnsupportedCompressedKeySwitchingKeyV0),
-    V1(CompressedKeySwitchingKey),
+    V0(Deprecated<CompressedKeySwitchingKey>),
+    V1(Deprecated<CompressedKeySwitchingKey>),
+    V2(CompressedKeySwitchingKey),
 }

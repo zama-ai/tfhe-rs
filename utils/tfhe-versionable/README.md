@@ -1,7 +1,7 @@
 # TFHE-versionable
 This crate provides type level versioning for serialized data. It offers a way
 to add backward compatibility on any data type. The versioning scheme works
-recursively and is independant of the chosen serialized file format. It uses the
+recursively and is independent of the chosen serialized file format. It uses the
 `serde` framework.
 
 The crate will convert any type into an equivalent packed with versions

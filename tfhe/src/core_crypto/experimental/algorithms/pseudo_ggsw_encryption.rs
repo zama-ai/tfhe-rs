@@ -41,12 +41,13 @@ pub fn encrypt_pseudo_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Output
         .expect("Failed to split generator into pseudo ggsw levels");
 
     let decomp_base_log = output.decomposition_base_log();
+    let decomp_level_count = output.decomposition_level_count();
     let ciphertext_modulus = output.ciphertext_modulus();
 
-    for (level_index, (mut level_matrix, mut generator)) in
+    for (output_index, (mut level_matrix, mut generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
-        let decomp_level = DecompositionLevel(level_index + 1);
+        let decomp_level = DecompositionLevel(decomp_level_count.0 - output_index);
         // We scale the factor down from the native torus to whatever our torus is, the
         // encryption process will scale it back up
         let encoded = Scalar::ONE;
