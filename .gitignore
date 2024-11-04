@@ -28,6 +28,8 @@ backends/tfhe-cuda-backend/cuda/cmake-build-debug/
 tfhe/web_wasm_parallel_tests/server.PID
 venv/
 web-test-runner/
+node_modules/
+package-lock.json
 
 # Dir used for backward compatibility test data
 tfhe/tfhe-backward-compat-data/

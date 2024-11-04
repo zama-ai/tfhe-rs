@@ -99,6 +99,10 @@ jobs:
         run: |
           make test_web_js_api_parallel_chrome_ci
 
+      - name: Run x86_64/wasm zk compatibility tests
+        run: |
+          make test_zk_wasm_x86_compat_ci
+
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
