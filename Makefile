@@ -833,6 +833,19 @@ test_zk_pok: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok
 
+.PHONY: test_zk_wasm_x86_compat_ci
+test_zk_wasm_x86_compat_ci: check_nvm_installed
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) test_zk_wasm_x86_compat
+
+.PHONY: test_zk_wasm_x86_compat # Check compatibility between wasm and x86_64 proofs
+test_zk_wasm_x86_compat: install_rs_build_toolchain build_node_js_api
+	cd tfhe/tests/zk_wasm_x86_test && npm install
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		-p tfhe --test zk_wasm_x86_test --features=$(TARGET_ARCH_FEATURE),integer,zk-pok
+
 .PHONY: test_versionable # Run tests for tfhe-versionable subcrate
 test_versionable: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
