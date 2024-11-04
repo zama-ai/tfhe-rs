@@ -107,10 +107,6 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator);
     gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
 
-    // We are using the same memory space for accumulator_fft and
-    // accumulator_rotated, so we need to synchronize here to make sure they
-    // don't modify the same memory space at the same time
-
     // Perform G^-1(ACC) * GGSW -> GLWE
     mul_ggsw_glwe<Torus, grid_group, params>(
         accumulator, accumulator_fft, block_join_buffer, keybundle,

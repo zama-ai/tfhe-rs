@@ -12,8 +12,9 @@ __host__ __device__ __forceinline__ constexpr double get_two_pow_torus_bits() {
   return (sizeof(T) == 4) ? 4294967296.0 : 18446744073709551616.0;
 }
 
-template <typename T> __host__ __device__ __forceinline__ constexpr T scalar_max(){
-    return std::numeric_limits<T>::max();
+template <typename T>
+__host__ __device__ __forceinline__ constexpr T scalar_max() {
+  return std::numeric_limits<T>::max();
 }
 
 template <typename T>
@@ -70,8 +71,8 @@ __device__ inline T init_decomposer_state(T input, uint32_t base_log,
   const T non_rep_bit_count = sizeof(T) * 8 - rep_bit_count;
   T res = input >> (non_rep_bit_count - 1);
   T rounding_bit = res & (T)(1);
-  res += T(1);
-  res = res >> 1;
+  res++;
+  res >>= 1;
   T torus_max = scalar_max<T>();
   T mod_mask = torus_max >> non_rep_bit_count;
   res &= mod_mask;

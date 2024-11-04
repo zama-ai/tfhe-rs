@@ -144,11 +144,12 @@ __device__ void init_decomposer_state_inplace(T *rotated_acc, int base_log,
                                               uint32_t num_poly = 1) {
   constexpr int degree = block_size * elems_per_thread;
   for (int z = 0; z < num_poly; z++) {
-    T *rotated_acc_slice = (T *)rotated_acc + (ptrdiff_t)(z * degree);
-    int tid = threadIdx.x;
+    T *rotated_acc_slice = &rotated_acc[z * degree];
+    uint32_t tid = threadIdx.x;
     for (int i = 0; i < elems_per_thread; i++) {
       T x_acc = rotated_acc_slice[tid];
-      rotated_acc_slice[tid] = init_decomposer_state(x_acc, base_log, level_count);
+      rotated_acc_slice[tid] =
+          init_decomposer_state(x_acc, base_log, level_count);
       tid = tid + block_size;
     }
   }

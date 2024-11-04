@@ -48,23 +48,25 @@ public:
   // Decomposes a single polynomial
   __device__ void decompose_and_compress_next_polynomial(double2 *result,
                                                          int j) {
-    if (j == 0)
-      current_level -= 1;
-
-    int tid = threadIdx.x;
-    auto state_slice = state + j * params::degree;
+    uint32_t tid = threadIdx.x;
+    auto state_slice = &state[j * params::degree];
     for (int i = 0; i < params::opt / 2; i++) {
-      T res_re = state_slice[tid] & mask_mod_b;
-      T res_im = state_slice[tid + params::degree / 2] & mask_mod_b;
-      state_slice[tid] >>= base_log;
-      state_slice[tid + params::degree / 2] >>= base_log;
-      T carry_re = ((res_re - 1ll) | state_slice[tid]) & res_re;
-      T carry_im =
-          ((res_im - 1ll) | state_slice[tid + params::degree / 2]) & res_im;
+      auto input1 = &state_slice[tid];
+      auto input2 = &state_slice[tid + params::degree / 2];
+      T res_re = *input1 & mask_mod_b;
+      T res_im = *input2 & mask_mod_b;
+
+      *input1 >>= base_log; // Update state
+      *input2 >>= base_log; // Update state
+
+      T carry_re = ((res_re - 1ll) | *input1) & res_re;
+      T carry_im = ((res_im - 1ll) | *input2) & res_im;
       carry_re >>= (base_log - 1);
       carry_im >>= (base_log - 1);
-      state_slice[tid] += carry_re;
-      state_slice[tid + params::degree / 2] += carry_im;
+
+      *input1 += carry_re; // Update state
+      *input2 += carry_im; // Update state
+
       res_re -= carry_re << base_log;
       res_im -= carry_im << base_log;
 
