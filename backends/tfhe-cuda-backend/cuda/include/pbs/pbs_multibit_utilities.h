@@ -159,7 +159,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
     uint64_t minimum_sm_tbc =
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
-    auto num_blocks_acc_tbc = num_blocks_acc_common;
+    auto num_blocks_acc_tbc = num_blocks_acc_cg;
 #endif
 
     if (allocate_gpu_memory) {
