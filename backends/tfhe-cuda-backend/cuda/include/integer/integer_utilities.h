@@ -2929,10 +2929,9 @@ template <typename Torus> struct int_cmux_buffer {
   int_zero_out_if_buffer<Torus> *zero_if_false_buffer;
 
   int_radix_params params;
-  cudaEvent_t* ingoing_events;
-  cudaEvent_t* outgoing_events1;
-  cudaEvent_t* outgoing_events2;
-  
+  cudaEvent_t *ingoing_events;
+  cudaEvent_t *outgoing_events1;
+  cudaEvent_t *outgoing_events2;
 
   int_cmux_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                   uint32_t gpu_count,
@@ -3003,9 +3002,9 @@ template <typename Torus> struct int_cmux_buffer {
                                             gpu_indexes[0]);
       message_extract_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
 
-      ingoing_events = (cudaEvent_t*)malloc(gpu_count * sizeof(cudaEvent_t));
-      outgoing_events1 = (cudaEvent_t*)malloc(gpu_count * sizeof(cudaEvent_t));
-      outgoing_events2 = (cudaEvent_t*)malloc(gpu_count * sizeof(cudaEvent_t));
+      ingoing_events = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+      outgoing_events1 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+      outgoing_events2 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
       for (uint j = 0; j < gpu_count; j++) {
         cudaEventCreate(&ingoing_events[j]);
         cudaEventCreate(&outgoing_events1[j]);
@@ -3605,6 +3604,21 @@ template <typename Torus> struct int_div_rem_memory {
   Torus *at_least_one_upper_block_is_non_zero;
   Torus *cleaned_merged_interesting_remainder;
 
+  cudaEvent_t *ingoing_events1;
+  cudaEvent_t *ingoing_events2;
+  cudaEvent_t *ingoing_events3;
+
+  cudaEvent_t *outgoing_events1;
+  cudaEvent_t *outgoing_events2;
+  cudaEvent_t *outgoing_events3;
+  cudaEvent_t *outgoing_events4;
+  cudaEvent_t *outgoing_events5;
+  cudaEvent_t *outgoing_events6;
+  cudaEvent_t *outgoing_events7;
+  cudaEvent_t *outgoing_events8;
+  cudaEvent_t *outgoing_events9;
+  cudaEvent_t *outgoing_events10;
+
   // allocate and initialize if needed, temporary arrays used to calculate
   // cuda integer div_rem operation
   void init_temporary_buffers(cudaStream_t const *streams,
@@ -3653,6 +3667,39 @@ template <typename Torus> struct int_div_rem_memory {
         big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
     at_least_one_upper_block_is_non_zero = (Torus *)cuda_malloc_async(
         big_lwe_size * 1 * sizeof(Torus), streams[0], gpu_indexes[0]);
+
+    // create Events
+    ingoing_events1 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    ingoing_events2 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    ingoing_events3 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+
+    outgoing_events1 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    outgoing_events2 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    outgoing_events3 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    outgoing_events4 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    outgoing_events5 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    outgoing_events6 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    outgoing_events7 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    outgoing_events8 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    outgoing_events9 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+    outgoing_events10 = (cudaEvent_t *)malloc(gpu_count * sizeof(cudaEvent_t));
+
+    for (uint j = 0; j < gpu_count; j++) {
+      cudaEventCreate(&ingoing_events1[j]);
+      cudaEventCreate(&ingoing_events2[j]);
+      cudaEventCreate(&ingoing_events3[j]);
+
+      cudaEventCreate(&outgoing_events1[j]);
+      cudaEventCreate(&outgoing_events2[j]);
+      cudaEventCreate(&outgoing_events3[j]);
+      cudaEventCreate(&outgoing_events4[j]);
+      cudaEventCreate(&outgoing_events5[j]);
+      cudaEventCreate(&outgoing_events6[j]);
+      cudaEventCreate(&outgoing_events7[j]);
+      cudaEventCreate(&outgoing_events8[j]);
+      cudaEventCreate(&outgoing_events9[j]);
+      cudaEventCreate(&outgoing_events10[j]);
+    }
   }
 
   // initialize lookup tables for div_rem operation
@@ -3936,6 +3983,38 @@ template <typename Torus> struct int_div_rem_memory {
                     gpu_indexes[0]);
     cuda_drop_async(cleaned_merged_interesting_remainder, streams[0],
                     gpu_indexes[0]);
+
+    // delete events
+    for (uint j = 0; j < gpu_count; j++) {
+      cudaEventDestroy(ingoing_events1[j]);
+      cudaEventDestroy(ingoing_events2[j]);
+      cudaEventDestroy(ingoing_events3[j]);
+
+      cudaEventDestroy(outgoing_events1[j]);
+      cudaEventDestroy(outgoing_events2[j]);
+      cudaEventDestroy(outgoing_events3[j]);
+      cudaEventDestroy(outgoing_events4[j]);
+      cudaEventDestroy(outgoing_events5[j]);
+      cudaEventDestroy(outgoing_events6[j]);
+      cudaEventDestroy(outgoing_events7[j]);
+      cudaEventDestroy(outgoing_events8[j]);
+      cudaEventDestroy(outgoing_events9[j]);
+      cudaEventDestroy(outgoing_events10[j]);
+    }
+    free(ingoing_events1);
+    free(ingoing_events2);
+    free(ingoing_events3);
+
+    free(outgoing_events1);
+    free(outgoing_events2);
+    free(outgoing_events3);
+    free(outgoing_events4);
+    free(outgoing_events5);
+    free(outgoing_events6);
+    free(outgoing_events7);
+    free(outgoing_events8);
+    free(outgoing_events9);
+    free(outgoing_events10);
   }
 };
 

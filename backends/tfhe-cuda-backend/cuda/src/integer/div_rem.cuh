@@ -375,7 +375,16 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
     }; // left_shift_interesting_remainder2
 
     for (uint j = 0; j < gpu_count; j++) {
-      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+      cudaEventRecord(mem_ptr->ingoing_events1[j], streams[j]);
+      // cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_1[j],
+                          mem_ptr->ingoing_events1[j], 0);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_2[j],
+                          mem_ptr->ingoing_events1[j], 0);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_3[j],
+                          mem_ptr->ingoing_events1[j], 0);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_4[j],
+                          mem_ptr->ingoing_events1[j], 0);
     }
     // interesting_divisor
     trim_last_interesting_divisor_bits(mem_ptr->sub_streams_1, gpu_indexes,
@@ -389,11 +398,21 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
     // interesting_remainder2
     left_shift_interesting_remainder2(mem_ptr->sub_streams_4, gpu_indexes,
                                       gpu_count);
+
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
-      cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_4[j], gpu_indexes[j]);
+      cudaEventRecord(mem_ptr->outgoing_events1[j], mem_ptr->sub_streams_1[j]);
+      cudaEventRecord(mem_ptr->outgoing_events2[j], mem_ptr->sub_streams_2[j]);
+      cudaEventRecord(mem_ptr->outgoing_events3[j], mem_ptr->sub_streams_3[j]);
+      cudaEventRecord(mem_ptr->outgoing_events4[j], mem_ptr->sub_streams_4[j]);
+
+      // cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
+      // cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
+      // cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
+      // cuda_synchronize_stream(mem_ptr->sub_streams_4[j], gpu_indexes[j]);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events1[j], 0);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events2[j], 0);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events3[j], 0);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events4[j], 0);
     }
 
     // if interesting_remainder1 != 0 -> interesting_remainder2 == 0
@@ -483,7 +502,14 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
 
     // phase 2
     for (uint j = 0; j < gpu_count; j++) {
-      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+      cudaEventRecord(mem_ptr->ingoing_events2[j], streams[j]);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_1[j],
+                          mem_ptr->ingoing_events2[j], 0);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_2[j],
+                          mem_ptr->ingoing_events2[j], 0);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_3[j],
+                          mem_ptr->ingoing_events2[j], 0);
+      // cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
     // new_remainder
     // subtraction_overflowed
@@ -494,9 +520,15 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
     create_clean_version_of_merged_remainder(mem_ptr->sub_streams_3,
                                              gpu_indexes, gpu_count);
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
-      cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
+      cudaEventRecord(mem_ptr->outgoing_events5[j], mem_ptr->sub_streams_1[j]);
+      cudaEventRecord(mem_ptr->outgoing_events6[j], mem_ptr->sub_streams_2[j]);
+      cudaEventRecord(mem_ptr->outgoing_events7[j], mem_ptr->sub_streams_3[j]);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events5[j], 0);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events6[j], 0);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events7[j], 0);
+      // cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
+      // cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
+      // cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
     }
 
     host_addition<Torus>(streams[0], gpu_indexes[0], overflow_sum.data,
@@ -551,7 +583,14 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
     };
 
     for (uint j = 0; j < gpu_count; j++) {
-      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+      cudaEventRecord(mem_ptr->ingoing_events3[j], streams[j]);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_1[j],
+                          mem_ptr->ingoing_events3[j], 0);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_2[j],
+                          mem_ptr->ingoing_events3[j], 0);
+      cudaStreamWaitEvent(mem_ptr->sub_streams_3[j],
+                          mem_ptr->ingoing_events3[j], 0);
+      // cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
     // cleaned_merged_interesting_remainder
     conditionally_zero_out_merged_interesting_remainder(mem_ptr->sub_streams_1,
@@ -562,9 +601,15 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
     // quotient
     set_quotient_bit(mem_ptr->sub_streams_3, gpu_indexes, gpu_count);
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
-      cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
+      cudaEventRecord(mem_ptr->outgoing_events8[j], mem_ptr->sub_streams_1[j]);
+      cudaEventRecord(mem_ptr->outgoing_events9[j], mem_ptr->sub_streams_2[j]);
+      cudaEventRecord(mem_ptr->outgoing_events10[j], mem_ptr->sub_streams_3[j]);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events8[j], 0);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events9[j], 0);
+      cudaStreamWaitEvent(streams[j], mem_ptr->outgoing_events10[j], 0);
+      // cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
+      // cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
+      // cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
     }
 
     assert(first_trivial_block - 1 == cleaned_merged_interesting_remainder.len);

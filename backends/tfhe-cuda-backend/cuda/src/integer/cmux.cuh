@@ -56,13 +56,11 @@ __host__ void host_integer_radix_cmux_kb(
   auto true_streams = mem_ptr->zero_if_true_buffer->true_streams;
   auto false_streams = mem_ptr->zero_if_false_buffer->false_streams;
   for (uint j = 0; j < gpu_count; j++) {
-    //cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+    // cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     cudaEventRecord(mem_ptr->ingoing_events[j], streams[j]);
     cudaStreamWaitEvent(true_streams[j], mem_ptr->ingoing_events[j], 0);
     cudaStreamWaitEvent(false_streams[j], mem_ptr->ingoing_events[j], 0);
   }
-
-  
 
   auto mem_true = mem_ptr->zero_if_true_buffer;
   zero_out_if<Torus>(true_streams, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
@@ -80,11 +78,12 @@ __host__ void host_integer_radix_cmux_kb(
                      num_radix_blocks);
   for (uint j = 0; j < gpu_count; j++) {
     cudaEventRecord(mem_ptr->outgoing_events2[j], false_streams[j]);
-  }                     
+  }
   // for (uint j = 0; j < mem_ptr->zero_if_true_buffer->active_gpu_count; j++) {
   //   cuda_synchronize_stream(true_streams[j], gpu_indexes[j]);
   // }
-  // for (uint j = 0; j < mem_ptr->zero_if_false_buffer->active_gpu_count; j++) {
+  // for (uint j = 0; j < mem_ptr->zero_if_false_buffer->active_gpu_count; j++)
+  // {
   //   cuda_synchronize_stream(false_streams[j], gpu_indexes[j]);
   // }
 
