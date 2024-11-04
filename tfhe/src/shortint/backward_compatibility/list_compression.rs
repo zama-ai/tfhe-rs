@@ -18,18 +18,25 @@ pub enum DecompressionKeyVersions {
 
 impl Deprecable for CompressedCompressionKey {
     const TYPE_NAME: &'static str = "CompressedCompressionKey";
-    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.9";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedCompressionKeyVersions {
     V0(Deprecated<CompressedCompressionKey>),
-    V1(CompressedCompressionKey),
+    V1(Deprecated<CompressedCompressionKey>),
+    V2(CompressedCompressionKey),
+}
+
+impl Deprecable for CompressedDecompressionKey {
+    const TYPE_NAME: &'static str = "CompressedDecompressionKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedDecompressionKeyVersions {
-    V0(CompressedDecompressionKey),
+    V0(Deprecated<CompressedDecompressionKey>),
+    V1(CompressedDecompressionKey),
 }
 
 #[derive(VersionsDispatch)]
