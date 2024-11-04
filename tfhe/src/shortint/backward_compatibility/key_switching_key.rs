@@ -18,22 +18,24 @@ pub enum KeySwitchingKeyVersions {
 
 impl Deprecable for CompressedKeySwitchingKeyMaterial {
     const TYPE_NAME: &'static str = "CompressedKeySwitchingKeyMaterial";
-    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.9";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedKeySwitchingKeyMaterialVersions {
     V0(Deprecated<CompressedKeySwitchingKeyMaterial>),
-    V1(CompressedKeySwitchingKeyMaterial),
+    V1(Deprecated<CompressedKeySwitchingKeyMaterial>),
+    V2(CompressedKeySwitchingKeyMaterial),
 }
 
 impl Deprecable for CompressedKeySwitchingKey {
     const TYPE_NAME: &'static str = "CompressedKeySwitchingKey";
-    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.9";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedKeySwitchingKeyVersions {
     V0(Deprecated<CompressedKeySwitchingKey>),
-    V1(CompressedKeySwitchingKey),
+    V1(Deprecated<CompressedKeySwitchingKey>),
+    V2(CompressedKeySwitchingKey),
 }

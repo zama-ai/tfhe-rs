@@ -1,8 +1,9 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{convert_lwe_programmable_bootstrap_key_async, CudaStreams};
 use crate::core_crypto::prelude::{
-    lwe_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
-    GlweDimension, LweBootstrapKey, LweDimension, PolynomialSize, UnsignedInteger,
+    lwe_bootstrap_key_size, Container, ContiguousEntityContainerMut, DecompositionBaseLog,
+    DecompositionLevelCount, GgswCiphertextList, GlweDimension, LweBootstrapKey, LweDimension,
+    PolynomialSize, UnsignedInteger,
 };
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
@@ -48,12 +49,29 @@ impl CudaLweBootstrapKey {
             ),
             streams,
         );
+
+        // HACK: for now the GPU has a level order that is not consistent with the CPU, so we copy
+        // the key here and update the level order.
+        let mut bsk_as_ggsw_list = GgswCiphertextList::from_container(
+            bsk.as_ref().to_vec(),
+            bsk.glwe_size(),
+            bsk.polynomial_size(),
+            bsk.decomposition_base_log(),
+            bsk.decomposition_level_count(),
+            bsk.ciphertext_modulus(),
+        );
+
+        for mut ggsw in bsk_as_ggsw_list.iter_mut() {
+            // Invert level to match the expected order for GPU
+            ggsw.reverse();
+        }
+
         // Copy to the GPU
         unsafe {
             convert_lwe_programmable_bootstrap_key_async(
                 streams,
                 &mut d_vec,
-                bsk.as_ref(),
+                bsk_as_ggsw_list.as_ref(),
                 input_lwe_dimension,
                 glwe_dimension,
                 decomp_level_count,

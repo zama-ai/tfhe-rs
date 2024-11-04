@@ -8,7 +8,7 @@ where
     C::Element: UnsignedInteger,
 {
     const TYPE_NAME: &'static str = "SeededLwePackingKeyswitchKey";
-    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.9";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
@@ -17,5 +17,6 @@ where
     C::Element: UnsignedInteger,
 {
     V0(Deprecated<SeededLwePackingKeyswitchKey<C>>),
-    V1(SeededLwePackingKeyswitchKey<C>),
+    V1(Deprecated<SeededLwePackingKeyswitchKey<C>>),
+    V2(SeededLwePackingKeyswitchKey<C>),
 }

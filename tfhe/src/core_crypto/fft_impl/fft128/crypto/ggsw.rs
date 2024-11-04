@@ -426,7 +426,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
 
             // We loop through the levels (we reverse to match the order of the decomposition
             // iterator.)
-            for ggsw_decomp_matrix in ggsw.into_levels().rev() {
+            for ggsw_decomp_matrix in ggsw.into_levels() {
                 // We retrieve the decomposition of this level.
                 let (glwe_level, glwe_decomp_term, mut substack2) =
                     collect_next_term(&mut decomposition, &mut substack1, align);

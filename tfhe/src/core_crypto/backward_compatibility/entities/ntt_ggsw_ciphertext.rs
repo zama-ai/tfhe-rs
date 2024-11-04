@@ -1,11 +1,21 @@
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
 use crate::core_crypto::prelude::{Container, NttGgswCiphertext, UnsignedInteger};
+
+impl<C: Container> Deprecable for NttGgswCiphertext<C>
+where
+    C::Element: UnsignedInteger,
+{
+    const TYPE_NAME: &'static str = "NttGgswCiphertext";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
+}
 
 #[derive(VersionsDispatch)]
 pub enum NttGgswCiphertextVersions<C: Container>
 where
     C::Element: UnsignedInteger,
 {
-    V0(NttGgswCiphertext<C>),
+    V0(Deprecated<NttGgswCiphertext<C>>),
+    V1(NttGgswCiphertext<C>),
 }
