@@ -1,6 +1,7 @@
 #ifndef CNCRT_CRYPTO_CUH
 #define CNCRT_CRPYTO_CUH
 
+#include "crypto/torus.cuh"
 #include "device.h"
 #include <cstdint>
 
@@ -72,8 +73,8 @@ public:
       res_re -= carry_re << base_log;
       res_im -= carry_im << base_log;
 
-      result[tid].x = (int32_t)res_re;
-      result[tid].y = (int32_t)res_im;
+      typecast_torus_to_double(res_re, result[tid].x);
+      typecast_torus_to_double(res_im, result[tid].y);
 
       tid += params::degree / params::opt;
     }

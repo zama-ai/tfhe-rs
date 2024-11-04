@@ -292,7 +292,7 @@ uint64_t get_buffer_size_programmable_bootstrap(
   }
   // Otherwise, both kernels run all in shared memory
   uint64_t buffer_size = device_mem +
-                         // global_accumulator_fft
+                         // global_join_buffer
                          (glwe_dimension + 1) * level_count *
                              input_lwe_ciphertext_count *
                              (polynomial_size / 2) * sizeof(double2) +
@@ -478,7 +478,7 @@ __host__ void host_programmable_bootstrap(
   uint64_t full_dm_step_two = full_sm_step_two;
 
   Torus *global_accumulator = pbs_buffer->global_accumulator;
-  double2 *global_accumulator_fft = pbs_buffer->global_accumulator_fft;
+  double2 *global_accumulator_fft = pbs_buffer->global_join_buffer;
   int8_t *d_mem = pbs_buffer->d_mem;
 
   for (int i = 0; i < lwe_dimension; i++) {

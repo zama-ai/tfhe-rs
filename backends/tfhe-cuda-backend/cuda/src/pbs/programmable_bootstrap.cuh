@@ -32,10 +32,10 @@ mul_ggsw_glwe(Torus *accumulator, double2 *fft, double2 *join_buffer,
   synchronize_threads_in_block();
 
   // Get the pieces of the bootstrapping key that will be needed for the
-  // external product; blockIdx.x is the ID of the block that's executing
-  // this function, so we end up getting the lines of the bootstrapping key
-  // needed to perform the external product in this block (corresponding to
-  // the same decomposition level)
+  // external product; blockIdx.x and blockIdx.y are the IDs of the block that's
+  // executing this function, so we end up getting the lines of the
+  // bootstrapping key needed to perform the external product in this block
+  // (corresponding to the same decomposition level)
   auto bsk_slice = get_ith_mask_kth_block(
       bootstrapping_key, iteration, blockIdx.y, blockIdx.x, polynomial_size,
       glwe_dimension, level_count);
@@ -63,10 +63,10 @@ mul_ggsw_glwe(Torus *accumulator, double2 *fft, double2 *join_buffer,
   for (int j = 1; j < (glwe_dimension + 1); j++) {
     int idx = (j + this_block_rank) % (glwe_dimension + 1);
 
-    auto bsk_poly = bsk_slice + idx * params::degree / 2;
-    auto buffer_slice = get_join_buffer_element<G>(blockIdx.x, idx, group,
-                                                   join_buffer, polynomial_size,
-                                                   glwe_dimension, support_dsm);
+    bsk_poly = bsk_slice + idx * params::degree / 2;
+    buffer_slice = get_join_buffer_element<G>(blockIdx.x, idx, group,
+                                              join_buffer, polynomial_size,
+                                              glwe_dimension, support_dsm);
 
     int tid = threadIdx.x;
     for (int i = 0; i < params::opt / 2; i++) {
@@ -113,7 +113,7 @@ mul_ggsw_glwe(Torus *accumulator, double2 *fft, double2 *join_buffer,
 
   add_to_torus<Torus, params>(fft, accumulator);
 
-  __syncthreads();
+  group.sync();
 }
 
 template <typename Torus>

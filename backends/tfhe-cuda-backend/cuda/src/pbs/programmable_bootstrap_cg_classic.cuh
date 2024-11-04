@@ -254,7 +254,7 @@ __host__ void host_programmable_bootstrap_cg(
   uint64_t partial_dm = full_dm - partial_sm;
 
   int8_t *d_mem = buffer->d_mem;
-  double2 *buffer_fft = buffer->global_accumulator_fft;
+  double2 *buffer_fft = buffer->global_join_buffer;
 
   int thds = polynomial_size / params::opt;
   dim3 grid(level_count, glwe_dimension + 1, input_lwe_ciphertext_count);
