@@ -16,42 +16,37 @@ pub(crate) use test::Keys;
 #[cfg(test)]
 mod test {
     use crate::integer::{ClientKey, ServerKey};
-    use crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
+    use crate::shortint::parameters::{
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    };
     use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     use crate::shortint::ClassicPBSParameters;
 
     #[test]
-    fn test_all2() {
-        test_all(
-            PARAM_MESSAGE_2_CARRY_2,
-            "",
-            None,
-            "",
-            None,
-            "",
-            None,
-            "",
-            None,
-            0,
-            0,
-        );
-        test_all(
+    fn test_all() {
+        for param in [
             PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            "",
-            None,
-            "",
-            None,
-            "",
-            None,
-            "",
-            None,
-            0,
-            0,
-        );
+            PARAM_MESSAGE_2_CARRY_2,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+        ] {
+            test_all_impl(
+                param,
+                "a",
+                Some(1),
+                "a",
+                Some(1),
+                "a",
+                Some(1),
+                "a",
+                Some(1),
+                0,
+                0,
+            );
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn test_all(
+    pub fn test_all_impl(
         params: ClassicPBSParameters,
         str: &str,
         str_pad: Option<u32>,
