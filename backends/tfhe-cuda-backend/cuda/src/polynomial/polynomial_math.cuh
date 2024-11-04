@@ -3,6 +3,7 @@
 
 #include "crypto/torus.cuh"
 #include "parameters.cuh"
+#include "types/complex/operations.cuh"
 
 template <typename T>
 __device__ T *get_chunk(T *data, int chunk_num, int chunk_size) {
@@ -50,6 +51,27 @@ __device__ void polynomial_product_accumulate_in_fourier_domain(
   } else {
     for (int i = 0; i < params::opt / 2; i++) {
       result[tid] += first[tid] * second[tid];
+      tid += params::degree / params::opt;
+    }
+  }
+}
+
+// Computes result += x
+// If init_accumulator is set, assumes that result was not initialized and does
+// that with the outcome of first * second
+template <class params>
+__device__ void
+polynomial_accumulate_in_fourier_domain(double2 *result, double2 *x,
+                                        bool init_accumulator = false) {
+  auto tid = threadIdx.x;
+  if (init_accumulator) {
+    for (int i = 0; i < params::opt / 2; i++) {
+      result[tid] = x[tid];
+      tid += params::degree / params::opt;
+    }
+  } else {
+    for (int i = 0; i < params::opt / 2; i++) {
+      result[tid] += x[tid];
       tid += params::degree / params::opt;
     }
   }

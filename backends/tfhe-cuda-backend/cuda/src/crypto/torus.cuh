@@ -1,6 +1,7 @@
 #ifndef CNCRT_TORUS_CUH
 #define CNCRT_TORUS_CUH
 
+#include "device.h"
 #include "polynomial/parameters.cuh"
 #include "types/int128.cuh"
 #include "utils/kernel_dimensions.cuh"
@@ -41,6 +42,21 @@ __device__ inline void typecast_double_round_to_torus(double x, T &r) {
   double frac = x - floor(x);
   frac *= mx;
   typecast_double_to_torus(round(frac), r);
+}
+
+template <typename T>
+__device__ inline void typecast_torus_to_double(T x, double &r);
+
+template <>
+__device__ inline void typecast_torus_to_double<uint32_t>(uint32_t x,
+                                                          double &r) {
+  r = __int2double_rn(x);
+}
+
+template <>
+__device__ inline void typecast_torus_to_double<uint64_t>(uint64_t x,
+                                                          double &r) {
+  r = __ll2double_rn(x);
 }
 
 template <typename T>
