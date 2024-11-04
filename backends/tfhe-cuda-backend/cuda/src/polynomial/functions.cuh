@@ -56,8 +56,8 @@ divide_by_monomial_negacyclic_inplace(T *accumulator,
                                       bool zeroAcc, uint32_t num_poly = 1) {
   constexpr int degree = block_size * elems_per_thread;
   for (int z = 0; z < num_poly; z++) {
-    T *accumulator_slice = (T *)accumulator + (ptrdiff_t)(z * degree);
-    const T *input_slice = (T *)input + (ptrdiff_t)(z * degree);
+    T *accumulator_slice = &accumulator[z * degree];
+    const T *input_slice = &input[z * degree];
 
     int tid = threadIdx.x;
     if (zeroAcc) {
@@ -66,9 +66,8 @@ divide_by_monomial_negacyclic_inplace(T *accumulator,
         tid += block_size;
       }
     } else {
-      tid = threadIdx.x;
-      for (int i = 0; i < elems_per_thread; i++) {
-        if (j < degree) {
+      if (j < degree) {
+        for (int i = 0; i < elems_per_thread; i++) {
           // if (tid < degree - j)
           //  accumulator_slice[tid] = input_slice[tid + j];
           // else
@@ -76,8 +75,11 @@ divide_by_monomial_negacyclic_inplace(T *accumulator,
           int x = tid + j - SEL(degree, 0, tid < degree - j);
           accumulator_slice[tid] =
               SEL(-1, 1, tid < degree - j) * input_slice[x];
-        } else {
-          int32_t jj = j - degree;
+          tid += block_size;
+        }
+      } else {
+        int32_t jj = j - degree;
+        for (int i = 0; i < elems_per_thread; i++) {
           // if (tid < degree - jj)
           //  accumulator_slice[tid] = -input_slice[tid + jj];
           // else
@@ -85,8 +87,8 @@ divide_by_monomial_negacyclic_inplace(T *accumulator,
           int x = tid + jj - SEL(degree, 0, tid < degree - jj);
           accumulator_slice[tid] =
               SEL(1, -1, tid < degree - jj) * input_slice[x];
+          tid += block_size;
         }
-        tid += block_size;
       }
     }
   }
@@ -160,9 +162,13 @@ __device__ void round_to_closest_multiple_inplace(T *rotated_acc, int base_log,
   }
 }
 
+/**
+ * In case of classical PBS, this method should accumulate the result.
+ * In case of multi-bit PBS, it should overwrite.
+ */
 template <typename Torus, class params>
 __device__ void add_to_torus(double2 *m_values, Torus *result,
-                             bool init_torus = false) {
+                             bool overwrite_result = false) {
   int tid = threadIdx.x;
 #pragma unroll
   for (int i = 0; i < params::opt / 2; i++) {
@@ -175,7 +181,7 @@ __device__ void add_to_torus(double2 *m_values, Torus *result,
     Torus torus_imag = 0;
     typecast_double_round_to_torus<Torus>(double_imag, torus_imag);
 
-    if (init_torus) {
+    if (overwrite_result) {
       result[tid] = torus_real;
       result[tid + params::degree / 2] = torus_imag;
     } else {
