@@ -148,11 +148,12 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
     where
         C: Split,
     {
+        let decomposition_level_count = self.decomposition_level_count.0;
         izip!(
-            self.data_re0.split_into(self.decomposition_level_count.0),
-            self.data_re1.split_into(self.decomposition_level_count.0),
-            self.data_im0.split_into(self.decomposition_level_count.0),
-            self.data_im1.split_into(self.decomposition_level_count.0)
+            self.data_re0.split_into(decomposition_level_count),
+            self.data_re1.split_into(decomposition_level_count),
+            self.data_im0.split_into(decomposition_level_count),
+            self.data_im1.split_into(decomposition_level_count)
         )
         .enumerate()
         .map(move |(i, (data_re0, data_re1, data_im0, data_im1))| {
@@ -163,7 +164,7 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
                 data_im1,
                 self.polynomial_size,
                 self.glwe_size,
-                DecompositionLevel(i + 1),
+                DecompositionLevel(decomposition_level_count - i),
             )
         })
     }
@@ -426,7 +427,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
 
             // We loop through the levels (we reverse to match the order of the decomposition
             // iterator.)
-            for ggsw_decomp_matrix in ggsw.into_levels().rev() {
+            for ggsw_decomp_matrix in ggsw.into_levels() {
                 // We retrieve the decomposition of this level.
                 let (glwe_level, glwe_decomp_term, mut substack2) =
                     collect_next_term(&mut decomposition, &mut substack1, align);

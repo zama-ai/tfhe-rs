@@ -240,9 +240,10 @@ impl<'a> PseudoFourierGgswCiphertextView<'a> {
     pub fn into_levels(
         self,
     ) -> impl DoubleEndedIterator<Item = PseudoFourierGgswLevelMatrixView<'a>> {
+        let decomposition_level_count = self.decomposition_level_count.0;
         self.fourier
             .data
-            .split_into(self.decomposition_level_count.0)
+            .split_into(decomposition_level_count)
             .enumerate()
             .map(move |(i, slice)| {
                 PseudoFourierGgswLevelMatrixView::new(
@@ -250,7 +251,7 @@ impl<'a> PseudoFourierGgswCiphertextView<'a> {
                     self.glwe_size_in,
                     self.glwe_size_out,
                     self.fourier.polynomial_size,
-                    DecompositionLevel(i + 1),
+                    DecompositionLevel(decomposition_level_count - i),
                 )
             })
     }

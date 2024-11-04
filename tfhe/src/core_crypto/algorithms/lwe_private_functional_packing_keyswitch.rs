@@ -77,7 +77,7 @@ pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
         // Loop over the number of levels:
         // We compute the multiplication of a ciphertext from the private functional
         // keyswitching key with a piece of the decomposition and subtract it to the buffer
-        for (level_key_cipher, decomposed) in keyswitch_key_block.iter().rev().zip(decomp) {
+        for (level_key_cipher, decomposed) in keyswitch_key_block.iter().zip(decomp) {
             slice_wrapping_sub_scalar_mul_assign(
                 output_glwe_ciphertext.as_mut(),
                 level_key_cipher.as_ref(),
@@ -208,7 +208,7 @@ pub fn par_private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext_with
                 // Loop over the number of levels:
                 // We compute the multiplication of a ciphertext from the private functional
                 // keyswitching key with a piece of the decomposition and subtract it to the buffer
-                for (level_key_cipher, decomposed) in keyswitch_key_block.iter().rev().zip(decomp) {
+                for (level_key_cipher, decomposed) in keyswitch_key_block.iter().zip(decomp) {
                     slice_wrapping_sub_scalar_mul_assign(
                         glwe_buffer.as_mut(),
                         level_key_cipher.as_ref(),

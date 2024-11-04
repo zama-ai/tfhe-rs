@@ -1,3 +1,4 @@
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
 use aligned_vec::ABox;
@@ -60,22 +61,46 @@ impl<C: IntoContainerOwned<Element = c64>> From<FourierPolynomialListVersionedOw
     }
 }
 
+impl<C: Container<Element = c64>> Deprecable for FourierLweBootstrapKey<C> {
+    const TYPE_NAME: &'static str = "FourierLweBootstrapKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
+}
+
 #[derive(VersionsDispatch)]
 pub enum FourierLweBootstrapKeyVersions<C: Container<Element = c64>> {
-    V0(FourierLweBootstrapKey<C>),
+    V0(Deprecated<FourierLweBootstrapKey<C>>),
+    V1(FourierLweBootstrapKey<C>),
+}
+
+impl<C: Container<Element = c64>> Deprecable for FourierGgswCiphertext<C> {
+    const TYPE_NAME: &'static str = "FourierGgswCiphertext";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum FourierGgswCiphertextVersions<C: Container<Element = c64>> {
-    V0(FourierGgswCiphertext<C>),
+    V0(Deprecated<FourierGgswCiphertext<C>>),
+    V1(FourierGgswCiphertext<C>),
+}
+
+impl<C: Container<Element = f64>> Deprecable for Fourier128LweBootstrapKey<C> {
+    const TYPE_NAME: &'static str = "Fourier128LweBootstrapKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum Fourier128LweBootstrapKeyVersions<C: Container<Element = f64>> {
-    V0(Fourier128LweBootstrapKey<C>),
+    V0(Deprecated<Fourier128LweBootstrapKey<C>>),
+    V1(Fourier128LweBootstrapKey<C>),
+}
+
+impl<C: Container<Element = f64>> Deprecable for Fourier128GgswCiphertext<C> {
+    const TYPE_NAME: &'static str = "Fourier128GgswCiphertext";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum Fourier128GgswCiphertextVersions<C: Container<Element = f64>> {
-    V0(Fourier128GgswCiphertext<C>),
+    V0(Deprecated<Fourier128GgswCiphertext<C>>),
+    V1(Fourier128GgswCiphertext<C>),
 }

@@ -105,6 +105,7 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
         // We fill the buffer with the powers of the key bits
         for (level, mut message) in (1..=decomp_level_count.0)
             .map(DecompositionLevel)
+            .rev()
             .zip(messages.chunks_exact_mut(polynomial_size.0))
         {
             slice_wrapping_add_scalar_mul_assign(
@@ -219,6 +220,7 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
                 // We fill the buffer with the powers of the key bits
                 for (level, mut message) in (1..=decomp_level_count.0)
                     .map(DecompositionLevel)
+                    .rev()
                     .zip(messages.chunks_exact_mut(polynomial_size.0))
                 {
                     slice_wrapping_add_scalar_mul_assign(
