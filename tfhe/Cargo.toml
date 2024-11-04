@@ -46,7 +46,7 @@ hex = "0.4.3"
 # End regex-engine deps
 # Used for backward compatibility test metadata
 ron = "0.8"
-tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-compat-data.git", branch = "v0.3", default-features = false, features = [
+tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-compat-data.git", branch = "v0.4", default-features = false, features = [
     "load",
 ] }
 
