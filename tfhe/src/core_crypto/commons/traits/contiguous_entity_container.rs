@@ -187,6 +187,16 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         Self::SelfView::<'_>::create_from(sub_container, self_meta)
     }
 
+    fn first(&self) -> Option<Self::EntityView<'_>> {
+        let entity_count = self.entity_count();
+
+        if entity_count == 0 {
+            None
+        } else {
+            Some(self.get(0))
+        }
+    }
+
     fn last(&self) -> Option<Self::EntityView<'_>> {
         let entity_count = self.entity_count();
 

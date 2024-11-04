@@ -7,8 +7,10 @@
 
 mod associated;
 mod dispatch_type;
+mod transparent;
 mod version_type;
 mod versionize_attribute;
+mod versionize_impl;
 
 use dispatch_type::DispatchType;
 use proc_macro::TokenStream;
@@ -16,9 +18,10 @@ use proc_macro2::Span;
 use quote::{quote, ToTokens};
 use syn::parse::Parse;
 use syn::punctuated::Punctuated;
+use syn::token::Plus;
 use syn::{
     parse_macro_input, parse_quote, DeriveInput, GenericParam, Generics, Ident, Lifetime,
-    LifetimeParam, Path, TraitBound, Type, TypeParamBound, WhereClause,
+    LifetimeParam, Path, TraitBound, TraitBoundModifier, Type, TypeParamBound, WhereClause,
 };
 
 /// Adds the full path of the current crate name to avoid name clashes in generated code.
@@ -42,8 +45,16 @@ pub(crate) const UNVERSIONIZE_ERROR_NAME: &str = crate_full_path!("UnversionizeE
 
 pub(crate) const SERIALIZE_TRAIT_NAME: &str = "::serde::Serialize";
 pub(crate) const DESERIALIZE_TRAIT_NAME: &str = "::serde::Deserialize";
+pub(crate) const FROM_TRAIT_NAME: &str = "::core::convert::From";
+pub(crate) const TRY_INTO_TRAIT_NAME: &str = "::core::convert::TryInto";
+pub(crate) const INTO_TRAIT_NAME: &str = "::core::convert::Into";
+pub(crate) const ERROR_TRAIT_NAME: &str = "::core::error::Error";
+pub(crate) const SYNC_TRAIT_NAME: &str = "::core::marker::Sync";
+pub(crate) const SEND_TRAIT_NAME: &str = "::core::marker::Send";
+pub(crate) const STATIC_LIFETIME_NAME: &str = "'static";
 
 use associated::AssociatingTrait;
+use versionize_impl::VersionizeImplementor;
 
 use crate::version_type::VersionType;
 use crate::versionize_attribute::VersionizeAttribute;
@@ -120,67 +131,75 @@ pub fn derive_versions_dispatch(input: TokenStream) -> TokenStream {
 ///
 /// This macro has a mandatory attribute parameter, which is the name of the versioned enum for this
 /// type. This enum can be anywhere in the code but should be in scope.
+///
+/// Example:
+/// ```ignore
+/// // The structure that should be versioned, as defined in your code
+/// #[derive(Versionize)]
+/// // We have to link to the enum type that will holds all the versions of this
+/// // type. This can also be written `#[versionize(dispatch = MyStructVersions)]`.
+/// #[versionize(MyStructVersions)]
+/// struct MyStruct<T> {
+///     attr: T,
+///     builtin: u32,
+/// }
+///
+/// // To avoid polluting your code, the old versions can be defined in another module/file, along with
+/// // the dispatch enum
+/// #[derive(Version)] // Used to mark an old version of the type
+/// struct MyStructV0 {
+///     builtin: u32,
+/// }
+///
+/// // The Upgrade trait tells how to go from the first version to the last. During unversioning, the
+/// // upgrade method will be called on the deserialized value enough times to go to the last variant.
+/// impl<T: Default> Upgrade<MyStruct<T>> for MyStructV0 {
+///     type Error = Infallible;
+///
+///     fn upgrade(self) -> Result<MyStruct<T>, Self::Error> {
+///         Ok(MyStruct {
+///             attr: T::default(),
+///             builtin: self.builtin,
+///         })
+///     }
+/// }
+///
+/// // This is the dispatch enum, that holds one variant for each version of your type.
+/// #[derive(VersionsDispatch)]
+/// // This enum is not directly used but serves as a template to generate a new enum that will be
+/// // serialized. This allows recursive versioning.
+/// #[allow(unused)]
+/// enum MyStructVersions<T> {
+///     V0(MyStructV0),
+///     V1(MyStruct<T>),
+/// }
+/// ```
 #[proc_macro_derive(Versionize, attributes(versionize))]
 pub fn derive_versionize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    let attributes = syn_unwrap!(
-        VersionizeAttribute::parse_from_attributes_list(&input.attrs).and_then(|attr_opt| attr_opt
-            .ok_or_else(|| syn::Error::new(
-                Span::call_site(),
-                "Missing `versionize` attribute for `Versionize`",
-            )))
-    );
+    let input_generics = filter_unsized_bounds(&input.generics);
+
+    let attributes = syn_unwrap!(VersionizeAttribute::parse_from_attributes_list(
+        &input.attrs
+    ));
+
+    let implementor = syn_unwrap!(VersionizeImplementor::new(
+        attributes,
+        &input.data,
+        Span::call_site()
+    ));
 
     // If we apply a type conversion before the call to versionize, the type that implements
     // the `Version` trait is the target type and not Self
-    let version_trait_impl: Option<proc_macro2::TokenStream> = if attributes.needs_conversion() {
-        None
-    } else {
-        Some(impl_version_trait(&input))
-    };
+    let version_trait_impl: Option<proc_macro2::TokenStream> =
+        if implementor.is_directly_versioned() {
+            Some(impl_version_trait(&input))
+        } else {
+            None
+        };
 
-    let dispatch_enum_path = attributes.dispatch_enum();
-    let dispatch_target = attributes.dispatch_target();
-    let input_ident = &input.ident;
-    let mut ref_generics = input.generics.clone();
-    let mut trait_generics = input.generics.clone();
-    let (_, ty_generics, owned_where_clause) = input.generics.split_for_impl();
-
-    // If the original type has some generics, we need to add bounds on them for
-    // the impl
-    let lifetime = Lifetime::new(LIFETIME_NAME, Span::call_site());
-    add_where_lifetime_bound(&mut ref_generics, &lifetime);
-
-    // The versionize method takes a ref. We need to own the input type in the conversion case
-    // to apply `From<Input> for Target`. This adds a `Clone` bound to have a better error message
-    // if the input type is not Clone.
-    if attributes.needs_conversion() {
-        syn_unwrap!(add_trait_where_clause(
-            &mut trait_generics,
-            [&parse_quote! { Self }],
-            &["Clone"]
-        ));
-    };
-
-    let dispatch_generics = if attributes.needs_conversion() {
-        None
-    } else {
-        Some(&ty_generics)
-    };
-
-    let dispatch_trait: Path = parse_const_str(DISPATCH_TRAIT_NAME);
-
-    syn_unwrap!(add_trait_where_clause(
-        &mut trait_generics,
-        [&parse_quote!(#dispatch_enum_path #dispatch_generics)],
-        &[format!(
-            "{}<{}>",
-            DISPATCH_TRAIT_NAME,
-            dispatch_target.to_token_stream()
-        )]
-    ));
-
+    // Parse the name of the traits that we will implement
     let versionize_trait: Path = parse_const_str(VERSIONIZE_TRAIT_NAME);
     let versionize_owned_trait: Path = parse_const_str(VERSIONIZE_OWNED_TRAIT_NAME);
     let unversionize_trait: Path = parse_const_str(UNVERSIONIZE_TRAIT_NAME);
@@ -188,21 +207,35 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
     let versionize_slice_trait: Path = parse_const_str(VERSIONIZE_SLICE_TRAIT_NAME);
     let unversionize_vec_trait: Path = parse_const_str(UNVERSIONIZE_VEC_TRAIT_NAME);
 
+    let input_ident = &input.ident;
+    let lifetime = Lifetime::new(LIFETIME_NAME, Span::call_site());
+
     // split generics so they can be used inside the generated code
-    let (_, _, ref_where_clause) = ref_generics.split_for_impl();
-    let (trait_impl_generics, _, trait_where_clause) = trait_generics.split_for_impl();
+    let (_, ty_generics, _) = input_generics.split_for_impl();
 
-    // If we want to apply a conversion before the call to versionize we need to use the "owned"
-    // alternative of the dispatch enum to be able to store the conversion result.
-    let versioned_type_kind = if attributes.needs_conversion() {
-        quote! { Owned #owned_where_clause }
-    } else {
-        quote! { Ref<#lifetime> #ref_where_clause }
-    };
+    // Generates the associated types required by the traits
+    let versioned_type = implementor.versioned_type(&lifetime, &input_generics);
+    let versioned_owned_type = implementor.versioned_owned_type(&input_generics);
+    let versioned_type_where_clause =
+        implementor.versioned_type_where_clause(&lifetime, &input_generics);
+    let versioned_owned_type_where_clause =
+        implementor.versioned_owned_type_where_clause(&input_generics);
 
-    let versionize_body = attributes.versionize_method_body();
+    // If the original type has some generics, we need to add bounds on them for
+    // the traits impl
+    let versionize_trait_where_clause =
+        syn_unwrap!(implementor.versionize_trait_where_clause(&input_generics));
+    let versionize_owned_trait_where_clause =
+        syn_unwrap!(implementor.versionize_owned_trait_where_clause(&input_generics));
+    let unversionize_trait_where_clause =
+        syn_unwrap!(implementor.unversionize_trait_where_clause(&input_generics));
+
+    let trait_impl_generics = input_generics.split_for_impl().0;
+
+    let versionize_body = implementor.versionize_method_body();
+    let versionize_owned_body = implementor.versionize_owned_method_body();
     let unversionize_arg_name = Ident::new("versioned", Span::call_site());
-    let unversionize_body = attributes.unversionize_method_body(&unversionize_arg_name);
+    let unversionize_body = implementor.unversionize_method_body(&unversionize_arg_name);
     let unversionize_error: Path = parse_const_str(UNVERSIONIZE_ERROR_NAME);
 
     quote! {
@@ -210,11 +243,9 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
 
         #[automatically_derived]
         impl #trait_impl_generics #versionize_trait for #input_ident #ty_generics
-        #trait_where_clause
+        #versionize_trait_where_clause
         {
-            type Versioned<#lifetime> =
-            <#dispatch_enum_path #dispatch_generics as
-            #dispatch_trait<#dispatch_target>>::#versioned_type_kind;
+            type Versioned<#lifetime> = #versioned_type #versioned_type_where_clause;
 
             fn versionize(&self) -> Self::Versioned<'_> {
                 #versionize_body
@@ -223,20 +254,18 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
 
         #[automatically_derived]
         impl #trait_impl_generics #versionize_owned_trait for #input_ident #ty_generics
-        #trait_where_clause
+        #versionize_owned_trait_where_clause
         {
-            type VersionedOwned =
-            <#dispatch_enum_path #dispatch_generics as
-            #dispatch_trait<#dispatch_target>>::Owned #owned_where_clause;
+            type VersionedOwned = #versioned_owned_type #versioned_owned_type_where_clause;
 
             fn versionize_owned(self) -> Self::VersionedOwned {
-                #versionize_body
+                #versionize_owned_body
             }
         }
 
         #[automatically_derived]
         impl #trait_impl_generics #unversionize_trait for #input_ident #ty_generics
-        #trait_where_clause
+        #unversionize_trait_where_clause
         {
             fn unversionize(#unversionize_arg_name: Self::VersionedOwned) -> Result<Self, #unversionize_error>  {
                 #unversionize_body
@@ -245,20 +274,21 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
 
         #[automatically_derived]
         impl #trait_impl_generics #versionize_slice_trait for #input_ident #ty_generics
-        #trait_where_clause
+        #versionize_trait_where_clause
         {
-            type VersionedSlice<#lifetime> = Vec<<Self as #versionize_trait>::Versioned<#lifetime>> #ref_where_clause;
+            type VersionedSlice<#lifetime> = Vec<<Self as #versionize_trait>::Versioned<#lifetime>> #versioned_type_where_clause;
 
             fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
                 slice.iter().map(|val| #versionize_trait::versionize(val)).collect()
             }
         }
 
+        #[automatically_derived]
         impl #trait_impl_generics #versionize_vec_trait for #input_ident #ty_generics
-        #trait_where_clause
+        #versionize_owned_trait_where_clause
         {
 
-            type VersionedVec = Vec<<Self as #versionize_owned_trait>::VersionedOwned> #owned_where_clause;
+            type VersionedVec = Vec<<Self as #versionize_owned_trait>::VersionedOwned> #versioned_owned_type_where_clause;
 
             fn versionize_vec(vec: Vec<Self>) -> Self::VersionedVec {
                 vec.into_iter().map(|val| #versionize_owned_trait::versionize_owned(val)).collect()
@@ -267,7 +297,8 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
 
         #[automatically_derived]
         impl #trait_impl_generics #unversionize_vec_trait for #input_ident #ty_generics
-        #trait_where_clause {
+        #unversionize_trait_where_clause
+        {
             fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, #unversionize_error> {
                 versioned
                 .into_iter()
@@ -335,7 +366,7 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
 }
 
 /// Adds a where clause with a lifetime bound on all the generic types and lifetimes in `generics`
-fn add_where_lifetime_bound(generics: &mut Generics, lifetime: &Lifetime) {
+fn add_where_lifetime_bound_to_generics(generics: &mut Generics, lifetime: &Lifetime) {
     let mut params = Vec::new();
     for param in generics.params.iter() {
         let param_ident = match param {
@@ -359,8 +390,8 @@ fn add_where_lifetime_bound(generics: &mut Generics, lifetime: &Lifetime) {
     }
 }
 
-/// Adds a lifetime bound for all the generic types in `generics`
-fn add_lifetime_bound(generics: &mut Generics, lifetime: &Lifetime) {
+/// Adds a new lifetime param with a bound for all the generic types in `generics`
+fn add_lifetime_param(generics: &mut Generics, lifetime: &Lifetime) {
     generics
         .params
         .push(GenericParam::Lifetime(LifetimeParam::new(lifetime.clone())));
@@ -398,6 +429,27 @@ fn add_trait_where_clause<'a, S: AsRef<str>, I: IntoIterator<Item = &'a Type>>(
     Ok(())
 }
 
+/// Adds a "where clause" bound for all the input types with all the input lifetimes
+fn add_lifetime_where_clause<'a, S: AsRef<str>, I: IntoIterator<Item = &'a Type>>(
+    generics: &mut Generics,
+    types: I,
+    lifetimes: &[S],
+) -> syn::Result<()> {
+    let preds = &mut generics.make_where_clause().predicates;
+
+    if !lifetimes.is_empty() {
+        let bounds: Vec<Lifetime> = lifetimes
+            .iter()
+            .map(|lifetime| syn::parse_str(lifetime.as_ref()))
+            .collect::<syn::Result<_>>()?;
+        for ty in types {
+            preds.push(parse_quote! { #ty: #(#bounds)+*  });
+        }
+    }
+
+    Ok(())
+}
+
 /// Extends a where clause with predicates from another one, filtering duplicates
 fn extend_where_clause(base_clause: &mut WhereClause, extension_clause: &WhereClause) {
     for extend_predicate in &extension_clause.predicates {
@@ -424,4 +476,56 @@ fn punctuated_from_iter_result<T, P: Default, I: IntoIterator<Item = syn::Result
 /// Like [`syn::parse_str`] for inputs that are known at compile time to be valid
 fn parse_const_str<T: Parse>(s: &'static str) -> T {
     syn::parse_str(s).expect("Parsing of const string should not fail")
+}
+
+/// Remove the '?Sized' bounds from the generics
+///
+/// The VersionDispatch trait requires that the versioned type is Sized so we have to remove this
+/// bound. It means that for a type `MyStruct<T: ?Sized>`, we will only be able to call
+/// `.versionize()` when T is Sized.
+fn filter_unsized_bounds(generics: &Generics) -> Generics {
+    let mut generics = generics.clone();
+
+    for param in generics.type_params_mut() {
+        param.bounds = remove_unsized_bound(&param.bounds);
+    }
+
+    if let Some(clause) = &mut generics.where_clause {
+        for pred in &mut clause.predicates {
+            match pred {
+                syn::WherePredicate::Lifetime(_) => {}
+                syn::WherePredicate::Type(type_predicate) => {
+                    type_predicate.bounds = remove_unsized_bound(&type_predicate.bounds);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    generics
+}
+
+/// Filter the ?Sized bound in a list of bounds
+fn remove_unsized_bound(
+    bounds: &Punctuated<TypeParamBound, Plus>,
+) -> Punctuated<TypeParamBound, Plus> {
+    bounds
+        .iter()
+        .filter(|bound| match bound {
+            TypeParamBound::Trait(trait_bound) => {
+                if !matches!(trait_bound.modifier, TraitBoundModifier::None) {
+                    if let Some(segment) = trait_bound.path.segments.iter().last() {
+                        if segment.ident == "Sized" {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
+            TypeParamBound::Lifetime(_) => true,
+            TypeParamBound::Verbatim(_) => true,
+            _ => true,
+        })
+        .cloned()
+        .collect()
 }

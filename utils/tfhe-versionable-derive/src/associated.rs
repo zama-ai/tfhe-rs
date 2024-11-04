@@ -6,12 +6,13 @@ use syn::{
 };
 
 use crate::{
-    add_lifetime_bound, add_trait_where_clause, add_where_lifetime_bound, extend_where_clause,
-    parse_const_str, DESERIALIZE_TRAIT_NAME, LIFETIME_NAME, SERIALIZE_TRAIT_NAME,
+    add_lifetime_param, add_trait_where_clause, add_where_lifetime_bound_to_generics,
+    extend_where_clause, filter_unsized_bounds, parse_const_str, DESERIALIZE_TRAIT_NAME,
+    LIFETIME_NAME, SERIALIZE_TRAIT_NAME,
 };
 
 /// Generates an impl block for the From trait. This will be:
-/// ```
+/// ```ignore
 /// impl From<Src> for Dest  {
 ///    fn from(value: Src) -> Self {
 ///        ...[constructor]...
@@ -38,7 +39,7 @@ pub(crate) fn generate_from_trait_impl(
 }
 
 /// Generates an impl block for the TryFrom trait. This will be:
-/// ```
+/// ```ignore
 /// impl TryFrom<Src> for Dest  {
 ///    type Error = ErrorType;
 ///    fn from(value: Src) -> Self {
@@ -87,7 +88,7 @@ pub(crate) enum AssociatedTypeKind {
 /// - A `ref` type, that holds a reference to the underlying data. This is used for faster
 ///   versioning using only references.
 /// - An owned type, that owns the underlying data. This is used for unversioning. The ownership of
-///   the data will be transfered during the unversioning process.
+///   the data will be transferred during the unversioning process.
 ///
 /// [`DispatchType`]: crate::dispatch_type::DispatchType
 /// [`VersionType`]: crate::dispatch_type::VersionType
@@ -113,10 +114,10 @@ pub(crate) trait AssociatedType: Sized {
 
     /// Returns the generics and bounds that should be added to the type
     fn type_generics(&self) -> syn::Result<Generics> {
-        let mut generics = self.orig_type_generics().clone();
+        let mut generics = filter_unsized_bounds(self.orig_type_generics());
         if let AssociatedTypeKind::Ref(opt_lifetime) = &self.kind() {
             if let Some(lifetime) = opt_lifetime {
-                add_lifetime_bound(&mut generics, lifetime);
+                add_lifetime_param(&mut generics, lifetime);
             }
             add_trait_where_clause(&mut generics, self.inner_types()?, Self::REF_BOUNDS)?;
         } else {
@@ -151,7 +152,7 @@ pub(crate) trait AssociatedType: Sized {
     fn inner_types(&self) -> syn::Result<Vec<&Type>>;
 
     /// If the associating trait that uses this type needs a type parameter, this returns it.
-    /// For the `VersionsDispatch` trait this paramter is the name of the currently used version,
+    /// For the `VersionsDispatch` trait this parameter is the name of the currently used version,
     /// which is the latest variant of the dispatch enum. The `Version` trait does not need a
     /// parameter.
     fn as_trait_param(&self) -> Option<syn::Result<&Type>>;
@@ -214,8 +215,8 @@ impl<T: AssociatedType> AssociatingTrait<T> {
         let mut ref_type_generics = self.ref_type.orig_type_generics().clone();
         // If the original type has some generics, we need to add a lifetime bound on them
         if let Some(lifetime) = self.ref_type.lifetime() {
-            add_lifetime_bound(&mut ref_type_generics, lifetime);
-            add_where_lifetime_bound(&mut ref_type_generics, lifetime);
+            add_lifetime_param(&mut ref_type_generics, lifetime);
+            add_where_lifetime_bound_to_generics(&mut ref_type_generics, lifetime);
         }
 
         let (impl_generics, orig_generics, where_clause) = generics.split_for_impl();
@@ -245,7 +246,7 @@ impl<T: AssociatedType> AssociatingTrait<T> {
             // generate better errors in case of misuse of the macros. However in some cases
             // this may generate a warning, so we silence it.
             private_bounds,
-            // If these lints doesn't trigger on the orginal type, we don't want them to trigger
+            // If these lints doesn't trigger on the original type, we don't want them to trigger
             // on the generated one
             clippy::upper_case_acronyms,
             clippy::large_enum_variant,

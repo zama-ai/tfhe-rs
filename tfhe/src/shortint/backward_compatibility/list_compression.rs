@@ -1,4 +1,5 @@
-use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+use tfhe_versionable::VersionsDispatch;
 
 use crate::shortint::list_compression::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
@@ -15,30 +16,27 @@ pub enum DecompressionKeyVersions {
     V0(DecompressionKey),
 }
 
-#[derive(Version)]
-pub struct UnsupportedCompressedCompressionKeyV0;
-
-impl Upgrade<CompressedCompressionKey> for UnsupportedCompressedCompressionKeyV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<CompressedCompressionKey, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load CompressedCompressionKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+impl Deprecable for CompressedCompressionKey {
+    const TYPE_NAME: &'static str = "CompressedCompressionKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedCompressionKeyVersions {
-    V0(UnsupportedCompressedCompressionKeyV0),
-    V1(CompressedCompressionKey),
+    V0(Deprecated<CompressedCompressionKey>),
+    V1(Deprecated<CompressedCompressionKey>),
+    V2(CompressedCompressionKey),
+}
+
+impl Deprecable for CompressedDecompressionKey {
+    const TYPE_NAME: &'static str = "CompressedDecompressionKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedDecompressionKeyVersions {
-    V0(CompressedDecompressionKey),
+    V0(Deprecated<CompressedDecompressionKey>),
+    V1(CompressedDecompressionKey),
 }
 
 #[derive(VersionsDispatch)]

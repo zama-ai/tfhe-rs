@@ -314,8 +314,8 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     let mut lwe_out_bs_buffer =
         LweCiphertext::from_container(&mut *lwe_out_bs_buffer_data, lwe_in.ciphertext_modulus());
 
-    for (decomposition_level_minus_one, mut ggsw_level_matrix) in ggsw_out.iter_mut().enumerate() {
-        let decomposition_level = DecompositionLevel(decomposition_level_minus_one + 1);
+    for (output_index, mut ggsw_level_matrix) in ggsw_out.iter_mut().enumerate() {
+        let decomposition_level = DecompositionLevel(level_cbs.0 - output_index);
         homomorphic_shift_boolean(
             fourier_bsk,
             lwe_out_bs_buffer.as_mut_view(),

@@ -1,10 +1,8 @@
-//! Show how to call a conversion method (from/into) before versioning/unversioning
+//! Checks compatibility between the "convert" feature and generics
 
 use tfhe_versionable::{Unversionize, Versionize, VersionsDispatch};
 
 #[derive(Clone, Versionize)]
-// To mimic serde parameters, this can also be expressed as
-// "#[versionize(from = SerializableMyStruct, into = SerializableMyStruct)]"
 #[versionize(convert = "SerializableMyStruct<T>")]
 struct MyStruct<T> {
     val: u64,
@@ -44,7 +42,8 @@ impl<T> From<SerializableMyStruct<T>> for MyStruct<T> {
     }
 }
 
-fn main() {
+#[test]
+fn test() {
     let stru = MyStruct {
         val: 37,
         generics: 90,
@@ -56,9 +55,4 @@ fn main() {
         MyStruct::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
 
     assert_eq!(stru.val, stru_decoded.val)
-}
-
-#[test]
-fn test() {
-    main()
 }

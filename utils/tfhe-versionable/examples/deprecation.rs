@@ -1,7 +1,75 @@
-//! A more realistic example of a codebase that evolves in time. Each "mod vN" should be seen as
-//! a version of an application. The "backward_compat" mods can be in different files.
+//! Example of a version deprecation, to remove support for types up to a chosen point.
+//!
+//! In this example, we have an application with 3 versions: v0, v1, v2. We know that v0 and v1 are
+//! not used in the wild, so we want to remove backward compatibility with them to be able to
+//! clean-up some code. We can use this feature to create a v3 version that will be compatible with
+//! v2 but remove support for the previous ones.
 
 use tfhe_versionable::{Unversionize, Versionize};
+
+// The newer version of the app, where you want to cut compatibility with versions that are too old
+mod v3 {
+    use serde::{Deserialize, Serialize};
+    use tfhe_versionable::Versionize;
+
+    use backward_compat::MyStructVersions;
+
+    #[derive(Serialize, Deserialize, Versionize)]
+    #[versionize(MyStructVersions)]
+    pub struct MyStruct<T> {
+        pub count: u32,
+        pub attr: T,
+    }
+
+    mod backward_compat {
+        use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+        use tfhe_versionable::VersionsDispatch;
+
+        use super::MyStruct;
+
+        // The `Deprecation` trait will be used to give meaningful error messages to you users
+        impl<T> Deprecable for MyStruct<T> {
+            // The name of the type, as seen by the user
+            const TYPE_NAME: &'static str = "MyStruct";
+
+            // The minimum version of the application/library that we still support. You can include
+            // the name of your app/library.
+            const MIN_SUPPORTED_APP_VERSION: &'static str = "app v2";
+        }
+
+        // Replace the deprecation versions with the `Deprecated` type in the dispatch enum
+        #[derive(VersionsDispatch)]
+        #[allow(unused)]
+        pub enum MyStructVersions<T> {
+            V0(Deprecated<MyStruct<T>>),
+            V1(Deprecated<MyStruct<T>>),
+            V2(MyStruct<T>),
+        }
+    }
+}
+
+fn main() {
+    // A version that will be deprecated
+    let v0 = v0::MyStruct(37);
+
+    let serialized = bincode::serialize(&v0.versionize()).unwrap();
+
+    // We can upgrade it until the last supported version
+    let v2 = v2::MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
+
+    assert_eq!(v0.0, v2.count);
+    assert_eq!(v2.attr, u64::default());
+
+    // But trying to upgrade it into the newer version with dropped support will fail.
+    let v3_deser: Result<v3::MyStruct<u64>, _> = bincode::deserialize(&serialized);
+
+    assert!(v3_deser.is_err());
+
+    // However you can still update from the last supported version
+    let _serialized_v2 = bincode::serialize(&v2.versionize()).unwrap();
+}
+
+// Older versions of the application
 
 mod v0 {
     use serde::{Deserialize, Serialize};
@@ -67,15 +135,7 @@ mod v2 {
     use serde::{Deserialize, Serialize};
     use tfhe_versionable::Versionize;
 
-    use backward_compat::{MyEnumVersions, MyStructVersions};
-
-    #[derive(Serialize, Deserialize, Versionize)]
-    #[versionize(MyEnumVersions)]
-    pub enum MyEnum<T> {
-        Variant0,
-        Variant1 { count: u64 },
-        Variant2(T),
-    }
+    use backward_compat::MyStructVersions;
 
     #[derive(Serialize, Deserialize, Versionize)]
     #[versionize(MyStructVersions)]
@@ -89,7 +149,7 @@ mod v2 {
 
         use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
-        use super::{MyEnum, MyStruct};
+        use super::MyStruct;
 
         #[derive(Version)]
         pub struct MyStructV0(pub u32);
@@ -123,29 +183,7 @@ mod v2 {
             V1(MyStructV1<T>),
             V2(MyStruct<T>),
         }
-
-        #[derive(VersionsDispatch)]
-        #[allow(unused)]
-        pub enum MyEnumVersions<T> {
-            V0(MyEnum<T>),
-        }
     }
-}
-
-fn main() {
-    let v0 = v0::MyStruct(37);
-
-    let serialized = bincode::serialize(&v0.versionize()).unwrap();
-
-    let v1 = v1::MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
-
-    assert_eq!(v0.0, v1.0);
-    assert_eq!(v1.1, u64::default());
-
-    let v2 = v2::MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
-
-    assert_eq!(v0.0, v2.count);
-    assert_eq!(v2.attr, u64::default());
 }
 
 #[test]

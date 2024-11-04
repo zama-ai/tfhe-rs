@@ -1,29 +1,27 @@
-use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+use tfhe_versionable::VersionsDispatch;
 
 use crate::integer::{CompressedServerKey, ServerKey};
 
-#[derive(VersionsDispatch)]
-pub enum ServerKeyVersions {
-    V0(ServerKey),
+impl Deprecable for ServerKey {
+    const TYPE_NAME: &'static str = "ServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
-#[derive(Version)]
-pub struct UnsupportedCompressedServerKeyV0;
+#[derive(VersionsDispatch)]
+pub enum ServerKeyVersions {
+    V0(Deprecated<ServerKey>),
+    V1(ServerKey),
+}
 
-impl Upgrade<CompressedServerKey> for UnsupportedCompressedServerKeyV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<CompressedServerKey, Self::Error> {
-        Err(crate::Error::new(
-            "Unable to load CompressedServerKey, \
-            this format is unsupported by this TFHE-rs version."
-                .to_string(),
-        ))
-    }
+impl Deprecable for CompressedServerKey {
+    const TYPE_NAME: &'static str = "CompressedServerKey";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedServerKeyVersions {
-    V0(UnsupportedCompressedServerKeyV0),
-    V1(CompressedServerKey),
+    V0(Deprecated<CompressedServerKey>),
+    V1(Deprecated<CompressedServerKey>),
+    V2(CompressedServerKey),
 }
