@@ -1,5 +1,4 @@
 use crate::seeders::{Seed, Seeder};
-use std::cmp::Ordering;
 
 /// There is no `rseed` equivalent in the ARM specification until `ARMv8.5-A`.
 /// However it seems that these instructions are not exposed in `core::arch::aarch64`.
