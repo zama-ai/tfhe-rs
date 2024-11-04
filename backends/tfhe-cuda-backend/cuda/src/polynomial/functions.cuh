@@ -148,22 +148,7 @@ __device__ void init_decomposer_state_inplace(T *rotated_acc, int base_log,
     int tid = threadIdx.x;
     for (int i = 0; i < elems_per_thread; i++) {
       T x_acc = rotated_acc_slice[tid];
-
-      const T rep_bit_count = level_count * base_log;
-      const T non_rep_bit_count = sizeof(T) * 8 - rep_bit_count;
-      T res_acc = x_acc >> (non_rep_bit_count - 1);
-      T rounding_bit = res_acc & T(1);
-      res_acc += (T)(1);
-      res_acc = res_acc >> 1;
-      T torus_max = scalar_max<T>();
-      T mod_mask = torus_max >> non_rep_bit_count;
-      res_acc = res_acc & mod_mask;
-      T shifted_random = rounding_bit << (rep_bit_count - 1);
-      T need_balance = (((res_acc - (T)(1)) | shifted_random) & res_acc) >>
-                       (rep_bit_count - 1);
-      res_acc = res_acc - (need_balance << rep_bit_count);
-
-      rotated_acc_slice[tid] = res_acc;
+      rotated_acc_slice[tid] = init_decomposer_state(x_acc, base_log, level_count);
       tid = tid + block_size;
     }
   }
