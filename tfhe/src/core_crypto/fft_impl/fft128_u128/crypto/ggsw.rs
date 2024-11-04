@@ -110,7 +110,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
 
             // We loop through the levels (we reverse to match the order of the decomposition
             // iterator.)
-            for ggsw_decomp_matrix in ggsw.into_levels().rev() {
+            for ggsw_decomp_matrix in ggsw.into_levels() {
                 // We retrieve the decomposition of this level.
                 assert_ne!(current_level, 0);
                 let glwe_level = DecompositionLevel(current_level);
