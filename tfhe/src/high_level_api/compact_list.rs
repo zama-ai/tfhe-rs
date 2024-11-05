@@ -742,7 +742,7 @@ mod tests {
 
         set_server_key(sks);
 
-        // Intentionally low to that we test when multiple lists and proofs are needed
+        // Intentionally low so that we test when multiple lists and proofs are needed
         let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
         let metadata = [b'h', b'l', b'a', b'p', b'i'];

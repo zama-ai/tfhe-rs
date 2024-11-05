@@ -8,6 +8,7 @@ const {
 const fs = require('fs');
 
 const SIZE_LIMIT = BigInt(1024) * BigInt(1024) * BigInt(1024);
+const METADATA = "wasm64";
 
 const tfhe_proof = async () => {
     const publicKeyBuf = fs.readFileSync(`${__dirname}/public_key.bin`);
@@ -17,12 +18,13 @@ const tfhe_proof = async () => {
 
     const builder = CompactCiphertextList.builder(publicKey);
     builder.push_u4(1);
+    builder.push_u8(0xff);
 
-		builder.push_u8(0xff);
+    const metadata = Uint8Array.from(METADATA.split('').map(letter => letter.charCodeAt(0)));
 
     const encrypted = builder.build_with_proof_packed(
         publicParams,
-        new Uint8Array(),
+        metadata,
         ZkComputeLoad.Proof,
     );
 
