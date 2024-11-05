@@ -1,6 +1,6 @@
 use crate::core_crypto::entities::{LweCompactCiphertextList, LweCompactPublicKey};
 use crate::core_crypto::prelude::{CastFrom, Container, LweCiphertext, UnsignedInteger};
-use crate::zk::{CompactPkeProof, CompactPkePublicParams, ZkVerificationOutCome};
+use crate::zk::{CompactPkeCrs, CompactPkeProof, ZkVerificationOutCome};
 use tfhe_zk_pok::proofs::pke::{verify, PublicCommit};
 
 /// Verifies with the given proof that a [`LweCompactCiphertextList`]
@@ -9,7 +9,7 @@ pub fn verify_lwe_compact_ciphertext_list<Scalar, ListCont, KeyCont>(
     lwe_compact_list: &LweCompactCiphertextList<ListCont>,
     compact_public_key: &LweCompactPublicKey<KeyCont>,
     proof: &CompactPkeProof,
-    public_params: &CompactPkePublicParams,
+    crs: &CompactPkeCrs,
     metadata: &[u8],
 ) -> ZkVerificationOutCome
 where
@@ -51,7 +51,7 @@ where
             .map(|x| i64::cast_from(x))
             .collect(),
     );
-    match verify(proof, (public_params, &public_commit), metadata) {
+    match verify(proof, (crs.public_params(), &public_commit), metadata) {
         Ok(_) => ZkVerificationOutCome::Valid,
         Err(_) => ZkVerificationOutCome::Invalid,
     }
@@ -61,7 +61,7 @@ pub fn verify_lwe_ciphertext<Scalar, Cont, KeyCont>(
     lwe_ciphertext: &LweCiphertext<Cont>,
     compact_public_key: &LweCompactPublicKey<KeyCont>,
     proof: &CompactPkeProof,
-    public_params: &CompactPkePublicParams,
+    crs: &CompactPkeCrs,
     metadata: &[u8],
 ) -> ZkVerificationOutCome
 where
@@ -97,7 +97,7 @@ where
             .collect(),
         vec![i64::cast_from(*lwe_ciphertext.get_body().data); 1],
     );
-    match verify(proof, (public_params, &public_commit), metadata) {
+    match verify(proof, (crs.public_params(), &public_commit), metadata) {
         Ok(_) => ZkVerificationOutCome::Valid,
         Err(_) => ZkVerificationOutCome::Invalid,
     }

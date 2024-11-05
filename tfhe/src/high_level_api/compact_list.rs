@@ -21,7 +21,7 @@ use crate::shortint::MessageModulus;
 pub use zk::ProvenCompactCiphertextList;
 
 #[cfg(feature = "zk-pok")]
-use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
+use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::{CompactPublicKey, Tag};
 
 impl crate::FheTypes {
@@ -172,6 +172,7 @@ mod zk {
     use super::*;
     use crate::conformance::ParameterSetConformant;
     use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
+    use crate::zk::CompactPkeCrs;
 
     #[derive(Clone, Serialize, Deserialize, Versionize)]
     #[versionize(ProvenCompactCiphertextListVersions)]
@@ -214,16 +215,16 @@ mod zk {
 
         pub fn verify(
             &self,
-            public_params: &CompactPkePublicParams,
+            crs: &CompactPkeCrs,
             pk: &CompactPublicKey,
             metadata: &[u8],
         ) -> crate::zk::ZkVerificationOutCome {
-            self.inner.verify(public_params, &pk.key.key, metadata)
+            self.inner.verify(crs, &pk.key.key, metadata)
         }
 
         pub fn verify_and_expand(
             &self,
-            public_params: &CompactPkePublicParams,
+            crs: &CompactPkeCrs,
             pk: &CompactPublicKey,
             metadata: &[u8],
         ) -> crate::Result<CompactCiphertextListExpander> {
@@ -232,7 +233,7 @@ mod zk {
                 // No ServerKey required, short circuit to avoid the global state call
                 return Ok(CompactCiphertextListExpander {
                     inner: self.inner.verify_and_expand(
-                        public_params,
+                        crs,
                         &pk.key.key,
                         metadata,
                         IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
@@ -246,7 +247,7 @@ mod zk {
                 Some(InternalServerKey::Cpu(cpu_key)) => self
                     .inner
                     .verify_and_expand(
-                        public_params,
+                        crs,
                         &pk.key.key,
                         metadata,
                         cpu_key.integer_compact_ciphertext_list_expansion_mode(),
@@ -321,7 +322,6 @@ mod zk {
             let client_key = crate::ClientKey::generate(config.clone());
             // This is done in an offline phase and the CRS is shared to all clients and the server
             let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
-            let public_zk_params = crs.public_params();
             let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
             // This can be left empty, but if provided allows to tie the proof to arbitrary data
             let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
@@ -332,7 +332,7 @@ mod zk {
             let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
                 .push(clear_a)
                 .push(clear_b)
-                .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             let params =
@@ -360,7 +360,6 @@ mod zk {
             let client_key = crate::ClientKey::generate(config.clone());
 
             let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
-            let public_zk_params = crs.public_params();
             let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
 
             let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
@@ -371,7 +370,7 @@ mod zk {
             let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
                 .push(clear_a)
                 .push(clear_b)
-                .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             let params =
@@ -501,12 +500,12 @@ impl CompactCiphertextListBuilder {
     #[cfg(feature = "zk-pok")]
     pub fn build_with_proof_packed(
         &self,
-        public_params: &CompactPkePublicParams,
+        crs: &CompactPkeCrs,
         metadata: &[u8],
         compute_load: ZkComputeLoad,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         self.inner
-            .build_with_proof_packed(public_params, metadata, compute_load)
+            .build_with_proof_packed(crs, metadata, compute_load)
             .map(|proved_list| ProvenCompactCiphertextList {
                 inner: proved_list,
                 tag: self.tag.clone(),
@@ -518,8 +517,6 @@ impl CompactCiphertextListBuilder {
 mod tests {
     use super::*;
     use crate::prelude::*;
-    #[cfg(feature = "zk-pok")]
-    use crate::zk::CompactPkeCrs;
     use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
 
     #[test]
@@ -664,13 +661,13 @@ mod tests {
             .push(false)
             .push_with_num_bits(3u32, 2)
             .unwrap()
-            .build_with_proof_packed(crs.public_params(), &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         let serialized = bincode::serialize(&compact_list).unwrap();
         let compact_list: ProvenCompactCiphertextList = bincode::deserialize(&serialized).unwrap();
         let expander = compact_list
-            .verify_and_expand(crs.public_params(), &pk, &metadata)
+            .verify_and_expand(&crs, &pk, &metadata)
             .unwrap();
 
         {
@@ -753,13 +750,13 @@ mod tests {
             .push(false)
             .push_with_num_bits(3u32, 2)
             .unwrap()
-            .build_with_proof_packed(crs.public_params(), &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         let serialized = bincode::serialize(&compact_list).unwrap();
         let compact_list: ProvenCompactCiphertextList = bincode::deserialize(&serialized).unwrap();
         let expander = compact_list
-            .verify_and_expand(crs.public_params(), &pk, &metadata)
+            .verify_and_expand(&crs, &pk, &metadata)
             .unwrap();
 
         {

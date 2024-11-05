@@ -20,16 +20,23 @@ impl From<ZkComputeLoad> for crate::zk::ZkComputeLoad {
     }
 }
 
+pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs);
+impl_destroy_on_type!(CompactPkeCrs);
+
+// Because we use a repr(transparent) for the CompactPkeCrs, cbindgen will define CompactPkeCrs as
+// an alias for CompactPkePublicParams. We need to define this struct even if it will not actually
+// be used in the C api.
+#[allow(unused)]
 pub struct CompactPkePublicParams(pub(crate) crate::core_crypto::entities::CompactPkePublicParams);
 impl_destroy_on_type!(CompactPkePublicParams);
 
-/// Serializes the public params
+/// Serializes the CRS
 ///
 /// If compress is true, the data will be compressed (less serialized bytes), however, this makes
 /// the deserialization process slower.
 #[no_mangle]
-pub unsafe extern "C" fn compact_pke_public_params_serialize(
-    sself: *const CompactPkePublicParams,
+pub unsafe extern "C" fn compact_pke_crs_serialize(
+    sself: *const CompactPkeCrs,
     compress: bool,
     result: *mut crate::c_api::buffer::DynamicBuffer,
 ) -> ::std::os::raw::c_int {
@@ -48,13 +55,11 @@ pub unsafe extern "C" fn compact_pke_public_params_serialize(
     })
 }
 
-/// Deserializes the public params
-///
-/// If the data comes from compressed public params, then `is_compressed` must be true.
+/// Deserializes the CRS
 #[no_mangle]
-pub unsafe extern "C" fn compact_pke_public_params_deserialize(
+pub unsafe extern "C" fn compact_pke_crs_deserialize(
     buffer_view: crate::c_api::buffer::DynamicBufferView,
-    result: *mut *mut CompactPkePublicParams,
+    result: *mut *mut CompactPkeCrs,
 ) -> ::std::os::raw::c_int {
     crate::c_api::utils::catch_panic(|| {
         crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
@@ -63,19 +68,19 @@ pub unsafe extern "C" fn compact_pke_public_params_deserialize(
 
         let deserialized = bincode::deserialize(buffer_view.as_slice()).unwrap();
 
-        let heap_allocated_object = Box::new(CompactPkePublicParams(deserialized));
+        let heap_allocated_object = Box::new(CompactPkeCrs(deserialized));
 
         *result = Box::into_raw(heap_allocated_object);
     })
 }
 
-/// Serializes the public params
+/// Serializes the CRS
 ///
 /// If compress is true, the data will be compressed (less serialized bytes), however, this makes
 /// the deserialization process slower.
 #[no_mangle]
-pub unsafe extern "C" fn compact_pke_public_params_safe_serialize(
-    sself: *const CompactPkePublicParams,
+pub unsafe extern "C" fn compact_pke_crs_safe_serialize(
+    sself: *const CompactPkeCrs,
     compress: bool,
     serialized_size_limit: u64,
     result: *mut crate::c_api::buffer::DynamicBuffer,
@@ -100,14 +105,12 @@ pub unsafe extern "C" fn compact_pke_public_params_safe_serialize(
     })
 }
 
-/// Deserializes the public params
-///
-/// If the data comes from compressed public params, then `is_compressed` must be true.
+/// Deserializes the CRS
 #[no_mangle]
-pub unsafe extern "C" fn compact_pke_public_params_safe_deserialize(
+pub unsafe extern "C" fn compact_pke_crs_safe_deserialize(
     buffer_view: crate::c_api::buffer::DynamicBufferView,
     serialized_size_limit: u64,
-    result: *mut *mut CompactPkePublicParams,
+    result: *mut *mut CompactPkeCrs,
 ) -> ::std::os::raw::c_int {
     crate::c_api::utils::catch_panic(|| {
         crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
@@ -122,16 +125,65 @@ pub unsafe extern "C" fn compact_pke_public_params_safe_deserialize(
                 .deserialize_from(buffer_view)
                 .unwrap();
 
-        let heap_allocated_object = Box::new(CompactPkePublicParams(deserialized));
+        let heap_allocated_object = Box::new(CompactPkeCrs(deserialized));
 
         *result = Box::into_raw(heap_allocated_object);
     })
 }
 
-pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs);
+/// Deserializes the CRS from a CompactPkePublicParams object that comes from a previous version of
+/// TFHE-rs. This function is kept for backward compatibility, new code should directly use the
+/// CompactPkeCrs object.
+#[no_mangle]
+pub unsafe extern "C" fn compact_pke_crs_deserialize_from_params(
+    buffer_view: crate::c_api::buffer::DynamicBufferView,
+    result: *mut *mut CompactPkeCrs,
+) -> ::std::os::raw::c_int {
+    crate::c_api::utils::catch_panic(|| {
+        crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
 
-impl_destroy_on_type!(CompactPkeCrs);
+        *result = std::ptr::null_mut();
 
+        let deserialized: crate::core_crypto::entities::CompactPkePublicParams =
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
+        let crs = deserialized.into();
+
+        let heap_allocated_object = Box::new(CompactPkeCrs(crs));
+
+        *result = Box::into_raw(heap_allocated_object);
+    })
+}
+
+/// Deserializes the CRS from a CompactPkePublicParams object that comes from a previous version of
+/// TFHE-rs. This function is kept for backward compatibility, new code should directly use the
+/// CompactPkeCrs object.
+#[no_mangle]
+pub unsafe extern "C" fn compact_pke_crs_safe_deserialize_from_params(
+    buffer_view: crate::c_api::buffer::DynamicBufferView,
+    serialized_size_limit: u64,
+    result: *mut *mut CompactPkeCrs,
+) -> ::std::os::raw::c_int {
+    crate::c_api::utils::catch_panic(|| {
+        crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        *result = std::ptr::null_mut();
+
+        let buffer_view: &[u8] = buffer_view.as_slice();
+
+        let deserialized: crate::core_crypto::entities::CompactPkePublicParams =
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+                .disable_conformance()
+                .deserialize_from(buffer_view)
+                .unwrap();
+        let crs = deserialized.into();
+
+        let heap_allocated_object = Box::new(CompactPkeCrs(crs));
+
+        *result = Box::into_raw(heap_allocated_object);
+    })
+}
+
+/// Creates a new CRS to generate zk pke proofs based on a config object.
 #[no_mangle]
 pub unsafe extern "C" fn compact_pke_crs_from_config(
     config: *const Config,
@@ -145,19 +197,5 @@ pub unsafe extern "C" fn compact_pke_crs_from_config(
             .unwrap();
 
         *out_result = Box::into_raw(Box::new(CompactPkeCrs(crs)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn compact_pke_crs_public_params(
-    crs: *const CompactPkeCrs,
-    out_public_params: *mut *mut CompactPkePublicParams,
-) -> c_int {
-    crate::c_api::utils::catch_panic(|| {
-        let crs = get_ref_checked(crs).unwrap();
-
-        *out_public_params = Box::into_raw(Box::new(CompactPkePublicParams(
-            crs.0.public_params().clone(),
-        )));
     })
 }

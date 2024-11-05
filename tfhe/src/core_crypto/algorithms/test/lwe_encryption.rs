@@ -1064,7 +1064,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
                 &mut rsc.secret_random_generator,
                 &mut rsc.encryption_random_generator,
                 &mut random_generator,
-                crs.public_params(),
+                &crs,
                 &metadata,
                 ZkComputeLoad::Proof,
             )
@@ -1082,18 +1082,13 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
             assert_eq!(msg, decoded);
 
             // Verify the proof
-            assert!(
-                verify_lwe_ciphertext(&ct, &pk, &proof, crs.public_params(), &metadata).is_valid()
-            );
+            assert!(verify_lwe_ciphertext(&ct, &pk, &proof, &crs, &metadata).is_valid());
 
             // verify proof with invalid ciphertext
             let index = random_generator.gen::<usize>() % ct.as_ref().len();
             let value_to_add = random_generator.gen::<Scalar>();
             ct.as_mut()[index] = ct.as_mut()[index].wrapping_add(value_to_add);
-            assert!(
-                verify_lwe_ciphertext(&ct, &pk, &proof, crs.public_params(), &metadata)
-                    .is_invalid()
-            );
+            assert!(verify_lwe_ciphertext(&ct, &pk, &proof, &crs, &metadata).is_invalid());
         }
 
         // In coverage, we break after one while loop iteration, changing message values does not
@@ -1193,7 +1188,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &mut secret_random_generator,
                 &mut encryption_random_generator,
                 &mut random_generator,
-                crs.public_params(),
+                &crs,
                 &metadata,
                 ZkComputeLoad::Proof,
             )
@@ -1203,7 +1198,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &output_compact_ct_list,
                 &compact_lwe_pk,
                 &proof,
-                crs.public_params(),
+                &crs,
                 &metadata
             )
             .is_valid());
@@ -1234,7 +1229,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &output_compact_ct_list,
                 &compact_lwe_pk,
                 &proof,
-                crs.public_params(),
+                &crs,
                 &metadata
             )
             .is_invalid());
@@ -1285,7 +1280,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &mut secret_random_generator,
                 &mut encryption_random_generator,
                 &mut random_generator,
-                crs.public_params(),
+                &crs,
                 &metadata,
                 ZkComputeLoad::Proof,
             )
@@ -1295,7 +1290,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &output_compact_ct_list,
                 &compact_lwe_pk,
                 &proof,
-                crs.public_params(),
+                &crs,
                 &metadata
             )
             .is_valid());
@@ -1326,7 +1321,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &output_compact_ct_list,
                 &compact_lwe_pk,
                 &proof,
-                crs.public_params(),
+                &crs,
                 &metadata
             )
             .is_invalid());

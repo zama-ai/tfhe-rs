@@ -25,7 +25,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client_key = tfhe::ClientKey::generate(config.clone());
     // This is done in an offline phase and the CRS is shared to all clients and the server
     let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
-    let public_zk_params = crs.public_params();
     let server_key = tfhe::ServerKey::new(&client_key);
     let public_key = tfhe::CompactPublicKey::try_new(&client_key).unwrap();
     // This can be left empty, but if provided allows to tie the proof to arbitrary data
@@ -37,14 +36,14 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
         .push(clear_b)
-        .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Proof)?;
+        .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)?;
 
     // Server side
     let result = {
         set_server_key(server_key);
 
         // Verify the ciphertexts
-        let expander = proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
+        let expander = proven_compact_list.verify_and_expand(&crs, &public_key, &metadata)?;
         let a: tfhe::FheUint64 = expander.get(0)?.unwrap();
         let b: tfhe::FheUint64 = expander.get(1)?.unwrap();
 
@@ -99,7 +98,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client_key = tfhe::ClientKey::generate(config.clone());
     // This is done in an offline phase and the CRS is shared to all clients and the server
     let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
-    let public_zk_params = crs.public_params();
     let server_key = tfhe::ServerKey::new(&client_key);
     let public_key = tfhe::CompactPublicKey::try_new(&client_key).unwrap();
     // This can be left empty, but if provided allows to tie the proof to arbitrary data
@@ -111,7 +109,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
         .push(clear_b)
-        .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Verify)?;
+        .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Verify)?;
 
     // Server side
     let result = {
@@ -119,7 +117,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Verify the ciphertexts
         let expander =
-            proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
+            proven_compact_list.verify_and_expand(&crs, &public_key, &metadata)?;
         let a: tfhe::FheUint64 = expander.get(0)?.unwrap();
         let b: tfhe::FheUint64 = expander.get(1)?.unwrap();
 

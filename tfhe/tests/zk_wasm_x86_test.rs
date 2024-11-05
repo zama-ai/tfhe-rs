@@ -14,7 +14,7 @@ use tfhe::safe_serialization::{safe_deserialize, safe_serialize};
 use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::zk::{CompactPkeCrs, CompactPkePublicParams};
+use tfhe::zk::CompactPkeCrs;
 use tfhe::{ClientKey, CompactPublicKey, ConfigBuilder, ProvenCompactCiphertextList};
 
 const SIZE_LIMIT: u64 = 1024 * 1024 * 1024;
@@ -59,7 +59,7 @@ fn gen_proven_ct_in_wasm(path: &Path) {
 
 fn verify_proof(
     public_key: &CompactPublicKey,
-    crs: &CompactPkePublicParams,
+    crs: &CompactPkeCrs,
     proven_ct: &ProvenCompactCiphertextList,
 ) {
     println!("Verifying proof");
@@ -86,12 +86,12 @@ fn test_proof_compat_with_wasm() {
     safe_serialize(&pub_key, &mut f_pubkey, SIZE_LIMIT).unwrap();
 
     let mut f_crs = File::create(test_path.join("crs.bin")).unwrap();
-    safe_serialize(crs.public_params(), &mut f_crs, SIZE_LIMIT).unwrap();
+    safe_serialize(&crs, &mut f_crs, SIZE_LIMIT).unwrap();
 
     gen_proven_ct_in_wasm(&test_path);
 
     let mut f_ct = File::open(test_path.join("proof.bin")).unwrap();
     let proven_ct: ProvenCompactCiphertextList = safe_deserialize(&mut f_ct, SIZE_LIMIT).unwrap();
 
-    verify_proof(&pub_key, crs.public_params(), &proven_ct);
+    verify_proof(&pub_key, &crs, &proven_ct);
 }

@@ -5,9 +5,11 @@ use crate::named::Named;
 #[cfg(feature = "shortint")]
 use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
 use rand_core::RngCore;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::Bound;
 use std::fmt::Debug;
+use tfhe_versionable::Versionize;
 use tfhe_zk_pok::proofs::pke::crs_gen;
 
 pub use tfhe_zk_pok::curve_api::Compressible;
@@ -35,7 +37,7 @@ impl Named for CompactPkePublicParams {
     const NAME: &'static str = "zk::CompactPkePublicParams";
 }
 
-pub struct CompactPkePublicParamsConformanceParams {
+pub struct CompactPkeCrsConformanceParams {
     lwe_dim: LweDimension,
     max_num_message: usize,
     noise_bound: u64,
@@ -44,8 +46,8 @@ pub struct CompactPkePublicParamsConformanceParams {
     msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
 }
 
-impl CompactPkePublicParamsConformanceParams {
-    #[cfg(feature = "shortint")]
+#[cfg(feature = "shortint")]
+impl CompactPkeCrsConformanceParams {
     pub fn new<E, P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>>(
         value: P,
         max_num_message: usize,
@@ -82,7 +84,7 @@ impl CompactPkePublicParamsConformanceParams {
 }
 
 impl ParameterSetConformant for CompactPkePublicParams {
-    type ParameterSet = CompactPkePublicParamsConformanceParams;
+    type ParameterSet = CompactPkeCrsConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         self.k <= self.d
@@ -123,12 +125,30 @@ impl ZkVerificationOutCome {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ZkMSBZeroPaddingBitCount(pub u64);
+
+/// The CRS (Common Reference String) of a ZK scheme is a set of values shared between the prover
+/// and the verifier.
+///
+/// The same CRS should be used at the prove and verify steps.
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[repr(transparent)]
 pub struct CompactPkeCrs {
     public_params: CompactPkePublicParams,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ZkMSBZeroPaddingBitCount(pub u64);
+impl Named for CompactPkeCrs {
+    const NAME: &'static str = "zk::CompactPkeCrs";
+}
+
+impl From<CompactPkePublicParams> for CompactPkeCrs {
+    fn from(value: CompactPkePublicParams) -> Self {
+        Self {
+            public_params: value,
+        }
+    }
+}
 
 impl CompactPkeCrs {
     /// Prepare and check the CRS parameters.
@@ -263,19 +283,64 @@ impl CompactPkeCrs {
         Ok(Self { public_params })
     }
 
+    /// Maximum number of messages that can be proven in a single list using this CRS
+    pub fn max_num_messages(&self) -> usize {
+        self.public_params().k
+    }
+
     pub fn public_params(&self) -> &CompactPkePublicParams {
         &self.public_params
+    }
+}
+
+impl ParameterSetConformant for CompactPkeCrs {
+    type ParameterSet = CompactPkeCrsConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        self.public_params.is_conformant(parameter_set)
+    }
+}
+
+/// The CRS can be compressed by only storing the `x` part of the elliptic curve coordinates.
+#[derive(Serialize, Deserialize, Versionize)]
+#[repr(transparent)]
+pub struct CompressedCompactPkeCrs {
+    public_params: <CompactPkePublicParams as Compressible>::Compressed,
+}
+
+// The NAME impl is the same as CompactPkeCrs because once serialized they are represented with the
+// same object. Decompression is done automatically during deserialization.
+impl Named for CompressedCompactPkeCrs {
+    const NAME: &'static str = CompactPkeCrs::NAME;
+}
+
+impl Compressible for CompactPkeCrs {
+    type Compressed = CompressedCompactPkeCrs;
+
+    type UncompressError = <CompactPkePublicParams as Compressible>::UncompressError;
+
+    fn compress(&self) -> Self::Compressed {
+        CompressedCompactPkeCrs {
+            public_params: self.public_params.compress(),
+        }
+    }
+
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+        Ok(Self {
+            public_params: Compressible::uncompress(compressed.public_params)?,
+        })
     }
 }
 
 #[cfg(all(test, feature = "shortint"))]
 mod test {
     use super::*;
+    use crate::safe_serialization::{safe_deserialize_conformant, safe_serialize};
     use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::{CarryModulus, MessageModulus};
 
     #[test]
-    fn test_public_params_conformance() {
+    fn test_crs_conformance() {
         let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
         let mut bad_params = params;
         bad_params.carry_modulus = CarryModulus(8);
@@ -294,17 +359,59 @@ mod test {
         )
         .unwrap();
 
-        let conformance_params = CompactPkePublicParamsConformanceParams::new(params, 4).unwrap();
+        let conformance_params = CompactPkeCrsConformanceParams::new(params, 4).unwrap();
 
-        assert!(crs.public_params().is_conformant(&conformance_params));
+        assert!(crs.is_conformant(&conformance_params));
 
-        let conformance_params =
-            CompactPkePublicParamsConformanceParams::new(bad_params, 4).unwrap();
+        let conformance_params = CompactPkeCrsConformanceParams::new(bad_params, 4).unwrap();
 
-        assert!(!crs.public_params().is_conformant(&conformance_params));
+        assert!(!crs.is_conformant(&conformance_params));
 
-        let conformance_params = CompactPkePublicParamsConformanceParams::new(params, 2).unwrap();
+        let conformance_params = CompactPkeCrsConformanceParams::new(params, 2).unwrap();
 
-        assert!(!crs.public_params().is_conformant(&conformance_params));
+        assert!(!crs.is_conformant(&conformance_params));
+    }
+
+    #[test]
+    fn test_crs_serialization() {
+        let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let mut rng = rand::thread_rng();
+
+        let crs = CompactPkeCrs::new(
+            params.encryption_lwe_dimension,
+            4,
+            params.encryption_noise_distribution,
+            params.ciphertext_modulus,
+            (params.message_modulus.0 * params.carry_modulus.0 * 2) as u64,
+            ZkMSBZeroPaddingBitCount(1),
+            &mut rng,
+        )
+        .unwrap();
+
+        let conformance_params = CompactPkeCrsConformanceParams::new(params, 4).unwrap();
+
+        let mut serialized = Vec::new();
+        safe_serialize(&crs, &mut serialized, 1 << 30).unwrap();
+
+        let _crs_deser: CompactPkeCrs =
+            safe_deserialize_conformant(serialized.as_slice(), 1 << 30, &conformance_params)
+                .unwrap();
+
+        // Check that we are able to load public params
+        let mut serialized = Vec::new();
+        safe_serialize(crs.public_params(), &mut serialized, 1 << 30).unwrap();
+
+        let _params_deser: CompactPkePublicParams =
+            safe_deserialize_conformant(serialized.as_slice(), 1 << 30, &conformance_params)
+                .unwrap();
+
+        // Check with compression
+        let mut serialized = Vec::new();
+        safe_serialize(&crs.compress(), &mut serialized, 1 << 30).unwrap();
+
+        let _crs_deser: CompactPkeCrs =
+            safe_deserialize_conformant(serialized.as_slice(), 1 << 30, &conformance_params)
+                .unwrap();
     }
 }

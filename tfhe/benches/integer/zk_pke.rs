@@ -64,7 +64,7 @@ fn pke_zk_proof(c: &mut Criterion) {
 
             let crs =
                 CompactPkeCrs::from_shortint_params(param_pke, num_block * fhe_uint_count).unwrap();
-            let public_params = crs.public_params();
+
             for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
                 let zk_load = match compute_load {
                     ZkComputeLoad::Proof => "compute_load_proof",
@@ -78,7 +78,7 @@ fn pke_zk_proof(c: &mut Criterion) {
                     b.iter(|| {
                         let _ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                             .extend(messages.iter().copied())
-                            .build_with_proof_packed(public_params, &metadata, compute_load)
+                            .build_with_proof_packed(&crs, &metadata, compute_load)
                             .unwrap();
                     })
                 });
@@ -150,11 +150,10 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             println!("Generating CRS... ");
             let crs =
                 CompactPkeCrs::from_shortint_params(param_pke, num_block * fhe_uint_count).unwrap();
-            let public_params = crs.public_params();
 
             let shortint_params: PBSParameters = param_fhe.into();
 
-            let crs_data = bincode::serialize(&public_params).unwrap();
+            let crs_data = bincode::serialize(&crs).unwrap();
 
             println!("CRS size: {}", crs_data.len());
 
@@ -187,7 +186,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                 println!("Generating proven ciphertext ({zk_load})... ");
                 let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                     .extend(messages.iter().copied())
-                    .build_with_proof_packed(public_params, &metadata, compute_load)
+                    .build_with_proof_packed(&crs, &metadata, compute_load)
                     .unwrap();
 
                 let proven_ciphertext_list_serialized = bincode::serialize(&ct1).unwrap();
@@ -234,7 +233,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
                 bench_group.bench_function(&bench_id_verify, |b| {
                     b.iter(|| {
-                        let _ret = ct1.verify(public_params, &pk, &metadata);
+                        let _ret = ct1.verify(&crs, &pk, &metadata);
                     });
                 });
 
@@ -242,7 +241,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     b.iter(|| {
                         let _ret = ct1
                             .verify_and_expand(
-                                public_params,
+                                &crs,
                                 &pk,
                                 &metadata,
                                 IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(

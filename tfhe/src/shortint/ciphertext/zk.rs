@@ -10,10 +10,7 @@ use crate::shortint::parameters::{
     MessageModulus, ShortintCompactCiphertextListCastingMode,
 };
 use crate::shortint::{Ciphertext, CompactPublicKey};
-use crate::zk::{
-    CompactPkeCrs, CompactPkeProof, CompactPkePublicParams, ZkMSBZeroPaddingBitCount,
-    ZkVerificationOutCome,
-};
+use crate::zk::{CompactPkeCrs, CompactPkeProof, ZkMSBZeroPaddingBitCount, ZkVerificationOutCome};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -72,7 +69,7 @@ impl ProvenCompactCiphertextList {
 
     pub fn verify_and_expand(
         &self,
-        public_params: &CompactPkePublicParams,
+        crs: &CompactPkeCrs,
         public_key: &CompactPublicKey,
         metadata: &[u8],
         casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
@@ -82,7 +79,7 @@ impl ProvenCompactCiphertextList {
                 &ct_list.ct_list,
                 &public_key.key,
                 proof,
-                public_params,
+                crs,
                 metadata,
             )
             .is_invalid()
@@ -166,7 +163,7 @@ impl ProvenCompactCiphertextList {
 
     pub fn verify(
         &self,
-        public_params: &CompactPkePublicParams,
+        crs: &CompactPkeCrs,
         public_key: &CompactPublicKey,
         metadata: &[u8],
     ) -> ZkVerificationOutCome {
@@ -175,7 +172,7 @@ impl ProvenCompactCiphertextList {
                 &ct_list.ct_list,
                 &public_key.key,
                 proof,
-                public_params,
+                crs,
                 metadata,
             )
             .is_valid()
@@ -299,7 +296,7 @@ mod tests {
         let proven_ct = pk
             .encrypt_and_prove(
                 msg,
-                crs.public_params(),
+                &crs,
                 &metadata,
                 ZkComputeLoad::Proof,
                 encryption_modulus,
@@ -317,7 +314,7 @@ mod tests {
         }
 
         let proven_ct = proven_ct.verify_and_expand(
-            crs.public_params(),
+            &crs,
             &pk,
             &metadata,
             ShortintCompactCiphertextListCastingMode::NoCasting,
@@ -346,19 +343,17 @@ mod tests {
         let proven_ct = pk
             .encrypt_and_prove_slice(
                 &msgs,
-                crs.public_params(),
+                &crs,
                 &metadata,
                 ZkComputeLoad::Proof,
                 params.message_modulus.0 as u64,
             )
             .unwrap();
-        assert!(proven_ct
-            .verify(crs.public_params(), &pk, &metadata)
-            .is_valid());
+        assert!(proven_ct.verify(&crs, &pk, &metadata).is_valid());
 
         let expanded = proven_ct
             .verify_and_expand(
-                crs.public_params(),
+                &crs,
                 &pk,
                 &metadata,
                 ShortintCompactCiphertextListCastingMode::NoCasting,

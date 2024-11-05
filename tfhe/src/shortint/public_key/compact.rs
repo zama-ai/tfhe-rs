@@ -17,7 +17,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
 use crate::shortint::{CarryModulus, ClientKey, MessageModulus};
 #[cfg(feature = "zk-pok")]
-use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
+use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -256,18 +256,12 @@ impl CompactPublicKey {
     pub fn encrypt_and_prove(
         &self,
         message: u64,
-        public_params: &CompactPkePublicParams,
+        crs: &CompactPkeCrs,
         metadata: &[u8],
         load: ZkComputeLoad,
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
-        self.encrypt_and_prove_slice(
-            &[message],
-            public_params,
-            metadata,
-            load,
-            encryption_modulus,
-        )
+        self.encrypt_and_prove_slice(&[message], crs, metadata, load, encryption_modulus)
     }
 
     /// Encrypts the messages contained in the slice into a compact ciphertext list
@@ -376,7 +370,7 @@ impl CompactPublicKey {
     pub fn encrypt_and_prove_slice(
         &self,
         messages: &[u64],
-        public_params: &CompactPkePublicParams,
+        crs: &CompactPkeCrs,
         metadata: &[u8],
         load: ZkComputeLoad,
         encryption_modulus: u64,
@@ -390,9 +384,9 @@ impl CompactPublicKey {
         // encryption
         let max_ciphertext_per_bin = self.key.lwe_dimension().0;
         // This is the maximum of lwe message a single proof can prove
-        let max_num_message = public_params.k;
+        let max_num_messages = crs.max_num_messages();
         // One of the two is the limiting factor for how much we can pack messages
-        let message_chunk_size = max_num_message.min(max_ciphertext_per_bin);
+        let message_chunk_size = max_num_messages.min(max_ciphertext_per_bin);
 
         let num_lists = messages.len().div_ceil(message_chunk_size);
         let mut proved_lists = Vec::with_capacity(num_lists);
@@ -421,7 +415,7 @@ impl CompactPublicKey {
                         &mut engine.secret_generator,
                         &mut engine.encryption_generator,
                         &mut engine.random_generator,
-                        public_params,
+                        crs,
                         metadata,
                         load,
                     )
@@ -443,7 +437,7 @@ impl CompactPublicKey {
                         &mut engine.secret_generator,
                         &mut engine.encryption_generator,
                         &mut engine.random_generator,
-                        public_params,
+                        crs,
                         metadata,
                         load,
                     )

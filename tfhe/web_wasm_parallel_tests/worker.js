@@ -16,7 +16,6 @@ import init, {
   FheUint8,
   ZkComputeLoad,
   CompactPkeCrs,
-  CompactPkePublicParams,
   CompactCiphertextList,
   ProvenCompactCiphertextList,
   ShortintCompactPublicKeyEncryptionParameters,
@@ -383,11 +382,10 @@ async function compactPublicKeyZeroKnowledgeTest() {
   console.time("CRS generation");
   let crs = CompactPkeCrs.from_config(config, 4 * 64);
   console.timeEnd("CRS generation");
-  let public_params = crs.public_params();
 
-  let serialized = public_params.safe_serialize(BigInt(1000000000));
-  console.log("CompactPkePublicParams size:", serialized.length);
-  let deserialized = CompactPkePublicParams.safe_deserialize(
+  let serialized = crs.safe_serialize(BigInt(1000000000));
+  console.log("CompactPkeCrs size:", serialized.length);
+  let deserialized = CompactPkeCrs.safe_deserialize(
     serialized,
     BigInt(1000000000),
   );
@@ -403,7 +401,7 @@ async function compactPublicKeyZeroKnowledgeTest() {
     let builder = CompactCiphertextList.builder(publicKey);
     builder.push_u64(input);
     let list = builder.build_with_proof_packed(
-      public_params,
+      crs,
       metadata,
       ZkComputeLoad.Proof,
     );
@@ -421,11 +419,7 @@ async function compactPublicKeyZeroKnowledgeTest() {
       BigInt(10000000),
     );
 
-    let expander = deserialized.verify_and_expand(
-      public_params,
-      publicKey,
-      metadata,
-    );
+    let expander = deserialized.verify_and_expand(crs, publicKey, metadata);
 
     assert_eq(expander.get_uint64(0).decrypt(clientKey), input);
 
@@ -447,7 +441,7 @@ async function compactPublicKeyZeroKnowledgeTest() {
       builder.push_u64(input);
     }
     let encrypted = builder.build_with_proof_packed(
-      public_params,
+      crs,
       metadata,
       ZkComputeLoad.Proof,
     );
@@ -458,11 +452,7 @@ async function compactPublicKeyZeroKnowledgeTest() {
       " ms",
     );
 
-    let expander = encrypted.verify_and_expand(
-      public_params,
-      publicKey,
-      metadata,
-    );
+    let expander = encrypted.verify_and_expand(crs, publicKey, metadata);
 
     assert_eq(expander.get_uint64(0).decrypt(clientKey), inputs[0]);
 
@@ -700,7 +690,6 @@ async function compactPublicKeyZeroKnowledgeBench() {
       const metadata = new Uint8Array(320 / 8);
       crypto.getRandomValues(metadata);
 
-      let public_params = crs.public_params();
       let inputs = Array.from(Array(encrypt_count).keys()).map((_) => U64_MAX);
       for (const loadChoice of load_choices) {
         let serialized_size = 0;
@@ -714,7 +703,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
           }
           const start = performance.now();
           let list = compact_list_builder.build_with_proof_packed(
-            public_params,
+            crs,
             metadata,
             loadChoice,
           );

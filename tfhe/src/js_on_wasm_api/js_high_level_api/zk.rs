@@ -25,13 +25,10 @@ impl From<ZkComputeLoad> for crate::zk::ZkComputeLoad {
 #[wasm_bindgen]
 pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs);
 
-#[wasm_bindgen]
-pub struct CompactPkePublicParams(pub(crate) crate::zk::CompactPkePublicParams);
-
 // "wasm bindgen is fragile and prefers the actual type vs. Self"
 #[allow(clippy::use_self)]
 #[wasm_bindgen]
-impl CompactPkePublicParams {
+impl CompactPkeCrs {
     #[wasm_bindgen]
     pub fn serialize(&self, compress: bool) -> Result<Vec<u8>, JsError> {
         catch_panic_result(|| {
@@ -45,12 +42,12 @@ impl CompactPkePublicParams {
     }
 
     #[wasm_bindgen]
-    pub fn deserialize(buffer: &[u8]) -> Result<CompactPkePublicParams, JsError> {
+    pub fn deserialize(buffer: &[u8]) -> Result<CompactPkeCrs, JsError> {
         // If buffer is compressed it is automatically detected and uncompressed.
         // TODO: handle validation
         catch_panic_result(|| {
             bincode::deserialize(buffer)
-                .map(CompactPkePublicParams)
+                .map(CompactPkeCrs)
                 .map_err(into_js_error)
         })
     }
@@ -71,7 +68,7 @@ impl CompactPkePublicParams {
     pub fn safe_deserialize(
         buffer: &[u8],
         serialized_size_limit: u64,
-    ) -> Result<CompactPkePublicParams, JsError> {
+    ) -> Result<CompactPkeCrs, JsError> {
         catch_panic_result(|| {
             crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
@@ -80,12 +77,7 @@ impl CompactPkePublicParams {
                 .map_err(into_js_error)
         })
     }
-}
 
-// "wasm bindgen is fragile and prefers the actual type vs. Self"
-#[allow(clippy::use_self)]
-#[wasm_bindgen]
-impl CompactPkeCrs {
     #[wasm_bindgen]
     pub fn from_parameters(
         parameters: &ShortintParameters,
@@ -111,7 +103,28 @@ impl CompactPkeCrs {
     }
 
     #[wasm_bindgen]
-    pub fn public_params(&self) -> CompactPkePublicParams {
-        CompactPkePublicParams(self.0.public_params().clone())
+    pub fn deserialize_from_public_params(buffer: &[u8]) -> Result<CompactPkeCrs, JsError> {
+        // If buffer is compressed it is automatically detected and uncompressed.
+        catch_panic_result(|| {
+            bincode::deserialize(buffer)
+                .map(crate::zk::CompactPkePublicParams::into)
+                .map(CompactPkeCrs)
+                .map_err(into_js_error)
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn safe_deserialize_from_public_params(
+        buffer: &[u8],
+        serialized_size_limit: u64,
+    ) -> Result<CompactPkeCrs, JsError> {
+        catch_panic_result(|| {
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+                .disable_conformance()
+                .deserialize_from(buffer)
+                .map(crate::zk::CompactPkePublicParams::into)
+                .map(CompactPkeCrs)
+                .map_err(into_js_error)
+        })
     }
 }
