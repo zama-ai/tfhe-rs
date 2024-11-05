@@ -264,10 +264,10 @@ def fft_noise(x, a, b, c, log2_q):
     # ~ print(x[:,1])
     # ~ print(x[:,-1])
     # ~ print("----")
-    return k * (k + 1) * level * (
+    return k * (k + 1) * level * ( # * 1: a,b,c: 0.1520430170366637   * 1: a,c: 0.1526308899949104   * np.log2((k+1)*level+b): a,c: 0.06961723000732326   * ((k+1)*level)**b: a,c:0.06561459599837988
         # ~ a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**1.584962501
         # ~ + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
-        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2                 # in theory, not present
+        a * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * N**2
         + b * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*np.log2(N)
         + c * 2**bit_lost_roundtrip * 2.0 ** (2 * logbase) * (N**2)*(np.log2(N)**2)
     )

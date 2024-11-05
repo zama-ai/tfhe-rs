@@ -23,11 +23,11 @@ use tfhe::core_crypto::prelude::{
 pub fn classic_pbs_external_product(
     parameters: &GlweCiphertextGgswCiphertextExternalProductParameters<u64>,
     raw_inputs: &mut Vec<Vec<u64>>,
-    outputs: &mut Vec<Vec<u64>>,
+    outputs_fft: &mut Vec<Vec<u64>>,
+    outputs_kara: &mut Vec<Vec<u64>>,
     sample_size: usize,
     secret_random_generator: &mut SecretRandomGenerator<ActivatedRandomGenerator>,
     encryption_random_generator: &mut EncryptionRandomGenerator<ActivatedRandomGenerator>,
-    use_fft: bool,
     fft: FftView,
     computation_buffers: &mut ComputationBuffers,
 ) -> (u128, u128) {
@@ -63,14 +63,14 @@ pub fn classic_pbs_external_product(
         std_ggsw.decomposition_level_count(),
     );
 
-    if use_fft {
+    //~ if use_fft {
         convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
             &std_ggsw,
             &mut fourier_ggsw,
             fft,
             computation_buffers.stack(),
         );
-    }
+    //~ }
 
     let mut sample_runtime_ns = 0u128;
 
@@ -110,7 +110,13 @@ pub fn classic_pbs_external_product(
             encryption_random_generator,
         );
 
-        let mut output_glwe_ciphertext = GlweCiphertext::new(
+        let mut output_glwe_ciphertext_fft = GlweCiphertext::new(
+            0u64,
+            parameters.glwe_dimension.to_glwe_size(),
+            parameters.polynomial_size,
+            ciphertext_modulus,
+        );
+        let mut output_glwe_ciphertext_kara = GlweCiphertext::new(
             0u64,
             parameters.glwe_dimension.to_glwe_size(),
             parameters.polynomial_size,
@@ -119,22 +125,22 @@ pub fn classic_pbs_external_product(
 
         let start = std::time::Instant::now();
 
-        if use_fft {
+        //~ if use_fft {
             add_external_product_assign_mem_optimized(
-                &mut output_glwe_ciphertext,
+                &mut output_glwe_ciphertext_fft,
                 &fourier_ggsw,
                 &input_glwe_ciphertext,
                 fft,
                 computation_buffers.stack(),
             );
-        } else {
+        //~ } else {
             karatsuba_add_external_product_assign_mem_optimized(
-                &mut output_glwe_ciphertext,
+                &mut output_glwe_ciphertext_kara,
                 &std_ggsw,
                 &input_glwe_ciphertext,
                 computation_buffers.stack(),
             );
-        }
+        //~ }
 
         if !ciphertext_modulus.is_native_modulus() {
             // When we convert back from the fourier domain, integer values will contain up to 53
@@ -145,7 +151,11 @@ pub fn classic_pbs_external_product(
                 DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
                 DecompositionLevelCount(1),
             );
-            output_glwe_ciphertext
+            output_glwe_ciphertext_fft
+                .as_mut()
+                .iter_mut()
+                .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+            output_glwe_ciphertext_kara
                 .as_mut()
                 .iter_mut()
                 .for_each(|x| *x = signed_decomposer.closest_representable(*x));
@@ -154,21 +164,29 @@ pub fn classic_pbs_external_product(
         let elapsed = start.elapsed().as_nanos();
         sample_runtime_ns += elapsed;
 
-        let mut output_plaintext_list = input_plaintext_list.clone();
+        let mut output_plaintext_list_fft = input_plaintext_list.clone();
         decrypt_glwe_ciphertext(
             &glwe_secret_key,
-            &output_glwe_ciphertext,
-            &mut output_plaintext_list,
+            &output_glwe_ciphertext_fft,
+            &mut output_plaintext_list_fft,
+        );
+        let mut output_plaintext_list_kara = input_plaintext_list.clone();
+        decrypt_glwe_ciphertext(
+            &glwe_secret_key,
+            &output_glwe_ciphertext_kara,
+            &mut output_plaintext_list_kara,
         );
 
         // Sanity check
         if !ciphertext_modulus.is_native_modulus() {
             let modulus: u64 = ciphertext_modulus.get_custom_modulus() as u64;
-            assert!(output_plaintext_list.as_ref().iter().all(|x| *x < modulus));
+            assert!(output_plaintext_list_fft.as_ref().iter().all(|x| *x < modulus));
+            assert!(output_plaintext_list_kara.as_ref().iter().all(|x| *x < modulus));
         }
 
         raw_inputs.push(input_plaintext_list.into_container());
-        outputs.push(output_plaintext_list.into_container());
+        outputs_fft.push(output_plaintext_list_fft.into_container());
+        outputs_kara.push(output_plaintext_list_kara.into_container());
     }
 
     // No prep time in this case

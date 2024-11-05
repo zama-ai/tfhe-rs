@@ -1,18 +1,26 @@
 #!/usr/bin/env gnuplot
 
-GF = 2
-PATH = "fft-kara"
+GF = 3
+PATH_BASE = "fft-kara"
+PATH = PATH_BASE."/graphs"
 SFX = "" # -suffix
-# sort by 4-th column
-DATAFILE_BY_L = "< sort -nk4 ".PATH."/gf=".GF.SFX.".dat"
 # sort by 2-nd column
-DATAFILE_BY_N = "< sort -nk2 ".PATH."/gf=".GF.SFX.".dat"
+DATAFILE_BY_N = "< sort -nk2 ".PATH_BASE."/gf=".GF.SFX.".dat"
+# sort by 4-th column
+DATAFILE_BY_L = "< sort -nk4 ".PATH_BASE."/gf=".GF.SFX.".dat"
+# sort by 5-th column
+DATAFILE_BY_B = "< sort -nk5 ".PATH_BASE."/gf=".GF.SFX.".dat"
 
 set term pngcairo size 1800,1000 # linewidth 2
 set datafile separator ","
 
 set grid
 set xtics 2
+
+
+# ==============================================================================
+#   Level
+#
 set xrange [0:21]
 
 #~ do for [nu=9:14] {
@@ -24,7 +32,7 @@ do for [k=1:3] {
     set out PATH."/l-noise-gf=".GF."-k=".k."-N=".N.SFX.".png"
     set multiplot layout 2,1
 
-    # ====    Measured & Predicted Noise    ====================================
+    # ----    Measured & Predicted Noise    ------------------------------------
     set logscale y # 2 or 10
     set yrange [1e12:1e19]
     # or: set datafile missing NaN
@@ -47,7 +55,7 @@ do for [k=1:3] {
                     #~ w l lt 2 dt 2 t 'new fit B = 2^2', \
             #~ ''   u (x0 = NaN):(y0 = NaN) notitle, \
 
-    # ====    Ratio of Measured / Predicted Noise    ===========================
+    # ----    Ratio of Measured / Predicted Noise    ---------------------------
     #~ unset logscale y
     set yrange [.5:4]
     x0 = y0 = NaN
@@ -62,16 +70,65 @@ do for [k=1:3] {
 }
 }
 
+
+# ==============================================================================
+#   Log-Base
+#
+set xrange [0:25]
 #~ set xtics 2
+
+#~ do for [nu=9:14] {
+do for [nu=8:12] {
+#~ do for [k=1:2] {
+do for [k=1:3] {
+    if (nu==8 && k==1) {continue} # no data points here
+    N = 2**nu
+    set out PATH."/B-noise-gf=".GF."-k=".k."-N=".N.SFX.".png"
+    set multiplot layout 2,1
+
+    # ----    Measured & Predicted Noise    ------------------------------------
+    set logscale y # 2 or 10
+    set yrange [1e13:1e27]
+    # or: set datafile missing NaN
+    x0 = y0 = NaN
+    cmd_4 = "plot "
+    do for [l=1:4] {
+        cmd_4 = cmd_4."DATAFILE_BY_B u (($2 == N && $3 == k && $4 == ".l.") ? (y0=$8,x0=$5) : x0):(y0) w l  lt ".l." dt 3 t 'measured l = ".l."', "
+        cmd_4 = cmd_4."''   u (x0 = NaN):(y0 = NaN) notitle, "
+        cmd_4 = cmd_4."''   u (($2 == N && $3 == k && $4 == ".l.") ? (y0=$7,x0=$5) : x0):(y0) w lp lt ".l." t 'curve fit l = ".l."', "
+        cmd_4 = cmd_4."''   u (x0 = NaN):(y0 = NaN) notitle, "
+    }
+    evaluate(cmd_4)
+
+    # ----    Ratio of Measured / Predicted Noise    ---------------------------
+    #~ unset logscale y
+    set yrange [.5:4]
+    x0 = y0 = NaN
+    cmd_5 = "plot "
+    do for [l=1:4] {
+        cmd_5 = cmd_5."DATAFILE_BY_B u (($2 == N && $3 == k && $4 == ".l.") ? (y0=$7/$8,x0=$5) : x0):(y0) w lp lt ".l." t 'meas/fit l = ".l."', "
+        cmd_5 = cmd_5."''   u (x0 = NaN):(y0 = NaN) notitle, "
+    }
+    evaluate(cmd_5)
+
+    unset multiplot
+}
+}
+
+
+# ==============================================================================
+#   Poly-Deg N
+#
 set xrange [128:8192]
 set logscale x
+#~ set xtics 2
 
 do for [k=1:3] {
 do for [logb=1:5] {
     set out PATH."/N-noise-gf=".GF."-k=".k."-logB=".logb.SFX.".png"
     set multiplot layout 2,1
 
-    # ====    Measured & Predicted Noise    ====================================
+    # ----    Measured & Predicted Noise    ------------------------------------
     set logscale y # 2 or 10
     set yrange [1e12:2e18]
     #~ set yrange [0:5e15]
@@ -86,7 +143,7 @@ do for [logb=1:5] {
     }
     evaluate(cmd_2)
 
-    # ====    Ratio of Measured / Predicted Noise    ===========================
+    # ----    Ratio of Measured / Predicted Noise    ---------------------------
     set yrange [.5:4]
     x0 = y0 = NaN
     cmd_3 = "plot "

@@ -321,7 +321,8 @@ fn main() {
     let (stepped_levels_cutoff, max_base_log_inclusive, preserved_mantissa) = match algo.as_str() {
         EXT_PROD_U128_ALGO | EXT_PROD_U128_SPLIT_ALGO => (41, 128, 106),
         //~ _ => (21, 64, 53),
-        _ => (21, 5, 53),
+        //~ _ => (21, 5, 53),
+        _ => (5, 20, 53),
     };
 
     if timing_only {
@@ -354,6 +355,7 @@ fn main() {
 
     let base_logs: Vec<_> = (1..=max_base_log_inclusive).collect();
     let mut levels = (1..stepped_levels_cutoff).collect::<Vec<_>>();
+    // comment the next 2 cmds if levels are to be limited:
     let mut stepped_levels = (stepped_levels_cutoff..=max_base_log_inclusive)
         .step_by(args.steps)
         .collect::<Vec<_>>();
@@ -524,17 +526,17 @@ fn main() {
                         let mut outputs_kara = Vec::with_capacity(sample_size);
 
                         let (sample_runtime_ns, prep_time_ns) = match algo.as_str() {
-                            //~ EXT_PROD_ALGO => classic_pbs_external_product(
-                                //~ &parameters,
-                                //~ &mut raw_inputs,
-                                //~ &mut outputs,
-                                //~ sample_size,
-                                //~ secret_rng,
-                                //~ encrypt_rng,
-                                //~ use_fft,
-                                //~ fft.as_view(),
-                                //~ &mut computation_buffers,
-                            //~ ),
+                            EXT_PROD_ALGO => classic_pbs_external_product(
+                                &parameters,
+                                &mut raw_inputs,
+                                &mut outputs_fft,
+                                &mut outputs_kara,
+                                sample_size,
+                                secret_rng,
+                                encrypt_rng,
+                                fft.as_view(),
+                                &mut computation_buffers,
+                            ),
                             MULTI_BIT_EXT_PROD_ALGO => multi_bit_pbs_external_product(
                                 &parameters,
                                 &mut raw_inputs,
