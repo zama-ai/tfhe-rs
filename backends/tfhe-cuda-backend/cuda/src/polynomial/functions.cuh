@@ -153,6 +153,7 @@ __device__ void init_decomposer_state_inplace(T *rotated_acc, int base_log,
       tid = tid + block_size;
     }
   }
+  synchronize_threads_in_block();
 }
 
 template <typename Torus, class params>
