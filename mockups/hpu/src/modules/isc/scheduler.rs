@@ -1,7 +1,9 @@
 use pe::PeConfigStore;
 
 use super::*;
-use std::collections::{BTreeMap, BinaryHeap, VecDeque};
+use std::collections::{BTreeMap, BinaryHeap, HashMap, VecDeque};
+
+use crate::report::{DOpRpt, TimeRpt};
 
 // TODO put the real value
 const QUERY_CYCLE: usize = 40;
@@ -11,16 +13,16 @@ pub struct Scheduler {
     params: IscSimParameters,
     quantum_cycles: usize,
     sim_cycles: usize,
-    pc: usize,
     sync_id: usize,
 
     dop_pdg: VecDeque<hpu_asm::DOp>,
     dop_exec: Vec<hpu_asm::DOp>,
     pool: Pool,
     evt_pdg: BinaryHeap<Event>,
-    rd_unlock: VecDeque<InstructionKind>,
-    wr_unlock: VecDeque<InstructionKind>,
+    rd_unlock: Vec<InstructionKind>,
+    wr_unlock: Vec<InstructionKind>,
     pe_store: PeStore,
+    trace: Vec<Trace>,
 }
 
 impl Scheduler {
@@ -35,14 +37,15 @@ impl Scheduler {
             dop_pdg: VecDeque::new(),
             dop_exec: Vec::new(),
             sim_cycles: 0,
-            pc: 0,
             sync_id: 0,
             quantum_cycles,
             evt_pdg: BinaryHeap::new(),
             pool,
-            rd_unlock: VecDeque::new(),
-            wr_unlock: VecDeque::new(),
+            rd_unlock: Vec::new(),
+            wr_unlock: Vec::new(),
             pe_store,
+
+            trace: Vec::new(),
         }
     }
 
@@ -59,7 +62,6 @@ impl Scheduler {
             self.sim_cycles,
             self.quantum_cycles
         );
-        tracing::trace!("{self:?}");
 
         // Register end-of-quantum
         self.evt_pdg.push(Event::new(
@@ -70,17 +72,22 @@ impl Scheduler {
         // Register Bpip timeout
         // TODO only generated if pbs_fifo_in  isn't empty
         if let Some(timeout) = bpip_timeout {
-            self.evt_pdg.push(Event::new(
-                EventType::BpipTimeout,
-                self.sim_cycles + timeout as usize,
-            ));
+            if 0 == self
+                .evt_pdg
+                .iter()
+                .filter(|evt| evt.event_type == EventType::BpipTimeout)
+                .count()
+            {
+                self.evt_pdg.push(Event::new(
+                    EventType::BpipTimeout,
+                    self.sim_cycles + timeout as usize,
+                ));
+            }
         }
 
         // Register next query
-        self.evt_pdg.push(Event::new(
-            EventType::Query,
-            self.sim_cycles + self.quantum_cycles,
-        ));
+        self.evt_pdg
+            .push(Event::new(EventType::Query, self.sim_cycles));
 
         // Start simulation loop
         loop {
@@ -97,16 +104,18 @@ impl Scheduler {
             );
             self.sim_cycles = at_cycle;
 
-            match event_type {
+            let trigger_query = match event_type {
                 EventType::RdUnlock(kind, id) => {
                     // update associated pe state
                     self.pe_store.rd_unlock(id);
-                    self.rd_unlock.push_back(kind);
+                    self.rd_unlock.push(kind);
+                    true
                 }
                 EventType::WrUnlock(kind, id) => {
                     // update associated pe state
                     self.pe_store.wr_unlock(id);
-                    self.wr_unlock.push_back(kind);
+                    self.wr_unlock.push(kind);
+                    true
                 }
                 EventType::QuantumEnd => {
                     break;
@@ -115,8 +124,25 @@ impl Scheduler {
                     // Trigger issue on pe store with batch_flush flag
                     let evts = self.pe_store.probe_for_exec(self.sim_cycles, true);
                     evts.into_iter().for_each(|evt| self.evt_pdg.push(evt));
+
+                    // Register next timeout event
+                    if let Some(timeout) = bpip_timeout {
+                        self.evt_pdg.push(Event::new(
+                            EventType::BpipTimeout,
+                            self.sim_cycles + timeout as usize,
+                        ));
+                    }
+                    true
                 }
                 EventType::Query => self.query(),
+            };
+
+            // Register next Query event
+            // NB: Register new query event only if something usefull has append. Other-wise wait
+            // for the next registered event
+            if trigger_query {
+                self.evt_pdg
+                    .push(Event::new(EventType::Query, self.sim_cycles + QUERY_CYCLE));
             }
         }
 
@@ -160,17 +186,31 @@ impl Scheduler {
     /// * Issue
     // NB: Aims is to remove finish instruction ASAP and to ensure that the pool is
     // filled as much as possible
-    fn query(&mut self) {
-        let query_issue = if !self.rd_unlock.is_empty() {
+    fn query(&mut self) -> bool {
+        if !self.rd_unlock.is_empty() {
             let kind_mh = self.rd_unlock_kind();
-            let kind_1h = self.pool.rd_unlock(kind_mh);
+            let (kind_1h, slot) = self.pool.rd_unlock(kind_mh);
+
+            self.trace.push(Trace {
+                timestamp: self.sim_cycles,
+                cmd: Query::RdUnlock,
+                slot: slot.clone(),
+            });
+
             self.ack_rd_unlock(kind_1h);
+
             true
         } else if !self.wr_unlock.is_empty() {
             let kind_mh = self.wr_unlock_kind();
-            let (dop, kind_1h) = self.pool.retire(kind_mh);
-            self.ack_wr_unlock(kind_1h);
-            self.dop_exec.push(dop);
+            let slot = self.pool.retire(kind_mh);
+            self.ack_wr_unlock(slot.inst.kind.clone());
+            self.dop_exec.push(slot.inst.op.clone());
+
+            self.trace.push(Trace {
+                timestamp: self.sim_cycles,
+                cmd: Query::Retire,
+                slot,
+            });
             true
         } else if !self.pool.is_full() && !self.dop_pdg.is_empty() {
             let dop = self.dop_pdg.pop_front().unwrap();
@@ -178,37 +218,48 @@ impl Scheduler {
                 hpu_asm::DOp::SYNC(_) => self.sync_id + 1,
                 _ => self.sync_id,
             };
-            self.pool.refill(self.sync_id, dop);
+            let slot = self.pool.refill(self.sync_id, dop);
             self.sync_id = nxt_sync_id;
 
+            self.trace.push(Trace {
+                timestamp: self.sim_cycles,
+                cmd: Query::Refill,
+                slot: slot.clone(),
+            });
             true
         } else {
             // By default try to issue
             let pe_avail = self.pe_store.avail_kind() | InstructionKind::Sync;
             match self.pool.issue(pe_avail) {
                 pool::IssueEvt::None => false,
-                pool::IssueEvt::DOp { kind_1h, flush } => {
+                pool::IssueEvt::DOp {
+                    kind_1h,
+                    flush,
+                    slot,
+                } => {
                     // Push token in associated pe
                     self.pe_store.push(kind_1h);
 
                     // Probe for execution and registered generated events
                     let evts = self.pe_store.probe_for_exec(self.sim_cycles, flush);
                     evts.into_iter().for_each(|evt| self.evt_pdg.push(evt));
+                    self.trace.push(Trace {
+                        timestamp: self.sim_cycles,
+                        cmd: Query::Issue,
+                        slot,
+                    });
                     true
                 }
-                pool::IssueEvt::Sync(dop) => {
-                    self.dop_exec.push(dop);
+                pool::IssueEvt::Sync(slot) => {
+                    self.dop_exec.push(slot.inst.op.clone());
+                    self.trace.push(Trace {
+                        timestamp: self.sim_cycles,
+                        cmd: Query::Issue,
+                        slot,
+                    });
                     true
                 }
             }
-        };
-
-        // Register next Query event
-        // NB: Register new query event only if something usefull has append. Other-wise wait for
-        // the next registered event
-        if query_issue {
-            self.evt_pdg
-                .push(Event::new(EventType::Query, self.sim_cycles + QUERY_CYCLE));
         }
     }
 
@@ -224,5 +275,57 @@ impl Scheduler {
         self.wr_unlock
             .iter()
             .fold(InstructionKind::None, |acc, kind| acc | *kind)
+    }
+}
+
+impl Scheduler {
+    pub fn dop_report(&self) -> DOpRpt {
+        let mut map = HashMap::new();
+
+        self.trace
+            .iter()
+            .filter(|pt| pt.cmd == Query::Issue)
+            .for_each(|pt| {
+                if let Some(entry) = map.get_mut(&pt.slot.inst.kind) {
+                    *entry += 1;
+                } else {
+                    map.insert(pt.slot.inst.kind, 1);
+                }
+            });
+        DOpRpt(map)
+    }
+
+    pub fn time_report(&self) -> TimeRpt {
+        let start = self.trace.get(0);
+        let end = self.trace.last();
+
+        match (start, end) {
+            (Some(start), Some(end)) => {
+                let cycle = end.timestamp - start.timestamp;
+                let dur_us = cycle / self.params.freq_MHz;
+                TimeRpt {
+                    cycle,
+                    duration: std::time::Duration::from_micros(dur_us as u64),
+                }
+            }
+            (None, None) | (None, Some(_)) | (Some(_), None) => TimeRpt {
+                cycle: 0,
+                duration: std::time::Duration::from_secs(0),
+            },
+        }
+    }
+
+    pub fn report(&self) {
+        let time = self.time_report();
+        tracing::info!("{time:?}");
+
+        let dop = self.dop_report();
+        tracing::info!("{dop}");
+
+        self.trace.iter().for_each(|pt| tracing::debug!("{pt}"));
+    }
+
+    pub fn reset_trace(&mut self) -> Vec<Trace> {
+        std::mem::replace(&mut self.trace, Vec::new())
     }
 }

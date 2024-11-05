@@ -11,6 +11,7 @@ use crate::entities::*;
 pub const NTT_CORE_ARCH_OFS: u32 = 5 << 8;
 pub const MOD_NTT_NAME_OFS: u32 = 6 << 8;
 pub const APPLICATION_NAME_OFS: u32 = 7 << 8;
+pub const SIMULATION_CODE: u32 = 1;
 
 impl FromRtl for HpuParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
@@ -322,10 +323,17 @@ impl FromRtl for HpuPBSParameters {
 
         // Check register encoding
         let field_code = pbs_app_val & (!0xFF_u32);
-        assert_eq!(
-            field_code, APPLICATION_NAME_OFS,
-            "Invalid register encoding. Check register map definition"
-        );
+        if cfg!(not(feature = "hw-xrt")) {
+            if (field_code == 0) && (pbs_app_val == SIMULATION_CODE) {
+                tracing::warn!("Run an simulation backend with custom SIMU parameters set");
+                return ffi_hw.get_pbs_parameters();
+            }
+        } else {
+            assert_eq!(
+                field_code, APPLICATION_NAME_OFS,
+                "Invalid register encoding. Check register map definition"
+            );
+        }
 
         match pbs_app_val & 0xFF {
             0 => CONCRETE_BOOLEAN,

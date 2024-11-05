@@ -6,6 +6,7 @@ use std::io::{BufRead, BufReader, Write};
 
 use serde::{Deserialize, Serialize};
 
+use crate::entities::HpuPBSParameters;
 use crate::ffi::SyncMode;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -16,6 +17,7 @@ pub struct IpcError {}
 pub enum RegisterReq {
     Read { addr: u64 },
     Write { addr: u64, value: u32 },
+    PbsParams,
 }
 
 /// Register acknowledgment
@@ -23,6 +25,7 @@ pub enum RegisterReq {
 pub enum RegisterAck {
     Read(u32),
     Write,
+    PbsParams(HpuPBSParameters),
 }
 
 /// FFI side of IPC channel used for Register xfer

@@ -13,7 +13,7 @@ macro_rules! arith_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct [<DOp $asm:camel>] {
             pub dst: usize,
             pub src: (usize, usize),
@@ -152,7 +152,7 @@ macro_rules! arith_mf_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct [<DOp $asm:camel>] {
             pub dst: usize,
             pub src: (usize, usize),
@@ -302,7 +302,7 @@ macro_rules! arith_msg_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct [<DOp $asm:camel>] {
             pub dst: usize,
             pub src: usize,
@@ -442,7 +442,7 @@ macro_rules! memld_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct [<DOp $asm:camel>] {
             pub dst: usize,
             pub src: MemSlot,
@@ -596,7 +596,7 @@ macro_rules! memst_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct [<DOp $asm:camel>] {
             pub dst: MemSlot,
             pub src: usize,
@@ -749,7 +749,7 @@ macro_rules! pbs_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct [<DOp $asm:camel>] {
             pub dst: usize,
             pub src: usize,
@@ -888,7 +888,7 @@ macro_rules! sync_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct [<DOp $asm:camel>] {
             pub sid: usize
         }

@@ -15,7 +15,8 @@
             ciphertext_width:64,
         ),
         ntt_params: (
-            core_arch: GF64([5,4]),
+            // core_arch: GF64([5,4]),
+            core_arch: WmmUnfoldPcg,
             batch_pbs_nb: 16,
             total_pbs_nb: 32,
             ct_width: 64,

@@ -102,7 +102,7 @@ impl HpuHw {
                 tracing::trace!("Ack => {ack:x?}");
                 match ack {
                     RegisterAck::Read(val) => val,
-                    RegisterAck::Write => panic!("Ack mismatch with sent request"),
+                    _ => panic!("Ack mismatch with sent request"),
                 }
             }
             Err(err) => panic!("Ipc recv {err:?}"),
@@ -128,7 +128,32 @@ impl HpuHw {
                 tracing::trace!("Ack => {ack:x?}");
                 match ack {
                     RegisterAck::Write => {}
-                    RegisterAck::Read(_) => panic!("Ack mismatch with sent request"),
+                    _ => panic!("Ack mismatch with sent request"),
+                }
+            }
+            Err(err) => panic!("Ipc recv {err:?}"),
+        }
+    }
+
+    pub fn get_pbs_parameters(&mut self) -> crate::entities::HpuPBSParameters {
+        let (req, ack) = {
+            let IpcFfi { register, .. } = &self.ipc;
+            let RegisterFfi { req, ack } = register;
+            (req, ack)
+        };
+
+        // Send request
+        let cmd = RegisterReq::PbsParams;
+        tracing::trace!("Req => {cmd:x?}");
+        req.send(cmd).unwrap();
+
+        // Wait for ack
+        match ack.recv() {
+            Ok(ack) => {
+                tracing::trace!("Ack => {ack:x?}");
+                match ack {
+                    RegisterAck::PbsParams(params) => params,
+                    _ => panic!("Ack mismatch with sent request"),
                 }
             }
             Err(err) => panic!("Ipc recv {err:?}"),
