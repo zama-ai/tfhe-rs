@@ -57,7 +57,7 @@ impl Scheduler {
     /// Simulate execution for simulation quantum
     /// Return the list of retired Dops during the simulated windows
     pub fn schedule(&mut self, bpip_timeout: Option<u32>) -> Vec<hpu_asm::DOp> {
-        tracing::debug!(
+        tracing::trace!(
             "Start simulation @{} [{}]",
             self.sim_cycles,
             self.quantum_cycles
@@ -68,22 +68,6 @@ impl Scheduler {
             EventType::QuantumEnd,
             self.sim_cycles + self.quantum_cycles,
         ));
-
-        // Register Bpip timeout
-        // TODO only generated if pbs_fifo_in  isn't empty
-        if let Some(timeout) = bpip_timeout {
-            if 0 == self
-                .evt_pdg
-                .iter()
-                .filter(|evt| evt.event_type == EventType::BpipTimeout)
-                .count()
-            {
-                self.evt_pdg.push(Event::new(
-                    EventType::BpipTimeout,
-                    self.sim_cycles + timeout as usize,
-                ));
-            }
-        }
 
         // Register next query
         self.evt_pdg
@@ -116,6 +100,28 @@ impl Scheduler {
                     self.pe_store.wr_unlock(id);
                     self.wr_unlock.push(kind);
                     true
+                }
+                EventType::ReqTimeout(kind, id) => {
+                    match kind {
+                        InstructionKind::Pbs => {
+                            // Register Bpip timeout
+                            if let Some(timeout) = bpip_timeout {
+                                if 0 == self
+                                    .evt_pdg
+                                    .iter()
+                                    .filter(|evt| evt.event_type == EventType::BpipTimeout)
+                                    .count()
+                                {
+                                    self.evt_pdg.push(Event::new(
+                                        EventType::BpipTimeout,
+                                        self.sim_cycles + timeout as usize,
+                                    ));
+                                }
+                            }
+                        }
+                        _ => panic!("Unexpected unit required a timeout registration {:?}", kind),
+                    };
+                    false
                 }
                 EventType::QuantumEnd => {
                     break;
@@ -231,7 +237,10 @@ impl Scheduler {
             // By default try to issue
             let pe_avail = self.pe_store.avail_kind() | InstructionKind::Sync;
             match self.pool.issue(pe_avail) {
-                pool::IssueEvt::None => false,
+                pool::IssueEvt::None => {
+                    tracing::trace!("{}", self.pool);
+                    false
+                }
                 pool::IssueEvt::DOp {
                     kind_1h,
                     flush,

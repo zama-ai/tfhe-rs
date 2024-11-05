@@ -1,3 +1,4 @@
+use serde::de::value::UsizeDeserializer;
 use std::array::from_fn;
 use std::collections::VecDeque;
 use strum::IntoEnumIterator;
@@ -113,6 +114,7 @@ impl HpuSim {
     }
 
     pub fn ipc_poll(&mut self) {
+        let mut useless_schedule = 0;
         loop {
             // Flush register requests
             while let Some(req) = self.ipc.register_req() {
@@ -194,6 +196,12 @@ impl HpuSim {
                     None
                 };
                 let dops_exec = self.isc.schedule(bpip_timeout);
+                if dops_exec.is_empty() {
+                    useless_schedule += 1;
+                    if useless_schedule > 20 {
+                        panic!("-");
+                    }
+                }
                 for dop in dops_exec {
                     self.exec(dop);
                 }
