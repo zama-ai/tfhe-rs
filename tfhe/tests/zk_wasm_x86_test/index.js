@@ -1,7 +1,7 @@
 const {
     TfheCompactPublicKey,
     CompactCiphertextList,
-    CompactPkePublicParams,
+    CompactPkeCrs,
     ZkComputeLoad,
 } = require('node-tfhe');
 
@@ -14,7 +14,7 @@ const tfhe_proof = async () => {
     const publicKeyBuf = fs.readFileSync(`${__dirname}/public_key.bin`);
     const publicParamsBuf = fs.readFileSync(`${__dirname}/crs.bin`);
     const publicKey = TfheCompactPublicKey.safe_deserialize(publicKeyBuf, SIZE_LIMIT);
-    const publicParams = CompactPkePublicParams.safe_deserialize(publicParamsBuf, SIZE_LIMIT);
+    const publicParams = CompactPkeCrs.safe_deserialize(publicParamsBuf, SIZE_LIMIT);
 
     const builder = CompactCiphertextList.builder(publicKey);
     builder.push_u4(1);

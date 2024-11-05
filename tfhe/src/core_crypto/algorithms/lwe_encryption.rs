@@ -1847,7 +1847,7 @@ fn verify_zero_knowledge_preconditions<Scalar, KeyCont, MaskDistribution, BodyDi
     delta: Scalar,
     mask_noise_distribution: MaskDistribution,
     body_noise_distribution: BodyDistribution,
-    public_params: &CompactPkePublicParams,
+    crs: &CompactPkeCrs,
 ) -> crate::Result<()>
 where
     Scalar: UnsignedInteger + CastFrom<u64>,
@@ -1858,6 +1858,7 @@ where
     BodyDistribution: BoundedDistribution<Scalar::Signed>,
     KeyCont: Container<Element = Scalar>,
 {
+    let public_params = crs.public_params();
     let exclusive_max = public_params.exclusive_max_noise();
     if Scalar::BITS < 64 && (1u64 << Scalar::BITS) >= exclusive_max {
         return Err(
@@ -2200,21 +2201,16 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///     &mut secret_generator,
 ///     &mut encryption_generator,
 ///     &mut random_generator,
-///     crs.public_params(),
+///     &crs,
 ///     &metadata,
 ///     ZkComputeLoad::Proof,
 /// )
 /// .unwrap();
 ///
 /// // verify the ciphertext list with the proof
-/// assert!(verify_lwe_ciphertext(
-///     &lwe,
-///     &lwe_compact_public_key,
-///     &proof,
-///     crs.public_params(),
-///     &metadata
-/// )
-/// .is_valid());
+/// assert!(
+///     verify_lwe_ciphertext(&lwe, &lwe_compact_public_key, &proof, &crs, &metadata).is_valid()
+/// );
 ///
 /// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe);
 ///
@@ -2254,7 +2250,7 @@ pub fn encrypt_and_prove_lwe_ciphertext_with_compact_public_key<
     secret_generator: &mut SecretRandomGenerator<SecretGen>,
     encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
     random_generator: &mut RandomGenerator<G>,
-    public_params: &CompactPkePublicParams,
+    crs: &CompactPkeCrs,
     metadata: &[u8],
     load: ZkComputeLoad,
 ) -> crate::Result<CompactPkeProof>
@@ -2280,7 +2276,7 @@ where
         delta,
         mask_noise_distribution,
         body_noise_distribution,
-        public_params,
+        crs,
     )?;
 
     let CompactPublicKeyRandomVectors {
@@ -2336,12 +2332,12 @@ where
             .copied()
             .map(CastFrom::cast_from)
             .collect::<Vec<_>>(),
-        public_params,
+        crs.public_params(),
         random_generator,
     );
 
     Ok(prove(
-        (public_params, &public_commit),
+        (crs.public_params(), &public_commit),
         &private_commit,
         metadata,
         load,
@@ -2698,7 +2694,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &mut secret_generator,
 ///     &mut encryption_generator,
 ///     &mut random_generator,
-///     crs.public_params(),
+///     &crs,
 ///     &metadata,
 ///     ZkComputeLoad::Proof,
 /// )
@@ -2709,7 +2705,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &output_compact_ct_list,
 ///     &lwe_compact_public_key,
 ///     &proof,
-///     crs.public_params(),
+///     &crs,
 ///     &metadata,
 /// )
 /// .is_valid());
@@ -2760,7 +2756,7 @@ pub fn encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key<
     secret_generator: &mut SecretRandomGenerator<SecretGen>,
     encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
     random_generator: &mut RandomGenerator<G>,
-    public_params: &CompactPkePublicParams,
+    crs: &CompactPkeCrs,
     metadata: &[u8],
     load: ZkComputeLoad,
 ) -> crate::Result<CompactPkeProof>
@@ -2787,7 +2783,7 @@ where
         delta,
         mask_noise_distribution,
         body_noise_distribution,
-        public_params,
+        crs,
     )?;
 
     let encoded = PlaintextList::from_container(
@@ -2861,12 +2857,12 @@ where
             .copied()
             .map(CastFrom::cast_from)
             .collect::<Vec<_>>(),
-        public_params,
+        crs.public_params(),
         random_generator,
     );
 
     Ok(prove(
-        (public_params, &public_commit),
+        (crs.public_params(), &public_commit),
         &private_commit,
         metadata,
         load,
@@ -3232,7 +3228,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &mut secret_generator,
 ///     &mut encryption_generator,
 ///     &mut random_generator,
-///     crs.public_params(),
+///     &crs,
 ///     &metadata,
 ///     ZkComputeLoad::Proof,
 /// )
@@ -3243,7 +3239,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &output_compact_ct_list,
 ///     &lwe_compact_public_key,
 ///     &proof,
-///     crs.public_params(),
+///     &crs,
 ///     &metadata,
 /// )
 /// .is_valid());
@@ -3294,7 +3290,7 @@ pub fn par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key
     secret_generator: &mut SecretRandomGenerator<SecretGen>,
     encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
     random_generator: &mut RandomGenerator<G>,
-    public_params: &CompactPkePublicParams,
+    crs: &CompactPkeCrs,
     metadata: &[u8],
     load: ZkComputeLoad,
 ) -> crate::Result<CompactPkeProof>
@@ -3321,7 +3317,7 @@ where
         delta,
         mask_noise_distribution,
         body_noise_distribution,
-        public_params,
+        crs,
     )?;
 
     let encoded = PlaintextList::from_container(
@@ -3395,12 +3391,12 @@ where
             .copied()
             .map(CastFrom::cast_from)
             .collect::<Vec<_>>(),
-        public_params,
+        crs.public_params(),
         random_generator,
     );
 
     Ok(prove(
-        (public_params, &public_commit),
+        (crs.public_params(), &public_commit),
         &private_commit,
         metadata,
         load,

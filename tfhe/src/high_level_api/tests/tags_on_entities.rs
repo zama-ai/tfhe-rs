@@ -58,18 +58,14 @@ fn test_tag_propagation_zk_pok() {
         .push(i64::MIN)
         .push(false)
         .push(true)
-        .build_with_proof_packed(
-            crs.public_params(),
-            &metadata,
-            crate::zk::ZkComputeLoad::Proof,
-        )
+        .build_with_proof_packed(&crs, &metadata, crate::zk::ZkComputeLoad::Proof)
         .unwrap();
 
     let list_packed: ProvenCompactCiphertextList = serialize_then_deserialize(list_packed);
     assert_eq!(list_packed.tag(), cks.tag());
 
     let expander = list_packed
-        .verify_and_expand(crs.public_params(), &cpk, &metadata)
+        .verify_and_expand(&crs, &cpk, &metadata)
         .unwrap();
 
     {
