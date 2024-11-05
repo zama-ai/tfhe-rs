@@ -11,13 +11,15 @@ pub struct Pool {
     store: Vec<Slot>,
 }
 
+#[derive(Debug)]
 pub enum IssueEvt {
     None,
     DOp {
         kind_1h: InstructionKind,
         flush: bool,
+        slot: Slot,
     },
-    Sync(hpu_asm::DOp),
+    Sync(Slot),
 }
 
 impl Pool {
@@ -37,7 +39,7 @@ impl Pool {
     /// And also update lock counter of all matching slot
     /// kind_mh is an aggregtion of pending rd_unlock
     #[instrument(level = "trace", skip(self))]
-    pub fn rd_unlock(&mut self, kind_mh: InstructionKind) -> InstructionKind {
+    pub fn rd_unlock(&mut self, kind_mh: InstructionKind) -> (InstructionKind, &Slot) {
         // 1. find matching slot and update
         // -> Search for oldest issued instruction with matching kind
         let filter = Filter {
@@ -64,14 +66,16 @@ impl Pool {
         // 3. Insert modified slot back
         let kind_1h = slot.inst.kind;
         self.store.push(slot);
-        kind_1h
+        // Use hand call to trace to prevent closure escape of ref with #[instrument(ret)]
+        tracing::trace!("Return: {:?}", self.store.last().unwrap());
+        (kind_1h, self.store.last().unwrap())
     }
 
     /// This function find the first matching slot update it in place
     /// And also update lock counter of all matching slot
     /// kind_mh is an aggregtion of pending wr_unlock
-    #[instrument(level = "trace", skip(self))]
-    pub fn retire(&mut self, kind_mh: InstructionKind) -> (hpu_asm::DOp, InstructionKind) {
+    #[instrument(level = "trace", skip(self), ret)]
+    pub fn retire(&mut self, kind_mh: InstructionKind) -> Slot {
         // 1. find matching slot and update
         // -> Search for oldest issued instruction with matching kind
         let filter = Filter {
@@ -106,13 +110,13 @@ impl Pool {
             .into_iter()
             .for_each(|idx| self.store[idx].state.wr_lock -= 1);
 
-        (slot.inst.op, slot.inst.kind)
+        slot
     }
 
     /// This function find the first empty slot, populated with DOp information and move it
     /// in front position
-    #[instrument(level = "trace", skip(self))]
-    pub fn refill(&mut self, sync_id: usize, dop: hpu_asm::DOp) {
+    #[instrument(level = "trace", skip(self), ret)]
+    pub fn refill(&mut self, sync_id: usize, dop: hpu_asm::DOp) -> &Slot {
         assert!(
             self.store.len() < self.max_depth,
             "Refill in a already full pool"
@@ -171,13 +175,14 @@ impl Pool {
                 pdg: false,
             },
         };
-        self.store.push(slot)
+        self.store.push(slot);
+        self.store.last().unwrap()
     }
 
     /// This function find the first issuable slot if any, update it's information and move it
     /// in back position
     /// kind_mh is an aggregtion of available pe
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip(self), ret)]
     pub fn issue(&mut self, kind_mh: InstructionKind) -> IssueEvt {
         // 1. find matching slot and update
         // -> Search for oldest unissued instruction with matching kind
@@ -192,14 +197,19 @@ impl Pool {
         if let Some(mut slot) = self.first_match(filter) {
             if slot.inst.kind == InstructionKind::Sync {
                 // Sync are handle with custom logic -> Issue them, directly release the slot
-                IssueEvt::Sync(slot.inst.op)
+                IssueEvt::Sync(slot)
             } else {
                 // Update slot and insert back
                 slot.state.pdg = true;
                 let kind_1h = slot.inst.kind;
                 let flush = hpu_asm::DOpName::from(&slot.inst.op) == hpu_asm::DOpName::PBS_F;
+                let trace_slot = slot.clone();
                 self.store.push(slot);
-                IssueEvt::DOp { kind_1h, flush }
+                IssueEvt::DOp {
+                    kind_1h,
+                    flush,
+                    slot: trace_slot,
+                }
             }
         } else {
             IssueEvt::None
@@ -294,7 +304,7 @@ impl Pool {
 
 /// Instruction Mode -> Rid/Mid
 /// Used as src/dst identifier
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 enum DOpMode {
     Unused,
     Memory,
@@ -302,7 +312,7 @@ enum DOpMode {
 }
 /// Argument Id
 /// Use for lock computation and match
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 struct ArgId {
     mode: DOpMode,
     id: usize,
@@ -368,17 +378,17 @@ impl ArgId {
     }
 }
 
-#[derive(Debug)]
-struct Instruction {
-    op: hpu_asm::DOp,
-    kind: InstructionKind,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct Instruction {
+    pub(crate) op: hpu_asm::DOp,
+    pub(crate) kind: InstructionKind,
     dst_id: ArgId,
     srca_id: ArgId,
     srcb_id: ArgId,
 }
 
-#[derive(Debug)]
-struct State {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct State {
     sync_id: usize,
     // RdLock -> #instruction before us that need to READ into our destination
     rd_lock: usize,
@@ -394,10 +404,10 @@ impl State {
     }
 }
 
-#[derive(Debug)]
-struct Slot {
-    inst: Instruction,
-    state: State,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct Slot {
+    pub(crate) inst: Instruction,
+    pub(crate) state: State,
 }
 
 #[derive(Default, Debug)]

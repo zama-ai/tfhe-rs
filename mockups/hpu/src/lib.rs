@@ -17,6 +17,7 @@ use tfhe::shortint::prelude::*;
 use tfhe::shortint::server_key::ShortintBootstrappingKey;
 
 mod ipc;
+mod report;
 use ipc::Ipc;
 
 mod mockup_params;
@@ -148,6 +149,11 @@ impl HpuSim {
                             }
                         }
                         self.ipc.register_ack(RegisterAck::Write);
+                    }
+                    RegisterReq::PbsParams => {
+                        self.ipc.register_ack(RegisterAck::PbsParams(
+                            self.params.rtl_params.pbs_params.clone(),
+                        ));
                     }
                 }
             }
@@ -360,6 +366,9 @@ impl HpuSim {
                     let word_u32 = u32::from_le_bytes(word_b);
                     self.regmap.ack_pdg(word_u32);
                 }
+
+                self.isc.report();
+                self.isc.reset_trace();
             }
         }
     }

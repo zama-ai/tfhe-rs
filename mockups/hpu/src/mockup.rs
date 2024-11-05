@@ -27,12 +27,11 @@ pub struct Args {
     pub config: String,
 
     /// Hpu inner parameters
-    // Parameters are gather in a file to easily switch between predefined
-    // configuration.
+    /// Tfhe-rs internal parameters used to emulate the behavior of RTL
     #[clap(
         long,
         value_parser,
-        default_value = "mockups/hpu/params/tfhers_64b.ron"
+        default_value = "mockups/hpu/params/tfhers_64b_fast.ron"
     )]
     pub params: String,
 

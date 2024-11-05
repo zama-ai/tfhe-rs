@@ -117,6 +117,13 @@ impl HpuHw {
             }
         }
     }
+
+    /// Custom register command to retrived custom parameters set from mockup.
+    /// Only available with mockup FFI
+    #[cfg(not(feature = "hw-xrt"))]
+    pub fn get_pbs_parameters(&mut self) -> crate::entities::HpuPBSParameters {
+        self.0.get_pbs_parameters()
+    }
 }
 
 pub struct MemZone(

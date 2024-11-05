@@ -20,19 +20,25 @@ pub const ARG_MIN_WIDTH: usize = 16;
 /// Furthermore, to enhance asm readability, UserX slot use another
 /// syntax that cleary depict the Integer structure as pack of Digit
 /// TODO rework this comment
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MemSlot {
     pub bid: usize,
     pub cid_ofst: usize,
+    #[serde(skip)]
     pub(crate) mode: MemMode,
+    #[serde(skip)]
     pub(crate) orig: Option<MemOrigin>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum MemMode {
+    #[default]
     Raw,
     Template,
-    Int { width: usize, pos: Option<usize> },
+    Int {
+        width: usize,
+        pos: Option<usize>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

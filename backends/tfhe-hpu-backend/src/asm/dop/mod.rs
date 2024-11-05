@@ -32,7 +32,7 @@ use crate::{arith_dop, arith_mf_dop, arith_msg_dop, memld_dop, memst_dop, pbs_do
         EnumString
     )
 )]
-
+#[derive(Serialize, Deserialize)]
 pub enum DOp {
     ADD(DOpAdd),
     SUB(DOpSub),

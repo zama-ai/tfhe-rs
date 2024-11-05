@@ -80,6 +80,7 @@ pub trait PbsLut {
     name(PbsName),
     derive(Serialize, Deserialize, EnumIter, EnumString, Display)
 )]
+#[derive(Serialize, Deserialize)]
 pub enum Pbs {
     None(PbsNone),
     MsgOnly(PbsMsgOnly),

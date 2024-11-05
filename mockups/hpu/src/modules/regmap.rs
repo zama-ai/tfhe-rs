@@ -143,10 +143,9 @@ impl RegisterMap {
                 } else if MSG2_CARRY2_64B_FAKE == self.rtl_params.pbs_params {
                     APPLICATION_NAME_OFS + 9
                 } else {
-                    panic!(
-                        "Unsupported reverse PBS_PARAMS lookup {:?}",
-                        self.rtl_params.pbs_params
-                    )
+                    // Custom simulation parameters set
+                    // -> Return 1 without NAME_OFS
+                    1
                 }
             }
             "Info::KsShape" => {

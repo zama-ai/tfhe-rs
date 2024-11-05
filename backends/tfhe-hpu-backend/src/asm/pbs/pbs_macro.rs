@@ -9,7 +9,7 @@ macro_rules! pbs_lut {
         ]
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone, Copy)]
+            #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
             pub struct [<Pbs $pbs:camel>]();
 
             impl Default for [<Pbs $pbs:camel>]{

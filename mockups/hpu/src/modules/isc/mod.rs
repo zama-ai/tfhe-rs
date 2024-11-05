@@ -4,6 +4,7 @@
 
 use crate::mockup_params::IscSimParameters;
 use bitflags::bitflags;
+use serde::{Deserialize, Serialize};
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 /// Implement a pool that mimics the RTL
@@ -57,7 +58,7 @@ impl PartialEq for Event {
 impl Eq for Event {}
 
 /// Kind of the event
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum EventType {
     RdUnlock(InstructionKind, usize),
     WrUnlock(InstructionKind, usize),
@@ -71,7 +72,7 @@ bitflags! {
 /// However, we also need to filter on a multi-kind fashion, thus we rely on bitflag instead of std
 /// rust enum
     #[repr(transparent)]
-    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, Hash)]
     pub struct InstructionKind: usize {
         const None = 0x00;
         const MemLd= 0x01;
@@ -127,5 +128,28 @@ impl From<&hpu_asm::DOpName> for InstructionKind {
 impl InstructionKind {
     pub fn from_name_list(dops: &[hpu_asm::DOpName]) -> Self {
         dops.iter().fold(Self::None, |acc, dop| acc | dop.into())
+    }
+}
+
+/// Use in the execution trace
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum Query {
+    Refill,
+    Issue,
+    RdUnlock,
+    Retire,
+}
+
+/// Generate a detailed execution trace that could be read afterward
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Trace {
+    timestamp: usize,
+    cmd: Query,
+    slot: pool::Slot,
+}
+
+impl std::fmt::Display for Trace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "@{}::{:?} -> {:?}", self.timestamp, self.cmd, self.slot)
     }
 }
