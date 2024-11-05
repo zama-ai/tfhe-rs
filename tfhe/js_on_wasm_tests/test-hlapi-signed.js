@@ -23,7 +23,6 @@ const {
     FheInt256,
     CompactCiphertextList,
     ProvenCompactCiphertextList,
-    CompactPkePublicParams,
     CompactPkeCrs,
     ZkComputeLoad,
     Shortint,
@@ -509,12 +508,11 @@ test('hlapi_compact_ciphertext_list_with_proof', (t) => {
     let publicKey = TfheCompactPublicKey.new(clientKey);
 
     let crs = CompactPkeCrs.from_parameters(block_params, 2 + 32 + 1 + 256);
-    let public_params = crs.public_params();
 
     const compress = false; // We don't compress as it's too slow on wasm
-    let serialized_pke_params = public_params.serialize(compress);
+    let serialized_pke_crs = crs.serialize(compress);
     let validate = false; // Also too slow on wasm
-    public_params = CompactPkePublicParams.deserialize(serialized_pke_params, compress, validate);
+    crs = CompactPkeCrs.deserialize(serialized_pke_crs, compress, validate);
 
     let clear_u2 = 3;
     let clear_i32 = -3284;
@@ -526,7 +524,7 @@ test('hlapi_compact_ciphertext_list_with_proof', (t) => {
     builder.push_i32(clear_i32);
     builder.push_boolean(clear_bool);
     builder.push_u256(clear_u256);
-    let list = builder.build_with_proof_packed(public_params, ZkComputeLoad.Proof);
+    let list = builder.build_with_proof_packed(crs, ZkComputeLoad.Proof);
 
     let serialized = list.safe_serialize(BigInt(10000000));
     let deserialized = ProvenCompactCiphertextList.safe_deserialize(serialized, BigInt(10000000));

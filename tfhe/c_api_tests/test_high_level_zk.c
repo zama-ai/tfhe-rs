@@ -31,10 +31,6 @@ int main(void) {
   status = compact_pke_crs_from_config(config, max_num_bits, &crs);
   assert(status == 0);
 
-  CompactPkePublicParams *public_params;
-  status = compact_pke_crs_public_params(crs, &public_params);
-  assert(status == 0);
-
 #define METADATA_LEN 5
   uint8_t metadata[METADATA_LEN] = {'c', '-', 'a', 'p', 'i'};
 
@@ -71,7 +67,7 @@ int main(void) {
     assert(status == 0);
 
     status = compact_ciphertext_list_builder_build_with_proof_packed(
-        builder, public_params, metadata, METADATA_LEN, ZkComputeLoadProof, &compact_list);
+        builder, crs, metadata, METADATA_LEN, ZkComputeLoadProof, &compact_list);
     assert(status == 0);
 
     // Don't forget to destroy the builder
@@ -85,7 +81,7 @@ int main(void) {
   FheUint2 *d = NULL;
   {
     CompactCiphertextListExpander *expander = NULL;
-    status = proven_compact_ciphertext_list_verify_and_expand(compact_list, public_params, pk,
+    status = proven_compact_ciphertext_list_verify_and_expand(compact_list, crs, pk,
                                                               metadata, METADATA_LEN, &expander);
     assert(status == 0);
 
@@ -132,7 +128,6 @@ int main(void) {
   client_key_destroy(client_key);
   server_key_destroy(server_key);
   compact_public_key_destroy(pk);
-  compact_pke_public_params_destroy(public_params);
   compact_pke_crs_destroy(crs);
 
   return EXIT_SUCCESS;

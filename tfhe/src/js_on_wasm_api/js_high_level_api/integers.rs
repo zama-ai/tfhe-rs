@@ -4,7 +4,7 @@ use crate::integer::bigint::{StaticUnsignedBigInt, U1024, U2048, U512};
 use crate::integer::{I256, U256};
 use crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey;
 #[cfg(feature = "zk-pok")]
-use crate::js_on_wasm_api::js_high_level_api::zk::{CompactPkePublicParams, ZkComputeLoad};
+use crate::js_on_wasm_api::js_high_level_api::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, into_js_error};
 use js_sys::BigInt;
 use wasm_bindgen::prelude::*;
@@ -794,14 +794,14 @@ impl ProvenCompactCiphertextList {
     #[wasm_bindgen]
     pub fn verify_and_expand(
         &self,
-        public_params: &CompactPkePublicParams,
+        crs: &CompactPkeCrs,
         public_key: &TfheCompactPublicKey,
         metadata: &[u8],
     ) -> Result<CompactCiphertextListExpander, JsError> {
         catch_panic_result(|| {
             let inner = self
                 .0
-                .verify_and_expand(&public_params.0, &public_key.0, metadata)
+                .verify_and_expand(&crs.0, &public_key.0, metadata)
                 .map_err(into_js_error)?;
             Ok(CompactCiphertextListExpander(inner))
         })
@@ -1040,13 +1040,13 @@ impl CompactCiphertextListBuilder {
     #[cfg(feature = "zk-pok")]
     pub fn build_with_proof_packed(
         &self,
-        public_params: &CompactPkePublicParams,
+        crs: &CompactPkeCrs,
         metadata: &[u8],
         compute_load: ZkComputeLoad,
     ) -> Result<ProvenCompactCiphertextList, JsError> {
         catch_panic_result(|| {
             self.0
-                .build_with_proof_packed(&public_params.0, metadata, compute_load.into())
+                .build_with_proof_packed(&crs.0, metadata, compute_load.into())
                 .map_err(into_js_error)
                 .map(ProvenCompactCiphertextList)
         })
