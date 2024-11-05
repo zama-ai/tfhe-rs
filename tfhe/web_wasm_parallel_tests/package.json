@@ -10,7 +10,7 @@
     "check-format": "prettier . --check"
   },
   "author": "",
-  "license": "BSD-3-Clause",
+  "license": "BSD-3-Clause-Clear",
   "devDependencies": {
     "@babel/preset-env": "^7.25.4",
     "prettier": "^3.3.3",
