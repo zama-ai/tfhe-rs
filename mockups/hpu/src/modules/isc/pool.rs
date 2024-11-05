@@ -11,6 +11,16 @@ pub struct Pool {
     store: Vec<Slot>,
 }
 
+impl std::fmt::Display for Pool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Pool content [{}]:", self.max_depth)?;
+        for (i, slot) in self.store.iter().enumerate() {
+            writeln!(f, "{i} -> {slot:?}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub enum IssueEvt {
     None,
@@ -55,13 +65,17 @@ impl Pool {
         // 2. Decrease matching rd_lock cnt
         let filter = Filter {
             vld: Some(true),
-            pdg: Some(true),
+            pdg: Some(false),
             srcs_on_dst: Some((slot.inst.srca_id, slot.inst.srcb_id)),
             ..Default::default()
         };
-        self.idx_matchs(filter)
-            .into_iter()
-            .for_each(|idx| self.store[idx].state.rd_lock -= 1);
+        self.idx_matchs(filter).into_iter().for_each(|idx| {
+            // TODO dig in this condition
+            // Find a case that required the underflow filtering
+            if self.store[idx].state.rd_lock != 0 {
+                self.store[idx].state.rd_lock -= 1;
+            }
+        });
 
         // 3. Insert modified slot back
         let kind_1h = slot.inst.kind;
@@ -95,9 +109,11 @@ impl Pool {
             dst_on_srcs: Some(slot.inst.dst_id),
             ..Default::default()
         };
-        self.idx_matchs(filter)
-            .into_iter()
-            .for_each(|idx| self.store[idx].state.wr_lock -= 1);
+        self.idx_matchs(filter).into_iter().for_each(|idx| {
+            if self.store[idx].state.wr_lock != 0 {
+                self.store[idx].state.wr_lock -= 1;
+            }
+        });
 
         // 2. Decrease matching wr_lock cnt of Sync token
         let filter = Filter {
@@ -106,9 +122,11 @@ impl Pool {
             sync_id: Some(slot.state.sync_id),
             ..Default::default()
         };
-        self.idx_matchs(filter)
-            .into_iter()
-            .for_each(|idx| self.store[idx].state.wr_lock -= 1);
+        self.idx_matchs(filter).into_iter().for_each(|idx| {
+            if self.store[idx].state.wr_lock != 0 {
+                self.store[idx].state.wr_lock -= 1;
+            }
+        });
 
         slot
     }

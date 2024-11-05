@@ -148,6 +148,8 @@ impl Pe {
                             )
                         }));
                         evt
+                    } else if pe.fifo_in != 0 {
+                        vec![Event::new(EventType::ReqTimeout(pe.kind, pe_id), at_cycle)]
                     } else {
                         Vec::new()
                     }

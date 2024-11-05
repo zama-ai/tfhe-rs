@@ -62,6 +62,7 @@ impl Eq for Event {}
 enum EventType {
     RdUnlock(InstructionKind, usize),
     WrUnlock(InstructionKind, usize),
+    ReqTimeout(InstructionKind, usize),
     QuantumEnd,
     BpipTimeout,
     Query,
