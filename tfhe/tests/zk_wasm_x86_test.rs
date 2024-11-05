@@ -11,14 +11,25 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tfhe::safe_serialization::{safe_deserialize, safe_serialize};
+use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::zk::{CompactPkeCrs, CompactPkePublicParams};
 use tfhe::{ClientKey, CompactPublicKey, ConfigBuilder, ProvenCompactCiphertextList};
 
 const SIZE_LIMIT: u64 = 1024 * 1024 * 1024;
+const METADATA: [u8; 6] = [b'w', b'a', b's', b'm', b'6', b'4'];
 
 fn gen_key_and_crs() -> (CompactPublicKey, CompactPkeCrs) {
     println!("Generating keys");
-    let config = ConfigBuilder::default().build();
+    let config =
+        crate::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+            .use_dedicated_compact_public_key_parameters((
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            ))
+            .build();
+
     let client_key = ClientKey::generate(config);
     let pub_key = CompactPublicKey::new(&client_key);
 
@@ -52,7 +63,7 @@ fn verify_proof(
     proven_ct: &ProvenCompactCiphertextList,
 ) {
     println!("Verifying proof");
-    match proven_ct.verify(crs, public_key, &[]) {
+    match proven_ct.verify(crs, public_key, &METADATA) {
         tfhe::zk::ZkVerificationOutCome::Valid => {
             println!("proof verification succeeded");
         }
