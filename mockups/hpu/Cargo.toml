@@ -9,7 +9,7 @@ readme = "README.md"
 default = []
 
 [dependencies]
-tfhe = { path= "../../tfhe", features = ["shortint", "seeder_unix", "x86_64-unix", "ntt-bnf", "hpu", "seeder-manual"] }
+tfhe = { path= "../../tfhe", features = ["shortint", "seeder_unix", "x86_64-unix", "ntt-bnf", "hpu", "hpu-debug", "seeder-manual"] }
 
 ipc-channel = "0.18.3"
 hw_regmap = {git = "ssh://git@github.com/zama-ai/hw_regmap.git", branch="main"}

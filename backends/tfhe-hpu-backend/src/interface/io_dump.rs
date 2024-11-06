@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use crate::interface::memory::ciphertext::SlotId;
 
 /// Configure the line width in dumped files
-const LINE_WIDTH_BYTES: usize = 64_usize;
+pub const LINE_WIDTH_BYTES: usize = 64_usize;
 
 thread_local! {
     static HPU_IO_DUMP: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
