@@ -3,6 +3,7 @@
 use ipc_channel::ipc::{self, IpcOneShotServer, IpcReceiver, IpcSender};
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
+use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 
@@ -68,6 +69,7 @@ pub enum MemoryReq {
         hbm_pc: usize,
         addr: u64,
         mode: SyncMode,
+        data: Option<ipc::IpcSharedMemory>,
     },
     Release {
         hbm_pc: usize,
@@ -78,11 +80,8 @@ pub enum MemoryReq {
 /// Memory acknowledgment
 #[derive(Debug, Serialize, Deserialize)]
 pub enum MemoryAck {
-    Allocate {
-        addr: u64,
-        tx: ipc::IpcSender<ipc::IpcSharedMemory>,
-        rx: ipc::IpcReceiver<ipc::IpcSharedMemory>,
-    },
+    Allocate { addr: u64 },
+    Sync { data: Option<ipc::IpcSharedMemory> },
     Release,
 }
 
@@ -92,6 +91,17 @@ pub(crate) struct MemoryFfi {
     pub(crate) req: IpcSender<MemoryReq>,
     pub(crate) ack: IpcReceiver<MemoryAck>,
 }
+/// FFI memory wrapped in an Arc<Mutex<_>>
+/// Indeed, this object must be shared with all MemZone to enable proper sync
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct MemoryFfiWrapped(pub(crate) Arc<Mutex<MemoryFfi>>);
+
+impl From<MemoryFfi> for MemoryFfiWrapped {
+    fn from(value: MemoryFfi) -> Self {
+        Self(Arc::new(Mutex::new(value)))
+    }
+}
+
 /// Sim side of IPC channel used for Memory xfer
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MemorySim {
@@ -120,7 +130,7 @@ pub(crate) fn memory_channel() -> (MemoryFfi, MemorySim) {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct IpcFfi {
     pub(crate) register: RegisterFfi,
-    pub(crate) memory: MemoryFfi,
+    pub(crate) memory: MemoryFfiWrapped,
 }
 
 impl IpcFfi {
@@ -189,31 +199,11 @@ pub(crate) fn ipc_channel() -> (IpcFfi, IpcSim) {
     (
         IpcFfi {
             register: register_ffi,
-            memory: memory_ffi,
+            memory: MemoryFfiWrapped::from(memory_ffi),
         },
         IpcSim {
             register: register_sim,
             memory: memory_sim,
         },
     )
-}
-
-/// Ipc handled by MemZone
-/// Notify_req used to notify hbm of sync request
-/// tx used for Host->Device Sync
-/// rx used for Device->Host Sync
-pub(crate) struct IpcMemZone {
-    pub(crate) notify_req: ipc::IpcSender<MemoryReq>,
-    pub(crate) tx: ipc::IpcSender<ipc::IpcSharedMemory>,
-    pub(crate) rx: ipc::IpcReceiver<ipc::IpcSharedMemory>,
-}
-
-impl IpcMemZone {
-    pub fn new(
-        notify_req: ipc::IpcSender<MemoryReq>,
-        tx: ipc::IpcSender<ipc::IpcSharedMemory>,
-        rx: ipc::IpcReceiver<ipc::IpcSharedMemory>,
-    ) -> Self {
-        Self { notify_req, tx, rx }
-    }
 }
