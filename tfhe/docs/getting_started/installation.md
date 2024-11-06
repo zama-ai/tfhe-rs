@@ -25,7 +25,7 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] 
 ```
 
 {% hint style="info" %}
-**Rust version**: a minimum Rust version of 1.73 is required to compile **TFHE-rs**.
+**Rust version**: a minimum Rust version of 1.81 is required to compile **TFHE-rs**.
 {% endhint %}
 
 {% hint style="success" %}
