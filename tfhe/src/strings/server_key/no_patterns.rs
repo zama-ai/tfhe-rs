@@ -371,11 +371,11 @@ impl ServerKey {
             }
             UIntArg::Enc(enc_n) => {
                 let n_is_zero = self.scalar_eq_parallelized(enc_n.cipher(), 0);
-                result = self.conditional_string(&n_is_zero, FheString::empty(), &result);
+                result = self.conditional_string(&n_is_zero, &FheString::empty(), &result);
 
                 for i in 0..enc_n.max().unwrap_or(u16::MAX) - 1 {
                     let n_is_exceeded = self.scalar_le_parallelized(enc_n.cipher(), i + 1);
-                    let append = self.conditional_string(&n_is_exceeded, FheString::empty(), str);
+                    let append = self.conditional_string(&n_is_exceeded, &FheString::empty(), str);
 
                     result = self.concat(&result, &append);
                 }

@@ -202,29 +202,47 @@ impl ServerKey {
     fn conditional_string(
         &self,
         condition: &BooleanBlock,
-        true_ct: FheString,
+        true_ct: &FheString,
         false_ct: &FheString,
     ) -> FheString {
-        let padded = true_ct.is_padded() && false_ct.is_padded();
-        let potentially_padded = true_ct.is_padded() || false_ct.is_padded();
+        let mut true_ct = true_ct.clone();
+        let mut false_ct = false_ct.clone();
 
-        let mut true_ct_uint = true_ct.into_uint(self);
-        let mut false_ct_uint = false_ct.to_uint(self);
+        self.pad_strings(&mut true_ct, &mut false_ct);
 
-        self.pad_ciphertexts_lsb(&mut true_ct_uint, &mut false_ct_uint);
+        let true_is_padded = true_ct.is_padded();
+        let false_is_padded = false_ct.is_padded();
+
+        let true_ct_uint = true_ct.into_uint(self);
+        let false_ct_uint = false_ct.into_uint(self);
 
         let result_uint = self.if_then_else_parallelized(condition, &true_ct_uint, &false_ct_uint);
 
         let mut result = FheString::from_uint(result_uint, false);
-        if padded {
-            result.set_is_padded(true);
-        } else if potentially_padded {
-            // If the result is potentially padded we cannot assume it's not padded. We ensure that
-            // result is padded with a single null that is ignored by our implementations
-            result.append_null(self);
+
+        match (true_is_padded, false_is_padded) {
+            (true, true) => {
+                result.set_is_padded(true);
+            }
+            (true, false) | (false, true) => {
+                // We don't know  if the result is padded or not.
+                // We ensure that it is padded by adding a single null.
+                result.append_null(self);
+            }
+            (false, false) => {}
         }
 
         result
+    }
+
+    fn pad_strings(&self, rhs: &mut FheString, lhs: &mut FheString) {
+        loop {
+            match rhs.len().cmp(&lhs.len()) {
+                Ordering::Less => rhs.append_null(self),
+                Ordering::Equal => break,
+                Ordering::Greater => lhs.append_null(self),
+            }
+        }
     }
 
     fn left_shift_chars(&self, str: &FheString, shift: &RadixCiphertext) -> FheString {
