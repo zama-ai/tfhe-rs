@@ -61,9 +61,32 @@ void scratch_packing_keyswitch_lwe_list_to_glwe_64(
       static_cast<cudaStream_t>(stream), gpu_index, fp_ks_buffer,
       glwe_dimension, polynomial_size, num_lwes, allocate_gpu_memory);
 }
+
+void dump_2d_64(const char* fname, uint64_t const* gpu_buf, int lines, int cols, int stride, cudaStream_t stream) {
+    FILE* fp_lwe = fopen(fname, "wt");
+    uint64_t* buf_host = (uint64_t* )malloc(lines * stride * sizeof(uint64_t));
+
+    printf("Dump %d %d %d to %s\n", lines, cols, stride, fname);
+    cudaMemcpy(buf_host, gpu_buf, lines * stride * sizeof(uint64_t), cudaMemcpyDeviceToHost);
+    cudaStreamSynchronize(stream);
+
+    for (int i = 0; i < lines; ++i) {
+      for (int j = 0; j < cols; ++j) { // 
+        uint64_t val = buf_host[i*stride + j];
+        fprintf(fp_lwe, "%llu,", val);
+      }
+      fprintf(fp_lwe, "\n");
+    }
+    fclose(fp_lwe);
+    free(buf_host);
+}
+
 /* Perform functional packing keyswitch on a batch of 64 bits input LWE
  * ciphertexts.
  */
+
+//#define KS_VAL_DBG 
+
 void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     void *stream, uint32_t gpu_index, void *glwe_array_out,
     void const *lwe_array_in, void const *fp_ksk_array, int8_t *fp_ks_buffer,
@@ -71,9 +94,19 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     uint32_t output_polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_lwes) {
 
-  if (can_use_pks_fast_path(
+  if (false && can_use_pks_fast_path(
     input_lwe_dimension, num_lwes, output_polynomial_size, level_count, output_glwe_dimension
   )) {
+#ifdef KS_VAL_DBG     
+    cudaStream_t s = static_cast<cudaStream_t>(stream);
+
+    dump_2d_64("/home/stoiana/lwe_mask.csv", 
+      static_cast<const uint64_t *>(lwe_array_in), 
+      num_lwes, 
+      input_lwe_dimension, 
+      input_lwe_dimension + 1, 
+      s);
+#endif
 
     host_fast_packing_keyswitch_lwe_list_to_glwe<uint64_t, ulonglong4>(
         static_cast<cudaStream_t>(stream), gpu_index,
@@ -82,54 +115,46 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
         static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
         input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
         base_log, level_count, num_lwes);
-/*
-    FILE* fp_lwe = fopen("/home/stoiana/lwe.csv", "wt");
-    uint64_t* lwe_host = (uint64_t* )malloc((num_lwes * (input_lwe_dimension + 1)) * sizeof(uint64_t));
-    cudaMemcpy(lwe_host, lwe_array_in, (num_lwes * (input_lwe_dimension + 1)) * sizeof(uint64_t), cudaMemcpyDeviceToHost);
-    cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
-    for (int i = 0; i < num_lwes; ++i) {
-      for (int j = 0; j < input_lwe_dimension; ++j) { // 
-        uint64_t val = lwe_host[i*(input_lwe_dimension+1) + j];
-        fprintf(fp_lwe, "%llu,", val);
-      }
-      fprintf(fp_lwe, "\n");
-    }
-    fclose(fp_lwe);
-    free(lwe_host);
 
-    FILE* fp_ksk = fopen("/home/stoiana/ksk.csv", "wt");
-    uint64_t* ksk_host = (uint64_t* )malloc(input_lwe_dimension * output_polynomial_size * (output_glwe_dimension + 1) * sizeof(uint64_t));
-    cudaMemcpy(ksk_host, lwe_array_in, 
-      input_lwe_dimension * output_polynomial_size * (output_glwe_dimension + 1) * sizeof(uint64_t), 
-      cudaMemcpyDeviceToHost
-    );
-    cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
-    for (int i = 0; i < input_lwe_dimension; ++i) {
-      for (int j = 0; j < output_polynomial_size * (output_glwe_dimension + 1); ++j) {
-        fprintf(fp_ksk, "%llu,", ksk_host[i*output_polynomial_size * (output_glwe_dimension + 1) + j]);
-      }
-      fprintf(fp_ksk, "\n");
-    }
-    fclose(fp_ksk);
-    free(ksk_host);
+#ifdef KS_VAL_DBG     
+    dump_2d_64("/home/stoiana/decomp_lwe_mask.csv", 
+      (const uint64_t *)fp_ks_buffer, 
+      num_lwes, 
+      input_lwe_dimension, 
+      input_lwe_dimension, 
+      s);
 
-    FILE* fp_glwes = fopen("/home/stoiana/glwe.csv", "wt");
-    uint64_t* glwes_host = (uint64_t* )malloc(num_lwes * output_polynomial_size * (output_glwe_dimension + 1) * sizeof(uint64_t));
-    cudaMemcpy(glwes_host, fp_ks_buffer, 
-      num_lwes * output_polynomial_size * (output_glwe_dimension + 1) * sizeof(uint64_t), 
-      cudaMemcpyDeviceToHost
-    );
-    cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
+    auto size_ks_glwe = output_polynomial_size * (output_glwe_dimension+1);
+    auto fp_ks_buffer_part2 = (uint64_t*)fp_ks_buffer + num_lwes * size_ks_glwe;
+    dump_2d_64("/home/stoiana/gemm.csv", 
+      static_cast<const uint64_t *>(fp_ks_buffer_part2), 
+      num_lwes, 
+      size_ks_glwe, 
+      size_ks_glwe, 
+      s);
 
-    for (int i = 0; i < num_lwes; ++i) {
-      for (int j = 0; j < output_polynomial_size * (output_glwe_dimension + 1); ++j) {
-        fprintf(fp_glwes, "%llu, ", glwes_host[i*output_polynomial_size * (output_glwe_dimension + 1) + j]);
-      }
-      fprintf(fp_glwes, "\n");
-    }
-    fclose(fp_glwes);
-    free(glwes_host);
-    */
+    dump_2d_64("/home/stoiana/ksk.csv", 
+      static_cast<const uint64_t *>(fp_ksk_array), 
+      input_lwe_dimension, 
+      size_ks_glwe, 
+      size_ks_glwe, 
+      s);
+
+    dump_2d_64("/home/stoiana/rotated_gpu.csv", 
+      (const uint64_t *)fp_ks_buffer, 
+      num_lwes, 
+      size_ks_glwe, 
+      size_ks_glwe, 
+      s);
+
+    dump_2d_64("/home/stoiana/glwe.csv", 
+      static_cast<const uint64_t *>(glwe_array_out), 
+      1, 
+      size_ks_glwe, 
+      size_ks_glwe, 
+      s);
+#endif
+
   } else
     host_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
         static_cast<cudaStream_t>(stream), gpu_index,
