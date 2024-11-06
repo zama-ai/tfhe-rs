@@ -94,7 +94,7 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     uint32_t output_polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_lwes) {
 
-  if (false && can_use_pks_fast_path(
+  if (can_use_pks_fast_path(
     input_lwe_dimension, num_lwes, output_polynomial_size, level_count, output_glwe_dimension
   )) {
 #ifdef KS_VAL_DBG     
