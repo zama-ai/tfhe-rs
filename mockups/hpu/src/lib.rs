@@ -1,6 +1,6 @@
-use serde::de::value::UsizeDeserializer;
 use std::array::from_fn;
 use std::collections::VecDeque;
+use std::io::Write;
 use strum::IntoEnumIterator;
 use tfhe::core_crypto::algorithms::{
     lwe_ciphertext_add_assign, lwe_ciphertext_cleartext_mul_assign, lwe_ciphertext_opposite_assign,
@@ -22,18 +22,20 @@ mod report;
 use ipc::Ipc;
 
 mod mockup_params;
-pub use mockup_params::MockupParameters;
+pub use mockup_params::{MockupOptions, MockupParameters};
 
 mod modules;
 pub use modules::isc;
 use modules::{HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 
-use hpu_asm::{AsmBin, PbsLut};
+use hpu_asm::{Asm, AsmBin, PbsLut};
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 pub struct HpuSim {
     config: HpuConfig,
     params: MockupParameters,
+    options: MockupOptions,
+
     ipc: Ipc,
     regmap: RegisterMap,
 
@@ -64,7 +66,7 @@ pub struct HpuSim {
 }
 
 impl HpuSim {
-    pub fn new(config: HpuConfig, params: MockupParameters) -> Self {
+    pub fn new(config: HpuConfig, params: MockupParameters, options: MockupOptions) -> Self {
         // Allocate communication channels
         let ipc = {
             let name = match config.fpga.ffi {
@@ -95,10 +97,10 @@ impl HpuSim {
         // Allocate InstructionScheduler
         // This module is also in charge of performances estimation
         let isc = isc::Scheduler::new(params.isc_sim_params.clone());
-
         Self {
             config,
             params,
+            options,
             ipc,
             regmap,
             hbm_bank,
@@ -114,7 +116,6 @@ impl HpuSim {
     }
 
     pub fn ipc_poll(&mut self) {
-        let mut useless_schedule = 0;
         loop {
             // Flush register requests
             while let Some(req) = self.ipc.register_req() {
@@ -217,12 +218,6 @@ impl HpuSim {
                     None
                 };
                 let dops_exec = self.isc.schedule(bpip_timeout);
-                if dops_exec.is_empty() {
-                    useless_schedule += 1;
-                    if useless_schedule > 20 {
-                        panic!("-");
-                    }
-                }
                 for dop in dops_exec {
                     self.exec(dop);
                 }
@@ -396,8 +391,26 @@ impl HpuSim {
                     self.regmap.ack_pdg(word_u32);
                 }
 
-                self.isc.report();
-                self.isc.reset_trace();
+                // Generate report
+                let time_rpt = self.isc.time_report();
+                let dop_rpt = self.isc.dop_report();
+                tracing::info!("Report for IOp: {}", iop.asm_encode(8));
+                tracing::info!("{time_rpt:?}");
+                tracing::info!("{dop_rpt}");
+
+                if let Some(mut rpt_file) = self.options.report_file(&iop.clone().into()) {
+                    writeln!(rpt_file, "Report for IOp: {}", iop.asm_encode(8)).unwrap();
+                    writeln!(rpt_file, "{time_rpt:?}").unwrap();
+                    writeln!(rpt_file, "{dop_rpt}").unwrap();
+                }
+
+                let trace = self.isc.reset_trace();
+                trace.iter().for_each(|pt| tracing::trace!("{pt}"));
+                if let Some(mut trace_file) = self.options.report_trace(&iop.into()) {
+                    trace
+                        .into_iter()
+                        .for_each(|pt| writeln!(trace_file, "{pt}").unwrap());
+                }
             }
         }
     }
