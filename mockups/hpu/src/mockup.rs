@@ -5,10 +5,10 @@
 //!
 //! WARN: User must start the HpuSim mockup before tfhe-rs application
 
-use rand::rngs::StdRng;
-use rand::SeedableRng;
+use std::fs::OpenOptions;
+use std::path::Path;
 
-use hpu_sim::{HpuSim, MockupParameters};
+use hpu_sim::{HpuSim, MockupOptions, MockupParameters};
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 /// Define CLI arguments
@@ -18,6 +18,7 @@ use clap::Parser;
 pub struct Args {
     // Configuration ----------------------------------------------------
     /// Fpga fake configuration
+    /// Toml file similar to the one used with the real hpu-backend
     /// Enable to retrieved ipc_name, register_file and board definition
     #[clap(
         long,
@@ -26,8 +27,8 @@ pub struct Args {
     )]
     pub config: String,
 
-    /// Hpu inner parameters
-    /// Tfhe-rs internal parameters used to emulate the behavior of RTL
+    /// Hpu rtl parameters
+    /// Enable to retrieved the associated tfhe-rs parameters and other Rtl parameters
     #[clap(
         long,
         value_parser,
@@ -37,10 +38,6 @@ pub struct Args {
 
     // Arch configuration ----------------------------------------------------
     // Used to override some parameters at runtime
-    /// Integer bit width
-    #[clap(long, value_parser)]
-    integer_w: Option<usize>,
-
     /// Frequency in HZ
     /// Only use for report display
     #[clap(long, value_parser)]
@@ -55,80 +52,108 @@ pub struct Args {
     #[clap(long, value_parser)]
     isc_depth: Option<usize>,
 
-    /// ALUs configuration file path
-    /// Cf. config folder or cfg_gen bin for generation
+    /// Pes configuration file path
+    /// Cf. params/pe folder or cfg_gen bin for generation
     #[clap(long, value_parser)]
-    alu_cfg: Option<String>,
+    pe_cfg: Option<String>,
 
-    // Exec configuration ----------------------------------------------------
-    /// Seed used for some rngs
+    // Dump configuration ----------------------------------------------------
+    // Use to activate some dump features for the generation of simulation stimulus
+    /// Specify simulus dump folder. When not specified, no stimulus were generated
     #[clap(long, value_parser)]
-    seed: Option<u128>,
+    dump_out: Option<String>,
 
-    // Reports configuration -------------------------------------------------
-    /// log output file
-    #[clap(long, value_parser, default_value = "output/sim.log")]
-    out_log: String,
-
-    /// dump output dir
-    #[clap(long, value_parser)]
-    out_dump: Option<String>,
-
-    /// dump intermediate register value
+    /// Activate the dump of intermediate register value. Only work if dump-stim is also specified
     #[clap(long, value_parser)]
     dump_reg: bool,
 
-    /// JsonLine output file
-    #[clap(long, value_parser, default_value = "output/sim.jsonl")]
-    out_jsonl: String,
+    // Reports configuration -------------------------------------------------
+    // Use to activate some performances reports
+    /// Specify reports dump folder. When not specified, no reports were generated
+    #[clap(long, value_parser)]
+    report_out: Option<String>,
+
+    /// Activate the execution trace export for later analysis
+    #[clap(long, value_parser)]
+    report_trace: bool,
+
+    // Log configuration -------------------------------------------------
+    /// Write trace message in the file (instead of on stdio)
+    /// NB: Use RUST_LOG env variable to set the verbosity
+    #[clap(long, value_parser)]
+    log_out: Option<String>,
+}
+
+impl From<&Args> for MockupOptions {
+    fn from(args: &Args) -> Self {
+        Self {
+            dump_out: args.dump_out.clone(),
+            dump_reg: args.dump_reg,
+            report_out: args.report_out.clone(),
+            report_trace: args.report_trace,
+        }
+    }
 }
 
 fn main() {
     let args = Args::parse();
     println!("User Options: {args:?}");
 
-    // Register tracing subscriber that use env-filter
+    let options = MockupOptions::from(&args);
+
+    // Configure traging -------------------------------------------------
+    // Tracing subscriber rely on env-filter
     // Select verbosity with env_var: e.g. `RUST_LOG=Alu=trace`
-    tracing_subscriber::fmt()
+    let dflt_tracer = tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .compact()
         // Display source code file paths
         .with_file(false)
         // Display source code line numbers
         .with_line_number(false)
-        .without_time()
-        // Build & register the subscriber
-        .init();
+        .without_time();
+
+    if let Some(file) = args.log_out {
+        // Open file
+        // Create path
+        let path = Path::new(&file);
+        if let Some(dir_p) = path.parent() {
+            std::fs::create_dir_all(dir_p).unwrap();
+        }
+
+        // Open file
+        let wr_f = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(path)
+            .unwrap();
+
+        // Build & register the subscriber to print in a file
+        dflt_tracer.json().with_writer(wr_f).init();
+    } else {
+        // Build & register the subscriber to display on stdio
+        dflt_tracer.compact().init();
+    }
 
     // Load parameters from configuration file ------------------------------------
     let config = HpuConfig::read_from(&args.config);
     let params = {
         let mut params = MockupParameters::from_ron(&args.params);
-        // TODO enable back CLI override
-        // // Override some parameters if required
-        // if let Some(integer_w) = args.integer_w.as_ref() {
-        //     params.integer_w = *integer_w;
-        // }
-        // if let Some(register) = args.register.as_ref() {
-        //     params.core_params.register = *register;
-        // }
-        // if let Some(isc_depth) = args.isc_depth.as_ref() {
-        //     params.core_params.isc_depth = *isc_depth;
-        // }
-        // if let Some(alu_cfg) = args.alu_cfg.as_ref() {
-        //     params.core_params.alu_cfg = alu_cfg.clone();
-        // }
+        // Override some parameters if required
+        if let Some(register) = args.register.as_ref() {
+            params.isc_sim_params.register = *register;
+        }
+        if let Some(isc_depth) = args.isc_depth.as_ref() {
+            params.isc_sim_params.isc_depth = *isc_depth;
+        }
+        if let Some(pe_cfg) = args.pe_cfg.as_ref() {
+            params.isc_sim_params.pe_cfg = pe_cfg.clone();
+        }
         params
     };
     println!("Mockup parameters after override with CLI: {params:?}");
 
-    // Manual seeder -----------------------------------------------------------
-    let rng: StdRng = if let Some(seed) = args.seed {
-        SeedableRng::seed_from_u64((seed & u64::MAX as u128) as u64)
-    } else {
-        SeedableRng::from_entropy()
-    };
-
-    let mut hpu_sim = HpuSim::new(config, params);
+    // Start mockup ---------------------------------------------------------------
+    let mut hpu_sim = HpuSim::new(config, params, options);
     hpu_sim.ipc_poll();
 }

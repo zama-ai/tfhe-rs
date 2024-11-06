@@ -22,13 +22,6 @@ pub struct IscSimParameters {
     pub quantum_us: usize,
 }
 
-// impl MockupParameters {
-//     /// Compute number of digit blk based on integer_w and msg_w
-//     pub fn blk_w(&self) -> usize {
-//         self.integer_w.div_ceil(self.core_params.digit.msg_w)
-//     }
-// }
-
 /// Provide Serde mechanims in ron file
 impl MockupParameters {
     pub fn from_ron(params: &str) -> Self {
@@ -60,6 +53,51 @@ impl MockupParameters {
             Err(err) => {
                 panic!("Failed to write HpuParameters to file {}", err);
             }
+        }
+    }
+}
+
+/// Structure to pass runtime options
+pub struct MockupOptions {
+    pub dump_out: Option<String>,
+    pub dump_reg: bool,
+    pub report_out: Option<String>,
+    pub report_trace: bool,
+}
+
+impl MockupOptions {
+    fn create_dir(file_path: &str) {
+        let path = Path::new(&file_path);
+        if let Some(dir_p) = path.parent() {
+            std::fs::create_dir_all(dir_p).unwrap();
+        }
+    }
+
+    pub fn open_wr_file(file_path: &str) -> File {
+        Self::create_dir(file_path);
+        OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(file_path)
+            .unwrap()
+    }
+
+    pub fn report_file(&self, iop: &hpu_asm::IOpName) -> Option<File> {
+        if let Some(report_out) = &self.report_out {
+            let iop_file = format!("{report_out}/{iop}.rpt");
+            Some(Self::open_wr_file(&iop_file))
+        } else {
+            None
+        }
+    }
+    pub fn report_trace(&self, iop: &hpu_asm::IOpName) -> Option<File> {
+        if self.report_out.is_some() && self.report_trace {
+            let report_out = &self.report_out.as_ref().unwrap();
+            let iop_file = format!("{report_out}/{iop}.trace");
+            Some(Self::open_wr_file(&iop_file))
+        } else {
+            None
         }
     }
 }

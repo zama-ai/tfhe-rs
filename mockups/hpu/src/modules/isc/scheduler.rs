@@ -1,7 +1,7 @@
 use pe::PeConfigStore;
 
 use super::*;
-use std::collections::{BTreeMap, BinaryHeap, HashMap, VecDeque};
+use std::collections::{BinaryHeap, HashMap, VecDeque};
 
 use crate::report::{DOpRpt, TimeRpt};
 
@@ -322,16 +322,6 @@ impl Scheduler {
                 duration: std::time::Duration::from_secs(0),
             },
         }
-    }
-
-    pub fn report(&self) {
-        let time = self.time_report();
-        tracing::info!("{time:?}");
-
-        let dop = self.dop_report();
-        tracing::info!("{dop}");
-
-        self.trace.iter().for_each(|pt| tracing::debug!("{pt}"));
     }
 
     pub fn reset_trace(&mut self) -> Vec<Trace> {
