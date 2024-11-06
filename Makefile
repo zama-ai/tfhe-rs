@@ -749,10 +749,10 @@ test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nexte
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only --tfhe-package "$(TFHE_SPEC)"
 
-.PHONY: test_safe_deserialization # Run the tests for safe deserialization
-test_safe_deserialization: install_rs_build_toolchain install_cargo_nextest
+.PHONY: test_safe_serialization # Run the tests for safe serialization
+test_safe_serialization: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) -- safe_deserialization::
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) -- safe_serialization::
 
 .PHONY: test_zk # Run the tests for the zk module of the TFHE-rs crate
 test_zk: install_rs_build_toolchain install_cargo_nextest
