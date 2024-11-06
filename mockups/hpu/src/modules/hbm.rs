@@ -20,55 +20,27 @@ pub struct HbmChunk {
     pub(crate) paddr: u64,
     pub(crate) size_b: usize,
 
+    // Data
     pub(crate) data: Vec<u8>,
-    hw_tx: ipc::IpcSender<ipc::IpcSharedMemory>,
-    hw_rx: ipc::IpcReceiver<ipc::IpcSharedMemory>,
 }
 
 impl HbmChunk {
-    pub fn new(
-        paddr: u64,
-        size_b: usize,
-    ) -> (
-        Self,
-        (
-            ipc::IpcSender<ipc::IpcSharedMemory>,
-            ipc::IpcReceiver<ipc::IpcSharedMemory>,
-        ),
-    ) {
-        // Create ipc sync channels
-        let (hw_tx, cpu_rx) = ipc::channel().unwrap();
-        let (cpu_tx, hw_rx) = ipc::channel().unwrap();
-
-        (
-            Self {
-                paddr,
-                size_b,
-                data: vec![0; size_b],
-                hw_tx,
-                hw_rx,
-            },
-            (cpu_tx, cpu_rx),
-        )
+    pub fn new(paddr: u64, size_b: usize) -> Self {
+        Self {
+            paddr,
+            size_b,
+            data: vec![0; size_b],
+        }
     }
 
-    pub fn sync(&mut self, mode: SyncMode) {
-        let Self {
-            data,
-            hw_tx: sync_tx,
-            hw_rx: sync_rx,
-            ..
-        } = self;
-        match mode {
-            SyncMode::Host2Device => {
-                let hw_data = sync_rx.recv().unwrap();
-                data.copy_from_slice(&hw_data);
-            }
-            SyncMode::Device2Host => {
-                let cpu_data = IpcSharedMemory::from_bytes(data.as_slice());
-                sync_tx.send(cpu_data);
-            }
-        }
+    /// Generate Shm for syncing data through Ipc
+    pub fn ipc_wrap(&self) -> ipc::IpcSharedMemory {
+        ipc::IpcSharedMemory::from_bytes(self.data.as_slice())
+    }
+
+    /// Update internal data from Ipc shm
+    pub fn ipc_update(&mut self, ipc_data: ipc::IpcSharedMemory) {
+        self.data.copy_from_slice(&*ipc_data);
     }
 }
 
@@ -85,16 +57,7 @@ impl HbmBank {
         }
     }
 
-    pub(crate) fn alloc(
-        &mut self,
-        size_b: usize,
-    ) -> (
-        u64,
-        (
-            ipc::IpcSender<ipc::IpcSharedMemory>,
-            ipc::IpcReceiver<ipc::IpcSharedMemory>,
-        ),
-    ) {
+    pub(crate) fn alloc(&mut self, size_b: usize) -> u64 {
         assert!(
             size_b <= HBM_CHUNK_SIZE_B,
             "XRT don't support allocation greater than {HBM_CHUNK_SIZE_B} Bytes."
@@ -113,10 +76,10 @@ impl HbmBank {
         };
 
         // allocate chunk and register it in hashmap
-        let (chunk, cpu) = HbmChunk::new(paddr, size_b);
+        let chunk = HbmChunk::new(paddr, size_b);
         self.chunk.insert(paddr, chunk);
 
-        (paddr, cpu)
+        paddr
     }
 
     pub(crate) fn get_chunk(&self, addr: u64) -> &HbmChunk {

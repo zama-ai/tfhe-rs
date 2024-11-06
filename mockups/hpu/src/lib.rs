@@ -164,15 +164,36 @@ impl HpuSim {
             while let Some(req) = self.ipc.memory_req() {
                 match req {
                     MemoryReq::Allocate { hbm_pc, size_b } => {
-                        let (addr, (tx, rx)) = self.hbm_bank[hbm_pc].alloc(size_b);
-                        self.ipc.memory_ack(MemoryAck::Allocate { addr, tx, rx });
+                        let addr = self.hbm_bank[hbm_pc].alloc(size_b);
+                        self.ipc.memory_ack(MemoryAck::Allocate { addr });
                     }
-                    MemoryReq::Sync { hbm_pc, addr, mode } => {
-                        // Triggered Sync event in the inner bank
-                        // NB: Sync has no ack over Memory channel, instead rely on raw data ipc to
-                        // synced
-                        self.hbm_bank[hbm_pc].get_mut_chunk(addr).sync(mode);
-                    }
+                    MemoryReq::Sync {
+                        hbm_pc,
+                        addr,
+                        mode,
+                        data,
+                    } => match mode {
+                        SyncMode::Host2Device => {
+                            let sw_data = data.expect("No data received on Host2Device sync");
+                            self.hbm_bank[hbm_pc]
+                                .get_mut_chunk(addr)
+                                .ipc_update(sw_data);
+
+                            // Generate ack
+                            self.ipc.memory_ack(MemoryAck::Sync { data: None });
+                        }
+                        SyncMode::Device2Host => {
+                            assert!(data.is_none(), "Received data on Device2Host sync");
+
+                            // Read data
+                            let hw_data = self.hbm_bank[hbm_pc].get_chunk(addr).ipc_wrap();
+
+                            // Generate ack
+                            self.ipc.memory_ack(MemoryAck::Sync {
+                                data: Some(hw_data),
+                            });
+                        }
+                    },
                     MemoryReq::Release { hbm_pc, addr } => {
                         self.hbm_bank[hbm_pc].rm_chunk(addr);
                         self.ipc.memory_ack(MemoryAck::Release);
