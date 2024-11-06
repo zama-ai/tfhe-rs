@@ -244,9 +244,9 @@ jobs:
         run: |
           make test_high_level_api
 
-      - name: Run safe deserialization tests
+      - name: Run safe serialization tests
         run: |
-          make test_safe_deserialization
+          make test_safe_serialization
 
       - name: Slack Notification
         if: ${{ failure() }}
