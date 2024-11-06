@@ -92,27 +92,28 @@ mul_ggsw_glwe(Torus *accumulator, double2 *fft, double2 *join_buffer,
   }
   synchronize_threads_in_block();
 
-  // accumulate rest of the products into fft buffer
-  for (int l = 1; l < gridDim.x; l++) {
-    auto cur_src_acc = get_join_buffer_element<G>(l, blockIdx.y, group,
-                                                  join_buffer, polynomial_size,
-                                                  glwe_dimension, support_dsm);
-    tid = threadIdx.x;
-    for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] += cur_src_acc[tid];
-      tid += params::degree / params::opt;
+  if (blockIdx.x == 0) {
+    // accumulate rest of the products into fft buffer
+    for (int l = 1; l < gridDim.x; l++) {
+      auto cur_src_acc = get_join_buffer_element<G>(
+          l, blockIdx.y, group, join_buffer, polynomial_size, glwe_dimension,
+          support_dsm);
+      tid = threadIdx.x;
+      for (int i = 0; i < params::opt / 2; i++) {
+        fft[tid] += cur_src_acc[tid];
+        tid += params::degree / params::opt;
+      }
     }
+
+    synchronize_threads_in_block();
+
+    // Perform the inverse FFT on the result of the GGSW x GLWE and add to the
+    // accumulator
+    NSMFFT_inverse<HalfDegree<params>>(fft);
+    synchronize_threads_in_block();
+
+    add_to_torus<Torus, params>(fft, accumulator);
   }
-
-  synchronize_threads_in_block();
-
-  // Perform the inverse FFT on the result of the GGSW x GLWE and add to the
-  // accumulator
-  NSMFFT_inverse<HalfDegree<params>>(fft);
-  synchronize_threads_in_block();
-
-  add_to_torus<Torus, params>(fft, accumulator);
-
   group.sync();
 }
 
