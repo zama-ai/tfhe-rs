@@ -29,6 +29,7 @@ pub use modules::isc;
 use modules::{HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 
 use hpu_asm::{Asm, AsmBin, PbsLut};
+use tfhe::tfhe_hpu_backend::interface::io_dump::{HexMem, LINE_WIDTH_BYTES};
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 pub struct HpuSim {
@@ -43,6 +44,8 @@ pub struct HpuSim {
     hbm_bank: [HbmBank; HBM_BANK_NB],
     /// On-chip regfile
     regfile: Vec<HpuLweCiphertextOwned<u64>>,
+    /// Program counter
+    pc: usize,
 
     /// UCore model
     ucore: UCore,
@@ -105,6 +108,7 @@ impl HpuSim {
             regmap,
             hbm_bank,
             regfile,
+            pc: 0,
             ucore,
             isc,
             workq_stream: Vec::new(),
@@ -205,6 +209,28 @@ impl HpuSim {
             // Issue IOp requests to isc
             while let Some(iop) = self.iop_req.pop_front() {
                 let dops = self.ucore.translate(self.hbm_bank.as_slice(), &iop);
+
+                // Write required input material if needed
+                if let Some(dump_path) = self.options.dump_out.as_ref() {
+                    let iop_hex = iop.bin_encode_le().unwrap();
+                    let opcode = iop_hex.last().unwrap();
+
+                    // Generate IOp file
+                    let asm_p = format!("{dump_path}/iop/iop_{opcode:x}.asm");
+                    hpu_asm::write_asm("", &[iop.clone()], &asm_p, hpu_asm::ARG_MIN_WIDTH).unwrap();
+                    let hex_p = format!("{dump_path}/iop/iop_{opcode:x}.hex");
+                    hpu_asm::write_hex("", &[iop.clone()], &hex_p).unwrap();
+
+                    // Generate DOps file
+                    let iop_as_header = format!("# {}", iop.asm_encode(0));
+                    let asm_p = format!("{dump_path}/dop/dop_{opcode:x}.asm");
+                    hpu_asm::write_asm(&iop_as_header, &dops, &asm_p, hpu_asm::ARG_MIN_WIDTH)
+                        .unwrap();
+                    let hex_p = format!("{dump_path}/dop/dop_{opcode:x}.hex");
+                    hpu_asm::write_hex(&iop_as_header, &dops, &hex_p).unwrap();
+                }
+
+                // Push associated dops to scheduler
                 self.isc.insert_dops(dops);
                 self.iop_pdg.push_back(iop);
             }
@@ -219,7 +245,7 @@ impl HpuSim {
                 };
                 let dops_exec = self.isc.schedule(bpip_timeout);
                 for dop in dops_exec {
-                    self.exec(dop);
+                    self.exec(&dop);
                 }
             }
         }
@@ -227,8 +253,9 @@ impl HpuSim {
 }
 
 impl HpuSim {
-    fn exec(&mut self, dop: hpu_asm::DOp) {
-        tracing::debug!("Simulate execution of DOp: {dop:?}");
+    fn exec(&mut self, dop: &hpu_asm::DOp) {
+        tracing::debug!("Simulate execution of DOp: {dop:?}[@{}]", self.pc);
+
         // Read operands
         match dop {
             hpu_asm::DOp::LD(op_impl) => {
@@ -413,6 +440,12 @@ impl HpuSim {
                 }
             }
         }
+
+        // Dump operation src/dst in file if required
+        self.dump_op_reg(&dop);
+
+        // Increment program counter
+        self.pc += 1;
     }
 
     /// Compute dst_rid <- Pbs(src_rid, lut)
@@ -544,5 +577,67 @@ impl HpuSim {
             self.sks = Some(sks);
         }
         self.sks.as_ref().unwrap()
+    }
+}
+
+impl HpuSim {
+    fn dump_op_reg(&self, op: &hpu_asm::DOp) {
+        if self.options.dump_out.is_some() && self.options.dump_reg {
+            let dump_out = self.options.dump_out.as_ref().unwrap();
+
+            // Dump register value
+            let regf = match op {
+                hpu_asm::DOp::LD(op_impl) => self.regfile[op_impl.dst].as_view(),
+
+                hpu_asm::DOp::TLDA(_) | hpu_asm::DOp::TLDB(_) | hpu_asm::DOp::TLDH(_) => panic!(
+                    "Templated operation mustn't reach the Hpu execution
+                unit. Check ucore translation"
+                ),
+                hpu_asm::DOp::ST(op_impl) => self.regfile[op_impl.src].as_view(),
+                hpu_asm::DOp::TSTD(_) | hpu_asm::DOp::TSTH(_) => panic!(
+                    "Templated operation mustn't reach the Hpu execution
+                unit. Check ucore translation"
+                ),
+
+                hpu_asm::DOp::ADDS(op_impl) => self.regfile[op_impl.dst].as_view(),
+                hpu_asm::DOp::SUBS(op_impl) => self.regfile[op_impl.dst].as_view(),
+                hpu_asm::DOp::SSUB(op_impl) => self.regfile[op_impl.dst].as_view(),
+                hpu_asm::DOp::MULS(op_impl) => self.regfile[op_impl.dst].as_view(),
+                hpu_asm::DOp::ADD(op_impl) => self.regfile[op_impl.dst].as_view(),
+                hpu_asm::DOp::SUB(op_impl) => self.regfile[op_impl.dst].as_view(),
+                hpu_asm::DOp::MAC(op_impl) => self.regfile[op_impl.dst].as_view(),
+                hpu_asm::DOp::PBS(op_impl) => self.regfile[op_impl.dst].as_view(),
+                hpu_asm::DOp::PBS_F(op_impl) => self.regfile[op_impl.dst].as_view(),
+                _ => return,
+            };
+
+            // Create base-path
+            let base_path = format!("{}/blwe/run/blwe_isc{}_reg", dump_out, self.pc,);
+            self.dump_regf(regf, &base_path);
+        }
+    }
+
+    /// Dump associated regf value in a file
+    fn dump_regf(&self, regf: HpuLweCiphertextView<u64>, base_path: &str) {
+        // Iterate over slice
+        regf.into_container()
+            .iter()
+            .enumerate()
+            .for_each(|(i, slice)| {
+                // Create file-path
+                let file_path = format!("{base_path}_{:0>1x}.hex", i);
+                let mut wr_f = MockupOptions::open_wr_file(&file_path);
+
+                writeln!(&mut wr_f, "# LweCiphertext slice #{}", i).unwrap();
+                // Compact Blwe on 32b if possible
+                if self.params.rtl_params.ntt_params.ct_width <= u32::BITS {
+                    let slice_32b = slice.into_iter().map(|x| *x as u32).collect::<Vec<u32>>();
+                    slice_32b
+                        .as_slice()
+                        .write_hex(&mut wr_f, LINE_WIDTH_BYTES, Some("XX"));
+                } else {
+                    slice.write_hex(&mut wr_f, LINE_WIDTH_BYTES, Some("XX"));
+                }
+            });
     }
 }
