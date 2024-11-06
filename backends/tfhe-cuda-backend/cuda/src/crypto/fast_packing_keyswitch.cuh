@@ -1,8 +1,6 @@
 #ifndef CNCRT_FAST_KS_CUH
 #define CNCRT_FAST_KS_CUH
 
-#include <thrust/device_vector.h>
-
 #include "device.h"
 #include "gadget.cuh"
 #include "helper_multi_gpu.h"
@@ -16,7 +14,7 @@
 
 #define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
-const int BLOCK_SIZE_GEMM = 32;
+const int BLOCK_SIZE_GEMM = 64;
 const int THREADS_GEMM = 8;
 
 __host__ bool can_use_pks_fast_path(uint32_t lwe_dimension_in, uint32_t num_lwe, uint32_t polynomial_size, uint32_t level_count, uint32_t glwe_dimension)
@@ -72,10 +70,10 @@ __global__ void tgemmVectorize1(int M, int N, int K,
                                   const Torus *A, const Torus *B,
                                   Torus *C) {
 
-  const int BM = 64;
-  const int BN = 64;
-  const int BK = 8;
-  const int TM = 8;
+  const int BM = BLOCK_SIZE_GEMM;
+  const int BN = BLOCK_SIZE_GEMM;
+  const int BK = THREADS_GEMM;
+  const int TM = THREADS_GEMM;
 
   const uint cRow = blockIdx.y;
   const uint cCol = blockIdx.x;
@@ -132,112 +130,6 @@ __global__ void tgemmVectorize1(int M, int N, int K,
   // write out the results
   for (uint resIdx = 0; resIdx < TM; ++resIdx) {
     C[(threadRow * TM + resIdx) * N + threadCol] = threadResults[resIdx];
-  }
-}
-
-template <typename Torus, typename TorusVec>
-__global__ void tgemmVectorize(int M, int N, int K, Torus const *A,
-                               Torus const *B, Torus *C) {
-  const int BM = BLOCK_SIZE_GEMM;
-  const int BN = BLOCK_SIZE_GEMM;
-  const int BK = THREADS_GEMM;
-  const int TM = THREADS_GEMM;
-  const int TN = THREADS_GEMM;
-  
-  const uint cRow = blockIdx.y;
-  const uint cCol = blockIdx.x;
-
-  const uint totalResultsBlocktile = BM * BN;
-  // A thread is responsible for calculating TM*TN elements in the blocktile
-  //const uint numThreadsBlocktile = totalResultsBlocktile / (TM * TN);
-
-  // BN/TN are the number of threads to span a column
-  const int threadCol = threadIdx.x % (BN / TN);
-  const int threadRow = threadIdx.x / (BN / TN);
-
-  // allocate space for the current blocktile in smem
-  __shared__ Torus As[BM * BK];
-  __shared__ Torus Bs[BK * BN];
-
-  // Move blocktile to beginning of A's row and B's column
-  A += cRow * BM * K;
-  B += cCol * BN;
-  C += cRow * BM * N + cCol * BN;
-
-  // calculating the indices that this thread will load into SMEM
-  // we'll load 128bit / 32bit = 4 elements per thread at each step
-  const uint innerRowA = threadIdx.x / (BK / 4);
-  const uint innerColA = threadIdx.x % (BK / 4);
-  // calculates the number of rows of As that are being loaded in a single step
-  // by a single block
-  //const uint rowStrideA = (numThreadsBlocktile * 4) / BK;
-  const uint innerRowB = threadIdx.x / (BN / 4);
-  const uint innerColB = threadIdx.x % (BN / 4);
-  // for both As and Bs we want each load to span the full column-width, for
-  // better GMEM coalescing (as opposed to spanning full row-width and iterating
-  // across columns)
-  //const uint rowStrideB = numThreadsBlocktile / (BN / 4);
-
-  // allocate thread-local cache for results in registerfile
-  Torus threadResults[TM * TN] = {Torus(0)};
-  Torus regM[TM] = {Torus(0)};
-  Torus regN[TN] = {Torus(0)};
-
-  // outer-most loop over block tiles
-  for (uint bkIdx = 0; bkIdx < K; bkIdx += BK) {
-    // populate the SMEM caches
-    // transpose A while loading it
-    TorusVec tmp =
-        reinterpret_cast<TorusVec const*>(&A[innerRowA * K + innerColA * 4])[0];
-    As[(innerColA * 4 + 0) * BM + innerRowA] = tmp.x;
-    As[(innerColA * 4 + 1) * BM + innerRowA] = tmp.y;
-    As[(innerColA * 4 + 2) * BM + innerRowA] = tmp.z;
-    As[(innerColA * 4 + 3) * BM + innerRowA] = tmp.w;
-
-    const TorusVec tmp2 =
-        reinterpret_cast<TorusVec const *>(&B[innerRowB * N + innerColB * 4])[0];
-    reinterpret_cast<TorusVec*>(&Bs[innerRowB * BN + innerColB * 4])[0] = tmp;
-    __syncthreads();
-
-    // advance blocktile
-    A += BK;     // move BK columns to right
-    B += BK * N; // move BK rows down
-
-    // calculate per-thread results
-    for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
-      // block into registers
-      for (uint i = 0; i < TM; ++i) {
-        regM[i] = As[dotIdx * BM + threadRow * TM + i];
-      }
-      for (uint i = 0; i < TN; ++i) {
-        regN[i] = Bs[dotIdx * BN + threadCol * TN + i];
-      }
-      for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
-        for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
-          threadResults[resIdxM * TN + resIdxN] +=
-              regM[resIdxM] * regN[resIdxN];
-        }
-      }
-    }
-    __syncthreads();
-  }
-
-  // write out the results
-  for (uint resIdxM = 0; resIdxM < TM; resIdxM += 1) {
-    for (uint resIdxN = 0; resIdxN < TN; resIdxN += 4) {
-      // load C vector into registers
-      TorusVec tmp = reinterpret_cast<TorusVec *>(
-          &C[(threadRow * TM + resIdxM) * N + threadCol * TN + resIdxN])[0];
-      // perform GEMM update in reg
-      tmp.x = threadResults[resIdxM * TN + resIdxN] + tmp.x;
-      tmp.y = threadResults[resIdxM * TN + resIdxN + 1] + tmp.y;
-      tmp.z = threadResults[resIdxM * TN + resIdxN + 2] + tmp.z;
-      tmp.w = threadResults[resIdxM * TN + resIdxN + 3] + tmp.w;
-      // write back
-      reinterpret_cast<TorusVec *>(
-          &C[(threadRow * TM + resIdxM) * N + threadCol * TN + resIdxN])[0] =
-          tmp;
-    }
   }
 }
 
@@ -317,10 +209,10 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe (
     check_cuda_error(cudaGetLastError());
 
     //gemm to ks the individual LWEs to GLWEs
-    dim3 grid_gemm(num_lwes / 32, glwe_accumulator_size / 32);
-    dim3 threads_gemm(32 * 32);
-    uint32_t sharedMemSize = 0; //64 * 8 * 2 * sizeof(Torus);
-    tgemmVectorize0<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
+    dim3 grid_gemm(glwe_accumulator_size / BLOCK_SIZE_GEMM, num_lwes / BLOCK_SIZE_GEMM);
+    dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
+    uint32_t sharedMemSize = BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
+    tgemmVectorize1<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
         num_lwes, glwe_accumulator_size, lwe_dimension_in, d_mem_0, fp_ksk_array, d_mem_1
     );
     check_cuda_error(cudaGetLastError());
