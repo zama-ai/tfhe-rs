@@ -66,7 +66,7 @@ impl ServerKey {
 
         rayon::join(
             // Return the replaced value only when there is match, else return the original str
-            || self.conditional_string(replace, replaced, str),
+            || self.conditional_string(replace, &replaced, str),
             || {
                 // If there's match we return [lhs, to].len(), else we return 0 (index default)
                 let add_to_index = self.if_then_else_parallelized(
@@ -134,7 +134,7 @@ impl ServerKey {
             let num_blocks = skip.blocks().len();
 
             rayon::join(
-                || *result = self.conditional_string(&no_more_matches, prev, result),
+                || *result = self.conditional_string(&no_more_matches, &prev, result),
                 // If we replace "" to "a" in the "ww" str, we get "awawa". So when `from_is_empty`
                 // we need to move to the next space between letters by adding 1 to the skip value
                 || match &from_is_empty {
@@ -268,7 +268,7 @@ impl ServerKey {
                     if let UIntArg::Enc(enc_n) = count {
                         let n_is_zero = self.scalar_eq_parallelized(enc_n.cipher(), 0);
 
-                        let mut re = self.conditional_string(&n_is_zero, result, to);
+                        let mut re = self.conditional_string(&n_is_zero, &result, to);
 
                         // When result or to are empty we get padding via the conditional_string
                         // (pad_ciphertexts_lsb). And the condition result may or may not have
@@ -282,14 +282,14 @@ impl ServerKey {
             // if there isn't we return the str
             IsMatch::Cipher(val) => {
                 if let UIntArg::Clear(_) = count {
-                    return self.conditional_string(&val, to.clone(), str);
+                    return self.conditional_string(&val, to, str);
                 }
 
                 if let UIntArg::Enc(enc_n) = count {
                     let n_not_zero = self.scalar_ne_parallelized(enc_n.cipher(), 0);
                     let and_val = self.boolean_bitand(&n_not_zero, &val);
 
-                    let mut re = self.conditional_string(&and_val, to.clone(), str);
+                    let mut re = self.conditional_string(&and_val, to, str);
 
                     // When result or to are empty we get padding via the conditional_string
                     // (pad_ciphertexts_lsb). And the condition result may or may not have
@@ -375,7 +375,7 @@ impl ServerKey {
             }
             // This happens when str is empty, so it's again one replacement if there's match or
             // if there isn't we return the str
-            IsMatch::Cipher(val) => return self.conditional_string(&val, to.clone(), str),
+            IsMatch::Cipher(val) => return self.conditional_string(&val, to, str),
             _ => (),
         }
 

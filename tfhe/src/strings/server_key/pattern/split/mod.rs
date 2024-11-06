@@ -386,12 +386,12 @@ impl FheStringIterator for SplitInternal {
 
         // The moment it's None (no match) we return the remaining state
         let result = if matches!(self.split_type, SplitType::RSplit) {
-            let re = sk.conditional_string(&current_is_some, rhs, &self.state);
+            let re = sk.conditional_string(&current_is_some, &rhs, &self.state);
 
             self.state = lhs;
             re
         } else {
-            let re = sk.conditional_string(&current_is_some, lhs, &self.state);
+            let re = sk.conditional_string(&current_is_some, &lhs, &self.state);
 
             self.state = rhs;
             re
@@ -440,7 +440,7 @@ impl FheStringIterator for SplitNInternal {
                 let exceeded = sk.scalar_le_parallelized(&n_minus_one, self.counter);
 
                 rayon::join(
-                    || result = sk.conditional_string(&exceeded, state, &result),
+                    || result = sk.conditional_string(&exceeded, &state, &result),
                     || {
                         let current_not_exceeded = sk.boolean_bitnot(&exceeded);
 
@@ -496,7 +496,7 @@ impl FheStringIterator for SplitNoLeading {
         let (result, is_some) = self.internal.next(sk);
 
         let (return_result, return_is_some) = rayon::join(
-            || sk.conditional_string(&self.leading_empty_str, result.clone(), &self.prev_return.0),
+            || sk.conditional_string(&self.leading_empty_str, &result, &self.prev_return.0),
             || {
                 let (lhs, rhs) = rayon::join(
                     // This is `is_some` if `leading_empty_str` is true, false otherwise
