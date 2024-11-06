@@ -84,6 +84,23 @@ impl FheString {
         client_key.encrypt_ascii(str, padding)
     }
 
+    #[cfg(test)]
+    pub fn print_trivial(&self) {
+        print!("pad: {}, chars: [", self.padded);
+
+        for i in &self.enc_string {
+            print!("[");
+            for j in &i.enc_char.blocks {
+                let k = j.decrypt_trivial().unwrap();
+
+                print!("{k},");
+            }
+            print!("], ");
+        }
+
+        println!("]");
+    }
+
     pub fn trivial(server_key: &ServerKey, str: &str) -> Self {
         assert!(str.is_ascii() & !str.contains('\0'));
 
