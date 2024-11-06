@@ -565,16 +565,16 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
-
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..nb_tests_smaller {
+    for num_blocks in 1..MAX_NB_CTXT {
+        let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
+
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        let ctxt_0 = cks.encrypt(clear_0);
-        let ctxt_1 = cks.encrypt(clear_1);
+        let ctxt_0 = cks.as_ref().encrypt_radix(clear_0, num_blocks);
+        let ctxt_1 = cks.as_ref().encrypt_radix(clear_1, num_blocks);
 
         let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
         let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
@@ -642,6 +642,7 @@ where
     }
 
     // Test with trivial inputs
+    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
     for _ in 0..4 {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;

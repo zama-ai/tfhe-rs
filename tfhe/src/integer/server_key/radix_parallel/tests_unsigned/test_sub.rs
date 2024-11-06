@@ -311,33 +311,35 @@ where
 
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
     executor.setup(&cks, sks);
 
-    for _ in 0..nb_tests_smaller {
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
 
-        let ctxt_1 = cks.encrypt(clear1);
-        let ctxt_2 = cks.encrypt(clear2);
-
-        let mut res = ctxt_1.clone();
-        let mut clear = clear1;
-
-        // Subtract multiple times to raise the degree
         for _ in 0..nb_tests_smaller {
-            let tmp = executor.execute((&res, &ctxt_2));
-            res = executor.execute((&res, &ctxt_2));
-            assert!(res.block_carries_are_empty());
-            assert_eq!(res, tmp);
+            let clear1 = rng.gen::<u64>() % modulus;
+            let clear2 = rng.gen::<u64>() % modulus;
 
-            panic_if_any_block_is_not_clean(&res, &cks);
+            let ctxt_1 = cks.as_ref().encrypt_radix(clear1, num_blocks);
+            let ctxt_2 = cks.as_ref().encrypt_radix(clear2, num_blocks);
 
-            clear = (clear.wrapping_sub(clear2)) % modulus;
-            let dec: u64 = cks.decrypt(&res);
-            assert_eq!(clear, dec);
+            let mut res = ctxt_1.clone();
+            let mut clear = clear1;
+
+            // Subtract multiple times to raise the degree
+            for _ in 0..nb_tests_smaller {
+                let tmp = executor.execute((&res, &ctxt_2));
+                res = executor.execute((&res, &ctxt_2));
+                assert!(res.block_carries_are_empty());
+                assert_eq!(res, tmp);
+
+                panic_if_any_block_is_not_clean(&res, &cks);
+
+                clear = (clear.wrapping_sub(clear2)) % modulus;
+                let dec: u64 = cks.decrypt(&res);
+                assert_eq!(clear, dec);
+            }
         }
     }
 }
@@ -443,7 +445,7 @@ where
             assert_eq!(
                 decrypted_overflowed,
                 expected_overflowed,
-                "Invalid overflow flag result for overflowing_suv for ({clear_0} - {clear_1}) % {modulus} ({num_blocks} blocks) \
+                "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} ({num_blocks} blocks) \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
             assert_eq!(result_overflowed.0.degree.get(), 1);
