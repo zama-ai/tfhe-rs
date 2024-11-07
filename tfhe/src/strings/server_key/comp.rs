@@ -76,7 +76,7 @@ impl ServerKey {
             return val;
         }
 
-        let mut lhs_uint = lhs.to_uint(self);
+        let mut lhs_uint = lhs.to_uint();
         match rhs {
             GenericPattern::Clear(rhs) => {
                 let rhs_clear_uint = self.pad_cipher_and_cleartext_lsb(&mut lhs_uint, rhs.str());
@@ -84,7 +84,7 @@ impl ServerKey {
                 self.scalar_eq_parallelized(&lhs_uint, rhs_clear_uint)
             }
             GenericPattern::Enc(rhs) => {
-                let mut rhs_uint = rhs.to_uint(self);
+                let mut rhs_uint = rhs.to_uint();
 
                 self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
@@ -150,8 +150,8 @@ impl ServerKey {
     /// assert!(is_lt); // "apple" is less than "banana"
     /// ```
     pub fn lt(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
-        let mut lhs_uint = lhs.to_uint(self);
-        let mut rhs_uint = rhs.to_uint(self);
+        let mut lhs_uint = lhs.to_uint();
+        let mut rhs_uint = rhs.to_uint();
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
@@ -182,8 +182,8 @@ impl ServerKey {
     /// assert!(is_gt); // "banana" is greater than "apple"
     /// ```
     pub fn gt(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
-        let mut lhs_uint = lhs.to_uint(self);
-        let mut rhs_uint = rhs.to_uint(self);
+        let mut lhs_uint = lhs.to_uint();
+        let mut rhs_uint = rhs.to_uint();
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
@@ -215,8 +215,8 @@ impl ServerKey {
     /// assert!(is_le); // "apple" is less than or equal to "banana"
     /// ```
     pub fn le(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
-        let mut lhs_uint = lhs.to_uint(self);
-        let mut rhs_uint = rhs.to_uint(self);
+        let mut lhs_uint = lhs.to_uint();
+        let mut rhs_uint = rhs.to_uint();
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
@@ -248,8 +248,8 @@ impl ServerKey {
     /// assert!(is_ge); // "banana" is greater than or equal to "apple"
     /// ```
     pub fn ge(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
-        let mut lhs_uint = lhs.to_uint(self);
-        let mut rhs_uint = rhs.to_uint(self);
+        let mut lhs_uint = lhs.to_uint();
+        let mut rhs_uint = rhs.to_uint();
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 

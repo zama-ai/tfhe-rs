@@ -109,7 +109,7 @@ impl ServerKey {
                 return FheStringIsEmpty::Padding(self.create_trivial_boolean_block(true));
             }
 
-            let str_uint = str.to_uint(self);
+            let str_uint = str.to_uint();
             let result = self.scalar_eq_parallelized(&str_uint, 0u8);
 
             FheStringIsEmpty::Padding(result)
