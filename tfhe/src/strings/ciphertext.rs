@@ -118,6 +118,13 @@ impl FheString {
     // Converts a `RadixCiphertext` to a `FheString`, building a `FheAsciiChar` for each
     // num_ascii_blocks blocks.
     pub fn from_uint(uint: RadixCiphertext, padded: bool) -> Self {
+        if uint.blocks().is_empty() {
+            return Self {
+                enc_string: vec![],
+                padded,
+            };
+        }
+
         assert_eq!(
             uint.blocks()[0].message_modulus.0,
             uint.blocks()[0].carry_modulus.0
@@ -141,11 +148,11 @@ impl FheString {
 
     // Converts a `FheString` to a `RadixCiphertext`, taking 4 blocks for each `FheAsciiChar`.
     // We can then use a single large uint, that represents a string, in tfhe-rs operations.
-    pub fn to_uint(&self, sk: &ServerKey) -> RadixCiphertext {
-        self.clone().into_uint(sk)
+    pub fn to_uint(&self) -> RadixCiphertext {
+        self.clone().into_uint()
     }
 
-    pub fn into_uint(self, sk: &ServerKey) -> RadixCiphertext {
+    pub fn into_uint(self) -> RadixCiphertext {
         let blocks: Vec<_> = self
             .enc_string
             .into_iter()
@@ -153,13 +160,7 @@ impl FheString {
             .flat_map(|c| c.enc_char.into_blocks())
             .collect();
 
-        let mut uint = RadixCiphertext::from_blocks(blocks);
-
-        if uint.blocks().is_empty() {
-            sk.extend_radix_with_trivial_zero_blocks_lsb_assign(&mut uint, sk.num_ascii_blocks());
-        }
-
-        uint
+        RadixCiphertext::from_blocks(blocks)
     }
 
     /// Makes the string padded. Useful for when a string is potentially padded and we need to
@@ -201,13 +202,12 @@ pub(super) fn num_ascii_blocks(message_modulus: MessageModulus) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::integer::{ClientKey, ServerKey};
+    use crate::integer::ClientKey;
     use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
 
     #[test]
     fn test_uint_conversion() {
         let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
-        let sk = ServerKey::new_radix_server_key(&ck);
 
         let str =
             "Los Sheikah fueron originalmente criados de la Diosa Hylia antes del sellado del \
@@ -215,7 +215,7 @@ mod tests {
 
         let enc = FheString::new(&ck, str, Some(7));
 
-        let uint = enc.to_uint(&sk);
+        let uint = enc.to_uint();
 
         let converted = FheString::from_uint(uint, true);
 
@@ -223,7 +223,7 @@ mod tests {
 
         assert_eq!(dec, str);
 
-        let uint_into = enc.into_uint(&sk);
+        let uint_into = enc.into_uint();
 
         let converted = FheString::from_uint(uint_into, true);
 
