@@ -323,12 +323,15 @@ impl FromRtl for HpuPBSParameters {
 
         // Check register encoding
         let field_code = pbs_app_val & (!0xFF_u32);
-        if cfg!(not(feature = "hw-xrt")) {
+        #[cfg(not(feature = "hw-xrt"))]
+        {
             if (field_code == 0) && (pbs_app_val == SIMULATION_CODE) {
                 tracing::warn!("Run an simulation backend with custom SIMU parameters set");
                 return ffi_hw.get_pbs_parameters();
             }
-        } else {
+        }
+        #[cfg(feature = "hw-xrt")]
+        {
             assert_eq!(
                 field_code, APPLICATION_NAME_OFS,
                 "Invalid register encoding. Check register map definition"
