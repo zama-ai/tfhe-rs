@@ -46,7 +46,7 @@ macro_rules! hpu_testbundle {
             let mut hpu_device = {
                 let mut config = HpuConfig::read_from("backends/tfhe-hpu-backend/config/hpu_config.toml");
                 config.firmware.integer_w = vec![$integer_width];
-                HpuDevice::new(0, config)
+                HpuDevice::new(config)
             };
 
             // Extract pbs_configuration from Hpu and generate top-level config

@@ -14,6 +14,7 @@ pub struct MockupParameters {
 /// Inner ucore parameters that wasn't exposed through rtl register
 /// Use to modelized the performances of the isc
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[allow(non_snake_case)]
 pub struct IscSimParameters {
     pub register: usize,
     pub isc_depth: usize,

@@ -165,11 +165,7 @@ impl Pe {
 pub(crate) struct PeStore(Vec<(String, Pe)>);
 
 impl PeStore {
-    pub(crate) fn new(pes: Vec<(String, Pe)>) -> Self {
-        Self(pes)
-    }
-
-    pub(crate) fn avail_kind(&self) -> InstructionKind {
+    pub(super) fn avail_kind(&self) -> InstructionKind {
         self.0
             .iter()
             .fold(InstructionKind::None, |acc, pe| acc | pe.1.avail_kind())
@@ -193,11 +189,11 @@ impl PeStore {
         capable_pe[0].1.push();
     }
 
-    pub(crate) fn probe_for_exec(&mut self, at_cycle: usize, batch_flush: bool) -> Vec<Event> {
+    pub(super) fn probe_for_exec(&mut self, at_cycle: usize, batch_flush: bool) -> Vec<Event> {
         let mut events = Vec::new();
         self.0.iter_mut().enumerate().for_each(|(id, pe)| {
             let evt = pe.1.probe_for_exec(id, at_cycle, batch_flush);
-            events.extend(evt.into_iter());
+            events.extend(evt);
         });
         events
     }

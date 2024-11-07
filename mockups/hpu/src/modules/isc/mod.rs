@@ -13,7 +13,7 @@ use pool::Pool;
 
 /// Implement simple model of Pe
 mod pe;
-use pe::{Pe, PeStore};
+use pe::PeStore;
 pub use pe::{PeConfig, PeConfigStore, PeCost};
 
 /// Implement time simulation of Isc

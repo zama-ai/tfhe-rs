@@ -7,8 +7,6 @@ use crate::entities::*;
 use std::sync::{atomic, Arc};
 
 pub struct HpuDevice {
-    #[allow(unused)]
-    fpga_id: u32,
     config: HpuConfig,
     pub(crate) backend: backend::HpuBackendWrapped,
     bg_poll: Arc<atomic::AtomicBool>,
@@ -20,16 +18,15 @@ pub struct HpuDevice {
 /// This configuration file contain xclbin/kernel informations and associated register map
 /// definition
 impl HpuDevice {
-    pub fn from_config(fpga_id: u32, config_toml: &str) -> Self {
+    pub fn from_config(config_toml: &str) -> Self {
         let config = HpuConfig::read_from(config_toml);
-        let device = Self::new(fpga_id, config);
+        let device = Self::new(config);
         device
     }
 
-    pub fn new(fpga_id: u32, config: HpuConfig) -> Self {
-        let backend = backend::HpuBackendWrapped::new_wrapped(fpga_id, &config);
+    pub fn new(config: HpuConfig) -> Self {
+        let backend = backend::HpuBackendWrapped::new_wrapped(&config);
         let mut device = Self {
-            fpga_id,
             config,
             backend,
             bg_poll: Arc::new(atomic::AtomicBool::new(false)),

@@ -86,7 +86,7 @@ impl HwParams {
 /// Define CLI arguments
 use clap::Parser;
 #[derive(clap::Parser, Debug, Clone)]
-#[clap(long_about = "Generate AluStore configuration file for Hpu")]
+#[clap(long_about = "Generate PeStore configuration file for Hpu")]
 pub struct Args {
     // HW configuration ----------------------------------------------------
     #[clap(long, value_parser, default_value_t = 44)]

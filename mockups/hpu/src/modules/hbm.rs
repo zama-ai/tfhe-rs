@@ -1,10 +1,11 @@
-use ipc_channel::ipc::{self, IpcSharedMemory};
+use ipc_channel::ipc;
 use std::collections::HashMap;
 
-use tfhe::tfhe_hpu_backend::prelude::*;
-
+#[allow(unused)]
 pub const HBM_BANK_NB: usize = 32;
+#[allow(unused)]
 const HBM_BANK_SIZE_B: usize = 512 * 1024 * 1024;
+#[allow(unused)]
 const HBM_PAGE_SIZE_B: usize = 4096;
 
 pub const HBM_BSK_PC_MAX: usize = 8;
@@ -40,7 +41,7 @@ impl HbmChunk {
 
     /// Update internal data from Ipc shm
     pub fn ipc_update(&mut self, ipc_data: ipc::IpcSharedMemory) {
-        self.data.copy_from_slice(&*ipc_data);
+        self.data.copy_from_slice(&ipc_data);
     }
 }
 
@@ -55,6 +56,10 @@ impl HbmBank {
             pc_id,
             chunk: HashMap::new(),
         }
+    }
+    #[allow(unused)]
+    pub fn get_pc(&mut self) -> usize {
+        self.pc_id
     }
 
     pub(crate) fn alloc(&mut self, size_b: usize) -> u64 {

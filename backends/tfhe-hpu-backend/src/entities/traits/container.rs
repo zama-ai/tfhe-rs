@@ -47,6 +47,7 @@ impl<T> ContainerMut for Box<[T]> {}
 pub trait Split: Sized {
     type Chunks: DoubleEndedIterator<Item = Self> + ExactSizeIterator<Item = Self>;
 
+    #[allow(unused)]
     fn into_chunks(self, chunk_size: usize) -> Self::Chunks;
     #[allow(unused)]
     fn split_into(self, chunk_count: usize) -> Self::Chunks;

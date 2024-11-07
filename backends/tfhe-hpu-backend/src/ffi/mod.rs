@@ -4,7 +4,7 @@
 //!
 //! Mainly replacing Xrt(u55c)/Aved(V80) by a simulation interface for ease CI
 
-use crate::interface::{FFIMode, HpuConfig};
+use crate::interface::FFIMode;
 
 /// Enumeration to define the synchronisation of data between Host and Device
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

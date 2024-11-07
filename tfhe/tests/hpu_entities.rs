@@ -20,7 +20,7 @@ fn hpu_key_loopback() {
 
     let mut hpu_device = {
         let config = HpuConfig::read_from("backends/tfhe-hpu-backend/config/hpu_config.toml");
-        HpuDevice::new(0, config)
+        HpuDevice::new(config)
     };
 
     // Generate Keys ---------------------------------------------------------

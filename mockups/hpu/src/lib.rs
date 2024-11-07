@@ -285,7 +285,7 @@ impl HpuSim {
                     .collect::<Vec<_>>();
 
                 let hw_slice = dst.as_mut_view().into_container();
-                std::iter::zip(hw_slice.into_iter(), ct_chunk.into_iter()).for_each(
+                std::iter::zip(hw_slice, ct_chunk).for_each(
                     |(hpu, hbm)| {
                         // NB: hbm chunk are extended to enforce page align buffer
                         // -> To prevent error during copy, with shrink the hbm buffer to the
@@ -442,7 +442,7 @@ impl HpuSim {
         }
 
         // Dump operation src/dst in file if required
-        self.dump_op_reg(&dop);
+        self.dump_op_reg(dop);
 
         // Increment program counter
         self.pc += 1;
@@ -631,7 +631,7 @@ impl HpuSim {
                 writeln!(&mut wr_f, "# LweCiphertext slice #{}", i).unwrap();
                 // Compact Blwe on 32b if possible
                 if self.params.rtl_params.ntt_params.ct_width <= u32::BITS {
-                    let slice_32b = slice.into_iter().map(|x| *x as u32).collect::<Vec<u32>>();
+                    let slice_32b = slice.iter().map(|x| *x as u32).collect::<Vec<u32>>();
                     slice_32b
                         .as_slice()
                         .write_hex(&mut wr_f, LINE_WIDTH_BYTES, Some("XX"));
