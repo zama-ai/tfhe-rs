@@ -15,6 +15,7 @@ pub(crate) use test::Keys;
 
 #[cfg(test)]
 mod test {
+    use crate::integer::keycache::KEY_CACHE;
     use crate::integer::{ClientKey, ServerKey};
     use crate::shortint::parameters::{
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
@@ -114,8 +115,7 @@ mod test {
 
     impl Keys {
         pub(crate) fn new(params: ClassicPBSParameters) -> Self {
-            let ck = ClientKey::new(params);
-            let sk = ServerKey::new_radix_server_key(&ck);
+            let (ck, sk) = KEY_CACHE.get_from_params(params, crate::integer::IntegerKeyKind::Radix);
 
             Self { ck, sk }
         }
