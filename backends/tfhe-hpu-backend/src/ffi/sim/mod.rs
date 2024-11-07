@@ -6,10 +6,7 @@
 use crate::ffi;
 
 pub mod ipc;
-use ipc::{
-    IpcFfi, MemoryAck, MemoryFfi, MemoryFfiWrapped, MemoryReq, RegisterAck, RegisterFfi,
-    RegisterReq,
-};
+use ipc::{IpcFfi, MemoryAck, MemoryFfiWrapped, MemoryReq, RegisterAck, RegisterFfi, RegisterReq};
 use ipc_channel::ipc::IpcSharedMemory;
 
 use super::MemZoneProperties;

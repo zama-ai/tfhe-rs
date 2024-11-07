@@ -8,7 +8,7 @@ use std::sync::mpsc;
 
 /// Describe Slot position
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
-pub(crate) struct SlotId {
+pub struct SlotId {
     pub(crate) bid: usize,
     pub(crate) cid: usize,
 }

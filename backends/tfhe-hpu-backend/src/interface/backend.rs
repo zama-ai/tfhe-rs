@@ -69,10 +69,8 @@ impl HpuBackendWrapped {
     pub fn new(inner: HpuBackend) -> Self {
         Self(Arc::new(HpuBackendLock::new(inner)))
     }
-    pub fn new_wrapped(fpga_id: u32, config: &config::HpuConfig) -> Self {
-        Self(Arc::new(HpuBackendLock::new(HpuBackend::new(
-            fpga_id, &config,
-        ))))
+    pub fn new_wrapped(config: &config::HpuConfig) -> Self {
+        Self(Arc::new(HpuBackendLock::new(HpuBackend::new(&config))))
     }
 }
 impl std::ops::Deref for HpuBackendWrapped {
@@ -87,7 +85,7 @@ unsafe impl Sync for HpuBackendWrapped {}
 
 /// Handle HpuBackend construction and initialisation
 impl HpuBackend {
-    pub fn new(fpga_id: u32, config: &config::HpuConfig) -> Self {
+    pub fn new(config: &config::HpuConfig) -> Self {
         let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);
         let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
 

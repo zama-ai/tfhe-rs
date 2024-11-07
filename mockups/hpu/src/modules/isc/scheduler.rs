@@ -101,7 +101,7 @@ impl Scheduler {
                     self.wr_unlock.push(kind);
                     true
                 }
-                EventType::ReqTimeout(kind, id) => {
+                EventType::ReqTimeout(kind, _id) => {
                     match kind {
                         InstructionKind::Pbs => {
                             // Register Bpip timeout
@@ -153,7 +153,7 @@ impl Scheduler {
         }
 
         // Replace content of dop_exec with empty vec and return it's previous content
-        std::mem::replace(&mut self.dop_exec, Vec::new())
+        std::mem::take(&mut self.dop_exec)
     }
 
     /// Acknowledge rd_unlock
@@ -209,7 +209,7 @@ impl Scheduler {
         } else if !self.wr_unlock.is_empty() {
             let kind_mh = self.wr_unlock_kind();
             let slot = self.pool.retire(kind_mh);
-            self.ack_wr_unlock(slot.inst.kind.clone());
+            self.ack_wr_unlock(slot.inst.kind);
             self.dop_exec.push(slot.inst.op.clone());
 
             self.trace.push(Trace {
@@ -305,7 +305,7 @@ impl Scheduler {
     }
 
     pub fn time_report(&self) -> TimeRpt {
-        let start = self.trace.get(0);
+        let start = self.trace.first();
         let end = self.trace.last();
 
         match (start, end) {
@@ -325,6 +325,6 @@ impl Scheduler {
     }
 
     pub fn reset_trace(&mut self) -> Vec<Trace> {
-        std::mem::replace(&mut self.trace, Vec::new())
+        std::mem::take(&mut self.trace)
     }
 }

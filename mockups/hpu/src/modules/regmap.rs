@@ -27,7 +27,6 @@ pub(crate) struct BpipState {
 pub(crate) struct AddrOffset {
     pub(crate) bsk: [(u32, u32); hbm::HBM_BSK_PC_MAX],
     pub(crate) ksk: [(u32, u32); hbm::HBM_KSK_PC_MAX],
-    pub(crate) fw: (u32, u32),
     pub(crate) lut: (u32, u32),
     pub(crate) ldst_bid: [[(u32, u32); hbm::HBM_CT_PC_MAX]; hbm::HBM_CT_BANK_MAX],
 }
@@ -106,7 +105,7 @@ impl RegisterMap {
                 (ntt_p.radix + (ntt_p.psi << 8) /*+(ntt_p.div << 16)*/ + (ntt_p.delta << 24)) as u32
             }
             "Info::NttArch" => match self.rtl_params.ntt_params.core_arch {
-                HpuNttCoreArch::WmmCompact => NTT_CORE_ARCH_OFS + 0,
+                HpuNttCoreArch::WmmCompact => NTT_CORE_ARCH_OFS,
                 HpuNttCoreArch::WmmPipeline => NTT_CORE_ARCH_OFS + 1,
                 HpuNttCoreArch::WmmUnfold => NTT_CORE_ARCH_OFS + 2,
                 HpuNttCoreArch::WmmCompactPcg => NTT_CORE_ARCH_OFS + 3,
@@ -124,7 +123,7 @@ impl RegisterMap {
                 const SOLINAS2_44_14: u64 = ((1_u128 << 44) - (1_u128 << 14) + 1) as u64;
 
                 match self.rtl_params.ntt_params.prime_modulus {
-                    GF64 => MOD_NTT_NAME_OFS + 0,
+                    GF64 => MOD_NTT_NAME_OFS,
                     SOLINAS3_32_17_13 => MOD_NTT_NAME_OFS + 1,
                     SOLINAS2_44_14 => MOD_NTT_NAME_OFS + 2,
                     _ => panic!("Unknown NttModPrime"),
@@ -133,7 +132,7 @@ impl RegisterMap {
 
             "Info::Appli" => {
                 if CONCRETE_BOOLEAN == self.rtl_params.pbs_params {
-                    APPLICATION_NAME_OFS + 0
+                    APPLICATION_NAME_OFS
                 } else if MSG2_CARRY2 == self.rtl_params.pbs_params {
                     APPLICATION_NAME_OFS + 1
                 } else if MSG2_CARRY2_64B == self.rtl_params.pbs_params {

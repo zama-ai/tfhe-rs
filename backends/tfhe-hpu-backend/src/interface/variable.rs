@@ -2,7 +2,7 @@
 //! Abstraction over Hpu ciphertext data
 //! Handle lifetime management, deallocation and state inside HpuDevice.
 use super::*;
-use crate::entities::{hpu_big_lwe_ciphertext_size, HpuLweCiphertextOwned, HpuParameters};
+use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use crate::{asm, ffi};
 use backend::HpuBackendWrapped;
 use std::sync::{mpsc, Arc, Mutex};

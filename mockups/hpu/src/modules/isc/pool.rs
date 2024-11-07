@@ -239,19 +239,12 @@ impl Pool {
     /// Extract the firt matching entry from the pool
     fn first_match(&mut self, filter: Filter) -> Option<Slot> {
         let match_idx = self.idx_matchs(filter);
-        if let Some(idx) = match_idx.get(0) {
+        if let Some(idx) = match_idx.first() {
             // extract value
             Some(self.store.remove(*idx))
         } else {
             None
         }
-    }
-    /// Return a vector of matching slot reference
-    fn all_matchs(&mut self, filter: Filter) -> Vec<&Slot> {
-        let idx = self.idx_matchs(filter);
-        idx.into_iter()
-            .map(|idx| &self.store[idx])
-            .collect::<Vec<_>>()
     }
 
     /// Return a vector of matching index
