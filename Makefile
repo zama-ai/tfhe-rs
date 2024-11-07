@@ -308,6 +308,9 @@ clippy_core: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),experimental,nightly-avx512 \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=$(TARGET_ARCH_FEATURE),zk-pok \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_boolean # Run clippy lints enabling the boolean features
 clippy_boolean: install_rs_check_toolchain
@@ -322,6 +325,9 @@ clippy_shortint: install_rs_check_toolchain
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),shortint,experimental \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=$(TARGET_ARCH_FEATURE),zk-pok,shortint \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_integer # Run clippy lints enabling the integer features
