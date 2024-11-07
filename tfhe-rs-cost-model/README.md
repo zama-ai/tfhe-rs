@@ -1,21 +1,35 @@
 
 # Noise Sampling & Assurance Tool
 
-<<<<<<< HEAD
 Before a `Makefile` is done (**TODO**?), we run the tool (only analysis of previously gathered samples) in `./src` via
-=======
-Before a `Makefile` is done (TODO), we run the tool (analysis mode only) in `./src` via
->>>>>>> d62eed0c (readme)
+
 ```bash
 ./bin/python3 external_product_correction.py --chunks 192 --rust-toolchain nightly-2024-08-19 --analysis-only --dir multi-bit-sampling/gf2/ -- --algorithm multi-bit-ext-prod --multi-bit-grouping-factor 2
 ```
 where Python has its local environment and additional lib's installed locally, some of the following commands may help:
 ```bash
 python3 -m venv .
-./bin/pip install scipy
-./bin/pip install scikit-learn
+./bin/pip install scipy scikit-learn
 ```
 Also, the current Rust toolchain can be found in `/toolchain.txt`
+
+
+## AWS
+
+  - login to AWS web UI, start your instance and login via `ssh`
+  - init screen session via `$ screen`
+  - run the command:
+```bash
+$ rm -r path/to/samples ; ./bin/python3 external_product_correction.py --chunks <number-of-cpus> --rust-toolchain nightly-x86_64-unknown-linux-gnu --dir path/to/samples -- --algorithm multi-bit-ext-prod --multi-bit-grouping-factor <gf> > path/to/output.dat ; sudo poweroff
+```
+  - e.g.
+```bash
+$ rm -r fft-kara/samples-gf=2 ; ./bin/python3 external_product_correction.py --chunks 64 --rust-toolchain nightly-x86_64-unknown-linux-gnu --dir fft-kara/samples-gf=2/ -- --algorithm multi-bit-ext-prod --multi-bit-grouping-factor 2 > fft-kara/gf=2.dat ; sudo poweroff
+```
+  - detach the screen with `Ctrl + A`, then `D`
+    - list active screen sessions via `screen -ls`
+    - reattach to screen session via `screen -r <session_id>`
+  - exit ssh
 
 
 ## "Advanced"
