@@ -213,8 +213,8 @@ impl ServerKey {
         let true_is_padded = true_ct.is_padded();
         let false_is_padded = false_ct.is_padded();
 
-        let true_ct_uint = true_ct.into_uint(self);
-        let false_ct_uint = false_ct.into_uint(self);
+        let true_ct_uint = true_ct.into_uint();
+        let false_ct_uint = false_ct.into_uint();
 
         let result_uint = self.if_then_else_parallelized(condition, &true_ct_uint, &false_ct_uint);
 
@@ -246,13 +246,19 @@ impl ServerKey {
     }
 
     fn left_shift_chars(&self, str: &FheString, shift: &RadixCiphertext) -> FheString {
-        let uint = str.to_uint(self);
+        let uint = str.to_uint();
         let mut shift_bits = self.scalar_left_shift_parallelized(shift, 3);
 
         // `shift_bits` needs to have the same block len as `uint` for the tfhe-rs shift to work
         self.pad_or_trim_ciphertext(&mut shift_bits, uint.blocks().len());
 
-        let shifted = self.left_shift_parallelized(&uint, &shift_bits);
+        let len = uint.blocks.len();
+
+        let shifted = if len == 0 {
+            uint
+        } else {
+            self.left_shift_parallelized(&uint, &shift_bits)
+        };
 
         // If the shifting amount is >= than the str length we get zero i.e. all chars are out of
         // range (instead of wrapping, which is the behavior of Rust and tfhe-rs)
@@ -261,7 +267,7 @@ impl ServerKey {
 
         let result = self.if_then_else_parallelized(
             &shift_ge_than_str,
-            &self.create_trivial_zero_radix(uint.blocks().len()),
+            &self.create_trivial_zero_radix(len),
             &shifted,
         );
 
@@ -269,13 +275,19 @@ impl ServerKey {
     }
 
     fn right_shift_chars(&self, str: &FheString, shift: &RadixCiphertext) -> FheString {
-        let uint = str.to_uint(self);
+        let uint = str.to_uint();
         let mut shift_bits = self.scalar_left_shift_parallelized(shift, 3);
 
         // `shift_bits` needs to have the same block len as `uint` for the tfhe-rs shift to work
         self.pad_or_trim_ciphertext(&mut shift_bits, uint.blocks().len());
 
-        let shifted = self.right_shift_parallelized(&uint, &shift_bits);
+        let len = uint.blocks().len();
+
+        let shifted = if len == 0 {
+            uint
+        } else {
+            self.right_shift_parallelized(&uint, &shift_bits)
+        };
 
         // If the shifting amount is >= than the str length we get zero i.e. all chars are out of
         // range (instead of wrapping, which is the behavior of Rust and tfhe-rs)
@@ -284,7 +296,7 @@ impl ServerKey {
 
         let result = self.if_then_else_parallelized(
             &shift_ge_than_str,
-            &self.create_trivial_zero_radix(uint.blocks().len()),
+            &self.create_trivial_zero_radix(len),
             &shifted,
         );
 
