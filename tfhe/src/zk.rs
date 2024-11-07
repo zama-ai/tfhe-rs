@@ -2,6 +2,7 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::BoundedDistribution;
 use crate::core_crypto::prelude::*;
 use crate::named::Named;
+#[cfg(feature = "shortint")]
 use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
 use rand_core::RngCore;
 use std::cmp::Ordering;
@@ -44,6 +45,7 @@ pub struct CompactPkePublicParamsConformanceParams {
 }
 
 impl CompactPkePublicParamsConformanceParams {
+    #[cfg(feature = "shortint")]
     pub fn new<E, P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>>(
         value: P,
         max_num_message: usize,
