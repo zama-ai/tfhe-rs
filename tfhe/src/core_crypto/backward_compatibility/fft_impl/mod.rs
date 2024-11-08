@@ -2,8 +2,8 @@ use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
 use aligned_vec::ABox;
-use concrete_fft::c64;
 use serde::{Deserialize, Serialize};
+use tfhe_fft::c64;
 
 use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
 use crate::core_crypto::prelude::{

@@ -11,7 +11,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
 use aligned_vec::{avec, ABox};
-use concrete_fft::c64;
+use tfhe_fft::c64;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]

@@ -2,12 +2,12 @@ use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::PolynomialSize;
 use crate::core_crypto::commons::utils::izip;
-use concrete_fft::fft128::{f128, Plan};
 use core::any::TypeId;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
+use tfhe_fft::fft128::{f128, Plan};
 
 #[derive(Clone)]
 pub(crate) struct PlanWrapper(Plan);

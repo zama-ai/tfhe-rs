@@ -1,0 +1,48 @@
+# Publish new release of tfhe-fft
+name: Publish tfhe-fft release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run"
+        type: boolean
+        default: true
+
+env:
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  verify_tag:
+    uses: ./.github/workflows/verify_tagged_commit.yml
+    secrets:
+      RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+
+  publish_release:
+    name: Publish tfhe-fft Release
+    runs-on: ubuntu-latest
+    needs: verify_tag
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          fetch-depth: 0
+
+      - name: Publish crate.io package
+        env:
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          cargo publish -p tfhe-fft --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "tfhe-fft release failed: (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

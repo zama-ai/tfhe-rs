@@ -9,9 +9,9 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
-use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
+use tfhe_fft::c64;
 
 /// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the Fourier
 /// domain.

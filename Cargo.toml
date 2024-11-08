@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "tfhe",
+    "tfhe-fft",
     "tfhe-zk-pok",
     "tasks",
     "apps/trivium",
@@ -16,6 +17,14 @@ exclude = [
     "utils/cargo-tfhe-lints-inner",
     "utils/cargo-tfhe-lints"
 ]
+[workspace.dependencies]
+aligned-vec = { version = "0.5", default-features = false }
+bytemuck = "1.14.3"
+dyn-stack = { version = "0.10", default-features = false }
+num-complex = "0.4"
+pulp = { version = "0.18.22", default-features = false }
+serde = { version = "1.0", default-features = false }
+wasm-bindgen = ">=0.2.86,<0.2.94"
 
 [profile.bench]
 lto = "fat"

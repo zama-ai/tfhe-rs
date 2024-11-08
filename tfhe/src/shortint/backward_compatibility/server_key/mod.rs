@@ -5,7 +5,7 @@ use crate::core_crypto::prelude::Container;
 use crate::shortint::server_key::*;
 
 #[derive(VersionsDispatch)]
-pub enum SerializableShortintBootstrappingKeyVersions<C: Container<Element = concrete_fft::c64>> {
+pub enum SerializableShortintBootstrappingKeyVersions<C: Container<Element = tfhe_fft::c64>> {
     V0(SerializableShortintBootstrappingKey<C>),
 }
 

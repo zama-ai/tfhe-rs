@@ -16,8 +16,8 @@ use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertext, GlweCipherte
 use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::CACHELINE_ALIGN;
-use concrete_fft::fft128::f128;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use tfhe_fft::fft128::f128;
 use tfhe_versionable::Versionize;
 
 /// A GGSW ciphertext in the Fourier domain.

@@ -1,0 +1,74 @@
+# Test tfhe-fft
+name: Cargo Test tfhe-fft
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-tests:
+    runs-on: ${{ matrix.runner_type }}
+    strategy:
+      matrix:
+        runner_type: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Test debug
+        run: |
+          make test_fft
+
+      - name: Test serialization
+        run: make test_fft_serde
+
+      - name: Test no-std
+        run: |
+          make test_fft_no_std
+
+  cargo-tests-nightly:
+    runs-on: ${{ matrix.runner_type }}
+    strategy:
+      matrix:
+        runner_type: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        with:
+          toolchain: nightly
+          override: true
+
+      - name: Test nightly
+        run: |
+          make test_fft_nightly
+
+      - name: Test no-std nightly
+        run: |
+          make test_fft_no_std_nightly
+
+  cargo-tests-node-js:
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
+
+      - name: Test node js
+        run: |
+          make install_node
+          make test_fft_node_js_ci

@@ -15,8 +15,8 @@ use crate::core_crypto::fft_impl::fft64::math::polynomial::{
     FourierPolynomialMutView, FourierPolynomialView,
 };
 use aligned_vec::CACHELINE_ALIGN;
-use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use tfhe_fft::c64;
 
 /// The caller must provide a properly configured [`FftView`] object and a `PodStack` used as a
 /// memory buffer having a capacity at least as large as the result of

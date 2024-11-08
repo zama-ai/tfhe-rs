@@ -11,9 +11,9 @@ use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::{
     extract_bits, extract_bits_scratch,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::FftView;
-use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
+use tfhe_fft::c64;
 
 /// Allocate a new [`list of LWE private functional packing keyswitch
 /// keys`](`LwePrivateFunctionalPackingKeyswitchKeyList`) and fill it with actual keys required to
