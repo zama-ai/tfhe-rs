@@ -50,6 +50,9 @@ jobs:
               - tfhe/build.rs
               - backends/tfhe-cuda-backend/**
               - tfhe/src/core_crypto/gpu/**
+              - tfhe/src/integer/server_key/radix_parallel/tests_unsigned/**
+              - tfhe/src/integer/server_key/radix_parallel/tests_signed/**
+              - tfhe/src/integer/server_key/radix_parallel/tests_cases_unsigned.rs
               - tfhe/src/integer/gpu/**
               - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
