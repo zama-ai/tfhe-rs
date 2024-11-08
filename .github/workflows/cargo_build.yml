@@ -1,4 +1,4 @@
-name: Cargo Build
+name: Cargo Build TFHE-rs
 
 on:
   pull_request:

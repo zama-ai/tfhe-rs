@@ -11,8 +11,8 @@ use crate::core_crypto::fft_impl::fft64::math::decomposition::DecompositionLevel
 use crate::core_crypto::fft_impl::fft64::math::fft::{FftView, FourierPolynomialList};
 use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomialMutView;
 use aligned_vec::{avec, ABox};
-use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use tfhe_fft::c64;
 
 /// A pseudo GGSW ciphertext in the Fourier domain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

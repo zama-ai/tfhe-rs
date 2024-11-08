@@ -24,6 +24,8 @@ BACKWARD_COMPAT_DATA_BRANCH?=v0.4
 BACKWARD_COMPAT_DATA_PROJECT=tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_DIR=$(BACKWARD_COMPAT_DATA_PROJECT)
 TFHE_SPEC:=tfhe
+# We are kind of hacking the cut here, the version cannot contain a quote '"'
+WASM_BINDGEN_VERSION:=$(shell grep '^wasm-bindgen[[:space:]]*=' Cargo.toml | cut -d '"' -f 2 | xargs)
 WEB_RUNNER_DIR=web-test-runner
 WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
@@ -91,11 +93,25 @@ install_rs_build_toolchain:
 	( echo "Unable to install $(RS_BUILD_TOOLCHAIN) toolchain, check your rustup installation. \
 	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
 
+.PHONY: install_build_wasm32_target # Install the wasm32 toolchain used for builds
+install_build_wasm32_target: install_rs_build_toolchain
+	rustup +$(RS_BUILD_TOOLCHAIN) target add wasm32-unknown-unknown || \
+	( echo "Unable to install wasm32-unknown-unknown target toolchain, check your rustup installation. \
+	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
+
 .PHONY: install_cargo_nextest # Install cargo nextest used for shortint tests
 install_cargo_nextest: install_rs_build_toolchain
 	@cargo nextest --version > /dev/null 2>&1 || \
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-nextest --locked || \
 	( echo "Unable to install cargo nextest, unknown error." && exit 1 )
+
+# The installation should use the ^ symbol if the specified version in the root Cargo.toml is of the
+# form "0.2.96" then we get ^0.2.96 e.g., as we don't lock those dependencies
+# this allows to get the matching CLI
+# If a version range is specified no need to add the leading ^
+.PHONY: install_wasm_bindgen_cli # Install wasm-bindgen-cli to get access to the test runner
+install_wasm_bindgen_cli: install_rs_build_toolchain
+	cargo +$(RS_BUILD_TOOLCHAIN) install --locked wasm-bindgen-cli --version "$(WASM_BINDGEN_VERSION)"
 
 .PHONY: install_wasm_pack # Install wasm-pack to build JS packages
 install_wasm_pack: install_rs_build_toolchain
@@ -1286,6 +1302,116 @@ check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fix_newline fmt
+
+#=============================== FFT Section ==================================
+.PHONY: doc_fft # Build rust doc for tfhe-fft
+doc_fft: install_rs_check_toolchain
+	@# Even though we are not in docs.rs, this allows to "just" build the doc
+	DOCS_RS=1 \
+	RUSTDOCFLAGS="--html-in-header katex-header.html" \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
+		--all-features --no-deps -p tfhe-fft
+
+.PHONY: docs_fft # Build rust doc tfhe-fft, alias for doc
+docs_fft: doc_fft
+
+.PHONY: lint_doc_fft # Build rust doc for tfhe-fft with linting enabled
+lint_doc_fft: install_rs_check_toolchain
+	@# Even though we are not in docs.rs, this allows to "just" build the doc
+	DOCS_RS=1 \
+	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
+		--all-features --no-deps -p tfhe-fft
+
+.PHONY: lint_docs_fft # Build rust doc for tfhe-fft with linting enabled, alias for lint_doc
+lint_docs_fft: lint_doc_fft
+
+.PHONY: clippy_fft # Run clippy lints on tfhe-fft
+clippy_fft: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--all-features -p tfhe-fft -- --no-deps -D warnings
+
+.PHONY: pcc_fft # pcc stands for pre commit checks
+pcc_fft: check_fmt lint_doc_fft clippy_fft
+
+.PHONY: build_fft
+build_fft: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft \
+		--features=fft128
+
+.PHONY: build_fft_no_std
+buildfft__no_std: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft \
+		--no-default-features
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft \
+		--no-default-features \
+		--features=fft128
+
+##### Tests #####
+
+.PHONY: test_fft
+test_fft: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
+		--features=fft128
+
+.PHONY: test_fft_serde
+test_fft_serde: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
+		--features=serde
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
+		--features=serde,fft128
+
+.PHONY: test_fft_nightly
+test_fft_nightly: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-fft \
+		--features=nightly
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-fft \
+		--features=nightly,fft128
+
+.PHONY: test_fft_no_std
+test_fft_no_std: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
+		--no-default-features 
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
+		--no-default-features \
+		--features=fft128
+
+.PHONY: test_fft_no_std_nightly
+test_fft_no_std_nightly: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-fft \
+		--no-default-features \
+		--features=nightly
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-fft \
+		--no-default-features \
+		--features=nightly,fft128
+
+.PHONY: test_fft_node_js
+test_fft_node_js: install_rs_build_toolchain install_build_wasm32_target install_wasm_bindgen_cli
+	RUSTFLAGS="" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
+		--features=serde --target wasm32-unknown-unknown -p tfhe-fft
+
+.PHONY: test_fft_node_js_ci
+test_fft_node_js_ci: check_nvm_installed
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	"$(MAKE)" test_fft_node_js
+
+.PHONY: test_fft_all
+test_fft_all: test_fft test_fft_serde test_fft_nightly test_fft_no_std test_fft_no_std_nightly \
+test_fft_node_js_ci
+
+##### Bench #####
+
+.PHONY: bench_fft # Run FFT benchmarks
+bench_fft: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" bench --bench fft -p tfhe-fft \
+		--features=serde \
+		--features=nightly \
+		--features=fft128
+#============================End FFT Section ==================================
 
 .PHONY: help # Generate list of targets with descriptions
 help:

@@ -53,6 +53,7 @@ jobs:
             integer:
               - tfhe/Cargo.toml
               - concrete-csprng/**
+              - tfhe-fft/**
               - tfhe-zk-pok/**
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**

@@ -8,8 +8,8 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::{
     par_convert_polynomials_list_to_fourier, Fft, FftView,
 };
-use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use tfhe_fft::c64;
 
 /// Convert an [`LWE multi_bit bootstrap key`](`LweMultiBitBootstrapKey`) with standard
 /// coefficients to the Fourier domain.

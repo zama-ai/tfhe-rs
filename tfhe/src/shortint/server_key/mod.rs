@@ -133,7 +133,7 @@ impl Display for CheckError {
 impl std::error::Error for CheckError {}
 
 #[derive(Clone, Debug, PartialEq, Versionize)]
-#[versionize(convert = "SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>>")]
+#[versionize(convert = "SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>")]
 pub enum ShortintBootstrappingKey {
     Classic(FourierLweBootstrapKeyOwned),
     MultiBit {
@@ -146,7 +146,7 @@ pub enum ShortintBootstrappingKey {
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
 #[versionize(SerializableShortintBootstrappingKeyVersions)]
-pub enum SerializableShortintBootstrappingKey<C: Container<Element = concrete_fft::c64>> {
+pub enum SerializableShortintBootstrappingKey<C: Container<Element = tfhe_fft::c64>> {
     Classic(FourierLweBootstrapKey<C>),
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKey<C>,
@@ -154,7 +154,7 @@ pub enum SerializableShortintBootstrappingKey<C: Container<Element = concrete_ff
     },
 }
 
-impl<C: Container<Element = concrete_fft::c64>> SerializableShortintBootstrappingKey<C> {
+impl<C: Container<Element = tfhe_fft::c64>> SerializableShortintBootstrappingKey<C> {
     /// Returns `true` if the serializable shortint bootstrapping key is [`Classic`].
     ///
     /// [`Classic`]: SerializableShortintBootstrappingKey::Classic
@@ -165,7 +165,7 @@ impl<C: Container<Element = concrete_fft::c64>> SerializableShortintBootstrappin
 }
 
 impl<'a> From<&'a ShortintBootstrappingKey>
-    for SerializableShortintBootstrappingKey<&'a [concrete_fft::c64]>
+    for SerializableShortintBootstrappingKey<&'a [tfhe_fft::c64]>
 {
     fn from(value: &'a ShortintBootstrappingKey) -> Self {
         match value {
@@ -183,7 +183,7 @@ impl<'a> From<&'a ShortintBootstrappingKey>
 }
 
 impl From<ShortintBootstrappingKey>
-    for SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>>
+    for SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>
 {
     fn from(value: ShortintBootstrappingKey) -> Self {
         match value {
@@ -209,10 +209,10 @@ impl Serialize for ShortintBootstrappingKey {
     }
 }
 
-impl From<SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>>>
+impl From<SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>>
     for ShortintBootstrappingKey
 {
-    fn from(value: SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>>) -> Self {
+    fn from(value: SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>) -> Self {
         match value {
             SerializableShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk),
             SerializableShortintBootstrappingKey::MultiBit {

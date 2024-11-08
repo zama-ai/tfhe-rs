@@ -20,8 +20,8 @@ use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapK
 use crate::core_crypto::fft_impl::fft64::math::fft::par_convert_polynomials_list_to_fourier;
 use crate::core_crypto::prelude::{CiphertextCount, CiphertextModulus, ContainerMut};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
-use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use tfhe_fft::c64;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
