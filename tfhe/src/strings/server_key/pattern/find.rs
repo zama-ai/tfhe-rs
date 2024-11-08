@@ -99,10 +99,10 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
     ///
-    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (haystack, needle) = ("hello world", "world");
     ///
@@ -169,10 +169,10 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
     ///
-    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let (haystack, needle) = ("hello world world", "world");
     ///

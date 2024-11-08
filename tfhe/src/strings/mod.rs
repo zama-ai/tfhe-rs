@@ -11,23 +11,26 @@ mod test_functions;
 const N: usize = 32;
 
 #[cfg(test)]
-pub(crate) use test::Keys;
+pub(crate) use test::TestKeys;
 
 #[cfg(test)]
 mod test {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::{ClientKey, ServerKey};
     use crate::shortint::parameters::{
-        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
     };
-    use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
     use crate::shortint::ClassicPBSParameters;
+
+    use super::ciphertext::FheString;
+    use super::client_key::EncU16;
 
     #[test]
     fn test_all() {
         for param in [
             PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_2_CARRY_2,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
         ] {
             test_all_impl(
@@ -42,6 +45,7 @@ mod test {
                 Some(1),
                 0,
                 0,
+                TestKind::Trivial,
             );
         }
     }
@@ -59,8 +63,9 @@ mod test {
         rhs_pad: Option<u32>,
         n: u16,
         max: u16,
+        test_kind: TestKind,
     ) {
-        let keys = Keys::new(params);
+        let keys = TestKeys::new(params, test_kind);
 
         keys.assert_len(str, str_pad);
         keys.assert_is_empty(str, str_pad);
@@ -108,16 +113,36 @@ mod test {
         keys.assert_replacen((str, str_pad), (pat, pat_pad), (to, to_pad), n, max);
     }
 
-    pub(crate) struct Keys {
-        pub(crate) ck: ClientKey,
-        pub(crate) sk: ServerKey,
+    pub(crate) struct TestKeys {
+        pub ck: ClientKey,
+        pub sk: ServerKey,
+        pub test_kind: TestKind,
     }
 
-    impl Keys {
-        pub(crate) fn new(params: ClassicPBSParameters) -> Self {
+    pub enum TestKind {
+        Trivial,
+        Encrypted,
+    }
+
+    impl TestKeys {
+        pub fn new(params: ClassicPBSParameters, test_kind: TestKind) -> Self {
             let (ck, sk) = KEY_CACHE.get_from_params(params, crate::integer::IntegerKeyKind::Radix);
 
-            Self { ck, sk }
+            Self { ck, sk, test_kind }
+        }
+
+        pub fn encrypt_string(&self, str: &str, padding: Option<u32>) -> FheString {
+            match self.test_kind {
+                TestKind::Trivial => FheString::new_trivial(&self.ck, str, padding),
+                TestKind::Encrypted => FheString::new(&self.ck, str, padding),
+            }
+        }
+
+        pub fn encrypt_u16(&self, val: u16, max: Option<u16>) -> EncU16 {
+            match self.test_kind {
+                TestKind::Trivial => self.ck.trivial_encrypt_u16(val, max),
+                TestKind::Encrypted => self.ck.encrypt_u16(val, max),
+            }
         }
     }
 }
