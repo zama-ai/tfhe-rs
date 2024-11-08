@@ -94,10 +94,17 @@ parser.add_argument(
     default="cpu",
     help="Backend on which benchmarks have run",
 )
+parser.add_argument(
+    "--crate",
+    dest="crate",
+    default="tfhe",
+    help="Crate for which benchmarks have run",
+)
 
 
 def recursive_parse(
     directory,
+    crate,
     walk_subdirs=False,
     name_suffix="",
     compute_throughput=False,
@@ -108,6 +115,7 @@ def recursive_parse(
     .json extension at the top-level of this directory.
 
     :param directory: path to directory that contains raw results as :class:`pathlib.Path`
+    :param crate: the name of the crate that has been benched
     :param walk_subdirs: traverse results subdirectories if parameters changes for benchmark case.
     :param name_suffix: a :class:`str` suffix to apply to each test name found
     :param compute_throughput: compute number of operations per second and operations per
@@ -143,7 +151,7 @@ def recursive_parse(
                 continue
 
             try:
-                params, display_name, operator = get_parameters(test_name)
+                params, display_name, operator = get_parameters(test_name, crate)
             except Exception as err:
                 parsing_failures.append((full_name, f"failed to get parameters: {err}"))
                 continue
@@ -276,7 +284,7 @@ def _parse_key_results(result_file, bench_type):
         reader = csv.reader(csv_file)
         for test_name, value in reader:
             try:
-                params, display_name, operator = get_parameters(test_name)
+                params, display_name, operator = get_parameters(test_name, crate)
             except Exception as err:
                 parsing_failures.append((test_name, f"failed to get parameters: {err}"))
                 continue
@@ -318,15 +326,16 @@ def parse_key_gen_time(result_file):
     return _parse_key_results(result_file, "latency")
 
 
-def get_parameters(bench_id):
+def get_parameters(bench_id, directory):
     """
     Get benchmarks parameters recorded for a given benchmark case.
 
     :param bench_id: function name used for the benchmark case
+    :param directory: directory where the parameters are stored
 
     :return: :class:`tuple` as ``(benchmark parameters, display name, operator type)``
     """
-    params_dir = pathlib.Path("tfhe", "benchmarks_parameters", bench_id)
+    params_dir = pathlib.Path(directory, "benchmarks_parameters", bench_id)
     params = _parse_file_to_json(params_dir, "parameters.json")
 
     display_name = params.pop("display_name")
@@ -459,6 +468,7 @@ if __name__ == "__main__":
 
         results, failures = recursive_parse(
             raw_results,
+            args.crate,
             args.walk_subdirs,
             args.name_suffix,
             args.throughput,
