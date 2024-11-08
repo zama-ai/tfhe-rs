@@ -366,6 +366,11 @@ path = "examples/hpu/trace.rs"
 required-features = ["hpu-xfer", "hpu-debug"]
 
 [[example]]
+name = "hpu_gtv"
+path = "examples/hpu/golden_tv.rs"
+required-features = ["hpu-xfer", "hpu-debug", "seeder-manual"]
+
+[[example]]
 name = "hpu_8b"
 path = "examples/hpu/bench/bench_8b.rs"
 required-features = ["hpu-xfer"]
