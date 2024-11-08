@@ -9,8 +9,6 @@ use crate::core_crypto::commons::traits::{Container, ContainerMut, IntoContainer
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox};
-use concrete_fft::c64;
-use concrete_fft::unordered::{Method, Plan};
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 use rayon::prelude::*;
 use std::any::TypeId;
@@ -20,6 +18,8 @@ use std::mem::{align_of, size_of};
 use std::sync::{Arc, OnceLock, RwLock};
 #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
 use std::time::Duration;
+use tfhe_fft::c64;
+use tfhe_fft::unordered::{Method, Plan};
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
@@ -172,7 +172,7 @@ impl Fft {
                             Plan::new(
                                 n / 2,
                                 Method::UserProvided {
-                                    base_algo: concrete_fft::ordered::FftAlgo::Dif4,
+                                    base_algo: tfhe_fft::ordered::FftAlgo::Dif4,
                                     base_n: n / 2,
                                 },
                             ),

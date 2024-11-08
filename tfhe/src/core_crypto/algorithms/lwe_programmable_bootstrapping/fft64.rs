@@ -16,8 +16,8 @@ use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     cmux_scratch,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
-use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use tfhe_fft::c64;
 
 /// Perform a blind rotation given an input [`LWE ciphertext`](`LweCiphertext`), modifying a look-up
 /// table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap

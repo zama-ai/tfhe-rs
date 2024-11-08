@@ -12,11 +12,11 @@ use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use aligned_vec::ABox;
-use concrete_fft::c64;
 use itertools::Itertools;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{mpsc, Condvar, Mutex};
 use std::thread;
+use tfhe_fft::c64;
 
 pub use super::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
 

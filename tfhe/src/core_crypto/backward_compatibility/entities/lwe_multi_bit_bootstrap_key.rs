@@ -1,4 +1,4 @@
-use concrete_fft::c64;
+use tfhe_fft::c64;
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 

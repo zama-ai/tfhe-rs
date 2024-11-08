@@ -16,8 +16,8 @@ use crate::core_crypto::entities::ggsw_ciphertext::{
 };
 use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertextMutView, GlweCiphertextView};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
-use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use tfhe_fft::c64;
 use tfhe_versionable::Versionize;
 
 /// A GGSW ciphertext in the Fourier domain.

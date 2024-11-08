@@ -64,6 +64,7 @@ jobs:
             dependencies:
               - tfhe/Cargo.toml
               - concrete-csprng/**
+              - tfhe-fft/**
               - tfhe-zk-pok/**
               - utils/tfhe-versionable/**
               - utils/tfhe-versionable-derive/**
