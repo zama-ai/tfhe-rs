@@ -31,6 +31,10 @@ $ rm -r fft-kara/samples-gf=2 ; ./bin/python3 external_product_correction.py --c
     - reattach to screen session via `screen -r <session_id>`
   - exit ssh
 
+### Forgot to start `screen`?
+
+Solution: [https://serverfault.com/questions/55880/moving-an-already-running-process-to-screen](https://serverfault.com/questions/55880/moving-an-already-running-process-to-screen)
+
 
 ## "Advanced"
 
