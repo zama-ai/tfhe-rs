@@ -67,14 +67,7 @@ fi
 CURR_DIR="$(dirname "$0")"
 ARCH_FEATURE="$("${CURR_DIR}/get_arch_feature.sh")"
 
-nproc_bin=nproc
-
-# macOS detects CPUs differently
-if [[ $(uname) == "Darwin" ]]; then
-    nproc_bin="sysctl -n hw.logicalcpu"
-fi
-
-n_threads_small="$(${nproc_bin})"
+n_threads_small="$("${CURR_DIR}"/cpu_count.sh)"
 n_threads_big="${n_threads_small}"
 
 # TODO: automate thread selection by measuring host machine ram and loading the key sizes from the
