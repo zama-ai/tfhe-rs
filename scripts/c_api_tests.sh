@@ -49,13 +49,29 @@ REPO_ROOT="${CURR_DIR}/.."
 TFHE_BUILD_DIR="${REPO_ROOT}/tfhe/build/"
 CPU_COUNT="$("${CURR_DIR}"/cpu_count.sh)"
 
+
+
+LINKING_CPU_COUNT=4
+
+# On linux
+if [[ $(uname) != "Darwin" ]]; then
+    mem_in_gb="$(free -g | awk '/Mem:/ {print $2}')"
+
+    # If there is more than 100GB on the system,
+    # use all available cores for linking
+    # Otherwise, only use 4, to avoid OOM when linking
+    if [ 100 -lt "$mem_in_gb" ]; then
+        LINKING_CPU_COUNT="$(CPU_COUNT)"
+    fi
+fi
+
 mkdir -p "${TFHE_BUILD_DIR}"
 
 cd "${TFHE_BUILD_DIR}"
 
 cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCARGO_PROFILE="${CARGO_PROFILE}" -DWITH_FEATURE_GPU="${WITH_FEATURE_GPU}"
 
-make -j "${CPU_COUNT}"
+make -j "${LINKING_CPU_COUNT}"
 
 if [[ "${BUILD_ONLY}" == "1" ]]; then
     exit 0
