@@ -8,6 +8,7 @@ use crate::serialization::{
 use core::ops::{Index, IndexMut};
 use rand::{Rng, RngCore};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use std::fmt::Display;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, Versionize)]
@@ -20,6 +21,15 @@ pub(crate) struct OneBased<T: ?Sized>(T);
 pub enum ComputeLoad {
     Proof,
     Verify,
+}
+
+impl Display for ComputeLoad {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ComputeLoad::Proof => write!(f, "compute_load_proof"),
+            ComputeLoad::Verify => write!(f, "compute_load_verify"),
+        }
+    }
 }
 
 impl<T: ?Sized> OneBased<T> {
