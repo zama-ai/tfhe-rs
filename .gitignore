@@ -13,6 +13,7 @@ target/
 
 # Some of our bench outputs
 /tfhe/benchmarks_parameters
+/tfhe-zk-pok/benchmarks_parameters
 **/*.csv
 
 # dieharder run log
