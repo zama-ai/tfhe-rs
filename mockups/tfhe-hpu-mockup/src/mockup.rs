@@ -32,7 +32,7 @@ pub struct Args {
     #[clap(
         long,
         value_parser,
-        default_value = "mockups/hpu/params/tfhers_64b_fast.ron"
+        default_value = "mockups/tfhe-hpu-mockup/params/tfhers_64b_fast.ron"
     )]
     pub params: String,
 
