@@ -1,9 +1,10 @@
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-use crate::strings::ciphertext::{ClearString, FheString, GenericPattern};
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::strings::ciphertext::{ClearString, GenericPattern};
+use crate::strings::test::TestKind;
 use crate::strings::test_functions::{
     result_message, result_message_clear_rhs, result_message_rhs,
 };
-use crate::strings::Keys;
+use crate::strings::TestKeys;
 use std::time::Instant;
 
 const UP_LOW_CASE: [&str; 21] = [
@@ -17,8 +18,11 @@ const UP_LOW_CASE: [&str; 21] = [
 ];
 
 #[test]
-fn test_to_lower_upper_case() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_to_lower_upper_case_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for str in UP_LOW_CASE {
@@ -29,8 +33,25 @@ fn test_to_lower_upper_case() {
 }
 
 #[test]
-fn test_eq_ignore_case() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_to_lower_upper_case() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_to_lowercase("ab", Some(1));
+    keys.assert_to_lowercase("AB", Some(1));
+
+    keys.assert_to_uppercase("AB", Some(1));
+    keys.assert_to_uppercase("ab", Some(1));
+}
+
+#[test]
+fn test_eq_ignore_case_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for rhs_pad in 0..2 {
@@ -43,7 +64,18 @@ fn test_eq_ignore_case() {
     }
 }
 
-impl Keys {
+#[test]
+fn test_eq_ignore_case() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_eq_ignore_case("aB", Some(1), "Ab", Some(1));
+    keys.assert_eq_ignore_case("aB", Some(1), "Ac", Some(1));
+}
+
+impl TestKeys {
     pub fn assert_eq_ignore_case(
         &self,
         str: &str,
@@ -53,8 +85,8 @@ impl Keys {
     ) {
         let expected = str.eq_ignore_ascii_case(rhs);
 
-        let enc_lhs = FheString::new(&self.ck, str, str_pad);
-        let enc_rhs = GenericPattern::Enc(FheString::new(&self.ck, rhs, rhs_pad));
+        let enc_lhs = self.encrypt_string(str, str_pad);
+        let enc_rhs = GenericPattern::Enc(self.encrypt_string(rhs, rhs_pad));
         let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
 
         let start = Instant::now();
@@ -83,7 +115,7 @@ impl Keys {
     pub fn assert_to_lowercase(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.to_lowercase();
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
+        let enc_str = self.encrypt_string(str, str_pad);
 
         let start = Instant::now();
         let result = self.sk.to_lowercase(&enc_str);
@@ -100,7 +132,7 @@ impl Keys {
     pub fn assert_to_uppercase(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.to_uppercase();
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
+        let enc_str = self.encrypt_string(str, str_pad);
 
         let start = Instant::now();
         let result = self.sk.to_uppercase(&enc_str);

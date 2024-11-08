@@ -1,7 +1,8 @@
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, UIntArg};
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::strings::ciphertext::{ClearString, GenericPattern, UIntArg};
+use crate::strings::test::TestKind;
 use crate::strings::test_functions::{result_message_clear_pat, result_message_pat};
-use crate::strings::Keys;
+use crate::strings::TestKeys;
 use std::time::Instant;
 
 const TEST_CASES_FIND: [&str; 8] = ["", "a", "abc", "b", "ab", "dabc", "abce", "dabce"];
@@ -9,8 +10,11 @@ const TEST_CASES_FIND: [&str; 8] = ["", "a", "abc", "b", "ab", "dabc", "abce", "
 const PATTERN_FIND: [&str; 5] = ["", "a", "b", "ab", "abc"];
 
 #[test]
-fn test_find() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_find_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
@@ -25,8 +29,25 @@ fn test_find() {
 }
 
 #[test]
-fn test_replace() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_find() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_find("aba", Some(1), "a", Some(1));
+    keys.assert_find("aba", Some(1), "c", Some(1));
+
+    keys.assert_rfind("aba", Some(1), "a", Some(1));
+    keys.assert_rfind("aba", Some(1), "c", Some(1));
+}
+
+#[test]
+fn test_replace_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for from_pad in 0..2 {
@@ -61,12 +82,26 @@ fn test_replace() {
     }
 }
 
-impl Keys {
+#[test]
+fn test_replace() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_replace("ab", Some(1), "a", Some(1), "d", Some(1));
+    keys.assert_replace("ab", Some(1), "c", Some(1), "d", Some(1));
+
+    keys.assert_replacen(("ab", Some(1)), ("a", Some(1)), ("d", Some(1)), 1, 2);
+    keys.assert_replacen(("ab", Some(1)), ("c", Some(1)), ("d", Some(1)), 1, 2);
+}
+
+impl TestKeys {
     pub fn assert_find(&self, str: &str, str_pad: Option<u32>, pat: &str, pat_pad: Option<u32>) {
         let expected = str.find(pat);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
@@ -101,8 +136,8 @@ impl Keys {
     pub fn assert_rfind(&self, str: &str, str_pad: Option<u32>, pat: &str, pat_pad: Option<u32>) {
         let expected = str.rfind(pat);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
@@ -144,10 +179,10 @@ impl Keys {
     ) {
         let expected = str.replace(pat, to);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
-        let enc_to = FheString::new(&self.ck, to, to_pad);
+        let enc_to = self.encrypt_string(to, to_pad);
 
         let start = Instant::now();
         let result = self.sk.replace(&enc_str, &enc_pat, &enc_to);
@@ -216,13 +251,13 @@ impl Keys {
 
         let expected = str.replacen(pat, to, n as usize);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
-        let enc_to = FheString::new(&self.ck, to, to_pad);
+        let enc_to = self.encrypt_string(to, to_pad);
 
         let clear_n = UIntArg::Clear(n);
-        let enc_n = UIntArg::Enc(self.ck.encrypt_u16(n, Some(max)));
+        let enc_n = UIntArg::Enc(self.encrypt_u16(n, Some(max)));
 
         let start = Instant::now();
         let result = self.sk.replacen(&enc_str, &enc_pat, &enc_to, &clear_n);

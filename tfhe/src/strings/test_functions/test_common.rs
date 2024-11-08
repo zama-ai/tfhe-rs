@@ -1,16 +1,20 @@
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-use crate::strings::ciphertext::{ClearString, FheString, GenericPattern};
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::strings::ciphertext::{ClearString, GenericPattern};
 use crate::strings::server_key::{FheStringIsEmpty, FheStringLen};
+use crate::strings::test::TestKind;
 use crate::strings::test_functions::{
     result_message, result_message_clear_pat, result_message_clear_rhs, result_message_pat,
     result_message_rhs,
 };
-use crate::strings::Keys;
+use crate::strings::TestKeys;
 use std::time::{Duration, Instant};
 
 #[test]
-fn test_len_is_empty() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_len_is_empty_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str in ["", "a", "abc"] {
         for pad in 0..3 {
@@ -21,8 +25,25 @@ fn test_len_is_empty() {
 }
 
 #[test]
-fn test_encrypt_decrypt() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_len_is_empty() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_len("", Some(1));
+    keys.assert_is_empty("", Some(1));
+
+    keys.assert_len("abc", Some(1));
+    keys.assert_is_empty("abc", Some(1));
+}
+
+#[test]
+fn test_encrypt_decrypt_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str in ["", "a", "abc"] {
         for pad in 0..3 {
@@ -32,8 +53,25 @@ fn test_encrypt_decrypt() {
 }
 
 #[test]
-fn test_strip() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_encrypt_decrypt() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    for str in ["", "a", "abc"] {
+        for pad in 0..3 {
+            keys.assert_encrypt_decrypt(str, Some(pad));
+        }
+    }
+}
+
+#[test]
+fn test_strip_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
@@ -47,11 +85,27 @@ fn test_strip() {
     }
 }
 
+#[test]
+fn test_strip() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+    keys.assert_strip_prefix("abc", Some(1), "a", Some(1));
+    keys.assert_strip_suffix("abc", Some(1), "c", Some(1));
+
+    keys.assert_strip_prefix("abc", Some(1), "d", Some(1));
+    keys.assert_strip_suffix("abc", Some(1), "d", Some(1));
+}
+
 const TEST_CASES_COMP: [&str; 5] = ["", "a", "aa", "ab", "abc"];
 
 #[test]
-fn test_comparisons() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_comparisons_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for rhs_pad in 0..2 {
@@ -64,11 +118,23 @@ fn test_comparisons() {
     }
 }
 
-impl Keys {
+#[test]
+fn test_comparisons() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_comp("a", Some(1), "a", Some(1));
+
+    keys.assert_comp("a", Some(1), "b", Some(1));
+}
+
+impl TestKeys {
     pub fn assert_len(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.len();
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
+        let enc_str = self.encrypt_string(str, str_pad);
 
         let start = Instant::now();
         let result = self.sk.len(&enc_str);
@@ -88,7 +154,7 @@ impl Keys {
     pub fn assert_is_empty(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.is_empty();
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
+        let enc_str = self.encrypt_string(str, str_pad);
 
         let start = Instant::now();
         let result = self.sk.is_empty(&enc_str);
@@ -106,7 +172,7 @@ impl Keys {
     }
 
     pub fn assert_encrypt_decrypt(&self, str: &str, str_pad: Option<u32>) {
-        let enc_str = FheString::new(&self.ck, str, str_pad);
+        let enc_str = self.encrypt_string(str, str_pad);
 
         let dec = self.ck.decrypt_ascii(&enc_str);
 
@@ -125,8 +191,8 @@ impl Keys {
     ) {
         let expected = str.strip_prefix(pat);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
@@ -175,8 +241,8 @@ impl Keys {
     ) {
         let expected = str.strip_suffix(pat);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
@@ -217,8 +283,8 @@ impl Keys {
     }
 
     pub fn assert_comp(&self, str: &str, str_pad: Option<u32>, rhs: &str, rhs_pad: Option<u32>) {
-        let enc_lhs = FheString::new(&self.ck, str, str_pad);
-        let enc_rhs = GenericPattern::Enc(FheString::new(&self.ck, rhs, rhs_pad));
+        let enc_lhs = self.encrypt_string(str, str_pad);
+        let enc_rhs = GenericPattern::Enc(self.encrypt_string(rhs, rhs_pad));
         let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
 
         // Equal
@@ -269,7 +335,7 @@ impl Keys {
         result_message_clear_rhs(str, rhs, expected_ne, dec_ne, end.duration_since(start));
         assert_eq!(dec_ne, expected_ne);
 
-        let enc_rhs = FheString::new(&self.ck, rhs, rhs_pad);
+        let enc_rhs = self.encrypt_string(rhs, rhs_pad);
 
         // Greater or equal
         let expected_ge = str >= rhs;

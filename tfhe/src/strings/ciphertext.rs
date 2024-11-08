@@ -208,11 +208,11 @@ pub(super) fn num_ascii_blocks(message_modulus: MessageModulus) -> usize {
 mod tests {
     use super::*;
     use crate::integer::ClientKey;
-    use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
     #[test]
     fn test_uint_conversion() {
-        let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+        let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 
         let str =
             "Los Sheikah fueron originalmente criados de la Diosa Hylia antes del sellado del \
