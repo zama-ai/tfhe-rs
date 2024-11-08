@@ -1,14 +1,17 @@
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-use crate::strings::ciphertext::FheString;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::strings::server_key::{split_ascii_whitespace, FheStringIterator};
+use crate::strings::test::TestKind;
 use crate::strings::test_functions::result_message;
-use crate::strings::Keys;
+use crate::strings::TestKeys;
 use std::time::Instant;
 const WHITESPACES: [&str; 5] = [" ", "\n", "\t", "\r", "\u{000C}"];
 
 #[test]
-fn test_trim() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_trim_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for ws in WHITESPACES {
@@ -30,8 +33,28 @@ fn test_trim() {
 }
 
 #[test]
-fn test_split_ascii_whitespace() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_trim() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_trim(" a ", Some(1));
+    keys.assert_trim("abc", Some(1));
+
+    keys.assert_trim_start(" a ", Some(1));
+    keys.assert_trim_start("abc", Some(1));
+
+    keys.assert_trim_end(" a ", Some(1));
+    keys.assert_trim_end("abc", Some(1));
+}
+
+#[test]
+fn test_split_ascii_whitespace_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for ws in WHITESPACES {
@@ -57,11 +80,22 @@ fn test_split_ascii_whitespace() {
     }
 }
 
-impl Keys {
+#[test]
+fn test_split_ascii_whitespace() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_split_ascii_whitespace("a b", Some(1));
+    keys.assert_split_ascii_whitespace("abc", Some(1));
+}
+
+impl TestKeys {
     pub fn assert_trim_end(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.trim_end();
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
+        let enc_str = self.encrypt_string(str, str_pad);
 
         let start = Instant::now();
         let result = self.sk.trim_end(&enc_str);
@@ -78,7 +112,7 @@ impl Keys {
     pub fn assert_trim_start(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.trim_start();
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
+        let enc_str = self.encrypt_string(str, str_pad);
 
         let start = Instant::now();
         let result = self.sk.trim_start(&enc_str);
@@ -95,7 +129,7 @@ impl Keys {
     pub fn assert_trim(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.trim();
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
+        let enc_str = self.encrypt_string(str, str_pad);
 
         let start = Instant::now();
         let result = self.sk.trim(&enc_str);
@@ -113,7 +147,7 @@ impl Keys {
         let mut expected: Vec<_> = str.split_ascii_whitespace().map(Some).collect();
         expected.push(None);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
+        let enc_str = self.encrypt_string(str, str_pad);
 
         let mut results = Vec::with_capacity(expected.len());
 

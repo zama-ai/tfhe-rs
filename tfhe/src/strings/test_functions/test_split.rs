@@ -1,8 +1,9 @@
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-use crate::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::strings::ciphertext::{GenericPattern, UIntArg};
 use crate::strings::server_key::FheStringIterator;
+use crate::strings::test::TestKind;
 use crate::strings::test_functions::result_message_pat;
-use crate::strings::Keys;
+use crate::strings::TestKeys;
 use std::time::Instant;
 
 const TEST_CASES_SPLIT: [(&str, &str); 21] = [
@@ -30,8 +31,11 @@ const TEST_CASES_SPLIT: [(&str, &str); 21] = [
 ];
 
 #[test]
-fn test_split() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_split_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
@@ -56,7 +60,27 @@ fn test_split() {
     }
 }
 
-impl Keys {
+#[test]
+fn test_split() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_split_once("", Some(1), "", Some(1));
+    keys.assert_rsplit_once("", Some(1), "", Some(1));
+    keys.assert_split("", Some(1), "", Some(1));
+    keys.assert_rsplit("", Some(1), "", Some(1));
+
+    keys.assert_splitn("", Some(1), "", Some(1), 1, 2);
+    keys.assert_rsplitn("", Some(1), "", Some(1), 1, 2);
+
+    keys.assert_split_terminator("", Some(1), "", Some(1));
+    keys.assert_rsplit_terminator("", Some(1), "", Some(1));
+    keys.assert_split_inclusive("", Some(1), "", Some(1));
+}
+
+impl TestKeys {
     pub fn assert_split_once(
         &self,
         str: &str,
@@ -66,8 +90,8 @@ impl Keys {
     ) {
         let expected = str.split_once(pat);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let start = Instant::now();
         let (lhs, rhs, is_some) = self.sk.split_once(&enc_str, &enc_pat);
@@ -94,8 +118,8 @@ impl Keys {
     ) {
         let expected = str.rsplit_once(pat);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let start = Instant::now();
         let (lhs, rhs, is_some) = self.sk.rsplit_once(&enc_str, &enc_pat);
@@ -117,8 +141,8 @@ impl Keys {
         let mut expected: Vec<_> = str.split(pat).map(Some).collect();
         expected.push(None);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let mut results = Vec::with_capacity(expected.len());
 
@@ -155,8 +179,8 @@ impl Keys {
         let mut expected: Vec<_> = str.rsplit(pat).map(Some).collect();
         expected.push(None);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let mut results = Vec::with_capacity(expected.len());
 
@@ -199,8 +223,8 @@ impl Keys {
         let mut expected: Vec<_> = str.split_terminator(pat).map(Some).collect();
         expected.push(None);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let mut results = Vec::with_capacity(expected.len());
 
@@ -243,8 +267,8 @@ impl Keys {
         let mut expected: Vec<_> = str.rsplit_terminator(pat).map(Some).collect();
         expected.push(None);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let mut results = Vec::with_capacity(expected.len());
 
@@ -287,8 +311,8 @@ impl Keys {
         let mut expected: Vec<_> = str.split_inclusive(pat).map(Some).collect();
         expected.push(None);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let mut results = Vec::with_capacity(expected.len());
 
@@ -333,8 +357,8 @@ impl Keys {
         let mut expected: Vec<_> = str.splitn(n as usize, pat).map(Some).collect();
         expected.push(None);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let mut results = Vec::with_capacity(expected.len());
 
@@ -381,7 +405,7 @@ impl Keys {
 
         assert_eq!(dec_as_str, expected);
 
-        let enc_n = self.ck.encrypt_u16(n, Some(max));
+        let enc_n = self.encrypt_u16(n, Some(max));
         results.clear();
 
         // Call next enough times
@@ -440,8 +464,8 @@ impl Keys {
         let mut expected: Vec<_> = str.rsplitn(n as usize, pat).map(Some).collect();
         expected.push(None);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let mut results = Vec::with_capacity(expected.len());
 
@@ -488,7 +512,7 @@ impl Keys {
 
         assert_eq!(dec_as_str, expected);
 
-        let enc_n = self.ck.encrypt_u16(n, Some(max));
+        let enc_n = self.encrypt_u16(n, Some(max));
         results.clear();
 
         // Call next enough times

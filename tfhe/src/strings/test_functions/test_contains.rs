@@ -1,12 +1,16 @@
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-use crate::strings::ciphertext::{ClearString, FheString, GenericPattern};
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::strings::ciphertext::{ClearString, GenericPattern};
+use crate::strings::test::TestKind;
 use crate::strings::test_functions::{result_message_clear_pat, result_message_pat};
-use crate::strings::Keys;
+use crate::strings::TestKeys;
 use std::time::Instant;
 
 #[test]
-fn test_contains_start_end() {
-    let keys = Keys::new(PARAM_MESSAGE_2_CARRY_2);
+fn test_contains_start_end_trivial() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Trivial,
+    );
 
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
@@ -21,7 +25,24 @@ fn test_contains_start_end() {
     }
 }
 
-impl Keys {
+#[test]
+fn test_contains_start_end() {
+    let keys = TestKeys::new(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        TestKind::Encrypted,
+    );
+
+    keys.assert_contains("ab", Some(1), "a", Some(1));
+    keys.assert_contains("ab", Some(1), "c", Some(1));
+
+    keys.assert_starts_with("ab", Some(1), "a", Some(1));
+    keys.assert_starts_with("ab", Some(1), "c", Some(1));
+
+    keys.assert_ends_with("ab", Some(1), "b", Some(1));
+    keys.assert_ends_with("ab", Some(1), "c", Some(1));
+}
+
+impl TestKeys {
     pub fn assert_contains(
         &self,
         str: &str,
@@ -31,8 +52,8 @@ impl Keys {
     ) {
         let expected = str.contains(pat);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
@@ -67,8 +88,8 @@ impl Keys {
     ) {
         let expected = str.ends_with(pat);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
@@ -103,8 +124,8 @@ impl Keys {
     ) {
         let expected = str.starts_with(pat);
 
-        let enc_str = FheString::new(&self.ck, str, str_pad);
-        let enc_pat = GenericPattern::Enc(FheString::new(&self.ck, pat, pat_pad));
+        let enc_str = self.encrypt_string(str, str_pad);
+        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
