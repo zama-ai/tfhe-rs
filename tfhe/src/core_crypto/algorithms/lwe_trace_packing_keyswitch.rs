@@ -239,17 +239,18 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_native_m
         output_glwe_ciphertext.ciphertext_modulus(),
         lwe_tpksk.ciphertext_modulus()
     );
-    assert!(lwe_tpksk
-        .ciphertext_modulus()
-        .is_compatible_with_native_modulus());
+    assert!(lwe_tpksk.ciphertext_modulus().is_compatible_with_native_modulus());
 
     // We reset the output
     output_glwe_ciphertext.as_mut().fill(Scalar::ZERO);
 
     let poly_size = output_glwe_ciphertext.polynomial_size();
     let glwe_size = output_glwe_ciphertext.glwe_size();
-    let glwe_count = GlweCiphertextCount(poly_size.0);
     let ciphertext_modulus = output_glwe_ciphertext.ciphertext_modulus();
+
+    let glwe_count = GlweCiphertextCount(input_lwe_ciphertext_list.lwe_ciphertext_count().0);
+    let mut non_zero = vec![false; poly_size.0];
+    let mut pointers = vec![0usize; poly_size.0];
 
     let mut glwe_list = GlweCiphertextList::new(
         Scalar::ZERO,
@@ -260,12 +261,17 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_native_m
     );
 
     // Construct the initial Glwe Ciphertexts
-    for (index1, mut glwe_ct) in glwe_list.iter_mut().enumerate() {
+    let mut pointer_index = 0usize;
+    for (index1, pointer) in pointers.iter_mut().enumerate() {
         for (index2, index) in indices.iter().enumerate() {
             if index1 == *index {
+                *pointer = pointer_index;
+                pointer_index += 1;
+                non_zero[index1] = true;
                 let lwe_ct = input_lwe_ciphertext_list.get(index2);
-                let lwe_body = lwe_ct.get_body(); //lwe_ct.as_ref().last().unwrap();
+                let lwe_body = lwe_ct.get_body();
                 let lwe_mask = lwe_ct.get_mask();
+                let mut glwe_ct = glwe_list.get_mut(*pointer);
                 for (index3, mut poly) in glwe_ct
                     .get_mut_mask()
                     .as_mut_polynomial_list()
@@ -294,39 +300,39 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_native_m
 
     for l in 0..poly_size.log2().0 {
         for i in 0..(poly_size.0 / 2_usize.pow(l as u32 + 1)) {
-            let ct_0 = glwe_list.get(i);
-            //let glwe_size = ct_0.glwe_size();
             let j = (poly_size.0 / 2_usize.pow(l as u32 + 1)) + i;
-            let ct_1 = glwe_list.get(j);
-            if ct_0.as_ref().iter().any(|&x| x != Scalar::ZERO)
-                || ct_1.as_ref().iter().any(|&x| x != Scalar::ZERO)
+            let pointer_i = pointers[i];
+            let pointer_j = pointers[j];
+            if non_zero[i] && non_zero[j]
             {
-                // Diving ct_0 and ct_1 by 2
-                for mut pol in glwe_list.get_mut(i).as_mut_polynomial_list().iter_mut() {
+                // Divide ct_0 and ct_1 by 2
+                for mut pol in glwe_list.get_mut(pointer_i).as_mut_polynomial_list().iter_mut() {
                     pol.iter_mut().for_each(|coef| {
-                        if *coef % Scalar::TWO == Scalar::ZERO {
-                            *coef >>= 1
-                        } else {
+                        if *coef % Scalar::TWO != Scalar::ZERO {
                             // Round up or down depending on rounding bit
                             *coef = (*coef >> 1) + rounding_bit;
                             rounding_bit = Scalar::ONE - rounding_bit;
+                        } else {
+                            *coef = *coef >> 1
                         }
-                    })
+                    }
+                    )
                 }
-                for mut pol in glwe_list.get_mut(j).as_mut_polynomial_list().iter_mut() {
+                for mut pol in glwe_list.get_mut(pointer_j).as_mut_polynomial_list().iter_mut() {
                     pol.iter_mut().for_each(|coef| {
-                        if *coef % Scalar::TWO == Scalar::ZERO {
-                            *coef >>= 1
-                        } else {
+                        if *coef % Scalar::TWO != Scalar::ZERO {
                             // Round up or down depending on rounding bit
                             *coef = (*coef >> 1) + rounding_bit;
                             rounding_bit = Scalar::ONE - rounding_bit;
+                        } else {
+                            *coef = *coef >> 1
                         }
-                    })
+                    }
+                    )
                 }
 
                 // Rotate ct_1 by N/2^(l+1)
-                for mut pol in glwe_list.get_mut(j).as_mut_polynomial_list().iter_mut() {
+                for mut pol in glwe_list.get_mut(pointer_j).as_mut_polynomial_list().iter_mut() {
                     polynomial_wrapping_monic_monomial_mul_assign(
                         &mut pol,
                         MonomialDegree(poly_size.0 / 2_usize.pow(l as u32 + 1)),
@@ -341,8 +347,8 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_native_m
                 for ((mut pol_plus, pol_0), pol_1) in ct_plus
                     .as_mut_polynomial_list()
                     .iter_mut()
-                    .zip(glwe_list.get(i).as_polynomial_list().iter())
-                    .zip(glwe_list.get(j).as_polynomial_list().iter())
+                    .zip(glwe_list.get(pointer_i).as_polynomial_list().iter())
+                    .zip(glwe_list.get(pointer_j).as_polynomial_list().iter())
                 {
                     polynomial_wrapping_add_assign(&mut pol_plus, &pol_0);
                     polynomial_wrapping_add_assign(&mut pol_plus, &pol_1);
@@ -351,8 +357,8 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_native_m
                 for ((mut pol_minus, pol_0), pol_1) in ct_minus
                     .as_mut_polynomial_list()
                     .iter_mut()
-                    .zip(glwe_list.get(i).as_polynomial_list().iter())
-                    .zip(glwe_list.get(j).as_polynomial_list().iter())
+                    .zip(glwe_list.get(pointer_i).as_polynomial_list().iter())
+                    .zip(glwe_list.get(pointer_j).as_polynomial_list().iter())
                 {
                     polynomial_wrapping_add_assign(&mut pol_minus, &pol_0);
                     polynomial_wrapping_sub_assign(&mut pol_minus, &pol_1);
@@ -383,22 +389,153 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_native_m
                 keyswitch_glwe_ciphertext(&glwe_ksk, &ct_minus, &mut ks_out);
 
                 // Set ct_0 to zero
-                glwe_list.get_mut(i).as_mut().fill(Scalar::ZERO);
+                glwe_list.get_mut(pointer_i).as_mut().fill(Scalar::ZERO);
 
                 // Add the result to ct_plus and add this to ct_0
                 for ((mut pol_plus, pol_ks), mut pol_0) in ct_plus
                     .as_mut_polynomial_list()
                     .iter_mut()
                     .zip(ks_out.as_polynomial_list().iter())
-                    .zip(glwe_list.get_mut(i).as_mut_polynomial_list().iter_mut())
+                    .zip(glwe_list.get_mut(pointer_i).as_mut_polynomial_list().iter_mut())
                 {
                     polynomial_wrapping_add_assign(&mut pol_plus, &pol_ks);
                     polynomial_wrapping_add_assign(&mut pol_0, &pol_plus);
                 }
+            } else if non_zero[i]
+            {
+                // Divide ct_0 by 2
+                for mut pol in glwe_list.get_mut(pointer_i).as_mut_polynomial_list().iter_mut() {
+                    pol.iter_mut().for_each(|coef| {
+                        if *coef % Scalar::TWO != Scalar::ZERO {
+                            // Round up or down depending on rounding bit
+                            *coef = (*coef >> 1) + rounding_bit;
+                            rounding_bit = Scalar::ONE - rounding_bit;
+                        } else {
+                            *coef = *coef >> 1
+                        }
+                    }
+                    )
+                }
+
+                let mut ct_minus =
+                    GlweCiphertext::new(Scalar::ZERO, glwe_size, poly_size, ciphertext_modulus);
+
+                for (mut pol_minus, pol_0) in ct_minus
+                    .as_mut_polynomial_list()
+                    .iter_mut()
+                    .zip(glwe_list.get(pointer_i).as_polynomial_list().iter())
+                {
+                    polynomial_wrapping_add_assign(&mut pol_minus, &pol_0);
+                }
+
+                // Apply the automorphism sending X to X^(2^(l+1) + 1) to ct_minus
+                for mut pol in ct_minus.as_mut_polynomial_list().iter_mut() {
+                    apply_automorphism_assign(&mut pol, 2_usize.pow(l as u32 + 1) + 1)
+                }
+
+                let mut ks_out = GlweCiphertext::new(
+                    Scalar::ZERO,
+                    ct_minus.glwe_size(),
+                    poly_size,
+                    ciphertext_modulus,
+                );
+
+                let glwe_ksk = GlweKeyswitchKey::from_container(
+                    lwe_tpksk.get(l).into_container(),
+                    lwe_tpksk.decomposition_base_log(),
+                    lwe_tpksk.decomposition_level_count(),
+                    glwe_size,
+                    lwe_tpksk.polynomial_size(),
+                    lwe_tpksk.ciphertext_modulus(),
+                );
+
+                // Perform a Glwe keyswitch on ct_minus
+                keyswitch_glwe_ciphertext(&glwe_ksk, &ct_minus, &mut ks_out);
+
+                // Add the keyswitched ct_minus to ct_0
+                for (mut pol_0, pol_ks) in glwe_list.get_mut(pointer_i)
+                    .as_mut_polynomial_list()
+                    .iter_mut()
+                    .zip(ks_out.as_polynomial_list().iter())
+                {
+                    polynomial_wrapping_add_assign(&mut pol_0, &pol_ks);
+                }
+            } else if non_zero[j]
+            {
+                // Divide ct_1 by 2
+                for mut pol in glwe_list.get_mut(pointer_j).as_mut_polynomial_list().iter_mut() {
+                    pol.iter_mut().for_each(|coef| {
+                        if *coef % Scalar::TWO != Scalar::ZERO {
+                            // Round up or down depending on rounding bit
+                            *coef = (*coef >> 1) + rounding_bit;
+                            rounding_bit = Scalar::ONE - rounding_bit;
+                        } else {
+                            *coef = *coef >> 1
+                        }
+                    }
+                    )
+                }
+
+                // Rotate ct_1 by N/2^(l+1)
+                for mut pol in glwe_list.get_mut(pointer_j).as_mut_polynomial_list().iter_mut() {
+                    polynomial_wrapping_monic_monomial_mul_assign(
+                        &mut pol,
+                        MonomialDegree(poly_size.0 / 2_usize.pow(l as u32 + 1)),
+                    );
+                }
+
+                let mut ct_minus =
+                    GlweCiphertext::new(Scalar::ZERO, glwe_size, poly_size, ciphertext_modulus);
+
+                for (mut pol_minus, pol_1) in ct_minus
+                    .as_mut_polynomial_list()
+                    .iter_mut()
+                    .zip(glwe_list.get(pointer_j).as_polynomial_list().iter())
+                {
+                    polynomial_wrapping_sub_assign(&mut pol_minus, &pol_1);
+                }
+
+                // Apply the automorphism sending X to X^(2^(l+1) + 1) to ct_minus
+                for mut pol in ct_minus.as_mut_polynomial_list().iter_mut() {
+                    apply_automorphism_assign(&mut pol, 2_usize.pow(l as u32 + 1) + 1)
+                }
+
+                let mut ks_out = GlweCiphertext::new(
+                    Scalar::ZERO,
+                    ct_minus.glwe_size(),
+                    poly_size,
+                    ciphertext_modulus,
+                );
+
+                let glwe_ksk = GlweKeyswitchKey::from_container(
+                    lwe_tpksk.get(l).into_container(),
+                    lwe_tpksk.decomposition_base_log(),
+                    lwe_tpksk.decomposition_level_count(),
+                    glwe_size,
+                    lwe_tpksk.polynomial_size(),
+                    lwe_tpksk.ciphertext_modulus(),
+                );
+
+                // Perform a Glwe keyswitch on ct_minus
+                keyswitch_glwe_ciphertext(&glwe_ksk, &ct_minus, &mut ks_out);
+
+                // Set ct_1 to zero update the pointer to ct_0 to point to ct_1 instead.
+                glwe_list.get_mut(pointer_j).as_mut().fill(Scalar::ZERO);
+                pointers[i] = pointer_j;
+
+                // Add the keyswitched ct_minus to ct_1
+                for (mut pol_1, pol_ks) in glwe_list.get_mut(pointer_j)
+                    .as_mut_polynomial_list()
+                    .iter_mut()
+                    .zip(ks_out.as_polynomial_list().iter())
+                {
+                    polynomial_wrapping_add_assign(&mut pol_1, &pol_ks);
+                }
             }
         }
     }
-    let res = glwe_list.get(0);
+    let pointer_0 = pointers[0];
+    let res = glwe_list.get(pointer_0);
     for (mut pol_out, pol_res) in output_glwe_ciphertext
         .as_mut_polynomial_list()
         .iter_mut()
