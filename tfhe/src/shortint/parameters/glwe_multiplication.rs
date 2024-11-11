@@ -16,6 +16,21 @@ pub struct GlweMultParameters {
     pub ciphertext_modulus: CiphertextModulus<u64>,
 }
 
+pub const MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_1000: GlweMultParameters =
+    GlweMultParameters {
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        packing_ks_level: DecompositionLevelCount(2),
+        packing_ks_base_log: DecompositionBaseLog(14),
+        packing_ks_polynomial_size: PolynomialSize(1024),
+        packing_ks_glwe_dimension: GlweDimension(2),
+        lwe_dimension: LweDimension(2048),
+        lwe_per_glwe: LweCiphertextCount(1000),
+        packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(17),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+    };
+
 pub const MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100: GlweMultParameters =
     GlweMultParameters {
         message_modulus: MessageModulus(4),
@@ -26,7 +41,22 @@ pub const MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100: GlweMultParameters =
         packing_ks_glwe_dimension: GlweDimension(5),
         lwe_dimension: LweDimension(2048),
         lwe_per_glwe: LweCiphertextCount(100),
-        packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(17),
-        lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),
+        packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(5),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(18),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+    };
+
+pub const MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_10: GlweMultParameters =
+    GlweMultParameters {
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        packing_ks_level: DecompositionLevelCount(1),
+        packing_ks_base_log: DecompositionBaseLog(29),
+        packing_ks_polynomial_size: PolynomialSize(512),
+        packing_ks_glwe_dimension: GlweDimension(5),
+        lwe_dimension: LweDimension(2048),
+        lwe_per_glwe: LweCiphertextCount(10),
+        packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(4),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
         ciphertext_modulus: CiphertextModulus::new_native(),
     };

@@ -47,7 +47,9 @@ pub use crate::shortint::parameters::list_compression::{
     CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 pub use crate::shortint::parameters::glwe_multiplication::{
-    GlweMultParameters, MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100,
+    GlweMultParameters, MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_1000,
+    MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100,
+    MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_10,
 };
 pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs_gpu::*;

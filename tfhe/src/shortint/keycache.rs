@@ -270,12 +270,12 @@ impl NamedParam for CompressionParameters {
 
 impl NamedParam for GlweMultParameters {
     fn name(&self) -> String {
-        named_params_impl!(expose MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100);
+        named_params_impl!(expose MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_10);
         named_params_impl!(
             {
                 *self;
                 Self
-            } == (MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100)
+            } == (MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_10)
         );
 
         format!(

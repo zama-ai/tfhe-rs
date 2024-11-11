@@ -9,7 +9,7 @@ use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::{
     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100,
+    MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_1000,
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
 };
@@ -122,8 +122,8 @@ fn benchmark_compression_parameters() -> Vec<(String, CryptoParametersRecord<u64
 
 fn benchmark_trace_packing_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
     vec![(
-        MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100.name(),
-        MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_100.into(),
+        MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_1000.name(),
+        MULT_PARAM_MESSAGE_2_CARRY_2_TPKS_TUNIFORM_1000.into(),
     )]
 }
 
@@ -667,7 +667,7 @@ pub fn packing_keyswitch_group() {
 pub fn trace_packing_keyswitch_group() {
     let mut criterion: Criterion<_> = (Criterion::default()
         .sample_size(10)
-        .measurement_time(std::time::Duration::from_secs(60)))
+        .measurement_time(std::time::Duration::from_secs(120)))
     .configure_from_args();
     trace_packing_keyswitch(
         &mut criterion,
@@ -679,7 +679,7 @@ pub fn trace_packing_keyswitch_group() {
 pub fn not_trace_packing_keyswitch_group() {
     let mut criterion: Criterion<_> = (Criterion::default()
         .sample_size(10)
-        .measurement_time(std::time::Duration::from_secs(60)))
+        .measurement_time(std::time::Duration::from_secs(120)))
     .configure_from_args();
     packing_keyswitch(
         &mut criterion,
