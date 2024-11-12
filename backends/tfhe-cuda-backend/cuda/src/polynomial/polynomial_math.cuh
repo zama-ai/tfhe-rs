@@ -1,9 +1,14 @@
 #ifndef CUDA_POLYNOMIAL_MATH_CUH
 #define CUDA_POLYNOMIAL_MATH_CUH
 
+#include <stdio.h>
+
 #include "crypto/torus.cuh"
+#include "linearalgebra/multiplication.cuh"
 #include "parameters.cuh"
 #include "types/complex/operations.cuh"
+
+#define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
 template <typename T>
 __device__ T *get_chunk(T *data, int chunk_num, int chunk_size) {
@@ -225,4 +230,5 @@ __device__ void polynomial_accumulate_monic_monomial_mul_on_regs(
     result[i] += x;
   }
 }
+
 #endif // CNCRT_POLYNOMIAL_MATH_H

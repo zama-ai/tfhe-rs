@@ -7,6 +7,7 @@
 #include "gadget.cuh"
 #include "helper_multi_gpu.h"
 #include "keyswitch.cuh"
+#include "linearalgebra/multiplication.cuh"
 #include "polynomial/functions.cuh"
 #include "polynomial/polynomial_math.cuh"
 #include "torus.cuh"
@@ -17,13 +18,7 @@
 
 #define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
-const int BLOCK_SIZE_GEMM = 64;
-const int THREADS_GEMM = 8;
 const int BLOCK_SIZE_DECOMP = 8;
-
-template <typename Torus> uint64_t get_shared_mem_size_tgemm() {
-  return BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
-}
 
 // Initialize decomposition by performing rounding
 // and decomposing one level of an array of Torus LWEs. Only
@@ -88,106 +83,6 @@ decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
   buffer_in[val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
   __syncthreads();
   buffer_in[state_idx] = state;
-}
-
-// Multiply matrices A, B of size (M, K), (K, N) respectively
-// with K as the inner dimension.
-//
-// A block of threads processeds blocks of size (BLOCK_SIZE_GEMM,
-// BLOCK_SIZE_GEMM) splitting them in multiple tiles: (BLOCK_SIZE_GEMM,
-// THREADS_GEMM)-shaped tiles of values from A, and a (THREADS_GEMM,
-// BLOCK_SIZE_GEMM)-shaped tiles of values from B.
-//
-// This code is adapted by generalizing the 1d block-tiling
-// kernel from https://github.com/siboehm/SGEMM_CUDA
-// to any matrix dimension
-template <typename Torus>
-__global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
-                      int stride_B, Torus *C) {
-
-  const int BM = BLOCK_SIZE_GEMM;
-  const int BN = BLOCK_SIZE_GEMM;
-  const int BK = THREADS_GEMM;
-  const int TM = THREADS_GEMM;
-
-  const uint cRow = blockIdx.y;
-  const uint cCol = blockIdx.x;
-
-  const int threadCol = threadIdx.x % BN;
-  const int threadRow = threadIdx.x / BN;
-
-  // Allocate space for the current block tile in shared memory
-  __shared__ Torus As[BM * BK];
-  __shared__ Torus Bs[BK * BN];
-
-  // Initialize the pointers to the input blocks from A, B
-  // Tiles from these blocks are loaded to shared memory
-  A += cRow * BM * K;
-  B += cCol * BN;
-
-  // Each thread will handle multiple sub-blocks
-  const uint innerColA = threadIdx.x % BK;
-  const uint innerRowA = threadIdx.x / BK;
-  const uint innerColB = threadIdx.x % BN;
-  const uint innerRowB = threadIdx.x / BN;
-
-  // allocate thread-local cache for results in registerfile
-  Torus threadResults[TM] = {0};
-
-  auto row_A = cRow * BM + innerRowA;
-  auto col_B = cCol * BN + innerColB;
-
-  // For each thread, loop over block tiles
-  for (uint bkIdx = 0; bkIdx < K; bkIdx += BK) {
-    auto col_A = bkIdx + innerColA;
-    auto row_B = bkIdx + innerRowB;
-
-    if (row_A < M && col_A < K) {
-      As[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
-    } else {
-      As[innerRowA * BK + innerColA] = 0;
-    }
-
-    if (col_B < N && row_B < K) {
-      Bs[innerRowB * BN + innerColB] = B[innerRowB * stride_B + innerColB];
-    } else {
-      Bs[innerRowB * BN + innerColB] = 0;
-    }
-    __syncthreads();
-
-    // Advance blocktile for the next iteration of this loop
-    A += BK;
-    B += BK * stride_B;
-
-    // calculate per-thread results
-    for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
-      // we make the dotproduct loop the outside loop, which facilitates
-      // reuse of the Bs entry, which we can cache in a tmp var.
-      Torus tmp = Bs[dotIdx * BN + threadCol];
-      for (uint resIdx = 0; resIdx < TM; ++resIdx) {
-        threadResults[resIdx] +=
-            As[(threadRow * TM + resIdx) * BK + dotIdx] * tmp;
-      }
-    }
-    __syncthreads();
-  }
-
-  // Initialize the pointer to the output block of size (BLOCK_SIZE_GEMM,
-  // BLOCK_SIZE_GEMM)
-  C += cRow * BM * N + cCol * BN;
-
-  // write out the results
-  for (uint resIdx = 0; resIdx < TM; ++resIdx) {
-    int outRow = cRow * BM + threadRow * TM + resIdx;
-    int outCol = cCol * BN + threadCol;
-
-    if (outRow >= M)
-      continue;
-    if (outCol >= N)
-      continue;
-
-    C[(threadRow * TM + resIdx) * N + threadCol] += threadResults[resIdx];
-  }
 }
 
 // Finish the keyswitching operation and prepare GLWEs for accumulation.
@@ -307,10 +202,14 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
 
   auto stride_KSK_buffer = glwe_accumulator_size * level_count;
 
+  // Shared memory requirement is 8192 bytes for 64-bit Torus elements
   uint32_t shared_mem_size = get_shared_mem_size_tgemm<Torus>();
+  if (shared_mem_size > 8192)
+    PANIC("GEMM kernel error: shared memory required might be too large");
+
   tgemm<Torus><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
       num_lwes, glwe_accumulator_size, lwe_dimension, d_mem_0, fp_ksk_array,
-      stride_KSK_buffer, d_mem_1);
+      stride_KSK_buffer, d_mem_1, glwe_accumulator_size);
   check_cuda_error(cudaGetLastError());
 
   auto ksk_block_size = glwe_accumulator_size;
@@ -323,7 +222,8 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
 
     tgemm<Torus><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
         num_lwes, glwe_accumulator_size, lwe_dimension, d_mem_0,
-        fp_ksk_array + li * ksk_block_size, stride_KSK_buffer, d_mem_1);
+        fp_ksk_array + li * ksk_block_size, stride_KSK_buffer, d_mem_1,
+        glwe_accumulator_size);
     check_cuda_error(cudaGetLastError());
   }
 

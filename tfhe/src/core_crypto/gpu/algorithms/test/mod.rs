@@ -2,6 +2,7 @@ use crate::core_crypto::algorithms::test::*;
 use crate::core_crypto::prelude::*;
 
 mod fft;
+mod glwe_dot_product_with_clear;
 mod glwe_sample_extraction;
 mod lwe_keyswitch;
 mod lwe_linear_algebra;
