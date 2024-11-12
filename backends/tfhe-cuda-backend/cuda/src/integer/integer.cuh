@@ -142,8 +142,10 @@ device_pack_bivariate_blocks(Torus *lwe_array_out, Torus const *lwe_indexes_out,
     int block_id = tid / (lwe_dimension + 1);
     int coeff_id = tid % (lwe_dimension + 1);
 
-    int pos_in = lwe_indexes_in[block_id] * (lwe_dimension + 1) + coeff_id;
-    int pos_out = lwe_indexes_out[block_id] * (lwe_dimension + 1) + coeff_id;
+    const int pos_in =
+        lwe_indexes_in[block_id] * (lwe_dimension + 1) + coeff_id;
+    const int pos_out =
+        lwe_indexes_out[block_id] * (lwe_dimension + 1) + coeff_id;
     lwe_array_out[pos_out] = lwe_array_1[pos_in] * shift + lwe_array_2[pos_in];
   }
 }
@@ -169,6 +171,50 @@ pack_bivariate_blocks(cudaStream_t const *streams, uint32_t const *gpu_indexes,
       <<<num_blocks, num_threads, 0, streams[0]>>>(
           lwe_array_out, lwe_indexes_out, lwe_array_1, lwe_array_2,
           lwe_indexes_in, lwe_dimension, shift, num_radix_blocks);
+  check_cuda_error(cudaGetLastError());
+}
+
+// polynomial_size threads
+template <typename Torus>
+__global__ void device_pack_bivariate_blocks_with_single_block(
+    Torus *lwe_array_out, Torus const *lwe_indexes_out,
+    Torus const *lwe_array_1, Torus const *lwe_2, Torus const *lwe_indexes_in,
+    uint32_t lwe_dimension, uint32_t shift, uint32_t num_blocks) {
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  if (tid < num_blocks * (lwe_dimension + 1)) {
+    int block_id = tid / (lwe_dimension + 1);
+    int coeff_id = tid % (lwe_dimension + 1);
+
+    const int pos_in =
+        lwe_indexes_in[block_id] * (lwe_dimension + 1) + coeff_id;
+    const int pos_out =
+        lwe_indexes_out[block_id] * (lwe_dimension + 1) + coeff_id;
+    lwe_array_out[pos_out] = lwe_array_1[pos_in] * shift + lwe_2[coeff_id];
+  }
+}
+
+/* Combine lwe_array_1 and lwe_2 so that each block m1 and lwe_2
+ *  becomes out = m1 * shift + lwe_2
+ *
+ *  This is for the special case when one of the operands is not an array
+ */
+template <typename Torus>
+__host__ void pack_bivariate_blocks_with_single_block(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_indexes_out,
+    Torus const *lwe_array_1, Torus const *lwe_2, Torus const *lwe_indexes_in,
+    uint32_t lwe_dimension, uint32_t shift, uint32_t num_radix_blocks) {
+
+  cudaSetDevice(gpu_indexes[0]);
+  // Left message is shifted
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = num_radix_blocks * (lwe_dimension + 1);
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  device_pack_bivariate_blocks_with_single_block<Torus>
+      <<<num_blocks, num_threads, 0, streams[0]>>>(
+          lwe_array_out, lwe_indexes_out, lwe_array_1, lwe_2, lwe_indexes_in,
+          lwe_dimension, shift, num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 }
 
