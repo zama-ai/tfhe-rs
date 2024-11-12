@@ -19,7 +19,6 @@ FAST_BENCH?=FALSE
 NIGHTLY_TESTS?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
 NODE_VERSION=22.6
-FORWARD_COMPAT?=OFF
 BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.git
 BACKWARD_COMPAT_DATA_BRANCH?=v0.4
 BACKWARD_COMPAT_DATA_PROJECT=tfhe-backward-compat-data
@@ -41,12 +40,6 @@ ifeq ($(GEN_KEY_CACHE_COVERAGE_ONLY),TRUE)
 		COVERAGE_ONLY=--coverage-only
 else
 		COVERAGE_ONLY=
-endif
-
-ifeq ($(FORWARD_COMPAT),ON)
-		FORWARD_COMPAT_FEATURE=forward_compatibility
-else
-		FORWARD_COMPAT_FEATURE=
 endif
 
 # Variables used only for regex_engine example
@@ -481,7 +474,7 @@ build_tfhe_coverage: install_rs_build_toolchain
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,$(FORWARD_COMPAT_FEATURE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok \
 		-p $(TFHE_SPEC)
 
 .PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
@@ -493,7 +486,7 @@ build_c_api_gpu: install_rs_check_toolchain
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,experimental-force_fft_algo_dif4 \
 		-p $(TFHE_SPEC)
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
