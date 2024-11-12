@@ -14,27 +14,14 @@ __host__ void zero_out_if(cudaStream_t const *streams,
   cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
 
-  int big_lwe_size = params.big_lwe_dimension + 1;
-
-  // Left message is shifted
-  int num_blocks = 0, num_threads = 0;
-  int num_entries = (params.big_lwe_dimension + 1);
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-
   // We can't use integer_radix_apply_bivariate_lookup_table_kb since the
-  // second operand is fixed
+  // second operand is not an array
   auto tmp_lwe_array_input = mem_ptr->tmp;
-  for (int i = 0; i < num_radix_blocks; i++) {
-    auto lwe_array_out_block = tmp_lwe_array_input + i * big_lwe_size;
-    auto lwe_array_input_block = lwe_array_input + i * big_lwe_size;
-
-    device_pack_bivariate_blocks<Torus>
-        <<<num_blocks, num_threads, 0, streams[0]>>>(
-            lwe_array_out_block, predicate->lwe_indexes_in,
-            lwe_array_input_block, lwe_condition, predicate->lwe_indexes_in,
-            params.big_lwe_dimension, params.message_modulus, 1);
-    check_cuda_error(cudaGetLastError());
-  }
+  pack_bivariate_blocks_with_single_block<Torus>(
+      streams, gpu_indexes, gpu_count, tmp_lwe_array_input,
+      predicate->lwe_indexes_in, lwe_array_input, lwe_condition,
+      predicate->lwe_indexes_in, params.big_lwe_dimension,
+      params.message_modulus, num_radix_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, tmp_lwe_array_input, bsks,
