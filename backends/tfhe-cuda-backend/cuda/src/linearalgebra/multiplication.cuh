@@ -86,4 +86,76 @@ host_cleartext_multiplication(cudaStream_t stream, uint32_t gpu_index,
   check_cuda_error(cudaGetLastError());
 }
 
+
+const int BLOCK_SIZE_GEMM = 64;
+const int THREADS_GEMM = 8;
+
+template <typename Torus, typename TorusVec>
+__global__ void tgemmVectorize1(int M, int N, int K, 
+                                  const Torus *A, const Torus *B,
+                                  Torus *C) {
+
+  const int BM = BLOCK_SIZE_GEMM;
+  const int BN = BLOCK_SIZE_GEMM;
+  const int BK = THREADS_GEMM;
+  const int TM = THREADS_GEMM;
+
+  const uint cRow = blockIdx.y;
+  const uint cCol = blockIdx.x;
+
+  const uint totalResultsBlocktile = BM * BN;
+  // A thread is responsible for calculating TM elements in the blocktile
+  const uint numThreadsBlocktile = totalResultsBlocktile / TM;
+
+  // each warp will calculate 32*TM elements, with 32 being the columnar dim.
+  const int threadCol = threadIdx.x % BN;
+  const int threadRow = threadIdx.x / BN;
+
+  // allocate space for the current blocktile in SMEM
+  __shared__ Torus As[BM * BK];
+  __shared__ Torus Bs[BK * BN];
+
+  // Move blocktile to beginning of A's row and B's column
+  A += cRow * BM * K;
+  B += cCol * BN;
+  C += cRow * BM * N + cCol * BN;
+
+  const uint innerColA = threadIdx.x % BK; // warp-level GMEM coalescing
+  const uint innerRowA = threadIdx.x / BK;
+  const uint innerColB = threadIdx.x % BN; // warp-level GMEM coalescing
+  const uint innerRowB = threadIdx.x / BN;
+
+  // allocate thread-local cache for results in registerfile
+  Torus threadResults[TM] = {0};
+
+  // outer loop over block tiles
+  for (uint bkIdx = 0; bkIdx < K; bkIdx += BK) {
+    // populate the SMEM caches
+    As[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
+    Bs[innerRowB * BN + innerColB] = B[innerRowB * N + innerColB];
+    __syncthreads();
+
+    // advance blocktile
+    A += BK;
+    B += BK * N;
+
+    // calculate per-thread results
+    for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
+      // we make the dotproduct loop the outside loop, which facilitates
+      // reuse of the Bs entry, which we can cache in a tmp var.
+      Torus tmp = Bs[dotIdx * BN + threadCol];
+      for (uint resIdx = 0; resIdx < TM; ++resIdx) {
+        threadResults[resIdx] +=
+            As[(threadRow * TM + resIdx) * BK + dotIdx] * tmp;
+      }
+    }
+    __syncthreads();
+  }
+
+  // write out the results
+  for (uint resIdx = 0; resIdx < TM; ++resIdx) {
+    C[(threadRow * TM + resIdx) * N + threadCol] = threadResults[resIdx];
+  }
+}
+
 #endif // CUDA_MULT_H

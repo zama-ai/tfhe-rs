@@ -13,9 +13,11 @@
 #include "torus.cuh"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
+#include "linearalgebra/multiplication.cuh"
 #include <thread>
 #include <vector>
 
+<<<<<<< HEAD
 #define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
 const int BLOCK_SIZE_GEMM = 64;
@@ -24,6 +26,14 @@ const int BLOCK_SIZE_DECOMP = 8;
 
 template <typename Torus> uint64_t get_shared_mem_size_tgemm() {
   return BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
+=======
+__host__ bool can_use_pks_fast_path(uint32_t lwe_dimension_in, uint32_t num_lwe, uint32_t polynomial_size, uint32_t level_count, uint32_t glwe_dimension)
+{
+  return lwe_dimension_in % BLOCK_SIZE_GEMM == 0 &&
+    num_lwe % BLOCK_SIZE_GEMM == 0 &&
+    level_count == 1 &&
+    glwe_dimension == 1;
+>>>>>>> da161c50 (feat: add poly product with circulant matrix)
 }
 
 // Initialize decomposition by performing rounding
