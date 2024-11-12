@@ -1561,6 +1561,46 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_wrapping_polynomial_mul_one_to_many_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        polynomial_size: u32,
+        circulant_buf: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_wrapping_polynomial_mul_one_to_many_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        circulant_buf: *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_wrapping_polynomial_mul_one_to_many_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        result: *mut ffi::c_void,
+        poly_lhs: *const ffi::c_void,
+        circulant: *mut i8,
+        poly_rhs: *const ffi::c_void,
+        polynomial_size: u32,
+        n_rhs: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_glwe_wrapping_polynomial_mul_one_to_many_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        result: *mut ffi::c_void,
+        poly_lhs: *const ffi::c_void,
+        circulant: *mut i8,
+        poly_rhs: *const ffi::c_void,
+        polynomial_size: u32,
+        glwe_dimension: u32,
+        n_rhs: u32,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_add_lwe_ciphertext_vector_plaintext_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,

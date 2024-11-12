@@ -99,7 +99,7 @@ endif()
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} ${OPTIMIZATION_FLAGS}\
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
-  --use_fast_math -Xcompiler -fPIC")
+  --use_fast_math -Xcompiler -fPIC ")
 
 set(INCLUDE_DIR include)
 

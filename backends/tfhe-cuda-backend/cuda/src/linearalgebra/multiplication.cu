@@ -1,4 +1,5 @@
 #include "linearalgebra/multiplication.cuh"
+#include "polynomial/dot_product.cuh"
 
 /*
  * Perform the multiplication of a u32 input LWE ciphertext vector with a u32
@@ -57,4 +58,42 @@ void cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
       static_cast<const uint64_t *>(lwe_array_in),
       static_cast<const uint64_t *>(cleartext_array_in), input_lwe_dimension,
       input_lwe_ciphertext_count);
+}
+
+void scratch_wrapping_polynomial_mul_one_to_many_64(void *stream,
+                                                    uint32_t gpu_index,
+                                                    uint32_t polynomial_size,
+                                                    int8_t **circulant_buf) {
+  scratch_wrapping_polynomial_mul_one_to_many<uint64_t>(
+      stream, gpu_index, polynomial_size, circulant_buf);
+}
+
+void cleanup_wrapping_polynomial_mul_one_to_many_64(void *stream,
+                                                    uint32_t gpu_index,
+                                                    int8_t *circulant_buf) {
+  cleanup_wrapping_polynomial_mul_one_to_many<uint64_t>(stream, gpu_index,
+                                                        circulant_buf);
+}
+
+void cuda_wrapping_polynomial_mul_one_to_many_64(
+    void *stream, uint32_t gpu_index, void *result, void const *poly_lhs,
+    int8_t *circulant, void const *poly_rhs, uint32_t polynomial_size,
+    uint32_t n_rhs) {
+
+  host_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(result), static_cast<uint64_t const *>(poly_lhs),
+      circulant, static_cast<uint64_t const *>(poly_rhs), polynomial_size, 0,
+      n_rhs);
+}
+
+void cuda_glwe_wrapping_polynomial_mul_one_to_many_64(
+    void *stream, uint32_t gpu_index, void *result, void const *glwe_lhs,
+    int8_t *circulant, void const *poly_rhs, uint32_t polynomial_size,
+    uint32_t glwe_dimension, uint32_t n_rhs) {
+  host_glwe_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(result), static_cast<uint64_t const *>(glwe_lhs),
+      circulant, static_cast<uint64_t const *>(poly_rhs), polynomial_size,
+      glwe_dimension, n_rhs);
 }
