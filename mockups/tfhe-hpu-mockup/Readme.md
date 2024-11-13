@@ -2,13 +2,36 @@
 
 
 ## Brief 
-Aims of this folder is to provide a dop-in-replacement of the real Hpu hardware.
-For this purpose, it replace the call to the low level driver with IPC communiciation.
-The mockup generate bit-accurate value and estimate the associated Hpu performances.
+Simulation _drop-in-replacemen_ implementation of Hpu Hardware.
+This mockup implementation could be paired seamlesly with `tfhe-hpu-backend` compiled without any hardware support (i.e. `hpu-xrt`).
+Indeed, without hardware support, `tfhe-hpu-backend` call to low-level ffi are replaced by IPC call and could be intercepted by this mockup implementation.
 
-On the user application side, no change has to be done. User should only build it's application without the `hpu-hw` feature.
-By this way, `tfhe-hpu-backend` fallback to the `ffi-sim` module for it's call to low-level driver.
-The `ffi-sim` replace driver call by ipc communication.
+Objectives of this mockup are as follow:
+* Transparent integration with User application:
+> User must have nothing to change to his application code.
+> Generated trace must match with the one obtained on the real hardware (except timestamp)
+
+* Stimulus generation
+> Obtain results must be bit-accurate in order to generate golden stimulus for RTL simulation
+> Rtl parameters must be fully configurable at runtime to easily generate stimulus for any configuration
+
+* Fw development
+> Generate accurate performances estimation and tracing capabilities to help the development/optimization of Hpu firmware
+
+### Mockup structure
+Without hardware support `tfhe-hpu-backend` fallback to a simulation ffi interface (i.e. `ffi-sim`). This interface bind to IPC channel and forward the ffi call over IPC with a simple Cmd/Payload message and Request/Ack protocol.
+The Mockup bind to those IPC and answer to request like the real hardware.
+On his side, the mockup answer to backend IPC request and simulate the hardware behavior. 
+The internal structure of the mockup is  organize around modules to emulate the hardware behavior. It contains the following modules:
+* `hbm`: Emulate HBM memory (only from a behavioral point of view). It enable to allocate/deallocate chunk of memory. Those chunk could be read/write through the IPC with the same Sync mechanisms as the real hardware.
+* `isc`: This module implement the `instruction_scheduler` behavior. It contains the performance model of the HPU. It reorder the DOp in a same manner as the RTL module and emulate Hpu's processing element availability with a simple cost model. + `pe`: Processing element cost model. Parameters are loaded from `.ron` file
+ + `pool`: Emulate the behavior of the instruction_scheduler pool used to store the state of the inflight instructions
+ + `scheduler`: Used query in the `pool` and dispatch req to Pe.
+* `regmap`: Emulate the Rtl register map. It convert concrete Tfhe/Rtl parameters into register value.
+* `ucore`: Emulate the ucore behavior. It is in charge of reading the DOp stream from the HBM and patch the template operation in a same manner as the ucode embedded in the real hardware.
+
+
+TODO add picture
 
 ## HowTo
 The Mockup is a standalone binary that must be run before the User application code.
