@@ -1037,6 +1037,50 @@ extern "C" {
     );
 }
 extern "C" {
+    pub fn scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        is_signed: bool,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+    );
+}
+extern "C" {
+    pub fn cuda_integer_abs_inplace_radix_ciphertext_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        ct: *mut ffi::c_void,
+        mem_ptr: *mut i8,
+        is_signed: bool,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        num_blocks: u32,
+    );
+}
+extern "C" {
+    pub fn cleanup_cuda_integer_abs_inplace(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+extern "C" {
     pub fn cuda_keyswitch_lwe_ciphertext_vector_32(
         stream: *mut ffi::c_void,
         gpu_index: u32,
