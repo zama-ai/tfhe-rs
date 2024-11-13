@@ -196,6 +196,10 @@ impl Scheduler {
         if !self.rd_unlock.is_empty() {
             let kind_mh = self.rd_unlock_kind();
             let (kind_1h, slot) = self.pool.rd_unlock(kind_mh);
+            //NB: Operation behavior is executed at the rd_unlock staage to prevent later operation to clutter the source operands.
+            // The dst register is then available in advance, but not used before it's real availability due to wr_lock.
+            // -> Another option would have been to buffer the source operands. However, due to the operands size, we had prefered to move the behavioral execution at the rd_unlock stage
+            self.dop_exec.push(slot.inst.op.clone());
 
             self.trace.push(Trace {
                 timestamp: self.sim_cycles,
@@ -210,7 +214,6 @@ impl Scheduler {
             let kind_mh = self.wr_unlock_kind();
             let slot = self.pool.retire(kind_mh);
             self.ack_wr_unlock(slot.inst.kind);
-            self.dop_exec.push(slot.inst.op.clone());
 
             self.trace.push(Trace {
                 timestamp: self.sim_cycles,
