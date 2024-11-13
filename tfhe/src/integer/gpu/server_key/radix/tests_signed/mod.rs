@@ -1,3 +1,4 @@
+pub(crate) mod test_abs;
 pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_cmux;

@@ -24,6 +24,7 @@ use crate::shortint::server_key::{
 };
 use crate::shortint::PBSOrder;
 
+mod abs;
 mod add;
 mod bitwise_op;
 mod cmux;

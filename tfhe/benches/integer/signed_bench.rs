@@ -1602,6 +1602,10 @@ mod cuda {
         display_name: neg
     );
 
+    define_cuda_server_key_bench_clean_input_signed_unary_fn!(
+        method_name: unchecked_abs,
+        display_name: abs
+    );
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_mul,
         display_name: mul
@@ -1842,6 +1846,11 @@ mod cuda {
         display_name: neg
     );
 
+    define_cuda_server_key_bench_clean_input_signed_unary_fn!(
+        method_name: abs,
+        display_name: abs
+    );
+
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: mul,
         display_name: mul
@@ -2056,6 +2065,7 @@ mod cuda {
         cuda_unchecked_add,
         cuda_unchecked_sub,
         cuda_unchecked_neg,
+        cuda_unchecked_abs,
         cuda_unchecked_mul,
         cuda_unchecked_bitand,
         cuda_unchecked_bitnot,
@@ -2105,6 +2115,7 @@ mod cuda {
         cuda_add,
         cuda_sub,
         cuda_neg,
+        cuda_abs,
         cuda_mul,
         cuda_bitand,
         cuda_bitnot,

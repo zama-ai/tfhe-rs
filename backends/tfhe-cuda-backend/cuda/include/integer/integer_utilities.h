@@ -3012,4 +3012,52 @@ template <typename Torus> struct int_scalar_mul_buffer {
   }
 };
 
+template <typename Torus> struct int_abs_buffer {
+  int_radix_params params;
+
+  int_arithmetic_scalar_shift_buffer<Torus> *arithmetic_scalar_shift_mem;
+  int_sc_prop_memory<Torus> *scp_mem;
+  int_bitop_buffer<Torus> *bitxor_mem;
+
+  Torus *mask;
+  int_abs_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+                 uint32_t gpu_count, int_radix_params params,
+                 uint32_t num_radix_blocks, bool allocate_gpu_memory) {
+    this->params = params;
+
+    if (allocate_gpu_memory) {
+      arithmetic_scalar_shift_mem =
+          new int_arithmetic_scalar_shift_buffer<Torus>(
+              streams, gpu_indexes, gpu_count,
+              SHIFT_OR_ROTATE_TYPE::RIGHT_SHIFT, params, num_radix_blocks,
+              allocate_gpu_memory);
+      scp_mem =
+          new int_sc_prop_memory<Torus>(streams, gpu_indexes, gpu_count, params,
+                                        num_radix_blocks, allocate_gpu_memory);
+      bitxor_mem = new int_bitop_buffer<Torus>(
+          streams, gpu_indexes, gpu_count, BITOP_TYPE::BITXOR, params,
+          num_radix_blocks, allocate_gpu_memory);
+
+      uint32_t lwe_size = params.big_lwe_dimension + 1;
+      uint32_t lwe_size_bytes = lwe_size * sizeof(Torus);
+
+      mask = (Torus *)cuda_malloc_async(num_radix_blocks * lwe_size_bytes,
+                                        streams[0], gpu_indexes[0]);
+    }
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+    arithmetic_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
+    scp_mem->release(streams, gpu_indexes, gpu_count);
+    bitxor_mem->release(streams, gpu_indexes, gpu_count);
+
+    delete arithmetic_scalar_shift_mem;
+    delete scp_mem;
+    delete bitxor_mem;
+
+    cuda_drop_async(mask, streams[0], gpu_indexes[0]);
+  }
+};
+
 #endif // CUDA_INTEGER_UTILITIES_H
