@@ -21,10 +21,10 @@ set xtics 2
 # ==============================================================================
 #   Level
 #
-set xrange [0:21]
+set xrange [0:30]
 
 #~ do for [nu=9:14] {
-do for [nu=8:12] {
+do for [nu=8:14] {
 #~ do for [k=1:2] {
 do for [k=1:3] {
     if (nu==8 && k==1) {continue} # no data points here
@@ -74,11 +74,11 @@ do for [k=1:3] {
 # ==============================================================================
 #   Log-Base
 #
-set xrange [0:25]
+set xrange [0:30]
 #~ set xtics 2
 
 #~ do for [nu=9:14] {
-do for [nu=8:12] {
+do for [nu=8:14] {
 #~ do for [k=1:2] {
 do for [k=1:3] {
     if (nu==8 && k==1) {continue} # no data points here
@@ -88,7 +88,7 @@ do for [k=1:3] {
 
     # ----    Measured & Predicted Noise    ------------------------------------
     set logscale y # 2 or 10
-    set yrange [1e13:1e27]
+    set yrange [1e13:1e30]
     # or: set datafile missing NaN
     x0 = y0 = NaN
     cmd_4 = "plot "
@@ -119,7 +119,7 @@ do for [k=1:3] {
 # ==============================================================================
 #   Poly-Deg N
 #
-set xrange [128:8192]
+set xrange [192:24576]
 set logscale x
 #~ set xtics 2
 
@@ -130,7 +130,7 @@ do for [logb=1:5] {
 
     # ----    Measured & Predicted Noise    ------------------------------------
     set logscale y # 2 or 10
-    set yrange [1e12:2e18]
+    set yrange [1e12:1e20]
     #~ set yrange [0:5e15]
     # or: set datafile missing NaN
     x0 = y0 = NaN
