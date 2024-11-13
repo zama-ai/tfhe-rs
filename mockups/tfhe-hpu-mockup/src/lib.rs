@@ -66,6 +66,12 @@ pub struct HpuSim {
     /// Conversion from Hpu->Cpu is costly. Thuse store it in the object to prevent extra
     /// computation
     sks: Option<ServerKey>,
+
+    // Execute history --------------------------------------------------------
+    #[cfg(feature = "isc-order-check")]
+    dops_exec_order: Vec<hpu_asm::DOp>,
+    #[cfg(feature = "isc-order-check")]
+    dops_check_order: Vec<hpu_asm::DOp>,
 }
 
 impl HpuSim {
@@ -78,7 +84,6 @@ impl HpuSim {
             };
             Ipc::new(&name)
         };
-
         // Allocate register map emulation
         let regmap = RegisterMap::new(params.rtl_params.clone(), &config.fpga.regmap);
 
@@ -116,6 +121,10 @@ impl HpuSim {
             iop_req: VecDeque::new(),
             iop_pdg: VecDeque::new(),
             sks: None,
+            #[cfg(feature = "isc-order-check")]
+            dops_exec_order: Vec::new(),
+            #[cfg(feature = "isc-order-check")]
+            dops_check_order: Vec::new(),
         }
     }
 
@@ -209,7 +218,6 @@ impl HpuSim {
             // Issue IOp requests to isc
             while let Some(iop) = self.iop_req.pop_front() {
                 let dops = self.ucore.translate(self.hbm_bank.as_slice(), &iop);
-
                 // Write required input material if needed
                 if let Some(dump_path) = self.options.dump_out.as_ref() {
                     let iop_hex = iop.bin_encode_le().unwrap();
@@ -230,6 +238,10 @@ impl HpuSim {
                     hpu_asm::write_hex(&iop_as_header, &dops, &hex_p).unwrap();
                 }
 
+                // Use to check correct scheduling at runtime
+                #[cfg(feature = "isc-order-check")]
+                self.dops_check_order.extend_from_slice(dops.as_slice());
+
                 // Push associated dops to scheduler
                 self.isc.insert_dops(dops);
                 self.iop_pdg.push_back(iop);
@@ -246,6 +258,11 @@ impl HpuSim {
                 let dops_exec = self.isc.schedule(bpip_timeout);
                 for dop in dops_exec {
                     self.exec(&dop);
+                    #[cfg(feature = "isc-order-check")]
+                    {
+                        self.check_order(&dop);
+                        self.dops_exec_order.push(dop);
+                    }
                 }
             }
         }
@@ -285,17 +302,14 @@ impl HpuSim {
                     .collect::<Vec<_>>();
 
                 let hw_slice = dst.as_mut_view().into_container();
-                std::iter::zip(hw_slice, ct_chunk).for_each(
-                    |(hpu, hbm)| {
-                        // NB: hbm chunk are extended to enforce page align buffer
-                        // -> To prevent error during copy, with shrink the hbm buffer to the
-                        // real   size before-hand
-                        let size_b = std::mem::size_of_val(hpu);
-                        let hbm_u64 =
-                            bytemuck::cast_slice::<u8, u64>(&hbm.data.as_slice()[0..size_b]);
-                        hpu.clone_from_slice(hbm_u64);
-                    },
-                );
+                std::iter::zip(hw_slice, ct_chunk).for_each(|(hpu, hbm)| {
+                    // NB: hbm chunk are extended to enforce page align buffer
+                    // -> To prevent error during copy, with shrink the hbm buffer to the
+                    // real   size before-hand
+                    let size_b = std::mem::size_of_val(hpu);
+                    let hbm_u64 = bytemuck::cast_slice::<u8, u64>(&hbm.data.as_slice()[0..size_b]);
+                    hpu.clone_from_slice(hbm_u64);
+                });
             }
             hpu_asm::DOp::TLDA(_) | hpu_asm::DOp::TLDB(_) | hpu_asm::DOp::TLDH(_) => panic!(
                 "Templated operation mustn't reach the Hpu execution
@@ -408,6 +422,9 @@ impl HpuSim {
                     .iop_pdg
                     .pop_front()
                     .expect("SYNC received but no pending IOp to acknowledge");
+                let iop_hex = iop.bin_encode_le().unwrap();
+                let iop_opcode = iop_hex.last().unwrap();
+                let iop_as_header = format!("# {}", iop.asm_encode(0));
 
                 // Bytes are in little-endian but written from first to last line
                 // To keep correct endianness -> reverse the chunked vector
@@ -437,6 +454,21 @@ impl HpuSim {
                     trace
                         .into_iter()
                         .for_each(|pt| writeln!(trace_file, "{pt}").unwrap());
+                }
+
+                // Generate executed DOp order
+                #[cfg(feature = "isc-order-check")]
+                if let Some(dump_path) = self.options.dump_out.as_ref() {
+                    let asm_p = format!("{dump_path}/dop/dop_{iop_opcode:x}_executed.asm");
+                    hpu_asm::write_asm(
+                        &iop_as_header,
+                        &self.dops_exec_order,
+                        &asm_p,
+                        hpu_asm::ARG_MIN_WIDTH,
+                    )
+                    .unwrap();
+                    let hex_p = format!("{dump_path}/iop/iop_{iop_opcode:x}_executed.hex");
+                    hpu_asm::write_hex("", self.dops_exec_order.as_slice(), &hex_p).unwrap();
                 }
             }
         }
@@ -639,5 +671,62 @@ impl HpuSim {
                     slice.write_hex(&mut wr_f, LINE_WIDTH_BYTES, Some("XX"));
                 }
             });
+    }
+}
+
+#[cfg(feature = "isc-order-check")]
+impl HpuSim {
+    /// Check for RAW/WAR violation at runtime
+    fn check_order(&mut self, exec_dop: &hpu_asm::DOp) {
+        let exec_pos = self
+            .dops_check_order
+            .iter()
+            .enumerate()
+            .filter(|(_i, d)| exec_dop == *d)
+            .map(|(i, _d)| i)
+            .collect::<Vec<_>>()[0];
+
+        // Check collision with all DOp before
+        for dop in self.dops_check_order[0..exec_pos].iter() {
+            // Read after Write check
+            let raw_err = if let Some(dst) = exec_dop.dst().get(0) {
+                dop.src()
+                    .iter()
+                    .map(|src| src == dst)
+                    .fold(false, |acc, cur| acc || cur)
+            } else {
+                false
+            };
+
+            // Write afer read check
+            // Mainly associated register is read before the expected write
+            let war_err = if let Some(dop_dst) = dop.dst().get(0) {
+                exec_dop
+                    .src()
+                    .iter()
+                    .map(|src| src == dop_dst)
+                    .fold(false, |acc, cur| acc || cur)
+            } else {
+                false
+            };
+
+            if raw_err {
+                tracing::warn!(
+                    "RAW_ERR {} -> {}",
+                    exec_dop.asm_encode(0),
+                    dop.asm_encode(0)
+                );
+            }
+            if war_err {
+                tracing::warn!(
+                    "WAR_ERR {} -> {}",
+                    exec_dop.asm_encode(0),
+                    dop.asm_encode(0)
+                );
+            }
+        }
+
+        // Remove exec_dop from the list
+        self.dops_check_orders.remove(exec_pos);
     }
 }

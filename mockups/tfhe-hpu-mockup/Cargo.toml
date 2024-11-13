@@ -7,6 +7,7 @@ readme = "README.md"
 
 [features]
 default = []
+runtime-check = []
 
 [dependencies]
 tfhe = { path= "../../tfhe", features = ["shortint", "ntt-bnf", "hpu", "hpu-debug"] }

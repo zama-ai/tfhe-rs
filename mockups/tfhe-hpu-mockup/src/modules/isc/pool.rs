@@ -70,6 +70,7 @@ impl Pool {
             ..Default::default()
         };
         self.idx_matchs(filter).into_iter().for_each(|idx| {
+            tracing::trace!("RdLock decrement -> {:?}", self.store[idx]);
             // TODO dig in this condition
             // Find a case that required the underflow filtering
             if self.store[idx].state.rd_lock != 0 {
@@ -110,6 +111,7 @@ impl Pool {
             ..Default::default()
         };
         self.idx_matchs(filter).into_iter().for_each(|idx| {
+            tracing::trace!("WrLock decrement -> {:?}", self.store[idx]);
             if self.store[idx].state.wr_lock != 0 {
                 self.store[idx].state.wr_lock -= 1;
             }
@@ -123,6 +125,7 @@ impl Pool {
             ..Default::default()
         };
         self.idx_matchs(filter).into_iter().for_each(|idx| {
+            tracing::trace!("SyncLock decrement -> {:?}", self.store[idx]);
             if self.store[idx].state.wr_lock != 0 {
                 self.store[idx].state.wr_lock -= 1;
             }
@@ -146,6 +149,8 @@ impl Pool {
         let srcb_id = ArgId::from_srcb(&dop);
 
         // 1. Compute (wr_lock, rd_lock)
+        // RdLock -> #instruction before us that need to READ into our destination
+        // WrLock -> #instruction before us that need to Write into one of our sources
         let (wr_lock, rd_lock) = if op_kind == InstructionKind::Sync {
             // Count vld instruction that match with sync_id
             let filter = Filter {
@@ -193,6 +198,7 @@ impl Pool {
                 pdg: false,
             },
         };
+        tracing::debug!("Refill with {slot:?}");
         self.store.push(slot);
         self.store.last().unwrap()
     }
@@ -296,14 +302,16 @@ impl Pool {
             })
             .filter(|(_, elem)| {
                 if let Some(dst) = &filter.dst_on_srcs {
-                    (elem.inst.srca_id == *dst) || (elem.inst.srcb_id == *dst)
+                    dst.mode != DOpMode::Unused
+                        && ((elem.inst.srca_id == *dst) || (elem.inst.srcb_id == *dst))
                 } else {
                     true
                 }
             })
             .filter(|(_, elem)| {
                 if let Some((srca, srcb)) = &filter.srcs_on_dst {
-                    (elem.inst.dst_id == *srca) || (elem.inst.dst_id == *srcb)
+                    ((srca.mode != DOpMode::Unused) && (elem.inst.dst_id == *srca))
+                        || ((srcb.mode != DOpMode::Unused) && (elem.inst.dst_id == *srcb))
                 } else {
                     true
                 }
