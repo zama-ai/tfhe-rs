@@ -40,6 +40,9 @@ jobs:
       shortint_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.shortint_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
+      strings_test: ${{ env.IS_PULL_REQUEST == 'false' ||
+        steps.changed-files.outputs.strings_any_changed ||
+        steps.changed-files.outputs.dependencies_any_changed }}
       high_level_api_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.high_level_api_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
@@ -84,6 +87,11 @@ jobs:
             shortint:
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**
+            strings:
+              - tfhe/src/core_crypto/**
+              - tfhe/src/shortint/**
+              - tfhe/src/integer/**
+              - tfhe/src/strings/**
             high_level_api:
               - tfhe/src/**
               - '!tfhe/src/c_api/**'
@@ -113,6 +121,7 @@ jobs:
           steps.changed-files.outputs.core_crypto_any_changed == 'true' ||
           steps.changed-files.outputs.boolean_any_changed == 'true' ||
           steps.changed-files.outputs.shortint_any_changed == 'true' ||
+          steps.changed-files.outputs.strings_any_changed == 'true' ||
           steps.changed-files.outputs.high_level_api_any_changed == 'true' ||
           steps.changed-files.outputs.c_api_any_changed == 'true' ||
           steps.changed-files.outputs.examples_any_changed == 'true' ||
@@ -201,6 +210,11 @@ jobs:
         if: needs.should-run.outputs.shortint_test == 'true'
         run: |
           BIG_TESTS_INSTANCE=TRUE make test_shortint_ci
+
+      - name: Run strings tests
+        if: needs.should-run.outputs.strings_test == 'true'
+        run: |
+          BIG_TESTS_INSTANCE=TRUE make test_strings
 
       - name: Run high-level API tests
         if: needs.should-run.outputs.high_level_api_test == 'true'
