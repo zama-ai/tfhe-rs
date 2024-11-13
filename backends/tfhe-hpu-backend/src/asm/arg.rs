@@ -185,7 +185,7 @@ impl MemSlot {
 
 /// Generic arguments
 /// Used to pack argument under the same type
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Arg {
     RegId(usize),
     MemId(MemSlot),

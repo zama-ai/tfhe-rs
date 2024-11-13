@@ -32,6 +32,13 @@ macro_rules! pbs_lut {
                     $deg(params, deg)
                 }
             }
+
+            impl PartialEq for [<Pbs $pbs:camel>] {
+                fn eq(&self, other: &Self) -> bool {
+                    self.gid() == other.gid()
+                }
+            }
+            impl Eq for [<Pbs $pbs:camel>] {}
         }
     };
 }
