@@ -127,6 +127,16 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
 
   // phase 3
   auto input_carry = &input_carries[(num_blocks - 1) * big_lwe_size];
+  if (op == SIGNED_OPERATION::SUBTRACTION && num_blocks == 1) {
+    // Quick fix for the case where the subtraction is done on a single block
+    Torus *one_scalar =
+        (Torus *)cuda_malloc_async(sizeof(Torus), streams[0], gpu_indexes[0]);
+    cuda_set_value_async<Torus>(streams[0], gpu_indexes[0], one_scalar, 1, 1);
+    create_trivial_radix<Torus>(
+        streams[0], gpu_indexes[0], input_carry, one_scalar, big_lwe_dimension,
+        1, 1, radix_params.message_modulus, radix_params.carry_modulus);
+    cuda_drop_async(one_scalar, streams[0], gpu_indexes[0]);
+  }
 
   host_resolve_signed_overflow<Torus>(
       streams, gpu_indexes, gpu_count, overflowed, last_block_inner_propagation,
