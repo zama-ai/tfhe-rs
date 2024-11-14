@@ -506,7 +506,7 @@ pub fn compute_crs_params(
     };
 
     if bound_type == Bound::GHL {
-        B_bound_squared /= 10000;
+        B_bound_squared = B_bound_squared.div_ceil(10000);
     }
 
     // Formula is round_up(1 + B_bound.ilog2()).
@@ -2422,6 +2422,7 @@ mod tests {
         msbs_zero_padding_bit_count: 1,
     };
 
+    /// Test that the proof is rejected if we use a different value between encryption and proof
     #[test]
     fn test_pke() {
         let PkeTestParameters {
@@ -2545,6 +2546,326 @@ mod tests {
         }
     }
 
+    fn prove_and_verify<G: Curve>(
+        testcase: &PkeTestcase,
+        crs: &PublicParams<G>,
+        load: ComputeLoad,
+        rng: &mut StdRng,
+    ) -> VerificationResult {
+        let ct = testcase.encrypt_unchecked(PKEV2_TEST_PARAMS);
+
+        let (public_commit, private_commit) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            crs,
+            rng,
+        );
+
+        let proof = prove_impl(
+            (crs, &public_commit),
+            &private_commit,
+            &testcase.metadata,
+            load,
+            rng,
+            ProofSanityCheckMode::Ignore,
+        );
+
+        if verify(&proof, (crs, &public_commit), &testcase.metadata).is_ok() {
+            VerificationResult::Accept
+        } else {
+            VerificationResult::Reject
+        }
+    }
+
+    fn assert_prove_and_verify<G: Curve>(
+        testcase: &PkeTestcase,
+        testcase_name: &str,
+        crs: &PublicParams<G>,
+        rng: &mut StdRng,
+        expected_result: VerificationResult,
+    ) {
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            assert_eq!(
+                prove_and_verify(testcase, crs, load, rng),
+                expected_result,
+                "Testcase {testcase_name} failed"
+            )
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    enum BoundTestSlackMode {
+        /// Generate test noise vectors with all coeffs at 0 except one
+        // Here ||e||inf == ||e||2 so the slack is the biggest, since B is multiplied by
+        // sqrt(d+k) anyways
+        Max,
+        /// Generate test noise vectors with random coeffs and one just around the bound
+        // Here the slack should be "average"
+        Avg,
+        /// Generate test noise vectors with all coeffs equals to B except one at +/-1
+        // Here the slack should be minimal since ||e||_2 = sqrt(d+k)*||e||_inf, which is exactly
+        // what we are proving.
+        Min,
+    }
+
+    impl Display for BoundTestSlackMode {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                BoundTestSlackMode::Min => write!(f, "min_slack"),
+                BoundTestSlackMode::Avg => write!(f, "avg_slack"),
+                BoundTestSlackMode::Max => write!(f, "max_slack"),
+            }
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    enum TestedCoeffOffsetType {
+        /// Noise term is after the bound, the proof should be refused
+        After,
+        /// Noise term is right on the bound, the proof should be accepted
+        On,
+        /// Noise term is before the bound, the proof should be accepted
+        Before,
+    }
+
+    impl Display for TestedCoeffOffsetType {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                TestedCoeffOffsetType::After => write!(f, "after_bound"),
+                TestedCoeffOffsetType::On => write!(f, "on_bound"),
+                TestedCoeffOffsetType::Before => write!(f, "before_bound"),
+            }
+        }
+    }
+
+    impl TestedCoeffOffsetType {
+        fn offset(self) -> i64 {
+            match self {
+                TestedCoeffOffsetType::After => 1,
+                TestedCoeffOffsetType::On => 0,
+                TestedCoeffOffsetType::Before => -1,
+            }
+        }
+
+        fn expected_result(self) -> VerificationResult {
+            match self {
+                TestedCoeffOffsetType::After => VerificationResult::Reject,
+                TestedCoeffOffsetType::On => VerificationResult::Accept,
+                TestedCoeffOffsetType::Before => VerificationResult::Accept,
+            }
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    enum TestedCoeffType {
+        E1,
+        E2,
+    }
+
+    impl Display for TestedCoeffType {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                TestedCoeffType::E1 => write!(f, "e1"),
+                TestedCoeffType::E2 => write!(f, "e2"),
+            }
+        }
+    }
+
+    struct PkeBoundTestcase {
+        name: String,
+        testcase: PkeTestcase,
+        expected_result: VerificationResult,
+    }
+
+    impl PkeBoundTestcase {
+        fn new(
+            ref_testcase: &PkeTestcase,
+            B: u64,
+            slack_mode: BoundTestSlackMode,
+            offset_type: TestedCoeffOffsetType,
+            coeff_type: TestedCoeffType,
+            rng: &mut StdRng,
+        ) -> Self {
+            let mut testcase = ref_testcase.clone();
+
+            let d = testcase.e1.len();
+            let k = testcase.e2.len();
+
+            // Select a random index for the tested term
+            let tested_idx = match coeff_type {
+                TestedCoeffType::E1 => rng.gen::<usize>() % d,
+                TestedCoeffType::E2 => rng.gen::<usize>() % k,
+            };
+
+            // Initialize the "good" terms of the error, that are not above the bound
+            match slack_mode {
+                BoundTestSlackMode::Max => {
+                    // In this mode, all the terms are 0 except the tested one
+                    testcase.e1 = vec![0; d];
+                    testcase.e2 = vec![0; k];
+                }
+                BoundTestSlackMode::Avg => {
+                    // In this mode we keep the original random vector
+                }
+                BoundTestSlackMode::Min => {
+                    // In this mode all the terms are exactly at the bound
+                    let good_term = B as i64;
+                    testcase.e1 = (0..d)
+                        .map(|_| if rng.gen() { good_term } else { -good_term })
+                        .collect();
+                    testcase.e2 = (0..k)
+                        .map(|_| if rng.gen() { good_term } else { -good_term })
+                        .collect();
+                }
+            };
+
+            let B_with_slack_squared = inf_norm_bound_to_euclidean_squared(B, d + k);
+            let B_with_slack = isqrt(B_with_slack_squared) as u64;
+
+            let bound = match slack_mode {
+                // The slack is maximal, any term above B+slack should be refused
+                BoundTestSlackMode::Max => B_with_slack as i64,
+                // The actual accepted bound depends on the content of the test vector
+                BoundTestSlackMode::Avg => {
+                    let e_sqr_norm = testcase
+                        .e1
+                        .iter()
+                        .chain(&testcase.e2)
+                        .map(|x| sqr(x.unsigned_abs() as u128))
+                        .sum::<u128>();
+
+                    let orig_value = match coeff_type {
+                        TestedCoeffType::E1 => testcase.e1[tested_idx],
+                        TestedCoeffType::E2 => testcase.e2[tested_idx],
+                    };
+
+                    let bound_squared =
+                        B_with_slack_squared - (e_sqr_norm - sqr(orig_value as u128));
+                    isqrt(bound_squared) as i64
+                }
+                // There is no slack effect, any term above B should be refused
+                BoundTestSlackMode::Min => B as i64,
+            };
+
+            let tested_term = bound + offset_type.offset();
+
+            match coeff_type {
+                TestedCoeffType::E1 => testcase.e1[tested_idx] = tested_term,
+                TestedCoeffType::E2 => testcase.e2[tested_idx] = tested_term,
+            };
+
+            Self {
+                name: format!("test_{slack_mode}_{offset_type}_{coeff_type}"),
+                testcase,
+                expected_result: offset_type.expected_result(),
+            }
+        }
+    }
+
+    /// Test that the proof is rejected if we use a noise outside of the bounds, taking the slack
+    /// into account
+    #[test]
+    fn test_pke_bad_noise() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+
+        type Curve = curve_api::Bls12_446;
+
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+        let crs_max_k = crs_gen::<Curve>(d, d, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        let B_with_slack_squared = inf_norm_bound_to_euclidean_squared(B, d + k);
+        let B_with_slack_upper = isqrt(B_with_slack_squared) as u64 + 1;
+
+        // Generate test noise vectors with random coeffs and one completely out of bounds
+
+        let mut testcases = Vec::new();
+        let mut testcase_bad_e1 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % d;
+        let bad_term =
+            (rng.gen::<u64>() % (i64::MAX as u64 - B_with_slack_upper)) + B_with_slack_upper;
+        let bad_term = bad_term as i64;
+
+        testcase_bad_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        testcases.push(PkeBoundTestcase {
+            name: "testcase_bad_e1".to_string(),
+            testcase: testcase_bad_e1,
+            expected_result: VerificationResult::Reject,
+        });
+
+        let mut testcase_bad_e2 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % k;
+
+        testcase_bad_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        testcases.push(PkeBoundTestcase {
+            name: "testcase_bad_e2".to_string(),
+            testcase: testcase_bad_e2,
+            expected_result: VerificationResult::Reject,
+        });
+
+        // Generate test vectors with a noise term right around the bound
+
+        testcases.extend(
+            itertools::iproduct!(
+                [
+                    BoundTestSlackMode::Min,
+                    BoundTestSlackMode::Avg,
+                    BoundTestSlackMode::Max
+                ],
+                [
+                    TestedCoeffOffsetType::Before,
+                    TestedCoeffOffsetType::On,
+                    TestedCoeffOffsetType::After
+                ],
+                [TestedCoeffType::E1, TestedCoeffType::E2]
+            )
+            .map(|(slack_mode, offset_type, coeff_type)| {
+                PkeBoundTestcase::new(&testcase, B, slack_mode, offset_type, coeff_type, rng)
+            }),
+        );
+
+        for PkeBoundTestcase {
+            name,
+            testcase,
+            expected_result,
+        } in testcases
+        {
+            assert_prove_and_verify(
+                &testcase,
+                &format!("{name}_crs"),
+                &crs,
+                rng,
+                expected_result,
+            );
+            assert_prove_and_verify(
+                &testcase,
+                &format!("{name}_crs_max_k"),
+                &crs_max_k,
+                rng,
+                expected_result,
+            );
+        }
+    }
+
+    /// Test that the proof is rejected if we don't have the padding bit set to 0
     #[test]
     fn test_pke_w_padding_fail_verify() {
         let PkeTestParameters {
@@ -2621,6 +2942,7 @@ mod tests {
         }
     }
 
+    /// Test compression of proofs
     #[test]
     fn test_proof_compression() {
         let PkeTestParameters {
@@ -2673,6 +2995,7 @@ mod tests {
         }
     }
 
+    /// Test the `is_usable` method, that checks the correctness of the EC points in the proof
     #[test]
     fn test_proof_usable() {
         let PkeTestParameters {
