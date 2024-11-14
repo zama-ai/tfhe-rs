@@ -102,6 +102,7 @@ gpu = ["dep:tfhe-cuda-backend"]
 zk-pok = ["dep:tfhe-zk-pok"]
 
 pbs-stats = []
+noise-asserts = []
 
 # Experimental section
 experimental = []

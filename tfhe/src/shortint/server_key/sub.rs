@@ -401,7 +401,10 @@ impl ServerKey {
 
         lwe_ciphertext_add_assign(&mut ct_left.ct, &neg_right.ct);
 
-        ct_left.set_noise_level(ct_left.noise_level() + ct_right.noise_level());
+        ct_left.set_noise_level(
+            ct_left.noise_level() + ct_right.noise_level(),
+            self.max_noise_level,
+        );
         ct_left.degree = Degree::new(ct_left.degree.get() + z as usize);
 
         z

@@ -843,7 +843,7 @@ impl ServerKey {
         });
 
         ct.degree = acc.degree;
-        ct.set_noise_level(NoiseLevel::NOMINAL);
+        ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
     }
 
     /// Compute a keyswitch and programmable bootstrap applying several functions on an input
@@ -1172,7 +1172,7 @@ impl ServerKey {
         trivially_encrypt_lwe_ciphertext(&mut ct.ct, encoded);
 
         ct.degree = Degree::new(modular_value);
-        ct.set_noise_level(NoiseLevel::ZERO);
+        ct.set_noise_level(NoiseLevel::ZERO, self.max_noise_level);
     }
 
     pub fn bootstrapping_key_size_elements(&self) -> usize {
@@ -1326,7 +1326,7 @@ impl ServerKey {
             );
 
             output_shortint_ct.degree = *output_degree;
-            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL);
+            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
             outputs.push(output_shortint_ct);
         }
 
@@ -1377,7 +1377,7 @@ impl ServerKey {
             );
 
             output_shortint_ct.degree = *output_degree;
-            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL);
+            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
             outputs.push(output_shortint_ct);
         }
 

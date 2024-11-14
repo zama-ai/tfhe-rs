@@ -183,7 +183,10 @@ impl<'a> Comparator<'a> {
 
         // Here we need the true lwe sub, not the one that comes from shortint.
         crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs.ct, &rhs.ct);
-        lhs.set_noise_level(lhs.noise_level() + rhs.noise_level());
+        lhs.set_noise_level(
+            lhs.noise_level() + rhs.noise_level(),
+            self.server_key.key.max_noise_level,
+        );
         self.server_key
             .key
             .apply_lookup_table_assign(lhs, &self.sign_lut);
