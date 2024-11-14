@@ -69,9 +69,6 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t lut_count, uint32_t lut_stride) {
 
-  if (base_log > 32)
-    PANIC("Cuda error (multi-bit PBS): base log should be <= 32")
-
   switch (polynomial_size) {
   case 256:
     host_cg_multi_bit_programmable_bootstrap<Torus, AmortizedDegree<256>>(
@@ -147,9 +144,6 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t lut_count, uint32_t lut_stride) {
 
-  if (base_log > 32)
-    PANIC("Cuda error (multi-bit PBS): base log should be <= 32")
-
   switch (polynomial_size) {
   case 256:
     host_multi_bit_programmable_bootstrap<Torus, AmortizedDegree<256>>(
@@ -223,6 +217,9 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t lut_count,
     uint32_t lut_stride) {
+
+  if (base_log > 64)
+    PANIC("Cuda error (multi-bit PBS): base log should be <= 64")
 
   pbs_buffer<uint64_t, MULTI_BIT> *buffer =
       (pbs_buffer<uint64_t, MULTI_BIT> *)mem_ptr;
