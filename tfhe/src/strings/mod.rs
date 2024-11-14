@@ -15,16 +15,15 @@ pub(crate) use test::TestKeys;
 
 #[cfg(test)]
 mod test {
+    use super::ciphertext::FheString;
+    use super::client_key::EncU16;
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::{ClientKey, ServerKey};
     use crate::shortint::parameters::{
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
     };
-    use crate::shortint::ClassicPBSParameters;
-
-    use super::ciphertext::FheString;
-    use super::client_key::EncU16;
+    use crate::shortint::PBSParameters;
 
     #[test]
     fn test_all() {
@@ -51,8 +50,8 @@ mod test {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn test_all_impl(
-        params: ClassicPBSParameters,
+    pub fn test_all_impl<P: Into<PBSParameters>>(
+        params: P,
         str: &str,
         str_pad: Option<u32>,
         pat: &str,
@@ -131,7 +130,7 @@ mod test {
     }
 
     impl TestKeys {
-        pub fn new(params: ClassicPBSParameters, test_kind: TestKind) -> Self {
+        pub fn new<P: Into<PBSParameters>>(params: P, test_kind: TestKind) -> Self {
             let (ck, sk) = KEY_CACHE.get_from_params(params, crate::integer::IntegerKeyKind::Radix);
 
             Self { ck, sk, test_kind }
