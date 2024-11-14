@@ -6,6 +6,7 @@ mod lwe_linear_algebra;
 mod lwe_multi_bit_programmable_bootstrapping;
 mod lwe_packing_keyswitch;
 mod lwe_programmable_bootstrapping;
+mod noise_distribution;
 
 pub struct CudaPackingKeySwitchKeys<Scalar: UnsignedInteger> {
     pub lwe_sk: LweSecretKey<Vec<Scalar>>,

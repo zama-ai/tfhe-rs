@@ -1,7 +1,5 @@
 use super::*;
 
-mod lwe_encryption_noise;
-mod lwe_keyswitch_noise;
 mod lwe_multi_bit_programmable_bootstrapping_noise;
 mod lwe_programmable_bootstrapping_noise;
 
@@ -30,7 +28,7 @@ pub const NOISE_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: ClassicTestPara
         ciphertext_modulus: CiphertextModulus::new_native(),
     };
 #[allow(clippy::excessive_precision)]
-pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN:
+pub const NOISE_TEST_PARAMS_GPU_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN:
     MultiBitTestParams<u64> = MultiBitTestParams {
     input_lwe_dimension: LweDimension(837),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
@@ -46,5 +44,5 @@ pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIA
     message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(3),
-    thread_count: ThreadCount(8),
+    thread_count: ThreadCount(1),
 };
