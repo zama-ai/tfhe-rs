@@ -2264,7 +2264,7 @@ template <typename Torus> struct int_comparison_buffer {
   }
 };
 
-template <typename Torus> struct int_div_rem_memory {
+template <typename Torus> struct unsigned_int_div_rem_memory {
   int_radix_params params;
   uint32_t active_gpu_count;
 
@@ -2501,9 +2501,10 @@ template <typename Torus> struct int_div_rem_memory {
     }
   }
 
-  int_div_rem_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-                     uint32_t gpu_count, int_radix_params params,
-                     uint32_t num_blocks, bool allocate_gpu_memory) {
+  unsigned_int_div_rem_memory(cudaStream_t const *streams,
+                              uint32_t const *gpu_indexes, uint32_t gpu_count,
+                              int_radix_params params, uint32_t num_blocks,
+                              bool allocate_gpu_memory) {
     active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
 
     this->params = params;
@@ -3057,6 +3058,176 @@ template <typename Torus> struct int_abs_buffer {
     delete bitxor_mem;
 
     cuda_drop_async(mask, streams[0], gpu_indexes[0]);
+  }
+};
+
+template <typename Torus> struct int_div_rem_memory {
+  int_radix_params params;
+  uint32_t active_gpu_count;
+  bool is_signed;
+  // memory objects for other operations
+  unsigned_int_div_rem_memory<Torus> *unsigned_mem;
+  int_abs_buffer<Torus> *abs_mem_1;
+  int_abs_buffer<Torus> *abs_mem_2;
+  int_sc_prop_memory<Torus> *scp_mem_1;
+  int_sc_prop_memory<Torus> *scp_mem_2;
+  int_cmux_buffer<Torus> *cmux_quotient_mem;
+  int_cmux_buffer<Torus> *cmux_remainder_mem;
+
+  // lookup tables
+  int_radix_lut<Torus> *compare_signed_bits_lut;
+
+  // sub streams
+  cudaStream_t *sub_streams_1;
+  cudaStream_t *sub_streams_2;
+  cudaStream_t *sub_streams_3;
+
+  // temporary device buffers
+  Torus *positive_numerator;
+  Torus *positive_divisor;
+  Torus *sign_bits_are_different;
+  Torus *negated_quotient;
+  Torus *negated_remainder;
+
+  int_div_rem_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+                     uint32_t gpu_count, int_radix_params params,
+                     bool is_signed, uint32_t num_blocks,
+                     bool allocate_gpu_memory) {
+
+    this->active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
+    this->params = params;
+    this->is_signed = is_signed;
+
+    unsigned_mem = new unsigned_int_div_rem_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_blocks,
+        allocate_gpu_memory);
+
+    if (is_signed) {
+      uint32_t big_lwe_size = params.big_lwe_dimension + 1;
+      Torus sign_bit_pos = 31 - __builtin_clz(params.message_modulus) - 1;
+
+      // init memory objects for other integer operations
+      abs_mem_1 =
+          new int_abs_buffer<Torus>(streams, gpu_indexes, gpu_count, params,
+                                    num_blocks, allocate_gpu_memory);
+      abs_mem_2 =
+          new int_abs_buffer<Torus>(streams, gpu_indexes, gpu_count, params,
+                                    num_blocks, allocate_gpu_memory);
+      scp_mem_1 =
+          new int_sc_prop_memory<Torus>(streams, gpu_indexes, gpu_count, params,
+                                        num_blocks, allocate_gpu_memory);
+      scp_mem_2 =
+          new int_sc_prop_memory<Torus>(streams, gpu_indexes, gpu_count, params,
+                                        num_blocks, allocate_gpu_memory);
+
+      std::function<uint64_t(uint64_t)> quotient_predicate_lut_f =
+          [](uint64_t x) -> uint64_t { return x == 1; };
+      std::function<uint64_t(uint64_t)> remainder_predicate_lut_f =
+          [sign_bit_pos](uint64_t x) -> uint64_t {
+        return (x >> sign_bit_pos) == 1;
+      };
+
+      cmux_quotient_mem = new int_cmux_buffer<Torus>(
+          streams, gpu_indexes, gpu_count, quotient_predicate_lut_f, params,
+          num_blocks, allocate_gpu_memory);
+      cmux_remainder_mem = new int_cmux_buffer<Torus>(
+          streams, gpu_indexes, gpu_count, remainder_predicate_lut_f, params,
+          num_blocks, allocate_gpu_memory);
+      // init temporary memory buffers
+      positive_numerator =
+          (Torus *)cuda_malloc_async(big_lwe_size * num_blocks * sizeof(Torus),
+                                     streams[0], gpu_indexes[0]);
+      positive_divisor =
+          (Torus *)cuda_malloc_async(big_lwe_size * num_blocks * sizeof(Torus),
+                                     streams[0], gpu_indexes[0]);
+      negated_quotient =
+          (Torus *)cuda_malloc_async(big_lwe_size * num_blocks * sizeof(Torus),
+                                     streams[0], gpu_indexes[0]);
+      negated_remainder =
+          (Torus *)cuda_malloc_async(big_lwe_size * num_blocks * sizeof(Torus),
+                                     streams[0], gpu_indexes[0]);
+
+      // init boolean temporary buffers
+      sign_bits_are_different = (Torus *)cuda_malloc_async(
+          big_lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
+
+      // init sub streams
+      sub_streams_1 =
+          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+      sub_streams_2 =
+          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+      sub_streams_3 =
+          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+      for (uint j = 0; j < active_gpu_count; j++) {
+        sub_streams_1[j] = cuda_create_stream(gpu_indexes[j]);
+        sub_streams_2[j] = cuda_create_stream(gpu_indexes[j]);
+        sub_streams_3[j] = cuda_create_stream(gpu_indexes[j]);
+      }
+
+      // init lookup tables
+      //  to extract and compare signed bits
+      auto f_compare_extracted_signed_bits = [sign_bit_pos](Torus x,
+                                                            Torus y) -> Torus {
+        Torus x_sign_bit = (x >> sign_bit_pos) & 1;
+        Torus y_sign_bit = (y >> sign_bit_pos) & 1;
+        return (Torus)(x_sign_bit != y_sign_bit);
+      };
+
+      compare_signed_bits_lut = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, 1, true);
+
+      generate_device_accumulator_bivariate<Torus>(
+          streams[0], gpu_indexes[0],
+          compare_signed_bits_lut->get_lut(gpu_indexes[0], 0),
+          params.glwe_dimension, params.polynomial_size, params.message_modulus,
+          params.carry_modulus, f_compare_extracted_signed_bits);
+      compare_signed_bits_lut->broadcast_lut(streams, gpu_indexes,
+                                             gpu_indexes[0]);
+    }
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+    unsigned_mem->release(streams, gpu_indexes, gpu_count);
+    delete unsigned_mem;
+
+    if (is_signed) {
+      // release objects for other integer operations
+      abs_mem_1->release(streams, gpu_indexes, gpu_count);
+      abs_mem_2->release(streams, gpu_indexes, gpu_count);
+      scp_mem_1->release(streams, gpu_indexes, gpu_count);
+      scp_mem_2->release(streams, gpu_indexes, gpu_count);
+      cmux_quotient_mem->release(streams, gpu_indexes, gpu_count);
+      cmux_remainder_mem->release(streams, gpu_indexes, gpu_count);
+
+      delete abs_mem_1;
+      delete abs_mem_2;
+      delete scp_mem_1;
+      delete scp_mem_2;
+      delete cmux_quotient_mem;
+      delete cmux_remainder_mem;
+
+      // release lookup tables
+      compare_signed_bits_lut->release(streams, gpu_indexes, gpu_count);
+      delete compare_signed_bits_lut;
+
+      // release sub streams
+      for (uint i = 0; i < active_gpu_count; i++) {
+        cuda_destroy_stream(sub_streams_1[i], gpu_indexes[i]);
+        cuda_destroy_stream(sub_streams_2[i], gpu_indexes[i]);
+        cuda_destroy_stream(sub_streams_3[i], gpu_indexes[i]);
+      }
+      free(sub_streams_1);
+      free(sub_streams_2);
+      free(sub_streams_3);
+
+      // drop temporary buffers
+      cuda_drop_async(positive_numerator, streams[0], gpu_indexes[0]);
+      cuda_drop_async(positive_divisor, streams[0], gpu_indexes[0]);
+      cuda_drop_async(sign_bits_are_different, streams[0], gpu_indexes[0]);
+      cuda_drop_async(negated_quotient, streams[0], gpu_indexes[0]);
+      cuda_drop_async(negated_remainder, streams[0], gpu_indexes[0]);
+    }
   }
 };
 

@@ -2514,15 +2514,13 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_unsigned_div_rem_integer_radix_kb_assign_async<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     quotient: &mut CudaVec<T>,
     remainder: &mut CudaVec<T>,
     numerator: &CudaVec<T>,
     divisor: &CudaVec<T>,
+    is_signed: bool,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -2544,6 +2542,7 @@ pub unsafe fn unchecked_unsigned_div_rem_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
+        is_signed,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -2568,6 +2567,7 @@ pub unsafe fn unchecked_unsigned_div_rem_integer_radix_kb_assign_async<
         remainder.as_mut_c_ptr(0),
         numerator.as_c_ptr(0),
         divisor.as_c_ptr(0),
+        is_signed,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
