@@ -158,7 +158,7 @@ impl ServerKey {
 
         self.unchecked_scalar_mul_assign(ct_left, acc.ct_right_modulus.0 as u8);
 
-        unchecked_add_assign(ct_left, ct_right);
+        unchecked_add_assign(ct_left, ct_right, self.max_noise_level);
 
         // Compute the PBS
         self.apply_lookup_table_assign(ct_left, &acc.acc);

@@ -57,6 +57,11 @@ impl ServerKey {
                     .max_degree
                     .validate(ct_i.degree * scalar_i as usize)
                     .is_ok()
+                    && self
+                        .key
+                        .max_noise_level
+                        .validate(ct_i.noise_level * scalar)
+                        .is_ok()
                 {
                     self.key.unchecked_scalar_mul_assign(ct_i, scalar_i);
                 } else {

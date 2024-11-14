@@ -2329,6 +2329,10 @@ where
             let tmp = executor.execute((&res, &ctxt_2, index));
             res = executor.execute((&res, &ctxt_2, index));
             assert!(res.block_carries_are_empty());
+            assert!(res
+                .blocks
+                .iter()
+                .all(|b| b.noise_level <= NoiseLevel::NOMINAL));
             assert_eq!(res, tmp);
 
             clear = clear.wrapping_mul(clear2.wrapping_mul(multiplier)) % modulus;

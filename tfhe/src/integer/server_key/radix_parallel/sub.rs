@@ -418,7 +418,10 @@ impl ServerKey {
                         &mut block.ct,
                         &simulator.ct,
                     );
-                    block.set_noise_level(block.noise_level() + simulator.noise_level());
+                    block.set_noise_level(
+                        block.noise_level() + simulator.noise_level(),
+                        self.key.max_noise_level,
+                    );
                     self.key.unchecked_scalar_add_assign(block, 1);
                 });
 
@@ -447,7 +450,10 @@ impl ServerKey {
                         &mut block.ct,
                         &borrow.ct,
                     );
-                    block.set_noise_level(block.noise_level() + borrow.noise_level());
+                    block.set_noise_level(
+                        block.noise_level() + borrow.noise_level(),
+                        self.key.max_noise_level,
+                    );
 
                     self.key
                         .apply_lookup_table_assign(block, &message_extract_lut)
@@ -633,7 +639,10 @@ impl ServerKey {
                 &mut lhs_block.ct,
                 &borrow.ct,
             );
-            lhs_block.set_noise_level(lhs_block.noise_level() + borrow.noise_level());
+            lhs_block.set_noise_level(
+                lhs_block.noise_level() + borrow.noise_level(),
+                self.key.max_noise_level,
+            );
             let (msg, new_borrow) = rayon::join(
                 || self.key.message_extract(lhs_block),
                 || self.key.apply_lookup_table(lhs_block, &compute_borrow_lut),

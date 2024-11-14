@@ -1,5 +1,5 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::{BooleanBlock, ServerKey};
+use crate::integer::{BooleanBlock, IntegerCiphertext, ServerKey};
 use crate::shortint::CheckError;
 
 impl ServerKey {
@@ -83,7 +83,7 @@ impl ServerKey {
         ct_right: &T,
     ) -> Result<(), CheckError>
     where
-        T: IntegerRadixCiphertext,
+        T: IntegerCiphertext,
     {
         for (ct_left_i, ct_right_i) in ct_left.blocks().iter().zip(ct_right.blocks().iter()) {
             self.key.is_functional_bivariate_pbs_possible(

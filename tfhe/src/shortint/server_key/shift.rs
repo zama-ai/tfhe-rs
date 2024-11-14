@@ -537,7 +537,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         let scalar = 1_u8 << shift;
-        unchecked_scalar_mul_assign(ct, scalar);
+        unchecked_scalar_mul_assign(ct, scalar, self.max_noise_level);
     }
 
     /// Checks if the left shift operation can be applied.

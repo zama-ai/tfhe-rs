@@ -3,7 +3,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, MaxNoiseLevel, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
@@ -203,7 +203,7 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        unchecked_scalar_mul_assign(ct, scalar);
+        unchecked_scalar_mul_assign(ct, scalar, self.max_noise_level);
     }
 
     /// Multiply one ciphertext with a scalar in the case the carry space cannot fit the product
@@ -516,8 +516,12 @@ impl ServerKey {
     }
 }
 
-pub(crate) fn unchecked_scalar_mul_assign(ct: &mut Ciphertext, scalar: u8) {
-    ct.set_noise_level(ct.noise_level() * scalar as usize);
+pub(crate) fn unchecked_scalar_mul_assign(
+    ct: &mut Ciphertext,
+    scalar: u8,
+    max_noise_level: MaxNoiseLevel,
+) {
+    ct.set_noise_level(ct.noise_level() * scalar as usize, max_noise_level);
     ct.degree = Degree::new(ct.degree.get() * scalar as usize);
 
     match scalar {

@@ -54,15 +54,17 @@ impl ServerKey {
             },
         );
 
-        let condition = self.key.unchecked_add(
-            &remainder_is_not_zero.0,
-            &remainder_and_divisor_signs_disagrees,
-        );
-
-        let (remainder_plus_divisor, quotient_minus_one) = rayon::join(
-            || self.add_parallelized(&remainder, divisor),
-            || self.scalar_sub_parallelized(&quotient, 1),
-        );
+        let mut condition = remainder_is_not_zero.0;
+        let mut remainder_plus_divisor = remainder.clone();
+        let mut quotient_minus_one = quotient.clone();
+        rayon::scope(|s| {
+            s.spawn(|_| {
+                self.key
+                    .add_assign(&mut condition, &remainder_and_divisor_signs_disagrees);
+            });
+            s.spawn(|_| self.add_assign_parallelized(&mut remainder_plus_divisor, divisor));
+            s.spawn(|_| self.scalar_sub_assign_parallelized(&mut quotient_minus_one, 1));
+        });
 
         let (quotient, remainder) = rayon::join(
             || {

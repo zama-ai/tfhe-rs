@@ -26,6 +26,8 @@ impl std::error::Error for NotTrivialCiphertextError {}
 pub struct MaxNoiseLevel(usize);
 
 impl MaxNoiseLevel {
+    pub(crate) const UNKNOWN: Self = Self(usize::MAX);
+
     pub const fn new(value: usize) -> Self {
         Self(value)
     }
@@ -67,11 +69,8 @@ pub struct NoiseLevel(usize);
 impl NoiseLevel {
     pub const NOMINAL: Self = Self(1);
     pub const ZERO: Self = Self(0);
-    // To force a refresh no matter the tolerance of the server key, useful for serialization update
-    // for formats which did not have noise levels saved
-    pub const MAX: Self = Self(usize::MAX);
     // As a safety measure the unknown noise level is set to the max value
-    pub const UNKNOWN: Self = Self::MAX;
+    pub const UNKNOWN: Self = Self(usize::MAX);
 }
 
 impl NoiseLevel {
@@ -273,16 +272,16 @@ mod tests {
 
         let mut rng = thread_rng();
 
-        assert_eq!(NoiseLevel::UNKNOWN, NoiseLevel::MAX);
+        assert_eq!(NoiseLevel::UNKNOWN.0, usize::MAX);
 
-        let max_noise_level = NoiseLevel::MAX;
+        let max_noise_level = NoiseLevel::UNKNOWN;
         let random_addend = rng.gen::<usize>();
         let add = max_noise_level + NoiseLevel(random_addend);
-        assert_eq!(add, NoiseLevel::MAX);
+        assert_eq!(add, NoiseLevel::UNKNOWN);
 
         let random_positive_multiplier = rng.gen_range(1usize..=usize::MAX);
         let mul = max_noise_level * random_positive_multiplier;
-        assert_eq!(mul, NoiseLevel::MAX);
+        assert_eq!(mul, NoiseLevel::UNKNOWN);
     }
 
     #[test]

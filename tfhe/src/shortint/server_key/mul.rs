@@ -221,7 +221,7 @@ impl ServerKey {
         // ct1 + ct2
         let mut ct_add = ct1.clone();
 
-        unchecked_add_assign(&mut ct_add, ct2);
+        unchecked_add_assign(&mut ct_add, ct2, self.max_noise_level);
 
         // ct1 - ct2
         let (mut ct_sub, z) = self.unchecked_sub_with_correcting_term(ct1, ct2);
