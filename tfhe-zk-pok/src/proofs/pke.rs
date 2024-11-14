@@ -507,6 +507,8 @@ pub fn prove<G: Curve>(
 
     let effective_t_for_decomposition = t >> msbs_zero_padding_bit_count;
 
+    let decoded_q = decode_q(q);
+
     let big_d = d
         + k * effective_t_for_decomposition.ilog2() as usize
         + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
@@ -514,9 +516,8 @@ pub fn prove<G: Curve>(
 
     // FIXME: div_round
     let delta = {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
         // delta takes the encoding with the padding bit
-        (q / t as i128) as u64
+        (decoded_q / t as u128) as u64
     };
 
     let g = G::G1::GENERATOR;
@@ -547,9 +548,8 @@ pub fn prove<G: Curve>(
     }
 
     {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
         for r1 in &mut *r1 {
-            *r1 /= q;
+            *r1 /= decoded_q as i128;
         }
     }
 
@@ -561,7 +561,6 @@ pub fn prove<G: Curve>(
         .collect::<Box<_>>();
 
     {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
         for (i, r2) in r2.iter_mut().enumerate() {
             let mut dot = 0i128;
             for j in 0..d {
@@ -575,7 +574,7 @@ pub fn prove<G: Curve>(
             }
 
             *r2 += dot;
-            *r2 /= q;
+            *r2 /= decoded_q as i128;
         }
     }
 
@@ -679,7 +678,7 @@ pub fn prove<G: Curve>(
         delta,
         b_i,
         b_r,
-        q,
+        decoded_q,
     );
 
     let mut t = vec![G::Zp::ZERO; n];
@@ -898,7 +897,7 @@ fn compute_a_theta<G: Curve>(
     delta: u64,
     b_i: u64,
     b_r: u64,
-    q: u64,
+    decoded_q: u128,
 ) {
     // a_theta = Ã.T theta0
     //  = [
@@ -924,11 +923,7 @@ fn compute_a_theta<G: Curve>(
     //    -q g[1 + log Br].T theta2_k
     //    ]
 
-    let q = if q == 0 {
-        G::Zp::from_u128(1u128 << 64)
-    } else {
-        G::Zp::from_u64(q)
-    };
+    let q = G::Zp::from_u128(decoded_q);
 
     let theta1 = &theta0[..d];
     let theta2 = &theta0[d..];
@@ -1044,11 +1039,12 @@ pub fn verify<G: Curve>(
 
     let b_i = b;
 
+    let decoded_q = decode_q(q);
+
     // FIXME: div_round
     let delta = {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
         // delta takes the encoding with the padding bit
-        (q / t as i128) as u64
+        (decoded_q / t as u128) as u64
     };
 
     let PublicCommit { a, b, c1, c2, .. } = public.1;
@@ -1116,7 +1112,7 @@ pub fn verify<G: Curve>(
         delta,
         b_i,
         b_r,
-        q,
+        decoded_q,
     );
 
     let mut t_theta = G::Zp::ZERO;
