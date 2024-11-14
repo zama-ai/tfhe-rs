@@ -1,5 +1,7 @@
 use crate::integer::BooleanBlock;
-use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, UIntArg};
+use crate::strings::ciphertext::{
+    ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
+};
 use crate::strings::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
 use rayon::prelude::*;
 
@@ -229,8 +231,8 @@ impl ServerKey {
     ///
     /// Returns `false` if they are not equal.
     ///
-    /// The pattern for comparison (`rhs`) can be specified as either `GenericPattern::Clear` for a
-    /// clear string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern for comparison (`rhs`) can be specified as either `GenericPatternRef::Clear` for
+    /// a clear string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -246,23 +248,23 @@ impl ServerKey {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
-    /// let result = sk.eq_ignore_case(&enc_s1, &enc_s2);
+    /// let result = sk.eq_ignore_case(&enc_s1, enc_s2.as_ref());
     /// let are_equal = ck.decrypt_bool(&result);
     ///
     /// assert!(are_equal);
     /// ```
-    pub fn eq_ignore_case(&self, lhs: &FheString, rhs: &GenericPattern) -> BooleanBlock {
+    pub fn eq_ignore_case(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
         let (lhs, rhs) = rayon::join(
             || self.to_lowercase(lhs),
             || match rhs {
-                GenericPattern::Clear(rhs) => {
+                GenericPatternRef::Clear(rhs) => {
                     GenericPattern::Clear(ClearString::new(rhs.str().to_lowercase()))
                 }
-                GenericPattern::Enc(rhs) => GenericPattern::Enc(self.to_lowercase(rhs)),
+                GenericPatternRef::Enc(rhs) => GenericPattern::Enc(self.to_lowercase(rhs)),
             },
         );
 
-        self.eq(&lhs, &rhs)
+        self.string_eq(&lhs, rhs.as_ref())
     }
 
     /// Concatenates two encrypted strings and returns the result as a new encrypted string.

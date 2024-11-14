@@ -2,7 +2,7 @@ use super::contains_cases;
 use crate::integer::prelude::*;
 use crate::integer::{BooleanBlock, RadixCiphertext};
 use crate::strings::char_iter::CharIter;
-use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
+use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPatternRef};
 use crate::strings::server_key::pattern::IsMatch;
 use crate::strings::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
 use rayon::prelude::*;
@@ -92,8 +92,8 @@ impl ServerKey {
     /// If the pattern doesn’t match, the function returns a tuple where the boolean part is
     /// `false`, indicating the equivalent of `None`.
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -109,7 +109,7 @@ impl ServerKey {
     /// let enc_haystack = FheString::new(&ck, haystack, None);
     /// let enc_needle = GenericPattern::Enc(FheString::new(&ck, needle, None));
     ///
-    /// let (index, found) = sk.find(&enc_haystack, &enc_needle);
+    /// let (index, found) = sk.find(&enc_haystack, enc_needle.as_ref());
     ///
     /// let index = ck.decrypt_radix::<u32>(&index);
     /// let found = ck.decrypt_bool(&found);
@@ -117,10 +117,14 @@ impl ServerKey {
     /// assert!(found);
     /// assert_eq!(index, 6); // "world" starts at index 6 in "hello world"
     /// ```
-    pub fn find(&self, str: &FheString, pat: &GenericPattern) -> (RadixCiphertext, BooleanBlock) {
+    pub fn find(
+        &self,
+        str: &FheString,
+        pat: GenericPatternRef<'_>,
+    ) -> (RadixCiphertext, BooleanBlock) {
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         let zero = self.create_trivial_zero_radix(16);
@@ -144,10 +148,10 @@ impl ServerKey {
         let iter_values: Vec<_> = iter.rev().collect();
 
         match pat {
-            GenericPattern::Clear(pat) => {
+            GenericPatternRef::Clear(pat) => {
                 self.clear_compare_shifted_index((str_iter, pat.str()), iter_values.into_par_iter())
             }
-            GenericPattern::Enc(_) => self.compare_shifted_index(
+            GenericPatternRef::Enc(_) => self.compare_shifted_index(
                 (str_iter, pat_iter),
                 iter_values.into_par_iter(),
                 ignore_pat_pad,
@@ -162,8 +166,8 @@ impl ServerKey {
     /// If the pattern doesn’t match, the function returns a tuple where the boolean part is
     /// `false`, indicating the equivalent of `None`.
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -179,7 +183,7 @@ impl ServerKey {
     /// let enc_haystack = FheString::new(&ck, haystack, None);
     /// let enc_needle = GenericPattern::Enc(FheString::new(&ck, needle, None));
     ///
-    /// let (index, found) = sk.rfind(&enc_haystack, &enc_needle);
+    /// let (index, found) = sk.rfind(&enc_haystack, enc_needle.as_ref());
     ///
     /// let index = ck.decrypt_radix::<u32>(&index);
     /// let found = ck.decrypt_bool(&found);
@@ -187,10 +191,14 @@ impl ServerKey {
     /// assert!(found);
     /// assert_eq!(index, 12); // The last "world" starts at index 12 in "hello world world"
     /// ```
-    pub fn rfind(&self, str: &FheString, pat: &GenericPattern) -> (RadixCiphertext, BooleanBlock) {
+    pub fn rfind(
+        &self,
+        str: &FheString,
+        pat: GenericPatternRef<'_>,
+    ) -> (RadixCiphertext, BooleanBlock) {
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         let zero = self.create_trivial_zero_radix(16);
@@ -229,11 +237,11 @@ impl ServerKey {
 
         let ((mut last_match_index, result), option) = rayon::join(
             || match pat {
-                GenericPattern::Clear(pat) => self.clear_compare_shifted_index(
+                GenericPatternRef::Clear(pat) => self.clear_compare_shifted_index(
                     (str_iter, pat.str()),
                     iter_values.into_par_iter(),
                 ),
-                GenericPattern::Enc(_) => self.compare_shifted_index(
+                GenericPatternRef::Enc(_) => self.compare_shifted_index(
                     (str_iter, pat_iter),
                     iter_values.into_par_iter(),
                     ignore_pat_pad,

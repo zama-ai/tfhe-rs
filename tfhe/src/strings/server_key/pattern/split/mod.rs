@@ -1,7 +1,7 @@
 mod split_iters;
 
 use crate::integer::{BooleanBlock, RadixCiphertext};
-use crate::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+use crate::strings::ciphertext::{FheString, GenericPattern, GenericPatternRef, UIntArg};
 use crate::strings::server_key::pattern::IsMatch;
 use crate::strings::server_key::{FheStringIsEmpty, FheStringIterator, FheStringLen, ServerKey};
 
@@ -9,14 +9,14 @@ impl ServerKey {
     fn split_pat_at_index(
         &self,
         str: &FheString,
-        pat: &GenericPattern,
+        pat: GenericPatternRef<'_>,
         index: &RadixCiphertext,
         inclusive: bool,
     ) -> (FheString, FheString) {
         let str_len = self.create_trivial_radix(str.len() as u32, 16);
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         let (mut shift_right, real_pat_len) = rayon::join(
@@ -67,8 +67,8 @@ impl ServerKey {
     ///
     /// If the pattern is not found returns `false`, indicating the equivalent of `None`.
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -83,7 +83,7 @@ impl ServerKey {
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
-    /// let (lhs, rhs, split_occurred) = sk.rsplit_once(&enc_s, &enc_pat);
+    /// let (lhs, rhs, split_occurred) = sk.rsplit_once(&enc_s, enc_pat.as_ref());
     ///
     /// let lhs_decrypted = ck.decrypt_ascii(&lhs);
     /// let rhs_decrypted = ck.decrypt_ascii(&rhs);
@@ -96,11 +96,11 @@ impl ServerKey {
     pub fn rsplit_once(
         &self,
         str: &FheString,
-        pat: &GenericPattern,
+        pat: GenericPatternRef<'_>,
     ) -> (FheString, FheString, BooleanBlock) {
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
@@ -139,8 +139,8 @@ impl ServerKey {
     ///
     /// If the pattern is not found returns `false`, indicating the equivalent of `None`.
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -155,7 +155,7 @@ impl ServerKey {
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
-    /// let (lhs, rhs, split_occurred) = sk.split_once(&enc_s, &enc_pat);
+    /// let (lhs, rhs, split_occurred) = sk.split_once(&enc_s, enc_pat.as_ref());
     ///
     /// let lhs_decrypted = ck.decrypt_ascii(&lhs);
     /// let rhs_decrypted = ck.decrypt_ascii(&rhs);
@@ -168,11 +168,11 @@ impl ServerKey {
     pub fn split_once(
         &self,
         str: &FheString,
-        pat: &GenericPattern,
+        pat: GenericPatternRef<'_>,
     ) -> (FheString, FheString, BooleanBlock) {
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
@@ -208,7 +208,7 @@ impl ServerKey {
     fn split_internal(
         &self,
         str: &FheString,
-        pat: &GenericPattern,
+        pat: GenericPatternRef<'_>,
         split_type: SplitType,
     ) -> SplitInternal {
         let mut max_counter = match self.len(str) {
@@ -221,7 +221,7 @@ impl ServerKey {
         SplitInternal {
             split_type,
             state: str.clone(),
-            pat: pat.clone(),
+            pat: pat.to_owned(),
             prev_was_some: self.create_trivial_boolean_block(true),
             counter: 0,
             max_counter,
@@ -232,7 +232,7 @@ impl ServerKey {
     fn splitn_internal(
         &self,
         str: &FheString,
-        pat: &GenericPattern,
+        pat: GenericPatternRef<'_>,
         n: UIntArg,
         split_type: SplitType,
     ) -> SplitNInternal {
@@ -264,7 +264,7 @@ impl ServerKey {
     fn split_no_trailing(
         &self,
         str: &FheString,
-        pat: &GenericPattern,
+        pat: GenericPatternRef<'_>,
         split_type: SplitType,
     ) -> SplitNoTrailing {
         if matches!(split_type, SplitType::RSplit) {
@@ -279,7 +279,7 @@ impl ServerKey {
         let internal = SplitInternal {
             split_type,
             state: str.clone(),
-            pat: pat.clone(),
+            pat: pat.to_owned(),
             prev_was_some: self.create_trivial_boolean_block(true),
             counter: 0,
             max_counter,
@@ -289,7 +289,7 @@ impl ServerKey {
         SplitNoTrailing { internal }
     }
 
-    fn split_no_leading(&self, str: &FheString, pat: &GenericPattern) -> SplitNoLeading {
+    fn split_no_leading(&self, str: &FheString, pat: GenericPatternRef<'_>) -> SplitNoLeading {
         let mut internal = self.split_internal(str, pat, SplitType::RSplit);
 
         let prev_return = internal.next(self);
@@ -342,20 +342,25 @@ struct SplitNoLeading {
 
 impl FheStringIterator for SplitInternal {
     fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
-        let trivial_or_enc_pat = match &self.pat {
-            GenericPattern::Clear(pat) => FheString::trivial(sk, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+        let trivial;
+
+        let trivial_or_enc_pat = match self.pat.as_ref() {
+            GenericPatternRef::Clear(pat) => {
+                trivial = FheString::trivial(sk, pat.str());
+                &trivial
+            }
+            GenericPatternRef::Enc(pat) => pat,
         };
 
         let ((mut index, mut is_some), pat_is_empty) = rayon::join(
             || {
                 if matches!(self.split_type, SplitType::RSplit) {
-                    sk.rfind(&self.state, &self.pat)
+                    sk.rfind(&self.state, self.pat.as_ref())
                 } else {
-                    sk.find(&self.state, &self.pat)
+                    sk.find(&self.state, self.pat.as_ref())
                 }
             },
-            || match sk.is_empty(&trivial_or_enc_pat) {
+            || match sk.is_empty(trivial_or_enc_pat) {
                 FheStringIsEmpty::Padding(enc) => enc.into_radix(16, sk),
                 FheStringIsEmpty::NoPadding(clear) => sk.create_trivial_radix(clear as u32, 16),
             },
@@ -377,9 +382,9 @@ impl FheStringIterator for SplitInternal {
         }
 
         let (lhs, rhs) = if matches!(self.split_type, SplitType::SplitInclusive) {
-            sk.split_pat_at_index(&self.state, &self.pat, &index, true)
+            sk.split_pat_at_index(&self.state, self.pat.as_ref(), &index, true)
         } else {
-            sk.split_pat_at_index(&self.state, &self.pat, &index, false)
+            sk.split_pat_at_index(&self.state, self.pat.as_ref(), &index, false)
         };
 
         let current_is_some = is_some.clone();

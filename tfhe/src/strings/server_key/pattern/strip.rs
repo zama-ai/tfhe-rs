@@ -2,7 +2,7 @@ use super::{clear_ends_with_cases, ends_with_cases};
 use crate::integer::prelude::*;
 use crate::integer::BooleanBlock;
 use crate::strings::char_iter::CharIter;
-use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
+use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPatternRef};
 use crate::strings::server_key::pattern::IsMatch;
 use crate::strings::server_key::{FheStringLen, ServerKey};
 use rayon::prelude::*;
@@ -99,8 +99,8 @@ impl ServerKey {
     /// If the pattern does not match the start of the string, returns the original encrypted
     /// string and a boolean set to `false`, indicating the equivalent of `None`.
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -117,11 +117,11 @@ impl ServerKey {
     /// let enc_prefix = GenericPattern::Enc(FheString::new(&ck, prefix, None));
     /// let clear_not_prefix = GenericPattern::Clear(ClearString::new(not_prefix.to_string()));
     ///
-    /// let (result, found) = sk.strip_prefix(&enc_s, &enc_prefix);
+    /// let (result, found) = sk.strip_prefix(&enc_s, enc_prefix.as_ref());
     /// let stripped = ck.decrypt_ascii(&result);
     /// let found = ck.decrypt_bool(&found);
     ///
-    /// let (result_no_match, not_found) = sk.strip_prefix(&enc_s, &clear_not_prefix);
+    /// let (result_no_match, not_found) = sk.strip_prefix(&enc_s, clear_not_prefix.as_ref());
     /// let not_stripped = ck.decrypt_ascii(&result_no_match);
     /// let not_found = ck.decrypt_bool(&not_found);
     ///
@@ -131,11 +131,15 @@ impl ServerKey {
     /// assert!(!not_found);
     /// assert_eq!(not_stripped, "hello world"); // No match, original string returned
     /// ```
-    pub fn strip_prefix(&self, str: &FheString, pat: &GenericPattern) -> (FheString, BooleanBlock) {
+    pub fn strip_prefix(
+        &self,
+        str: &FheString,
+        pat: GenericPatternRef<'_>,
+    ) -> (FheString, BooleanBlock) {
         let mut result = str.clone();
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
@@ -184,8 +188,8 @@ impl ServerKey {
     /// If the pattern does not match the end of the string, returns the original encrypted string
     /// and a boolean set to `false`, indicating the equivalent of `None`.
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -202,11 +206,11 @@ impl ServerKey {
     /// let enc_suffix = GenericPattern::Enc(FheString::new(&ck, suffix, None));
     /// let clear_not_suffix = GenericPattern::Clear(ClearString::new(not_suffix.to_string()));
     ///
-    /// let (result, found) = sk.strip_suffix(&enc_s, &enc_suffix);
+    /// let (result, found) = sk.strip_suffix(&enc_s, enc_suffix.as_ref());
     /// let stripped = ck.decrypt_ascii(&result);
     /// let found = ck.decrypt_bool(&found);
     ///
-    /// let (result_no_match, not_found) = sk.strip_suffix(&enc_s, &clear_not_suffix);
+    /// let (result_no_match, not_found) = sk.strip_suffix(&enc_s, clear_not_suffix.as_ref());
     /// let not_stripped = ck.decrypt_ascii(&result_no_match);
     /// let not_found = ck.decrypt_bool(&not_found);
     ///
@@ -216,12 +220,16 @@ impl ServerKey {
     /// assert!(!not_found);
     /// assert_eq!(not_stripped, "hello world"); // No match, original string returned
     /// ```
-    pub fn strip_suffix(&self, str: &FheString, pat: &GenericPattern) -> (FheString, BooleanBlock) {
+    pub fn strip_suffix(
+        &self,
+        str: &FheString,
+        pat: GenericPatternRef<'_>,
+    ) -> (FheString, BooleanBlock) {
         let mut result = str.clone();
 
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
@@ -234,12 +242,12 @@ impl ServerKey {
         }
 
         let is_match = match pat {
-            GenericPattern::Clear(pat) => {
+            GenericPatternRef::Clear(pat) => {
                 let (str_iter, clear_pat, iter) = clear_ends_with_cases(str, pat.str());
 
                 self.clear_compare_shifted_strip(&mut result, (str_iter, &clear_pat), iter)
             }
-            GenericPattern::Enc(pat) => {
+            GenericPatternRef::Enc(pat) => {
                 let null = (str.is_padded() ^ pat.is_padded()).then_some(FheAsciiChar::null(self));
 
                 let (str_iter, pat_iter, iter) = ends_with_cases(str, pat, null.as_ref());

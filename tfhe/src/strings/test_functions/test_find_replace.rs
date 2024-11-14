@@ -123,7 +123,7 @@ impl TestKeys {
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
-        let (index, is_some) = self.sk.find(&enc_str, &enc_pat);
+        let (index, is_some) = self.sk.find(&enc_str, enc_pat.as_ref());
         let end = Instant::now();
 
         let dec_index = self.ck.decrypt_radix::<u32>(&index);
@@ -137,7 +137,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
 
         let start = Instant::now();
-        let (index, is_some) = self.sk.find(&enc_str, &clear_pat);
+        let (index, is_some) = self.sk.find(&enc_str, clear_pat.as_ref());
         let end = Instant::now();
 
         let dec_index = self.ck.decrypt_radix::<u32>(&index);
@@ -165,7 +165,7 @@ impl TestKeys {
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
-        let (index, is_some) = self.sk.rfind(&enc_str, &enc_pat);
+        let (index, is_some) = self.sk.rfind(&enc_str, enc_pat.as_ref());
         let end = Instant::now();
 
         let dec_index = self.ck.decrypt_radix::<u32>(&index);
@@ -179,7 +179,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
 
         let start = Instant::now();
-        let (index, is_some) = self.sk.rfind(&enc_str, &clear_pat);
+        let (index, is_some) = self.sk.rfind(&enc_str, clear_pat.as_ref());
         let end = Instant::now();
 
         let dec_index = self.ck.decrypt_radix::<u32>(&index);
@@ -209,7 +209,7 @@ impl TestKeys {
         let enc_to = self.encrypt_string(to, to_pad);
 
         let start = Instant::now();
-        let result = self.sk.replace(&enc_str, &enc_pat, &enc_to);
+        let result = self.sk.replace(&enc_str, enc_pat.as_ref(), &enc_to);
         let end = Instant::now();
 
         let dec = self.ck.decrypt_ascii(&result);
@@ -235,7 +235,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
 
         let start = Instant::now();
-        let result = self.sk.replace(&enc_str, &clear_pat, &enc_to);
+        let result = self.sk.replace(&enc_str, clear_pat.as_ref(), &enc_to);
         let end = Instant::now();
 
         let dec = self.ck.decrypt_ascii(&result);
@@ -284,7 +284,9 @@ impl TestKeys {
         let enc_n = UIntArg::Enc(self.encrypt_u16(n, Some(max)));
 
         let start = Instant::now();
-        let result = self.sk.replacen(&enc_str, &enc_pat, &enc_to, &clear_n);
+        let result = self
+            .sk
+            .replacen(&enc_str, enc_pat.as_ref(), &enc_to, &clear_n);
         let end = Instant::now();
 
         let dec = self.ck.decrypt_ascii(&result);
@@ -311,7 +313,9 @@ impl TestKeys {
         assert_eq!(dec, expected);
 
         let start = Instant::now();
-        let result = self.sk.replacen(&enc_str, &clear_pat, &enc_to, &enc_n);
+        let result = self
+            .sk
+            .replacen(&enc_str, clear_pat.as_ref(), &enc_to, &enc_n);
         let end = Instant::now();
 
         let dec = self.ck.decrypt_ascii(&result);

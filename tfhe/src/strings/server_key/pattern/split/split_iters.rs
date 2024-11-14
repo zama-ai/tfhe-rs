@@ -1,5 +1,5 @@
 use crate::integer::BooleanBlock;
-use crate::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+use crate::strings::ciphertext::{FheString, GenericPatternRef, UIntArg};
 use crate::strings::server_key::pattern::split::{
     SplitInternal, SplitNInternal, SplitNoLeading, SplitNoTrailing, SplitType,
 };
@@ -41,8 +41,8 @@ impl ServerKey {
     /// call to `next` on the iterator returns a tuple with the next split substring as an encrypted
     /// string and a boolean indicating `Some` (true) or `None` (false).
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -59,7 +59,7 @@ impl ServerKey {
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
-    /// let mut split_iter = sk.split(&enc_s, &enc_pat);
+    /// let mut split_iter = sk.split(&enc_s, enc_pat.as_ref());
     /// let (first_item, first_is_some) = split_iter.next(&sk);
     /// let (second_item, second_is_some) = split_iter.next(&sk);
     /// let (_, no_more_items) = split_iter.next(&sk); // Attempting to get a third item
@@ -76,7 +76,7 @@ impl ServerKey {
     /// assert!(second_is_some); // There is a second item
     /// assert!(!no_more_items); // No more items in the iterator
     /// ```
-    pub fn split(&self, str: &FheString, pat: &GenericPattern) -> Split {
+    pub fn split(&self, str: &FheString, pat: GenericPatternRef<'_>) -> Split {
         let internal = self.split_internal(str, pat, SplitType::Split);
 
         Split { internal }
@@ -89,8 +89,8 @@ impl ServerKey {
     /// reverse order. Each call to `next` on the iterator returns a tuple with the next split
     /// substring as an encrypted string and a boolean indicating `Some` (true) or `None` (false).
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -107,7 +107,7 @@ impl ServerKey {
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
-    /// let mut rsplit_iter = sk.rsplit(&enc_s, &enc_pat);
+    /// let mut rsplit_iter = sk.rsplit(&enc_s, enc_pat.as_ref());
     /// let (last_item, last_is_some) = rsplit_iter.next(&sk);
     /// let (second_last_item, second_last_is_some) = rsplit_iter.next(&sk);
     /// let (_, no_more_items) = rsplit_iter.next(&sk); // Attempting to get a third item
@@ -124,7 +124,7 @@ impl ServerKey {
     /// assert!(second_last_is_some); // The second last item is "hello"
     /// assert!(!no_more_items); // No more items in the reverse iterator
     /// ```
-    pub fn rsplit(&self, str: &FheString, pat: &GenericPattern) -> RSplit {
+    pub fn rsplit(&self, str: &FheString, pat: GenericPatternRef<'_>) -> RSplit {
         let internal = self.split_internal(str, pat, SplitType::RSplit);
 
         RSplit { internal }
@@ -138,8 +138,8 @@ impl ServerKey {
     /// the iterator returns a tuple with the next split substring as an encrypted string and a
     /// boolean indicating `Some` (true) or `None` (false).
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -158,7 +158,7 @@ impl ServerKey {
     ///
     /// // Using Clear count
     /// let clear_count = UIntArg::Clear(1);
-    /// let mut splitn_iter = sk.splitn(&enc_s, &enc_pat, clear_count);
+    /// let mut splitn_iter = sk.splitn(&enc_s, enc_pat.as_ref(), clear_count);
     /// let (first_item, first_is_some) = splitn_iter.next(&sk);
     /// let (_, no_more_items) = splitn_iter.next(&sk); // Attempting to get a second item
     ///
@@ -175,10 +175,10 @@ impl ServerKey {
     /// let max = 2; // Restricts the range of enc_n to 0..=max
     /// let enc_n = ck.encrypt_u16(1, Some(max));
     /// let enc_count = UIntArg::Enc(enc_n);
-    /// let _splitn_iter_enc = sk.splitn(&enc_s, &enc_pat, enc_count);
+    /// let _splitn_iter_enc = sk.splitn(&enc_s, enc_pat.as_ref(), enc_count);
     /// // Similar usage as with Clear count
     /// ```
-    pub fn splitn(&self, str: &FheString, pat: &GenericPattern, n: UIntArg) -> SplitN {
+    pub fn splitn(&self, str: &FheString, pat: GenericPatternRef<'_>, n: UIntArg) -> SplitN {
         let internal = self.splitn_internal(str, pat, n, SplitType::Split);
 
         SplitN { internal }
@@ -193,8 +193,8 @@ impl ServerKey {
     /// call to `next` on the iterator returns a tuple with the next split substring as an encrypted
     /// string and a boolean indicating `Some` (true) or `None` (false).
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -213,7 +213,7 @@ impl ServerKey {
     ///
     /// // Using Clear count
     /// let clear_count = UIntArg::Clear(1);
-    /// let mut rsplitn_iter = sk.rsplitn(&enc_s, &enc_pat, clear_count);
+    /// let mut rsplitn_iter = sk.rsplitn(&enc_s, enc_pat.as_ref(), clear_count);
     /// let (last_item, last_is_some) = rsplitn_iter.next(&sk);
     /// let (_, no_more_items) = rsplitn_iter.next(&sk); // Attempting to get a second item
     ///
@@ -230,10 +230,10 @@ impl ServerKey {
     /// let max = 2; // Restricts the range of enc_n to 0..=max
     /// let enc_n = ck.encrypt_u16(1, Some(max));
     /// let enc_count = UIntArg::Enc(enc_n);
-    /// let _rsplitn_iter_enc = sk.rsplitn(&enc_s, &enc_pat, enc_count);
+    /// let _rsplitn_iter_enc = sk.rsplitn(&enc_s, enc_pat.as_ref(), enc_count);
     /// // Similar usage as with Clear count
     /// ```
-    pub fn rsplitn(&self, str: &FheString, pat: &GenericPattern, n: UIntArg) -> RSplitN {
+    pub fn rsplitn(&self, str: &FheString, pat: GenericPatternRef<'_>, n: UIntArg) -> RSplitN {
         let internal = self.splitn_internal(str, pat, n, SplitType::RSplit);
 
         RSplitN { internal }
@@ -246,8 +246,8 @@ impl ServerKey {
     /// substrings. Each call to `next` on the iterator returns a tuple with the next split
     /// substring as an encrypted string and a boolean indicating `Some` (true) or `None` (false).
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -264,7 +264,7 @@ impl ServerKey {
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
-    /// let mut split_terminator_iter = sk.split_terminator(&enc_s, &enc_pat);
+    /// let mut split_terminator_iter = sk.split_terminator(&enc_s, enc_pat.as_ref());
     /// let (first_item, first_is_some) = split_terminator_iter.next(&sk);
     /// let (second_item, second_is_some) = split_terminator_iter.next(&sk);
     /// let (_, no_more_items) = split_terminator_iter.next(&sk); // Attempting to get a third item
@@ -281,7 +281,7 @@ impl ServerKey {
     /// assert!(second_is_some); // There is a second item
     /// assert!(!no_more_items); // No more items in the iterator
     /// ```
-    pub fn split_terminator(&self, str: &FheString, pat: &GenericPattern) -> SplitTerminator {
+    pub fn split_terminator(&self, str: &FheString, pat: GenericPatternRef<'_>) -> SplitTerminator {
         let internal = self.split_no_trailing(str, pat, SplitType::Split);
 
         SplitTerminator { internal }
@@ -297,8 +297,8 @@ impl ServerKey {
     /// the next split substring as an encrypted string and a boolean indicating `Some` (true) or
     /// `None` (false).
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -315,7 +315,7 @@ impl ServerKey {
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
-    /// let mut rsplit_terminator_iter = sk.rsplit_terminator(&enc_s, &enc_pat);
+    /// let mut rsplit_terminator_iter = sk.rsplit_terminator(&enc_s, enc_pat.as_ref());
     /// let (last_item, last_is_some) = rsplit_terminator_iter.next(&sk);
     /// let (second_last_item, second_last_is_some) = rsplit_terminator_iter.next(&sk);
     /// let (_, no_more_items) = rsplit_terminator_iter.next(&sk); // Attempting to get a third item
@@ -332,7 +332,11 @@ impl ServerKey {
     /// assert!(second_last_is_some); // The second last item is "hello"
     /// assert!(!no_more_items); // No more items in the reverse iterator
     /// ```
-    pub fn rsplit_terminator(&self, str: &FheString, pat: &GenericPattern) -> RSplitTerminator {
+    pub fn rsplit_terminator(
+        &self,
+        str: &FheString,
+        pat: GenericPatternRef<'_>,
+    ) -> RSplitTerminator {
         let internal = self.split_no_leading(str, pat);
 
         RSplitTerminator { internal }
@@ -347,8 +351,8 @@ impl ServerKey {
     /// Each call to `next` on the iterator returns a tuple with the next split substring as an
     /// encrypted string and a boolean indicating `Some` (true) or `None` (false).
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -365,7 +369,7 @@ impl ServerKey {
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
     ///
-    /// let mut split_inclusive_iter = sk.split_inclusive(&enc_s, &enc_pat);
+    /// let mut split_inclusive_iter = sk.split_inclusive(&enc_s, enc_pat.as_ref());
     /// let (first_item, first_is_some) = split_inclusive_iter.next(&sk);
     /// let (second_item, second_is_some) = split_inclusive_iter.next(&sk);
     /// let (_, no_more_items) = split_inclusive_iter.next(&sk); // Attempting to get a third item
@@ -382,7 +386,7 @@ impl ServerKey {
     /// assert!(second_is_some); // The second item includes the delimiter
     /// assert!(!no_more_items); // No more items in the iterator, no trailing empty string
     /// ```
-    pub fn split_inclusive(&self, str: &FheString, pat: &GenericPattern) -> SplitInclusive {
+    pub fn split_inclusive(&self, str: &FheString, pat: GenericPatternRef<'_>) -> SplitInclusive {
         let internal = self.split_no_trailing(str, pat, SplitType::SplitInclusive);
 
         SplitInclusive { internal }

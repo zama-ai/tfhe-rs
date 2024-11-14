@@ -133,7 +133,7 @@ impl TestKeys {
         let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let start = Instant::now();
-        let (lhs, rhs, is_some) = self.sk.split_once(&enc_str, &enc_pat);
+        let (lhs, rhs, is_some) = self.sk.split_once(&enc_str, enc_pat.as_ref());
         let end = Instant::now();
 
         let dec_lhs = self.ck.decrypt_ascii(&lhs);
@@ -161,7 +161,7 @@ impl TestKeys {
         let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
 
         let start = Instant::now();
-        let (lhs, rhs, is_some) = self.sk.rsplit_once(&enc_str, &enc_pat);
+        let (lhs, rhs, is_some) = self.sk.rsplit_once(&enc_str, enc_pat.as_ref());
         let end = Instant::now();
 
         let dec_lhs = self.ck.decrypt_ascii(&lhs);
@@ -193,7 +193,7 @@ impl TestKeys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.split(&enc_str, &enc_pat);
+        let mut split_iter = self.sk.split(&enc_str, enc_pat.as_ref());
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }
@@ -237,7 +237,7 @@ impl TestKeys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.rsplit(&enc_str, &enc_pat);
+        let mut split_iter = self.sk.rsplit(&enc_str, enc_pat.as_ref());
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }
@@ -281,7 +281,7 @@ impl TestKeys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.split_terminator(&enc_str, &enc_pat);
+        let mut split_iter = self.sk.split_terminator(&enc_str, enc_pat.as_ref());
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }
@@ -325,7 +325,7 @@ impl TestKeys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.rsplit_terminator(&enc_str, &enc_pat);
+        let mut split_iter = self.sk.rsplit_terminator(&enc_str, enc_pat.as_ref());
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }
@@ -369,7 +369,7 @@ impl TestKeys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.split_inclusive(&enc_str, &enc_pat);
+        let mut split_iter = self.sk.split_inclusive(&enc_str, enc_pat.as_ref());
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }
@@ -415,7 +415,9 @@ impl TestKeys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.splitn(&enc_str, &enc_pat, UIntArg::Clear(n));
+        let mut split_iter = self
+            .sk
+            .splitn(&enc_str, enc_pat.as_ref(), UIntArg::Clear(n));
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }
@@ -461,7 +463,9 @@ impl TestKeys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.splitn(&enc_str, &enc_pat, UIntArg::Enc(enc_n));
+        let mut split_iter = self
+            .sk
+            .splitn(&enc_str, enc_pat.as_ref(), UIntArg::Enc(enc_n));
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }
@@ -522,7 +526,9 @@ impl TestKeys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.rsplitn(&enc_str, &enc_pat, UIntArg::Clear(n));
+        let mut split_iter = self
+            .sk
+            .rsplitn(&enc_str, enc_pat.as_ref(), UIntArg::Clear(n));
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }
@@ -568,7 +574,9 @@ impl TestKeys {
 
         // Call next enough times
         let start = Instant::now();
-        let mut split_iter = self.sk.rsplitn(&enc_str, &enc_pat, UIntArg::Enc(enc_n));
+        let mut split_iter = self
+            .sk
+            .rsplitn(&enc_str, enc_pat.as_ref(), UIntArg::Enc(enc_n));
         for _ in 0..expected.len() {
             results.push(split_iter.next(&self.sk))
         }
