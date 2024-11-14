@@ -655,6 +655,24 @@ pub fn prove<G: Curve>(
     load: ComputeLoad,
     rng: &mut dyn RngCore,
 ) -> Proof<G> {
+    prove_impl(
+        public,
+        private_commit,
+        metadata,
+        load,
+        rng,
+        ProofSanityCheckMode::Panic,
+    )
+}
+
+fn prove_impl<G: Curve>(
+    public: (&PublicParams<G>, &PublicCommit<G>),
+    private_commit: &PrivateCommit<G>,
+    metadata: &[u8],
+    load: ComputeLoad,
+    rng: &mut dyn RngCore,
+    sanity_check_mode: ProofSanityCheckMode,
+) -> Proof<G> {
     _ = load;
     let (
         &PublicParams {
@@ -689,7 +707,6 @@ pub fn prove<G: Curve>(
     let PrivateCommit { r, e1, m, e2, .. } = private_commit;
 
     let k = c2.len();
-    assert!(k <= k_max);
 
     let effective_cleartext_t = t_input >> msbs_zero_padding_bit_count;
 
@@ -698,7 +715,21 @@ pub fn prove<G: Curve>(
     // Recompute the D for our case if k is smaller than the k max
     // formula in Prove_pp: 2.
     let D = d + k * effective_cleartext_t.ilog2() as usize;
-    assert!(D <= D_max);
+
+    let e_sqr_norm = e1
+        .iter()
+        .chain(e2)
+        .map(|x| sqr(x.unsigned_abs() as u128))
+        .sum::<u128>();
+
+    if sanity_check_mode == ProofSanityCheckMode::Panic {
+        assert_pke_proof_preconditions(c1, e1, c2, e2, d, k_max, D, D_max);
+        assert!(
+            sqr(B as u128) >= e_sqr_norm,
+            "squared norm of error ({e_sqr_norm}) exceeds threshold ({})",
+            sqr(B as u128)
+        );
+    }
 
     // FIXME: div_round
     let delta = {
@@ -729,18 +760,6 @@ pub fn prove<G: Curve>(
                 .flat_map(|&m| bit_iter(u64(m), effective_cleartext_t.ilog2())),
         )
         .collect::<Box<[_]>>();
-
-    let e_sqr_norm = e1
-        .iter()
-        .chain(e2)
-        .map(|x| sqr(x.unsigned_abs() as u128))
-        .sum::<u128>();
-
-    assert!(
-        sqr(B as u128) >= e_sqr_norm,
-        "squared norm of error ({e_sqr_norm}) exceeds threshold ({})",
-        sqr(B as u128)
-    );
 
     let v = four_squares(sqr(B as u128) - e_sqr_norm).map(|v| v as i64);
 
@@ -872,7 +891,9 @@ pub fn prove<G: Curve>(
                     -1 => acc -= x as i128,
                     _ => unreachable!(),
                 });
-            assert!(acc.unsigned_abs() <= B_bound as u128);
+            if sanity_check_mode == ProofSanityCheckMode::Panic {
+                assert!(acc.unsigned_abs() <= B_bound as u128);
+            }
             acc as i64
         })
         .collect::<Box<[_]>>();
@@ -970,7 +991,9 @@ pub fn prove<G: Curve>(
         .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
-    assert_eq!(y.len(), w_bin.len());
+    if sanity_check_mode == ProofSanityCheckMode::Panic {
+        assert_eq!(y.len(), w_bin.len());
+    }
     let scalars = y
         .iter()
         .zip(w_bin.iter())

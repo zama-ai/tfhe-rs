@@ -132,6 +132,34 @@ impl<G: Curve> GroupElements<G> {
     }
 }
 
+/// Allows to compute proof with bad inputs for tests
+#[derive(PartialEq, Eq)]
+enum ProofSanityCheckMode {
+    Panic,
+}
+
+/// Check the preconditions of the pke proof before computing it. Panic if one of the conditions
+/// does not hold.
+#[allow(clippy::too_many_arguments)]
+fn assert_pke_proof_preconditions(
+    c1: &[i64],
+    e1: &[i64],
+    c2: &[i64],
+    e2: &[i64],
+    d: usize,
+    k_max: usize,
+    big_d: usize,
+    big_d_max: usize,
+) {
+    assert_eq!(c1.len(), d);
+    assert_eq!(e1.len(), d);
+
+    assert_eq!(c2.len(), e2.len());
+    assert!(c2.len() <= k_max);
+
+    assert!(big_d <= big_d_max);
+}
+
 /// q (modulus) is encoded on 64b, with 0 meaning 2^64. This converts the encoded q to its effective
 /// value for modular operations.
 fn decode_q(q: u64) -> u128 {
