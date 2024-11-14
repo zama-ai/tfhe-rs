@@ -214,6 +214,11 @@ impl Montgomery {
 pub fn four_squares(v: u128) -> [u64; 4] {
     let rng = &mut StdRng::seed_from_u64(0);
 
+    // In the extreme case where the noise is exactly at the bound, v is 0
+    if v == 0 {
+        return [0; 4];
+    }
+
     let f = v % 4;
     if f == 2 {
         let b = isqrt(v as _) as u64;
