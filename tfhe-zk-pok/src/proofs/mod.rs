@@ -132,6 +132,16 @@ impl<G: Curve> GroupElements<G> {
     }
 }
 
+/// q (modulus) is encoded on 64b, with 0 meaning 2^64. This converts the encoded q to its effective
+/// value for modular operations.
+fn decode_q(q: u64) -> u128 {
+    if q == 0 {
+        1u128 << 64
+    } else {
+        q as u128
+    }
+}
+
 impl<G: Curve> Compressible for GroupElements<G>
 where
     GroupElements<G>:

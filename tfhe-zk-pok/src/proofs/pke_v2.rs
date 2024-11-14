@@ -693,6 +693,8 @@ pub fn prove<G: Curve>(
 
     let effective_cleartext_t = t_input >> msbs_zero_padding_bit_count;
 
+    let decoded_q = decode_q(q);
+
     // Recompute the D for our case if k is smaller than the k max
     // formula in Prove_pp: 2.
     let D = d + k * effective_cleartext_t.ilog2() as usize;
@@ -700,9 +702,8 @@ pub fn prove<G: Curve>(
 
     // FIXME: div_round
     let delta = {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
         // delta takes the encoding with the padding bit
-        (q / t_input as i128) as u64
+        (decoded_q / t_input as u128) as u64
     };
 
     let g = G::G1::GENERATOR;
@@ -740,9 +741,8 @@ pub fn prove<G: Curve>(
     }
 
     {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
         for r1 in &mut *r1 {
-            *r1 /= q;
+            *r1 /= decoded_q as i128;
         }
     }
 
@@ -754,7 +754,6 @@ pub fn prove<G: Curve>(
         .collect::<Box<[_]>>();
 
     {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
         for (i, r2) in r2.iter_mut().enumerate() {
             let mut dot = 0i128;
             for j in 0..d {
@@ -768,7 +767,7 @@ pub fn prove<G: Curve>(
             }
 
             *r2 += dot;
-            *r2 /= q;
+            *r2 /= decoded_q as i128;
         }
     }
 
@@ -1272,8 +1271,7 @@ pub fn prove<G: Curve>(
         *p = r2_zp[j];
     }
 
-    let delta_theta_q =
-        delta_theta * G::Zp::from_u128(if q == 0 { 1u128 << 64 } else { q as u128 });
+    let delta_theta_q = delta_theta * G::Zp::from_u128(decoded_q);
     for j in 0..d + k {
         let p = &mut poly_2_rhs[n - j];
 
@@ -1872,11 +1870,12 @@ pub fn verify<G: Curve>(
     let g_list = &*g_lists.g_list.0;
     let g_hat_list = &*g_lists.g_hat_list.0;
 
+    let decoded_q = decode_q(q);
+
     // FIXME: div_round
     let delta = {
-        let q = if q == 0 { 1i128 << 64 } else { q as i128 };
         // delta takes the encoding with the padding bit
-        (q / t_input as i128) as u64
+        (decoded_q / t_input as u128) as u64
     };
 
     let PublicCommit { a, b, c1, c2, .. } = public.1;
@@ -2150,8 +2149,7 @@ pub fn verify<G: Curve>(
     let g = G::G1::GENERATOR;
     let g_hat = G::G2::GENERATOR;
 
-    let delta_theta_q =
-        delta_theta * G::Zp::from_u128(if q == 0 { 1u128 << 64 } else { q as u128 });
+    let delta_theta_q = delta_theta * G::Zp::from_u128(decoded_q);
 
     let rhs = pairing(pi, g_hat);
     let lhs = {
