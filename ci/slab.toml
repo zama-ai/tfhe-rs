@@ -26,7 +26,7 @@ user = "ubuntu"
 [backend.aws.gpu-build]
 region = "us-east-1"
 image_id = "ami-06a04649d895d10e0"
-instance_type = "m6i.4xlarge"
+instance_type = "m7i.4xlarge"
 
 [backend.hyperstack.gpu-test]
 environment_name = "canada"
