@@ -3,7 +3,7 @@
 ## Brief 
 Simulation _drop-in-replacement_ implementation of HPU Hardware.
 This mockup implementation could be paired seamlessly with `tfhe-hpu-backend` compiled without any hardware support (i.e. `hpu-xrt`).
-Indeed, without hardware support, `tfhe-hpu-backend` call to low-level FFI are replaced by IPC call and could be intercepted by this mockup implementation.
+Indeed, without hardware support, `tfhe-hpu-backend` calls to low-level FFI are replaced by IPC calls and could be intercepted by this mockup implementation.
 
 Objectives of this mockup are as follows:
 * Transparent integration with User application:
@@ -18,12 +18,12 @@ Objectives of this mockup are as follows:
 > Generate accurate performances estimation and tracing capabilities to help the development/optimization of HPU firmware
 
 ### Mockup structure
-Without hardware support `tfhe-hpu-backend` fallback to a simulation FFI interface (i.e. `ffi-sim`). This interface bind to IPC channel and forward the FFI call over IPC with a simple Cmd/Payload message and Request/Ack protocol. The Mockup bind to those IPC and answer to request like the real hardware.
+Without hardware support `tfhe-hpu-backend` falls back to a simulation FFI interface (i.e. `ffi-sim`). This interface binds to a IPC channel and forwards the FFI call over IPC with a simple Cmd/Payload message and Request/Ack protocol. The Mockup binds to those IPC and answer to request like the real hardware.
 
-On his side, the mockup answer to backend IPC request and simulate the hardware behavior. 
+On his side, the mockup answer to backend IPC request and simulates the hardware behavior. 
 The internal structure of the mockup is organized around modules to emulate the hardware behavior. It contains the following modules:
 * `hbm`: Emulate HBM memory (only from a behavioral point of view). It enables to allocate/release chunk of memory. Those chunk could be read/write through the IPC with the same Sync mechanisms as the real hardware.
-* `isc`: This module implements the `instruction_scheduler` behavior. It contains the performance model of the HPU. It reorders the DOp in a same manner as the RTL module and emulate HPU's processing element availability with a simple cost model. 
+* `isc`: This module implements the `instruction_scheduler` behavior. It contains the performance model of the HPU. It reorders the DOp in a same manner as the RTL module and emulates HPU's processing element availability with a simple cost model. 
  + `pe`: Processing element cost model. Parameters are loaded from `.ron` file
  + `pool`: Emulate the behavior of the instruction_scheduler pool used to store the state of the in-flight instructions
  + `scheduler`: Used query in the `pool` and dispatch req to Processing-Element.
@@ -31,7 +31,7 @@ The internal structure of the mockup is organized around modules to emulate the 
 * `ucore`: Emulate the ucore behavior. It is in charge of reading the DOp stream from the HBM and patch the template operation in a same manner as the ucode embedded in the real hardware.
 
 The Mockup is a standalone binary that must be run before the User application code.
-The use of Two binary enable to:
+The use of Two binaries enable to:
 * Expose a wide range of mockup configuration without impacting the User application
 * Have to distinct stream of log: One for the mockup and one for the User application. By this way the trace log of the User application is unchanged compared to the real Hardware.
 
@@ -49,7 +49,7 @@ Once done, the following steps occurred:
 
 1. Use configuration channel to exchange a set of IPC endpoints: 1 for registers access and one for memory management. Those channel implement a simple Cmd/Payload message and Request/Ack protocol.
 2. `tfhe-hpu-backend` read registers through the associated IPC channel and retrieved the associated mockup parameters.
-3. `tfhe-hpu-backend` allocate required on-board memory. It then uploads the firmware translation table (Use to expand IOp in a stream of DOps), and the set of TFHE server keys. Then, it uploads the input ciphertext.
+3. `tfhe-hpu-backend` allocates required on-board memory. It then uploads the firmware translation table (Use to expand IOp in a stream of DOps), and the set of TFHE server keys. Then, it uploads the input ciphertext.
 4. Once all input data is synced on the mockup, `tfhe-hpu-backend` triggered IOp execution by pushing operation in the `WorkQ`.
  4.1 HPU behavioral model retrieved the associated DOps stream from the HBM memory. For this purpose it uses the `ucore` module. This module read the memory and patch the obtain stream to have concrete DOp to execute (The firmware translation table have some templated DOp that must be translated to concrete one before execution)
  4.2 DOp stream is then injected in the `instruction scheduler` to obtain the real execution order and the performance estimation.
@@ -62,7 +62,7 @@ Once done, the following steps occurred:
 
 
 ### Mockup CLI and configuration
-The mockup application is configured two files:
+The mockup application is configured by two files:
 1. Configuration (i.e. `--config` CLI knob)
 It's the same as the one used by the `tfhe-hpu-backend`. It's used by the mockup application to retrieved the `ffi-sim` configuration, the register map as well as the expected memory layout of the on-board memory.
 
