@@ -8,21 +8,6 @@
 // Return A if C == 0 and B if C == 1
 #define SEL(A, B, C) ((-(C) & ((A) ^ (B))) ^ (A))
 
-/*
- *  function compresses decomposed buffer into half size complex buffer for fft
- */
-template <class params>
-__device__ void real_to_complex_compressed(const int16_t *__restrict__ src,
-                                           double2 *dst) {
-  int tid = threadIdx.x;
-#pragma unroll
-  for (int i = 0; i < params::opt / 2; i++) {
-    dst[tid].x = __int2double_rn(src[2 * tid]);
-    dst[tid].y = __int2double_rn(src[2 * tid + 1]);
-    tid += params::degree / params::opt;
-  }
-}
-
 template <typename T, int elems_per_thread, int block_size>
 __device__ void copy_polynomial(const T *__restrict__ source, T *dst) {
   int tid = threadIdx.x;
