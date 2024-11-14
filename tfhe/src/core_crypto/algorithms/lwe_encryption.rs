@@ -1986,9 +1986,7 @@ where
     encryption_generator
         .fill_slice_with_random_noise_from_distribution(&mut mask_noise, mask_noise_distribution);
 
-    let body_noise = vec![Scalar::ZERO; 1];
-    encryption_generator
-        .fill_slice_with_random_noise_from_distribution(&mut mask_noise, body_noise_distribution);
+    let body_noise = encryption_generator.random_noise_from_distribution(body_noise_distribution);
 
     {
         let (mut ct_mask, ct_body) = output.get_mut_mask_and_body();
@@ -2008,7 +2006,7 @@ where
         {
             *ct_body.data = slice_wrapping_dot_product(pk_body.as_ref(), &binary_random_vector);
             // Noise from Chi_2 for the body part of the encryption
-            *ct_body.data = (*ct_body.data).wrapping_add(body_noise[0]);
+            *ct_body.data = (*ct_body.data).wrapping_add(body_noise);
             *ct_body.data = (*ct_body.data).wrapping_add(encoded.0);
         }
     }
@@ -2016,7 +2014,7 @@ where
     CompactPublicKeyRandomVectors {
         binary_random_vector,
         mask_noise,
-        body_noise,
+        body_noise: vec![body_noise],
     }
 }
 
