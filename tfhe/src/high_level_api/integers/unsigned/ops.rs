@@ -631,8 +631,8 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let inner_result = cuda_key.key.key.div_rem(
-                    &self.ciphertext.on_gpu(),
-                    &rhs.ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
+                    &*rhs.ciphertext.on_gpu(),
                     streams,
                 );
                 (
@@ -977,7 +977,7 @@ generic_integer_impl_operation!(
                         cuda_key
                             .key
                             .key
-                            .div(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), streams);
+                            .div(&*lhs.ciphertext.on_gpu(), &*rhs.ciphertext.on_gpu(), streams);
                     FheUint::new(inner_result, cuda_key.tag.clone())
                 }),
             })
@@ -1028,7 +1028,7 @@ generic_integer_impl_operation!(
                         cuda_key
                             .key
                             .key
-                            .rem(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), streams);
+                            .rem(&*lhs.ciphertext.on_gpu(), &*rhs.ciphertext.on_gpu(), streams);
                     FheUint::new(inner_result, cuda_key.tag.clone())
                 }),
             })
