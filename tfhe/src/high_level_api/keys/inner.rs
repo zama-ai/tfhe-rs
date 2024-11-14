@@ -416,6 +416,10 @@ impl IntegerCompactPublicKey {
     pub fn from_raw_parts(key: CompactPublicKey) -> Self {
         Self { key }
     }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
@@ -454,6 +458,10 @@ impl IntegerCompressedCompactPublicKey {
         IntegerCompactPublicKey {
             key: CompressedCompactPublicKey::decompress(&self.key),
         }
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
     }
 }
 

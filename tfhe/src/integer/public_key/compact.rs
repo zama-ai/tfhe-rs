@@ -34,6 +34,10 @@ impl<C: Container<Element = u64>> CompactPrivateKey<C> {
     pub fn key(&self) -> &ShortintCompactPrivateKey<C> {
         &self.key
     }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
+    }
 }
 
 impl CompactPrivateKey<Vec<u64>> {
@@ -158,6 +162,10 @@ impl CompactPublicKey {
     pub fn size_bytes(&self) -> usize {
         self.key.size_bytes()
     }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
@@ -202,6 +210,10 @@ impl CompressedCompactPublicKey {
         CompactPublicKey {
             key: self.key.decompress(),
         }
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
     }
 }
 

@@ -466,6 +466,10 @@ impl CompactPublicKey {
     pub fn size_bytes(&self) -> usize {
         self.key.size_bytes()
     }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.parameters
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
@@ -551,6 +555,10 @@ impl CompressedCompactPublicKey {
             key: decompressed_key,
             parameters: self.parameters,
         }
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.parameters
     }
 }
 

@@ -167,6 +167,10 @@ impl CompactPublicKey {
             tag,
         }
     }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
+    }
 }
 
 impl Tagged for CompactPublicKey {
@@ -226,6 +230,10 @@ impl CompressedCompactPublicKey {
             key: self.key.decompress(),
             tag: self.tag.clone(),
         }
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.key.parameters()
     }
 }
 
