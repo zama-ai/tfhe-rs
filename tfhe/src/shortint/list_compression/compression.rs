@@ -11,7 +11,7 @@ use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::{
     apply_programmable_bootstrap, generate_lookup_table, unchecked_scalar_mul_assign,
 };
-use crate::shortint::{Ciphertext, CiphertextModulus};
+use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
 
@@ -87,8 +87,9 @@ impl CompressionKey {
                     );
 
                     let mut ct = ct.clone();
-
-                    unchecked_scalar_mul_assign(&mut ct, message_modulus.0 as u8);
+                    let max_noise_level =
+                        MaxNoiseLevel::new((ct.noise_level() * message_modulus.0).get());
+                    unchecked_scalar_mul_assign(&mut ct, message_modulus.0 as u8, max_noise_level);
 
                     list.extend(ct.ct.as_ref());
                 }

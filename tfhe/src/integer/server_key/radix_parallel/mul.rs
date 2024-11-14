@@ -1,6 +1,6 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -97,13 +97,28 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let shifted_ct = self.blockshift(ct1, index);
-
         let mut result_lsb = shifted_ct.clone();
-        let mut result_msb = shifted_ct;
-        self.unchecked_block_mul_lsb_msb_parallelized(&mut result_lsb, &mut result_msb, ct2, index);
-        result_msb = self.blockshift(&result_msb, 1);
 
-        self.unchecked_add(&result_lsb, &result_msb)
+        if self.message_modulus().0 == 2 {
+            result_lsb.blocks_mut()[index..]
+                .par_iter_mut()
+                .for_each(|res_lsb_i| {
+                    self.key.unchecked_mul_lsb_assign(res_lsb_i, ct2);
+                });
+
+            result_lsb
+        } else {
+            let mut result_msb = shifted_ct;
+            self.unchecked_block_mul_lsb_msb_parallelized(
+                &mut result_lsb,
+                &mut result_msb,
+                ct2,
+                index,
+            );
+            result_msb = self.blockshift(&result_msb, 1);
+
+            self.unchecked_add(&result_lsb, &result_msb)
+        }
     }
 
     /// Computes homomorphically a multiplication between a ciphertext encrypting integer value
@@ -151,16 +166,36 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         // Makes sure we can do the multiplications
-        self.full_propagate_parallelized(ct1);
+        if !ct1.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct1);
+        }
+        if ct2.noise_level != NoiseLevel::NOMINAL || !ct2.carry_is_empty() {
+            self.key.message_extract_assign(ct2);
+        }
 
         let shifted_ct = self.blockshift(ct1, index);
-
         let mut result_lsb = shifted_ct.clone();
-        let mut result_msb = shifted_ct;
-        self.unchecked_block_mul_lsb_msb_parallelized(&mut result_lsb, &mut result_msb, ct2, index);
-        result_msb = self.blockshift(&result_msb, 1);
 
-        self.smart_add_parallelized(&mut result_lsb, &mut result_msb)
+        if self.message_modulus().0 == 2 {
+            result_lsb.blocks_mut()[index..]
+                .par_iter_mut()
+                .for_each(|res_lsb_i| {
+                    self.key.unchecked_mul_lsb_assign(res_lsb_i, ct2);
+                });
+
+            result_lsb
+        } else {
+            let mut result_msb = shifted_ct;
+            self.unchecked_block_mul_lsb_msb_parallelized(
+                &mut result_lsb,
+                &mut result_msb,
+                ct2,
+                index,
+            );
+            result_msb = self.blockshift(&result_msb, 1);
+
+            self.smart_add_parallelized(&mut result_lsb, &mut result_msb)
+        }
     }
 
     /// Computes homomorphically a multiplication between a ciphertext encrypting integer value
@@ -228,7 +263,6 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let mut tmp_rhs: crate::shortint::Ciphertext;
-
         let (lhs, rhs) = match (ct1.block_carries_are_empty(), ct2.carry_is_empty()) {
             (true, true) => (ct1, ct2),
             (true, false) => {
@@ -249,6 +283,7 @@ impl ServerKey {
                 (ct1, &tmp_rhs)
             }
         };
+
         self.unchecked_block_mul_assign_parallelized(lhs, rhs, index);
         self.full_propagate_parallelized(lhs);
     }

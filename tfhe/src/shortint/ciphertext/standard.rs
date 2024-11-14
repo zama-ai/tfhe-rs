@@ -140,7 +140,13 @@ impl Ciphertext {
         self.noise_level
     }
 
-    pub fn set_noise_level(&mut self, noise_level: NoiseLevel) {
+    #[cfg_attr(any(feature = "noise-asserts", test), track_caller)]
+    pub fn set_noise_level(&mut self, noise_level: NoiseLevel, max_noise_level: MaxNoiseLevel) {
+        if cfg!(feature = "noise-asserts") || cfg!(test) {
+            max_noise_level.validate(noise_level).unwrap()
+        } else {
+            let _ = max_noise_level;
+        }
         self.noise_level = noise_level;
     }
 

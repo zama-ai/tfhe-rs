@@ -2,7 +2,7 @@ use super::{CiphertextNoiseDegree, SmartCleaningOperation};
 use crate::core_crypto::algorithms::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, MaxNoiseLevel, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
@@ -226,7 +226,7 @@ impl ServerKey {
     /// assert_eq!(msg + msg, two);
     /// ```
     pub fn unchecked_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        unchecked_add_assign(ct_left, ct_right);
+        unchecked_add_assign(ct_left, ct_right, self.max_noise_level);
     }
 
     /// Verify if ct_left and ct_right can be added together.
@@ -515,8 +515,15 @@ impl ServerKey {
     }
 }
 
-pub(crate) fn unchecked_add_assign(ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
+pub(crate) fn unchecked_add_assign(
+    ct_left: &mut Ciphertext,
+    ct_right: &Ciphertext,
+    max_noise_level: MaxNoiseLevel,
+) {
     lwe_ciphertext_add_assign(&mut ct_left.ct, &ct_right.ct);
     ct_left.degree = Degree::new(ct_left.degree.get() + ct_right.degree.get());
-    ct_left.set_noise_level(ct_left.noise_level() + ct_right.noise_level());
+    ct_left.set_noise_level(
+        ct_left.noise_level() + ct_right.noise_level(),
+        max_noise_level,
+    );
 }

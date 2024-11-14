@@ -14,7 +14,7 @@ use crate::shortint::parameters::{
     EncryptionKeyChoice, NoiseLevel, PBSOrder, ShortintKeySwitchingParameters,
 };
 use crate::shortint::server_key::apply_programmable_bootstrap;
-use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, ServerKey};
+use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, MaxNoiseLevel, ServerKey};
 use core::cmp::Ordering;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -520,7 +520,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
         // TODO: We are outside the standard AP, if we chain keyswitches, we will refresh, which is
         // safer for now. We can likely add an additional flag in shortint to indicate if we
         // want to refresh or not, for now refresh anyways.
-        keyswitched.set_noise_level(NoiseLevel::UNKNOWN);
+        keyswitched.set_noise_level(NoiseLevel::UNKNOWN, MaxNoiseLevel::UNKNOWN);
 
         let cast_rshift = self.key_switching_key_material.cast_rshift;
 
@@ -575,7 +575,10 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                         let wrong_key_ct = keyswitched;
                         let mut correct_key_ct = self.dest_server_key.create_trivial(0);
                         correct_key_ct.degree = wrong_key_ct.degree;
-                        correct_key_ct.set_noise_level(wrong_key_ct.noise_level());
+                        correct_key_ct.set_noise_level(
+                            wrong_key_ct.noise_level(),
+                            self.dest_server_key.max_noise_level,
+                        );
 
                         keyswitch_lwe_ciphertext(
                             &self.dest_server_key.key_switching_key,
@@ -644,7 +647,10 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         correct_key_ct.degree = degree_after_keyswitch;
                                     }
                                     // Update the noise as well
-                                    correct_key_ct.set_noise_level(NoiseLevel::NOMINAL);
+                                    correct_key_ct.set_noise_level(
+                                        NoiseLevel::NOMINAL,
+                                        self.dest_server_key.max_noise_level,
+                                    );
                                 });
                             });
                     }
@@ -688,7 +694,10 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                     );
                                     // Update degree and noise as it's a raw PBS
                                     correct_key_ct.degree = acc.degree;
-                                    correct_key_ct.set_noise_level(NoiseLevel::NOMINAL);
+                                    correct_key_ct.set_noise_level(
+                                        NoiseLevel::NOMINAL,
+                                        self.dest_server_key.max_noise_level,
+                                    );
                                 });
                             });
                     }
@@ -750,7 +759,10 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         );
                                         correct_key_ct.degree = new_degree;
                                     }
-                                    correct_key_ct.set_noise_level(NoiseLevel::NOMINAL);
+                                    correct_key_ct.set_noise_level(
+                                        NoiseLevel::NOMINAL,
+                                        self.dest_server_key.max_noise_level,
+                                    );
                                 });
                             });
                     }

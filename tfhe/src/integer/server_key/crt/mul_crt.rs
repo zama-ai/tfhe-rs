@@ -29,7 +29,15 @@ impl ServerKey {
     /// ```
     pub fn unchecked_crt_mul_assign(&self, ct_left: &mut CrtCiphertext, ct_right: &CrtCiphertext) {
         for (ct_left, ct_right) in ct_left.blocks.iter_mut().zip(ct_right.blocks.iter()) {
-            if ct_left.message_modulus.0 <= ct_left.carry_modulus.0 {
+            if self
+                .key
+                .is_functional_bivariate_pbs_possible(
+                    ct_left.noise_degree(),
+                    ct_right.noise_degree(),
+                    None,
+                )
+                .is_ok()
+            {
                 self.key.unchecked_mul_lsb_assign(ct_left, ct_right);
             } else {
                 self.key

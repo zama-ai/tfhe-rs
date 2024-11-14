@@ -177,7 +177,10 @@ impl ServerKey {
             // And here, it's because shortint sub_assign adds a correcting term,
             // which we do not want here
             crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs_b.ct, &borrow.ct);
-            lhs_b.set_noise_level(lhs_b.noise_level() + borrow.noise_level());
+            lhs_b.set_noise_level(
+                lhs_b.noise_level() + borrow.noise_level(),
+                self.key.max_noise_level,
+            );
 
             borrow.clone_from(lhs_b);
 
@@ -304,7 +307,10 @@ impl ServerKey {
                             &mut block.ct,
                             &simulator.ct,
                         );
-                        block.set_noise_level(block.noise_level() + simulator.noise_level());
+                        block.set_noise_level(
+                            block.noise_level() + simulator.noise_level(),
+                            self.key.max_noise_level,
+                        );
                         self.key.unchecked_scalar_add_assign(block, 1);
                     }
                 });
@@ -334,7 +340,10 @@ impl ServerKey {
                             &mut block.ct,
                             &borrow.ct,
                         );
-                        block.set_noise_level(block.noise_level() + borrow.noise_level());
+                        block.set_noise_level(
+                            block.noise_level() + borrow.noise_level(),
+                            self.key.max_noise_level,
+                        );
 
                         let lut = if i % 2 == 0 {
                             &extract_message_low_block_mut
