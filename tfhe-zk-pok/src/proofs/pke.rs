@@ -476,6 +476,24 @@ pub fn prove<G: Curve>(
     load: ComputeLoad,
     rng: &mut dyn RngCore,
 ) -> Proof<G> {
+    prove_impl(
+        public,
+        private_commit,
+        metadata,
+        load,
+        rng,
+        ProofSanityCheckMode::Panic,
+    )
+}
+
+fn prove_impl<G: Curve>(
+    public: (&PublicParams<G>, &PublicCommit<G>),
+    private_commit: &PrivateCommit<G>,
+    metadata: &[u8],
+    load: ComputeLoad,
+    rng: &mut dyn RngCore,
+    sanity_check_mode: ProofSanityCheckMode,
+) -> Proof<G> {
     let &PublicParams {
         ref g_lists,
         big_d: big_d_max,
@@ -503,7 +521,6 @@ pub fn prove<G: Curve>(
     let PrivateCommit { r, e1, m, e2, .. } = private_commit;
 
     let k = c2.len();
-    assert!(k <= k_max);
 
     let effective_t_for_decomposition = t >> msbs_zero_padding_bit_count;
 
@@ -512,7 +529,10 @@ pub fn prove<G: Curve>(
     let big_d = d
         + k * effective_t_for_decomposition.ilog2() as usize
         + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
-    assert!(big_d <= big_d_max);
+
+    if sanity_check_mode == ProofSanityCheckMode::Panic {
+        assert_pke_proof_preconditions(c1, e1, c2, e2, d, k_max, big_d, big_d_max);
+    }
 
     // FIXME: div_round
     let delta = {
