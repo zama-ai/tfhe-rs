@@ -1,6 +1,6 @@
 use crate::integer::prelude::*;
 use crate::integer::{BooleanBlock, RadixCiphertext};
-use crate::strings::ciphertext::{FheString, GenericPattern, UIntArg};
+use crate::strings::ciphertext::{FheString, GenericPatternRef, UIntArg};
 use crate::strings::server_key::pattern::IsMatch;
 use crate::strings::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
 
@@ -83,14 +83,14 @@ impl ServerKey {
         &self,
         iterations: u16,
         result: &mut FheString,
-        from: &GenericPattern,
+        from: GenericPatternRef<'_>,
         to: &FheString,
         enc_n: Option<&RadixCiphertext>,
     ) {
         let mut skip = self.create_trivial_zero_radix(16);
         let trivial_or_enc_from = match from {
-            GenericPattern::Clear(from) => FheString::trivial(self, from.str()),
-            GenericPattern::Enc(from) => from.clone(),
+            GenericPatternRef::Clear(from) => FheString::trivial(self, from.str()),
+            GenericPatternRef::Enc(from) => from.clone(),
         };
 
         let ((from_is_empty, from_len), (str_len, enc_to_len)) = rayon::join(
@@ -201,8 +201,8 @@ impl ServerKey {
     /// If the pattern to be replaced is not found or the count is zero, returns the original
     /// encrypted string unmodified.
     ///
-    /// The pattern to search for can be either `GenericPattern::Clear` for a clear string or
-    /// `GenericPattern::Enc` for an encrypted string, while the replacement pattern is always
+    /// The pattern to search for can be either `GenericPatternRef::Clear` for a clear string or
+    /// `GenericPatternRef::Enc` for an encrypted string, while the replacement pattern is always
     /// encrypted.
     ///
     /// # Examples
@@ -222,7 +222,7 @@ impl ServerKey {
     ///
     /// // Using Clear count
     /// let clear_count = UIntArg::Clear(1);
-    /// let result_clear = sk.replacen(&enc_s, &enc_from, &enc_to, &clear_count);
+    /// let result_clear = sk.replacen(&enc_s, enc_from.as_ref(), &enc_to, &clear_count);
     /// let replaced_clear = ck.decrypt_ascii(&result_clear);
     ///
     /// assert_eq!(replaced_clear, "herlo");
@@ -231,7 +231,7 @@ impl ServerKey {
     /// let max = 1; // Restricts the range of enc_n to 0..=max
     /// let enc_n = ck.encrypt_u16(1, Some(max));
     /// let enc_count = UIntArg::Enc(enc_n);
-    /// let result_enc = sk.replacen(&enc_s, &enc_from, &enc_to, &enc_count);
+    /// let result_enc = sk.replacen(&enc_s, enc_from.as_ref(), &enc_to, &enc_count);
     /// let replaced_enc = ck.decrypt_ascii(&result_enc);
     ///
     /// assert_eq!(replaced_enc, "herlo");
@@ -239,7 +239,7 @@ impl ServerKey {
     pub fn replacen(
         &self,
         str: &FheString,
-        from: &GenericPattern,
+        from: GenericPatternRef<'_>,
         to: &FheString,
         count: &UIntArg,
     ) -> FheString {
@@ -250,8 +250,8 @@ impl ServerKey {
         }
 
         let trivial_or_enc_from = match from {
-            GenericPattern::Clear(from) => FheString::trivial(self, from.str()),
-            GenericPattern::Enc(from) => from.clone(),
+            GenericPatternRef::Clear(from) => FheString::trivial(self, from.str()),
+            GenericPatternRef::Enc(from) => from.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_from) {
@@ -328,8 +328,8 @@ impl ServerKey {
     /// If the pattern to be replaced is not found, returns the original encrypted string
     /// unmodified.
     ///
-    /// The pattern to search for can be either `GenericPattern::Clear` for a clear string or
-    /// `GenericPattern::Enc` for an encrypted string, while the replacement pattern is always
+    /// The pattern to search for can be either `GenericPatternRef::Clear` for a clear string or
+    /// `GenericPatternRef::Enc` for an encrypted string, while the replacement pattern is always
     /// encrypted.
     ///
     /// # Examples
@@ -347,22 +347,27 @@ impl ServerKey {
     /// let enc_from = GenericPattern::Enc(FheString::new(&ck, from, None));
     /// let enc_to = FheString::new(&ck, to, None);
     ///
-    /// let result = sk.replace(&enc_s, &enc_from, &enc_to);
+    /// let result = sk.replace(&enc_s, enc_from.as_ref(), &enc_to);
     /// let replaced = ck.decrypt_ascii(&result);
     ///
     /// assert_eq!(replaced, "ho"); // "i" is replaced by "o" in "hi"
     ///
     /// let clear_from_not_found = GenericPattern::Clear(ClearString::new(String::from("x")));
-    /// let result_no_change = sk.replace(&enc_s, &clear_from_not_found, &enc_to);
+    /// let result_no_change = sk.replace(&enc_s, clear_from_not_found.as_ref(), &enc_to);
     /// let not_replaced = ck.decrypt_ascii(&result_no_change);
     ///
     /// assert_eq!(not_replaced, "hi"); // No match, original string returned
     /// ```
-    pub fn replace(&self, str: &FheString, from: &GenericPattern, to: &FheString) -> FheString {
+    pub fn replace(
+        &self,
+        str: &FheString,
+        from: GenericPatternRef<'_>,
+        to: &FheString,
+    ) -> FheString {
         let mut result = str.clone();
         let trivial_or_enc_from = match from {
-            GenericPattern::Clear(from) => FheString::trivial(self, from.str()),
-            GenericPattern::Enc(from) => from.clone(),
+            GenericPatternRef::Clear(from) => FheString::trivial(self, from.str()),
+            GenericPatternRef::Enc(from) => from.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_from) {

@@ -50,6 +50,30 @@ pub enum GenericPattern {
     Enc(FheString),
 }
 
+impl GenericPattern {
+    pub fn as_ref(&self) -> GenericPatternRef {
+        match self {
+            Self::Clear(clear_string) => GenericPatternRef::Clear(clear_string),
+            Self::Enc(fhe_string) => GenericPatternRef::Enc(fhe_string),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum GenericPatternRef<'a> {
+    Clear(&'a ClearString),
+    Enc(&'a FheString),
+}
+
+impl<'a> GenericPatternRef<'a> {
+    pub fn to_owned(self) -> GenericPattern {
+        match self {
+            GenericPatternRef::Clear(clear_string) => GenericPattern::Clear(clear_string.clone()),
+            GenericPatternRef::Enc(fhe_string) => GenericPattern::Enc(fhe_string.clone()),
+        }
+    }
+}
+
 impl FheAsciiChar {
     pub fn ciphertext(&self) -> &RadixCiphertext {
         &self.enc_char

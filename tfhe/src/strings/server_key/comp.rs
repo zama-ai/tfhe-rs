@@ -1,5 +1,5 @@
 use crate::integer::BooleanBlock;
-use crate::strings::ciphertext::{FheString, GenericPattern};
+use crate::strings::ciphertext::{FheString, GenericPatternRef};
 use crate::strings::server_key::{FheStringIsEmpty, ServerKey};
 
 impl ServerKey {
@@ -42,8 +42,8 @@ impl ServerKey {
     ///
     /// Returns `false` if they are not equal.
     ///
-    /// The pattern for comparison (`rhs`) can be specified as either `GenericPattern::Clear` for a
-    /// clear string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern for comparison (`rhs`) can be specified as either `GenericPatternRef::Clear` for
+    /// a clear string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -59,17 +59,17 @@ impl ServerKey {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
-    /// let result = sk.eq(&enc_s1, &enc_s2);
+    /// let result = sk.string_eq(&enc_s1, enc_s2.as_ref());
     /// let are_equal = ck.decrypt_bool(&result);
     ///
     /// assert!(are_equal);
     /// ```
-    pub fn eq(&self, lhs: &FheString, rhs: &GenericPattern) -> BooleanBlock {
+    pub fn string_eq(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
         let early_return = match rhs {
-            GenericPattern::Clear(rhs) => {
+            GenericPatternRef::Clear(rhs) => {
                 self.eq_length_checks(lhs, &FheString::trivial(self, rhs.str()))
             }
-            GenericPattern::Enc(rhs) => self.eq_length_checks(lhs, rhs),
+            GenericPatternRef::Enc(rhs) => self.eq_length_checks(lhs, rhs),
         };
 
         if let Some(val) = early_return {
@@ -78,12 +78,12 @@ impl ServerKey {
 
         let mut lhs_uint = lhs.to_uint();
         match rhs {
-            GenericPattern::Clear(rhs) => {
+            GenericPatternRef::Clear(rhs) => {
                 let rhs_clear_uint = self.pad_cipher_and_cleartext_lsb(&mut lhs_uint, rhs.str());
 
                 self.scalar_eq_parallelized(&lhs_uint, rhs_clear_uint)
             }
-            GenericPattern::Enc(rhs) => {
+            GenericPatternRef::Enc(rhs) => {
                 let mut rhs_uint = rhs.to_uint();
 
                 self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
@@ -98,8 +98,8 @@ impl ServerKey {
     ///
     /// Returns `false` if they are equal.
     ///
-    /// The pattern for comparison (`rhs`) can be specified as either `GenericPattern::Clear` for a
-    /// clear string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern for comparison (`rhs`) can be specified as either `GenericPatternRef::Clear` for
+    /// a clear string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -115,13 +115,13 @@ impl ServerKey {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
-    /// let result = sk.ne(&enc_s1, &enc_s2);
+    /// let result = sk.string_ne(&enc_s1, enc_s2.as_ref());
     /// let are_not_equal = ck.decrypt_bool(&result);
     ///
     /// assert!(are_not_equal);
     /// ```
-    pub fn ne(&self, lhs: &FheString, rhs: &GenericPattern) -> BooleanBlock {
-        let eq = self.eq(lhs, rhs);
+    pub fn string_ne(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+        let eq = self.string_eq(lhs, rhs);
 
         self.boolean_bitnot(&eq)
     }
@@ -144,12 +144,12 @@ impl ServerKey {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
-    /// let result = sk.lt(&enc_s1, &enc_s2);
+    /// let result = sk.string_lt(&enc_s1, &enc_s2);
     /// let is_lt = ck.decrypt_bool(&result);
     ///
     /// assert!(is_lt); // "apple" is less than "banana"
     /// ```
-    pub fn lt(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
+    pub fn string_lt(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
         let mut lhs_uint = lhs.to_uint();
         let mut rhs_uint = rhs.to_uint();
 
@@ -176,12 +176,12 @@ impl ServerKey {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
-    /// let result = sk.gt(&enc_s1, &enc_s2);
+    /// let result = sk.string_gt(&enc_s1, &enc_s2);
     /// let is_gt = ck.decrypt_bool(&result);
     ///
     /// assert!(is_gt); // "banana" is greater than "apple"
     /// ```
-    pub fn gt(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
+    pub fn string_gt(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
         let mut lhs_uint = lhs.to_uint();
         let mut rhs_uint = rhs.to_uint();
 
@@ -209,12 +209,12 @@ impl ServerKey {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
-    /// let result = sk.le(&enc_s1, &enc_s2);
+    /// let result = sk.string_le(&enc_s1, &enc_s2);
     /// let is_le = ck.decrypt_bool(&result);
     ///
     /// assert!(is_le); // "apple" is less than or equal to "banana"
     /// ```
-    pub fn le(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
+    pub fn string_le(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
         let mut lhs_uint = lhs.to_uint();
         let mut rhs_uint = rhs.to_uint();
 
@@ -242,12 +242,12 @@ impl ServerKey {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = FheString::new(&ck, s2, None);
     ///
-    /// let result = sk.ge(&enc_s1, &enc_s2);
+    /// let result = sk.string_ge(&enc_s1, &enc_s2);
     /// let is_ge = ck.decrypt_bool(&result);
     ///
     /// assert!(is_ge); // "banana" is greater than or equal to "apple"
     /// ```
-    pub fn ge(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
+    pub fn string_ge(&self, lhs: &FheString, rhs: &FheString) -> BooleanBlock {
         let mut lhs_uint = lhs.to_uint();
         let mut rhs_uint = rhs.to_uint();
 
