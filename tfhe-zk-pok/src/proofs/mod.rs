@@ -142,6 +142,90 @@ fn decode_q(q: u64) -> u128 {
     }
 }
 
+/// Compute r1 according to eq (11):
+///
+/// rot(a) * phi(bar(r)) - q phi(r1) + phi(e1) = phi(c1)
+/// implies
+/// phi(r1) = (rot(a) * phi(bar(r)) + phi(e1) - phi(c1)) / q
+/// (phi is the function that maps a polynomial to its coeffs vector)
+fn compute_r1(
+    e1: &[i64],
+    c1: &[i64],
+    a: &[i64],
+    r: &[i64],
+    d: usize,
+    decoded_q: u128,
+) -> Box<[i64]> {
+    let mut r1 = e1
+        .iter()
+        .zip(c1.iter())
+        .map(|(&e1, &c1)| e1 as i128 - c1 as i128)
+        .collect::<Box<[_]>>();
+
+    for i in 0..d {
+        for j in 0..d {
+            if i + j < d {
+                r1[i + j] += a[i] as i128 * r[d - j - 1] as i128;
+            } else {
+                r1[i + j - d] -= a[i] as i128 * r[d - j - 1] as i128;
+            }
+        }
+    }
+
+    {
+        for r1 in &mut *r1 {
+            *r1 /= decoded_q as i128;
+        }
+    }
+
+    r1.into_vec().into_iter().map(|r1| r1 as i64).collect()
+}
+
+/// Compute r2 according to eq (11):
+///
+/// phi_[d - i](b).T * phi(bar(r)) + delta * m_i - q r2_i + e2_i = c2_i
+/// implies
+/// r2_i = (phi_[d - i](b).T * phi(bar(r)) + delta * m_i + e2_i - c2_i) / q
+/// (phi is the function that maps a polynomial to its coeffs vector)
+#[allow(clippy::too_many_arguments)]
+fn compute_r2(
+    e2: &[i64],
+    c2: &[i64],
+    m: &[i64],
+    b: &[i64],
+    r: &[i64],
+    d: usize,
+    delta: u64,
+    decoded_q: u128,
+) -> Box<[i64]> {
+    let mut r2 = m
+        .iter()
+        .zip(e2)
+        .zip(c2)
+        .map(|((&m, &e2), &c2)| delta as i128 * m as i128 + e2 as i128 - c2 as i128)
+        .collect::<Box<[_]>>();
+
+    {
+        for (i, r2) in r2.iter_mut().enumerate() {
+            let mut dot = 0i128;
+            for j in 0..d {
+                let b = if i + j < d {
+                    b[d - j - i - 1] as i128
+                } else {
+                    -(b[2 * d - j - i - 1] as i128)
+                };
+
+                dot += r[d - j - 1] as i128 * b;
+            }
+
+            *r2 += dot;
+            *r2 /= decoded_q as i128;
+        }
+    }
+
+    r2.into_vec().into_iter().map(|r2| r2 as i64).collect()
+}
+
 impl<G: Curve> Compressible for GroupElements<G>
 where
     GroupElements<G>:

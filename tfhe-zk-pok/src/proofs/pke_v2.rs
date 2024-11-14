@@ -715,73 +715,8 @@ pub fn prove<G: Curve>(
     let gamma_bin = G::Zp::rand(rng);
     let gamma_y = G::Zp::rand(rng);
 
-    // eq (11)
-    // (phi is simply the function that maps a polynomial to its coeffs vector)
-    // rot(a) * phi(bar(r)) - q phi(r1) + phi(e1) = phi(c1)
-    // phi_[d - i](b).T * phi(bar(r)) + delta * m_i - q r2_i + e2_i = c2_i
-
-    // implies
-    // phi(r1) = (rot(a) * phi(bar(r)) + phi(e1) - phi(c1)) / q
-    // r2_i = (phi_[d - i](b).T * phi(bar(r)) + delta * m_i + e2_i - c2_i) / q
-
-    let mut r1 = e1
-        .iter()
-        .zip(c1.iter())
-        .map(|(&e1, &c1)| e1 as i128 - c1 as i128)
-        .collect::<Box<[_]>>();
-
-    for i in 0..d {
-        for j in 0..d {
-            if i + j < d {
-                r1[i + j] += a[i] as i128 * r[d - j - 1] as i128;
-            } else {
-                r1[i + j - d] -= a[i] as i128 * r[d - j - 1] as i128;
-            }
-        }
-    }
-
-    {
-        for r1 in &mut *r1 {
-            *r1 /= decoded_q as i128;
-        }
-    }
-
-    let mut r2 = m
-        .iter()
-        .zip(e2)
-        .zip(c2)
-        .map(|((&m, &e2), &c2)| delta as i128 * m as i128 + e2 as i128 - c2 as i128)
-        .collect::<Box<[_]>>();
-
-    {
-        for (i, r2) in r2.iter_mut().enumerate() {
-            let mut dot = 0i128;
-            for j in 0..d {
-                let b = if i + j < d {
-                    b[d - j - i - 1] as i128
-                } else {
-                    -(b[2 * d - j - i - 1] as i128)
-                };
-
-                dot += r[d - j - 1] as i128 * b;
-            }
-
-            *r2 += dot;
-            *r2 /= decoded_q as i128;
-        }
-    }
-
-    let r1 = &*r1
-        .into_vec()
-        .into_iter()
-        .map(|r1| r1 as i64)
-        .collect::<Box<[_]>>();
-
-    let r2 = &*r2
-        .into_vec()
-        .into_iter()
-        .map(|r2| r2 as i64)
-        .collect::<Box<[_]>>();
+    let r1 = compute_r1(e1, c1, a, r, d, decoded_q);
+    let r2 = compute_r2(e2, c2, m, b, r, d, delta, decoded_q);
 
     let u64 = |x: i64| x as u64;
 
@@ -927,8 +862,8 @@ pub fn prove<G: Curve>(
             e1.iter()
                 .chain(e2)
                 .chain(&v)
-                .chain(r1)
-                .chain(r2)
+                .chain(&r1)
+                .chain(&r2)
                 .copied()
                 .enumerate()
                 .for_each(|(j, x)| match R(j) {
