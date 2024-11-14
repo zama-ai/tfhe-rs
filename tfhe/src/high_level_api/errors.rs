@@ -32,7 +32,7 @@ impl Display for UninitializedServerKey {
         write!(
             f,
             "The server key was not properly initialized.\n\
-             Did you forget to call `set_server_key` in the current thread ?
+             Did you forget to call `set_server_key` in the current thread ?\
             ",
         )
     }
