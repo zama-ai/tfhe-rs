@@ -1,7 +1,7 @@
 use super::{clear_ends_with_cases, contains_cases, ends_with_cases};
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext};
 use crate::strings::char_iter::CharIter;
-use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPattern};
+use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPatternRef};
 use crate::strings::server_key::pattern::IsMatch;
 use crate::strings::server_key::ServerKey;
 use itertools::Itertools;
@@ -74,8 +74,8 @@ impl ServerKey {
     ///
     /// Returns `false` if the pattern does not match any substring.
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -92,8 +92,8 @@ impl ServerKey {
     /// let enc_nana = GenericPattern::Enc(FheString::new(&ck, nana, None));
     /// let clear_apples = GenericPattern::Clear(ClearString::new(apples.to_string()));
     ///
-    /// let result1 = sk.contains(&enc_bananas, &enc_nana);
-    /// let result2 = sk.contains(&enc_bananas, &clear_apples);
+    /// let result1 = sk.contains(&enc_bananas, enc_nana.as_ref());
+    /// let result2 = sk.contains(&enc_bananas, clear_apples.as_ref());
     ///
     /// let should_be_true = ck.decrypt_bool(&result1);
     /// let should_be_false = ck.decrypt_bool(&result2);
@@ -101,10 +101,10 @@ impl ServerKey {
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
     /// ```
-    pub fn contains(&self, str: &FheString, pat: &GenericPattern) -> BooleanBlock {
+    pub fn contains(&self, str: &FheString, pat: GenericPatternRef<'_>) -> BooleanBlock {
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
@@ -121,10 +121,10 @@ impl ServerKey {
         let (str_iter, pat_iter, iter) = contains_cases(str, &trivial_or_enc_pat, null.as_ref());
 
         match pat {
-            GenericPattern::Clear(pat) => {
+            GenericPatternRef::Clear(pat) => {
                 self.clear_compare_shifted((str_iter, pat.str()), iter.into_par_iter())
             }
-            GenericPattern::Enc(_) => {
+            GenericPatternRef::Enc(_) => {
                 self.compare_shifted((str_iter, pat_iter), iter.into_par_iter(), ignore_pat_pad)
             }
         }
@@ -135,8 +135,8 @@ impl ServerKey {
     ///
     /// Returns `false` if the pattern does not match the prefix.
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -153,8 +153,8 @@ impl ServerKey {
     /// let enc_ba = GenericPattern::Enc(FheString::new(&ck, ba, None));
     /// let clear_nan = GenericPattern::Clear(ClearString::new(nan.to_string()));
     ///
-    /// let result1 = sk.starts_with(&enc_bananas, &enc_ba);
-    /// let result2 = sk.starts_with(&enc_bananas, &clear_nan);
+    /// let result1 = sk.starts_with(&enc_bananas, enc_ba.as_ref());
+    /// let result2 = sk.starts_with(&enc_bananas, clear_nan.as_ref());
     ///
     /// let should_be_true = ck.decrypt_bool(&result1);
     /// let should_be_false = ck.decrypt_bool(&result2);
@@ -162,10 +162,10 @@ impl ServerKey {
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
     /// ```
-    pub fn starts_with(&self, str: &FheString, pat: &GenericPattern) -> BooleanBlock {
+    pub fn starts_with(&self, str: &FheString, pat: GenericPatternRef<'_>) -> BooleanBlock {
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
@@ -176,8 +176,12 @@ impl ServerKey {
 
         if !trivial_or_enc_pat.is_padded() {
             return match pat {
-                GenericPattern::Clear(pat) => self.clear_asciis_eq(str.chars().iter(), pat.str()),
-                GenericPattern::Enc(pat) => self.asciis_eq(str.chars().iter(), pat.chars().iter()),
+                GenericPatternRef::Clear(pat) => {
+                    self.clear_asciis_eq(str.chars().iter(), pat.str())
+                }
+                GenericPatternRef::Enc(pat) => {
+                    self.asciis_eq(str.chars().iter(), pat.chars().iter())
+                }
             };
         }
 
@@ -209,8 +213,8 @@ impl ServerKey {
     ///
     /// Returns `false` if the pattern does not match the suffix.
     ///
-    /// The pattern to search for can be specified as either `GenericPattern::Clear` for a clear
-    /// string or `GenericPattern::Enc` for an encrypted string.
+    /// The pattern to search for can be specified as either `GenericPatternRef::Clear` for a clear
+    /// string or `GenericPatternRef::Enc` for an encrypted string.
     ///
     /// # Examples
     ///
@@ -227,8 +231,8 @@ impl ServerKey {
     /// let enc_anas = GenericPattern::Enc(FheString::new(&ck, anas, None));
     /// let clear_nana = GenericPattern::Clear(ClearString::new(nana.to_string()));
     ///
-    /// let result1 = sk.ends_with(&enc_bananas, &enc_anas);
-    /// let result2 = sk.ends_with(&enc_bananas, &clear_nana);
+    /// let result1 = sk.ends_with(&enc_bananas, enc_anas.as_ref());
+    /// let result2 = sk.ends_with(&enc_bananas, clear_nana.as_ref());
     ///
     /// let should_be_true = ck.decrypt_bool(&result1);
     /// let should_be_false = ck.decrypt_bool(&result2);
@@ -236,10 +240,10 @@ impl ServerKey {
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
     /// ```
-    pub fn ends_with(&self, str: &FheString, pat: &GenericPattern) -> BooleanBlock {
+    pub fn ends_with(&self, str: &FheString, pat: GenericPatternRef<'_>) -> BooleanBlock {
         let trivial_or_enc_pat = match pat {
-            GenericPattern::Clear(pat) => FheString::trivial(self, pat.str()),
-            GenericPattern::Enc(pat) => pat.clone(),
+            GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
+            GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
@@ -249,12 +253,12 @@ impl ServerKey {
         }
 
         match pat {
-            GenericPattern::Clear(pat) => {
+            GenericPatternRef::Clear(pat) => {
                 let (str_iter, clear_pat, iter) = clear_ends_with_cases(str, pat.str());
 
                 self.clear_compare_shifted((str_iter, &clear_pat), iter.into_par_iter())
             }
-            GenericPattern::Enc(pat) => {
+            GenericPatternRef::Enc(pat) => {
                 let null = (str.is_padded() ^ pat.is_padded()).then_some(FheAsciiChar::null(self));
 
                 let (str_iter, pat_iter, iter) = ends_with_cases(str, pat, null.as_ref());

@@ -72,7 +72,7 @@ impl TestKeys {
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
-        let result = self.sk.contains(&enc_str, &enc_pat);
+        let result = self.sk.contains(&enc_str, enc_pat.as_ref());
         let end = Instant::now();
 
         let dec = self.ck.decrypt_bool(&result);
@@ -83,7 +83,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
 
         let start = Instant::now();
-        let result = self.sk.contains(&enc_str, &clear_pat);
+        let result = self.sk.contains(&enc_str, clear_pat.as_ref());
         let end = Instant::now();
 
         let dec = self.ck.decrypt_bool(&result);
@@ -108,7 +108,7 @@ impl TestKeys {
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
-        let result = self.sk.ends_with(&enc_str, &enc_pat);
+        let result = self.sk.ends_with(&enc_str, enc_pat.as_ref());
         let end = Instant::now();
 
         let dec = self.ck.decrypt_bool(&result);
@@ -119,7 +119,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
 
         let start = Instant::now();
-        let result = self.sk.ends_with(&enc_str, &clear_pat);
+        let result = self.sk.ends_with(&enc_str, clear_pat.as_ref());
         let end = Instant::now();
 
         let dec = self.ck.decrypt_bool(&result);
@@ -144,7 +144,7 @@ impl TestKeys {
         let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
         let start = Instant::now();
-        let result = self.sk.starts_with(&enc_str, &enc_pat);
+        let result = self.sk.starts_with(&enc_str, enc_pat.as_ref());
         let end = Instant::now();
 
         let dec = self.ck.decrypt_bool(&result);
@@ -155,7 +155,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
 
         let start = Instant::now();
-        let result = self.sk.starts_with(&enc_str, &clear_pat);
+        let result = self.sk.starts_with(&enc_str, clear_pat.as_ref());
         let end = Instant::now();
 
         let dec = self.ck.decrypt_bool(&result);

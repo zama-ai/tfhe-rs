@@ -95,7 +95,7 @@ impl TestKeys {
         let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
 
         let start = Instant::now();
-        let result = self.sk.eq_ignore_case(&enc_lhs, &enc_rhs);
+        let result = self.sk.eq_ignore_case(&enc_lhs, enc_rhs.as_ref());
         let end = Instant::now();
 
         let dec = self.ck.decrypt_bool(&result);
@@ -106,7 +106,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
 
         let start = Instant::now();
-        let result = self.sk.eq_ignore_case(&enc_lhs, &clear_rhs);
+        let result = self.sk.eq_ignore_case(&enc_lhs, clear_rhs.as_ref());
         let end = Instant::now();
 
         let dec = self.ck.decrypt_bool(&result);
