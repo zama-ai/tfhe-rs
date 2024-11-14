@@ -136,6 +136,8 @@ impl<G: Curve> GroupElements<G> {
 #[derive(PartialEq, Eq)]
 enum ProofSanityCheckMode {
     Panic,
+    #[cfg(test)]
+    Ignore,
 }
 
 /// Check the preconditions of the pke proof before computing it. Panic if one of the conditions
@@ -368,6 +370,7 @@ mod test {
     }
 
     /// A randomly generated testcase of pke encryption
+    #[derive(Clone)]
     pub(super) struct PkeTestcase {
         pub(super) a: Vec<i64>,
         pub(super) e1: Vec<i64>,
@@ -376,7 +379,7 @@ mod test {
         pub(super) m: Vec<i64>,
         pub(super) b: Vec<i64>,
         pub(super) metadata: [u8; METADATA_LEN],
-        s: Vec<i64>,
+        pub(super) s: Vec<i64>,
     }
 
     impl PkeTestcase {
@@ -435,8 +438,49 @@ mod test {
             }
         }
 
-        /// Encrypt using compact pke
+        /// Encrypt using compact pke, the encryption is validated by doing a decryption
         pub(super) fn encrypt(&self, params: PkeTestParameters) -> PkeTestCiphertext {
+            let PkeTestParameters {
+                d,
+                k,
+                B: _B,
+                q,
+                t,
+                msbs_zero_padding_bit_count: _msbs_zero_padding_bit_count,
+            } = params;
+
+            let ct = self.encrypt_unchecked(params);
+
+            // Check decryption
+            let mut m_decrypted = vec![0i64; k];
+            for (i, decrypted) in m_decrypted.iter_mut().enumerate() {
+                let mut dot = 0i128;
+                for j in 0..d {
+                    let c = if i + j < d {
+                        ct.c1[d - j - i - 1]
+                    } else {
+                        ct.c1[2 * d - j - i - 1].wrapping_neg()
+                    };
+
+                    dot += self.s[d - j - 1] as i128 * c as i128;
+                }
+
+                let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+                let val = ((ct.c2[i] as i128).wrapping_sub(dot)) * t as i128;
+                let div = val.div_euclid(q);
+                let rem = val.rem_euclid(q);
+                let result = div as i64 + (rem > (q / 2)) as i64;
+                let result = result.rem_euclid(params.t as i64);
+                *decrypted = result;
+            }
+
+            assert_eq!(self.m, m_decrypted);
+
+            ct
+        }
+
+        /// Encrypt using compact pke, without checking that the decryption is correct
+        pub(super) fn encrypt_unchecked(&self, params: PkeTestParameters) -> PkeTestCiphertext {
             let PkeTestParameters {
                 d,
                 k,
@@ -477,33 +521,15 @@ mod test {
                     .wrapping_add((delta * self.m[i] as u64) as i64);
             }
 
-            // Check decryption
-            let mut m_roundtrip = vec![0i64; k];
-            for i in 0..k {
-                let mut dot = 0i128;
-                for j in 0..d {
-                    let c = if i + j < d {
-                        c1[d - j - i - 1]
-                    } else {
-                        c1[2 * d - j - i - 1].wrapping_neg()
-                    };
-
-                    dot += self.s[d - j - 1] as i128 * c as i128;
-                }
-
-                let q = if q == 0 { 1i128 << 64 } else { q as i128 };
-                let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
-                let div = val.div_euclid(q);
-                let rem = val.rem_euclid(q);
-                let result = div as i64 + (rem > (q / 2)) as i64;
-                let result = result.rem_euclid(params.t as i64);
-                m_roundtrip[i] = result;
-            }
-
-            assert_eq!(self.m, m_roundtrip);
-
             PkeTestCiphertext { c1, c2 }
         }
+    }
+
+    /// Expected result of the verification for a test
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    pub(super) enum VerificationResult {
+        Accept,
+        Reject,
     }
 
     /// Return a point with coordinates (x, y) that is randomly chosen and not on the curve

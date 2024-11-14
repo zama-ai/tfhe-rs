@@ -1272,6 +1272,7 @@ mod tests {
         msbs_zero_padding_bit_count: 1,
     };
 
+    /// Test that the proof is rejected if we use a different value between encryption and proof
     #[test]
     fn test_pke() {
         let PkeTestParameters {
@@ -1396,6 +1397,209 @@ mod tests {
         }
     }
 
+    fn prove_and_verify<G: Curve>(
+        testcase: &PkeTestcase,
+        crs: &PublicParams<G>,
+        load: ComputeLoad,
+        rng: &mut StdRng,
+    ) -> VerificationResult {
+        let ct = testcase.encrypt_unchecked(PKEV1_TEST_PARAMS);
+
+        let (public_commit, private_commit) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            crs,
+            rng,
+        );
+
+        let proof = prove_impl(
+            (crs, &public_commit),
+            &private_commit,
+            &testcase.metadata,
+            load,
+            rng,
+            ProofSanityCheckMode::Ignore,
+        );
+
+        if verify(&proof, (crs, &public_commit), &testcase.metadata).is_ok() {
+            VerificationResult::Accept
+        } else {
+            VerificationResult::Reject
+        }
+    }
+
+    fn assert_prove_and_verify<G: Curve>(
+        testcase: &PkeTestcase,
+        testcase_name: &str,
+        crs: &PublicParams<G>,
+        rng: &mut StdRng,
+        expected_result: VerificationResult,
+    ) {
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            assert_eq!(
+                prove_and_verify(testcase, crs, load, rng),
+                expected_result,
+                "Testcase {testcase_name} failed"
+            )
+        }
+    }
+
+    /// Test that the proof is rejected if we use a noise outside of the bounds
+    #[test]
+    fn test_pke_bad_noise() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV1_TEST_PARAMS;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
+
+        type Curve = curve_api::Bls12_446;
+
+        // A CRS where the number of slots = the number of messages to encrypt
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        // A CRS where the number of slots is bigger than the number of messages to encrypt
+        let big_crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+        let crs_bigger_k =
+            crs_gen::<Curve>(d, big_crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        // ==== Generate test noise vectors with random coeffs and one completely out of bounds ===
+        let mut testcase_bad_e1 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % d;
+        // Generate a value between B + 1 and i64::MAX to make sure that it is out of bounds
+        let bad_term = (rng.gen::<u64>() % (i64::MAX as u64 - (B + 1))) + (B + 1);
+        let bad_term = bad_term as i64;
+
+        testcase_bad_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        let mut testcase_bad_e2 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % k;
+
+        testcase_bad_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        // ==== Generate test noise vectors with random coeffs and one just around the bound  ===
+
+        // Check slightly out of bound noise
+        let bad_term = (B + 1) as i64;
+
+        let mut testcase_after_bound_e1 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % d;
+
+        testcase_after_bound_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        let mut testcase_after_bound_e2 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % k;
+
+        testcase_after_bound_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        // Check noise right on the bound
+        let bad_term = B as i64;
+
+        let mut testcase_on_bound_positive_e1 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % d;
+
+        testcase_on_bound_positive_e1.e1[bad_idx] = bad_term;
+
+        let mut testcase_on_bound_positive_e2 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % k;
+
+        testcase_on_bound_positive_e2.e2[bad_idx] = bad_term;
+
+        let mut testcase_on_bound_negative_e1 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % d;
+
+        testcase_on_bound_negative_e1.e1[bad_idx] = -bad_term;
+
+        let mut testcase_on_bound_negative_e2 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % k;
+
+        testcase_on_bound_negative_e2.e2[bad_idx] = -bad_term;
+
+        // Check just before the limit
+        let bad_term = (B - 1) as i64;
+
+        let mut testcase_before_bound_e1 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % d;
+
+        testcase_before_bound_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        let mut testcase_before_bound_e2 = testcase.clone();
+        let bad_idx = rng.gen::<usize>() % k;
+
+        testcase_before_bound_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+
+        for (testcase, name, expected_result) in [
+            (
+                testcase_bad_e1,
+                stringify!(testcase_bad_e1),
+                VerificationResult::Reject,
+            ),
+            (
+                testcase_bad_e2,
+                stringify!(testcase_bad_e2),
+                VerificationResult::Reject,
+            ),
+            (
+                testcase_after_bound_e1,
+                stringify!(testcase_after_bound_e1),
+                VerificationResult::Reject,
+            ),
+            (
+                testcase_after_bound_e2,
+                stringify!(testcase_after_bound_e2),
+                VerificationResult::Reject,
+            ),
+            // Upper bound is refused and lower bound is accepted
+            (
+                testcase_on_bound_positive_e1,
+                stringify!(testcase_on_bound_positive_e1),
+                VerificationResult::Reject,
+            ),
+            (
+                testcase_on_bound_positive_e2,
+                stringify!(testcase_on_bound_positive_e2),
+                VerificationResult::Reject,
+            ),
+            (
+                testcase_on_bound_negative_e1,
+                stringify!(testcase_on_bound_negative_e1),
+                VerificationResult::Accept,
+            ),
+            (
+                testcase_on_bound_negative_e2,
+                stringify!(testcase_on_bound_negative_e2),
+                VerificationResult::Accept,
+            ),
+            (
+                testcase_before_bound_e1,
+                stringify!(testcase_before_bound_e1),
+                VerificationResult::Accept,
+            ),
+            (
+                testcase_before_bound_e2,
+                stringify!(testcase_before_bound_e2),
+                VerificationResult::Accept,
+            ),
+        ] {
+            assert_prove_and_verify(&testcase, name, &crs, rng, expected_result);
+            assert_prove_and_verify(&testcase, name, &crs_bigger_k, rng, expected_result);
+        }
+    }
+
+    /// Test that the proof is rejected if we don't have the padding bit set to 0
     #[test]
     fn test_pke_w_padding_fail_verify() {
         let PkeTestParameters {
@@ -1472,6 +1676,7 @@ mod tests {
         }
     }
 
+    /// Test compression of proofs
     #[test]
     fn test_proof_compression() {
         let PkeTestParameters {
@@ -1524,6 +1729,7 @@ mod tests {
         }
     }
 
+    /// Test the `is_usable` method, that checks the correctness of the EC points in the proof
     #[test]
     fn test_proof_usable() {
         let PkeTestParameters {
