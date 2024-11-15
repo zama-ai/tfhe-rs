@@ -66,7 +66,7 @@ tfhe-fft = { version = "0.6.0", path = "../tfhe-fft", features = [
     "serde",
     "fft128",
 ] }
-concrete-ntt = { version = "0.2.0" }
+tfhe-ntt = { version = "0.3.0", path = "../tfhe-ntt" }
 pulp = { workspace = true, features = ["default"] }
 tfhe-cuda-backend = { version = "0.6.0", path = "../backends/tfhe-cuda-backend", optional = true }
 aligned-vec = { workspace = true, features = ["default", "serde"] }
@@ -129,7 +129,7 @@ integer-client-js-wasm-api = ["integer", "__wasm_api"]
 high-level-client-js-wasm-api = ["boolean", "shortint", "integer", "__wasm_api"]
 parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
-nightly-avx512 = ["tfhe-fft/nightly", "concrete-ntt/nightly", "pulp/nightly"]
+nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
 
 # Enable the x86_64 specific accelerated implementation of the random generator for the default
 # backend
