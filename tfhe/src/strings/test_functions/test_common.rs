@@ -18,8 +18,8 @@ fn test_len_is_empty_trivial() {
 
     for str in ["", "a", "abc"] {
         for pad in 0..3 {
-            keys.assert_len(str, Some(pad));
-            keys.assert_is_empty(str, Some(pad));
+            keys.check_len_fhe_string_vs_rust_str(str, Some(pad));
+            keys.check_is_empty_fhe_string_vs_rust_str(str, Some(pad));
         }
     }
 }
@@ -31,11 +31,11 @@ fn test_len_is_empty() {
         TestKind::Encrypted,
     );
 
-    keys.assert_len("", Some(1));
-    keys.assert_is_empty("", Some(1));
+    keys.check_len_fhe_string_vs_rust_str("", Some(1));
+    keys.check_is_empty_fhe_string_vs_rust_str("", Some(1));
 
-    keys.assert_len("abc", Some(1));
-    keys.assert_is_empty("abc", Some(1));
+    keys.check_len_fhe_string_vs_rust_str("abc", Some(1));
+    keys.check_is_empty_fhe_string_vs_rust_str("abc", Some(1));
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn test_encrypt_decrypt_trivial() {
 
     for str in ["", "a", "abc"] {
         for pad in 0..3 {
-            keys.assert_encrypt_decrypt(str, Some(pad));
+            keys.check_encrypt_decrypt_fhe_string_vs_rust_str(str, Some(pad));
         }
     }
 }
@@ -61,7 +61,7 @@ fn test_encrypt_decrypt() {
 
     for str in ["", "a", "abc"] {
         for pad in 0..3 {
-            keys.assert_encrypt_decrypt(str, Some(pad));
+            keys.check_encrypt_decrypt_fhe_string_vs_rust_str(str, Some(pad));
         }
     }
 }
@@ -77,8 +77,18 @@ fn test_strip_trivial() {
         for pat_pad in 0..2 {
             for pat in ["", "a", "abc"] {
                 for str in ["", "a", "abc", "b", "ab", "dddabc", "abceeee", "dddabceee"] {
-                    keys.assert_strip_prefix(str, Some(str_pad), pat, Some(pat_pad));
-                    keys.assert_strip_suffix(str, Some(str_pad), pat, Some(pat_pad));
+                    keys.check_strip_prefix_fhe_string_vs_rust_str(
+                        str,
+                        Some(str_pad),
+                        pat,
+                        Some(pat_pad),
+                    );
+                    keys.check_strip_suffix_fhe_string_vs_rust_str(
+                        str,
+                        Some(str_pad),
+                        pat,
+                        Some(pat_pad),
+                    );
                 }
             }
         }
@@ -91,11 +101,11 @@ fn test_strip() {
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         TestKind::Encrypted,
     );
-    keys.assert_strip_prefix("abc", Some(1), "a", Some(1));
-    keys.assert_strip_suffix("abc", Some(1), "c", Some(1));
+    keys.check_strip_prefix_fhe_string_vs_rust_str("abc", Some(1), "a", Some(1));
+    keys.check_strip_suffix_fhe_string_vs_rust_str("abc", Some(1), "c", Some(1));
 
-    keys.assert_strip_prefix("abc", Some(1), "d", Some(1));
-    keys.assert_strip_suffix("abc", Some(1), "d", Some(1));
+    keys.check_strip_prefix_fhe_string_vs_rust_str("abc", Some(1), "d", Some(1));
+    keys.check_strip_suffix_fhe_string_vs_rust_str("abc", Some(1), "d", Some(1));
 }
 
 const TEST_CASES_COMP: [&str; 5] = ["", "a", "aa", "ab", "abc"];
@@ -111,7 +121,7 @@ fn test_comparisons_trivial() {
         for rhs_pad in 0..2 {
             for str in TEST_CASES_COMP {
                 for rhs in TEST_CASES_COMP {
-                    keys.assert_comp(str, Some(str_pad), rhs, Some(rhs_pad));
+                    keys.check_comp_fhe_string_vs_rust_str(str, Some(str_pad), rhs, Some(rhs_pad));
                 }
             }
         }
@@ -125,13 +135,13 @@ fn test_comparisons() {
         TestKind::Encrypted,
     );
 
-    keys.assert_comp("a", Some(1), "a", Some(1));
+    keys.check_comp_fhe_string_vs_rust_str("a", Some(1), "a", Some(1));
 
-    keys.assert_comp("a", Some(1), "b", Some(1));
+    keys.check_comp_fhe_string_vs_rust_str("a", Some(1), "b", Some(1));
 }
 
 impl TestKeys {
-    pub fn assert_len(&self, str: &str, str_pad: Option<u32>) {
+    pub fn check_len_fhe_string_vs_rust_str(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.len();
 
         let enc_str = self.encrypt_string(str, str_pad);
@@ -151,7 +161,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_is_empty(&self, str: &str, str_pad: Option<u32>) {
+    pub fn check_is_empty_fhe_string_vs_rust_str(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.is_empty();
 
         let enc_str = self.encrypt_string(str, str_pad);
@@ -171,7 +181,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_encrypt_decrypt(&self, str: &str, str_pad: Option<u32>) {
+    pub fn check_encrypt_decrypt_fhe_string_vs_rust_str(&self, str: &str, str_pad: Option<u32>) {
         let enc_str = self.encrypt_string(str, str_pad);
 
         let dec = self.ck.decrypt_ascii(&enc_str);
@@ -182,7 +192,7 @@ impl TestKeys {
         assert_eq!(str, &dec);
     }
 
-    pub fn assert_strip_prefix(
+    pub fn check_strip_prefix_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -232,7 +242,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_strip_suffix(
+    pub fn check_strip_suffix_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -282,7 +292,13 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_comp(&self, str: &str, str_pad: Option<u32>, rhs: &str, rhs_pad: Option<u32>) {
+    pub fn check_comp_fhe_string_vs_rust_str(
+        &self,
+        str: &str,
+        str_pad: Option<u32>,
+        rhs: &str,
+        rhs_pad: Option<u32>,
+    ) {
         let enc_lhs = self.encrypt_string(str, str_pad);
         let enc_rhs = GenericPattern::Enc(self.encrypt_string(rhs, rhs_pad));
         let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
