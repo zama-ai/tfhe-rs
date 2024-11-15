@@ -23,9 +23,9 @@ fn test_trim_trivial() {
                     format!("{core}{ws}"),
                     format!("{ws}{core}{ws}"),
                 ] {
-                    keys.assert_trim(&str, Some(str_pad));
-                    keys.assert_trim_start(&str, Some(str_pad));
-                    keys.assert_trim_end(&str, Some(str_pad));
+                    keys.check_trim_fhe_string_vs_rust_str(&str, Some(str_pad));
+                    keys.check_trim_start_fhe_string_vs_rust_str(&str, Some(str_pad));
+                    keys.check_trim_end_fhe_string_vs_rust_str(&str, Some(str_pad));
                 }
             }
         }
@@ -39,14 +39,14 @@ fn test_trim() {
         TestKind::Encrypted,
     );
 
-    keys.assert_trim(" a ", Some(1));
-    keys.assert_trim("abc", Some(1));
+    keys.check_trim_fhe_string_vs_rust_str(" a ", Some(1));
+    keys.check_trim_fhe_string_vs_rust_str("abc", Some(1));
 
-    keys.assert_trim_start(" a ", Some(1));
-    keys.assert_trim_start("abc", Some(1));
+    keys.check_trim_start_fhe_string_vs_rust_str(" a ", Some(1));
+    keys.check_trim_start_fhe_string_vs_rust_str("abc", Some(1));
 
-    keys.assert_trim_end(" a ", Some(1));
-    keys.assert_trim_end("abc", Some(1));
+    keys.check_trim_end_fhe_string_vs_rust_str(" a ", Some(1));
+    keys.check_trim_end_fhe_string_vs_rust_str("abc", Some(1));
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn test_split_ascii_whitespace_trivial() {
                 format!("{ws}a{ws}a"),
                 format!("a{ws}a{ws}a"),
             ] {
-                keys.assert_split_ascii_whitespace(&str, Some(str_pad));
+                keys.check_split_ascii_whitespace_fhe_string_vs_rust_str(&str, Some(str_pad));
             }
         }
     }
@@ -87,12 +87,12 @@ fn test_split_ascii_whitespace() {
         TestKind::Encrypted,
     );
 
-    keys.assert_split_ascii_whitespace("a b", Some(1));
-    keys.assert_split_ascii_whitespace("abc", Some(1));
+    keys.check_split_ascii_whitespace_fhe_string_vs_rust_str("a b", Some(1));
+    keys.check_split_ascii_whitespace_fhe_string_vs_rust_str("abc", Some(1));
 }
 
 impl TestKeys {
-    pub fn assert_trim_end(&self, str: &str, str_pad: Option<u32>) {
+    pub fn check_trim_end_fhe_string_vs_rust_str(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.trim_end();
 
         let enc_str = self.encrypt_string(str, str_pad);
@@ -109,7 +109,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_trim_start(&self, str: &str, str_pad: Option<u32>) {
+    pub fn check_trim_start_fhe_string_vs_rust_str(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.trim_start();
 
         let enc_str = self.encrypt_string(str, str_pad);
@@ -126,7 +126,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_trim(&self, str: &str, str_pad: Option<u32>) {
+    pub fn check_trim_fhe_string_vs_rust_str(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.trim();
 
         let enc_str = self.encrypt_string(str, str_pad);
@@ -143,7 +143,11 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_split_ascii_whitespace(&self, str: &str, str_pad: Option<u32>) {
+    pub fn check_split_ascii_whitespace_fhe_string_vs_rust_str(
+        &self,
+        str: &str,
+        str_pad: Option<u32>,
+    ) {
         let mut expected: Vec<_> = str.split_ascii_whitespace().map(Some).collect();
         expected.push(None);
 

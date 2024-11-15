@@ -67,50 +67,56 @@ mod test {
     ) {
         let keys = TestKeys::new(params, test_kind);
 
-        keys.assert_len(str, str_pad);
-        keys.assert_is_empty(str, str_pad);
+        keys.check_len_fhe_string_vs_rust_str(str, str_pad);
+        keys.check_is_empty_fhe_string_vs_rust_str(str, str_pad);
 
-        keys.assert_encrypt_decrypt(str, str_pad);
+        keys.check_encrypt_decrypt_fhe_string_vs_rust_str(str, str_pad);
 
-        keys.assert_contains(str, str_pad, pat, pat_pad);
-        keys.assert_ends_with(str, str_pad, pat, pat_pad);
-        keys.assert_starts_with(str, str_pad, pat, pat_pad);
+        keys.check_contains_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
+        keys.check_ends_with_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
+        keys.check_starts_with_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
 
-        keys.assert_find(str, str_pad, pat, pat_pad);
-        keys.assert_rfind(str, str_pad, pat, pat_pad);
+        keys.check_find_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
+        keys.check_rfind_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
 
-        keys.assert_strip_prefix(str, str_pad, pat, pat_pad);
-        keys.assert_strip_suffix(str, str_pad, pat, pat_pad);
+        keys.check_strip_prefix_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
+        keys.check_strip_suffix_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
 
-        keys.assert_eq_ignore_case(str, str_pad, rhs, rhs_pad);
-        keys.assert_comp(str, str_pad, rhs, rhs_pad);
+        keys.check_eq_ignore_case_fhe_string_vs_rust_str(str, str_pad, rhs, rhs_pad);
+        keys.check_comp_fhe_string_vs_rust_str(str, str_pad, rhs, rhs_pad);
 
-        keys.assert_to_lowercase(str, str_pad);
-        keys.assert_to_uppercase(str, str_pad);
+        keys.check_to_lowercase_fhe_string_vs_rust_str(str, str_pad);
+        keys.check_to_uppercase_fhe_string_vs_rust_str(str, str_pad);
 
-        keys.assert_concat(str, str_pad, rhs, rhs_pad);
-        keys.assert_repeat(str, str_pad, n, max);
+        keys.check_concat_fhe_string_vs_rust_str(str, str_pad, rhs, rhs_pad);
+        keys.check_repeat_fhe_string_vs_rust_str(str, str_pad, n, max);
 
-        keys.assert_trim_end(str, str_pad);
-        keys.assert_trim_start(str, str_pad);
-        keys.assert_trim(str, str_pad);
-        keys.assert_split_ascii_whitespace(str, str_pad);
+        keys.check_trim_end_fhe_string_vs_rust_str(str, str_pad);
+        keys.check_trim_start_fhe_string_vs_rust_str(str, str_pad);
+        keys.check_trim_fhe_string_vs_rust_str(str, str_pad);
+        keys.check_split_ascii_whitespace_fhe_string_vs_rust_str(str, str_pad);
 
-        keys.assert_split_once(str, str_pad, pat, pat_pad);
-        keys.assert_rsplit_once(str, str_pad, pat, pat_pad);
+        keys.check_split_once_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
+        keys.check_rsplit_once_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
 
-        keys.assert_split(str, str_pad, pat, pat_pad);
-        keys.assert_rsplit(str, str_pad, pat, pat_pad);
+        keys.check_split_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
+        keys.check_rsplit_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
 
-        keys.assert_split_terminator(str, str_pad, pat, pat_pad);
-        keys.assert_rsplit_terminator(str, str_pad, pat, pat_pad);
-        keys.assert_split_inclusive(str, str_pad, pat, pat_pad);
+        keys.check_split_terminator_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
+        keys.check_rsplit_terminator_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
+        keys.check_split_inclusive_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad);
 
-        keys.assert_splitn(str, str_pad, pat, pat_pad, n, max);
-        keys.assert_rsplitn(str, str_pad, pat, pat_pad, n, max);
+        keys.check_splitn_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad, n, max);
+        keys.check_rsplitn_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad, n, max);
 
-        keys.assert_replace(str, str_pad, pat, pat_pad, to, to_pad);
-        keys.assert_replacen((str, str_pad), (pat, pat_pad), (to, to_pad), n, max);
+        keys.check_replace_fhe_string_vs_rust_str(str, str_pad, pat, pat_pad, to, to_pad);
+        keys.check_replacen_fhe_string_vs_rust_str(
+            (str, str_pad),
+            (pat, pat_pad),
+            (to, to_pad),
+            n,
+            max,
+        );
     }
 
     pub(crate) struct TestKeys {

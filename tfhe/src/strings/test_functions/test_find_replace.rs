@@ -20,8 +20,8 @@ fn test_find_trivial() {
         for pat_pad in 0..2 {
             for str in TEST_CASES_FIND {
                 for pat in PATTERN_FIND {
-                    keys.assert_find(str, Some(str_pad), pat, Some(pat_pad));
-                    keys.assert_rfind(str, Some(str_pad), pat, Some(pat_pad));
+                    keys.check_find_fhe_string_vs_rust_str(str, Some(str_pad), pat, Some(pat_pad));
+                    keys.check_rfind_fhe_string_vs_rust_str(str, Some(str_pad), pat, Some(pat_pad));
                 }
             }
         }
@@ -35,11 +35,11 @@ fn test_find() {
         TestKind::Encrypted,
     );
 
-    keys.assert_find("aba", Some(1), "a", Some(1));
-    keys.assert_find("aba", Some(1), "c", Some(1));
+    keys.check_find_fhe_string_vs_rust_str("aba", Some(1), "a", Some(1));
+    keys.check_find_fhe_string_vs_rust_str("aba", Some(1), "c", Some(1));
 
-    keys.assert_rfind("aba", Some(1), "a", Some(1));
-    keys.assert_rfind("aba", Some(1), "c", Some(1));
+    keys.check_rfind_fhe_string_vs_rust_str("aba", Some(1), "a", Some(1));
+    keys.check_rfind_fhe_string_vs_rust_str("aba", Some(1), "c", Some(1));
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn test_replace_trivial() {
                 for str in TEST_CASES_FIND {
                     for from in PATTERN_FIND {
                         for to in ["", " ", "a", "abc"] {
-                            keys.assert_replace(
+                            keys.check_replace_fhe_string_vs_rust_str(
                                 str,
                                 Some(str_pad),
                                 from,
@@ -65,7 +65,7 @@ fn test_replace_trivial() {
                             );
                             for n in 0..=2 {
                                 for max in n..n + 2 {
-                                    keys.assert_replacen(
+                                    keys.check_replacen_fhe_string_vs_rust_str(
                                         (str, Some(str_pad)),
                                         (from, Some(from_pad)),
                                         (to, Some(to_pad)),
@@ -89,15 +89,33 @@ fn test_replace() {
         TestKind::Encrypted,
     );
 
-    keys.assert_replace("ab", Some(1), "a", Some(1), "d", Some(1));
-    keys.assert_replace("ab", Some(1), "c", Some(1), "d", Some(1));
+    keys.check_replace_fhe_string_vs_rust_str("ab", Some(1), "a", Some(1), "d", Some(1));
+    keys.check_replace_fhe_string_vs_rust_str("ab", Some(1), "c", Some(1), "d", Some(1));
 
-    keys.assert_replacen(("ab", Some(1)), ("a", Some(1)), ("d", Some(1)), 1, 2);
-    keys.assert_replacen(("ab", Some(1)), ("c", Some(1)), ("d", Some(1)), 1, 2);
+    keys.check_replacen_fhe_string_vs_rust_str(
+        ("ab", Some(1)),
+        ("a", Some(1)),
+        ("d", Some(1)),
+        1,
+        2,
+    );
+    keys.check_replacen_fhe_string_vs_rust_str(
+        ("ab", Some(1)),
+        ("c", Some(1)),
+        ("d", Some(1)),
+        1,
+        2,
+    );
 }
 
 impl TestKeys {
-    pub fn assert_find(&self, str: &str, str_pad: Option<u32>, pat: &str, pat_pad: Option<u32>) {
+    pub fn check_find_fhe_string_vs_rust_str(
+        &self,
+        str: &str,
+        str_pad: Option<u32>,
+        pat: &str,
+        pat_pad: Option<u32>,
+    ) {
         let expected = str.find(pat);
 
         let enc_str = self.encrypt_string(str, str_pad);
@@ -133,7 +151,13 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_rfind(&self, str: &str, str_pad: Option<u32>, pat: &str, pat_pad: Option<u32>) {
+    pub fn check_rfind_fhe_string_vs_rust_str(
+        &self,
+        str: &str,
+        str_pad: Option<u32>,
+        pat: &str,
+        pat_pad: Option<u32>,
+    ) {
         let expected = str.rfind(pat);
 
         let enc_str = self.encrypt_string(str, str_pad);
@@ -168,7 +192,7 @@ impl TestKeys {
 
         assert_eq!(dec, expected);
     }
-    pub fn assert_replace(
+    pub fn check_replace_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -237,7 +261,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_replacen(
+    pub fn check_replacen_fhe_string_vs_rust_str(
         &self,
         str: (&str, Option<u32>),
         pat: (&str, Option<u32>),

@@ -26,8 +26,8 @@ fn test_to_lower_upper_case_trivial() {
 
     for str_pad in 0..2 {
         for str in UP_LOW_CASE {
-            keys.assert_to_lowercase(str, Some(str_pad));
-            keys.assert_to_uppercase(str, Some(str_pad));
+            keys.check_to_lowercase_fhe_string_vs_rust_str(str, Some(str_pad));
+            keys.check_to_uppercase_fhe_string_vs_rust_str(str, Some(str_pad));
         }
     }
 }
@@ -39,11 +39,11 @@ fn test_to_lower_upper_case() {
         TestKind::Encrypted,
     );
 
-    keys.assert_to_lowercase("ab", Some(1));
-    keys.assert_to_lowercase("AB", Some(1));
+    keys.check_to_lowercase_fhe_string_vs_rust_str("ab", Some(1));
+    keys.check_to_lowercase_fhe_string_vs_rust_str("AB", Some(1));
 
-    keys.assert_to_uppercase("AB", Some(1));
-    keys.assert_to_uppercase("ab", Some(1));
+    keys.check_to_uppercase_fhe_string_vs_rust_str("AB", Some(1));
+    keys.check_to_uppercase_fhe_string_vs_rust_str("ab", Some(1));
 }
 
 #[test]
@@ -57,7 +57,12 @@ fn test_eq_ignore_case_trivial() {
         for rhs_pad in 0..2 {
             for str in UP_LOW_CASE {
                 for rhs in UP_LOW_CASE {
-                    keys.assert_eq_ignore_case(str, Some(str_pad), rhs, Some(rhs_pad));
+                    keys.check_eq_ignore_case_fhe_string_vs_rust_str(
+                        str,
+                        Some(str_pad),
+                        rhs,
+                        Some(rhs_pad),
+                    );
                 }
             }
         }
@@ -71,12 +76,12 @@ fn test_eq_ignore_case() {
         TestKind::Encrypted,
     );
 
-    keys.assert_eq_ignore_case("aB", Some(1), "Ab", Some(1));
-    keys.assert_eq_ignore_case("aB", Some(1), "Ac", Some(1));
+    keys.check_eq_ignore_case_fhe_string_vs_rust_str("aB", Some(1), "Ab", Some(1));
+    keys.check_eq_ignore_case_fhe_string_vs_rust_str("aB", Some(1), "Ac", Some(1));
 }
 
 impl TestKeys {
-    pub fn assert_eq_ignore_case(
+    pub fn check_eq_ignore_case_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -112,7 +117,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_to_lowercase(&self, str: &str, str_pad: Option<u32>) {
+    pub fn check_to_lowercase_fhe_string_vs_rust_str(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.to_lowercase();
 
         let enc_str = self.encrypt_string(str, str_pad);
@@ -129,7 +134,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_to_uppercase(&self, str: &str, str_pad: Option<u32>) {
+    pub fn check_to_uppercase_fhe_string_vs_rust_str(&self, str: &str, str_pad: Option<u32>) {
         let expected = str.to_uppercase();
 
         let enc_str = self.encrypt_string(str, str_pad);
