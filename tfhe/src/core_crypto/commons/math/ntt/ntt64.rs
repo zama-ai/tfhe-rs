@@ -1,10 +1,10 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::prelude::*;
-use concrete_ntt::prime64::Plan;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
+use tfhe_ntt::prime64::Plan;
 
 #[derive(Clone, Debug)]
 pub struct Ntt64 {

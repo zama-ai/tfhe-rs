@@ -1344,7 +1344,7 @@ build_fft: install_rs_build_toolchain
 		--features=fft128
 
 .PHONY: build_fft_no_std
-buildfft__no_std: install_rs_build_toolchain
+build_fft_no_std: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft \
 		--no-default-features
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-fft \
@@ -1415,6 +1415,79 @@ bench_fft: install_rs_check_toolchain
 		--features=nightly \
 		--features=fft128
 #============================End FFT Section ==================================
+
+#=============================== NTT Section ==================================
+.PHONY: doc_ntt # Build rust doc for tfhe-ntt
+doc_ntt: install_rs_check_toolchain
+	@# Even though we are not in docs.rs, this allows to "just" build the doc
+	DOCS_RS=1 \
+	RUSTDOCFLAGS="--html-in-header katex-header.html" \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
+		--all-features --no-deps -p tfhe-ntt
+
+.PHONY: docs_ntt # Build rust doc tfhe-ntt, alias for doc
+docs_ntt: doc_ntt
+
+.PHONY: lint_doc_ntt # Build rust doc for tfhe-ntt with linting enabled
+lint_doc_ntt: install_rs_check_toolchain
+	@# Even though we are not in docs.rs, this allows to "just" build the doc
+	DOCS_RS=1 \
+	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
+		--all-features --no-deps -p tfhe-ntt
+
+.PHONY: lint_docs_ntt # Build rust doc for tfhe-ntt with linting enabled, alias for lint_doc
+lint_docs_ntt: lint_doc_ntt
+
+.PHONY: clippy_ntt # Run clippy lints on tfhe-ntt
+clippy_ntt: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--all-features -p tfhe-ntt -- --no-deps -D warnings
+
+.PHONY: pcc_ntt # pcc stands for pre commit checks
+pcc_ntt: check_fmt lint_doc_ntt clippy_ntt
+
+.PHONY: build_ntt
+build_ntt: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-ntt
+
+.PHONY: build_ntt_no_std
+build_ntt_no_std: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release -p tfhe-ntt \
+		--no-default-features
+
+##### Tests #####
+
+.PHONY: test_ntt
+test_ntt: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-ntt
+
+.PHONY: test_ntt_nightly
+test_ntt_nightly: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-ntt \
+		--features=nightly
+
+.PHONY: test_ntt_no_std
+test_ntt_no_std: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-ntt \
+		--no-default-features 
+
+.PHONY: test_ntt_no_std_nightly
+test_ntt_no_std_nightly: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release -p tfhe-ntt \
+		--no-default-features \
+		--features=nightly
+
+.PHONY: test_ntt_all
+test_ntt_all: test_ntt test_ntt_no_std test_ntt_nightly test_ntt_no_std_nightly
+
+##### Bench #####
+
+.PHONY: bench_ntt # Run NTT benchmarks
+bench_ntt: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" bench --bench ntt -p tfhe-ntt \
+		--features=nightly
+#============================End NTT Section ==================================
 
 .PHONY: help # Generate list of targets with descriptions
 help:
