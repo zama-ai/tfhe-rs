@@ -61,7 +61,7 @@ if [[ $(uname) != "Darwin" ]]; then
     # use all available cores for linking
     # Otherwise, only use 4, to avoid OOM when linking
     if [ 100 -lt "$mem_in_gb" ]; then
-        LINKING_CPU_COUNT="$(CPU_COUNT)"
+        LINKING_CPU_COUNT="${CPU_COUNT}"
     fi
 fi
 
