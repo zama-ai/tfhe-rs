@@ -234,23 +234,19 @@ pub const PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
 // p-fail = 2^-64.074, algorithmic cost ~ 106, 2-norm = 5
 pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
-        lwe_dimension: LweDimension(834),
+        lwe_dimension: LweDimension(516),
         glwe_dimension: GlweDimension(1),
         polynomial_size: PolynomialSize(2048),
-        lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-            3.5539902359442825e-06,
-        )),
-        glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-            2.845267479601915e-15,
-        )),
+        lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(1.709417788421641e-06)),
+        glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(2.168404344974257e-19)),
         pbs_base_log: DecompositionBaseLog(23),
         pbs_level: DecompositionLevelCount(1),
-        ks_base_log: DecompositionBaseLog(3),
-        ks_level: DecompositionLevelCount(5),
+        ks_base_log: DecompositionBaseLog(5),
+        ks_level: DecompositionLevelCount(3),
         message_modulus: MessageModulus(4),
         carry_modulus: CarryModulus(4),
         max_noise_level: MaxNoiseLevel::new(5),
-        log2_p_fail: -64.074,
+        log2_p_fail: -63.753,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
     };
