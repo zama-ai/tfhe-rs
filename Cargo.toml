@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "tfhe",
     "tfhe-fft",
+    "tfhe-ntt",
     "tfhe-zk-pok",
     "tasks",
     "apps/trivium",

@@ -64,6 +64,22 @@ jobs:
           make test_fft_no_std_nightly
           # we don't run the js stuff here as it's causing issues with the M1 config
 
+      - name: Run pcc NTT checks
+        run: |
+          make pcc_ntt
+
+      - name: Build NTT release
+        run: |
+          make build_ntt
+
+      - name: Build NTT release no-std
+        run: |
+          make build_ntt_no_std
+
+      - name: Run NTT tests
+        run: |
+          make test_ntt_all
+
       - name: Run pcc checks
         run: |
           make pcc
