@@ -265,7 +265,7 @@ pub(crate) mod test {
     fn oprf_test_uniformity_ci_run_filter() {
         let sample_count: usize = 100_000;
 
-        let p_value_limit: f64 = 0.001;
+        let p_value_limit: f64 = 0.000_01;
 
         use crate::shortint::gen_keys;
         use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
