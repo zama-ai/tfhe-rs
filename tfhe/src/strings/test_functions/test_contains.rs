@@ -16,9 +16,24 @@ fn test_contains_start_end_trivial() {
         for pat_pad in 0..2 {
             for str in ["", "a", "abc", "b", "ab", "dddabc", "abceeee", "dddabceee"] {
                 for pat in ["", "a", "abc"] {
-                    keys.assert_contains(str, Some(str_pad), pat, Some(pat_pad));
-                    keys.assert_starts_with(str, Some(str_pad), pat, Some(pat_pad));
-                    keys.assert_ends_with(str, Some(str_pad), pat, Some(pat_pad));
+                    keys.check_contains_fhe_string_vs_rust_str(
+                        str,
+                        Some(str_pad),
+                        pat,
+                        Some(pat_pad),
+                    );
+                    keys.check_starts_with_fhe_string_vs_rust_str(
+                        str,
+                        Some(str_pad),
+                        pat,
+                        Some(pat_pad),
+                    );
+                    keys.check_ends_with_fhe_string_vs_rust_str(
+                        str,
+                        Some(str_pad),
+                        pat,
+                        Some(pat_pad),
+                    );
                 }
             }
         }
@@ -32,18 +47,18 @@ fn test_contains_start_end() {
         TestKind::Encrypted,
     );
 
-    keys.assert_contains("ab", Some(1), "a", Some(1));
-    keys.assert_contains("ab", Some(1), "c", Some(1));
+    keys.check_contains_fhe_string_vs_rust_str("ab", Some(1), "a", Some(1));
+    keys.check_contains_fhe_string_vs_rust_str("ab", Some(1), "c", Some(1));
 
-    keys.assert_starts_with("ab", Some(1), "a", Some(1));
-    keys.assert_starts_with("ab", Some(1), "c", Some(1));
+    keys.check_starts_with_fhe_string_vs_rust_str("ab", Some(1), "a", Some(1));
+    keys.check_starts_with_fhe_string_vs_rust_str("ab", Some(1), "c", Some(1));
 
-    keys.assert_ends_with("ab", Some(1), "b", Some(1));
-    keys.assert_ends_with("ab", Some(1), "c", Some(1));
+    keys.check_ends_with_fhe_string_vs_rust_str("ab", Some(1), "b", Some(1));
+    keys.check_ends_with_fhe_string_vs_rust_str("ab", Some(1), "c", Some(1));
 }
 
 impl TestKeys {
-    pub fn assert_contains(
+    pub fn check_contains_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -79,7 +94,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_ends_with(
+    pub fn check_ends_with_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -115,7 +130,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_starts_with(
+    pub fn check_starts_with_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,

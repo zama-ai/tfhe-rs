@@ -40,21 +40,60 @@ fn test_split_trivial() {
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
             for (str, pat) in TEST_CASES_SPLIT {
-                keys.assert_split_once(str, Some(str_pad), pat, Some(pat_pad));
-                keys.assert_rsplit_once(str, Some(str_pad), pat, Some(pat_pad));
-                keys.assert_split(str, Some(str_pad), pat, Some(pat_pad));
-                keys.assert_rsplit(str, Some(str_pad), pat, Some(pat_pad));
+                keys.check_split_once_fhe_string_vs_rust_str(
+                    str,
+                    Some(str_pad),
+                    pat,
+                    Some(pat_pad),
+                );
+                keys.check_rsplit_once_fhe_string_vs_rust_str(
+                    str,
+                    Some(str_pad),
+                    pat,
+                    Some(pat_pad),
+                );
+                keys.check_split_fhe_string_vs_rust_str(str, Some(str_pad), pat, Some(pat_pad));
+                keys.check_rsplit_fhe_string_vs_rust_str(str, Some(str_pad), pat, Some(pat_pad));
 
                 for n in 0..3 {
                     for max in n..n + 2 {
-                        keys.assert_splitn(str, Some(str_pad), pat, Some(pat_pad), n, max);
-                        keys.assert_rsplitn(str, Some(str_pad), pat, Some(pat_pad), n, max);
+                        keys.check_splitn_fhe_string_vs_rust_str(
+                            str,
+                            Some(str_pad),
+                            pat,
+                            Some(pat_pad),
+                            n,
+                            max,
+                        );
+                        keys.check_rsplitn_fhe_string_vs_rust_str(
+                            str,
+                            Some(str_pad),
+                            pat,
+                            Some(pat_pad),
+                            n,
+                            max,
+                        );
                     }
                 }
 
-                keys.assert_split_terminator(str, Some(str_pad), pat, Some(pat_pad));
-                keys.assert_rsplit_terminator(str, Some(str_pad), pat, Some(pat_pad));
-                keys.assert_split_inclusive(str, Some(str_pad), pat, Some(pat_pad));
+                keys.check_split_terminator_fhe_string_vs_rust_str(
+                    str,
+                    Some(str_pad),
+                    pat,
+                    Some(pat_pad),
+                );
+                keys.check_rsplit_terminator_fhe_string_vs_rust_str(
+                    str,
+                    Some(str_pad),
+                    pat,
+                    Some(pat_pad),
+                );
+                keys.check_split_inclusive_fhe_string_vs_rust_str(
+                    str,
+                    Some(str_pad),
+                    pat,
+                    Some(pat_pad),
+                );
             }
         }
     }
@@ -67,21 +106,21 @@ fn test_split() {
         TestKind::Encrypted,
     );
 
-    keys.assert_split_once("", Some(1), "", Some(1));
-    keys.assert_rsplit_once("", Some(1), "", Some(1));
-    keys.assert_split("", Some(1), "", Some(1));
-    keys.assert_rsplit("", Some(1), "", Some(1));
+    keys.check_split_once_fhe_string_vs_rust_str("", Some(1), "", Some(1));
+    keys.check_rsplit_once_fhe_string_vs_rust_str("", Some(1), "", Some(1));
+    keys.check_split_fhe_string_vs_rust_str("", Some(1), "", Some(1));
+    keys.check_rsplit_fhe_string_vs_rust_str("", Some(1), "", Some(1));
 
-    keys.assert_splitn("", Some(1), "", Some(1), 1, 2);
-    keys.assert_rsplitn("", Some(1), "", Some(1), 1, 2);
+    keys.check_splitn_fhe_string_vs_rust_str("", Some(1), "", Some(1), 1, 2);
+    keys.check_rsplitn_fhe_string_vs_rust_str("", Some(1), "", Some(1), 1, 2);
 
-    keys.assert_split_terminator("", Some(1), "", Some(1));
-    keys.assert_rsplit_terminator("", Some(1), "", Some(1));
-    keys.assert_split_inclusive("", Some(1), "", Some(1));
+    keys.check_split_terminator_fhe_string_vs_rust_str("", Some(1), "", Some(1));
+    keys.check_rsplit_terminator_fhe_string_vs_rust_str("", Some(1), "", Some(1));
+    keys.check_split_inclusive_fhe_string_vs_rust_str("", Some(1), "", Some(1));
 }
 
 impl TestKeys {
-    pub fn assert_split_once(
+    pub fn check_split_once_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -109,7 +148,7 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_rsplit_once(
+    pub fn check_rsplit_once_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -137,7 +176,13 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_split(&self, str: &str, str_pad: Option<u32>, pat: &str, pat_pad: Option<u32>) {
+    pub fn check_split_fhe_string_vs_rust_str(
+        &self,
+        str: &str,
+        str_pad: Option<u32>,
+        pat: &str,
+        pat_pad: Option<u32>,
+    ) {
         let mut expected: Vec<_> = str.split(pat).map(Some).collect();
         expected.push(None);
 
@@ -175,7 +220,13 @@ impl TestKeys {
         assert_eq!(dec_as_str, expected);
     }
 
-    pub fn assert_rsplit(&self, str: &str, str_pad: Option<u32>, pat: &str, pat_pad: Option<u32>) {
+    pub fn check_rsplit_fhe_string_vs_rust_str(
+        &self,
+        str: &str,
+        str_pad: Option<u32>,
+        pat: &str,
+        pat_pad: Option<u32>,
+    ) {
         let mut expected: Vec<_> = str.rsplit(pat).map(Some).collect();
         expected.push(None);
 
@@ -213,7 +264,7 @@ impl TestKeys {
         assert_eq!(dec_as_str, expected);
     }
 
-    pub fn assert_split_terminator(
+    pub fn check_split_terminator_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -257,7 +308,7 @@ impl TestKeys {
         assert_eq!(dec_as_str, expected);
     }
 
-    pub fn assert_rsplit_terminator(
+    pub fn check_rsplit_terminator_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -301,7 +352,7 @@ impl TestKeys {
         assert_eq!(dec_as_str, expected);
     }
 
-    pub fn assert_split_inclusive(
+    pub fn check_split_inclusive_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -345,7 +396,7 @@ impl TestKeys {
         assert_eq!(dec_as_str, expected);
     }
 
-    pub fn assert_splitn(
+    pub fn check_splitn_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,
@@ -452,7 +503,7 @@ impl TestKeys {
         assert_eq!(dec_as_str, expected);
     }
 
-    pub fn assert_rsplitn(
+    pub fn check_rsplitn_fhe_string_vs_rust_str(
         &self,
         str: &str,
         str_pad: Option<u32>,

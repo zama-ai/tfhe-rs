@@ -18,7 +18,12 @@ fn test_concat_trivial() {
         for rhs_pad in 0..2 {
             for str in TEST_CASES_CONCAT {
                 for rhs in TEST_CASES_CONCAT {
-                    keys.assert_concat(str, Some(str_pad), rhs, Some(rhs_pad));
+                    keys.check_concat_fhe_string_vs_rust_str(
+                        str,
+                        Some(str_pad),
+                        rhs,
+                        Some(rhs_pad),
+                    );
                 }
             }
         }
@@ -32,7 +37,7 @@ fn test_concat() {
         TestKind::Encrypted,
     );
 
-    keys.assert_concat("a", Some(1), "b", Some(1));
+    keys.check_concat_fhe_string_vs_rust_str("a", Some(1), "b", Some(1));
 }
 
 #[test]
@@ -46,7 +51,7 @@ fn test_repeat_trivial() {
         for n in 0..3 {
             for str in TEST_CASES_CONCAT {
                 for max in n..n + 2 {
-                    keys.assert_repeat(str, Some(str_pad), n, max);
+                    keys.check_repeat_fhe_string_vs_rust_str(str, Some(str_pad), n, max);
                 }
             }
         }
@@ -60,11 +65,17 @@ fn test_repeat() {
         TestKind::Encrypted,
     );
 
-    keys.assert_repeat("a", Some(1), 1, 2);
+    keys.check_repeat_fhe_string_vs_rust_str("a", Some(1), 1, 2);
 }
 
 impl TestKeys {
-    pub fn assert_concat(&self, str: &str, str_pad: Option<u32>, rhs: &str, rhs_pad: Option<u32>) {
+    pub fn check_concat_fhe_string_vs_rust_str(
+        &self,
+        str: &str,
+        str_pad: Option<u32>,
+        rhs: &str,
+        rhs_pad: Option<u32>,
+    ) {
         let expected = str.to_owned() + rhs;
 
         let enc_lhs = self.encrypt_string(str, str_pad);
@@ -82,7 +93,13 @@ impl TestKeys {
         assert_eq!(dec, expected);
     }
 
-    pub fn assert_repeat(&self, str: &str, str_pad: Option<u32>, n: u16, max: u16) {
+    pub fn check_repeat_fhe_string_vs_rust_str(
+        &self,
+        str: &str,
+        str_pad: Option<u32>,
+        n: u16,
+        max: u16,
+    ) {
         let expected = str.repeat(n as usize);
 
         let enc_str = self.encrypt_string(str, str_pad);
