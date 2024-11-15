@@ -48,6 +48,8 @@ mod scalar_sub;
 mod shift;
 mod sub;
 
+#[cfg(all(test, feature = "__long_run_tests"))]
+mod tests_long_run;
 #[cfg(test)]
 mod tests_signed;
 #[cfg(test)]

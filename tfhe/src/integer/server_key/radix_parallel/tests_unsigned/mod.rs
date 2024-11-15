@@ -654,6 +654,21 @@ where
     }
 }
 
+// Bitnot
+impl<'a, F> FunctionExecutor<&'a BooleanBlock, BooleanBlock> for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, &BooleanBlock) -> BooleanBlock,
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    fn execute(&mut self, input: &'a BooleanBlock) -> BooleanBlock {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input)
+    }
+}
+
 //=============================================================================
 // Unchecked Tests
 //=============================================================================
