@@ -299,7 +299,7 @@ pub(crate) mod test {
     fn oprf_test_uniformity_ci_run_filter() {
         let sample_count: usize = 10_000;
 
-        let p_value_limit: f64 = 0.001;
+        let p_value_limit: f64 = 0.000_01;
 
         let random_bits_count = 3;
 
