@@ -28,6 +28,8 @@ mod reverse_bits;
 mod slice;
 #[cfg(test)]
 pub(crate) mod tests_cases_unsigned;
+#[cfg(all(test, feature = "__long_run_tests"))]
+pub(crate) mod tests_long_run;
 #[cfg(test)]
 pub(crate) mod tests_signed;
 #[cfg(test)]
