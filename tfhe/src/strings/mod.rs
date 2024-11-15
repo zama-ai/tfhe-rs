@@ -2,9 +2,9 @@ pub mod ciphertext;
 pub mod client_key;
 pub mod server_key;
 
-#[cfg(test)]
-mod assert_functions;
 mod char_iter;
+#[cfg(test)]
+mod test_functions;
 
 // Used as the const argument for StaticUnsignedBigInt, specifying the max chars length of a
 // ClearString
