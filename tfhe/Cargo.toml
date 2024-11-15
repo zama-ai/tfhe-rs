@@ -141,6 +141,7 @@ generator_aarch64_aes = ["tfhe-csprng/generator_aarch64_aes"]
 
 # Private features
 __profiling = []
+__long_run_tests = []
 
 seeder_unix = ["tfhe-csprng/seeder_unix"]
 seeder_x86_64_rdseed = ["tfhe-csprng/seeder_x86_64_rdseed"]
