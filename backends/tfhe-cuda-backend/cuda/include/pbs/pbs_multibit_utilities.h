@@ -95,7 +95,8 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
 
 template <typename Torus, class params>
 uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
-                            uint32_t polynomial_size);
+                            uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t
+                            decomp_level_count);
 
 template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   int8_t *d_mem_keybundle = NULL;

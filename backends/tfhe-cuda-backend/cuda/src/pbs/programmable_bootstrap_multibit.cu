@@ -434,7 +434,8 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
  */
 template <typename Torus, class params>
 uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
-                            uint32_t polynomial_size) {
+                            uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t
+                            decomp_level_count) {
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
@@ -460,31 +461,9 @@ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
       &num_sms, cudaDevAttrMultiProcessorCount, gpu_index));
 
   int x = num_sms * max_blocks_per_sm;
-  int count = 0;
 
-  int divisor = 1;
-  int ith_divisor = 0;
-
-#if CUDA_ARCH < 900
-  // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
-  // multiplication can run
-  int log2_max_num_pbs = std::log2(max_num_pbs);
-  if (log2_max_num_pbs > 13)
-    ith_divisor = log2_max_num_pbs - 11;
-#endif
-
-  for (int i = sqrt(x); i >= 1; i--) {
-    if (x % i == 0) {
-      if (count == ith_divisor) {
-        divisor = i;
-        break;
-      } else {
-        count++;
-      }
-    }
-  }
-
-  return divisor;
+  return std::max(x / (max_num_pbs * (glwe_dimension + 1) * (glwe_dimension + 1) *
+  decomp_level_count),(uint32_t)1);
 }
 
 template void scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(

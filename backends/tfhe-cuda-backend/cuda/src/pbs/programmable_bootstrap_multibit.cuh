@@ -480,7 +480,7 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
   }
 
   auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
-      gpu_index, input_lwe_ciphertext_count, polynomial_size);
+      gpu_index, input_lwe_ciphertext_count, glwe_dimension, polynomial_size, level_count);
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::DEFAULT,
