@@ -14,7 +14,7 @@ use tfhe::core_crypto::prelude::{
     convert_standard_ggsw_ciphertext_to_fourier_mem_optimized, decrypt_glwe_ciphertext,
     encrypt_constant_ggsw_ciphertext, encrypt_glwe_ciphertext, ActivatedRandomGenerator,
     CiphertextModulus, ComputationBuffers, EncryptionRandomGenerator, GgswCiphertext,
-    GlweCiphertext, GlweCiphertextMutView, GlweCiphertextView, Numeric, Plaintext, PlaintextCount,
+    GlweCiphertext, GlweCiphertextMutView, GlweCiphertextView, Numeric, Cleartext, PlaintextCount,
     PlaintextList, SecretRandomGenerator,
 };
 
@@ -49,7 +49,7 @@ pub fn classic_pbs_external_product(
     encrypt_constant_ggsw_ciphertext(
         &glwe_secret_key,
         &mut std_ggsw,
-        Plaintext(parameters.ggsw_encrypted_value),
+        Cleartext(parameters.ggsw_encrypted_value),
         parameters.ggsw_noise,
         encryption_random_generator,
     );
@@ -193,7 +193,7 @@ pub fn classic_pbs_external_product_u128_split(
     encrypt_constant_ggsw_ciphertext(
         &glwe_secret_key,
         &mut std_ggsw,
-        Plaintext(parameters.ggsw_encrypted_value),
+        Cleartext(parameters.ggsw_encrypted_value),
         parameters.ggsw_noise,
         encryption_random_generator,
     );
@@ -287,11 +287,11 @@ pub fn classic_pbs_external_product_u128_split(
             CiphertextModulus::new_native(),
         );
 
-        let (mut output_glwe_lo, stack) = stack.collect_aligned(
+        let (output_glwe_lo, stack) = stack.collect_aligned(
             align,
             output_glwe_ciphertext.as_ref().iter().map(|i| *i as u64),
         );
-        let (mut output_glwe_hi, stack) = stack.collect_aligned(
+        let (output_glwe_hi, stack) = stack.collect_aligned(
             align,
             output_glwe_ciphertext
                 .as_ref()
@@ -409,7 +409,7 @@ pub fn classic_pbs_external_product_u128(
     encrypt_constant_ggsw_ciphertext(
         &glwe_secret_key,
         &mut std_ggsw,
-        Plaintext(parameters.ggsw_encrypted_value),
+        Cleartext(parameters.ggsw_encrypted_value),
         parameters.ggsw_noise,
         encryption_random_generator,
     );

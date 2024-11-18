@@ -1072,8 +1072,8 @@ fn run_timing_measurements_gpu(
         }
 
         let mut d_test_vector_indexes =
-            unsafe { CudaVec::<u64>::new_async(number_of_messages, &streams) };
-        unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &streams) };
+            unsafe { CudaVec::<u64>::new_async(number_of_messages, &streams,0) };
+        unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &streams,0) };
 
         let num_blocks = d_lwe_ciphertext_in.to_lwe_ciphertext_list(&streams).lwe_ciphertext_count();//.0.lwe_ciphertext_count.0;
 
@@ -1083,11 +1083,11 @@ fn run_timing_measurements_gpu(
             .map(|&x| <usize as CastInto<u64>>::cast_into(x))
             .collect_vec();
 
-        let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0 , &streams) };
-        let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &streams) };
+        let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0 , &streams,0) };
+        let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &streams,0) };
         unsafe {
-            d_input_indexes.copy_from_cpu_async(&lwe_indexes, &streams);
-            d_output_indexes.copy_from_cpu_async(&lwe_indexes, &streams);
+            d_input_indexes.copy_from_cpu_async(&lwe_indexes, &streams,0);
+            d_output_indexes.copy_from_cpu_async(&lwe_indexes, &streams,0);
         }
 
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
@@ -1101,7 +1101,7 @@ fn run_timing_measurements_gpu(
             &streams,
             );
         println!("After cuda multi-bit size {:?}", chunk_size);
-        let out_pbs_ct = d_out_pbs_ct.to_lwe_ciphertext_list(&streams);
+        let _out_pbs_ct = d_out_pbs_ct.to_lwe_ciphertext_list(&streams);
 
 
         let elapsed = start.elapsed();
