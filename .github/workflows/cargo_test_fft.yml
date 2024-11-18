@@ -2,9 +2,6 @@
 name: Cargo Test tfhe-fft
 
 on:
-  push:
-    branches:
-      - "main"
   pull_request:
 
 env:
