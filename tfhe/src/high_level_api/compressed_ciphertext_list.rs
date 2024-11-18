@@ -3,43 +3,72 @@ use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOw
 use super::keys::InternalServerKey;
 use crate::backward_compatibility::compressed_ciphertext_list::CompressedCiphertextListVersions;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
+use crate::high_level_api::booleans::InnerBoolean;
+use crate::high_level_api::errors::UninitializedServerKey;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
-use crate::integer::ciphertext::{Compressible, DataKind, Expandable};
+use crate::integer::ciphertext::{DataKind, Expandable};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::compressed_ciphertext_list::{
-    CudaCompressible, CudaExpandable,
+    CudaCompressedCiphertextList, CudaExpandable,
 };
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::named::Named;
 use crate::prelude::{CiphertextList, Tagged};
 use crate::shortint::Ciphertext;
 use crate::{FheBool, FheInt, FheUint, Tag};
 
-impl<Id: FheUintId> Compressible for FheUint<Id> {
-    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> DataKind {
-        self.ciphertext.into_cpu().compress_into(messages)
+impl<Id: FheUintId> HlCompressible for FheUint<Id> {
+    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
+        match self.ciphertext {
+            crate::high_level_api::integers::unsigned::RadixCiphertext::Cpu(cpu_radix) => {
+                let blocks = cpu_radix.blocks;
+                let kind = DataKind::Unsigned(blocks.len());
+                messages.push((ToBeCompressed::Cpu(blocks), kind));
+            }
+            #[cfg(feature = "gpu")]
+            crate::high_level_api::integers::unsigned::RadixCiphertext::Cuda(gpu_radix) => {
+                let blocks = gpu_radix.ciphertext;
+                let kind = DataKind::Unsigned(blocks.info.blocks.len());
+                messages.push((ToBeCompressed::Cuda(blocks), kind));
+            }
+        }
     }
 }
-
-impl<Id: FheIntId> Compressible for FheInt<Id> {
-    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> DataKind {
-        self.ciphertext.into_cpu().compress_into(messages)
+impl<Id: FheIntId> HlCompressible for FheInt<Id> {
+    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
+        match self.ciphertext {
+            crate::high_level_api::integers::signed::RadixCiphertext::Cpu(cpu_radix) => {
+                let blocks = cpu_radix.blocks;
+                let kind = DataKind::Signed(blocks.len());
+                messages.push((ToBeCompressed::Cpu(blocks), kind));
+            }
+            #[cfg(feature = "gpu")]
+            crate::high_level_api::integers::signed::RadixCiphertext::Cuda(gpu_radix) => {
+                let blocks = gpu_radix.ciphertext;
+                let kind = DataKind::Signed(blocks.info.blocks.len());
+                messages.push((ToBeCompressed::Cuda(blocks), kind));
+            }
+        }
     }
 }
-
-impl Compressible for FheBool {
-    fn compress_into(self, messages: &mut Vec<Ciphertext>) -> DataKind {
-        self.ciphertext.into_cpu().compress_into(messages)
+impl HlCompressible for FheBool {
+    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
+        match self.ciphertext {
+            InnerBoolean::Cpu(cpu_bool) => {
+                let kind = DataKind::Boolean;
+                messages.push((ToBeCompressed::Cpu(vec![cpu_bool.0]), kind));
+            }
+            #[cfg(feature = "gpu")]
+            InnerBoolean::Cuda(cuda_bool) => {
+                let kind = DataKind::Boolean;
+                messages.push((ToBeCompressed::Cuda(cuda_bool.0.ciphertext), kind));
+            }
+        }
     }
 }
-
-impl<Id: FheUintId> HlCompressible for FheUint<Id> {}
-impl<Id: FheIntId> HlCompressible for FheInt<Id> {}
-impl HlCompressible for FheBool {}
-
-#[cfg(not(feature = "gpu"))]
-pub trait HlCompressible: Compressible {}
 
 impl<Id: FheUintId> HlExpandable for FheUint<Id> {}
 impl<Id: FheIntId> HlExpandable for FheInt<Id> {}
@@ -49,46 +78,32 @@ impl HlExpandable for FheBool {}
 pub trait HlExpandable: Expandable {}
 #[cfg(feature = "gpu")]
 pub trait HlExpandable: Expandable + CudaExpandable {}
-#[cfg(feature = "gpu")]
-pub trait HlCompressible: Compressible + CudaCompressible {}
 
-#[allow(dead_code)]
-enum InnerBuilder {
-    Cpu(crate::integer::ciphertext::CompressedCiphertextListBuilder),
+pub trait HlCompressible {
+    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>);
+}
+
+pub enum ToBeCompressed {
+    Cpu(Vec<Ciphertext>),
     #[cfg(feature = "gpu")]
-    Cuda(crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder),
+    Cuda(CudaRadixCiphertext),
 }
 
 pub struct CompressedCiphertextListBuilder {
-    inner: InnerBuilder,
+    inner: Vec<(ToBeCompressed, DataKind)>,
 }
 
 impl CompressedCiphertextListBuilder {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self {
-            #[cfg(not(feature = "gpu"))]
-            inner: InnerBuilder::Cpu(
-                crate::integer::ciphertext::CompressedCiphertextListBuilder::new(),
-            ),
-            #[cfg(feature = "gpu")]
-            inner: InnerBuilder::Cuda(crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder::new()),
-        }
+        Self { inner: vec![] }
     }
 
     pub fn push<T>(&mut self, value: T) -> &mut Self
     where
         T: HlCompressible,
     {
-        match &mut self.inner {
-            InnerBuilder::Cpu(inner) => {
-                inner.push(value);
-            }
-            #[cfg(feature = "gpu")]
-            InnerBuilder::Cuda(inner) => {
-                with_thread_local_cuda_streams(|streams| inner.push(value, streams));
-            }
-        }
+        value.compress_into(&mut self.inner);
         self
     }
 
@@ -96,62 +111,98 @@ impl CompressedCiphertextListBuilder {
     where
         T: HlCompressible,
     {
-        match &mut self.inner {
-            InnerBuilder::Cpu(inner) => {
-                inner.extend(values);
-            }
-            #[cfg(feature = "gpu")]
-            InnerBuilder::Cuda(inner) => {
-                with_thread_local_cuda_streams(|streams| inner.extend(values, streams));
-            }
+        for value in values {
+            self.push(value);
         }
         self
     }
 
     pub fn build(&self) -> crate::Result<CompressedCiphertextList> {
-        match &self.inner {
-            InnerBuilder::Cpu(inner) => {
-                crate::high_level_api::global_state::try_with_internal_keys(|keys| match keys {
-                    Some(InternalServerKey::Cpu(cpu_key)) => cpu_key
-                        .key
-                        .compression_key
-                        .as_ref()
-                        .ok_or_else(|| {
-                            crate::Error::new("Compression key not set in server key".to_owned())
-                        })
-                        .map(|compression_key| CompressedCiphertextList {
-                            inner: InnerCompressedCiphertextList::Cpu(inner.build(compression_key)),
+        crate::high_level_api::global_state::try_with_internal_keys(|keys| match keys {
+            Some(InternalServerKey::Cpu(cpu_key)) => {
+                let mut flat_cpu_blocks = vec![];
+                for (element, _) in &self.inner {
+                    match element {
+                        ToBeCompressed::Cpu(cpu_blocks) => {
+                            flat_cpu_blocks.extend_from_slice(cpu_blocks.as_slice());
+                        }
+                        #[cfg(feature = "gpu")]
+                        ToBeCompressed::Cuda(cuda_radix) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                flat_cpu_blocks.append(&mut cuda_radix.to_cpu_blocks(streams));
+                            });
+                        }
+                    }
+                }
+                cpu_key
+                    .key
+                    .compression_key
+                    .as_ref()
+                    .ok_or_else(|| {
+                        crate::Error::new("Compression key not set in server key".to_owned())
+                    })
+                    .map(|compression_key| {
+                        let compressed_list = compression_key
+                            .key
+                            .compress_ciphertexts_into_list(&flat_cpu_blocks);
+                        let info = self.inner.iter().map(|(_, kind)| *kind).collect();
+
+                        CompressedCiphertextList {
+                            inner: InnerCompressedCiphertextList::Cpu(
+                                crate::integer::ciphertext::CompressedCiphertextList {
+                                    packed_list: compressed_list,
+                                    info,
+                                },
+                            ),
                             tag: cpu_key.tag.clone(),
-                        }),
-                    _ => Err(crate::Error::new(
-                        "A Cpu server key is needed to be set to use compression".to_owned(),
-                    )),
-                })
+                        }
+                    })
             }
             #[cfg(feature = "gpu")]
-            InnerBuilder::Cuda(inner) => {
-                crate::high_level_api::global_state::try_with_internal_keys(|keys| match keys {
-                    Some(InternalServerKey::Cuda(cuda_key)) => cuda_key
-                        .key
-                        .compression_key
-                        .as_ref()
-                        .ok_or_else(|| {
-                            crate::Error::new("Compression key not set in server key".to_owned())
-                        })
-                        .map(|compression_key| CompressedCiphertextList {
-                            inner: with_thread_local_cuda_streams(|streams| {
-                                InnerCompressedCiphertextList::Cuda(
-                                    inner.build(compression_key, streams),
-                                )
-                            }),
+            Some(InternalServerKey::Cuda(cuda_key)) => {
+                let mut cuda_radixes = vec![];
+                for (element, _) in &self.inner {
+                    match element {
+                        ToBeCompressed::Cpu(cpu_blocks) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_radixes.push(CudaRadixCiphertext::from_cpu_blocks(
+                                    cpu_blocks, streams,
+                                ));
+                            })
+                        }
+                        #[cfg(feature = "gpu")]
+                        ToBeCompressed::Cuda(cuda_radix) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_radixes.push(cuda_radix.duplicate(streams));
+                            });
+                        }
+                    }
+                }
+
+                cuda_key
+                    .key
+                    .compression_key
+                    .as_ref()
+                    .ok_or_else(|| {
+                        crate::Error::new("Compression key not set in server key".to_owned())
+                    })
+                    .map(|compression_key| {
+                        let packed_list = with_thread_local_cuda_streams(|streams| {
+                            compression_key
+                                .compress_ciphertexts_into_list(cuda_radixes.as_slice(), streams)
+                        });
+                        let info = self.inner.iter().map(|(_, kind)| *kind).collect();
+
+                        let compressed_list = CudaCompressedCiphertextList { packed_list, info };
+
+                        CompressedCiphertextList {
+                            inner: InnerCompressedCiphertextList::Cuda(compressed_list),
                             tag: cuda_key.tag.clone(),
-                        }),
-                    _ => Err(crate::Error::new(
-                        "A Cuda server key is needed to be set to use compression".to_owned(),
-                    )),
-                })
+                        }
+                    })
             }
-        }
+            None => Err(UninitializedServerKey.into()),
+        })
     }
 }
 
@@ -515,12 +566,12 @@ mod tests {
     use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::{
-        set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
-        FheInt64, FheUint16, FheUint2, FheUint32,
+        set_server_key, ClientKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
+        FheBool, FheInt64, FheUint16, FheUint2, FheUint32,
     };
 
     #[test]
-    fn test_compressed_ct_list() {
+    fn test_compressed_ct_list_cpu_gpu() {
         let config = crate::ConfigBuilder::with_custom_parameters(
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         )
@@ -528,54 +579,89 @@ mod tests {
         .build();
 
         let ck = crate::ClientKey::generate(config);
-        let sk = crate::ServerKey::new(&ck);
+        let sk = crate::CompressedServerKey::new(&ck);
 
-        set_server_key(sk);
-
-        let ct1 = FheUint32::encrypt(17_u32, &ck);
-
-        let ct2 = FheInt64::encrypt(-1i64, &ck);
-
-        let ct3 = FheBool::encrypt(false, &ck);
-
-        let ct4 = FheUint2::encrypt(3u8, &ck);
-
-        let compressed_list = CompressedCiphertextListBuilder::new()
-            .push(ct1)
-            .push(ct2)
-            .push(ct3)
-            .push(ct4)
-            .build()
-            .unwrap();
-
-        let serialized = bincode::serialize(&compressed_list).unwrap();
-
-        let compressed_list: CompressedCiphertextList = bincode::deserialize(&serialized).unwrap();
-
+        // Test with input data being on CPU
         {
-            let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
-            let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
-            let c: FheBool = compressed_list.get(2).unwrap().unwrap();
-            let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
+            let ct1 = FheUint32::encrypt(17_u32, &ck);
+            let ct2 = FheInt64::encrypt(-1i64, &ck);
+            let ct3 = FheBool::encrypt(false, &ck);
+            let ct4 = FheUint2::encrypt(3u8, &ck);
 
-            let a: u32 = a.decrypt(&ck);
-            assert_eq!(a, 17);
-            let b: i64 = b.decrypt(&ck);
-            assert_eq!(b, -1);
-            let c = c.decrypt(&ck);
-            assert!(!c);
-            let d: u8 = d.decrypt(&ck);
-            assert_eq!(d, 3);
+            let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
+            compressed_list_builder
+                .push(ct1)
+                .push(ct2)
+                .push(ct3)
+                .push(ct4);
 
-            assert!(compressed_list.get::<FheBool>(4).unwrap().is_none());
+            set_server_key(sk.decompress());
+            check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
+
+            #[cfg(feature = "gpu")]
+            {
+                set_server_key(sk.decompress_to_gpu());
+                check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
+            }
         }
 
+        // Test with input data being on GPU
+        #[cfg(feature = "gpu")]
         {
-            // Incorrect type
-            assert!(compressed_list.get::<FheInt64>(0).is_err());
+            let mut ct1 = FheUint32::encrypt(17_u32, &ck);
+            let mut ct2 = FheInt64::encrypt(-1i64, &ck);
+            let mut ct3 = FheBool::encrypt(false, &ck);
+            let mut ct4 = FheUint2::encrypt(3u8, &ck);
 
-            // Correct type but wrong number of bits
-            assert!(compressed_list.get::<FheUint16>(0).is_err());
+            ct1.move_to_device(crate::Device::CudaGpu);
+            ct2.move_to_device(crate::Device::Cpu);
+            ct3.move_to_device(crate::Device::CudaGpu);
+            ct4.move_to_device(crate::Device::Cpu);
+
+            let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
+            compressed_list_builder
+                .push(ct1)
+                .push(ct2)
+                .push(ct3)
+                .push(ct4);
+
+            set_server_key(sk.decompress());
+            check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
+
+            set_server_key(sk.decompress_to_gpu());
+            check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
+        }
+
+        fn check_is_correct(compressed_list: &CompressedCiphertextList, ck: &ClientKey) {
+            let serialized = bincode::serialize(&compressed_list).unwrap();
+
+            let compressed_list: CompressedCiphertextList =
+                bincode::deserialize(&serialized).unwrap();
+            {
+                let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
+                let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
+                let c: FheBool = compressed_list.get(2).unwrap().unwrap();
+                let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
+
+                let a: u32 = a.decrypt(ck);
+                assert_eq!(a, 17);
+                let b: i64 = b.decrypt(ck);
+                assert_eq!(b, -1);
+                let c = c.decrypt(ck);
+                assert!(!c);
+                let d: u8 = d.decrypt(ck);
+                assert_eq!(d, 3);
+
+                assert!(compressed_list.get::<FheBool>(4).unwrap().is_none());
+            }
+
+            {
+                // Incorrect type
+                assert!(compressed_list.get::<FheInt64>(0).is_err());
+
+                // Correct type but wrong number of bits
+                assert!(compressed_list.get::<FheUint16>(0).is_err());
+            }
         }
     }
 }
