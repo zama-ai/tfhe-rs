@@ -1,7 +1,8 @@
 //! Implement bridge between native tfhe Parameters and Hpu one
 use tfhe_hpu_backend::prelude::*;
 
-use crate::shortint::{parameters::DynamicDistribution, prelude::*};
+use crate::shortint::parameters::DynamicDistribution;
+use crate::shortint::prelude::*;
 
 impl From<&HpuParameters> for ClassicPBSParameters {
     fn from(value: &HpuParameters) -> Self {

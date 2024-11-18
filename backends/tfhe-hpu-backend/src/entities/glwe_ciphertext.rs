@@ -1,6 +1,7 @@
 //! Module containing the definition of the HpuGlweCiphertext.
 //! Raw typed container without any logic
-//! Conversion from/into tfhers entities should be implemented inside tfhers to prevent dependency loop
+//! Conversion from/into tfhers entities should be implemented inside tfhers to prevent dependency
+//! loop
 
 use super::parameters::*;
 use super::traits::container::*;

@@ -110,8 +110,8 @@ gpu = ["dep:tfhe-cuda-backend"]
 zk-pok = ["dep:tfhe-zk-pok"]
 # Start Fpga Hpu features
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]
-hpu-hw = ["hpu", "tfhe-hpu-backend/hw-itf"]
-hpu-xfer = ["hpu-hw"]
+hpu-hw = ["tfhe-hpu-backend/hw-xrt"]
+hpu-xfer = ["hpu"]
 hpu-debug = ["tfhe-hpu-backend/io-dump"]
 # Start Fpga simulation features
 ntt-bnf = []
@@ -355,6 +355,11 @@ required-features = ["hpu-xfer"]
 name = "hpu_trace"
 path = "examples/hpu/trace.rs"
 required-features = ["hpu-xfer", "hpu-debug"]
+
+[[example]]
+name = "hpu_gtv"
+path = "examples/hpu/golden_tv.rs"
+required-features = ["hpu-xfer", "hpu-debug", "seeder-manual"]
 
 [[example]]
 name = "hpu_8b"

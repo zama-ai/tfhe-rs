@@ -23,6 +23,16 @@ pub struct HpuPBSParameters {
 // Indeed, we can handle strict comparaison of f64
 impl std::cmp::Eq for HpuPBSParameters {}
 
+impl HpuPBSParameters {
+    /// Compute associated encoding delta.
+    /// Used for scalar encoding
+    pub fn delta(&self) -> u64 {
+        1_u64
+            << (self.ciphertext_width
+                - (self.message_width + self.carry_width + /* padding_bit */ 1))
+    }
+}
+
 /// Parameters related to Keyswitch computation
 /// Related to architectural implementation of Ks in Hpu
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -91,7 +101,8 @@ impl HpuNttParameters {
 
 /// Parameters related to Hbm PC
 /// Related to memory connection and allocated channel
-/// Only specify the number of Pc in used the mapping of the pc is define by the user in the top-level configuration file.
+/// Only specify the number of Pc in used the mapping of the pc is define by the user in the
+/// top-level configuration file.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuPcParameters {
     pub ksk_pc: usize,

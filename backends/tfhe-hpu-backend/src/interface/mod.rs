@@ -3,9 +3,6 @@ mod cmd;
 mod config;
 mod device;
 mod memory;
-#[cfg(not(feature = "utils"))]
-mod rtl;
-#[cfg(feature = "utils")]
 pub mod rtl;
 mod variable;
 
@@ -16,8 +13,9 @@ use thiserror::Error;
 
 // Publicly export some types
 pub const ACKQ_EMPTY: u32 = 0xdeadc0de;
-pub use config::HpuConfig;
+pub use config::{BoardConfig, FFIMode, HpuConfig};
 pub use device::HpuDevice;
+pub use memory::page_align;
 pub use variable::HpuVarWrapped;
 
 /// Common error type reported by Hpu

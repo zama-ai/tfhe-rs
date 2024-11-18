@@ -1,6 +1,7 @@
 use core_crypto::entities::LweCiphertextOwned;
 use core_crypto::hpu::from_with::{FromWith, IntoWith};
-pub use hpu_asm::{strum::IntoEnumIterator, Asm};
+pub use hpu_asm::strum::IntoEnumIterator;
+pub use hpu_asm::Asm;
 use integer::hpu::ciphertext::HpuRadixCiphertext;
 use shortint::parameters::{Degree, NoiseLevel};
 use shortint::{Ciphertext, ClassicPBSParameters};
@@ -10,19 +11,17 @@ pub use tfhe_hpu_backend::prelude::*;
 
 pub use rand::rngs::StdRng;
 pub use rand::{Rng, SeedableRng};
-pub use std::{
-    collections::HashMap,
-    fs::OpenOptions,
-    io::Write,
-    path::Path,
-    time::{Duration, Instant},
-};
+pub use std::collections::HashMap;
+pub use std::fs::OpenOptions;
+pub use std::io::Write;
+pub use std::path::Path;
+pub use std::time::{Duration, Instant};
 
 /// Define CLI arguments
 pub use clap::Parser;
 pub use clap_num::maybe_hex;
 #[derive(clap::Parser, Debug, Clone, serde::Serialize)]
-#[clap(long_about = "Simulate DOp execution on a given Hpu configuration.")]
+#[clap(long_about = "HPU trace application: Generate operation at on 1 block only.")]
 pub struct Args {
     // Fpga configuration ------------------------------------------------------
     /// Toml top-level configuration file
@@ -111,7 +110,7 @@ fn main() {
     let hpu_device = {
         let mut config = HpuConfig::read_from(&args.config);
         config.firmware.integer_w = vec![2];
-        HpuDevice::new(0, config)
+        HpuDevice::new(config)
     };
 
     // Extract pbs_configuration from Hpu and generate top-level config

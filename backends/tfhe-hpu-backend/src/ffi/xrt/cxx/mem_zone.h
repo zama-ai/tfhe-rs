@@ -23,7 +23,7 @@
 
 namespace ffi {
     // Forward definition: Concrete implementation is made by Cxx
-    enum class SyncMode: uint8_t;
+    enum class SyncModeCxx: uint8_t;
 
     class MemZone {
       public:
@@ -42,7 +42,7 @@ namespace ffi {
         uint64_t pc() const ;
         void read_bytes(size_t ofst, rust::Slice<uint8_t> bytes) const;
         void write_bytes(size_t ofst, rust::Slice<const uint8_t> bytes);
-        void sync(SyncMode mode);
+        void sync(SyncModeCxx mode);
         rust::Slice<uint64_t> mmap();
         void unmap();
     };

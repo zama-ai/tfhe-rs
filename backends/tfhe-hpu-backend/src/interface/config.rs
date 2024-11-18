@@ -5,15 +5,27 @@ use std::collections::HashMap;
 
 pub const HPU_MEM_BANK_NB: usize = 4;
 
+/// Configuration of targeted FFI bridge witht the Hw
+/// Enable to select targeted ffi interface with specific properties
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum FFIMode {
+    Xrt {
+        id: u32,
+        kernel: String,
+        xclbin: String,
+    },
+    Sim {
+        ipc_name: String,
+    },
+}
+
 /// Configuration of targeted Fpga
 /// Define Bitstream and kernel properties
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct FpgaConfig {
-    pub id: usize,
-    pub kernel: String,
-    pub xclbin: String,
     pub regmap: String,
     pub polling_us: u64,
+    pub ffi: FFIMode,
 }
 
 /// Configuration of Rtl
@@ -29,7 +41,6 @@ pub struct RtlConfig {
 /// On-board memory configuration
 /// Define the Hbm pc properties and required memory size
 /// NB: Hbm pc must match with `fpga/xr/kernel/${board}/cfg/${config}.cfg`
-///
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct BoardConfig {
     /// Ciphertext memory

@@ -1,23 +1,24 @@
-pub use hpu_asm::{strum::IntoEnumIterator, Asm};
+pub use hpu_asm::strum::IntoEnumIterator;
+pub use hpu_asm::Asm;
 pub use tfhe::prelude::*;
 pub use tfhe::*;
 pub use tfhe_hpu_backend::prelude::*;
 
 pub use rand::rngs::StdRng;
 pub use rand::{Rng, SeedableRng};
-pub use std::{
-    collections::HashMap,
-    fs::OpenOptions,
-    io::Write,
-    path::Path,
-    time::{Duration, Instant},
-};
+pub use std::collections::HashMap;
+pub use std::fs::OpenOptions;
+pub use std::io::Write;
+pub use std::path::Path;
+pub use std::time::{Duration, Instant};
 
 /// Define CLI arguments
 pub use clap::Parser;
 pub use clap_num::maybe_hex;
 #[derive(clap::Parser, Debug, Clone, serde::Serialize)]
-#[clap(long_about = "Simulate DOp execution on a given Hpu configuration.")]
+#[clap(
+    long_about = "HPU benchmark application: Start operation on HPU in a loop and report performences."
+)]
 pub struct Args {
     // Fpga configuration ------------------------------------------------------
     /// Toml top-level configuration file
@@ -119,7 +120,7 @@ macro_rules! impl_hpu_bench {
             let hpu_device = {
                 let mut config = HpuConfig::read_from(&args.config);
                 config.firmware.integer_w = vec![$user_size];
-                HpuDevice::new(0, config)
+                HpuDevice::new(config)
             };
 
 

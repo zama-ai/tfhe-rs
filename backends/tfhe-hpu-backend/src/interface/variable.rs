@@ -2,7 +2,7 @@
 //! Abstraction over Hpu ciphertext data
 //! Handle lifetime management, deallocation and state inside HpuDevice.
 use super::*;
-use crate::entities::{hpu_big_lwe_ciphertext_size, HpuLweCiphertextOwned, HpuParameters};
+use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use crate::{asm, ffi};
 use backend::HpuBackendWrapped;
 use std::sync::{mpsc, Arc, Mutex};
@@ -45,7 +45,7 @@ impl HpuVar {
                 for slot in self.bundle.iter_mut() {
                     slot.mz
                         .iter_mut()
-                        .for_each(|mz| mz.pin_mut().sync(ffi::SyncMode::Device2Host));
+                        .for_each(|mz| mz.sync(ffi::SyncMode::Device2Host));
                 }
                 self.state = SyncState::BothSync;
                 Ok(())
@@ -61,7 +61,7 @@ impl HpuVar {
                 for slot in self.bundle.iter_mut() {
                     slot.mz
                         .iter_mut()
-                        .for_each(|mz| mz.pin_mut().sync(ffi::SyncMode::Host2Device));
+                        .for_each(|mz| mz.sync(ffi::SyncMode::Host2Device));
                 }
                 self.state = SyncState::BothSync;
                 Ok(())
@@ -135,9 +135,9 @@ impl HpuVarWrapped {
         {
             let mut inner = var.inner.lock().unwrap();
 
-            for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct.iter()) {
-                for (id, cut) in ct.hw_slice().iter().enumerate() {
-                    slot.mz[id].pin_mut().write(0, &cut);
+            for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct.into_iter()) {
+                for (id, cut) in ct.into_container().iter().enumerate() {
+                    slot.mz[id].write(0, &cut);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
                         &cut.as_slice(),
@@ -165,23 +165,19 @@ impl HpuVarWrapped {
         }
 
         let params = inner.params();
-
-        let blwe_size = hpu_big_lwe_ciphertext_size(&params);
         let mut ct = Vec::new();
-        let mut hw_slice = vec![0; blwe_size];
+
         for slot in inner.bundle.iter() {
             // Allocate HpuLwe
+            // and view inner buffer as cut
             let mut hpu_lwe = HpuLweCiphertextOwned::<u64>::new(0, params.clone());
+            let mut hw_slice = hpu_lwe.as_mut_view().into_container();
 
-            // View buffer as cut
-            let (cut_0, cut_1) = hw_slice.split_at_mut(blwe_size.div_euclid(2) + 1);
-            let mut hw_cut = vec![cut_0, cut_1];
-
-            // Copy from Xrt memory and shuffle back to cpu order
-            std::iter::zip(slot.mz.iter(), hw_cut.iter_mut())
+            // Copy from Xrt memory
+            std::iter::zip(slot.mz.iter(), hw_slice.iter_mut())
                 .enumerate()
                 .for_each(|(id, (mz, cut))| {
-                    mz.read(0, *cut);
+                    mz.read(0, cut);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
                         &cut.as_ref(),
@@ -189,7 +185,6 @@ impl HpuVarWrapped {
                         io_dump::DumpId::Slot(slot.id, id),
                     );
                 });
-            hpu_lwe.copy_from_hw_slice(&hw_slice);
             ct.push(hpu_lwe);
         }
 

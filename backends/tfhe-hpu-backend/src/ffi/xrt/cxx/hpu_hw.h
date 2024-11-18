@@ -15,27 +15,27 @@
 #include "experimental/xrt_device.h"
 #include "experimental/xrt_xclbin.h"
 
-#include "tfhe-hpu-backend/src/ffi/cxx/mem_zone.h"
+#include "tfhe-hpu-backend/src/ffi/xrt/cxx/mem_zone.h"
 
 // Utilities macro to handle verbosity
 #define pr_trace(verbose, stmts)\
-  if (verbose >= Verbosity::Trace) { \
+  if (verbose >= VerbosityCxx::Trace) { \
   std::cout << "cxx::Trace: " << stmts;\
   }
 #define pr_debug(verbose, stmts)\
-  if (verbose >= Verbosity::Debug) { \
+  if (verbose >= VerbosityCxx::Debug) { \
   std::cout << "cxx::Debug: " << stmts;\
   }
 #define pr_info(verbose, stmts)\
-  if (verbose >= Verbosity::Info) { \
+  if (verbose >= VerbosityCxx::Info) { \
   std::cout << "cxx::Info: " << stmts;\
   }
 #define pr_warn(verbose, stmts)\
-  if (verbose >= Verbosity::Warning) { \
+  if (verbose >= VerbosityCxx::Warning) { \
   std::cout << "cxx::Warning: " << stmts;\
   }
 #define pr_err(verbose, stmts)\
-  if (verbose >= Verbosity::Error) { \
+  if (verbose >= VerbosityCxx::Error) { \
   std::cerr << "cxx::Error: " << stmts;\
   }
 
@@ -45,20 +45,20 @@
 
 namespace ffi {
     // Forward definition: Concrete implementation is made by Cxx
-    enum class SyncMode: uint8_t;
-    enum class Verbosity: uint8_t;
-    class MemZoneProperties;
+    enum class SyncModeCxx: uint8_t;
+    enum class VerbosityCxx: uint8_t;
+    class MemZonePropertiesCxx;
 
     class HpuHw {
       public:
-        HpuHw(uint32_t fpga_id, rust::String kernel_name, rust::String xclbin_name, Verbosity verbose);
+        HpuHw(uint32_t fpga_id, rust::String kernel_name, rust::String xclbin_name, VerbosityCxx verbose);
         ~HpuHw();
 
       private:
         const uint32_t fpga_id;
         const std::string kernel_name;
         const std::string xclbin_name;
-        const Verbosity verbose;
+        const VerbosityCxx verbose;
 
         // XRT objects
         xrt::device fpga;
@@ -69,12 +69,12 @@ namespace ffi {
         uint32_t read_reg(uint64_t addr) const;
         void write_reg(uint64_t addr, uint32_t value);
         // Handle onboard memory
-        std::unique_ptr<MemZone> alloc(MemZoneProperties props);
+        std::unique_ptr<MemZone> alloc(MemZonePropertiesCxx props);
 
     };
 
     // Utility function to properly instanciate Cxx class in rust world
     std::unique_ptr<HpuHw>
       new_hpu_hw(uint32_t fpga_id, rust::String kernel_name, rust::String awsxclbin,
-          Verbosity verbose);
+          VerbosityCxx verbose);
 }

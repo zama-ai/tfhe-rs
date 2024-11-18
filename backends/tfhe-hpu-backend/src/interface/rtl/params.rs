@@ -1,24 +1,26 @@
 //!
 //! Extract architecture properties from RTL registers
 //! Read Rtl parameters from registers.
-//! NB: Some registers contains encoded value that must be converted to concrete one (i.e. apps/ntt_moduls)
+//! NB: Some registers contains encoded value that must be converted to concrete one (i.e.
+//! apps/ntt_moduls)
 use super::*;
 use crate::entities::*;
 
 // Set of constant defined in RTL and associated rust definition
 // -> Cf. fpga/hw/common_lib/common_package/rtl/common_definition_pkg.sv
-const NTT_CORE_ARCH_OFS: u32 = 5 << 8;
-const MOD_NTT_NAME_OFS: u32 = 6 << 8;
-const APPLICATION_NAME_OFS: u32 = 7 << 8;
+pub const NTT_CORE_ARCH_OFS: u32 = 5 << 8;
+pub const MOD_NTT_NAME_OFS: u32 = 6 << 8;
+pub const APPLICATION_NAME_OFS: u32 = 7 << 8;
+pub const SIMULATION_CODE: u32 = 1;
 
 impl FromRtl for HpuParameters {
-    fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
-        let pbs_params = HpuPBSParameters::from_rtl(ffi_pin, regmap);
-        let ntt_params = HpuNttParameters::from_rtl(ffi_pin, regmap);
-        let ks_params = HpuKeyswitchParameters::from_rtl(ffi_pin, regmap);
-        let pc_params = HpuPcParameters::from_rtl(ffi_pin, regmap);
-        let regf_params = HpuRegfileParameters::from_rtl(ffi_pin, regmap);
-        let isc_params = HpuIscParameters::from_rtl(ffi_pin, regmap);
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
+        let pbs_params = HpuPBSParameters::from_rtl(ffi_hw, regmap);
+        let ntt_params = HpuNttParameters::from_rtl(ffi_hw, regmap);
+        let ks_params = HpuKeyswitchParameters::from_rtl(ffi_hw, regmap);
+        let pc_params = HpuPcParameters::from_rtl(ffi_hw, regmap);
+        let regf_params = HpuRegfileParameters::from_rtl(ffi_hw, regmap);
+        let isc_params = HpuIscParameters::from_rtl(ffi_hw, regmap);
         Self {
             pbs_params,
             ntt_params,
@@ -31,19 +33,19 @@ impl FromRtl for HpuParameters {
 }
 
 impl FromRtl for HpuKeyswitchParameters {
-    fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let ks_shape = regmap
             .register()
             .get("Info::KsShape")
             .expect("Unknow register, check regmap definition");
-        let shape_val = ffi_pin.as_mut().read_reg(*ks_shape.offset() as u64);
+        let shape_val = ffi_hw.read_reg(*ks_shape.offset() as u64);
         let shape_fields = ks_shape.as_field(shape_val);
 
         let ks_info = regmap
             .register()
             .get("Info::KsInfo")
             .expect("Unknow register, check regmap definition");
-        let info_val = ffi_pin.as_mut().read_reg(*ks_info.offset() as u64);
+        let info_val = ffi_hw.read_reg(*ks_info.offset() as u64);
         let info_fields = ks_info.as_field(info_val);
 
         Self {
@@ -55,15 +57,15 @@ impl FromRtl for HpuKeyswitchParameters {
     }
 }
 impl FromRtl for HpuNttParameters {
-    fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
-        let core_arch = HpuNttCoreArch::from_rtl(ffi_pin, regmap);
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
+        let core_arch = HpuNttCoreArch::from_rtl(ffi_hw, regmap);
 
         // Values extracted from NttInternal register
         let ntt_internal = regmap
             .register()
             .get("Info::NttInternal")
             .expect("Unknow register, check regmap definition");
-        let internal_val = ffi_pin.as_mut().read_reg(*ntt_internal.offset() as u64);
+        let internal_val = ffi_hw.read_reg(*ntt_internal.offset() as u64);
         let internal_fields = ntt_internal.as_field(internal_val);
 
         let radix = *internal_fields.get("radix").expect("Unknow field") as usize;
@@ -75,7 +77,7 @@ impl FromRtl for HpuNttParameters {
             .register()
             .get("Info::NttPbsNb")
             .expect("Unknow register, check regmap definition");
-        let pbs_nb_val = ffi_pin.as_mut().read_reg(*ntt_pbs_nb.offset() as u64);
+        let pbs_nb_val = ffi_hw.read_reg(*ntt_pbs_nb.offset() as u64);
         let pbs_nb_fields = ntt_pbs_nb.as_field(pbs_nb_val);
 
         let batch_pbs_nb = *pbs_nb_fields.get("batch_pbs_nb").expect("Unknow field") as usize;
@@ -87,7 +89,7 @@ impl FromRtl for HpuNttParameters {
             .register()
             .get("Info::NttModulo")
             .expect("Unknow register, check regmap definition");
-        let ntt_modulo_val = ffi_pin.as_mut().read_reg(*ntt_modulo.offset() as u64);
+        let ntt_modulo_val = ffi_hw.read_reg(*ntt_modulo.offset() as u64);
 
         let prime_modulus = {
             // Check register encoding
@@ -98,15 +100,15 @@ impl FromRtl for HpuNttParameters {
             );
             match ntt_modulo_val & 0xFF {
                 0 => {
-                    /*Goldilocks64*/
+                    /* Goldilocks64 */
                     ((1_u128 << 64) - (1_u128 << 32) + 1_u128) as u64
                 }
                 1 => {
-                    /*Solinas3_32_17_13*/
+                    /* Solinas3_32_17_13 */
                     ((1_u128 << 32) - (1_u128 << 17) - (1_u128 << 13)) as u64
                 }
                 2 => {
-                    /*Solinas2_44_14*/
+                    /* Solinas2_44_14 */
                     ((1_u128 << 44) - (1_u128 << 14) + 1) as u64
                 }
                 _ => panic!("Unknown NttModName encoding"),
@@ -114,9 +116,9 @@ impl FromRtl for HpuNttParameters {
         };
 
         // Values extracted from Application
-        // Not the cleanest way but some required ntt information are only available in the parameters set
-        // Thus parse extract HpuPBSParameters inside HpuNttParameters
-        let pbs_params = HpuPBSParameters::from_rtl(ffi_pin, regmap);
+        // Not the cleanest way but some required ntt information are only available in the
+        // parameters set Thus parse extract HpuPBSParameters inside HpuNttParameters
+        let pbs_params = HpuPBSParameters::from_rtl(ffi_hw, regmap);
         let stg_nb = pbs_params.polynomial_size.ilog(radix) as usize;
 
         Self {
@@ -134,14 +136,14 @@ impl FromRtl for HpuNttParameters {
 }
 
 impl FromRtl for HpuNttCoreArch {
-    fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         // Values extracted from NttModulo register
         // Modulus isn't directly expressed, instead used custom encoding
         let ntt_core_arch = regmap
             .register()
             .get("Info::NttArch")
             .expect("Unknow register, check regmap definition");
-        let ntt_core_arch_val = ffi_pin.as_mut().read_reg(*ntt_core_arch.offset() as u64);
+        let ntt_core_arch_val = ffi_hw.read_reg(*ntt_core_arch.offset() as u64);
 
         // Check register encoding
         let field_code = ntt_core_arch_val & (!0xFF_u32);
@@ -163,7 +165,7 @@ impl FromRtl for HpuNttCoreArch {
                     .register()
                     .get("Info::NttRdxCut")
                     .expect("Unknow register, check regmap definition");
-                let radix_cut_val = ffi_pin.as_mut().read_reg(*radix_cut.offset() as u64);
+                let radix_cut_val = ffi_hw.read_reg(*radix_cut.offset() as u64);
                 let cut_l = (0..(u32::BITS / 4))
                     .map(|ofst| ((radix_cut_val >> (ofst * 4)) & 0xf) as u8)
                     .filter(|x| *x != 0)
@@ -176,19 +178,19 @@ impl FromRtl for HpuNttCoreArch {
 }
 
 impl FromRtl for HpuPcParameters {
-    fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let hbm_pc = regmap
             .register()
             .get("Info::HbmPc")
             .expect("Unknow register, check regmap definition");
-        let hbm_pc_val = ffi_pin.as_mut().read_reg(*hbm_pc.offset() as u64);
+        let hbm_pc_val = ffi_hw.read_reg(*hbm_pc.offset() as u64);
         let hbm_pc_fields = hbm_pc.as_field(hbm_pc_val);
 
         let hbm_pc_2 = regmap
             .register()
             .get("Info::HbmPc_2")
             .expect("Unknow register, check regmap definition");
-        let hbm_pc_2_val = ffi_pin.as_mut().read_reg(*hbm_pc_2.offset() as u64);
+        let hbm_pc_2_val = ffi_hw.read_reg(*hbm_pc_2.offset() as u64);
         let hbm_pc_2_fields = hbm_pc_2.as_field(hbm_pc_2_val);
 
         let ksk_pc = *hbm_pc_fields.get("ksk_pc").expect("Unknow field") as usize;
@@ -204,12 +206,12 @@ impl FromRtl for HpuPcParameters {
 }
 
 impl FromRtl for HpuRegfileParameters {
-    fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let regf = regmap
             .register()
             .get("Info::RegfInfo")
             .expect("Unknow register, check regmap definition");
-        let regf_val = ffi_pin.as_mut().read_reg(*regf.offset() as u64);
+        let regf_val = ffi_hw.read_reg(*regf.offset() as u64);
         let regf_fields = regf.as_field(regf_val);
 
         Self {
@@ -220,12 +222,12 @@ impl FromRtl for HpuRegfileParameters {
 }
 
 impl FromRtl for HpuIscParameters {
-    fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let isc = regmap
             .register()
             .get("Info::IscInfo")
             .expect("Unknow register, check regmap definition");
-        let isc_val = ffi_pin.as_mut().read_reg(*isc.offset() as u64);
+        let isc_val = ffi_hw.read_reg(*isc.offset() as u64);
         let isc_fields = isc.as_field(isc_val);
 
         Self {
@@ -236,7 +238,7 @@ impl FromRtl for HpuIscParameters {
 
 // Define parameters set as constants
 // Used to easily derived IoMeasure version without duplication
-const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
+pub const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 586,
     glwe_dimension: 2,
     polynomial_size: 512,
@@ -251,7 +253,7 @@ const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: 32,
 };
 
-const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
+pub const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 742,
     glwe_dimension: 1,
     polynomial_size: 2048,
@@ -266,7 +268,7 @@ const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: u64::BITS as usize,
 };
 
-const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
+pub const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 710,
     glwe_dimension: 2,
     polynomial_size: 1024,
@@ -281,7 +283,7 @@ const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: u64::BITS as usize,
 };
 
-const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
+pub const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 724,
     glwe_dimension: 2,
     polynomial_size: 1024,
@@ -296,7 +298,7 @@ const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: 44,
 };
 
-const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
+pub const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
     lwe_dimension: 724,
     glwe_dimension: 2,
     polynomial_size: 1024,
@@ -312,19 +314,29 @@ const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
 };
 
 impl FromRtl for HpuPBSParameters {
-    fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let pbs_app = regmap
             .register()
             .get("Info::Appli")
             .expect("Unknow register, check regmap definition");
-        let pbs_app_val = ffi_pin.as_mut().read_reg(*pbs_app.offset() as u64);
+        let pbs_app_val = ffi_hw.read_reg(*pbs_app.offset() as u64);
 
         // Check register encoding
         let field_code = pbs_app_val & (!0xFF_u32);
-        assert_eq!(
-            field_code, APPLICATION_NAME_OFS,
-            "Invalid register encoding. Check register map definition"
-        );
+        #[cfg(not(feature = "hw-xrt"))]
+        {
+            if (field_code == 0) && (pbs_app_val == SIMULATION_CODE) {
+                tracing::warn!("Run an simulation backend with custom SIMU parameters set");
+                return ffi_hw.get_pbs_parameters();
+            }
+        }
+        #[cfg(feature = "hw-xrt")]
+        {
+            assert_eq!(
+                field_code, APPLICATION_NAME_OFS,
+                "Invalid register encoding. Check register map definition"
+            );
+        }
 
         match pbs_app_val & 0xFF {
             0 => CONCRETE_BOOLEAN,

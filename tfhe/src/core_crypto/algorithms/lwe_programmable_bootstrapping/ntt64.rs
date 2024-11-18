@@ -4,14 +4,7 @@
 
 use crate::core_crypto::algorithms::glwe_sample_extraction::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::misc::divide_round;
-use crate::core_crypto::algorithms::polynomial_algorithms::{
-    polynomial_wrapping_monic_monomial_div_assign_custom_mod,
-    polynomial_wrapping_monic_monomial_mul_assign_custom_mod,
-};
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::math::decomposition::{
-    SignedDecomposerNonNative, TensorSignedDecompositionLendingIterNonNative,
-};
 use crate::core_crypto::commons::math::ntt::ntt64::{Ntt64, Ntt64View};
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, GlweSize, MonomialDegree, PolynomialSize,
@@ -224,6 +217,10 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         ntt: Ntt64View<'_>,
         stack: &mut PodStack,
     ) {
+        use crate::core_crypto::algorithms::polynomial_algorithms::{
+            polynomial_wrapping_monic_monomial_div_assign_custom_mod,
+            polynomial_wrapping_monic_monomial_mul_assign_custom_mod,
+        };
         use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
         use crate::core_crypto::prelude::polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign;
 
@@ -326,7 +323,7 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
     #[cfg(feature = "ntt-bnf")]
     fn implementation(
         bsk: NttLweBootstrapKeyView<'_, u64>,
-        mut lut: GlweCiphertextMutView<'_, u64>,
+        #[allow(unused_mut)] mut lut: GlweCiphertextMutView<'_, u64>,
         lwe: &[u64],
         ntt: Ntt64View<'_>,
         mut stack: &mut PodStack,
@@ -666,6 +663,10 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
     ) where
         InputGlweCont: Container<Element = u64>,
     {
+        use crate::core_crypto::commons::math::decomposition::{
+            SignedDecomposerNonNative, TensorSignedDecompositionLendingIterNonNative,
+        };
+
         // we check that the polynomial sizes match
         debug_assert_eq!(ggsw.polynomial_size(), glwe.polynomial_size());
         debug_assert_eq!(ggsw.polynomial_size(), out.polynomial_size());
