@@ -284,7 +284,7 @@ def _parse_key_results(result_file, bench_type):
         reader = csv.reader(csv_file)
         for test_name, value in reader:
             try:
-                params, display_name, operator = get_parameters(test_name, crate)
+                params, display_name, operator = get_parameters(test_name, "tfhe")
             except Exception as err:
                 parsing_failures.append((test_name, f"failed to get parameters: {err}"))
                 continue
