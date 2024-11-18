@@ -7,7 +7,7 @@ use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
-use crate::integer::{RadixCiphertext, SignedRadixCiphertext};
+use crate::integer::{IntegerCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
 
 pub trait CudaIntegerRadixCiphertext: Sized {
@@ -96,6 +96,60 @@ impl CudaIntegerRadixCiphertext for CudaSignedRadixCiphertext {
     }
 }
 
+impl CudaRadixCiphertext {
+    pub fn from_cpu_blocks(blocks: &[Ciphertext], streams: &CudaStreams) -> Self {
+        let mut h_radix_ciphertext = blocks
+            .iter()
+            .flat_map(|block| block.ct.clone().into_container())
+            .collect::<Vec<_>>();
+
+        let lwe_size = blocks.first().unwrap().ct.lwe_size();
+        let ciphertext_modulus = blocks.first().unwrap().ct.ciphertext_modulus();
+
+        let h_ct = LweCiphertextList::from_container(
+            h_radix_ciphertext.as_mut_slice(),
+            lwe_size,
+            ciphertext_modulus,
+        );
+        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, streams);
+
+        let info = CudaRadixCiphertextInfo {
+            blocks: blocks
+                .iter()
+                .map(|block| CudaBlockInfo {
+                    degree: block.degree,
+                    message_modulus: block.message_modulus,
+                    carry_modulus: block.carry_modulus,
+                    pbs_order: block.pbs_order,
+                    noise_level: block.noise_level(),
+                })
+                .collect(),
+        };
+
+        Self { d_blocks, info }
+    }
+
+    pub fn to_cpu_blocks(&self, streams: &CudaStreams) -> Vec<Ciphertext> {
+        let h_lwe_ciphertext_list = self.d_blocks.to_lwe_ciphertext_list(streams);
+        let ciphertext_modulus = h_lwe_ciphertext_list.ciphertext_modulus();
+        let lwe_size = h_lwe_ciphertext_list.lwe_size().0;
+
+        h_lwe_ciphertext_list
+            .into_container()
+            .chunks(lwe_size)
+            .zip(&self.info.blocks)
+            .map(|(data, i)| Ciphertext {
+                ct: LweCiphertextOwned::from_container(data.to_vec(), ciphertext_modulus),
+                degree: i.degree,
+                noise_level: i.noise_level,
+                message_modulus: i.message_modulus,
+                carry_modulus: i.carry_modulus,
+                pbs_order: i.pbs_order,
+            })
+            .collect()
+    }
+}
+
 impl CudaUnsignedRadixCiphertext {
     pub fn new(d_blocks: CudaLweCiphertextList<u64>, info: CudaRadixCiphertextInfo) -> Self {
         Self {
@@ -134,38 +188,8 @@ impl CudaUnsignedRadixCiphertext {
     /// assert_eq!(h_ctxt, ctxt);
     /// ```
     pub fn from_radix_ciphertext(radix: &RadixCiphertext, streams: &CudaStreams) -> Self {
-        let mut h_radix_ciphertext = radix
-            .blocks
-            .iter()
-            .flat_map(|block| block.ct.clone().into_container())
-            .collect::<Vec<_>>();
-
-        let lwe_size = radix.blocks.first().unwrap().ct.lwe_size();
-        let ciphertext_modulus = radix.blocks.first().unwrap().ct.ciphertext_modulus();
-
-        let h_ct = LweCiphertextList::from_container(
-            h_radix_ciphertext.as_mut_slice(),
-            lwe_size,
-            ciphertext_modulus,
-        );
-        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, streams);
-
-        let info = CudaRadixCiphertextInfo {
-            blocks: radix
-                .blocks
-                .iter()
-                .map(|block| CudaBlockInfo {
-                    degree: block.degree,
-                    message_modulus: block.message_modulus,
-                    carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
-                    noise_level: block.noise_level(),
-                })
-                .collect(),
-        };
-
         Self {
-            ciphertext: CudaRadixCiphertext { d_blocks, info },
+            ciphertext: CudaRadixCiphertext::from_cpu_blocks(radix.blocks(), streams),
         }
     }
 
@@ -228,25 +252,7 @@ impl CudaUnsignedRadixCiphertext {
     /// assert_eq!(msg1, msg2);
     /// ```
     pub fn to_radix_ciphertext(&self, streams: &CudaStreams) -> RadixCiphertext {
-        let h_lwe_ciphertext_list = self.ciphertext.d_blocks.to_lwe_ciphertext_list(streams);
-        let ciphertext_modulus = h_lwe_ciphertext_list.ciphertext_modulus();
-        let lwe_size = h_lwe_ciphertext_list.lwe_size().0;
-
-        let h_blocks: Vec<Ciphertext> = h_lwe_ciphertext_list
-            .into_container()
-            .chunks(lwe_size)
-            .zip(&self.ciphertext.info.blocks)
-            .map(|(data, i)| Ciphertext {
-                ct: LweCiphertextOwned::from_container(data.to_vec(), ciphertext_modulus),
-                degree: i.degree,
-                noise_level: i.noise_level,
-                message_modulus: i.message_modulus,
-                carry_modulus: i.carry_modulus,
-                pbs_order: i.pbs_order,
-            })
-            .collect();
-
-        RadixCiphertext::from(h_blocks)
+        RadixCiphertext::from(self.ciphertext.to_cpu_blocks(streams))
     }
 }
 
@@ -291,38 +297,8 @@ impl CudaSignedRadixCiphertext {
         radix: &SignedRadixCiphertext,
         streams: &CudaStreams,
     ) -> Self {
-        let mut h_radix_ciphertext = radix
-            .blocks
-            .iter()
-            .flat_map(|block| block.ct.clone().into_container())
-            .collect::<Vec<_>>();
-
-        let lwe_size = radix.blocks.first().unwrap().ct.lwe_size();
-        let ciphertext_modulus = radix.blocks.first().unwrap().ct.ciphertext_modulus();
-
-        let h_ct = LweCiphertextList::from_container(
-            h_radix_ciphertext.as_mut_slice(),
-            lwe_size,
-            ciphertext_modulus,
-        );
-        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, streams);
-
-        let info = CudaRadixCiphertextInfo {
-            blocks: radix
-                .blocks
-                .iter()
-                .map(|block| CudaBlockInfo {
-                    degree: block.degree,
-                    message_modulus: block.message_modulus,
-                    carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
-                    noise_level: block.noise_level(),
-                })
-                .collect(),
-        };
-
         Self {
-            ciphertext: CudaRadixCiphertext { d_blocks, info },
+            ciphertext: CudaRadixCiphertext::from_cpu_blocks(radix.blocks(), streams),
         }
     }
 
@@ -389,25 +365,7 @@ impl CudaSignedRadixCiphertext {
     /// assert_eq!(msg1, msg2);
     /// ```
     pub fn to_signed_radix_ciphertext(&self, streams: &CudaStreams) -> SignedRadixCiphertext {
-        let h_lwe_ciphertext_list = self.ciphertext.d_blocks.to_lwe_ciphertext_list(streams);
-        let ciphertext_modulus = h_lwe_ciphertext_list.ciphertext_modulus();
-        let lwe_size = h_lwe_ciphertext_list.lwe_size().0;
-
-        let h_blocks: Vec<Ciphertext> = h_lwe_ciphertext_list
-            .into_container()
-            .chunks(lwe_size)
-            .zip(&self.ciphertext.info.blocks)
-            .map(|(data, i)| Ciphertext {
-                ct: LweCiphertextOwned::from_container(data.to_vec(), ciphertext_modulus),
-                degree: i.degree,
-                noise_level: i.noise_level,
-                message_modulus: i.message_modulus,
-                carry_modulus: i.carry_modulus,
-                pbs_order: i.pbs_order,
-            })
-            .collect();
-
-        SignedRadixCiphertext::from(h_blocks)
+        SignedRadixCiphertext::from(self.ciphertext.to_cpu_blocks(streams))
     }
 }
 
