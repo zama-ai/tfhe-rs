@@ -71,7 +71,7 @@ pub(crate) mod wopbs;
 #[cfg(feature = "gpu")]
 pub mod gpu;
 
-#[cfg(feature = "hpu-hw")]
+#[cfg(feature = "hpu")]
 pub mod hpu;
 
 #[cfg(feature = "zk-pok")]

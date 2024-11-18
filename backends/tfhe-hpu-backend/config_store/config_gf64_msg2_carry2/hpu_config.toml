@@ -1,10 +1,11 @@
  
 [fpga]
+  regmap="backends/tfhe-hpu-backend/config/hpu_regif_core.toml"
+  polling_us=10
+[fpga.ffi.Xrt]
   id= 0
   kernel= "hpu_msplit_3parts_1in3"
   xclbin="backends/tfhe-hpu-backend/config/hpu_msplit_3parts.xclbin"
-  regmap="backends/tfhe-hpu-backend/config/hpu_regif_core.toml"
-  polling_us=10
 
 [rtl]
   bpip_used = true

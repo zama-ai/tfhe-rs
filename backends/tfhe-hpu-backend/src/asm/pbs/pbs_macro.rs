@@ -9,7 +9,7 @@ macro_rules! pbs_lut {
         ]
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone, Copy)]
+            #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
             pub struct [<Pbs $pbs:camel>]();
 
             impl Default for [<Pbs $pbs:camel>]{
@@ -32,6 +32,13 @@ macro_rules! pbs_lut {
                     $deg(params, deg)
                 }
             }
+
+            impl PartialEq for [<Pbs $pbs:camel>] {
+                fn eq(&self, other: &Self) -> bool {
+                    self.gid() == other.gid()
+                }
+            }
+            impl Eq for [<Pbs $pbs:camel>] {}
         }
     };
 }

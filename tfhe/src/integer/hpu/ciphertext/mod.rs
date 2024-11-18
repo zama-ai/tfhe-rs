@@ -3,10 +3,8 @@ use tfhe_hpu_backend::prelude::*;
 use crate::core_crypto::hpu::from_with::FromWith;
 use crate::core_crypto::prelude::LweCiphertextOwned;
 use crate::integer::RadixCiphertext;
-use crate::shortint::{
-    ciphertext::{Degree, NoiseLevel},
-    Ciphertext, ClassicPBSParameters,
-};
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::{Ciphertext, ClassicPBSParameters};
 
 /// Simple wrapper over HpuVar
 /// Add method to convert from/to cpu radix ciphertext

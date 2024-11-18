@@ -368,7 +368,8 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                     ciphertext_modulus
                 ));
                 // * norm2
-                //lwe_ciphertext_cleartext_mul_assign(&mut ct, Cleartext(Scalar::cast_from(norm2)));
+                //lwe_ciphertext_cleartext_mul_assign(&mut ct,
+                // Cleartext(Scalar::cast_from(norm2)));
                 lwe_ciphertext_cleartext_mul_assign(&mut ct, Cleartext(norm2));
 
                 assert!(check_encrypted_content_respects_mod(

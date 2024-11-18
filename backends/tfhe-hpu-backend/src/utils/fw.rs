@@ -5,8 +5,9 @@
 use asm::strum::IntoEnumIterator;
 use asm::{Asm, MemRegion};
 use fw::{AvlblFw, Fw};
-use std::io::BufRead;
-use std::{fs::OpenOptions, io::BufReader, path::Path};
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
 
 /// Define CLI arguments
 use clap::Parser;

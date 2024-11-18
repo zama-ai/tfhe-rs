@@ -11,11 +11,11 @@ use std::collections::VecDeque;
 use std::str::FromStr;
 use std::sync::{mpsc, Arc, Mutex};
 
-use tracing::{debug, enabled, info, trace, Level};
+use tracing::{debug, info, trace};
 
 pub struct HpuBackend {
     // Low-level hardware handling
-    hpu_hw: ffi::UniquePtr<ffi::HpuHw>,
+    hpu_hw: ffi::HpuHw,
     regmap: hw_regmap::FlatRegmap,
 
     // Extracted parameters
@@ -69,10 +69,8 @@ impl HpuBackendWrapped {
     pub fn new(inner: HpuBackend) -> Self {
         Self(Arc::new(HpuBackendLock::new(inner)))
     }
-    pub fn new_wrapped(fpga_id: u32, config: &config::HpuConfig) -> Self {
-        Self(Arc::new(HpuBackendLock::new(HpuBackend::new(
-            fpga_id, &config,
-        ))))
+    pub fn new_wrapped(config: &config::HpuConfig) -> Self {
+        Self(Arc::new(HpuBackendLock::new(HpuBackend::new(&config))))
     }
 }
 impl std::ops::Deref for HpuBackendWrapped {
@@ -87,33 +85,11 @@ unsafe impl Sync for HpuBackendWrapped {}
 
 /// Handle HpuBackend construction and initialisation
 impl HpuBackend {
-    pub fn new(fpga_id: u32, config: &config::HpuConfig) -> Self {
-        // Extract trace verbosity and convert it in cxx understandable value
-        let verbosity = {
-            if enabled!(target: "cxx", Level::TRACE) {
-                ffi::Verbosity::Trace
-            } else if enabled!(target: "cxx", Level::DEBUG) {
-                ffi::Verbosity::Debug
-            } else if enabled!(target: "cxx", Level::INFO) {
-                ffi::Verbosity::Info
-            } else if enabled!(target: "cxx", Level::WARN) {
-                ffi::Verbosity::Warning
-            } else {
-                ffi::Verbosity::Error
-            }
-        };
-
-        // TODO update ffi interface to use &str instead of String ?
-        let mut hpu_hw = ffi::new_hpu_hw(
-            fpga_id,
-            config.fpga.kernel.clone(),
-            config.fpga.xclbin.clone(),
-            verbosity,
-        );
+    pub fn new(config: &config::HpuConfig) -> Self {
+        let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);
         let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
 
-        let mut hpu_pin = hpu_hw.pin_mut();
-        let params = HpuParameters::from_rtl(&mut hpu_pin, &regmap);
+        let params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
         // Flush ack_q
         // Ensure that no residue from previous execution were stall in the pipe
         let ackq_addr = (*regmap
@@ -122,7 +98,7 @@ impl HpuBackend {
             .expect("Unknow register, check regmap definition")
             .offset()) as u64;
         loop {
-            let ack_code = hpu_pin.as_mut().read_reg(ackq_addr);
+            let ack_code = hpu_hw.read_reg(ackq_addr);
             if ack_code == ACKQ_EMPTY {
                 break;
             }
@@ -130,7 +106,7 @@ impl HpuBackend {
 
         // Apply Rtl configuration
         // Bpip use
-        hpu_pin.as_mut().write_reg(
+        hpu_hw.write_reg(
             *regmap
                 .register()
                 .get("Bpip::use")
@@ -140,7 +116,7 @@ impl HpuBackend {
         );
 
         // Bpip timeout
-        hpu_pin.as_mut().write_reg(
+        hpu_hw.write_reg(
             *regmap
                 .register()
                 .get("Bpip::timeout")
@@ -152,19 +128,19 @@ impl HpuBackend {
         info!("{params:?}");
         debug!(
             "Isc registers {:?}",
-            rtl::runtime::InfoIsc::from_rtl(&mut hpu_pin, &regmap)
+            rtl::runtime::InfoIsc::from_rtl(&mut hpu_hw, &regmap)
         );
         debug!(
             "PeMem registers {:?}",
-            rtl::runtime::InfoPeMem::from_rtl(&mut hpu_pin, &regmap)
+            rtl::runtime::InfoPeMem::from_rtl(&mut hpu_hw, &regmap)
         );
         debug!(
             "PeAlu registers {:?}",
-            rtl::runtime::InfoPeAlu::from_rtl(&mut hpu_pin, &regmap)
+            rtl::runtime::InfoPeAlu::from_rtl(&mut hpu_hw, &regmap)
         );
         debug!(
             "PePbs registers {:?}",
-            rtl::runtime::InfoPePbs::from_rtl(&mut hpu_pin, &regmap)
+            rtl::runtime::InfoPePbs::from_rtl(&mut hpu_hw, &regmap)
         );
 
         let workq_addr = (*regmap
@@ -193,7 +169,7 @@ impl HpuBackend {
                 .collect::<Vec<_>>();
             memory::HugeMemoryProperties { hbm_cut, cut_coefs }
         };
-        let bsk_key = memory::HugeMemory::alloc(&mut hpu_pin, bsk_props);
+        let bsk_key = memory::HugeMemory::alloc(&mut hpu_hw, bsk_props);
 
         // Allocate memory for Ksk
         let ksk_props = {
@@ -211,31 +187,31 @@ impl HpuBackend {
 
             memory::HugeMemoryProperties { hbm_cut, cut_coefs }
         };
-        let ksk_key = memory::HugeMemory::alloc(&mut hpu_pin, ksk_props);
+        let ksk_key = memory::HugeMemory::alloc(&mut hpu_hw, ksk_props);
 
         // Allocate memory for GlweLut
         let lut_props = memory::HugeMemoryProperties {
             hbm_cut: vec![config.board.lut_pc],
             cut_coefs: config.board.lut_bank * params.pbs_params.polynomial_size,
         };
-        let lut_mem = memory::HugeMemory::alloc(&mut hpu_pin, lut_props);
+        let lut_mem = memory::HugeMemory::alloc(&mut hpu_hw, lut_props);
 
         // Allocate memory for Fw translation table
         let fw_props = memory::HugeMemoryProperties {
             hbm_cut: vec![config.board.fw_pc],
             cut_coefs: config.board.fw_size, // NB: here `size` is used as raw size (!= slot nb)
         };
-        let fw_mem = memory::HugeMemory::alloc(&mut hpu_pin, fw_props);
+        let fw_mem = memory::HugeMemory::alloc(&mut hpu_hw, fw_props);
 
         // Allocate memory pool for Ct
         // NB: Compute size of each cut.
         // Cut are 4k aligned -> One cut match with page boundary but the second one (with body
         // extra coefs) crossed it => Use an extra page in both to have same addr incr (and
         // match Rtl behavior)
-        let cut_size_b = (hpu_big_lwe_ciphertext_size(&params).div_ceil(params.pc_params.pem_pc)
-            * std::mem::size_of::<u64>())
-        .div_ceil(memory::MEM_PAGE_SIZE_B)
-            * memory::MEM_PAGE_SIZE_B;
+        let cut_size_b = memory::page_align(
+            hpu_big_lwe_ciphertext_size(&params).div_ceil(params.pc_params.pem_pc)
+                * std::mem::size_of::<u64>(),
+        );
         let ct_banks = (0..config::HPU_MEM_BANK_NB)
             .map(|bid| memory::CiphertextMemoryProperties {
                 bank: bid,
@@ -247,7 +223,7 @@ impl HpuBackend {
             })
             .collect::<Vec<_>>();
         debug!("Ct bank -> {:?}", ct_banks);
-        let ct_mem = memory::CiphertextMemory::alloc(&mut hpu_pin, &regmap, &ct_banks);
+        let ct_mem = memory::CiphertextMemory::alloc(&mut hpu_hw, &regmap, &ct_banks);
 
         // Construct channel for mt API
         // Keep track of the sender for clone it later on
@@ -281,7 +257,6 @@ impl HpuBackend {
             regmap,
             ..
         } = self;
-        let mut hpu_pin = hpu_hw.pin_mut();
 
         // Extract register from regmap
         let bsk_avail = regmap
@@ -300,11 +275,11 @@ impl HpuBackend {
         // 4. Wait for reset_cache_done = 1
         // 5. Set bit reset_cache = 0, set reset_cache_done = 0
         // -> Design is ready to receive a new key
-        hpu_pin.as_mut().write_reg(*bsk_reset.offset() as u64, 0x1);
-        hpu_pin.as_mut().write_reg(*bsk_avail.offset() as u64, 0x0);
+        hpu_hw.write_reg(*bsk_reset.offset() as u64, 0x1);
+        hpu_hw.write_reg(*bsk_avail.offset() as u64, 0x0);
         loop {
             let done = {
-                let val = hpu_pin.as_mut().read_reg(*bsk_reset.offset() as u64);
+                let val = hpu_hw.read_reg(*bsk_reset.offset() as u64);
                 let fields = bsk_reset.as_field(val);
 
                 *fields.get("done").expect("Unknow field") != 0
@@ -314,7 +289,7 @@ impl HpuBackend {
             }
         }
 
-        hpu_pin.as_mut().write_reg(*bsk_reset.offset() as u64, 0x0);
+        hpu_hw.write_reg(*bsk_reset.offset() as u64, 0x0);
     }
 
     #[tracing::instrument(level = "debug", skip(self, bsk), ret)]
@@ -326,7 +301,6 @@ impl HpuBackend {
             bsk_key,
             ..
         } = self;
-        let mut hpu_pin = hpu_hw.pin_mut();
 
         // Extract register from regmap
         let bsk_avail = regmap
@@ -350,29 +324,23 @@ impl HpuBackend {
             .collect::<Vec<_>>();
 
         // Write key in associated buffer
-        for (id, bsk_cut) in bsk.hw_slice().iter().enumerate() {
+        for (id, bsk_cut) in bsk.as_view().into_container().into_iter().enumerate() {
             bsk_key.write_cut_at(id, 0, bsk_cut);
             #[cfg(feature = "io-dump")]
-            io_dump::dump(
-                &bsk_cut.as_slice(),
-                io_dump::DumpKind::Bsk,
-                io_dump::DumpId::Key(id),
-            );
+            io_dump::dump(&bsk_cut, io_dump::DumpKind::Bsk, io_dump::DumpId::Key(id));
         }
 
         // Write pc_addr in memory
         for (addr, (lsb, msb)) in std::iter::zip(bsk_key.cut_paddr().iter(), bsk_addr_pc.iter()) {
-            hpu_pin.as_mut().write_reg(
+            hpu_hw.write_reg(
                 *msb.offset() as u64,
                 ((addr >> u32::BITS) & (u32::MAX) as u64) as u32,
             );
-            hpu_pin
-                .as_mut()
-                .write_reg(*lsb.offset() as u64, (addr & (u32::MAX as u64)) as u32);
+            hpu_hw.write_reg(*lsb.offset() as u64, (addr & (u32::MAX as u64)) as u32);
         }
 
         // Toggle avail bit
-        hpu_pin.as_mut().write_reg(*bsk_avail.offset() as u64, 0x1);
+        hpu_hw.write_reg(*bsk_avail.offset() as u64, 0x1);
     }
 
     #[tracing::instrument(level = "debug", skip(self), ret)]
@@ -402,7 +370,6 @@ impl HpuBackend {
             regmap,
             ..
         } = self;
-        let mut hpu_pin = hpu_hw.pin_mut();
 
         // Extract register from regmap
         let ksk_avail = regmap
@@ -421,11 +388,11 @@ impl HpuBackend {
         // 4. Wait for reset_cache_done = 1
         // 5. Set bit reset_cache = 0, set reset_cache_done = 0
         // -> Design is ready to receive a new key
-        hpu_pin.as_mut().write_reg(*ksk_reset.offset() as u64, 0x1);
-        hpu_pin.as_mut().write_reg(*ksk_avail.offset() as u64, 0x0);
+        hpu_hw.write_reg(*ksk_reset.offset() as u64, 0x1);
+        hpu_hw.write_reg(*ksk_avail.offset() as u64, 0x0);
         loop {
             let done = {
-                let val = hpu_pin.as_mut().read_reg(*ksk_reset.offset() as u64);
+                let val = hpu_hw.read_reg(*ksk_reset.offset() as u64);
                 let fields = ksk_reset.as_field(val);
 
                 *fields.get("done").expect("Unknow field") != 0
@@ -435,7 +402,7 @@ impl HpuBackend {
             }
         }
 
-        hpu_pin.as_mut().write_reg(*ksk_reset.offset() as u64, 0x0);
+        hpu_hw.write_reg(*ksk_reset.offset() as u64, 0x0);
     }
     #[tracing::instrument(level = "debug", skip(self, ksk), ret)]
     pub fn ksk_set(&mut self, ksk: HpuLweKeyswitchKeyOwned<u64>) {
@@ -446,7 +413,6 @@ impl HpuBackend {
             ksk_key,
             ..
         } = self;
-        let mut hpu_pin = hpu_hw.pin_mut();
 
         // Extract register from regmap
         let ksk_avail = regmap
@@ -470,29 +436,23 @@ impl HpuBackend {
             .collect::<Vec<_>>();
 
         // Write key in associated buffer
-        for (id, ksk_cut) in ksk.hw_slice().iter().enumerate() {
+        for (id, ksk_cut) in ksk.as_view().into_container().into_iter().enumerate() {
             ksk_key.write_cut_at(id, 0, ksk_cut);
             #[cfg(feature = "io-dump")]
-            io_dump::dump(
-                &ksk_cut.as_slice(),
-                io_dump::DumpKind::Ksk,
-                io_dump::DumpId::Key(id),
-            );
+            io_dump::dump(&ksk_cut, io_dump::DumpKind::Ksk, io_dump::DumpId::Key(id));
         }
 
         // Write pc_addr in memory
         for (addr, (lsb, msb)) in std::iter::zip(ksk_key.cut_paddr().iter(), ksk_addr_pc.iter()) {
-            hpu_pin.as_mut().write_reg(
+            hpu_hw.write_reg(
                 *msb.offset() as u64,
                 ((addr >> u32::BITS) & (u32::MAX) as u64) as u32,
             );
-            hpu_pin
-                .as_mut()
-                .write_reg(*lsb.offset() as u64, (addr & (u32::MAX as u64)) as u32);
+            hpu_hw.write_reg(*lsb.offset() as u64, (addr & (u32::MAX as u64)) as u32);
         }
 
         // Toggle avail bit
-        hpu_pin.as_mut().write_reg(*ksk_avail.offset() as u64, 0x1);
+        hpu_hw.write_reg(*ksk_avail.offset() as u64, 0x1);
     }
 
     #[tracing::instrument(level = "debug", skip(self), ret)]
@@ -527,7 +487,6 @@ impl HpuBackend {
             lut_mem,
             ..
         } = self;
-        let mut hpu_pin = hpu_hw.pin_mut();
 
         // Iterate over HwHpu::PbsLut
         // Construct them with associated parameters set
@@ -565,11 +524,11 @@ impl HpuBackend {
             .expect("Unknow register, check regmap definition");
 
         let lut_addr = lut_mem.cut_paddr()[0];
-        hpu_pin.as_mut().write_reg(
+        hpu_hw.write_reg(
             *reg_msb.offset() as u64,
             ((lut_addr >> u32::BITS) & (u32::MAX) as u64) as u32,
         );
-        hpu_pin.as_mut().write_reg(
+        hpu_hw.write_reg(
             *reg_lsb.offset() as u64,
             (lut_addr & (u32::MAX as u64)) as u32,
         );
@@ -689,7 +648,6 @@ impl HpuBackend {
         }
 
         // 2. Issue work to Hpu through workq
-        let mut hpu_pin = hpu_hw.pin_mut();
 
         // Convert Iop in a stream of bytes
         let op_bytes = cmd.op.bin_encode_le().unwrap();
@@ -702,7 +660,7 @@ impl HpuBackend {
         //   -> Thus we use a reversed version of the iterator
         // NB: No queue full check was done ...
         for w in op_words.iter().rev() {
-            hpu_pin.as_mut().write_reg(*workq_addr, *w);
+            hpu_hw.write_reg(*workq_addr, *w);
         }
 
         // 3. Update dst state to OpPending
@@ -725,30 +683,33 @@ impl HpuBackend {
             regmap,
             ..
         } = self;
-        let mut hpu_pin = hpu_hw.pin_mut();
 
         trace!(
             "Isc registers {:?}",
-            rtl::runtime::InfoIsc::from_rtl(&mut hpu_pin, regmap)
+            rtl::runtime::InfoIsc::from_rtl(hpu_hw, regmap)
         );
         trace!(
             "PeMem registers {:?}",
-            rtl::runtime::InfoPeMem::from_rtl(&mut hpu_pin, regmap)
+            rtl::runtime::InfoPeMem::from_rtl(hpu_hw, regmap)
         );
         trace!(
             "PeAlu registers {:?}",
-            rtl::runtime::InfoPeAlu::from_rtl(&mut hpu_pin, regmap)
+            rtl::runtime::InfoPeAlu::from_rtl(hpu_hw, regmap)
         );
         trace!(
             "PePbs registers {:?}",
-            rtl::runtime::InfoPePbs::from_rtl(&mut hpu_pin, regmap)
+            rtl::runtime::InfoPePbs::from_rtl(hpu_hw, regmap)
         );
 
-        let ack_code = hpu_pin.as_mut().read_reg(*ackq_addr);
+        let ack_code = hpu_hw.read_reg(*ackq_addr);
         if ack_code != ACKQ_EMPTY {
             let ack_cmd = cmd_q.pop_front().unwrap();
             // TODO check that ack_code match with expected op msb
-            tracing::debug!("Received ack for IOp  {}", ack_cmd.op.asm_encode(8));
+            tracing::debug!(
+                "Received ack {:x} for IOp  {}",
+                ack_code,
+                ack_cmd.op.asm_encode(8)
+            );
             // update dst state and drop srcs ref
             ack_cmd.dst.inner.lock().unwrap().operation_done();
             Ok(true)
@@ -771,5 +732,18 @@ impl HpuBackend {
 
         self.ct_mem.gc_bundle();
         Ok(())
+    }
+}
+
+impl Drop for HpuBackend {
+    fn drop(&mut self) {
+        // Release ffi allocated memory
+        // Couldn't rely on Drop trait of inner objects since it required reference to associated
+        // ffi backend
+        self.bsk_key.release(&mut self.hpu_hw);
+        self.ksk_key.release(&mut self.hpu_hw);
+        self.lut_mem.release(&mut self.hpu_hw);
+        self.fw_mem.release(&mut self.hpu_hw);
+        self.ct_mem.release(&mut self.hpu_hw);
     }
 }

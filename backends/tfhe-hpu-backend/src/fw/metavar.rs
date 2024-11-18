@@ -35,6 +35,7 @@ bitflags! {
 #[derive(Clone)]
 struct MetaVar {
     prog: Rc<RefCell<program::ProgramInner>>,
+    #[allow(unused)]
     uid: usize,
     pos: Option<Arg>,
     degree: usize,

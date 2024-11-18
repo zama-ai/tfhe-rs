@@ -1,11 +1,11 @@
-#include "tfhe-hpu-backend/src/ffi/cxx/hpu_hw.h"
-#include "tfhe-hpu-backend/src/ffi/mod.rs.h"
+#include "tfhe-hpu-backend/src/ffi/xrt/cxx/hpu_hw.h"
+#include "tfhe-hpu-backend/src/ffi/xrt/mod.rs.h"
 
 #include <iostream>
 
 namespace ffi {
 
-    HpuHw::HpuHw(uint32_t fpga_id, rust::String _kernel_name, rust::String _xclbin_name, Verbosity verbose)
+    HpuHw::HpuHw(uint32_t fpga_id, rust::String _kernel_name, rust::String _xclbin_name, VerbosityCxx verbose)
       : fpga_id{fpga_id}, kernel_name{std::string(_kernel_name)}, xclbin_name{std::string(_xclbin_name)}, verbose(verbose)
     {
       pr_info(verbose, "Create HwHpu Cxx type\n")
@@ -31,7 +31,7 @@ namespace ffi {
         throw std::runtime_error("IP not found in the provided xclbin");
      
       // Display kernel and memory informations ----------------------------------
-      if (verbose >= Verbosity::Trace) {
+      if (verbose >= VerbosityCxx::Trace) {
         std::cout << kernel_name << " CU properties: " << std::endl;
         for (auto& cu_i: cu) {
           std::cout << "instance name:  " << cu_i.get_name() << "\n";
@@ -53,7 +53,7 @@ namespace ffi {
         }
       }
 
-      if (verbose >= Verbosity::Debug) {
+      if (verbose >= VerbosityCxx::Debug) {
         std::cout << "Display memory layout:\n";
         for (auto& mem : xclbin.get_mems()) {
           std::cout << "mem tag:        " << mem.get_tag() << "\n";
@@ -85,7 +85,7 @@ namespace ffi {
     }
 
     // Handle onboard memory
-    std::unique_ptr<MemZone> HpuHw::alloc(MemZoneProperties props){
+    std::unique_ptr<MemZone> HpuHw::alloc(MemZonePropertiesCxx props){
       // NB: Currently XRT buffer are limited to 16MiB.
       // if bigger buffer are required, user must split them in chunks and check that allocated
       // chunk remains contiguous in memory (cf paddr)
@@ -97,7 +97,7 @@ namespace ffi {
 
     std::unique_ptr<HpuHw>
       new_hpu_hw(uint32_t fpga_id, rust::String kernel_name, rust::String awsxclbin,
-        Verbosity verbose)
+        VerbosityCxx verbose)
       {
         return std::make_unique<HpuHw>(fpga_id, kernel_name, awsxclbin, verbose);
       }

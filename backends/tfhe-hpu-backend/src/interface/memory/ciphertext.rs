@@ -3,12 +3,12 @@
 //! Memory is allocatod upfront and abstract as a set of slot
 //! Slot are gather in banks
 use crate::ffi;
+use std::collections::VecDeque;
 use std::sync::mpsc;
-use std::{collections::VecDeque, pin::Pin};
 
 /// Describe Slot position
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
-pub(crate) struct SlotId {
+pub struct SlotId {
     pub(crate) bid: usize,
     pub(crate) cid: usize,
 }
@@ -33,12 +33,33 @@ struct BankId {
 /// A Slot is describe as a position and a set of associated MemZone
 pub struct CiphertextSlot {
     pub(crate) id: SlotId,
-    pub(crate) mz: Vec<ffi::UniquePtr<ffi::MemZone>>,
+    pub(crate) mz: Vec<ffi::MemZone>,
 }
 
 impl std::fmt::Debug for CiphertextSlot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.id)
+    }
+}
+
+impl CiphertextSlot {
+    fn alloc(ffi_hw: &mut ffi::HpuHw, id: SlotId, props: &CiphertextMemoryProperties) -> Self {
+        let mz = props
+            .hbm_cut
+            .iter()
+            .map(|hbm_pc| {
+                let cut_props = ffi::MemZoneProperties {
+                    hbm_pc: *hbm_pc,
+                    size_b: props.cut_size_b,
+                };
+                ffi_hw.alloc(cut_props)
+            })
+            .collect::<Vec<_>>();
+        CiphertextSlot { id, mz }
+    }
+
+    fn release(&mut self, ffi_hw: &mut ffi::HpuHw) {
+        self.mz.iter_mut().for_each(|mz| ffi_hw.release(mz));
     }
 }
 
@@ -93,9 +114,9 @@ impl CiphertextBundle {
 }
 
 impl CiphertextMemory {
-    #[tracing::instrument(level = "trace", skip(ffi_pin, regmap), ret)]
+    #[tracing::instrument(level = "trace", skip(ffi_hw, regmap), ret)]
     pub fn alloc(
-        ffi_pin: &mut Pin<&mut ffi::HpuHw>,
+        ffi_hw: &mut ffi::HpuHw,
         regmap: &hw_regmap::FlatRegmap,
         props: &[CiphertextMemoryProperties],
     ) -> Self {
@@ -106,7 +127,7 @@ impl CiphertextMemory {
             let bank = (0..p.slot_nb)
                 .map(|cid| {
                     let id = SlotId { bid: p.bank, cid };
-                    Self::alloc_slot(ffi_pin, id, p)
+                    CiphertextSlot::alloc(ffi_hw, id, p)
                 })
                 .collect::<Vec<_>>();
 
@@ -150,13 +171,11 @@ impl CiphertextMemory {
 
                 // Write pc_addr in registers
                 for (addr, (lsb, msb)) in std::iter::zip(bid.paddr.iter(), ldst_addr_pc.iter()) {
-                    ffi_pin.as_mut().write_reg(
+                    ffi_hw.write_reg(
                         *msb.offset() as u64,
                         ((addr >> u32::BITS) & (u32::MAX) as u64) as u32,
                     );
-                    ffi_pin
-                        .as_mut()
-                        .write_reg(*lsb.offset() as u64, (addr & (u32::MAX as u64)) as u32);
+                    ffi_hw.write_reg(*lsb.offset() as u64, (addr & (u32::MAX as u64)) as u32);
                 }
 
                 bank_id.push(bid);
@@ -175,23 +194,9 @@ impl CiphertextMemory {
         }
     }
 
-    fn alloc_slot(
-        ffi_pin: &mut Pin<&mut ffi::HpuHw>,
-        id: SlotId,
-        props: &CiphertextMemoryProperties,
-    ) -> CiphertextSlot {
-        let mz = props
-            .hbm_cut
-            .iter()
-            .map(|hbm_pc| {
-                let cut_props = ffi::MemZoneProperties {
-                    hbm_pc: *hbm_pc,
-                    size_b: props.cut_size_b,
-                };
-                ffi_pin.as_mut().alloc(cut_props)
-            })
-            .collect::<Vec<_>>();
-        CiphertextSlot { id, mz }
+    #[tracing::instrument(level = "trace", skip(ffi_hw), ret)]
+    pub fn release(&mut self, ffi_hw: &mut ffi::HpuHw) {
+        self.pool.iter_mut().for_each(|slot| slot.release(ffi_hw));
     }
 }
 
