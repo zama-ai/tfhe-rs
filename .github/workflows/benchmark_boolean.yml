@@ -80,8 +80,7 @@ jobs:
           --commit-date "${{ env.COMMIT_DATE }}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
-          --name-suffix avx512 \
-          --throughput
+          --name-suffix avx512
 
       - name: Measure key sizes
         run: |

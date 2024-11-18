@@ -120,8 +120,7 @@ jobs:
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
-          --name-suffix avx512 \
-          --throughput
+          --name-suffix avx512
 
       # This small benchmark needs to be executed only once.
       - name: Measure key sizes

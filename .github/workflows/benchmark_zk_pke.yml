@@ -3,6 +3,12 @@ name: PKE ZK benchmarks
 
 on:
   workflow_dispatch:
+    inputs:
+      run_throughput:
+        description: "Run throughput benchmarks"
+        type: boolean
+        default: false
+
   push:
     branches:
       - main
@@ -20,6 +26,7 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  BENCH_TYPE: latency
 
 jobs:
   should-run:
@@ -110,6 +117,11 @@ jobs:
           path: slab
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
+      - name: Should run throughput benchmarks
+        if: inputs.run_throughput
+        run: |
+          echo "BENCH_TYPE=throughput" >> "${GITHUB_ENV}"
+
       - name: Run benchmarks with AVX512
         run: |
           make bench_integer_zk
@@ -126,7 +138,7 @@ jobs:
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --throughput
+          --bench-type ${{ env.BENCH_TYPE }}
 
       - name: Parse CRS sizes results
         run: |
