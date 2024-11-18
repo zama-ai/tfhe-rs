@@ -36,11 +36,14 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_impl(
     decomposition_level_count: f64,
     modulus: f64,
 ) -> f64 {
-    (1_f64 / 3_f64)
+    (1_f64 / 3.0)
         * input_lwe_dimension
-        * (3.44492863492271e-32
+        * (0.508473512556829
+            * (2.0 * 0.0_f64.max(1.44269504088896_f64 * modulus.ln() - 53.0_f64)).exp2()
             * decomposition_base.powf(2.0)
             * decomposition_level_count
+            * modulus.powf(-2.0)
+            * output_glwe_dimension
             * output_polynomial_size.powf(2.0)
             * (output_glwe_dimension + 1.0)
             + 8.0
@@ -52,12 +55,11 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_impl(
                         .exp2())
                 * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
                 * (output_glwe_dimension + 1.0)
-            + (1_f64 / 12.0) * modulus.powf(-2.0)
-            + (1_f64 / 2.0)
-                * output_glwe_dimension
+            + (1_f64 / 6.0) * modulus.powf(-2.0)
+            + output_glwe_dimension
                 * output_polynomial_size
                 * (0.0208333333333333 * modulus.powf(-2.0)
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (1_f64 / 24.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
+            + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
 }
