@@ -2,9 +2,6 @@
 name: Cargo Build tfhe-fft
 
 on:
-  push:
-    branches:
-      - 'main'
   pull_request:
 
 env:
