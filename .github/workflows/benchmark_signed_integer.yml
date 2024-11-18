@@ -8,6 +8,14 @@ on:
         description: "Run all precisions"
         type: boolean
         default: false
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
+          - both
 
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 1a.m.
@@ -36,10 +44,10 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
       op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
+      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
     steps:
       - name: Weekly benchmarks
-        if: github.event_name == 'workflow_dispatch' ||
-          github.event.schedule == '0 1 * * 6'
+        if: github.event.schedule == '0 1 * * 6'
         run: |
           echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
 
@@ -48,10 +56,30 @@ jobs:
         run: |
           echo "OP_FLAVOR=[\"default\", \"unchecked\"]" >> "${GITHUB_ENV}"
 
+      - name: Set benchmark types
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
+          if [[ "${{ inputs.bench_type }}" == "both" ]]; then
+            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+          else
+            echo "BENCH_TYPE=[\"${{ inputs.bench_type }}\"]" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Default benchmark type
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
+
       - name: Set operation flavor output
         id: set_op_flavor
         run: |
           echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set benchmark types output
+        id: set_bench_type
+        run: |
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
     name: Setup instance (signed-integer-benchmarks)
@@ -84,7 +112,8 @@ jobs:
       max-parallel: 1
       matrix:
         command: [ integer, integer_multi_bit ]
-        op_flavor: [ default, unchecked ]
+        op_flavor: ${{ fromJSON(needs.prepare-matrix.outputs.op_flavor) }}
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -119,7 +148,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_signed_${{ matrix.command }}
+          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} BENCH_TYPE=${{ matrix.bench_type }} bench_signed_${{ matrix.command }}
 
       - name: Parse results
         run: |
@@ -132,12 +161,12 @@ jobs:
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --throughput
+          --bench-type ${{ matrix.bench_type }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
-          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}
+          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.bench_type }}
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Send data to Slab

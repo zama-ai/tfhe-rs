@@ -1,8 +1,10 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use crate::utilities::{throughput_num_threads, BenchmarkType, BENCH_TYPE};
+use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
+use rayon::prelude::*;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -70,18 +72,51 @@ fn pke_zk_proof(c: &mut Criterion) {
                     ZkComputeLoad::Proof => "compute_load_proof",
                     ZkComputeLoad::Verify => "compute_load_verify",
                 };
-                let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}");
-                let input_msg = rng.gen::<u64>();
-                let messages = vec![input_msg; fhe_uint_count];
 
-                bench_group.bench_function(&bench_id, |b| {
-                    b.iter(|| {
-                        let _ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
-                            .extend(messages.iter().copied())
-                            .build_with_proof_packed(&crs, &metadata, compute_load)
-                            .unwrap();
-                    })
-                });
+                let bench_id;
+
+                match BENCH_TYPE.get().unwrap() {
+                    BenchmarkType::Latency => {
+                        bench_id =
+                            format!("{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}");
+                        bench_group.bench_function(&bench_id, |b| {
+                            let input_msg = rng.gen::<u64>();
+                            let messages = vec![input_msg; fhe_uint_count];
+
+                            b.iter(|| {
+                                let _ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
+                                    .extend(messages.iter().copied())
+                                    .build_with_proof_packed(&crs, &metadata, compute_load)
+                                    .unwrap();
+                            })
+                        });
+                    }
+                    BenchmarkType::Throughput => {
+                        let elements = throughput_num_threads(num_block);
+                        bench_group.throughput(Throughput::Elements(elements));
+
+                        bench_id = format!(
+                            "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{zk_load}"
+                        );
+                        bench_group.bench_function(&bench_id, |b| {
+                            let messages = (0..elements)
+                                .map(|_| {
+                                    let input_msg = rng.gen::<u64>();
+                                    vec![input_msg; fhe_uint_count]
+                                })
+                                .collect::<Vec<_>>();
+
+                            b.iter(|| {
+                                messages.par_iter().for_each(|msg| {
+                                    tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
+                                        .extend(msg.iter().copied())
+                                        .build_with_proof_packed(&crs, &metadata, compute_load)
+                                        .unwrap();
+                                })
+                            })
+                        });
+                    }
+                }
 
                 let shortint_params: PBSParameters = param_fhe.into();
 
@@ -175,82 +210,141 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     ZkComputeLoad::Proof => "compute_load_proof",
                     ZkComputeLoad::Verify => "compute_load_verify",
                 };
-                let bench_id_verify =
-                    format!("{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}");
-                let bench_id_verify_and_expand =
-                    format!("{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}");
 
-                let input_msg = rng.gen::<u64>();
-                let messages = vec![input_msg; fhe_uint_count];
+                let bench_id_verify;
+                let bench_id_verify_and_expand;
 
-                println!("Generating proven ciphertext ({zk_load})... ");
-                let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
-                    .extend(messages.iter().copied())
-                    .build_with_proof_packed(&crs, &metadata, compute_load)
-                    .unwrap();
+                match BENCH_TYPE.get().unwrap() {
+                    BenchmarkType::Latency => {
+                        bench_id_verify =
+                            format!("{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}");
+                        bench_id_verify_and_expand = format!(
+                            "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}"
+                        );
 
-                let proven_ciphertext_list_serialized = bincode::serialize(&ct1).unwrap();
+                        let input_msg = rng.gen::<u64>();
+                        let messages = vec![input_msg; fhe_uint_count];
 
-                println!(
-                    "proven list size: {}",
-                    proven_ciphertext_list_serialized.len()
-                );
-
-                let test_name =
-                    format!("zk::proven_list_size::{param_name}_{bits}_bits_packed_{zk_load}");
-
-                write_result(
-                    &mut file,
-                    &test_name,
-                    proven_ciphertext_list_serialized.len(),
-                );
-                write_to_json::<u64, _>(
-                    &test_name,
-                    shortint_params,
-                    param_name,
-                    "pke_zk_proof",
-                    &OperatorType::Atomic,
-                    0,
-                    vec![],
-                );
-
-                let proof_size = ct1.proof_size();
-                println!("proof size: {}", ct1.proof_size());
-
-                let test_name =
-                    format!("zk::proof_sizes::{param_name}_{bits}_bits_packed_{zk_load}");
-
-                write_result(&mut file, &test_name, proof_size);
-                write_to_json::<u64, _>(
-                    &test_name,
-                    shortint_params,
-                    param_name,
-                    "pke_zk_proof",
-                    &OperatorType::Atomic,
-                    0,
-                    vec![],
-                );
-
-                bench_group.bench_function(&bench_id_verify, |b| {
-                    b.iter(|| {
-                        let _ret = ct1.verify(&crs, &pk, &metadata);
-                    });
-                });
-
-                bench_group.bench_function(&bench_id_verify_and_expand, |b| {
-                    b.iter(|| {
-                        let _ret = ct1
-                            .verify_and_expand(
-                                &crs,
-                                &pk,
-                                &metadata,
-                                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
-                                    casting_key.as_view(),
-                                ),
-                            )
+                        println!("Generating proven ciphertext ({zk_load})... ");
+                        let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
+                            .extend(messages.iter().copied())
+                            .build_with_proof_packed(&crs, &metadata, compute_load)
                             .unwrap();
-                    });
-                });
+
+                        let proven_ciphertext_list_serialized = bincode::serialize(&ct1).unwrap();
+
+                        println!(
+                            "proven list size: {}",
+                            proven_ciphertext_list_serialized.len()
+                        );
+
+                        let test_name = format!(
+                            "zk::proven_list_size::{param_name}_{bits}_bits_packed_{zk_load}"
+                        );
+
+                        write_result(
+                            &mut file,
+                            &test_name,
+                            proven_ciphertext_list_serialized.len(),
+                        );
+                        write_to_json::<u64, _>(
+                            &test_name,
+                            shortint_params,
+                            param_name,
+                            "pke_zk_proof",
+                            &OperatorType::Atomic,
+                            0,
+                            vec![],
+                        );
+
+                        let proof_size = ct1.proof_size();
+                        println!("proof size: {}", ct1.proof_size());
+
+                        let test_name =
+                            format!("zk::proof_sizes::{param_name}_{bits}_bits_packed_{zk_load}");
+
+                        write_result(&mut file, &test_name, proof_size);
+                        write_to_json::<u64, _>(
+                            &test_name,
+                            shortint_params,
+                            param_name,
+                            "pke_zk_proof",
+                            &OperatorType::Atomic,
+                            0,
+                            vec![],
+                        );
+
+                        bench_group.bench_function(&bench_id_verify, |b| {
+                            b.iter(|| {
+                                let _ret = ct1.verify(&crs, &pk, &metadata);
+                            });
+                        });
+
+                        bench_group.bench_function(&bench_id_verify_and_expand, |b| {
+                            b.iter(|| {
+                                let _ret = ct1
+                                    .verify_and_expand(
+                                       &crs,
+                                        &pk,
+                                        &metadata,
+                                        IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                                            casting_key.as_view(),
+                                        ),
+                                    )
+                                    .unwrap();
+                            });
+                        });
+                    }
+                    BenchmarkType::Throughput => {
+                        // In throughput mode object sizes are not recorded.
+                        let elements = throughput_num_threads(num_block);
+                        bench_group.throughput(Throughput::Elements(elements));
+
+                        bench_id_verify = format!(
+                            "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{zk_load}"
+                        );
+                        bench_id_verify_and_expand = format!(
+                            "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}"
+                        );
+
+                        println!("Generating proven ciphertexts list ({zk_load})... ");
+                        let cts = (0..elements)
+                            .map(|_| {
+                                let input_msg = rng.gen::<u64>();
+                                let messages = vec![input_msg; fhe_uint_count];
+                                tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
+                                    .extend(messages.iter().copied())
+                                    .build_with_proof_packed(&crs, &metadata, compute_load)
+                                    .unwrap()
+                            })
+                            .collect::<Vec<_>>();
+
+                        bench_group.bench_function(&bench_id_verify, |b| {
+                            b.iter(|| {
+                                cts.par_iter().for_each(|ct1| {
+                                    ct1.verify(&crs, &pk, &metadata);
+                                })
+                            });
+                        });
+
+                        bench_group.bench_function(&bench_id_verify_and_expand, |b| {
+                            b.iter(|| {
+                                cts.par_iter().for_each(|ct1| {
+                                    ct1
+                                        .verify_and_expand(
+                                            &crs,
+                                            &pk,
+                                            &metadata,
+                                            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                                                casting_key.as_view(),
+                                            ),
+                                        )
+                                        .unwrap();
+                                })
+                            });
+                        });
+                    }
+                }
 
                 write_to_json::<u64, _>(
                     &bench_id_verify,
@@ -284,4 +378,10 @@ pub fn zk_verify() {
     pke_zk_verify(&mut criterion, results_file);
 }
 
-criterion_main!(zk_verify);
+fn main() {
+    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
+
+    zk_verify();
+
+    Criterion::default().configure_from_args().final_summary();
+}

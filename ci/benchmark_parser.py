@@ -7,12 +7,13 @@ Parse criterion benchmark or keys size results.
 
 import argparse
 import csv
-import pathlib
+import enum
 import json
+import pathlib
 import sys
 
-
-ONE_HOUR_IN_NANOSECONDS = 3600e9
+ONE_HOUR_IN_SECONDS = 3600
+ONE_SECOND_IN_NANOSECONDS = 1e9
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -82,9 +83,10 @@ parser.add_argument(
     help="Parse only the results regarding keys generation time measurements",
 )
 parser.add_argument(
-    "--throughput",
-    dest="throughput",
-    action="store_true",
+    "--bench-type",
+    dest="bench_type",
+    choices=["latency", "throughput"],
+    default="latency",
     help="Compute and append number of operations per second and"
     "operations per dollar",
 )
@@ -102,12 +104,21 @@ parser.add_argument(
 )
 
 
+class BenchType(enum.Enum):
+    """
+    Type of benchmarks performed
+    """
+
+    latency = 1
+    throughput = 2
+
+
 def recursive_parse(
     directory,
     crate,
+    bench_type,
     walk_subdirs=False,
     name_suffix="",
-    compute_throughput=False,
     hardware_hourly_cost=None,
 ):
     """
@@ -116,10 +127,9 @@ def recursive_parse(
 
     :param directory: path to directory that contains raw results as :class:`pathlib.Path`
     :param crate: the name of the crate that has been benched
+    :param bench_type: type of benchmark performed as :class:`BenchType`
     :param walk_subdirs: traverse results subdirectories if parameters changes for benchmark case.
     :param name_suffix: a :class:`str` suffix to apply to each test name found
-    :param compute_throughput: compute number of operations per second and operations per
-        dollar
     :param hardware_hourly_cost: hourly cost of the hardware used in dollar
 
     :return: tuple of :class:`list` as (data points, parsing failures)
@@ -143,7 +153,12 @@ def recursive_parse(
             elif subdir.name != "new":
                 continue
 
-            full_name, test_name = parse_benchmark_file(subdir)
+            full_name, test_name, elements = parse_benchmark_file(subdir)
+
+            if bench_type == BenchType.throughput and elements is None:
+                # Current subdir contains only latency measurements
+                continue
+
             if test_name is None:
                 parsing_failures.append(
                     (full_name, "'function_id' field is null in report")
@@ -161,12 +176,15 @@ def recursive_parse(
                     filter(None, [test_name, stat_name, name_suffix])
                 )
 
+                if stat_name == "mean" and bench_type == BenchType.throughput:
+                    value = (elements * ONE_SECOND_IN_NANOSECONDS) / value
+
                 result_values.append(
                     _create_point(
                         value,
                         "_".join(test_name_parts),
                         bench_class,
-                        "latency",
+                        bench_type.name,
                         operator,
                         params,
                         display_name=display_name,
@@ -193,37 +211,25 @@ def recursive_parse(
                 else:
                     multiplier = 1
 
-                if stat_name == "mean" and compute_throughput:
-                    test_suffix = "ops-per-sec"
+                if (
+                        stat_name == "mean"
+                        and bench_type == BenchType.throughput
+                        and hardware_hourly_cost is not None
+                ):
+                    test_suffix = "ops-per-dollar"
                     test_name_parts.append(test_suffix)
                     result_values.append(
                         _create_point(
-                            multiplier * compute_ops_per_second(value),
+                            multiplier
+                            * compute_ops_per_dollar(value, hardware_hourly_cost),
                             "_".join(test_name_parts),
                             bench_class,
-                            "throughput",
+                            bench_type.name,
                             operator,
                             params,
                             display_name="_".join([display_name, test_suffix]),
                         )
                     )
-                    test_name_parts.pop()
-
-                    if hardware_hourly_cost is not None:
-                        test_suffix = "ops-per-dollar"
-                        test_name_parts.append(test_suffix)
-                        result_values.append(
-                            _create_point(
-                                multiplier
-                                * compute_ops_per_dollar(value, hardware_hourly_cost),
-                                "_".join(test_name_parts),
-                                bench_class,
-                                "throughput",
-                                operator,
-                                params,
-                                display_name="_".join([display_name, test_suffix]),
-                            )
-                        )
 
     return result_values, parsing_failures
 
@@ -248,10 +254,13 @@ def parse_benchmark_file(directory):
 
     :param directory: directory where a benchmark case results are located as :class:`pathlib.Path`
 
-    :return: name of the test as :class:`str`
+    :return: names of the test and throughput elements as :class:`tuple` formatted as
+    (:class:`str`, :class:`str`, :class:`int`)
     """
     raw_res = _parse_file_to_json(directory, "benchmark.json")
-    return raw_res["full_id"], raw_res["function_id"]
+    throughput = raw_res["throughput"]
+    elements = throughput.get("Elements", None) if throughput else None
+    return raw_res["full_id"], raw_res["function_id"], elements
 
 
 def parse_estimate_file(directory):
@@ -269,11 +278,13 @@ def parse_estimate_file(directory):
     }
 
 
-def _parse_key_results(result_file, bench_type):
+def _parse_key_results(result_file, crate, bench_type):
     """
     Parse file containing results about operation on keys. The file must be formatted as CSV.
 
     :param result_file: results file as :class:`pathlib.Path`
+    :param crate: crate for which benchmarks have run
+    :param bench_type: type of benchmark as :class:`str`
 
     :return: tuple of :class:`list` as (data points, parsing failures)
     """
@@ -304,26 +315,28 @@ def _parse_key_results(result_file, bench_type):
     return result_values, parsing_failures
 
 
-def parse_object_sizes(result_file):
+def parse_object_sizes(result_file, crate):
     """
     Parse file containing key sizes results. The file must be formatted as CSV.
 
     :param result_file: results file as :class:`pathlib.Path`
+    :param crate: crate for which benchmarks have run
 
     :return: tuple of :class:`list` as (data points, parsing failures)
     """
-    return _parse_key_results(result_file, "keysize")
+    return _parse_key_results(result_file, crate, "keysize")
 
 
-def parse_key_gen_time(result_file):
+def parse_key_gen_time(result_file, crate):
     """
     Parse file containing key generation time results. The file must be formatted as CSV.
 
     :param result_file: results file as :class:`pathlib.Path`
+    :param crate: crate for which benchmarks have run
 
     :return: tuple of :class:`list` as (data points, parsing failures)
     """
-    return _parse_key_results(result_file, "latency")
+    return _parse_key_results(result_file, crate, "latency")
 
 
 def get_parameters(bench_id, directory):
@@ -352,12 +365,12 @@ def compute_ops_per_dollar(data_point, product_hourly_cost):
     """
     Compute numbers of operations per dollar for a given ``data_point``.
 
-    :param data_point: timing value measured during benchmark in nanoseconds
+    :param data_point: throughput value measured during benchmark in elements per second
     :param product_hourly_cost: cost in dollar per hour of hardware used
 
     :return: number of operations per dollar
     """
-    return ONE_HOUR_IN_NANOSECONDS / (product_hourly_cost * data_point)
+    return ONE_HOUR_IN_SECONDS * data_point / product_hourly_cost
 
 
 def compute_ops_per_second(data_point):
@@ -425,7 +438,7 @@ def check_mandatory_args(input_args):
             "walk_subdirs",
             "object_sizes",
             "key_gen",
-            "throughput",
+            "bench_type",
         ]:
             continue
         if not getattr(input_args, arg_name):
@@ -441,7 +454,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     check_mandatory_args(args)
 
-    # failures = []
+    bench_type = BenchType[args.bench_type]
+
+    failures = []
     raw_results = pathlib.Path(args.results)
     if args.object_sizes or args.key_gen:
         if args.object_sizes:
@@ -454,7 +469,7 @@ if __name__ == "__main__":
     else:
         print("Parsing benchmark results... ")
         hardware_cost = None
-        if args.throughput:
+        if bench_type == BenchType.throughput:
             print("Throughput computation enabled")
             ec2_costs = json.loads(
                 pathlib.Path("ci/ec2_products_cost.json").read_text(encoding="utf-8")
@@ -469,9 +484,9 @@ if __name__ == "__main__":
         results, failures = recursive_parse(
             raw_results,
             args.crate,
+            bench_type,
             args.walk_subdirs,
             args.name_suffix,
-            args.throughput,
             hardware_cost,
         )
 

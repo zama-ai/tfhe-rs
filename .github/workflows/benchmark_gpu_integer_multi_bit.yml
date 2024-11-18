@@ -12,6 +12,10 @@ on:
         description: "Run only deduplicated default operations without scalar variants"
         type: boolean
         default: false
+      run_throughput:
+        description: "Run throughput benchmarks"
+        type: boolean
+        default: false
 
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 1a.m.
@@ -30,6 +34,7 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   FAST_BENCH: TRUE
   BENCH_OP_FLAVOR: default
+  BENCH_TYPE: latency
 
 jobs:
   setup-instance:
@@ -138,6 +143,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: nvidia-smi
 
+      - name: Should run throughput benchmarks
+        if: inputs.run_throughput
+        run: |
+          echo "BENCH_TYPE=throughput" >> "${GITHUB_ENV}"
+
       - name: Run multi-bit benchmarks with AVX512
         run: |
           make bench_unsigned_integer_multi_bit_gpu
@@ -165,7 +175,7 @@ jobs:
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --throughput
+          --bench-type ${{ env.BENCH_TYPE }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
