@@ -1,5 +1,6 @@
+use crate::integer::{BooleanBlock, ServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::strings::ciphertext::{ClearString, GenericPattern};
+use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
 use crate::strings::server_key::{FheStringIsEmpty, FheStringLen};
 use crate::strings::test::TestKind;
 use crate::strings::test_functions::{
@@ -303,106 +304,47 @@ impl TestKeys {
         let enc_rhs = GenericPattern::Enc(self.encrypt_string(rhs, rhs_pad));
         let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
 
-        // Equal
-        let expected_eq = str == rhs;
+        #[allow(clippy::type_complexity)]
+        let ops: [(
+            bool,
+            fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> BooleanBlock,
+        ); 6] = [
+            (str == rhs, ServerKey::string_eq),
+            (str != rhs, ServerKey::string_ne),
+            (str >= rhs, ServerKey::string_ge),
+            (str <= rhs, ServerKey::string_le),
+            (str > rhs, ServerKey::string_gt),
+            (str < rhs, ServerKey::string_lt),
+        ];
 
-        let start = Instant::now();
-        let result_eq = self.sk.string_eq(&enc_lhs, enc_rhs.as_ref());
-        let end = Instant::now();
+        for (expected_result, encrypted_op) in ops {
+            // Encrypted rhs
+            let start = Instant::now();
+            let result = encrypted_op(&self.sk, &enc_lhs, enc_rhs.as_ref());
+            let end = Instant::now();
 
-        let dec_eq = self.ck.decrypt_bool(&result_eq);
+            let dec_result = self.ck.decrypt_bool(&result);
 
-        println!("\n\x1b[1mEq:\x1b[0m");
-        result_message_rhs(str, rhs, expected_eq, dec_eq, end.duration_since(start));
-        assert_eq!(dec_eq, expected_eq);
+            println!("\n\x1b[1mEq:\x1b[0m");
+            result_message_rhs(
+                str,
+                rhs,
+                expected_result,
+                dec_result,
+                end.duration_since(start),
+            );
+            assert_eq!(dec_result, expected_result);
 
-        // Clear rhs
-        let start = Instant::now();
-        let result_eq = self.sk.string_eq(&enc_lhs, clear_rhs.as_ref());
-        let end = Instant::now();
+            // Clear rhs
+            let start = Instant::now();
+            let result_eq = encrypted_op(&self.sk, &enc_lhs, clear_rhs.as_ref());
+            let end = Instant::now();
 
-        let dec_eq = self.ck.decrypt_bool(&result_eq);
+            let dec_eq = self.ck.decrypt_bool(&result_eq);
 
-        println!("\n\x1b[1mEq:\x1b[0m");
-        result_message_clear_rhs(str, rhs, expected_eq, dec_eq, end.duration_since(start));
-        assert_eq!(dec_eq, expected_eq);
-
-        // Not equal
-        let expected_ne = str != rhs;
-
-        let start = Instant::now();
-        let result_ne = self.sk.string_ne(&enc_lhs, enc_rhs.as_ref());
-        let end = Instant::now();
-
-        let dec_ne = self.ck.decrypt_bool(&result_ne);
-
-        println!("\n\x1b[1mNe:\x1b[0m");
-        result_message_rhs(str, rhs, expected_ne, dec_ne, end.duration_since(start));
-        assert_eq!(dec_ne, expected_ne);
-
-        // Clear rhs
-        let start = Instant::now();
-        let result_ne = self.sk.string_ne(&enc_lhs, clear_rhs.as_ref());
-        let end = Instant::now();
-
-        let dec_ne = self.ck.decrypt_bool(&result_ne);
-
-        println!("\n\x1b[1mNe:\x1b[0m");
-        result_message_clear_rhs(str, rhs, expected_ne, dec_ne, end.duration_since(start));
-        assert_eq!(dec_ne, expected_ne);
-
-        let enc_rhs = self.encrypt_string(rhs, rhs_pad);
-
-        // Greater or equal
-        let expected_ge = str >= rhs;
-
-        let start = Instant::now();
-        let result_ge = self.sk.string_ge(&enc_lhs, &enc_rhs);
-        let end = Instant::now();
-
-        let dec_ge = self.ck.decrypt_bool(&result_ge);
-
-        println!("\n\x1b[1mGe:\x1b[0m");
-        result_message_rhs(str, rhs, expected_ge, dec_ge, end.duration_since(start));
-        assert_eq!(dec_ge, expected_ge);
-
-        // Less or equal
-        let expected_le = str <= rhs;
-
-        let start = Instant::now();
-        let result_le = self.sk.string_le(&enc_lhs, &enc_rhs);
-        let end = Instant::now();
-
-        let dec_le = self.ck.decrypt_bool(&result_le);
-
-        println!("\n\x1b[1mLe:\x1b[0m");
-        result_message_rhs(str, rhs, expected_le, dec_le, end.duration_since(start));
-        assert_eq!(dec_le, expected_le);
-
-        // Greater than
-        let expected_gt = str > rhs;
-
-        let start = Instant::now();
-        let result_gt = self.sk.string_gt(&enc_lhs, &enc_rhs);
-        let end = Instant::now();
-
-        let dec_gt = self.ck.decrypt_bool(&result_gt);
-
-        println!("\n\x1b[1mGt:\x1b[0m");
-        result_message_rhs(str, rhs, expected_gt, dec_gt, end.duration_since(start));
-        assert_eq!(dec_gt, expected_gt);
-
-        // Less than
-        let expected_lt = str < rhs;
-
-        let start = Instant::now();
-        let result_lt = self.sk.string_lt(&enc_lhs, &enc_rhs);
-        let end = Instant::now();
-
-        let dec_lt = self.ck.decrypt_bool(&result_lt);
-
-        println!("\n\x1b[1mLt:\x1b[0m");
-        result_message_rhs(str, rhs, expected_lt, dec_lt, end.duration_since(start));
-        assert_eq!(dec_lt, expected_lt);
+            println!("\n\x1b[1mEq:\x1b[0m");
+            result_message_clear_rhs(str, rhs, expected_result, dec_eq, end.duration_since(start));
+            assert_eq!(dec_eq, expected_result);
+        }
     }
 }
