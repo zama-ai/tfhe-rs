@@ -3,6 +3,12 @@ name: Integer GPU full benchmarks
 
 on:
   workflow_dispatch:
+    inputs:
+      run_throughput:
+        description: "Run throughput benchmarks"
+        type: boolean
+        default: false
+
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 1a.m.
     - cron: '0 1 * * 6'
@@ -17,6 +23,7 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  BENCH_TYPE: latency
 
 jobs:
   setup-instance:
@@ -126,6 +133,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: nvidia-smi
 
+      - name: Should run throughput benchmarks
+        if: inputs.run_throughput
+        run: |
+          echo "BENCH_TYPE=throughput" >> "${GITHUB_ENV}"
+
       - name: Run benchmarks with AVX512
         run: |
           make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_${{ matrix.command }}_gpu
@@ -148,7 +160,7 @@ jobs:
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --throughput
+          --bench-type ${{ env.BENCH_TYPE }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
