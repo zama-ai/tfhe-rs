@@ -2,17 +2,17 @@
 
 ## Brief
 The `tfhe-hpu-backend` holds the code for the HPU acceleration of Zama's variant of TFHE.
-It contains a `HpuDevice` abstraction that enable to easily configure and dispatch TFHE operations on HPU accelerator.
+It contains a `HpuDevice` abstraction that enables easy configuration and dispatching of TFHE operations on HPU accelerator.
 
-The user API exposed the following functions for hardware setup:
+The user API exposes the following functions for hardware setup:
 - `HpuDevice::new`, `HpuDevice::from_config`: Instantiate abstraction device from configuration file. 
 - `HpuDevice::init`: Configure and upload the required public material.
 - `new_var_from`: Create a HPU ciphertext from `tfhe-rs` ciphertext.
 
 HPU variables could also be created from `high-level-api` object, with the help of the `hw-xfer` feature.
-This implement a trait that enable to `clone_on`, `mv_on` `FheUint` object on the HPU accelerator, and cast back `from` them.
+This implements a trait that enables `clone_on`, `mv_on` `FheUint` object on the HPU accelerator, and cast back `from` them.
 
-Those object implement `std::ops` trait and could be used to dispatch operation on HPU hardware.
+These objects implement `std::ops` trait and could be used to dispatch operation on HPU hardware.
 
 ### Backend structure
 `tfhe-hpu-backend` is split in various modules:
@@ -20,7 +20,7 @@ Those object implement `std::ops` trait and could be used to dispatch operation 
 - `asm`: Describe assembly-like language for the HPU. It enables to abstract HPU behavior and easily update it through micro-code.
 - `fw`: Abstraction to help the micro-code designer. Use simple rust program for describing new HPU operation. Help with register/heap management.
 - `interface`:
-  + `device`: High-level structure that exposed the User API.
+  + `device`: High-level structure that exposes the User API.
   + `backend`: Inner private structure that contains HPU modules
   + `variable`: Wrap HPU ciphertexts. It enables to hook hardware object lifetime within the `rust` borrow-checker. 
   + `memory`: Handle on-board memory allocation and synchronization
@@ -39,13 +39,13 @@ This picture depicts the internal modules of `tfhe-hpu-backend`, Device is the m
 
 2. Allocate required memory chunk in the on-board memory. Upload public material required by TFHE computation.
 
-3. Create HPU variable that handle TFHE Ciphertext. It wrap TFHE Ciphertext with required internal resources and enforce the correct lifetime management. This abstraction enforce that during variabl lifecycle all required resources are valid.
+3. Create HPU variables that handle TFHE Ciphertexts. It wraps TFHE Ciphertext with required internal resources and enforces the correct lifetime management. This abstraction enforces that during variable lifecycle all required resources are valid.
 
 4. User could triggered HPU operation from HPU variable.
-  Variable abstraction enforce that required object is correctly synced on the hardware and convert the operation in a concrete HPU command.
+  Variable abstraction enforces that required objects are correctly synced on the hardware and converts each operation in a concrete HPU command.
   When HPU operation is acknowledged by the hardware, the internal state of the associated variable is updated.
-  This mechanism enable asynchronous operation and minimal amount of Host to/from HW memory transfer.
-  This mechanism also enables to offload a computation graph to the HPU and only synced on the final results.
+  This mechanism enables asynchronous operation and minimal amount of Host to/from HW memory transfer.
+  This mechanism also enables offloading a computation graph to the HPU and requires a synchronization only on the final results.
 
 ## Example
 ### Configuration file
@@ -124,7 +124,7 @@ Following code snippets show how to convert CPU ciphertext in HPU one:
 ```
 
 ### Dispatch operation on HPU
-HPU variable implement `std::ops` trait, these function dispatch the operation on HPU device.
+HPU variables implement `std::ops` trait. These functions dispatch the operation on HPU device.
 Following code snippets show how to start operation on HPU from Hpu variables:
 
 ``` rust
@@ -142,7 +142,7 @@ Following code snippets show how to start operation on HPU from Hpu variables:
 ```
 
 ### Retrieved result in CPU world
-The exposed API enable to only synced back required value.
+The exposed API enables to only synced back required value.
 This enables to offload a sub-computation graph without the cost of syncing intermediate value.
 
 Following code snippets start two operation on HPU and show how to synced only the required result:
