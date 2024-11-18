@@ -12,13 +12,13 @@ The user API exposes the following functions for hardware setup:
 HPU variables could also be created from `high-level-api` object, with the help of the `hw-xfer` feature.
 This implements a trait that enables `clone_on`, `mv_on` `FheUint` object on the HPU accelerator, and cast back `from` them.
 
-These objects implement `std::ops` trait and could be used to dispatch operation on HPU hardware.
+These objects implement `std::ops` trait and could be used to dispatch operations on HPU hardware.
 
 ### Backend structure
 `tfhe-hpu-backend` is split in various modules:
 - `entities`: Define structure handled by HPU accelerator. Conversion trait from/into those objects are implemented in `tfhe-rs`.
 - `asm`: Describe assembly-like language for the HPU. It enables to abstract HPU behavior and easily update it through micro-code.
-- `fw`: Abstraction to help the micro-code designer. Use simple rust program for describing new HPU operation. Help with register/heap management.
+- `fw`: Abstraction to help the micro-code designer. Use simple rust program for describing new HPU operations. Help with register/heap management.
 - `interface`:
   + `device`: High-level structure that exposes the User API.
   + `backend`: Inner private structure that contains HPU modules
@@ -42,7 +42,7 @@ This picture depicts the internal modules of `tfhe-hpu-backend`, Device is the m
 3. Create HPU variables that handle TFHE Ciphertexts. It wraps TFHE Ciphertext with required internal resources and enforces the correct lifetime management. This abstraction enforces that during variable lifecycle all required resources are valid.
 
 4. User could triggered HPU operation from HPU variable.
-  Variable abstraction enforces that required objects are correctly synced on the hardware and converts each operation in a concrete HPU command.
+  Variable abstraction enforces that required objects are correctly synced on the hardware. Then it converts each operation in a concrete HPU command.
   When HPU operation is acknowledged by the hardware, the internal state of the associated variable is updated.
   This mechanism enables asynchronous operation and minimal amount of Host to/from HW memory transfer.
   This mechanism also enables offloading a computation graph to the HPU and requires a synchronization only on the final results.
@@ -85,7 +85,7 @@ HPU configuration knobs are gathered in a TOML configuration file. This file des
   ```
 
 ### Device setup
-Following code snippets show how to instantiate and configure a `HpuDevice`:
+Following code snippet shows how to instantiate and configure a `HpuDevice`:
 ```rust
     // Instanciate HpuDevice --------------------------------------------------
     let hpu_device = HpuDevice::from_config("backends/tfhe-hpu-backend/config/hpu_config.toml");
@@ -109,7 +109,7 @@ Following code snippets show how to instantiate and configure a `HpuDevice`:
 ```
 
 ### Clone CPU ciphertext on HPU
-Following code snippets show how to convert CPU ciphertext in HPU one:
+Following code snippet shows how to convert CPU ciphertext in HPU one:
 ``` rust
     // Draw random value as input
     let a = rand::thread_rng().gen_range(0..u8::MAX);
@@ -125,7 +125,7 @@ Following code snippets show how to convert CPU ciphertext in HPU one:
 
 ### Dispatch operation on HPU
 HPU variables implement `std::ops` trait. These functions dispatch the operation on HPU device.
-Following code snippets show how to start operation on HPU from Hpu variables:
+Following code snippet shows how to start operation on HPU from Hpu variables:
 
 ``` rust
   // NB: a_hpu, b_hpu are HpuFheUint created from FheUint
@@ -145,7 +145,7 @@ Following code snippets show how to start operation on HPU from Hpu variables:
 The exposed API enables to only synced back required value.
 This enables to offload a sub-computation graph without the cost of syncing intermediate value.
 
-Following code snippets start two operation on HPU and show how to synced only the required result:
+Following code snippet starts two operation on HPU and shows how to synced only the required result:
 ```rust
   // NB: a_hpu, b_hpu, c_hpu are HpuFheUint created from FheUint
   let axb_hpu = a_hpu * b_hpu;
