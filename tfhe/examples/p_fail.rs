@@ -1889,7 +1889,7 @@ pub fn main() {
     // Err prob ~= 2^-14
     let fhe_params = PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M14;
 
-    let max_scalar_mul = fhe_params.max_noise_level.get() as u8;
+    //let max_scalar_mul = fhe_params.max_noise_level.get() as u8;
 
     let expected_fails = 100;
 
@@ -1915,7 +1915,7 @@ pub fn main() {
             let mut ct = cks.encrypt(0);
 
             // Get baseline noise after PBS
-            sks.unchecked_scalar_mul_assign(&mut ct, max_scalar_mul);
+            //sks.unchecked_scalar_mul_assign(&mut ct, max_scalar_mul);
             sks.apply_lookup_table_assign(&mut ct, &lut);
 
             // // PBS with baseline noise as input
