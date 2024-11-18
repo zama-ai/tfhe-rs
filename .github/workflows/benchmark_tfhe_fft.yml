@@ -65,25 +65,9 @@ jobs:
           toolchain: nightly
           override: true
 
-      - name: Run benchmarks
-        run: |
-          make FFT128_SUPPORT=ON bench
-
-      - name: Parse results
-        run: |
-          python3 ./ci/fft_benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
-          --database concrete_fft \
-          --hardware "hpc7a.96xlarge" \
-          --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
-          --commit-date "${{ env.COMMIT_DATE }}" \
-          --bench-date "${{ env.BENCH_DATE }}"
-
-          rm -rf target/criterion benchmarks_parameters/
-
       - name: Run benchmarks with AVX512
         run: |
-          make FFT128_SUPPORT=ON AVX512_SUPPORT=ON bench
+          make bench_fft
 
       - name: Parse AVX512 results
         run: |
