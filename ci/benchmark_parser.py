@@ -212,9 +212,9 @@ def recursive_parse(
                     multiplier = 1
 
                 if (
-                        stat_name == "mean"
-                        and bench_type == BenchType.throughput
-                        and hardware_hourly_cost is not None
+                    stat_name == "mean"
+                    and bench_type == BenchType.throughput
+                    and hardware_hourly_cost is not None
                 ):
                     test_suffix = "ops-per-dollar"
                     test_name_parts.append(test_suffix)
@@ -461,11 +461,11 @@ if __name__ == "__main__":
     if args.object_sizes or args.key_gen:
         if args.object_sizes:
             print("Parsing key sizes results... ")
-            results, failures = parse_object_sizes(raw_results)
+            results, failures = parse_object_sizes(raw_results, args.crate)
 
         if args.key_gen:
             print("Parsing key generation time results... ")
-            results, failures = parse_key_gen_time(raw_results)
+            results, failures = parse_key_gen_time(raw_results, args.crate)
     else:
         print("Parsing benchmark results... ")
         hardware_cost = None
