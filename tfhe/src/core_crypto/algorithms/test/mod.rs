@@ -23,6 +23,7 @@ mod lwe_packing_keyswitch;
 mod lwe_packing_keyswitch_key_generation;
 mod lwe_private_functional_packing_keyswitch;
 pub(crate) mod lwe_programmable_bootstrapping;
+mod lwe_programmable_bootstrapping_128;
 mod modulus_switch_compression;
 mod noise_distribution;
 
@@ -320,17 +321,13 @@ pub const FFT_U64_PARAMS: FftTestParams<u64> = FftTestParams {
 };
 
 pub const FFT_U128_PARAMS: FftTestParams<u128> = FftTestParams {
-    lwe_dimension: LweDimension(742),
-    glwe_dimension: GlweDimension(1),
+    lwe_dimension: LweDimension(880),
+    glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000004998277131225527,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000000000000000000008645717832544903,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.0)),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.0)),
+    pbs_base_log: DecompositionBaseLog(32),
+    pbs_level: DecompositionLevelCount(3),
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
 

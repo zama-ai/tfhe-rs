@@ -4,25 +4,8 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::Container;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{CastInto, CiphertextModulusLog, ContainerMut};
+use crate::core_crypto::prelude::ContainerMut;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
-
-pub fn pbs_modulus_switch<Scalar: UnsignedInteger + CastInto<usize>>(
-    input: Scalar,
-    polynomial_size: PolynomialSize,
-) -> usize {
-    modulus_switch(input, polynomial_size.to_blind_rotation_input_modulus_log()).cast_into()
-}
-
-pub fn modulus_switch<Scalar: UnsignedInteger>(
-    input: Scalar,
-    log_modulus: CiphertextModulusLog,
-) -> Scalar {
-    // Flooring output_to_floor is equivalent to rounding the input
-    let output_to_floor = input.wrapping_add(Scalar::ONE << (Scalar::BITS - log_modulus.0 - 1));
-
-    output_to_floor >> (Scalar::BITS - log_modulus.0)
-}
 
 pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
     type Fft;
@@ -206,6 +189,7 @@ pub mod tests {
         );
         println!("Computing PBS...");
 
+        let start = std::time::Instant::now();
         fourier_bsk.bootstrap(
             &mut pbs_ct,
             &lwe_ciphertext_in,
@@ -220,6 +204,8 @@ pub mod tests {
                 .unwrap(),
             )),
         );
+        let elapsed = start.elapsed();
+        println!("elapsed={elapsed:?}");
 
         // Decrypt the PBS result
         let pbs_plaintext: Plaintext<Scalar> = decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_ct);

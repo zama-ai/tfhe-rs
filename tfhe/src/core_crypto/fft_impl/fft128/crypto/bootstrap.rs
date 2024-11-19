@@ -1,6 +1,7 @@
 use super::super::math::fft::{Fft128, Fft128View};
 use super::ggsw::{cmux, cmux_scratch};
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
+use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::pbs_modulus_switch;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::backward_compatibility::fft_impl::Fourier128LweBootstrapKeyVersions;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
@@ -15,7 +16,7 @@ use crate::core_crypto::commons::traits::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
+use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use core::any::TypeId;

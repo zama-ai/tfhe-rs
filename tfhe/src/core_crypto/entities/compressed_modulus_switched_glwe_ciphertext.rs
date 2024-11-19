@@ -3,7 +3,7 @@ use tfhe_versionable::Versionize;
 use self::packed_integers::PackedIntegers;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertextVersions;
-use crate::core_crypto::fft_impl::common::modulus_switch;
+use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::modulus_switch;
 use crate::core_crypto::prelude::*;
 
 /// An object to store a ciphertext using less memory

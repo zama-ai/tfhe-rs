@@ -1,10 +1,12 @@
 pub mod fft128;
 pub mod fft64;
 pub mod ntt64;
+pub mod ntt_native_modulus_128;
 
 pub use fft128::*;
 pub use fft64::*;
 pub use ntt64::*;
+pub use ntt_native_modulus_128::*;
 
 use crate::core_crypto::algorithms::glwe_encryption::allocate_and_trivially_encrypt_new_glwe_ciphertext;
 use crate::core_crypto::commons::parameters::*;
@@ -70,4 +72,21 @@ where
         &accumulator_plaintext,
         ciphertext_modulus,
     )
+}
+
+pub fn pbs_modulus_switch<Scalar: UnsignedInteger + CastInto<usize>>(
+    input: Scalar,
+    polynomial_size: PolynomialSize,
+) -> usize {
+    modulus_switch(input, polynomial_size.to_blind_rotation_input_modulus_log()).cast_into()
+}
+
+pub fn modulus_switch<Scalar: UnsignedInteger>(
+    input: Scalar,
+    log_modulus: CiphertextModulusLog,
+) -> Scalar {
+    // Flooring output_to_floor is equivalent to rounding the input
+    let output_to_floor = input.wrapping_add(Scalar::ONE << (Scalar::BITS - log_modulus.0 - 1));
+
+    output_to_floor >> (Scalar::BITS - log_modulus.0)
 }
