@@ -35,6 +35,8 @@ impl<Id: FheUintId> HwXfer<HpuDevice> for FheUint<Id> {
             inner::RadixCiphertext::Cpu(cpu_ct) => {
                 HpuRadixCiphertext::from_radix_ciphertext(cpu_ct, device)
             }
+            //NB: this entry is only used when other tfhe-backends are enabled
+            #[allow(unreachable_patterns)]
             _ => panic!("Only native movement are supported"),
         };
         Self::Output {
