@@ -36,7 +36,7 @@ pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
         ks_level: DecompositionLevelCount(test_params.ks_level),
         message_modulus: MessageModulus(test_params.message_modulus),
         carry_modulus: CarryModulus(test_params.carry_modulus),
-        max_noise_level: MaxNoiseLevel::new(test_params.max_noise_level),
+        max_noise_level: MaxNoiseLevel::new(test_params.max_noise_level as u64),
         log2_p_fail: test_params.log2_p_fail,
         ciphertext_modulus: CiphertextModulus::try_new(test_params.ciphertext_modulus).unwrap(),
         encryption_key_choice: {

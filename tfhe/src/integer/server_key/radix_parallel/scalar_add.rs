@@ -555,7 +555,8 @@ impl ServerKey {
         let num_bits_in_block = packed_modulus.ilog2();
         // Just in case we compare with max noise level, but it should always be num_bits_in_blocks
         // with the parameters we provide
-        let grouping_size = (num_bits_in_block as usize).min(self.key.max_noise_level.get());
+        let grouping_size =
+            (num_bits_in_block as usize).min(self.key.max_noise_level.get() as usize);
 
         // In this, we store lookup tables to be used on each 'packing'.
         // These LUTs will generate an output that tells whether the packing
