@@ -1,4 +1,4 @@
-name: Publish concrete-csprng release
+name: Publish tfhe-csprng release
 
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   publish_release:
-    name: Publish concrete-csprng Release
+    name: Publish tfhe-csprng Release
     needs: verify_tag
     runs-on: ubuntu-latest
     steps:
@@ -33,7 +33,7 @@ jobs:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
-          cargo publish -p concrete-csprng --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
+          cargo publish -p tfhe-csprng --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
 
       - name: Slack Notification
         if: ${{ failure() }}
@@ -43,6 +43,6 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-          SLACK_MESSAGE: "concrete-csprng release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "tfhe-csprng release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
           SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

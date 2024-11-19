@@ -58,8 +58,8 @@ jobs:
           files_yaml: |
             tfhe:
               - tfhe/src/**
-            concrete_csprng:
-              - concrete-csprng/src/**
+            tfhe_csprng:
+              - tfhe-csprng/src/**
 
       - name: Generate Keys
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'

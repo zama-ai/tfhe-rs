@@ -1,4 +1,4 @@
-//! Module containing various APIs wrapping `concrete-csprng` generators for specialized use in
+//! Module containing various APIs wrapping `tfhe-csprng` generators for specialized use in
 //! [`TFHE-rs`](`crate`).
 
 mod encryption;

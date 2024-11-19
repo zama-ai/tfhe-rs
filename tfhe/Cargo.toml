@@ -54,7 +54,7 @@ tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-co
 cbindgen = { version = "0.26.0", optional = true }
 
 [dependencies]
-concrete-csprng = { version = "0.4.1", path = "../concrete-csprng", features = [
+tfhe-csprng = { version = "0.4.1", path = "../tfhe-csprng", features = [
     "generator_fallback",
     "parallel",
 ] }
@@ -133,17 +133,17 @@ nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
 
 # Enable the x86_64 specific accelerated implementation of the random generator for the default
 # backend
-generator_x86_64_aesni = ["concrete-csprng/generator_x86_64_aesni"]
+generator_x86_64_aesni = ["tfhe-csprng/generator_x86_64_aesni"]
 
 # Enable the aarch64 specific accelerated implementation of the random generator for the default
 # backend
-generator_aarch64_aes = ["concrete-csprng/generator_aarch64_aes"]
+generator_aarch64_aes = ["tfhe-csprng/generator_aarch64_aes"]
 
 # Private features
 __profiling = []
 
-seeder_unix = ["concrete-csprng/seeder_unix"]
-seeder_x86_64_rdseed = ["concrete-csprng/seeder_x86_64_rdseed"]
+seeder_unix = ["tfhe-csprng/seeder_unix"]
+seeder_x86_64_rdseed = ["tfhe-csprng/seeder_x86_64_rdseed"]
 
 # These target_arch features enable a set of public features for tfhe if users want a known
 # good/working configuration for tfhe.

@@ -8,7 +8,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
 use crate::shortint::{PBSOrder, ServerKey};
-use concrete_csprng::seeders::Seed;
+use tfhe_csprng::seeders::Seed;
 
 pub fn sha3_hash(values: &mut [u64], seed: Seed) {
     use sha3::digest::{ExtendableOutput, Update, XofReader};
@@ -166,11 +166,11 @@ pub(crate) mod test {
     };
     use crate::shortint::engine::ShortintEngine;
     use crate::shortint::{ClientKey, ServerKey};
-    use concrete_csprng::seeders::Seed;
     use itertools::Itertools;
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
+    use tfhe_csprng::seeders::Seed;
 
     fn square(a: f64) -> f64 {
         a * a

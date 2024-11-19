@@ -9,8 +9,8 @@ use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, EncryptionNoiseByteCount, EncryptionNoiseSampleCount,
 };
-use concrete_csprng::generators::ForkError;
 use rayon::prelude::*;
+use tfhe_csprng::generators::ForkError;
 
 #[derive(Clone, Copy, Debug)]
 pub struct NoiseRandomGeneratorForkConfig {
