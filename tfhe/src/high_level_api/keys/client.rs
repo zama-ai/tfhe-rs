@@ -11,7 +11,7 @@ use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
 use crate::Tag;
-use concrete_csprng::seeders::Seed;
+use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
 /// Key of the client

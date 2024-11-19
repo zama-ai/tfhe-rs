@@ -49,7 +49,7 @@ jobs:
           files_yaml: |
             zk_pok:
               - tfhe/Cargo.toml
-              - concrete-csprng/**
+              - tfhe-csprng/**
               - tfhe-fft/**
               - tfhe-zk-pok/**
               - tfhe/src/core_crypto/**

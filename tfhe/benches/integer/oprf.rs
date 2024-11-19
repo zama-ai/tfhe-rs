@@ -2,12 +2,12 @@ use crate::utilities::{
     throughput_num_threads, write_to_json, BenchmarkType, OperatorType, ParamsAndNumBlocksIter,
     BENCH_TYPE,
 };
-use concrete_csprng::seeders::Seed;
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::IntegerKeyKind;
 use tfhe::keycache::NamedParam;
+use tfhe_csprng::seeders::Seed;
 
 pub fn unsigned_oprf(c: &mut Criterion) {
     let bench_name = "integer::unsigned_oprf";

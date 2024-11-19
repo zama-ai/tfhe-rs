@@ -400,11 +400,11 @@ clippy_all_targets: install_rs_check_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
-.PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
-clippy_concrete_csprng: install_rs_check_toolchain
+.PHONY: clippy_tfhe_csprng # Run clippy lints on tfhe-csprng
+clippy_tfhe_csprng: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=$(TARGET_ARCH_FEATURE) \
-		-p concrete-csprng -- --no-deps -D warnings
+		-p tfhe-csprng -- --no-deps -D warnings
 
 .PHONY: clippy_zk_pok # Run clippy lints on tfhe-zk-pok
 clippy_zk_pok: install_rs_check_toolchain
@@ -420,12 +420,12 @@ clippy_versionable: install_rs_check_toolchain
 
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
-clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_zk_pok clippy_trivium \
+clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
 clippy_versionable
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
-clippy_core clippy_concrete_csprng
+clippy_core clippy_tfhe_csprng
 
 .PHONY: clippy_cuda_backend # Run clippy lints on the tfhe-cuda-backend
 clippy_cuda_backend: install_rs_check_toolchain
@@ -531,10 +531,10 @@ build_node_js_api: install_rs_build_toolchain install_wasm_pack
 		wasm-pack build --release --target=nodejs \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok
 
-.PHONY: build_concrete_csprng # Build concrete_csprng
-build_concrete_csprng: install_rs_build_toolchain
+.PHONY: build_tfhe_csprng # Build tfhe_csprng
+build_tfhe_csprng: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE) -p concrete-csprng --all-targets
+		--features=$(TARGET_ARCH_FEATURE) -p tfhe-csprng --all-targets
 
 .PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
 test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
@@ -847,10 +847,10 @@ test_kreyvium: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-trivium -- --test-threads=1 kreyvium::
 
-.PHONY: test_concrete_csprng # Run concrete-csprng tests
-test_concrete_csprng: install_rs_build_toolchain
+.PHONY: test_tfhe_csprng # Run tfhe-csprng tests
+test_tfhe_csprng: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE) -p concrete-csprng
+		--features=$(TARGET_ARCH_FEATURE) -p tfhe-csprng
 
 .PHONY: test_zk_pok # Run tfhe-zk-pok tests
 test_zk_pok: install_rs_build_toolchain
@@ -1016,7 +1016,7 @@ no_dbg_log:
 	@./scripts/no_dbg_calls.sh
 
 .PHONY: dieharder_csprng # Run the dieharder test suite on our CSPRNG implementation
-dieharder_csprng: install_dieharder build_concrete_csprng
+dieharder_csprng: install_dieharder build_tfhe_csprng
 	./scripts/dieharder_test.sh
 
 #

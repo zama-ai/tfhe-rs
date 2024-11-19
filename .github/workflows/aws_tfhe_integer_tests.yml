@@ -52,7 +52,7 @@ jobs:
           files_yaml: |
             integer:
               - tfhe/Cargo.toml
-              - concrete-csprng/**
+              - tfhe-csprng/**
               - tfhe-fft/**
               - tfhe-zk-pok/**
               - tfhe/src/core_crypto/**

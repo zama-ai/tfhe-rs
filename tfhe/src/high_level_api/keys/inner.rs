@@ -15,8 +15,8 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::{EncryptionKeyChoice, MessageModulus, PBSParameters};
 use crate::{Config, Error};
-use concrete_csprng::seeders::Seed;
 use serde::{Deserialize, Serialize};
+use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
 // Clippy complained that fields end in _parameters, :roll_eyes:

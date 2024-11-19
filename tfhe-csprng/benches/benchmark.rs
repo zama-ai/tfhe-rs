@@ -1,8 +1,8 @@
-use concrete_csprng::generators::{
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use tfhe_csprng::generators::{
     AesniRandomGenerator, BytesPerChild, ChildrenCount, RandomGenerator,
 };
-use concrete_csprng::seeders::{RdseedSeeder, Seeder};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use tfhe_csprng::seeders::{RdseedSeeder, Seeder};
 
 // The number of bytes to generate during one benchmark iteration.
 const N_GEN: usize = 1_000_000;

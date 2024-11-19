@@ -1,4 +1,3 @@
-use concrete_csprng::seeders::Seeder;
 use criterion::*;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::{
@@ -8,6 +7,7 @@ use tfhe::core_crypto::prelude::{
 };
 use tfhe::core_crypto::seeders::new_seeder;
 use tfhe::shortint::prelude::*;
+use tfhe_csprng::seeders::Seeder;
 
 fn criterion_bench(c: &mut Criterion) {
     let parameters = PARAM_MESSAGE_2_CARRY_2_KS_PBS;

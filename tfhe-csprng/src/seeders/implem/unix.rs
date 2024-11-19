@@ -21,9 +21,9 @@ impl UnixSeeder {
     /// The attack hypotheses are as follow:
     /// - `/dev/random` output can be predicted by a process running on the machine by just
     ///   observing various states of the machine
-    /// - The attacker cannot read data from the process where `concrete-csprng` is running
+    /// - The attacker cannot read data from the process where `tfhe-csprng` is running
     ///
-    /// Using a secret in `concrete-csprng` allows to generate values that the attacker cannot
+    /// Using a secret in `tfhe-csprng` allows to generate values that the attacker cannot
     /// predict, making this seeder secure on systems were `/dev/random` outputs can be
     /// predicted.
     pub fn new(secret: u128) -> UnixSeeder {

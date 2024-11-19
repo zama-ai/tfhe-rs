@@ -13,7 +13,7 @@ use crate::core_crypto::prelude::*;
 /// ciphertext
 ///
 /// ```rust
-/// use concrete_csprng::seeders::Seed;
+/// use tfhe_csprng::seeders::Seed;
 /// use tfhe::core_crypto::fft_impl::common::modulus_switch;
 /// use tfhe::core_crypto::prelude::*;
 /// use tfhe::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;

@@ -1,4 +1,4 @@
-# Concrete CSPRNG
+# TFHE-CSPRNG
 
 This crate contains a fast *Cryptographically Secure Pseudorandom Number Generator*, used in the
 [TFHE-rs](https://crates.io/crates/tfhe) library, you can find it [here](../tfhe/) in this repo.

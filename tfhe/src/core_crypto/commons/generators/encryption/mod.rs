@@ -14,10 +14,10 @@ use crate::core_crypto::commons::parameters::{
     CiphertextModulus, EncryptionMaskByteCount, EncryptionMaskSampleCount,
     EncryptionNoiseByteCount, EncryptionNoiseSampleCount,
 };
-use concrete_csprng::generators::ForkError;
 use mask_random_generator::{MaskRandomGenerator, MaskRandomGeneratorForkConfig};
 use noise_random_generator::{NoiseRandomGenerator, NoiseRandomGeneratorForkConfig};
 use rayon::prelude::*;
+use tfhe_csprng::generators::ForkError;
 
 pub const PER_SAMPLE_TARGET_FAILURE_PROBABILITY_LOG2: f64 = -128.;
 

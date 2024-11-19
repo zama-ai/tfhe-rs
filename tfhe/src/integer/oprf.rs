@@ -3,7 +3,7 @@ use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
-pub use concrete_csprng::seeders::{Seed, Seeder};
+pub use tfhe_csprng::seeders::{Seed, Seeder};
 
 impl ServerKey {
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -293,7 +293,7 @@ impl ServerKey {
 pub(crate) mod test {
 
     use crate::shortint::oprf::test::test_uniformity;
-    use concrete_csprng::seeders::Seed;
+    use tfhe_csprng::seeders::Seed;
 
     #[test]
     fn oprf_test_uniformity_ci_run_filter() {
