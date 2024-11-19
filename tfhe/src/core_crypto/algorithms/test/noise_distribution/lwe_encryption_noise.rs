@@ -3,7 +3,6 @@ use crate::core_crypto::algorithms::misc::check_clear_content_respects_mod;
 use crate::core_crypto::commons::test_tools::{
     modular_distance, modular_distance_custom_mod, torus_modular_diff, variance,
 };
-use csv::Writer;
 use std::io;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
