@@ -2,12 +2,12 @@
 //! Application used to handle Iop/Dop translation
 //! It could be used to convert a single IOp or a list of them
 
-use asm::strum::IntoEnumIterator;
-use asm::{Asm, MemRegion};
-use fw::{AvlblFw, Fw};
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use tfhe_hpu_backend::asm::strum::IntoEnumIterator;
+use tfhe_hpu_backend::asm::{self, Asm, MemRegion};
+use tfhe_hpu_backend::fw::{AvlblFw, Fw, FwName};
 
 /// Define CLI arguments
 use clap::Parser;
@@ -17,7 +17,7 @@ pub struct Args {
     // Input/Output configuration --------------------------------------------
     /// Fw kind
     #[clap(long, value_parser, default_value = "Ilp")]
-    fw_kind: fw::FwName,
+    fw_kind: FwName,
 
     // Convert from the given file
     #[clap(long, value_parser)]
