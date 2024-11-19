@@ -23,16 +23,16 @@ impl std::error::Error for NotTrivialCiphertextError {}
 /// that guarantees the target p-error when doing a PBS on it
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(MaxNoiseLevelVersions)]
-pub struct MaxNoiseLevel(usize);
+pub struct MaxNoiseLevel(u64);
 
 impl MaxNoiseLevel {
-    pub(crate) const UNKNOWN: Self = Self(usize::MAX);
+    pub(crate) const UNKNOWN: Self = Self(u64::MAX);
 
-    pub const fn new(value: usize) -> Self {
+    pub const fn new(value: u64) -> Self {
         Self(value)
     }
 
-    pub const fn get(&self) -> usize {
+    pub const fn get(&self) -> u64 {
         self.0
     }
 
@@ -45,7 +45,8 @@ impl MaxNoiseLevel {
         msg_modulus: MessageModulus,
         carry_modulus: CarryModulus,
     ) -> Self {
-        Self((carry_modulus.0 * msg_modulus.0 - 1) / (msg_modulus.0 - 1))
+        let level = (carry_modulus.0 * msg_modulus.0 - 1) / (msg_modulus.0 - 1);
+        Self(level as u64)
     }
 
     pub const fn validate(&self, noise_level: NoiseLevel) -> Result<(), CheckError> {
@@ -64,17 +65,17 @@ impl MaxNoiseLevel {
     Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Versionize,
 )]
 #[versionize(NoiseLevelVersions)]
-pub struct NoiseLevel(usize);
+pub struct NoiseLevel(u64);
 
 impl NoiseLevel {
     pub const NOMINAL: Self = Self(1);
     pub const ZERO: Self = Self(0);
     // As a safety measure the unknown noise level is set to the max value
-    pub const UNKNOWN: Self = Self(usize::MAX);
+    pub const UNKNOWN: Self = Self(u64::MAX);
 }
 
 impl NoiseLevel {
-    pub fn get(&self) -> usize {
+    pub fn get(&self) -> u64 {
         self.0
     }
 }
@@ -94,16 +95,16 @@ impl std::ops::Add for NoiseLevel {
     }
 }
 
-impl std::ops::MulAssign<usize> for NoiseLevel {
-    fn mul_assign(&mut self, rhs: usize) {
+impl std::ops::MulAssign<u64> for NoiseLevel {
+    fn mul_assign(&mut self, rhs: u64) {
         self.0 = self.0.saturating_mul(rhs);
     }
 }
 
-impl std::ops::Mul<usize> for NoiseLevel {
+impl std::ops::Mul<u64> for NoiseLevel {
     type Output = Self;
 
-    fn mul(mut self, rhs: usize) -> Self::Output {
+    fn mul(mut self, rhs: u64) -> Self::Output {
         self *= rhs;
 
         self
@@ -272,14 +273,14 @@ mod tests {
 
         let mut rng = thread_rng();
 
-        assert_eq!(NoiseLevel::UNKNOWN.0, usize::MAX);
+        assert_eq!(NoiseLevel::UNKNOWN.0, u64::MAX);
 
         let max_noise_level = NoiseLevel::UNKNOWN;
-        let random_addend = rng.gen::<usize>();
+        let random_addend = rng.gen::<u64>();
         let add = max_noise_level + NoiseLevel(random_addend);
         assert_eq!(add, NoiseLevel::UNKNOWN);
 
-        let random_positive_multiplier = rng.gen_range(1usize..=usize::MAX);
+        let random_positive_multiplier = rng.gen_range(1u64..=u64::MAX);
         let mul = max_noise_level * random_positive_multiplier;
         assert_eq!(mul, NoiseLevel::UNKNOWN);
     }

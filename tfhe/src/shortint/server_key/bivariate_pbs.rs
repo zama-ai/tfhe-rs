@@ -36,7 +36,7 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
 
     max_degree.validate(final_degree)?;
 
-    let final_noise_level = (lhs.noise_level * factor) + rhs.noise_level;
+    let final_noise_level = (lhs.noise_level * factor as u64) + rhs.noise_level;
 
     server_key.max_noise_level.validate(final_noise_level)?;
 
@@ -513,7 +513,7 @@ impl ScalingOperation {
 impl Ciphertext {
     fn noise_degree_if_scaled(&self, scale: u8) -> CiphertextNoiseDegree {
         CiphertextNoiseDegree {
-            noise_level: self.noise_level() * scale as usize,
+            noise_level: self.noise_level() * u64::from(scale),
             degree: self.degree * scale as usize,
         }
     }
@@ -524,7 +524,7 @@ impl Ciphertext {
         } = self.noise_degree_if_bootstrapped();
 
         CiphertextNoiseDegree {
-            noise_level: noise * scale as usize,
+            noise_level: noise * u64::from(scale),
             degree: degree * scale as usize,
         }
     }

@@ -884,7 +884,8 @@ impl ServerKey {
 
         // Just in case we compare with max noise level, but it should always be num_bits_in_blocks
         // with the parameters we provide
-        let grouping_size = (num_bits_in_block as usize).min(self.key.max_noise_level.get());
+        let grouping_size =
+            (num_bits_in_block as usize).min(self.key.max_noise_level.get() as usize);
 
         let mut output_flag = None;
 

@@ -67,7 +67,7 @@ impl ServerKey {
         assert!(
             self.key
                 .max_noise_level
-                .validate(NoiseLevel::NOMINAL * 3usize)
+                .validate(NoiseLevel::NOMINAL * 3u64)
                 .is_ok(),
             "Parameters must support 2 additions before a PBS"
         );

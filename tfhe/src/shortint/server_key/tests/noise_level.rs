@@ -234,7 +234,7 @@ fn test_ct_scalar_op_noise_level_propagation(sk: &ServerKey, ct: &Ciphertext, sc
     test_fn(&ServerKey::unchecked_scalar_add, &|ct_noise, _| ct_noise);
     test_fn(&ServerKey::unchecked_scalar_sub, &|ct_noise, _| ct_noise);
     test_fn(&ServerKey::unchecked_scalar_mul, &|ct_noise, scalar| {
-        ct_noise * scalar as usize
+        ct_noise * u64::from(scalar)
     });
     let expected_pbs_noise = if ct.is_trivial() {
         NoiseLevel::ZERO
@@ -281,7 +281,7 @@ fn test_ct_scalar_op_assign_noise_level_propagation(sk: &ServerKey, ct: &Ciphert
     });
     test_fn(
         &ServerKey::unchecked_scalar_mul_assign,
-        &|ct_noise, scalar| ct_noise * scalar as usize,
+        &|ct_noise, scalar| ct_noise * u64::from(scalar),
     );
     let expected_pbs_noise = if ct.is_trivial() {
         NoiseLevel::ZERO
