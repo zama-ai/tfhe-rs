@@ -88,7 +88,7 @@ impl CompressionKey {
 
                     let mut ct = ct.clone();
                     let max_noise_level =
-                        MaxNoiseLevel::new((ct.noise_level() * message_modulus.0).get());
+                        MaxNoiseLevel::new((ct.noise_level() * message_modulus.0 as u64).get());
                     unchecked_scalar_mul_assign(&mut ct, message_modulus.0 as u8, max_noise_level);
 
                     list.extend(ct.ct.as_ref());

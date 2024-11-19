@@ -417,7 +417,7 @@ impl Shortint {
         ks_level: usize,
         message_modulus: usize,
         carry_modulus: usize,
-        max_noise_level: usize,
+        max_noise_level: u64,
         log2_p_fail: f64,
         modulus_power_of_2_exponent: usize,
         encryption_key_choice: ShortintEncryptionKeyChoice,

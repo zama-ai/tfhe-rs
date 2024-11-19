@@ -298,7 +298,7 @@ impl ServerKey {
         self.max_degree.validate(Degree::new(final_degree))?;
 
         self.max_noise_level
-            .validate(ct.noise_level * scalar as usize)?;
+            .validate(ct.noise_level * u64::from(scalar))?;
 
         Ok(())
     }
@@ -521,7 +521,7 @@ pub(crate) fn unchecked_scalar_mul_assign(
     scalar: u8,
     max_noise_level: MaxNoiseLevel,
 ) {
-    ct.set_noise_level(ct.noise_level() * scalar as usize, max_noise_level);
+    ct.set_noise_level(ct.noise_level() * u64::from(scalar), max_noise_level);
     ct.degree = Degree::new(ct.degree.get() * scalar as usize);
 
     match scalar {

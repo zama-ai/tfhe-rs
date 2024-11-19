@@ -66,7 +66,7 @@ impl ServerKey {
             "Compression does not support message_modulus > carry_modulus"
         );
         assert!(
-            self.key.max_noise_level.get() >= self.message_modulus().0 + 1,
+            self.key.max_noise_level.get() >= self.message_modulus().0 as u64 + 1,
             "Compression does not support max_noise_level < message_modulus + 1"
         );
 
