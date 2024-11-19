@@ -4,7 +4,6 @@
 //! With the `dump-out` option it enable to generate bit-accurate stimulus
 //! for RTL simulation
 
-use hpu_asm::strum::IntoEnumIterator;
 use hpu_asm::Asm;
 use tfhe::prelude::*;
 use tfhe::*;
@@ -12,11 +11,6 @@ use tfhe_hpu_backend::prelude::*;
 
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use std::collections::HashMap;
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::path::Path;
-use std::time::{Duration, Instant};
 
 const AVAILABLE_INTEGER_W: [usize; 10] = [2, 4, 6, 8, 10, 12, 14, 16, 32, 64];
 
