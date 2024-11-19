@@ -163,22 +163,22 @@ pub fn bench_ffts(c: &mut Criterion) {
             let ordered =
                 tfhe_fft::ordered::Plan::new(n, tfhe_fft::ordered::Method::Measure(bench_duration));
 
-            let bench_id = format!("concrete-fwd-{n}");
+            let bench_id = format!("tfhe-ordered-fwd-{n}");
             c.bench_function(&bench_id, |b| b.iter(|| ordered.fwd(dst, stack.rb_mut())));
-            write_to_json(&bench_id, "concrete-fwd", n);
+            write_to_json(&bench_id, "tfhe-ordered-fwd", n);
         }
 
-        let bench_id = format!("unordered-fwd-{n}");
+        let bench_id = format!("tfhe-unordered-fwd-{n}");
         c.bench_function(&bench_id, |b| {
             b.iter(|| unordered.fwd(dst, stack.rb_mut()));
         });
-        write_to_json(&bench_id, "unordered-fwd", n);
+        write_to_json(&bench_id, "tfhe-unordered-fwd", n);
 
-        let bench_id = format!("unordered-inv-{n}");
+        let bench_id = format!("tfhe-unordered-inv-{n}");
         c.bench_function(&bench_id, |b| {
             b.iter(|| unordered.inv(dst, stack.rb_mut()));
         });
-        write_to_json(&bench_id, "unordered-inv", n);
+        write_to_json(&bench_id, "tfhe-unordered-inv", n);
 
         // memcpy
         let bench_id = format!("memcpy-{n}");
@@ -189,7 +189,7 @@ pub fn bench_ffts(c: &mut Criterion) {
         });
         write_to_json(&bench_id, "memcpy", n);
 
-        let bench_id = format!("fwd-monomial-{n}");
+        let bench_id = format!("tfhe-unordered-fwd-monomial-{n}");
         c.bench_function(&bench_id, |b| {
             let mut degree = 0;
             b.iter(|| {
@@ -200,7 +200,7 @@ pub fn bench_ffts(c: &mut Criterion) {
                 unordered.fwd_monomial(degree, dst);
             })
         });
-        write_to_json(&bench_id, "fwd-monomial", n);
+        write_to_json(&bench_id, "tfhe-unordered-fwd-monomial", n);
     }
 }
 
