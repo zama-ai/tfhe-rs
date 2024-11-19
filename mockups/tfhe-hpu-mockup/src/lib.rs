@@ -422,10 +422,6 @@ impl HpuSim {
                     .iop_pdg
                     .pop_front()
                     .expect("SYNC received but no pending IOp to acknowledge");
-                let iop_hex = iop.bin_encode_le().unwrap();
-                let iop_opcode = iop_hex.last().unwrap();
-                let iop_as_header = format!("# {}", iop.asm_encode(0));
-
                 // Bytes are in little-endian but written from first to last line
                 // To keep correct endianness -> reverse the chunked vector
                 let bytes = iop.bin_encode_le().unwrap();
@@ -433,6 +429,25 @@ impl HpuSim {
                     let word_b = bytes_chunks.try_into().expect("Invalid slice length");
                     let word_u32 = u32::from_le_bytes(word_b);
                     self.regmap.ack_pdg(word_u32);
+                }
+
+                // Generate executed DOp order
+                #[cfg(feature = "isc-order-check")]
+                if let Some(dump_path) = self.options.dump_out.as_ref() {
+                    let iop_hex = iop.bin_encode_le().unwrap();
+                    let iop_opcode = iop_hex.last().unwrap();
+                    let iop_as_header = format!("# {}", iop.asm_encode(0));
+
+                    let asm_p = format!("{dump_path}/dop/dop_{iop_opcode:x}_executed.asm");
+                    hpu_asm::write_asm(
+                        &iop_as_header,
+                        &self.dops_exec_order,
+                        &asm_p,
+                        hpu_asm::ARG_MIN_WIDTH,
+                    )
+                    .unwrap();
+                    let hex_p = format!("{dump_path}/iop/iop_{iop_opcode:x}_executed.hex");
+                    hpu_asm::write_hex("", self.dops_exec_order.as_slice(), &hex_p).unwrap();
                 }
 
                 // Generate report
@@ -454,21 +469,6 @@ impl HpuSim {
                     trace
                         .into_iter()
                         .for_each(|pt| writeln!(trace_file, "{pt}").unwrap());
-                }
-
-                // Generate executed DOp order
-                #[cfg(feature = "isc-order-check")]
-                if let Some(dump_path) = self.options.dump_out.as_ref() {
-                    let asm_p = format!("{dump_path}/dop/dop_{iop_opcode:x}_executed.asm");
-                    hpu_asm::write_asm(
-                        &iop_as_header,
-                        &self.dops_exec_order,
-                        &asm_p,
-                        hpu_asm::ARG_MIN_WIDTH,
-                    )
-                    .unwrap();
-                    let hex_p = format!("{dump_path}/iop/iop_{iop_opcode:x}_executed.hex");
-                    hpu_asm::write_hex("", self.dops_exec_order.as_slice(), &hex_p).unwrap();
                 }
             }
         }
@@ -726,6 +726,6 @@ impl HpuSim {
         }
 
         // Remove exec_dop from the list
-        self.dops_check_orders.remove(exec_pos);
+        self.dops_check_order.remove(exec_pos);
     }
 }
