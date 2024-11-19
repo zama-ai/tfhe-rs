@@ -91,7 +91,6 @@ impl ShortintEngine {
             max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
-            pbs_mode: cks.parameters.encryption_key_choice().into(),
         }
     }
 
@@ -431,7 +430,6 @@ impl ShortintEngine {
             max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
-            pbs_mode: cks.parameters.encryption_key_choice().into(),
         }
     }
 }

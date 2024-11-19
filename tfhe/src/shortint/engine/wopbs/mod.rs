@@ -154,7 +154,6 @@ impl ShortintEngine {
             max_noise_level: max_noise_level_wopbs,
             ciphertext_modulus: parameters.ciphertext_modulus,
             pbs_order: cks.parameters.encryption_key_choice().into(),
-            pbs_mode: cks.parameters.encryption_key_choice().into(),
         };
 
         let max_noise_level_pbs = MaxNoiseLevel::from_msg_carry_modulus(
@@ -174,7 +173,6 @@ impl ShortintEngine {
             max_noise_level: max_noise_level_pbs,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
-            pbs_mode: cks.parameters.encryption_key_choice().into(),
         };
 
         WopbsKey {

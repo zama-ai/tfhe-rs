@@ -302,17 +302,6 @@ impl From<EncryptionKeyChoice> for PBSOrder {
     }
 }
 
-impl From<EncryptionKeyChoice> for PBSMode {
-    fn from(value: EncryptionKeyChoice) -> Self {
-        match value {
-            EncryptionKeyChoice::Big | EncryptionKeyChoice::Small => Self::FFT,
-            EncryptionKeyChoice::BigNtt(modulus) | EncryptionKeyChoice::SmallNtt(modulus) => {
-                Self::NTT(modulus)
-            }
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Versionize)]
 #[versionize(PBSOrderVersions)]
 pub enum PBSOrder {
@@ -327,19 +316,6 @@ pub enum PBSOrder {
     /// key realm.
     BootstrapKeyswitch = 1,
 }
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Versionize)]
-#[versionize(PBSModeVersions)]
-pub enum PBSMode {
-    /// Bootstrap involved a lot of polynomial multiplication.
-    /// To enhance performance, those polynomial multiplication could rely on FFT or NTT
-    /// implementation. This have impact on bootstrap key format
-    FFT,
-
-    /// NTT implementation required a custom prime modulus encoded in the enum
-    NTT(CiphertextModulus<u64>),
-}
-
 pub use crate::core_crypto::commons::math::random::DynamicDistribution;
 
 /// A quantity representing a number of scalar used for mask samples generation.

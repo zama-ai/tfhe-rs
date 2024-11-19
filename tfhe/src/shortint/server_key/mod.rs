@@ -51,11 +51,11 @@ use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
 
-use crate::shortint::{EncryptionKeyChoice, PBSMode, PBSOrder, PaddingBit, ShortintEncoding};
+use crate::shortint::{EncryptionKeyChoice, PBSOrder, PaddingBit, ShortintEncoding};
+use ::tfhe_versionable::Versionize;
 use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
-use tfhe_versionable::Versionize;
 
 #[cfg(feature = "pbs-stats")]
 pub mod pbs_stats {
@@ -421,7 +421,6 @@ pub struct ServerKey {
     // Modulus use for computations on the ciphertext
     pub ciphertext_modulus: CiphertextModulus,
     pub pbs_order: PBSOrder,
-    pub pbs_mode: PBSMode,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -499,7 +498,6 @@ impl ServerKey {
         MaxNoiseLevel,
         CiphertextModulus,
         PBSOrder,
-        PBSMode,
     ) {
         let Self {
             key_switching_key,
@@ -510,7 +508,6 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
-            pbs_mode,
         } = self;
 
         (
@@ -522,7 +519,6 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
-            pbs_mode,
         )
     }
 
@@ -541,7 +537,6 @@ impl ServerKey {
         max_noise_level: MaxNoiseLevel,
         ciphertext_modulus: CiphertextModulus,
         pbs_order: PBSOrder,
-        pbs_mode: PBSMode,
     ) -> Self {
         assert_eq!(
             key_switching_key.input_key_lwe_dimension(),
@@ -586,7 +581,6 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
-            pbs_mode,
         }
     }
 
@@ -1740,7 +1734,6 @@ impl ParameterSetConformant for ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
-            pbs_mode: _pbs_mode,
         } = self;
 
         let params: PBSConformanceParameters = parameter_set.into();
