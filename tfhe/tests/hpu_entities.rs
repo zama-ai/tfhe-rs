@@ -1,10 +1,14 @@
 use tfhe::core_crypto::prelude::*;
-use tfhe::prelude::*;
+// use tfhe::prelude::*;
 use tfhe::*;
+
+#[cfg(feature = "hpu")]
 use tfhe_hpu_backend::prelude::*;
 
+#[cfg(feature = "hpu")]
 use tfhe::core_crypto::hpu::from_with::FromWith;
 
+#[cfg(feature = "hpu")]
 #[test]
 fn hpu_key_loopback() {
     // Instanciate HpuDevice --------------------------------------------------
@@ -18,7 +22,7 @@ fn hpu_key_loopback() {
     )
     .unwrap();
 
-    let mut hpu_device = {
+    let hpu_device = {
         let config = HpuConfig::read_from("backends/tfhe-hpu-backend/config/hpu_config.toml");
         HpuDevice::new(config)
     };
@@ -68,7 +72,7 @@ fn hpu_key_loopback() {
             .sum();
 
     // BSK Loopback conversion and check -------------------------------------
-    let mut cpu_bsk_orig = match sks.bootstrapping_key {
+    let cpu_bsk_orig = match sks.bootstrapping_key {
         shortint::server_key::ShortintBootstrappingKey::ClassicNtt(bsk) => bsk,
         _ => panic!("BootstrapKey loopback only work on NttLweBootstrappingKey"),
     };

@@ -174,6 +174,7 @@ impl HpuVarWrapped {
             let mut hw_slice = hpu_lwe.as_mut_view().into_container();
 
             // Copy from Xrt memory
+            #[allow(unused_variables)]
             std::iter::zip(slot.mz.iter(), hw_slice.iter_mut())
                 .enumerate()
                 .for_each(|(id, (mz, cut))| {
