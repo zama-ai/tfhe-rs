@@ -1,7 +1,7 @@
 #!/usr/bin/env gnuplot
 
 GF = 3
-PATH_BASE = "new"
+PATH_BASE = "with_big_N"
 PATH = PATH_BASE."/graphs"
 SFX = "-nofft" # -suffix
 # sort by 2-nd column
@@ -24,7 +24,7 @@ set xtics 2
 set xrange [0:5]
 
 #~ do for [nu=9:14] {
-do for [nu=11:11] {
+do for [nu=15:15] {
 #~ do for [k=1:2] {
 do for [k=1:1] {
     if (nu==8 && k==1) {continue} # no data points here
@@ -34,11 +34,11 @@ do for [k=1:1] {
 
     # ----    Measured & Predicted Noise    ------------------------------------
     set logscale y # 2 or 10
-    set yrange [1e25:1e29]
+    set yrange [1e12:1e38]
     # or: set datafile missing NaN
     x0 = y0 = NaN
     cmd_0 = "plot "
-    do for [logb=20:24] {
+    do for [logb=12:16] {
         cmd_0 = cmd_0."DATAFILE_BY_L u (($2 == N && $3 == k && $5 == ".logb.") ? (y0=$7,x0=$4) : x0):(y0) w l  lt ".logb." dt 3 t 'measured B = 2^".logb."', "
         cmd_0 = cmd_0."''   u (x0 = NaN):(y0 = NaN) notitle, "
         cmd_0 = cmd_0."''   u (($2 == N && $3 == k && $5 == ".logb.") ? (y0=$6,x0=$4) : x0):(y0) w lp lt ".logb." t 'predicted B = 2^".logb."', "
@@ -60,7 +60,7 @@ do for [k=1:1] {
     set yrange [.5:4]
     x0 = y0 = NaN
     cmd_1 = "plot "
-    do for [logb=20:24] {
+    do for [logb=12:16] {
         cmd_1 = cmd_1."DATAFILE_BY_L u (($2 == N && $3 == k && $5 == ".logb.") ? (y0=$7/$6,x0=$4) : x0):(y0) w lp lt ".logb." t 'meas/pred B = 2^".logb."', "
         cmd_1 = cmd_1."''   u (x0 = NaN):(y0 = NaN) notitle, "
     }
@@ -78,7 +78,7 @@ set xrange [1:30]
 #~ set xtics 2
 
 #~ do for [nu=9:14] {
-do for [nu=11:11] {
+do for [nu=12:12] {
 #~ do for [k=1:2] {
 do for [k=1:1] {
     if (nu==8 && k==1) {continue} # no data points here
@@ -88,7 +88,7 @@ do for [k=1:1] {
 
     # ----    Measured & Predicted Noise    ------------------------------------
     set logscale y # 2 or 10
-    set yrange [1e18:1e38]
+    set yrange [1e12:1e38]
     # or: set datafile missing NaN
     x0 = y0 = NaN
     cmd_4 = "plot "
@@ -119,18 +119,18 @@ do for [k=1:1] {
 # ==============================================================================
 #   Poly-Deg N
 #
-set xrange [128:8192]
+set xrange [2048:65536]
 set logscale x
 #~ set xtics 2
 
 do for [k=1:1] {
-do for [logb=21:23] {
+do for [logb=12:16] {
     set out PATH."/N-noise-gf=".GF."-k=".k."-logB=".logb.SFX.".png"
     set multiplot layout 2,1
 
     # ----    Measured & Predicted Noise    ------------------------------------
     set logscale y # 2 or 10
-    set yrange [1e20:1e35]
+    set yrange [1e12:1e35]
     #~ set yrange [0:5e15]
     # or: set datafile missing NaN
     x0 = y0 = NaN
@@ -147,7 +147,7 @@ do for [logb=21:23] {
     set yrange [.5:4]
     x0 = y0 = NaN
     cmd_3 = "plot "
-    do for [lvl=3:12] {
+    do for [lvl=1:3] {
         cmd_3 = cmd_3."DATAFILE_BY_N u (($5 == logb && $3 == k && $4 == ".lvl.") ? (y0=$7/$6,x0=$2) : x0):(y0) w lp lt ".lvl." t 'meas/pred l = ".lvl."', "
         cmd_3 = cmd_3."''   u (x0 = NaN):(y0 = NaN) notitle, "
     }
