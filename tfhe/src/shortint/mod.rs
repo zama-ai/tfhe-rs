@@ -65,7 +65,7 @@ pub mod wopbs;
 #[cfg(not(feature = "experimental"))]
 pub(crate) mod wopbs;
 
-pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSMode, PBSOrder};
+pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use client_key::ClientKey;
 pub use key_switching_key::{CompressedKeySwitchingKey, KeySwitchingKey, KeySwitchingKeyView};
 pub use parameters::{

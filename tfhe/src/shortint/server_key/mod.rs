@@ -55,7 +55,7 @@ use crate::shortint::engine::{
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
-use crate::shortint::{EncryptionKeyChoice, PBSMode, PBSOrder};
+use crate::shortint::{EncryptionKeyChoice, PBSOrder};
 use ::tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
@@ -554,7 +554,6 @@ pub struct ServerKey {
     // Modulus use for computations on the ciphertext
     pub ciphertext_modulus: CiphertextModulus,
     pub pbs_order: PBSOrder,
-    pub pbs_mode: PBSMode,
 }
 
 impl ServerKey {
@@ -676,7 +675,6 @@ impl ServerKey {
         MaxNoiseLevel,
         CiphertextModulus,
         PBSOrder,
-        PBSMode,
     ) {
         let Self {
             key_switching_key,
@@ -687,7 +685,6 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
-            pbs_mode,
         } = self;
 
         (
@@ -699,7 +696,6 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
-            pbs_mode,
         )
     }
 
@@ -718,7 +714,6 @@ impl ServerKey {
         max_noise_level: MaxNoiseLevel,
         ciphertext_modulus: CiphertextModulus,
         pbs_order: PBSOrder,
-        pbs_mode: PBSMode,
     ) -> Self {
         assert_eq!(
             key_switching_key.input_key_lwe_dimension(),
@@ -763,7 +758,6 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
-            pbs_mode,
         }
     }
     /// Constructs the lookup table given a function as input.

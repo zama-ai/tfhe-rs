@@ -11,7 +11,7 @@ use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{
-    CiphertextModulus, ClientKey, CompressedServerKey, PBSMode, PBSParameters, ServerKey,
+    CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey,
 };
 
 impl ShortintEngine {
@@ -91,7 +91,6 @@ impl ShortintEngine {
             max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
-            pbs_mode: cks.parameters.encryption_key_choice().into(),
         }
     }
 
@@ -431,7 +430,6 @@ impl ShortintEngine {
             max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
-            pbs_mode: cks.parameters.encryption_key_choice().into(),
         }
     }
 }

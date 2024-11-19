@@ -5,7 +5,7 @@ use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::wopbs::{WopbsKey, WopbsKeyCreationError};
-use crate::shortint::{ClientKey, PBSMode, ServerKey, WopbsParameters};
+use crate::shortint::{ClientKey, ServerKey, WopbsParameters};
 
 impl ShortintEngine {
     // Creates a key when ONLY a wopbs is used.
@@ -154,7 +154,6 @@ impl ShortintEngine {
             max_noise_level: max_noise_level_wopbs,
             ciphertext_modulus: parameters.ciphertext_modulus,
             pbs_order: cks.parameters.encryption_key_choice().into(),
-            pbs_mode: cks.parameters.encryption_key_choice().into(),
         };
 
         let max_noise_level_pbs = MaxNoiseLevel::from_msg_carry_modulus(
@@ -174,7 +173,6 @@ impl ShortintEngine {
             max_noise_level: max_noise_level_pbs,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
-            pbs_mode: cks.parameters.encryption_key_choice().into(),
         };
 
         WopbsKey {

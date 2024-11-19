@@ -603,7 +603,6 @@ impl HpuSim {
                     ),
                     ciphertext_modulus: pbs_p.ciphertext_modulus,
                     pbs_order: pbs_p.encryption_key_choice.into(),
-                    pbs_mode: pbs_p.encryption_key_choice.into(),
                 }
             };
             self.sks = Some(sks);
