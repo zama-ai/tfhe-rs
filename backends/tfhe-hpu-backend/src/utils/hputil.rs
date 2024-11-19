@@ -10,7 +10,6 @@ use tfhe_hpu_backend::asm::{self, Asm, AsmBin, IOp};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use clap_num::maybe_hex;
-use tracing::{debug, enabled, info, Level};
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command {
@@ -135,7 +134,7 @@ fn main() {
     let config = HpuConfig::read_from(&args.config);
 
     // Instanciate bare-minimum abstraction around XRT -----------------------
-    let mut hpu_hw = ffi::HpuHw::new_hpu_hw(config.fpga.clone());
+    let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);
     let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
 
     // Handle user command --------------------------------------------------

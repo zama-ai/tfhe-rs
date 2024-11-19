@@ -2,7 +2,8 @@
 //! Application used to handle Asm/Hex translation
 //! It could be used to convert a single Op or a list of them
 
-use asm::strum::IntoEnumIterator;
+use tfhe_hpu_backend::asm;
+use tfhe_hpu_backend::asm::strum::IntoEnumIterator;
 
 /// Define CLI arguments
 use clap::Parser;
