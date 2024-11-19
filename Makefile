@@ -1044,7 +1044,7 @@ bench_signed_integer: install_rs_check_toolchain
 
 .PHONY: bench_integer_gpu # Run benchmarks for integer on GPU backend
 bench_integer_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE)\
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
