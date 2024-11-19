@@ -7,7 +7,7 @@ members = [
     "tfhe-zk-pok",
     "tasks",
     "apps/trivium",
-    "concrete-csprng",
+    "tfhe-csprng",
     "backends/tfhe-cuda-backend",
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",

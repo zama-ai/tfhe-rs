@@ -63,13 +63,13 @@ jobs:
           files_yaml: |
             dependencies:
               - tfhe/Cargo.toml
-              - concrete-csprng/**
+              - tfhe-csprng/**
               - tfhe-fft/**
               - tfhe-zk-pok/**
               - utils/tfhe-versionable/**
               - utils/tfhe-versionable-derive/**
             csprng:
-              - concrete-csprng/**
+              - tfhe-csprng/**
             zk_pok:
               - tfhe-zk-pok/**
             versionable:
@@ -162,10 +162,10 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Run concrete-csprng tests
+      - name: Run tfhe-csprng tests
         if: needs.should-run.outputs.csprng_test == 'true'
         run: |
-          make test_concrete_csprng
+          make test_tfhe_csprng
 
       - name: Run tfhe-zk-pok tests
         if: needs.should-run.outputs.zk_pok_test == 'true'

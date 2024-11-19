@@ -84,9 +84,9 @@ jobs:
         run: |
           make pcc
 
-      - name: Build concrete-csprng
+      - name: Build tfhe-csprng
         run: |
-          make build_concrete_csprng
+          make build_tfhe_csprng
 
       - name: Build Release core
         run: |
@@ -112,9 +112,9 @@ jobs:
         run: |
           make build_c_api
 
-      - name: Run concrete-csprng tests
+      - name: Run tfhe-csprng tests
         run: |
-          make test_concrete_csprng
+          make test_tfhe_csprng
 
       - name: Run tfhe-zk-pok tests
         run: |

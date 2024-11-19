@@ -1,8 +1,8 @@
-use concrete_csprng::seeders::Seed;
 use criterion::{black_box, criterion_group, Criterion};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::*;
+use tfhe_csprng::seeders::Seed;
 
 fn oprf(c: &mut Criterion) {
     let bench_name = "shortint-oprf";

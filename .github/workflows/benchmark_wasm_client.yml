@@ -45,7 +45,7 @@ jobs:
           files_yaml: |
             wasm_bench:
               - tfhe/Cargo.toml
-              - concrete-csprng/**
+              - tfhe-csprng/**
               - tfhe-zk-pok/**
               - tfhe/src/**
               - '!tfhe/src/c_api/**'

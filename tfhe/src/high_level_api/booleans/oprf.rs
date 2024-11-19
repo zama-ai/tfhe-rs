@@ -2,7 +2,7 @@ use super::FheBool;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::BooleanBlock;
-use concrete_csprng::seeders::Seed;
+use tfhe_csprng::seeders::Seed;
 
 impl FheBool {
     /// Generates an encrypted boolean

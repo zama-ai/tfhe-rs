@@ -1,5 +1,5 @@
 [package]
-name = "concrete-csprng"
+name = "tfhe-csprng"
 version = "0.4.1"
 edition = "2021"
 license = "BSD-3-Clause-Clear"

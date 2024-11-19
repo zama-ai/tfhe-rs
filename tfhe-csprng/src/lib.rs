@@ -1,7 +1,7 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 //! Cryptographically secure pseudo random number generator.
 //!
-//! Welcome to the `concrete-csprng` documentation.
+//! Welcome to the `tfhe-csprng` documentation.
 //!
 //! This crate provides a fast cryptographically secure pseudo-random number generator, suited to
 //! work in a multithreaded setting.

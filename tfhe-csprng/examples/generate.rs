@@ -3,30 +3,30 @@
 //! optional argument `--bytes_total`. For testing purpose.
 use clap::{value_parser, Arg, Command};
 #[cfg(feature = "generator_x86_64_aesni")]
-use concrete_csprng::generators::AesniRandomGenerator as ActivatedRandomGenerator;
+use tfhe_csprng::generators::AesniRandomGenerator as ActivatedRandomGenerator;
 #[cfg(feature = "generator_aarch64_aes")]
-use concrete_csprng::generators::NeonAesRandomGenerator as ActivatedRandomGenerator;
-use concrete_csprng::generators::RandomGenerator;
+use tfhe_csprng::generators::NeonAesRandomGenerator as ActivatedRandomGenerator;
+use tfhe_csprng::generators::RandomGenerator;
 #[cfg(all(
     not(feature = "generator_x86_64_aesni"),
     not(feature = "generator_aarch64_aes"),
     feature = "generator_fallback"
 ))]
-use concrete_csprng::generators::SoftwareRandomGenerator as ActivatedRandomGenerator;
+use tfhe_csprng::generators::SoftwareRandomGenerator as ActivatedRandomGenerator;
 
+use std::io::prelude::*;
+use std::io::{stdout, StdoutLock};
 #[cfg(target_os = "macos")]
-use concrete_csprng::seeders::AppleSecureEnclaveSeeder as ActivatedSeeder;
+use tfhe_csprng::seeders::AppleSecureEnclaveSeeder as ActivatedSeeder;
 #[cfg(all(not(target_os = "macos"), feature = "seeder_x86_64_rdseed"))]
-use concrete_csprng::seeders::RdseedSeeder as ActivatedSeeder;
-use concrete_csprng::seeders::Seeder;
+use tfhe_csprng::seeders::RdseedSeeder as ActivatedSeeder;
+use tfhe_csprng::seeders::Seeder;
 #[cfg(all(
     not(target_os = "macos"),
     not(feature = "seeder_x86_64_rdseed"),
     feature = "seeder_unix"
 ))]
-use concrete_csprng::seeders::UnixSeeder as ActivatedSeeder;
-use std::io::prelude::*;
-use std::io::{stdout, StdoutLock};
+use tfhe_csprng::seeders::UnixSeeder as ActivatedSeeder;
 
 fn write_bytes(
     buffer: &mut [u8],

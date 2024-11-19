@@ -6,11 +6,11 @@
 
 pub use crate::core_crypto::commons::math::random::Seeder;
 #[cfg(all(target_os = "macos", not(feature = "__wasm_api")))]
-pub use concrete_csprng::seeders::AppleSecureEnclaveSeeder;
+pub use tfhe_csprng::seeders::AppleSecureEnclaveSeeder;
 #[cfg(feature = "seeder_x86_64_rdseed")]
-pub use concrete_csprng::seeders::RdseedSeeder;
+pub use tfhe_csprng::seeders::RdseedSeeder;
 #[cfg(feature = "seeder_unix")]
-pub use concrete_csprng::seeders::UnixSeeder;
+pub use tfhe_csprng::seeders::UnixSeeder;
 
 #[cfg(feature = "__wasm_api")]
 mod wasm_seeder {
