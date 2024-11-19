@@ -151,7 +151,7 @@ impl<Scalar: std::clone::Clone> HpuLweCiphertextOwned<Scalar> {
         let chunk_size = hpu_big_lwe_ciphertext_size(&params).div_euclid(params.pc_params.pem_pc);
         let pc_data = (0..params.pc_params.pem_pc)
             .map(|id| {
-                if id == 0 {
+                if (id == 0) && (params.pc_params.pem_pc != 1) {
                     vec![fill_with.clone(); chunk_size + 1]
                 } else {
                     vec![fill_with.clone(); chunk_size]
