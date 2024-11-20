@@ -736,6 +736,13 @@ mod no_coverage {
         // but with param 3_3 we actually encrypt more that 128bits
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
+
+    create_parametrized_test!(integer_comparisons_for_empty_blocks {
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    });
 }
 
 // Smaller integers are used in coverage to speed-up execution.
