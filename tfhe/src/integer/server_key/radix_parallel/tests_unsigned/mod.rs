@@ -28,7 +28,7 @@ use super::tests_cases_unsigned::*;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -543,83 +543,31 @@ impl<F> CpuFunctionExecutor<F> {
     }
 }
 
-/// For unary function
+pub(crate) trait NotTuple {}
+
+impl<T> NotTuple for &crate::integer::ciphertext::BaseRadixCiphertext<T> {}
+
+impl<T> NotTuple for &crate::integer::ciphertext::BaseSignedRadixCiphertext<T> {}
+
+impl<T> NotTuple for &mut crate::integer::ciphertext::BaseRadixCiphertext<T> {}
+
+impl<T> NotTuple for &mut crate::integer::ciphertext::BaseSignedRadixCiphertext<T> {}
+
+impl<T> NotTuple for &Vec<T> {}
+
+/// For unary operations
 ///
-/// Note, we don't do
-/// impl<F, I, O> TestExecutor<I, O> for CpuTestExecutor<F>
-/// where F: Fn(&ServerKey, I) -> O {}
-/// As it would conflict with other impls.
-///
-/// impl<F, I1, O> TestExecutor<(I,), O> for CpuTestExecutor<F>
-/// would be possible tho.
-impl<'a, F> FunctionExecutor<&'a RadixCiphertext, (RadixCiphertext, BooleanBlock)>
-    for CpuFunctionExecutor<F>
+/// Note, we need to `NotTuple` constraint to avoid conflicts with binary or ternary operations
+impl<F, I1, O> FunctionExecutor<I1, O> for CpuFunctionExecutor<F>
 where
-    F: Fn(&ServerKey, &RadixCiphertext) -> (RadixCiphertext, BooleanBlock),
+    F: Fn(&ServerKey, I1) -> O,
+    I1: NotTuple,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.sks = Some(sks);
     }
 
-    fn execute(&mut self, input: &'a RadixCiphertext) -> (RadixCiphertext, BooleanBlock) {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-
-impl<'a, F> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext> for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &RadixCiphertext) -> RadixCiphertext,
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a RadixCiphertext) -> RadixCiphertext {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-
-impl<'a, F> FunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>
-    for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &Vec<RadixCiphertext>) -> Option<RadixCiphertext>,
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a Vec<RadixCiphertext>) -> Option<RadixCiphertext> {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-
-/// Unary assign fn
-impl<'a, F> FunctionExecutor<&'a mut RadixCiphertext, ()> for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &'a mut RadixCiphertext),
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a mut RadixCiphertext) {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input);
-    }
-}
-
-impl<'a, F> FunctionExecutor<&'a mut RadixCiphertext, RadixCiphertext> for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &mut RadixCiphertext) -> RadixCiphertext,
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a mut RadixCiphertext) -> RadixCiphertext {
+    fn execute(&mut self, input: I1) -> O {
         let sks = self.sks.as_ref().expect("setup was not properly called");
         (self.func)(sks, input)
     }
@@ -655,18 +603,18 @@ where
     }
 }
 
-// Bitnot
-impl<'a, F> FunctionExecutor<&'a BooleanBlock, BooleanBlock> for CpuFunctionExecutor<F>
+/// For 4-ary operations
+impl<F, I1, I2, I3, I4, O> FunctionExecutor<(I1, I2, I3, I4), O> for CpuFunctionExecutor<F>
 where
-    F: Fn(&ServerKey, &BooleanBlock) -> BooleanBlock,
+    F: Fn(&ServerKey, I1, I2, I3, I4) -> O,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.sks = Some(sks);
     }
 
-    fn execute(&mut self, input: &'a BooleanBlock) -> BooleanBlock {
+    fn execute(&mut self, input: (I1, I2, I3, I4)) -> O {
         let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
+        (self.func)(sks, input.0, input.1, input.2, input.3)
     }
 }
 
