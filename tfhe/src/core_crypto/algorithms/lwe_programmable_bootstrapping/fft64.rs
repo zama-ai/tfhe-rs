@@ -14,6 +14,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign as impl_add_external_product_assign,
     add_external_product_assign_scratch as impl_add_external_product_assign_scratch, cmux,
     cmux_scratch,
+    karatsuba_add_external_product_assign as impl_karatsuba_add_external_product_assign,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
@@ -471,6 +472,48 @@ pub fn add_external_product_assign_mem_optimized<Scalar, OutputGlweCont, InputGl
         ggsw.as_view(),
         glwe.as_view(),
         fft,
+        stack,
+    );
+
+    if !ciphertext_modulus.is_native_modulus() {
+        // When we convert back from the fourier domain, integer values will contain up to 53
+        // MSBs with information. In our representation of power of 2 moduli < native modulus we
+        // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+        // round while keeping the data in the MSBs
+        let signed_decomposer = SignedDecomposer::new(
+            DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
+            DecompositionLevelCount(1),
+        );
+        out.as_mut()
+            .iter_mut()
+            .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+    }
+}
+
+pub fn karatsuba_add_external_product_assign_mem_optimized<
+    Scalar,
+    OutputGlweCont,
+    InputGlweCont,
+    GgswCont,
+>(
+    out: &mut GlweCiphertext<OutputGlweCont>,
+    ggsw: &GgswCiphertext<GgswCont>,
+    glwe: &GlweCiphertext<InputGlweCont>,
+    stack: PodStack<'_>,
+) where
+    Scalar: UnsignedTorus,
+    OutputGlweCont: ContainerMut<Element = Scalar>,
+    GgswCont: Container<Element = Scalar>,
+    InputGlweCont: Container<Element = Scalar>,
+{
+    assert_eq!(out.ciphertext_modulus(), glwe.ciphertext_modulus());
+    let ciphertext_modulus = out.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
+    impl_karatsuba_add_external_product_assign(
+        out.as_mut_view(),
+        ggsw.as_view(),
+        glwe.as_view(),
         stack,
     );
 
@@ -1072,7 +1115,6 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<OutputSca
 ) -> Result<StackReq, SizeOverflow> {
     bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, fft)
 }
-
 /// This function takes list as input and output and computes the programmable bootstrap for each
 /// slot progressively loading the bootstrapping key only once. The caller must provide
 /// a properly configured [`FftView`] object and a `PodStack` used as a memory buffer having a

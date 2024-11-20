@@ -66,7 +66,7 @@ where
 
     let output_lwe_secret_key = output_glwe_secret_key.as_lwe_secret_key();
 
-    let fbsk = {
+    let (bsk, fbsk) = {
         let bsk = allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
             &input_lwe_secret_key,
             &output_glwe_secret_key,
@@ -94,7 +94,7 @@ where
 
         par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut fbsk);
 
-        fbsk
+        (bsk, fbsk)
     };
 
     let accumulator = generate_programmable_bootstrap_glwe_lut(
@@ -110,6 +110,18 @@ where
         &accumulator,
         ciphertext_modulus
     ));
+
+    const ENV_VAR: &str = "TEST_USE_KARATSUBA";
+
+    let use_karatsuba: u32 = std::env::var(ENV_VAR)
+        .expect(&format!(
+            "Set {ENV_VAR} to 1 to use karatsuba, 0 to use fft"
+        ))
+        .parse()
+        .expect(&format!(
+            "Set {ENV_VAR} to 1 to use karatsuba, 0 to use fft"
+        ));
+    let use_karatusba = use_karatsuba != 0;
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -140,14 +152,24 @@ where
                     ciphertext_modulus,
                 );
 
-                multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &lwe_ciphertext_in,
-                    &mut out_pbs_ct,
-                    &accumulator,
-                    &fbsk,
-                    params.thread_count,
-                    true,
-                );
+                if use_karatusba {
+                    karatsuba_multi_bit_programmable_bootstrap_lwe_ciphertext(
+                        &lwe_ciphertext_in,
+                        &mut out_pbs_ct,
+                        &accumulator,
+                        &bsk,
+                        params.thread_count,
+                    )
+                } else {
+                    multi_bit_programmable_bootstrap_lwe_ciphertext(
+                        &lwe_ciphertext_in,
+                        &mut out_pbs_ct,
+                        &accumulator,
+                        &fbsk,
+                        params.thread_count,
+                        true,
+                    );
+                }
 
                 assert!(check_encrypted_content_respects_mod(
                     &out_pbs_ct,
