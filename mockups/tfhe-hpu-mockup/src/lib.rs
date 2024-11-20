@@ -219,7 +219,8 @@ impl HpuSim {
 
             // Issue IOp requests to isc
             while let Some(iop) = self.iop_req.pop_front() {
-                let dops = self.ucore.translate(self.hbm_bank.as_slice(), &iop);
+                let (dops, dops_patched) = self.ucore.translate(self.hbm_bank.as_slice(), &iop);
+
                 // Write required input material if needed
                 if let Some(dump_path) = self.options.dump_out.as_ref() {
                     let iop_hex = iop.bin_encode_le().unwrap();
@@ -243,10 +244,11 @@ impl HpuSim {
 
                 // Use to check correct scheduling at runtime
                 #[cfg(feature = "isc-order-check")]
-                self.dops_check_order.extend_from_slice(dops.as_slice());
+                self.dops_check_order
+                    .extend_from_slice(dops_patched.as_slice());
 
                 // Push associated dops to scheduler
-                self.isc.insert_dops(dops);
+                self.isc.insert_dops(dops_patched);
                 self.iop_pdg.push_back(iop);
             }
 

@@ -16,9 +16,14 @@ impl UCore {
 impl UCore {
     /// Top level function
     /// Read DOp stream from Fw memory and patch Templated LD/ST with concrete one
-    pub fn translate(&self, hbm_bank: &[HbmBank], iop: &hpu_asm::IOp) -> Vec<hpu_asm::DOp> {
+    pub fn translate(
+        &self,
+        hbm_bank: &[HbmBank],
+        iop: &hpu_asm::IOp,
+    ) -> (Vec<hpu_asm::DOp>, Vec<hpu_asm::DOp>) {
         let dops = self.load_fw(hbm_bank, iop);
-        self.patch_fw(iop, dops)
+        let dops_patched = self.patch_fw(iop, &dops);
+        (dops, dops_patched)
     }
 
     /// Read DOp stream from Firmware memory
@@ -61,7 +66,7 @@ impl UCore {
     /// Rtl ucore emulation
     /// Map a Raw DOp stream to the given IOp operands
     /// I.e. it replace Templated LD/ST with concrete one
-    fn patch_fw(&self, iop: &hpu_asm::IOp, dops: Vec<hpu_asm::DOp>) -> Vec<hpu_asm::DOp> {
+    fn patch_fw(&self, iop: &hpu_asm::IOp, dops: &Vec<hpu_asm::DOp>) -> Vec<hpu_asm::DOp> {
         // NB: Currently heap is always the last defined bid
         let heap = hpu_asm::MemRegion {
             bid: self.config.ct_bank.len() - 1,
