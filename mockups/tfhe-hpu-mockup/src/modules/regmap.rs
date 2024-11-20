@@ -104,6 +104,17 @@ impl RegisterMap {
                 let ntt_p = &self.rtl_params.ntt_params;
                 (ntt_p.radix + (ntt_p.psi << 8) /*+(ntt_p.div << 16)*/ + (ntt_p.delta << 24)) as u32
             }
+            "Info::NttRdxCut" => {
+                let ntt_p = &self.rtl_params.ntt_params;
+                let cut_w = match &ntt_p.core_arch {
+                    HpuNttCoreArch::GF64(cut_w) => cut_w,
+                    _ => &vec![ntt_p.delta as u8],
+                };
+                cut_w
+                    .iter()
+                    .enumerate()
+                    .fold(0, |acc, (id, val)| acc + (val << (id * 4)) as u32)
+            }
             "Info::NttArch" => match self.rtl_params.ntt_params.core_arch {
                 HpuNttCoreArch::WmmCompact => NTT_CORE_ARCH_OFS,
                 HpuNttCoreArch::WmmPipeline => NTT_CORE_ARCH_OFS + 1,

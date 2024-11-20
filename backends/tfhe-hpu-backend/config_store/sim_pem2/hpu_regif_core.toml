@@ -43,6 +43,20 @@ align_offset=true
   field.div   = { size_b=8, offset_b=16, param_name="BWD_PSI_DIV", description="Ntt backward div"}
   field.delta = { size_b=8, offset_b=24, param_name="DELTA", description="Ntt network delta"}
 
+[section.Info.register.NttRdxCut]
+  description="Ntt radix cuts, in log2 unit"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.radix_cut0 = { size_b=4, offset_b=0 , param_name="NTT_RDX_CUT_S_0", description="Ntt radix cut #0"}
+  field.radix_cut1 = { size_b=4, offset_b=4 , param_name="NTT_RDX_CUT_S_1", description="Ntt radix cut #1"}
+  field.radix_cut2 = { size_b=4, offset_b=8 , param_name="NTT_RDX_CUT_S_2", description="Ntt radix cut #2"}
+  field.radix_cut3 = { size_b=4, offset_b=12, param_name="NTT_RDX_CUT_S_3", description="Ntt radix cut #3"}
+  field.radix_cut4 = { size_b=4, offset_b=16, param_name="NTT_RDX_CUT_S_4", description="Ntt radix cut #4"}
+  field.radix_cut5 = { size_b=4, offset_b=20, param_name="NTT_RDX_CUT_S_5", description="Ntt radix cut #5"}
+  field.radix_cut6 = { size_b=4, offset_b=24, param_name="NTT_RDX_CUT_S_6", description="Ntt radix cut #6"}
+  field.radix_cut7 = { size_b=4, offset_b=28, param_name="NTT_RDX_CUT_S_7", description="Ntt radix cut #7"}
+
 [section.Info.register.NttArch]
   description="Ntt architecture"
   owner="Parameter"
