@@ -9,6 +9,7 @@
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "helper_multi_gpu.h"
+#include "integer/cmux.cuh"
 #include "integer/integer.cuh"
 #include "integer/integer_utilities.h"
 #include "linear_algebra.h"
@@ -453,7 +454,8 @@ template <typename Torus, class params>
 __host__ void host_integer_mult_radix_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, uint64_t *radix_lwe_out, uint64_t const *radix_lwe_left,
-    uint64_t const *radix_lwe_right, void *const *bsks, uint64_t *const *ksks,
+    bool const is_bool_left, uint64_t const *radix_lwe_right,
+    bool const is_bool_right, void *const *bsks, uint64_t *const *ksks,
     int_mul_memory<Torus> *mem_ptr, uint32_t num_blocks) {
 
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
@@ -463,6 +465,20 @@ __host__ void host_integer_mult_radix_kb(
   auto carry_modulus = mem_ptr->params.carry_modulus;
 
   int big_lwe_dimension = glwe_dimension * polynomial_size;
+
+  if (is_bool_right) {
+    zero_out_if<Torus>(streams, gpu_indexes, gpu_count, radix_lwe_out,
+                       radix_lwe_left, radix_lwe_right, mem_ptr->zero_out_mem,
+                       mem_ptr->zero_out_predicate_lut, bsks, ksks, num_blocks);
+    return;
+  }
+
+  if (is_bool_left) {
+    zero_out_if<Torus>(streams, gpu_indexes, gpu_count, radix_lwe_out,
+                       radix_lwe_right, radix_lwe_left, mem_ptr->zero_out_mem,
+                       mem_ptr->zero_out_predicate_lut, bsks, ksks, num_blocks);
+    return;
+  }
 
   // 'vector_result_lsb' contains blocks from all possible right shifts of
   // radix_lwe_left, only nonzero blocks are kept
@@ -572,9 +588,11 @@ template <typename Torus>
 __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_mul_memory<Torus> **mem_ptr,
+    bool const is_boolean_left, bool const is_boolean_right,
     uint32_t num_radix_blocks, int_radix_params params,
     bool allocate_gpu_memory) {
   *mem_ptr = new int_mul_memory<Torus>(streams, gpu_indexes, gpu_count, params,
+                                       is_boolean_left, is_boolean_right,
                                        num_radix_blocks, allocate_gpu_memory);
 }
 

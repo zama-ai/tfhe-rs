@@ -72,12 +72,16 @@ impl CudaServerKey {
     ) {
         let num_blocks = ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
 
+        let is_boolean_left = ct_left.holds_boolean_value();
+        let is_boolean_right = ct_right.holds_boolean_value();
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_mul_integer_radix_kb_assign_async(
                     stream,
                     &mut ct_left.as_mut().d_blocks.0.d_vec,
+                    is_boolean_left,
                     &ct_right.as_ref().d_blocks.0.d_vec,
+                    is_boolean_right,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -98,7 +102,9 @@ impl CudaServerKey {
                 unchecked_mul_integer_radix_kb_assign_async(
                     stream,
                     &mut ct_left.as_mut().d_blocks.0.d_vec,
+                    is_boolean_left,
                     &ct_right.as_ref().d_blocks.0.d_vec,
+                    is_boolean_right,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
