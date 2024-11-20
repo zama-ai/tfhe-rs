@@ -59,6 +59,7 @@ pub struct HpuSim {
     iop_parser: hpu_asm::Parser<hpu_asm::IOp>,
     /// Pending Iop
     iop_req: VecDeque<hpu_asm::IOp>,
+    iop_nb: usize,
     iop_pdg: VecDeque<hpu_asm::IOp>,
 
     /// Tfhe server keys
@@ -119,6 +120,7 @@ impl HpuSim {
             workq_stream: Vec::new(),
             iop_parser,
             iop_req: VecDeque::new(),
+            iop_nb: 0,
             iop_pdg: VecDeque::new(),
             sks: None,
             #[cfg(feature = "isc-order-check")]
@@ -224,10 +226,11 @@ impl HpuSim {
                     let opcode = iop_hex.last().unwrap();
 
                     // Generate IOp file
-                    let asm_p = format!("{dump_path}/iop/iop_{opcode:x}.asm");
+                    let asm_p = format!("{dump_path}/iop/iop_{}.asm", self.iop_nb);
                     hpu_asm::write_asm("", &[iop.clone()], &asm_p, hpu_asm::ARG_MIN_WIDTH).unwrap();
-                    let hex_p = format!("{dump_path}/iop/iop_{opcode:x}.hex");
+                    let hex_p = format!("{dump_path}/iop/iop_{}.hex", self.iop_nb);
                     hpu_asm::write_hex("", &[iop.clone()], &hex_p).unwrap();
+                    self.iop_nb += 1;
 
                     // Generate DOps file
                     let iop_as_header = format!("# {}", iop.asm_encode(0));
