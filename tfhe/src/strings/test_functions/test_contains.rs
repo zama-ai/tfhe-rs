@@ -1,168 +1,93 @@
+use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::strings::ciphertext::{ClearString, GenericPattern};
-use crate::strings::test::TestKind;
-use crate::strings::test_functions::{result_message_clear_pat, result_message_pat};
-use crate::strings::TestKeys;
-use std::time::Instant;
+use crate::shortint::PBSParameters;
+use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
+use std::sync::Arc;
 
 #[test]
-fn test_contains_start_end_trivial() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Trivial,
-    );
+fn string_contains_test_parameterized() {
+    string_contains_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+}
 
+#[allow(clippy::needless_pass_by_value)]
+fn string_contains_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    #[allow(clippy::type_complexity)]
+    let ops: [(
+        for<'a> fn(&'a str, &'a str) -> bool,
+        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> BooleanBlock,
+    ); 3] = [
+        (|lhs, rhs| lhs.contains(rhs), ServerKey::contains),
+        (|lhs, rhs| lhs.starts_with(rhs), ServerKey::starts_with),
+        (|lhs, rhs| lhs.ends_with(rhs), ServerKey::ends_with),
+    ];
+
+    let param = param.into();
+
+    for (clear_op, encrypted_op) in ops {
+        let executor = CpuFunctionExecutor::new(&encrypted_op);
+        string_contains_test_impl(param, executor, clear_op);
+    }
+}
+
+pub(crate) fn string_contains_test_impl<P, T>(
+    param: P,
+    mut contains_executor: T,
+    clear_function: for<'a> fn(&'a str, &'a str) -> bool,
+) where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>), BooleanBlock>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks2 = RadixClientKey::from((cks.clone(), 0));
+
+    contains_executor.setup(&cks2, sks);
+
+    // trivial
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
             for str in ["", "a", "abc", "b", "ab", "dddabc", "abceeee", "dddabceee"] {
                 for pat in ["", "a", "abc"] {
-                    keys.check_contains_fhe_string_vs_rust_str(
-                        str,
-                        Some(str_pad),
-                        pat,
-                        Some(pat_pad),
-                    );
-                    keys.check_starts_with_fhe_string_vs_rust_str(
-                        str,
-                        Some(str_pad),
-                        pat,
-                        Some(pat_pad),
-                    );
-                    keys.check_ends_with_fhe_string_vs_rust_str(
-                        str,
-                        Some(str_pad),
-                        pat,
-                        Some(pat_pad),
-                    );
+                    let expected_result = clear_function(str, pat);
+
+                    let enc_lhs = FheString::new_trivial(&cks, str, Some(str_pad));
+                    let enc_rhs =
+                        GenericPattern::Enc(FheString::new_trivial(&cks, pat, Some(pat_pad)));
+                    let clear_rhs = GenericPattern::Clear(ClearString::new(pat.to_string()));
+
+                    for rhs in [enc_rhs, clear_rhs] {
+                        let result = contains_executor.execute((&enc_lhs, rhs.as_ref()));
+
+                        assert_eq!(expected_result, cks.decrypt_bool(&result));
+                    }
                 }
             }
         }
     }
-}
+    // encrypted
+    {
+        let str = "ab";
+        let str_pad = 1;
+        let rhs_pad = 1;
 
-#[test]
-fn test_contains_start_end() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Encrypted,
-    );
+        for rhs in ["a", "b", "c"] {
+            let expected_result = clear_function(str, rhs);
 
-    keys.check_contains_fhe_string_vs_rust_str("ab", Some(1), "a", Some(1));
-    keys.check_contains_fhe_string_vs_rust_str("ab", Some(1), "c", Some(1));
+            let enc_lhs = FheString::new(&cks, str, Some(str_pad));
+            let enc_rhs = GenericPattern::Enc(FheString::new(&cks, rhs, Some(rhs_pad)));
+            let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
 
-    keys.check_starts_with_fhe_string_vs_rust_str("ab", Some(1), "a", Some(1));
-    keys.check_starts_with_fhe_string_vs_rust_str("ab", Some(1), "c", Some(1));
+            for rhs in [enc_rhs, clear_rhs] {
+                let result = contains_executor.execute((&enc_lhs, rhs.as_ref()));
 
-    keys.check_ends_with_fhe_string_vs_rust_str("ab", Some(1), "b", Some(1));
-    keys.check_ends_with_fhe_string_vs_rust_str("ab", Some(1), "c", Some(1));
-}
-
-impl TestKeys {
-    pub fn check_contains_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let expected = str.contains(pat);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-        let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
-
-        let start = Instant::now();
-        let result = self.sk.contains(&enc_str, enc_pat.as_ref());
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_bool(&result);
-
-        println!("\n\x1b[1mContains:\x1b[0m");
-        result_message_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-
-        let start = Instant::now();
-        let result = self.sk.contains(&enc_str, clear_pat.as_ref());
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_bool(&result);
-
-        println!("\n\x1b[1mContains:\x1b[0m");
-        result_message_clear_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-    }
-
-    pub fn check_ends_with_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let expected = str.ends_with(pat);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-        let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
-
-        let start = Instant::now();
-        let result = self.sk.ends_with(&enc_str, enc_pat.as_ref());
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_bool(&result);
-
-        println!("\n\x1b[1mEnds_with:\x1b[0m");
-        result_message_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-
-        let start = Instant::now();
-        let result = self.sk.ends_with(&enc_str, clear_pat.as_ref());
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_bool(&result);
-
-        println!("\n\x1b[1mEnds_with:\x1b[0m");
-        result_message_clear_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-    }
-
-    pub fn check_starts_with_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let expected = str.starts_with(pat);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-        let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
-
-        let start = Instant::now();
-        let result = self.sk.starts_with(&enc_str, enc_pat.as_ref());
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_bool(&result);
-
-        println!("\n\x1b[1mStarts_with:\x1b[0m");
-        result_message_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-
-        let start = Instant::now();
-        let result = self.sk.starts_with(&enc_str, clear_pat.as_ref());
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_bool(&result);
-
-        println!("\n\x1b[1mStarts_with:\x1b[0m");
-        result_message_clear_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
+                assert_eq!(expected_result, cks.decrypt_bool(&result));
+            }
+        }
     }
 }

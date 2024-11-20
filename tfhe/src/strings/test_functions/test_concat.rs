@@ -1,157 +1,140 @@
+use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::strings::ciphertext::UIntArg;
-use crate::strings::test::TestKind;
-use crate::strings::test_functions::result_message_rhs;
-use crate::strings::TestKeys;
-use std::time::Instant;
+use crate::shortint::PBSParameters;
+use crate::strings::ciphertext::{FheString, UIntArg};
+use std::sync::Arc;
 
 const TEST_CASES_CONCAT: [&str; 5] = ["", "a", "ab", "abc", "abcd"];
 
 #[test]
-fn test_concat_trivial() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Trivial,
-    );
+fn string_concat_test_parameterized() {
+    string_concat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+}
 
+#[allow(clippy::needless_pass_by_value)]
+fn string_concat_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::concat);
+    string_concat_test_impl(param, executor);
+}
+
+pub(crate) fn string_concat_test_impl<P, T>(param: P, mut concat_executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a FheString, &'a FheString), FheString>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks2 = RadixClientKey::from((cks.clone(), 0));
+
+    concat_executor.setup(&cks2, sks);
+
+    // trivial
     for str_pad in 0..2 {
         for rhs_pad in 0..2 {
             for str in TEST_CASES_CONCAT {
                 for rhs in TEST_CASES_CONCAT {
-                    keys.check_concat_fhe_string_vs_rust_str(
-                        str,
-                        Some(str_pad),
-                        rhs,
-                        Some(rhs_pad),
-                    );
+                    let expected_result = str.to_owned() + rhs;
+
+                    let enc_lhs = FheString::new_trivial(&cks, str, Some(str_pad));
+                    let enc_rhs = FheString::new_trivial(&cks, rhs, Some(rhs_pad));
+
+                    let result = concat_executor.execute((&enc_lhs, &enc_rhs));
+
+                    assert_eq!(expected_result, cks.decrypt_ascii(&result));
                 }
             }
         }
     }
+    // encrypted
+    {
+        let str = "a";
+        let str_pad = 1;
+        let rhs = "b";
+        let rhs_pad = 1;
+
+        let expected_result = str.to_owned() + rhs;
+
+        let enc_lhs = FheString::new(&cks, str, Some(str_pad));
+        let enc_rhs = FheString::new(&cks, rhs, Some(rhs_pad));
+
+        let result = concat_executor.execute((&enc_lhs, &enc_rhs));
+
+        assert_eq!(expected_result, cks.decrypt_ascii(&result));
+    }
 }
 
 #[test]
-fn test_concat() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Encrypted,
-    );
-
-    keys.check_concat_fhe_string_vs_rust_str("a", Some(1), "b", Some(1));
+fn string_repeat_test_parameterized() {
+    string_repeat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
-#[test]
-fn test_repeat_trivial() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Trivial,
-    );
+#[allow(clippy::needless_pass_by_value)]
+fn string_repeat_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::repeat);
+    string_repeat_test_impl(param, executor);
+}
 
+pub(crate) fn string_repeat_test_impl<P, T>(param: P, mut repeat_executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a FheString, &'a UIntArg), FheString>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks2 = RadixClientKey::from((cks.clone(), 0));
+
+    repeat_executor.setup(&cks2, sks);
+
+    // trivial
     for str_pad in 0..2 {
         for n in 0..3 {
             for str in TEST_CASES_CONCAT {
                 for max in n..n + 2 {
-                    keys.check_repeat_fhe_string_vs_rust_str(str, Some(str_pad), n, max);
+                    let expected_result = str.repeat(n as usize);
+
+                    let enc_str = FheString::new_trivial(&cks, str, Some(str_pad));
+
+                    let enc_n = UIntArg::Enc(cks.trivial_encrypt_u16(n, Some(max)));
+
+                    let clear_n = UIntArg::Clear(n);
+
+                    for n in [clear_n, enc_n] {
+                        let result = repeat_executor.execute((&enc_str, &n));
+
+                        assert_eq!(expected_result, cks.decrypt_ascii(&result));
+                    }
                 }
             }
         }
     }
-}
+    // encrypted
+    {
+        let str = "a";
+        let str_pad = 1;
+        let n = 1;
+        let max = 2;
 
-#[test]
-fn test_repeat() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Encrypted,
-    );
+        let expected_result = str.repeat(n as usize);
 
-    keys.check_repeat_fhe_string_vs_rust_str("a", Some(1), 1, 2);
-}
+        let enc_str = FheString::new(&cks, str, Some(str_pad));
 
-impl TestKeys {
-    pub fn check_concat_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        rhs: &str,
-        rhs_pad: Option<u32>,
-    ) {
-        let expected = str.to_owned() + rhs;
+        let enc_n = UIntArg::Enc(cks.encrypt_u16(n, Some(max)));
 
-        let enc_lhs = self.encrypt_string(str, str_pad);
-        let enc_rhs = self.encrypt_string(rhs, rhs_pad);
+        let clear_n = UIntArg::Clear(n);
 
-        let start = Instant::now();
-        let result = self.sk.concat(&enc_lhs, &enc_rhs);
-        let end = Instant::now();
+        for n in [clear_n, enc_n] {
+            let result = repeat_executor.execute((&enc_str, &n));
 
-        let dec = self.ck.decrypt_ascii(&result);
-
-        println!("\n\x1b[1mConcat (+):\x1b[0m");
-        result_message_rhs(str, rhs, &expected, &dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-    }
-
-    pub fn check_repeat_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        n: u16,
-        max: u16,
-    ) {
-        let expected = str.repeat(n as usize);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-
-        // Clear n
-        let start = Instant::now();
-        let result = self.sk.repeat(&enc_str, &UIntArg::Clear(n));
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_ascii(&result);
-
-        println!(
-            "\n\x1b[1mRepeat:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTimes (clear): \x1b[0m{}\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            n,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-        assert_eq!(dec, expected);
-
-        // Encrypted n
-        let enc_n = self.encrypt_u16(n, Some(max));
-
-        let start = Instant::now();
-        let result = self.sk.repeat(&enc_str, &UIntArg::Enc(enc_n));
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_ascii(&result);
-
-        println!(
-            "\n\x1b[1mRepeat:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTimes (encrypted): \x1b[0m{}\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            n,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-        assert_eq!(dec, expected);
+            assert_eq!(expected_result, cks.decrypt_ascii(&result));
+        }
     }
 }

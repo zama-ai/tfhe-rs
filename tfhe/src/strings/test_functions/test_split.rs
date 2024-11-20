@@ -1,10 +1,15 @@
+use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::strings::ciphertext::{GenericPattern, UIntArg};
+use crate::shortint::PBSParameters;
+use crate::strings::ciphertext::{
+    ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
+};
 use crate::strings::server_key::FheStringIterator;
-use crate::strings::test::TestKind;
-use crate::strings::test_functions::result_message_pat;
-use crate::strings::TestKeys;
-use std::time::Instant;
+use std::iter::once;
+use std::sync::Arc;
 
 const TEST_CASES_SPLIT: [(&str, &str); 21] = [
     ("", ""),
@@ -31,590 +36,361 @@ const TEST_CASES_SPLIT: [(&str, &str); 21] = [
 ];
 
 #[test]
-fn test_split_trivial() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Trivial,
-    );
+fn string_split_once_test_parameterized() {
+    string_split_once_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+}
 
+#[allow(clippy::needless_pass_by_value)]
+fn string_split_once_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    #[allow(clippy::type_complexity)]
+    let ops: [(
+        for<'a> fn(&'a str, &'a str) -> Option<(&'a str, &'a str)>,
+        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> (FheString, FheString, BooleanBlock),
+    ); 2] = [
+        (
+            |lhs: &str, rhs: &str| lhs.split_once(rhs),
+            |a, b, c| ServerKey::split_once(a, b, c),
+        ),
+        (
+            |lhs: &str, rhs: &str| lhs.rsplit_once(rhs),
+            |a, b, c| ServerKey::rsplit_once(a, b, c),
+        ),
+    ];
+
+    let param = param.into();
+
+    for (clear_op, encrypted_op) in ops {
+        let executor = CpuFunctionExecutor::new(&encrypted_op);
+        string_split_once_test_impl(param, executor, clear_op);
+    }
+}
+
+pub(crate) fn string_split_once_test_impl<P, T>(
+    param: P,
+    mut split_once_executor: T,
+    clear_function: for<'a> fn(&'a str, &'a str) -> Option<(&'a str, &'a str)>,
+) where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a FheString, GenericPatternRef<'a>),
+        (FheString, FheString, BooleanBlock),
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks2 = RadixClientKey::from((cks.clone(), 0));
+
+    split_once_executor.setup(&cks2, sks);
+
+    // trivial
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
             for (str, pat) in TEST_CASES_SPLIT {
-                keys.check_split_once_fhe_string_vs_rust_str(
-                    str,
-                    Some(str_pad),
-                    pat,
-                    Some(pat_pad),
-                );
-                keys.check_rsplit_once_fhe_string_vs_rust_str(
-                    str,
-                    Some(str_pad),
-                    pat,
-                    Some(pat_pad),
-                );
-                keys.check_split_fhe_string_vs_rust_str(str, Some(str_pad), pat, Some(pat_pad));
-                keys.check_rsplit_fhe_string_vs_rust_str(str, Some(str_pad), pat, Some(pat_pad));
+                let expected = clear_function(str, pat);
 
-                for n in 0..3 {
-                    for max in n..n + 2 {
-                        keys.check_splitn_fhe_string_vs_rust_str(
-                            str,
-                            Some(str_pad),
-                            pat,
-                            Some(pat_pad),
-                            n,
-                            max,
-                        );
-                        keys.check_rsplitn_fhe_string_vs_rust_str(
-                            str,
-                            Some(str_pad),
-                            pat,
-                            Some(pat_pad),
-                            n,
-                            max,
-                        );
-                    }
+                let enc_lhs = FheString::new_trivial(&cks, str, Some(str_pad));
+                let enc_rhs = GenericPattern::Enc(FheString::new_trivial(&cks, pat, Some(pat_pad)));
+                let clear_rhs = GenericPattern::Clear(ClearString::new(pat.to_string()));
+
+                for rhs in [enc_rhs, clear_rhs] {
+                    let (split1, split2, is_some) =
+                        split_once_executor.execute((&enc_lhs, rhs.as_ref()));
+
+                    let dec_split1 = cks.decrypt_ascii(&split1);
+
+                    let dec_split2 = cks.decrypt_ascii(&split2);
+
+                    let dec_is_some = cks.decrypt_bool(&is_some);
+
+                    let dec = dec_is_some.then_some((dec_split1.as_str(), dec_split2.as_str()));
+
+                    assert_eq!(expected, dec)
                 }
+            }
+        }
+    }
+    // encrypted
+    {
+        let str = "aba";
+        let str_pad = 1;
+        let rhs_pad = 1;
 
-                keys.check_split_terminator_fhe_string_vs_rust_str(
-                    str,
-                    Some(str_pad),
-                    pat,
-                    Some(pat_pad),
-                );
-                keys.check_rsplit_terminator_fhe_string_vs_rust_str(
-                    str,
-                    Some(str_pad),
-                    pat,
-                    Some(pat_pad),
-                );
-                keys.check_split_inclusive_fhe_string_vs_rust_str(
-                    str,
-                    Some(str_pad),
-                    pat,
-                    Some(pat_pad),
-                );
+        for rhs in ["a", "c"] {
+            let expected = clear_function(str, rhs);
+
+            let enc_lhs = FheString::new(&cks, str, Some(str_pad));
+            let enc_rhs = GenericPattern::Enc(FheString::new(&cks, rhs, Some(rhs_pad)));
+            let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
+
+            for rhs in [enc_rhs, clear_rhs] {
+                let (split1, split2, is_some) =
+                    split_once_executor.execute((&enc_lhs, rhs.as_ref()));
+
+                let dec_split1 = cks.decrypt_ascii(&split1);
+
+                let dec_split2 = cks.decrypt_ascii(&split2);
+
+                let dec_is_some = cks.decrypt_bool(&is_some);
+
+                let dec = dec_is_some.then_some((dec_split1.as_str(), dec_split2.as_str()));
+
+                assert_eq!(expected, dec)
             }
         }
     }
 }
 
 #[test]
-fn test_split() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Encrypted,
-    );
-
-    keys.check_split_once_fhe_string_vs_rust_str("", Some(1), "", Some(1));
-    keys.check_rsplit_once_fhe_string_vs_rust_str("", Some(1), "", Some(1));
-    keys.check_split_fhe_string_vs_rust_str("", Some(1), "", Some(1));
-    keys.check_rsplit_fhe_string_vs_rust_str("", Some(1), "", Some(1));
-
-    keys.check_splitn_fhe_string_vs_rust_str("", Some(1), "", Some(1), 1, 2);
-    keys.check_rsplitn_fhe_string_vs_rust_str("", Some(1), "", Some(1), 1, 2);
-
-    keys.check_split_terminator_fhe_string_vs_rust_str("", Some(1), "", Some(1));
-    keys.check_rsplit_terminator_fhe_string_vs_rust_str("", Some(1), "", Some(1));
-    keys.check_split_inclusive_fhe_string_vs_rust_str("", Some(1), "", Some(1));
+fn string_split_test_parameterized() {
+    string_split_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
-impl TestKeys {
-    pub fn check_split_once_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let expected = str.split_once(pat);
+#[allow(clippy::needless_pass_by_value)]
+fn string_split_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    #[allow(clippy::type_complexity)]
+    let ops: [(
+        for<'a> fn(&'a str, &'a str) -> Box<dyn Iterator<Item = &'a str> + 'a>,
+        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> Box<dyn FheStringIterator>,
+    ); 5] = [
+        (
+            |lhs: &str, rhs: &str| Box::new(lhs.split(rhs)),
+            |a, b, c| Box::new(ServerKey::split(a, b, c)),
+        ),
+        (
+            |lhs: &str, rhs: &str| Box::new(lhs.rsplit(rhs)),
+            |a, b, c| Box::new(ServerKey::rsplit(a, b, c)),
+        ),
+        (
+            |lhs: &str, rhs: &str| Box::new(lhs.split_terminator(rhs)),
+            |a, b, c| Box::new(ServerKey::split_terminator(a, b, c)),
+        ),
+        (
+            |lhs: &str, rhs: &str| Box::new(lhs.rsplit_terminator(rhs)),
+            |a, b, c| Box::new(ServerKey::rsplit_terminator(a, b, c)),
+        ),
+        (
+            |lhs: &str, rhs: &str| Box::new(lhs.split_inclusive(rhs)),
+            |a, b, c| Box::new(ServerKey::split_inclusive(a, b, c)),
+        ),
+    ];
 
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
+    let param = param.into();
 
-        let start = Instant::now();
-        let (lhs, rhs, is_some) = self.sk.split_once(&enc_str, enc_pat.as_ref());
-        let end = Instant::now();
-
-        let dec_lhs = self.ck.decrypt_ascii(&lhs);
-        let dec_rhs = self.ck.decrypt_ascii(&rhs);
-        let dec_is_some = self.ck.decrypt_bool(&is_some);
-
-        let dec = dec_is_some.then_some((dec_lhs.as_str(), dec_rhs.as_str()));
-
-        println!("\n\x1b[1mSplit_once:\x1b[0m");
-        result_message_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
+    for (clear_op, encrypted_op) in ops {
+        let executor = CpuFunctionExecutor::new(&encrypted_op);
+        string_split_test_impl(param, executor, clear_op);
     }
+}
 
-    pub fn check_rsplit_once_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let expected = str.rsplit_once(pat);
+pub(crate) fn string_split_test_impl<P, T>(
+    param: P,
+    mut split_executor: T,
+    clear_function: for<'a> fn(&'a str, &'a str) -> Box<dyn Iterator<Item = &'a str> + 'a>,
+) where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>), Box<dyn FheStringIterator>>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks2 = RadixClientKey::from((cks.clone(), 0));
 
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
+    split_executor.setup(&cks2, sks.clone());
 
-        let start = Instant::now();
-        let (lhs, rhs, is_some) = self.sk.rsplit_once(&enc_str, enc_pat.as_ref());
-        let end = Instant::now();
+    // trivial
+    for str_pad in 0..2 {
+        for pat_pad in 0..2 {
+            for (str, pat) in TEST_CASES_SPLIT {
+                let expected: Vec<_> = clear_function(str, pat)
+                    .map(Some)
+                    .chain(once(None))
+                    .collect();
 
-        let dec_lhs = self.ck.decrypt_ascii(&lhs);
-        let dec_rhs = self.ck.decrypt_ascii(&rhs);
-        let dec_is_some = self.ck.decrypt_bool(&is_some);
+                let enc_lhs = FheString::new_trivial(&cks, str, Some(str_pad));
+                let enc_rhs = GenericPattern::Enc(FheString::new_trivial(&cks, pat, Some(pat_pad)));
+                let clear_rhs = GenericPattern::Clear(ClearString::new(pat.to_string()));
 
-        let dec = dec_is_some.then_some((dec_lhs.as_str(), dec_rhs.as_str()));
+                for rhs in [enc_rhs, clear_rhs] {
+                    let mut iterator = split_executor.execute((&enc_lhs, rhs.as_ref()));
 
-        println!("\n\x1b[1mRsplit_once:\x1b[0m");
-        result_message_pat(str, pat, expected, dec, end.duration_since(start));
+                    for expected in &expected {
+                        let (split, is_some) = iterator.next(&sks);
 
-        assert_eq!(dec, expected);
+                        let dec_split = cks.decrypt_ascii(&split);
+                        let dec_is_some = cks.decrypt_bool(&is_some);
+
+                        let dec = dec_is_some.then_some(dec_split);
+
+                        assert_eq!(expected, &dec.as_deref())
+                    }
+                }
+            }
+        }
     }
+    // encrypted
+    {
+        let str = "aba";
+        let str_pad = 1;
+        let rhs_pad = 1;
 
-    pub fn check_split_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let mut expected: Vec<_> = str.split(pat).map(Some).collect();
-        expected.push(None);
+        for rhs in ["a", "c"] {
+            let expected: Vec<_> = clear_function(str, rhs)
+                .map(Some)
+                .chain(once(None))
+                .collect();
 
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
+            let enc_lhs = FheString::new(&cks, str, Some(str_pad));
+            let enc_rhs = GenericPattern::Enc(FheString::new(&cks, rhs, Some(rhs_pad)));
+            let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
 
-        let mut results = Vec::with_capacity(expected.len());
+            for rhs in [enc_rhs, clear_rhs] {
+                let mut iterator = split_executor.execute((&enc_lhs, rhs.as_ref()));
 
-        // Call next enough times
-        let start = Instant::now();
-        let mut split_iter = self.sk.split(&enc_str, enc_pat.as_ref());
-        for _ in 0..expected.len() {
-            results.push(split_iter.next(&self.sk))
+                for expected in &expected {
+                    let (split, is_some) = iterator.next(&sks);
+
+                    let dec_split = cks.decrypt_ascii(&split);
+                    let dec_is_some = cks.decrypt_bool(&is_some);
+
+                    let dec = dec_is_some.then_some(dec_split);
+
+                    assert_eq!(expected, &dec.as_deref());
+                }
+            }
         }
-        let end = Instant::now();
-
-        // Collect the decrypted results properly
-        let dec: Vec<_> = results
-            .iter()
-            .map(|(result, is_some)| {
-                let dec_is_some = self.ck.decrypt_bool(is_some);
-
-                dec_is_some.then_some(self.ck.decrypt_ascii(result))
-            })
-            .collect();
-
-        let dec_as_str: Vec<_> = dec
-            .iter()
-            .map(|option| option.as_ref().map(|s| s.as_str()))
-            .collect();
-
-        println!("\n\x1b[1mSplit:\x1b[0m");
-        result_message_pat(str, pat, &expected, &dec_as_str, end.duration_since(start));
-
-        assert_eq!(dec_as_str, expected);
     }
+}
 
-    pub fn check_rsplit_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let mut expected: Vec<_> = str.rsplit(pat).map(Some).collect();
-        expected.push(None);
+#[test]
+fn string_splitn_test_parameterized() {
+    string_splitn_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+}
 
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
+#[allow(clippy::needless_pass_by_value)]
+fn string_splitn_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    #[allow(clippy::type_complexity)]
+    let ops: [(
+        for<'a> fn(&'a str, &'a str, u16) -> Box<dyn Iterator<Item = &'a str> + 'a>,
+        fn(&ServerKey, &FheString, GenericPatternRef<'_>, UIntArg) -> Box<dyn FheStringIterator>,
+    ); 2] = [
+        (
+            |lhs: &str, rhs: &str, n: u16| Box::new(lhs.splitn(n as usize, rhs)),
+            |a, b, c, d| Box::new(ServerKey::splitn(a, b, c, d)),
+        ),
+        (
+            |lhs: &str, rhs: &str, n: u16| Box::new(lhs.rsplitn(n as usize, rhs)),
+            |a, b, c, d| Box::new(ServerKey::rsplitn(a, b, c, d)),
+        ),
+    ];
 
-        let mut results = Vec::with_capacity(expected.len());
+    let param = param.into();
 
-        // Call next enough times
-        let start = Instant::now();
-        let mut split_iter = self.sk.rsplit(&enc_str, enc_pat.as_ref());
-        for _ in 0..expected.len() {
-            results.push(split_iter.next(&self.sk))
-        }
-        let end = Instant::now();
-
-        // Collect the decrypted results properly
-        let dec: Vec<_> = results
-            .iter()
-            .map(|(result, is_some)| {
-                let dec_is_some = self.ck.decrypt_bool(is_some);
-
-                dec_is_some.then_some(self.ck.decrypt_ascii(result))
-            })
-            .collect();
-
-        let dec_as_str: Vec<_> = dec
-            .iter()
-            .map(|option| option.as_ref().map(|s| s.as_str()))
-            .collect();
-
-        println!("\n\x1b[1mRsplit:\x1b[0m");
-        result_message_pat(str, pat, &expected, &dec_as_str, end.duration_since(start));
-
-        assert_eq!(dec_as_str, expected);
+    for (clear_op, encrypted_op) in ops {
+        let executor = CpuFunctionExecutor::new(&encrypted_op);
+        string_splitn_test_impl(param, executor, clear_op);
     }
+}
 
-    pub fn check_split_terminator_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let mut expected: Vec<_> = str.split_terminator(pat).map(Some).collect();
-        expected.push(None);
+pub(crate) fn string_splitn_test_impl<P, T>(
+    param: P,
+    mut splitn_executor: T,
+    clear_function: for<'a> fn(&'a str, &'a str, u16) -> Box<dyn Iterator<Item = &'a str> + 'a>,
+) where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a FheString, GenericPatternRef<'a>, UIntArg),
+        Box<dyn FheStringIterator>,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks2 = RadixClientKey::from((cks.clone(), 0));
 
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
+    splitn_executor.setup(&cks2, sks.clone());
 
-        let mut results = Vec::with_capacity(expected.len());
+    // trivial
+    for str_pad in 0..2 {
+        for pat_pad in 0..2 {
+            for (str, pat) in TEST_CASES_SPLIT {
+                for n in 0..3 {
+                    for max in n..n + 2 {
+                        let expected: Vec<_> = clear_function(str, pat, n)
+                            .map(Some)
+                            .chain(once(None))
+                            .collect();
 
-        // Call next enough times
-        let start = Instant::now();
-        let mut split_iter = self.sk.split_terminator(&enc_str, enc_pat.as_ref());
-        for _ in 0..expected.len() {
-            results.push(split_iter.next(&self.sk))
+                        let enc_lhs = FheString::new_trivial(&cks, str, Some(str_pad));
+                        let enc_rhs =
+                            GenericPattern::Enc(FheString::new_trivial(&cks, pat, Some(pat_pad)));
+                        let clear_rhs = GenericPattern::Clear(ClearString::new(pat.to_string()));
+
+                        let clear_n = UIntArg::Clear(n);
+                        let enc_n = UIntArg::Enc(cks.trivial_encrypt_u16(n, Some(max)));
+
+                        for rhs in [enc_rhs, clear_rhs] {
+                            for n in [clear_n.clone(), enc_n.clone()] {
+                                let mut iterator =
+                                    splitn_executor.execute((&enc_lhs, rhs.as_ref(), n));
+
+                                for expected in &expected {
+                                    let (split, is_some) = iterator.next(&sks);
+
+                                    let dec_split = cks.decrypt_ascii(&split);
+                                    let dec_is_some = cks.decrypt_bool(&is_some);
+
+                                    let dec = dec_is_some.then_some(dec_split);
+
+                                    assert_eq!(expected, &dec.as_deref())
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-        let end = Instant::now();
-
-        // Collect the decrypted results properly
-        let dec: Vec<_> = results
-            .iter()
-            .map(|(result, is_some)| {
-                let dec_is_some = self.ck.decrypt_bool(is_some);
-
-                dec_is_some.then_some(self.ck.decrypt_ascii(result))
-            })
-            .collect();
-
-        let dec_as_str: Vec<_> = dec
-            .iter()
-            .map(|option| option.as_ref().map(|s| s.as_str()))
-            .collect();
-
-        println!("\n\x1b[1mSplit_terminator:\x1b[0m");
-        result_message_pat(str, pat, &expected, &dec_as_str, end.duration_since(start));
-
-        assert_eq!(dec_as_str, expected);
     }
+    // encrypted
+    {
+        let str = "aba";
+        let str_pad = 1;
+        let rhs_pad = 1;
+        let n = 1;
+        let max = 2;
 
-    pub fn check_rsplit_terminator_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let mut expected: Vec<_> = str.rsplit_terminator(pat).map(Some).collect();
-        expected.push(None);
+        for rhs in ["a", "c"] {
+            let expected: Vec<_> = clear_function(str, rhs, n)
+                .map(Some)
+                .chain(once(None))
+                .collect();
 
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
+            let enc_lhs = FheString::new(&cks, str, Some(str_pad));
+            let enc_rhs = GenericPattern::Enc(FheString::new(&cks, rhs, Some(rhs_pad)));
+            let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
 
-        let mut results = Vec::with_capacity(expected.len());
+            let enc_n = UIntArg::Enc(cks.encrypt_u16(n, Some(max)));
 
-        // Call next enough times
-        let start = Instant::now();
-        let mut split_iter = self.sk.rsplit_terminator(&enc_str, enc_pat.as_ref());
-        for _ in 0..expected.len() {
-            results.push(split_iter.next(&self.sk))
+            for rhs in [enc_rhs, clear_rhs] {
+                let mut iterator = splitn_executor.execute((&enc_lhs, rhs.as_ref(), enc_n.clone()));
+
+                for expected in &expected {
+                    let (split, is_some) = iterator.next(&sks);
+
+                    let dec_split = cks.decrypt_ascii(&split);
+                    let dec_is_some = cks.decrypt_bool(&is_some);
+
+                    let dec = dec_is_some.then_some(dec_split);
+
+                    assert_eq!(expected, &dec.as_deref());
+                }
+            }
         }
-        let end = Instant::now();
-
-        // Collect the decrypted results properly
-        let dec: Vec<_> = results
-            .iter()
-            .map(|(result, is_some)| {
-                let dec_is_some = self.ck.decrypt_bool(is_some);
-
-                dec_is_some.then_some(self.ck.decrypt_ascii(result))
-            })
-            .collect();
-
-        let dec_as_str: Vec<_> = dec
-            .iter()
-            .map(|option| option.as_ref().map(|s| s.as_str()))
-            .collect();
-
-        println!("\n\x1b[1mRsplit_terminator:\x1b[0m");
-        result_message_pat(str, pat, &expected, &dec_as_str, end.duration_since(start));
-
-        assert_eq!(dec_as_str, expected);
-    }
-
-    pub fn check_split_inclusive_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let mut expected: Vec<_> = str.split_inclusive(pat).map(Some).collect();
-        expected.push(None);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-
-        let mut results = Vec::with_capacity(expected.len());
-
-        // Call next enough times
-        let start = Instant::now();
-        let mut split_iter = self.sk.split_inclusive(&enc_str, enc_pat.as_ref());
-        for _ in 0..expected.len() {
-            results.push(split_iter.next(&self.sk))
-        }
-        let end = Instant::now();
-
-        // Collect the decrypted results properly
-        let dec: Vec<_> = results
-            .iter()
-            .map(|(result, is_some)| {
-                let dec_is_some = self.ck.decrypt_bool(is_some);
-
-                dec_is_some.then_some(self.ck.decrypt_ascii(result))
-            })
-            .collect();
-
-        let dec_as_str: Vec<_> = dec
-            .iter()
-            .map(|option| option.as_ref().map(|s| s.as_str()))
-            .collect();
-
-        println!("\n\x1b[1mSplit_inclusive:\x1b[0m");
-        result_message_pat(str, pat, &expected, &dec_as_str, end.duration_since(start));
-
-        assert_eq!(dec_as_str, expected);
-    }
-
-    pub fn check_splitn_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-        n: u16,
-        max: u16,
-    ) {
-        let mut expected: Vec<_> = str.splitn(n as usize, pat).map(Some).collect();
-        expected.push(None);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-
-        let mut results = Vec::with_capacity(expected.len());
-
-        // Call next enough times
-        let start = Instant::now();
-        let mut split_iter = self
-            .sk
-            .splitn(&enc_str, enc_pat.as_ref(), UIntArg::Clear(n));
-        for _ in 0..expected.len() {
-            results.push(split_iter.next(&self.sk))
-        }
-        let end = Instant::now();
-
-        // Collect the decrypted results properly
-        let dec: Vec<_> = results
-            .iter()
-            .map(|(result, is_some)| {
-                let dec_is_some = self.ck.decrypt_bool(is_some);
-
-                dec_is_some.then_some(self.ck.decrypt_ascii(result))
-            })
-            .collect();
-
-        println!(
-            "\n\x1b[1mSplitn:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mPattern: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTimes (clear): \x1b[0m{}\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            pat,
-            n,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-
-        let dec_as_str: Vec<_> = dec
-            .iter()
-            .map(|option| option.as_ref().map(|s| s.as_str()))
-            .collect();
-
-        assert_eq!(dec_as_str, expected);
-
-        let enc_n = self.encrypt_u16(n, Some(max));
-        results.clear();
-
-        // Call next enough times
-        let start = Instant::now();
-        let mut split_iter = self
-            .sk
-            .splitn(&enc_str, enc_pat.as_ref(), UIntArg::Enc(enc_n));
-        for _ in 0..expected.len() {
-            results.push(split_iter.next(&self.sk))
-        }
-        let end = Instant::now();
-
-        // Collect the decrypted results properly
-        let dec: Vec<_> = results
-            .iter()
-            .map(|(result, is_some)| {
-                let dec_is_some = self.ck.decrypt_bool(is_some);
-
-                dec_is_some.then_some(self.ck.decrypt_ascii(result))
-            })
-            .collect();
-
-        println!(
-            "\n\x1b[1mSplitn:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mPattern: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTimes (encrypted): \x1b[0m{}\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            pat,
-            n,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-
-        let dec_as_str: Vec<_> = dec
-            .iter()
-            .map(|option| option.as_ref().map(|s| s.as_str()))
-            .collect();
-
-        assert_eq!(dec_as_str, expected);
-    }
-
-    pub fn check_rsplitn_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-        n: u16,
-        max: u16,
-    ) {
-        let mut expected: Vec<_> = str.rsplitn(n as usize, pat).map(Some).collect();
-        expected.push(None);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-
-        let mut results = Vec::with_capacity(expected.len());
-
-        // Call next enough times
-        let start = Instant::now();
-        let mut split_iter = self
-            .sk
-            .rsplitn(&enc_str, enc_pat.as_ref(), UIntArg::Clear(n));
-        for _ in 0..expected.len() {
-            results.push(split_iter.next(&self.sk))
-        }
-        let end = Instant::now();
-
-        // Collect the decrypted results properly
-        let dec: Vec<_> = results
-            .iter()
-            .map(|(result, is_some)| {
-                let dec_is_some = self.ck.decrypt_bool(is_some);
-
-                dec_is_some.then_some(self.ck.decrypt_ascii(result))
-            })
-            .collect();
-
-        println!(
-            "\n\x1b[1mRsplitn:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mPattern: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTimes (clear): \x1b[0m{}\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            pat,
-            n,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-
-        let dec_as_str: Vec<_> = dec
-            .iter()
-            .map(|option| option.as_ref().map(|s| s.as_str()))
-            .collect();
-
-        assert_eq!(dec_as_str, expected);
-
-        let enc_n = self.encrypt_u16(n, Some(max));
-        results.clear();
-
-        // Call next enough times
-        let start = Instant::now();
-        let mut split_iter = self
-            .sk
-            .rsplitn(&enc_str, enc_pat.as_ref(), UIntArg::Enc(enc_n));
-        for _ in 0..expected.len() {
-            results.push(split_iter.next(&self.sk))
-        }
-        let end = Instant::now();
-
-        // Collect the decrypted results properly
-        let dec: Vec<_> = results
-            .iter()
-            .map(|(result, is_some)| {
-                let dec_is_some = self.ck.decrypt_bool(is_some);
-
-                dec_is_some.then_some(self.ck.decrypt_ascii(result))
-            })
-            .collect();
-
-        println!(
-            "\n\x1b[1mRsplitn:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mPattern: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTimes (encrypted): \x1b[0m{}\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            pat,
-            n,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-
-        let dec_as_str: Vec<_> = dec
-            .iter()
-            .map(|option| option.as_ref().map(|s| s.as_str()))
-            .collect();
-
-        assert_eq!(dec_as_str, expected);
     }
 }
