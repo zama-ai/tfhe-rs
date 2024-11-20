@@ -24,110 +24,17 @@ pub(crate) mod test_vector_comparisons;
 
 use crate::core_crypto::prelude::SignedInteger;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, CpuFunctionExecutor, MAX_NB_CTXT, NB_CTXT,
+    nb_tests_for_params, MAX_NB_CTXT, NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
-};
+use crate::integer::IntegerKeyKind;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use itertools::{iproduct, izip};
 use rand::prelude::ThreadRng;
 use rand::Rng;
-use std::sync::Arc;
-
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, (SignedRadixCiphertext, BooleanBlock)>
-    for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &SignedRadixCiphertext) -> (SignedRadixCiphertext, BooleanBlock),
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(
-        &mut self,
-        input: &'a SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, BooleanBlock) {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>
-    for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &SignedRadixCiphertext) -> SignedRadixCiphertext,
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> SignedRadixCiphertext {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, (RadixCiphertext, BooleanBlock)>
-    for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &SignedRadixCiphertext) -> (RadixCiphertext, BooleanBlock),
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> (RadixCiphertext, BooleanBlock) {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-
-impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext> for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &SignedRadixCiphertext) -> RadixCiphertext,
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> RadixCiphertext {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
-impl<'a, F> FunctionExecutor<&'a mut SignedRadixCiphertext, ()> for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &'a mut SignedRadixCiphertext),
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a mut SignedRadixCiphertext) {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input);
-    }
-}
-
-impl<'a, F> FunctionExecutor<&'a mut SignedRadixCiphertext, SignedRadixCiphertext>
-    for CpuFunctionExecutor<F>
-where
-    F: Fn(&ServerKey, &mut SignedRadixCiphertext) -> SignedRadixCiphertext,
-{
-    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks);
-    }
-
-    fn execute(&mut self, input: &'a mut SignedRadixCiphertext) -> SignedRadixCiphertext {
-        let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
-    }
-}
 
 //================================================================================
 //     Encrypt/Decrypt Tests
