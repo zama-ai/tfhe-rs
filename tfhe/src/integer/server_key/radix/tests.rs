@@ -1,6 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::smart_add_test;
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_comparison::test_unchecked_minmax;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::smart_neg_test;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_slice::{
     default_scalar_bitslice_assign_test, default_scalar_bitslice_test,
@@ -117,6 +118,16 @@ create_parametrized_test_classical_params!(integer_default_scalar_slice);
 create_parametrized_test_classical_params!(integer_default_scalar_slice_assign);
 create_parametrized_test_classical_params!(integer_smart_scalar_slice);
 create_parametrized_test_classical_params!(integer_smart_scalar_slice_assign);
+create_parametrized_test!(integer_unchecked_min {
+    coverage => {
+        COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
+    },
+    no_coverage => {
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+    }
+});
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -799,4 +810,9 @@ fn integer_smart_scalar_slice(param: ClassicPBSParameters) {
 fn integer_smart_scalar_slice_assign(param: ClassicPBSParameters) {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice_assign);
     smart_scalar_bitslice_assign_test(param, executor);
+}
+
+fn integer_unchecked_min(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_min);
+    test_unchecked_minmax(param, 2, executor, std::cmp::min::<u64>);
 }
