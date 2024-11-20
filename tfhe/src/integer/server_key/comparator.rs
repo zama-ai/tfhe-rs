@@ -1,6 +1,7 @@
 use super::ServerKey;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::Ciphertext;
 
@@ -407,8 +408,9 @@ impl<'a> Comparator<'a> {
 
             let maybe_lhs = self.server_key.key.apply_lookup_table(&lhs_block, lhs_lut);
             let maybe_rhs = self.server_key.key.apply_lookup_table(&rhs_block, rhs_lut);
-
-            let r = self.server_key.key.unchecked_add(&maybe_lhs, &maybe_rhs);
+            let mut r = self.server_key.key.unchecked_add(&maybe_lhs, &maybe_rhs);
+            // Either maybe_lhs or maybe_rhs is zero, which means that the degree is tighter.
+            r.degree = Degree::new(self.server_key.message_modulus().0 - 1);
             result.push(r);
         }
 

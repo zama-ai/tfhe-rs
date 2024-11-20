@@ -143,7 +143,7 @@ impl MaxDegree {
     }
 }
 
-/// This tracks the number of operations that has been done.
+/// The maximum value a given ciphertext can have. This helps with optimizations.
 #[derive(
     Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Versionize,
 )]
