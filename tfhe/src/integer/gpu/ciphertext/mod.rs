@@ -38,6 +38,13 @@ pub trait CudaIntegerRadixCiphertext: Sized {
             .all(CudaBlockInfo::carry_is_empty)
     }
 
+    fn holds_boolean_value(&self) -> bool {
+        self.as_ref().info.blocks[0].degree.get() <= 1
+            && self.as_ref().info.blocks[1..]
+                .iter()
+                .all(|cuda_block_info| cuda_block_info.degree.get() == 0)
+    }
+
     fn is_equal(&self, other: &Self, streams: &CudaStreams) -> bool {
         self.as_ref().is_equal(other.as_ref(), streams)
     }

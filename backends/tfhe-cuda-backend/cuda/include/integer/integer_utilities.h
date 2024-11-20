@@ -1117,20 +1117,97 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   }
 };
 
+template <typename Torus> struct int_zero_out_if_buffer {
+
+  int_radix_params params;
+
+  Torus *tmp;
+
+  cudaStream_t *true_streams;
+  cudaStream_t *false_streams;
+  uint32_t active_gpu_count;
+
+  int_zero_out_if_buffer(cudaStream_t const *streams,
+                         uint32_t const *gpu_indexes, uint32_t gpu_count,
+                         int_radix_params params, uint32_t num_radix_blocks,
+                         bool allocate_gpu_memory) {
+    this->params = params;
+    active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+
+    Torus big_size =
+        (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
+    if (allocate_gpu_memory) {
+      tmp = (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
+      // We may use a different stream to allow concurrent operation
+      true_streams =
+          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+      false_streams =
+          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+      for (uint j = 0; j < active_gpu_count; j++) {
+        true_streams[j] = cuda_create_stream(gpu_indexes[j]);
+        false_streams[j] = cuda_create_stream(gpu_indexes[j]);
+      }
+    }
+  }
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+    cuda_drop_async(tmp, streams[0], gpu_indexes[0]);
+    for (uint j = 0; j < active_gpu_count; j++) {
+      cuda_destroy_stream(true_streams[j], gpu_indexes[j]);
+      cuda_destroy_stream(false_streams[j], gpu_indexes[j]);
+    }
+    free(true_streams);
+    free(false_streams);
+  }
+};
+
 template <typename Torus> struct int_mul_memory {
   Torus *vector_result_sb;
   Torus *block_mul_res;
   Torus *small_lwe_vector;
 
   int_radix_lut<Torus> *luts_array; // lsb msb
+  int_radix_lut<Torus> *zero_out_predicate_lut;
+
   int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_mem;
+  int_zero_out_if_buffer<Torus> *zero_out_mem;
 
   int_radix_params params;
+  bool boolean_mul = false;
 
   int_mul_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                  uint32_t gpu_count, int_radix_params params,
+                 bool const is_boolean_left, bool const is_boolean_right,
                  uint32_t num_radix_blocks, bool allocate_gpu_memory) {
+    this->boolean_mul = is_boolean_left || is_boolean_right;
     this->params = params;
+
+    if (boolean_mul) {
+      auto zero_out_predicate_lut_f = [](Torus block,
+                                         Torus condition) -> Torus {
+        if (condition == 0)
+          return 0;
+        else
+          return block;
+      };
+      zero_out_predicate_lut =
+          new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
+                                   num_radix_blocks, allocate_gpu_memory);
+      generate_device_accumulator_bivariate<Torus>(
+          streams[0], gpu_indexes[0],
+          zero_out_predicate_lut->get_lut(gpu_indexes[0], 0),
+          params.glwe_dimension, params.polynomial_size, params.message_modulus,
+          params.carry_modulus, zero_out_predicate_lut_f);
+      zero_out_predicate_lut->broadcast_lut(streams, gpu_indexes,
+                                            gpu_indexes[0]);
+
+      zero_out_mem = new int_zero_out_if_buffer<Torus>(
+          streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+          allocate_gpu_memory);
+
+      return;
+    }
+
     auto glwe_dimension = params.glwe_dimension;
     auto polynomial_size = params.polynomial_size;
     auto message_modulus = params.message_modulus;
@@ -1203,6 +1280,15 @@ template <typename Torus> struct int_mul_memory {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+
+    if (boolean_mul) {
+      zero_out_predicate_lut->release(streams, gpu_indexes, gpu_count);
+      zero_out_mem->release(streams, gpu_indexes, gpu_count);
+      delete zero_out_mem;
+      delete zero_out_predicate_lut;
+
+      return;
+    }
     cuda_drop_async(vector_result_sb, streams[0], gpu_indexes[0]);
     cuda_drop_async(block_mul_res, streams[0], gpu_indexes[0]);
     cuda_drop_async(small_lwe_vector, streams[0], gpu_indexes[0]);
@@ -1595,50 +1681,6 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     lut_buffers_univariate.clear();
 
     cuda_drop_async(tmp_rotated, streams[0], gpu_indexes[0]);
-  }
-};
-
-template <typename Torus> struct int_zero_out_if_buffer {
-
-  int_radix_params params;
-
-  Torus *tmp;
-
-  cudaStream_t *true_streams;
-  cudaStream_t *false_streams;
-  uint32_t active_gpu_count;
-
-  int_zero_out_if_buffer(cudaStream_t const *streams,
-                         uint32_t const *gpu_indexes, uint32_t gpu_count,
-                         int_radix_params params, uint32_t num_radix_blocks,
-                         bool allocate_gpu_memory) {
-    this->params = params;
-    active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-
-    Torus big_size =
-        (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-    if (allocate_gpu_memory) {
-      tmp = (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
-      // We may use a different stream to allow concurrent operation
-      true_streams =
-          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-      false_streams =
-          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-      for (uint j = 0; j < active_gpu_count; j++) {
-        true_streams[j] = cuda_create_stream(gpu_indexes[j]);
-        false_streams[j] = cuda_create_stream(gpu_indexes[j]);
-      }
-    }
-  }
-  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-               uint32_t gpu_count) {
-    cuda_drop_async(tmp, streams[0], gpu_indexes[0]);
-    for (uint j = 0; j < active_gpu_count; j++) {
-      cuda_destroy_stream(true_streams[j], gpu_indexes[j]);
-      cuda_destroy_stream(false_streams[j], gpu_indexes[j]);
-    }
-    free(true_streams);
-    free(false_streams);
   }
 };
 

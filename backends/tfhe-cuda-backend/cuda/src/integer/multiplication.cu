@@ -67,11 +67,12 @@ void generate_ids_update_degrees(int *terms_degree, size_t *h_lwe_idx_in,
  */
 void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    int8_t **mem_ptr, uint32_t message_modulus, uint32_t carry_modulus,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t pbs_base_log, uint32_t pbs_level, uint32_t ks_base_log,
-    uint32_t ks_level, uint32_t grouping_factor, uint32_t num_radix_blocks,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory) {
+    int8_t **mem_ptr, bool const is_boolean_left, bool const is_boolean_right,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t pbs_base_log,
+    uint32_t pbs_level, uint32_t ks_base_log, uint32_t ks_level,
+    uint32_t grouping_factor, uint32_t num_radix_blocks, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           polynomial_size * glwe_dimension, lwe_dimension,
@@ -88,8 +89,8 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
   case 16384:
     scratch_cuda_integer_mult_radix_ciphertext_kb<uint64_t>(
         (cudaStream_t const *)(streams), gpu_indexes, gpu_count,
-        (int_mul_memory<uint64_t> **)mem_ptr, num_radix_blocks, params,
-        allocate_gpu_memory);
+        (int_mul_memory<uint64_t> **)mem_ptr, is_boolean_left, is_boolean_right,
+        num_radix_blocks, params, allocate_gpu_memory);
     break;
   default:
     PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
@@ -126,65 +127,66 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
  */
 void cuda_integer_mult_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *radix_lwe_out, void const *radix_lwe_left,
-    void const *radix_lwe_right, void *const *bsks, void *const *ksks,
-    int8_t *mem_ptr, uint32_t polynomial_size, uint32_t num_blocks) {
+    void *radix_lwe_out, void const *radix_lwe_left, bool const is_bool_left,
+    void const *radix_lwe_right, bool const is_bool_right, void *const *bsks,
+    void *const *ksks, int8_t *mem_ptr, uint32_t polynomial_size,
+    uint32_t num_blocks) {
 
   switch (polynomial_size) {
   case 256:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<256>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
-        static_cast<const uint64_t *>(radix_lwe_left),
-        static_cast<const uint64_t *>(radix_lwe_right), bsks,
+        static_cast<const uint64_t *>(radix_lwe_left), is_bool_left,
+        static_cast<const uint64_t *>(radix_lwe_right), is_bool_right, bsks,
         (uint64_t **)(ksks), (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 512:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<512>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
-        static_cast<const uint64_t *>(radix_lwe_left),
-        static_cast<const uint64_t *>(radix_lwe_right), bsks,
+        static_cast<const uint64_t *>(radix_lwe_left), is_bool_left,
+        static_cast<const uint64_t *>(radix_lwe_right), is_bool_right, bsks,
         (uint64_t **)(ksks), (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 1024:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<1024>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
-        static_cast<const uint64_t *>(radix_lwe_left),
-        static_cast<const uint64_t *>(radix_lwe_right), bsks,
+        static_cast<const uint64_t *>(radix_lwe_left), is_bool_left,
+        static_cast<const uint64_t *>(radix_lwe_right), is_bool_right, bsks,
         (uint64_t **)(ksks), (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 2048:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<2048>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
-        static_cast<const uint64_t *>(radix_lwe_left),
-        static_cast<const uint64_t *>(radix_lwe_right), bsks,
+        static_cast<const uint64_t *>(radix_lwe_left), is_bool_left,
+        static_cast<const uint64_t *>(radix_lwe_right), is_bool_right, bsks,
         (uint64_t **)(ksks), (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 4096:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<4096>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
-        static_cast<const uint64_t *>(radix_lwe_left),
-        static_cast<const uint64_t *>(radix_lwe_right), bsks,
+        static_cast<const uint64_t *>(radix_lwe_left), is_bool_left,
+        static_cast<const uint64_t *>(radix_lwe_right), is_bool_right, bsks,
         (uint64_t **)(ksks), (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 8192:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<8192>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
-        static_cast<const uint64_t *>(radix_lwe_left),
-        static_cast<const uint64_t *>(radix_lwe_right), bsks,
+        static_cast<const uint64_t *>(radix_lwe_left), is_bool_left,
+        static_cast<const uint64_t *>(radix_lwe_right), is_bool_right, bsks,
         (uint64_t **)(ksks), (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   case 16384:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<16384>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
-        static_cast<const uint64_t *>(radix_lwe_left),
-        static_cast<const uint64_t *>(radix_lwe_right), bsks,
+        static_cast<const uint64_t *>(radix_lwe_left), is_bool_left,
+        static_cast<const uint64_t *>(radix_lwe_right), is_bool_right, bsks,
         (uint64_t **)(ksks), (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
     break;
   default:
