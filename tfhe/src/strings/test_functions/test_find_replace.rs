@@ -1,77 +1,274 @@
+use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::strings::ciphertext::{ClearString, GenericPattern, UIntArg};
-use crate::strings::test::TestKind;
-use crate::strings::test_functions::{result_message_clear_pat, result_message_pat};
-use crate::strings::TestKeys;
-use std::time::Instant;
+use crate::shortint::PBSParameters;
+use crate::strings::ciphertext::{
+    ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
+};
+use std::sync::Arc;
 
 const TEST_CASES_FIND: [&str; 8] = ["", "a", "abc", "b", "ab", "dabc", "abce", "dabce"];
 
 const PATTERN_FIND: [&str; 5] = ["", "a", "b", "ab", "abc"];
 
 #[test]
-fn test_find_trivial() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Trivial,
-    );
+fn string_find_test_parameterized() {
+    string_find_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+}
 
+#[allow(clippy::needless_pass_by_value)]
+fn string_find_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    #[allow(clippy::type_complexity)]
+    let ops: [(
+        for<'a> fn(&'a str, &'a str) -> Option<usize>,
+        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> (RadixCiphertext, BooleanBlock),
+    ); 2] = [
+        (|lhs, rhs| lhs.find(rhs), ServerKey::find),
+        (|lhs, rhs| lhs.rfind(rhs), ServerKey::rfind),
+    ];
+
+    let param = param.into();
+
+    for (clear_op, encrypted_op) in ops {
+        let executor = CpuFunctionExecutor::new(&encrypted_op);
+        string_find_test_impl(param, executor, clear_op);
+    }
+}
+
+pub(crate) fn string_find_test_impl<P, T>(
+    param: P,
+    mut find_executor: T,
+    clear_function: for<'a> fn(&'a str, &'a str) -> Option<usize>,
+) where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a FheString, GenericPatternRef<'a>),
+        (RadixCiphertext, BooleanBlock),
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks2 = RadixClientKey::from((cks.clone(), 0));
+
+    find_executor.setup(&cks2, sks);
+
+    // trivial
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
             for str in TEST_CASES_FIND {
                 for pat in PATTERN_FIND {
-                    keys.check_find_fhe_string_vs_rust_str(str, Some(str_pad), pat, Some(pat_pad));
-                    keys.check_rfind_fhe_string_vs_rust_str(str, Some(str_pad), pat, Some(pat_pad));
+                    let expected_result = clear_function(str, pat);
+
+                    let enc_lhs = FheString::new_trivial(&cks, str, Some(str_pad));
+                    let enc_rhs =
+                        GenericPattern::Enc(FheString::new_trivial(&cks, pat, Some(pat_pad)));
+                    let clear_rhs = GenericPattern::Clear(ClearString::new(pat.to_string()));
+
+                    for rhs in [enc_rhs, clear_rhs] {
+                        let (index, is_some) = find_executor.execute((&enc_lhs, rhs.as_ref()));
+
+                        let dec_index = cks.decrypt_radix::<u32>(&index);
+                        let dec_is_some = cks.decrypt_bool(&is_some);
+
+                        let dec = dec_is_some.then_some(dec_index as usize);
+
+                        assert_eq!(dec, expected_result);
+                    }
                 }
+            }
+        }
+    }
+    // encrypted
+    {
+        let str = "aba";
+        let str_pad = 1;
+        let rhs_pad = 1;
+
+        for rhs in ["a", "c"] {
+            let expected_result = clear_function(str, rhs);
+
+            let enc_lhs = FheString::new(&cks, str, Some(str_pad));
+            let enc_rhs = GenericPattern::Enc(FheString::new(&cks, rhs, Some(rhs_pad)));
+            let clear_rhs = GenericPattern::Clear(ClearString::new(rhs.to_string()));
+
+            for rhs in [enc_rhs, clear_rhs] {
+                let (index, is_some) = find_executor.execute((&enc_lhs, rhs.as_ref()));
+
+                let dec_index = cks.decrypt_radix::<u32>(&index);
+                let dec_is_some = cks.decrypt_bool(&is_some);
+
+                let dec = dec_is_some.then_some(dec_index as usize);
+
+                assert_eq!(dec, expected_result);
             }
         }
     }
 }
 
 #[test]
-fn test_find() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Encrypted,
-    );
-
-    keys.check_find_fhe_string_vs_rust_str("aba", Some(1), "a", Some(1));
-    keys.check_find_fhe_string_vs_rust_str("aba", Some(1), "c", Some(1));
-
-    keys.check_rfind_fhe_string_vs_rust_str("aba", Some(1), "a", Some(1));
-    keys.check_rfind_fhe_string_vs_rust_str("aba", Some(1), "c", Some(1));
+fn string_replace_test_parameterized() {
+    string_replace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
-#[test]
-fn test_replace_trivial() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Trivial,
-    );
+#[allow(clippy::needless_pass_by_value)]
+fn string_replace_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::replace);
+    string_replace_test_impl(param, executor);
+}
 
+pub(crate) fn string_replace_test_impl<P, T>(param: P, mut replace_executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>, &'a FheString), FheString>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks2 = RadixClientKey::from((cks.clone(), 0));
+
+    replace_executor.setup(&cks2, sks);
+
+    // trivial
     for str_pad in 0..2 {
         for from_pad in 0..2 {
             for to_pad in 0..2 {
                 for str in TEST_CASES_FIND {
                     for from in PATTERN_FIND {
                         for to in ["", " ", "a", "abc"] {
-                            keys.check_replace_fhe_string_vs_rust_str(
-                                str,
-                                Some(str_pad),
+                            let expected_result = str.replace(from, to);
+
+                            let enc_str = FheString::new_trivial(&cks, str, Some(str_pad));
+                            let enc_from = GenericPattern::Enc(FheString::new_trivial(
+                                &cks,
                                 from,
                                 Some(from_pad),
-                                to,
-                                Some(to_pad),
-                            );
+                            ));
+                            let clear_from =
+                                GenericPattern::Clear(ClearString::new(from.to_string()));
+
+                            let enc_to = FheString::new_trivial(&cks, to, Some(to_pad));
+
+                            for from in [enc_from, clear_from] {
+                                let result =
+                                    replace_executor.execute((&enc_str, from.as_ref(), &enc_to));
+
+                                let dec_result = cks.decrypt_ascii(&result);
+
+                                assert_eq!(dec_result, expected_result);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // encrypted
+    {
+        let str = "ab";
+        let str_pad = 1;
+        let from_pad = 1;
+        let to = "d";
+        let to_pad = 1;
+
+        for from in ["a", "c"] {
+            let expected_result = str.replace(from, to);
+
+            let enc_str = FheString::new_trivial(&cks, str, Some(str_pad));
+            let enc_from = GenericPattern::Enc(FheString::new_trivial(&cks, from, Some(from_pad)));
+            let clear_from = GenericPattern::Clear(ClearString::new(from.to_string()));
+
+            let enc_to = FheString::new_trivial(&cks, to, Some(to_pad));
+
+            for from in [enc_from, clear_from] {
+                let result = replace_executor.execute((&enc_str, from.as_ref(), &enc_to));
+
+                let dec_result = cks.decrypt_ascii(&result);
+
+                assert_eq!(dec_result, expected_result);
+            }
+        }
+    }
+}
+
+#[test]
+fn string_replacen_test_parameterized() {
+    string_replacen_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn string_replacen_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::replacen);
+    string_replacen_test_impl(param, executor);
+}
+
+pub(crate) fn string_replacen_test_impl<P, T>(param: P, mut replacen_executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (
+            &'a FheString,
+            GenericPatternRef<'a>,
+            &'a FheString,
+            &'a UIntArg,
+        ),
+        FheString,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks2 = RadixClientKey::from((cks.clone(), 0));
+
+    replacen_executor.setup(&cks2, sks);
+
+    // trivial
+    for str_pad in 0..2 {
+        for from_pad in 0..2 {
+            for to_pad in 0..2 {
+                for str in TEST_CASES_FIND {
+                    for from in PATTERN_FIND {
+                        for to in ["", " ", "a", "abc"] {
                             for n in 0..=2 {
                                 for max in n..n + 2 {
-                                    keys.check_replacen_fhe_string_vs_rust_str(
-                                        (str, Some(str_pad)),
-                                        (from, Some(from_pad)),
-                                        (to, Some(to_pad)),
-                                        n,
-                                        max,
-                                    );
+                                    let expected_result = str.replacen(from, to, n as usize);
+
+                                    let enc_str = FheString::new_trivial(&cks, str, Some(str_pad));
+                                    let enc_from = GenericPattern::Enc(FheString::new_trivial(
+                                        &cks,
+                                        from,
+                                        Some(from_pad),
+                                    ));
+                                    let clear_from =
+                                        GenericPattern::Clear(ClearString::new(from.to_string()));
+
+                                    let enc_to = FheString::new_trivial(&cks, to, Some(to_pad));
+
+                                    let clear_n = UIntArg::Clear(n);
+                                    let enc_n = UIntArg::Enc(cks.trivial_encrypt_u16(n, Some(max)));
+
+                                    for from in [enc_from, clear_from] {
+                                        for n in [&clear_n, &enc_n] {
+                                            let result = replacen_executor.execute((
+                                                &enc_str,
+                                                from.as_ref(),
+                                                &enc_to,
+                                                n,
+                                            ));
+
+                                            let dec_result = cks.decrypt_ascii(&result);
+
+                                            assert_eq!(dec_result, expected_result);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -80,265 +277,37 @@ fn test_replace_trivial() {
             }
         }
     }
-}
+    // encrypted
+    {
+        let str = "ab";
+        let str_pad = 1;
+        let from_pad = 1;
+        let to = "d";
+        let to_pad = 1;
+        let n = 1;
+        let max = 2;
 
-#[test]
-fn test_replace() {
-    let keys = TestKeys::new(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        TestKind::Encrypted,
-    );
+        for from in ["a", "c"] {
+            let expected_result = str.replacen(from, to, n as usize);
 
-    keys.check_replace_fhe_string_vs_rust_str("ab", Some(1), "a", Some(1), "d", Some(1));
-    keys.check_replace_fhe_string_vs_rust_str("ab", Some(1), "c", Some(1), "d", Some(1));
+            let enc_str = FheString::new_trivial(&cks, str, Some(str_pad));
+            let enc_from = GenericPattern::Enc(FheString::new_trivial(&cks, from, Some(from_pad)));
+            let clear_from = GenericPattern::Clear(ClearString::new(from.to_string()));
 
-    keys.check_replacen_fhe_string_vs_rust_str(
-        ("ab", Some(1)),
-        ("a", Some(1)),
-        ("d", Some(1)),
-        1,
-        2,
-    );
-    keys.check_replacen_fhe_string_vs_rust_str(
-        ("ab", Some(1)),
-        ("c", Some(1)),
-        ("d", Some(1)),
-        1,
-        2,
-    );
-}
+            let enc_to = FheString::new_trivial(&cks, to, Some(to_pad));
 
-impl TestKeys {
-    pub fn check_find_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let expected = str.find(pat);
+            let clear_n = UIntArg::Clear(n);
+            let enc_n = UIntArg::Enc(cks.encrypt_u16(n, Some(max)));
 
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-        let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
+            for from in [enc_from, clear_from] {
+                for n in [&clear_n, &enc_n] {
+                    let result = replacen_executor.execute((&enc_str, from.as_ref(), &enc_to, n));
 
-        let start = Instant::now();
-        let (index, is_some) = self.sk.find(&enc_str, enc_pat.as_ref());
-        let end = Instant::now();
+                    let dec_result = cks.decrypt_ascii(&result);
 
-        let dec_index = self.ck.decrypt_radix::<u32>(&index);
-        let dec_is_some = self.ck.decrypt_bool(&is_some);
-
-        let dec = dec_is_some.then_some(dec_index as usize);
-
-        println!("\n\x1b[1mFind:\x1b[0m");
-        result_message_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-
-        let start = Instant::now();
-        let (index, is_some) = self.sk.find(&enc_str, clear_pat.as_ref());
-        let end = Instant::now();
-
-        let dec_index = self.ck.decrypt_radix::<u32>(&index);
-        let dec_is_some = self.ck.decrypt_bool(&is_some);
-
-        let dec = dec_is_some.then_some(dec_index as usize);
-
-        println!("\n\x1b[1mFind:\x1b[0m");
-        result_message_clear_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-    }
-
-    pub fn check_rfind_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-    ) {
-        let expected = str.rfind(pat);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-        let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
-
-        let start = Instant::now();
-        let (index, is_some) = self.sk.rfind(&enc_str, enc_pat.as_ref());
-        let end = Instant::now();
-
-        let dec_index = self.ck.decrypt_radix::<u32>(&index);
-        let dec_is_some = self.ck.decrypt_bool(&is_some);
-
-        let dec = dec_is_some.then_some(dec_index as usize);
-
-        println!("\n\x1b[1mRfind:\x1b[0m");
-        result_message_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-
-        let start = Instant::now();
-        let (index, is_some) = self.sk.rfind(&enc_str, clear_pat.as_ref());
-        let end = Instant::now();
-
-        let dec_index = self.ck.decrypt_radix::<u32>(&index);
-        let dec_is_some = self.ck.decrypt_bool(&is_some);
-
-        let dec = dec_is_some.then_some(dec_index as usize);
-
-        println!("\n\x1b[1mRfind:\x1b[0m");
-        result_message_clear_pat(str, pat, expected, dec, end.duration_since(start));
-
-        assert_eq!(dec, expected);
-    }
-    pub fn check_replace_fhe_string_vs_rust_str(
-        &self,
-        str: &str,
-        str_pad: Option<u32>,
-        pat: &str,
-        pat_pad: Option<u32>,
-        to: &str,
-        to_pad: Option<u32>,
-    ) {
-        let expected = str.replace(pat, to);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-        let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
-        let enc_to = self.encrypt_string(to, to_pad);
-
-        let start = Instant::now();
-        let result = self.sk.replace(&enc_str, enc_pat.as_ref(), &enc_to);
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_ascii(&result);
-
-        println!(
-            "\n\x1b[1mReplace:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mFrom: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTo: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            pat,
-            to,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-
-        assert_eq!(dec, expected);
-
-        let start = Instant::now();
-        let result = self.sk.replace(&enc_str, clear_pat.as_ref(), &enc_to);
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_ascii(&result);
-
-        println!(
-            "\n\x1b[1mReplace:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mFrom (clear): \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTo: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            pat,
-            to,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-
-        assert_eq!(dec, expected);
-    }
-
-    pub fn check_replacen_fhe_string_vs_rust_str(
-        &self,
-        str: (&str, Option<u32>),
-        pat: (&str, Option<u32>),
-        to: (&str, Option<u32>),
-        n: u16,
-        max: u16,
-    ) {
-        let (str, str_pad) = (str.0, str.1);
-        let (pat, pat_pad) = (pat.0, pat.1);
-        let (to, to_pad) = (to.0, to.1);
-
-        let expected = str.replacen(pat, to, n as usize);
-
-        let enc_str = self.encrypt_string(str, str_pad);
-        let enc_pat = GenericPattern::Enc(self.encrypt_string(pat, pat_pad));
-        let clear_pat = GenericPattern::Clear(ClearString::new(pat.to_string()));
-        let enc_to = self.encrypt_string(to, to_pad);
-
-        let clear_n = UIntArg::Clear(n);
-        let enc_n = UIntArg::Enc(self.encrypt_u16(n, Some(max)));
-
-        let start = Instant::now();
-        let result = self
-            .sk
-            .replacen(&enc_str, enc_pat.as_ref(), &enc_to, &clear_n);
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_ascii(&result);
-
-        println!(
-            "\n\x1b[1mReplacen:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mFrom: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTo: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTimes (clear): \x1b[0m{}\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            pat,
-            to,
-            n,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-        assert_eq!(dec, expected);
-
-        let start = Instant::now();
-        let result = self
-            .sk
-            .replacen(&enc_str, clear_pat.as_ref(), &enc_to, &enc_n);
-        let end = Instant::now();
-
-        let dec = self.ck.decrypt_ascii(&result);
-
-        println!(
-            "\n\x1b[1mReplacen:\x1b[0m\n\
-            \x1b[1;32m--------------------------------\x1b[0m\n\
-            \x1b[1;32;1mString: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mFrom (clear): \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTo: \x1b[0m\x1b[0;33m{:?}\x1b[0m\n\
-            \x1b[1;32;1mTimes (encrypted): \x1b[0m{}\n\
-            \x1b[1;32;1mClear API Result: \x1b[0m{:?}\n\
-            \x1b[1;32;1mT-fhe API Result: \x1b[0m{:?}\n\
-            \x1b[1;34mExecution Time: \x1b[0m{:?}\n\
-            \x1b[1;32m--------------------------------\x1b[0m",
-            str,
-            pat,
-            to,
-            n,
-            expected,
-            dec,
-            end.duration_since(start),
-        );
-        assert_eq!(dec, expected);
+                    assert_eq!(dec_result, expected_result);
+                }
+            }
+        }
     }
 }
