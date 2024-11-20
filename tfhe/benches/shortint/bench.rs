@@ -57,7 +57,7 @@ enum BenchParamsSet {
 }
 
 fn benchmark_parameters(params_set: BenchParamsSet) -> Vec<PBSParameters> {
-    let is_multi_bit = match env::var("__TFHE_RS_BENCH_TYPE") {
+    let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
         Ok(val) => val.to_lowercase() == "multi_bit",
         Err(_) => false,
     };
