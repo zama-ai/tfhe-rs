@@ -21,7 +21,7 @@ where
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TESTS {
-        let bound = sks.message_modulus().0.pow(size as u32) as u64;
+        let bound = sks.message_modulus().0.pow(size as u32);
 
         let clear: u64 = rng.gen_range(0..bound);
 

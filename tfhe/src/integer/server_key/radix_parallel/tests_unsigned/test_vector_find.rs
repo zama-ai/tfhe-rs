@@ -405,7 +405,7 @@ where
 
     // LUT with only 1 possible output value, that requires more block than the input
     {
-        let block_msg_modulus = cks.parameters().message_modulus().0 as u64;
+        let block_msg_modulus = cks.parameters().message_modulus().0;
 
         let vec = (0..block_msg_modulus)
             .map(|input| (input, u64::MAX))
@@ -590,7 +590,7 @@ where
 
     // LUT with only 1 possible output value, that requires more block than the input
     {
-        let block_msg_modulus = cks.parameters().message_modulus().0 as u64;
+        let block_msg_modulus = cks.parameters().message_modulus().0;
 
         let vec = (0..block_msg_modulus)
             .map(|input| (input, u64::MAX))

@@ -13,7 +13,7 @@ use crate::shortint::MessageModulus;
 #[cfg(any(test, feature = "gpu"))]
 pub(crate) struct NegatedDegreeIter<I> {
     iter: I,
-    z_b: usize,
+    z_b: u64,
 }
 
 #[cfg(any(test, feature = "gpu"))]
@@ -39,11 +39,11 @@ where
 
         // Ensure z is always >= 1 (which would not be the case if degree == 0)
         // some algorithms (e.g. overflowing_sub) require this even for trivial zeros
-        let mut z = current_degree.get().div_ceil(msg_mod.0).max(1) as u64;
-        z *= msg_mod.0 as u64;
+        let mut z = current_degree.get().div_ceil(msg_mod.0).max(1);
+        z *= msg_mod.0;
 
-        let new_degree = Degree::new(z as usize - self.z_b);
-        self.z_b = z as usize / msg_mod.0;
+        let new_degree = Degree::new(z - self.z_b);
+        self.z_b = z / msg_mod.0;
 
         Some(new_degree)
     }
@@ -111,9 +111,9 @@ impl ServerKey {
                 self.key.unchecked_scalar_add_assign(block, z_b);
             }
             z = self.key.unchecked_neg_assign_with_correcting_term(block);
-            block.degree = Degree::new(z as usize - z_b as usize);
+            block.degree = Degree::new(z - u64::from(z_b));
 
-            z_b = (z / self.key.message_modulus.0 as u64) as u8;
+            z_b = (z / self.key.message_modulus.0) as u8;
         }
     }
 

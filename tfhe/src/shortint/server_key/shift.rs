@@ -303,7 +303,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!((msg << shift) % modulus, msg_only);
     ///
@@ -325,7 +325,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
@@ -374,7 +374,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let msg_only = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!((msg << shift) % modulus, msg_only);
     ///
@@ -396,12 +396,12 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let msg_only = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
     pub fn scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
-        let modulus = self.message_modulus.0 as u64;
+        let modulus = self.message_modulus.0;
         let acc = self.generate_lookup_table(|x| (x << shift) % modulus);
         self.apply_lookup_table_assign(ct, &acc);
     }
@@ -439,7 +439,7 @@ impl ServerKey {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -464,7 +464,7 @@ impl ServerKey {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -505,7 +505,7 @@ impl ServerKey {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct);
     /// let msg_only = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -530,7 +530,7 @@ impl ServerKey {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct);
     /// let msg_only = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -631,7 +631,7 @@ impl ServerKey {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -661,7 +661,7 @@ impl ServerKey {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -719,7 +719,7 @@ impl ServerKey {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -743,7 +743,7 @@ impl ServerKey {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -762,10 +762,10 @@ impl ServerKey {
         {
             self.unchecked_scalar_left_shift_assign(ct, shift);
         } else {
-            let modulus = self.message_modulus.0 as u64;
+            let modulus = self.message_modulus.0;
             let acc = self.generate_msg_lookup_table(|x| x << shift, self.message_modulus);
             self.apply_lookup_table_assign(ct, &acc);
-            ct.degree = ct.degree.after_left_shift(shift, modulus as usize);
+            ct.degree = ct.degree.after_left_shift(shift, modulus);
         }
     }
 }

@@ -2,6 +2,7 @@
 
 use crate::integer::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 use crate::integer::parameters::*;
+use crate::integer::server_key::crt::make_basis;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
 use crate::integer::{gen_keys, IntegerKeyKind};
 use crate::shortint::ciphertext::Degree;
@@ -52,16 +53,6 @@ create_parametrized_test!(wopbs_bivariate_radix);
 create_parametrized_test!(wopbs_bivariate_crt);
 create_parametrized_test!(wopbs_radix);
 
-fn make_basis(message_modulus: usize) -> Vec<u64> {
-    match message_modulus {
-        2 => vec![2],
-        3 => vec![2],
-        n if n < 8 => vec![2, 3],
-        n if n < 16 => vec![2, 5, 7],
-        _ => vec![3, 7, 13],
-    }
-}
-
 // test wopbs fake crt with different degree for each Ct
 pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
@@ -85,7 +76,7 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         //artificially modify the degree
         for ct in ct1.blocks.iter_mut() {
             let degree = params.0.message_modulus.0
-                * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
+                * ((rng.gen::<u64>() % (params.0.carry_modulus.0 - 1)) + 1);
             ct.degree = Degree::new(degree);
         }
         let res = cks.decrypt_crt(&ct1);
@@ -135,7 +126,7 @@ pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
         //artificially modify the degree
         for ct in ct1.blocks.iter_mut() {
             let degree = params.0.message_modulus.0
-                * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
+                * ((rng.gen::<u64>() % (params.0.carry_modulus.0 - 1)) + 1);
             ct.degree = Degree::new(degree);
         }
         let sanity_dec = cks.decrypt_crt(&ct1);
@@ -166,9 +157,9 @@ pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
     let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
-    let mut msg_space: u64 = params.0.message_modulus.0 as u64;
+    let mut msg_space: u64 = params.0.message_modulus.0;
     for modulus in 1..nb_block {
-        msg_space *= params.0.message_modulus.0 as u64;
+        msg_space *= params.0.message_modulus.0;
     }
 
     let mut tmp = 0;
@@ -202,9 +193,9 @@ pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
     let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
-    let mut msg_space: u64 = params.0.message_modulus.0 as u64;
+    let mut msg_space: u64 = params.0.message_modulus.0;
     for modulus in 1..nb_block {
-        msg_space *= params.0.message_modulus.0 as u64;
+        msg_space *= params.0.message_modulus.0;
     }
 
     for _ in 0..NB_TESTS {

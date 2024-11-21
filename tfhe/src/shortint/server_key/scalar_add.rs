@@ -43,7 +43,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((msg + scalar as u64) % modulus, clear);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -59,7 +59,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((msg + scalar as u64) % modulus, clear);
     /// ```
     pub fn scalar_add(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
@@ -103,7 +103,7 @@ impl ServerKey {
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(
-    ///     (msg + scalar as u64) % cks.parameters.message_modulus().0 as u64,
+    ///     (msg + scalar as u64) % cks.parameters.message_modulus().0,
     ///     clear
     /// );
     ///
@@ -118,12 +118,12 @@ impl ServerKey {
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(
-    ///     (msg + scalar as u64) % cks.parameters.message_modulus().0 as u64,
+    ///     (msg + scalar as u64) % cks.parameters.message_modulus().0,
     ///     clear
     /// );
     /// ```
     pub fn scalar_add_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        let modulus = self.message_modulus.0 as u64;
+        let modulus = self.message_modulus.0;
         let acc = self.generate_lookup_table(|x| (scalar as u64 + x) % modulus);
         self.apply_lookup_table_assign(ct, &acc);
     }
@@ -209,12 +209,12 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_add_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
         let shift_plaintext = u64::from(scalar) * delta;
         let encoded_scalar = Plaintext(shift_plaintext);
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
 
-        ct.degree = Degree::new(ct.degree.get() + scalar as usize);
+        ct.degree = Degree::new(ct.degree.get() + u64::from(scalar));
     }
 
     /// Verify if a scalar can be added to the ciphertext.
@@ -249,7 +249,7 @@ impl ServerKey {
         ct: CiphertextNoiseDegree,
         scalar: u8,
     ) -> Result<(), CheckError> {
-        let final_degree = scalar as usize + ct.degree.get();
+        let final_degree = u64::from(scalar) + ct.degree.get();
 
         self.max_degree.validate(Degree::new(final_degree))
     }
@@ -380,7 +380,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(2, clear % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -396,7 +396,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(2, clear % modulus);
     /// ```
     #[allow(clippy::needless_pass_by_ref_mut)]

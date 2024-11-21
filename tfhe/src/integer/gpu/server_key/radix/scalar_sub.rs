@@ -230,7 +230,7 @@ impl CudaServerKey {
                 .skip(ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0);
 
         let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
-            extra_scalar_block_iter.all(|block| block == (self.message_modulus.0 as u64 - 1))
+            extra_scalar_block_iter.all(|block| block == (self.message_modulus.0 - 1))
         } else {
             extra_scalar_block_iter.all(|block| block == 0)
         };

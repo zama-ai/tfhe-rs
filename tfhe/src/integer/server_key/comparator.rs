@@ -70,7 +70,7 @@ impl<'a> Comparator<'a> {
             "At least 4 bits of space (message + carry) are required to be able to do comparisons"
         );
 
-        let message_modulus = server_key.key.message_modulus.0 as u64;
+        let message_modulus = server_key.key.message_modulus.0;
         let sign_lut = server_key.key.generate_lookup_table(|x| u64::from(x != 0));
 
         let comparison_reduction_lut = server_key

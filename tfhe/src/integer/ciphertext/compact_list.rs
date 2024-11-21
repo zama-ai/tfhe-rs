@@ -117,7 +117,7 @@ fn sanitize_boolean_blocks(
     sks: &ServerKey,
     infos: &[DataKind],
 ) -> Vec<Ciphertext> {
-    let message_modulus = sks.message_modulus().0 as u64;
+    let message_modulus = sks.message_modulus().0;
     let msg_extract_bool = sks.key.generate_lookup_table(|x: u64| {
         let tmp = x % message_modulus;
         if tmp == 0 {
@@ -293,7 +293,7 @@ impl CompactCiphertextListBuilder {
         }
 
         // Here self.messages are decomposed blocks in range [0..message_modulus[
-        let msg_mod = self.pk.key.message_modulus().0 as u64;
+        let msg_mod = self.pk.key.message_modulus().0;
         let packed_messaged_iter = self
             .messages
             .chunks(2)
@@ -321,7 +321,7 @@ impl CompactCiphertextListBuilder {
             crs,
             metadata,
             load,
-            self.pk.key.parameters.message_modulus.0 as u64,
+            self.pk.key.parameters.message_modulus.0,
         )?;
         Ok(ProvenCompactCiphertextList {
             ct_list,
@@ -344,7 +344,7 @@ impl CompactCiphertextListBuilder {
             ));
         }
 
-        let msg_mod = self.pk.key.parameters.message_modulus.0 as u64;
+        let msg_mod = self.pk.key.parameters.message_modulus.0;
         let packed_messages = self
             .messages
             .chunks(2)
@@ -458,8 +458,8 @@ struct IntegerUnpackingToShortintCastingModeHelper {
 
 impl IntegerUnpackingToShortintCastingModeHelper {
     pub fn new(message_modulus: MessageModulus, carry_modulus: CarryModulus) -> Self {
-        let message_modulus = message_modulus.0 as u64;
-        let carry_modulus = carry_modulus.0 as u64;
+        let message_modulus = message_modulus.0;
+        let carry_modulus = carry_modulus.0;
         let msg_extract = Box::new(move |x: u64| x % message_modulus);
         let carry_extract = Box::new(move |x: u64| (x / carry_modulus) % message_modulus);
         let msg_extract_bool = Box::new(move |x: u64| {
@@ -1083,7 +1083,9 @@ mod tests {
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
         let num_blocks = 4usize;
-        let modulus = (pke_params.message_modulus.0 as u64)
+        let modulus = pke_params
+            .message_modulus
+            .0
             .checked_pow(num_blocks as u32)
             .unwrap();
 

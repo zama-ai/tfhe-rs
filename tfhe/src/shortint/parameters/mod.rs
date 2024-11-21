@@ -66,7 +66,7 @@ pub use parameters_wopbs::*;
 /// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(MessageModulusVersions)]
-pub struct MessageModulus(pub usize);
+pub struct MessageModulus(pub u64);
 
 impl MessageModulus {
     pub fn corresponding_max_degree(&self) -> MaxDegree {
@@ -83,7 +83,7 @@ impl MessageModulus {
 /// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CarryModulusVersions)]
-pub struct CarryModulus(pub usize);
+pub struct CarryModulus(pub u64);
 
 /// Determines in what ring computations are made
 pub type CiphertextModulus = CoreCiphertextModulus<u64>;
@@ -747,9 +747,9 @@ pub fn get_parameters_from_message_and_carry(
 ) -> ClassicPBSParameters {
     let mut out = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     let mut flag: bool = false;
-    let mut rescaled_message_space = f64::ceil(f64::log2(msg_space as f64)) as usize;
+    let mut rescaled_message_space = f64::ceil(f64::log2(msg_space as f64)) as u64;
     rescaled_message_space = 1 << rescaled_message_space;
-    let mut rescaled_carry_space = f64::ceil(f64::log2(carry_space as f64)) as usize;
+    let mut rescaled_carry_space = f64::ceil(f64::log2(carry_space as f64)) as u64;
     rescaled_carry_space = 1 << rescaled_carry_space;
 
     for param in ALL_PARAMETER_VEC {

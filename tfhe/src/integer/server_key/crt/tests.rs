@@ -1,3 +1,4 @@
+use super::make_basis;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::tests::create_parametrized_test_classical_params;
 use crate::integer::IntegerKeyKind;
@@ -36,16 +37,6 @@ const NB_TESTS_SMALLER: usize = 1;
 const PARAM: ClassicPBSParameters = PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64;
 #[cfg(tarpaulin)]
 const PARAM: ClassicPBSParameters = COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS;
-
-fn make_basis(message_modulus: usize) -> Vec<u64> {
-    match message_modulus {
-        2 => vec![2],
-        3 => vec![2],
-        n if n < 8 => vec![2, 3],
-        n if n < 16 => vec![2, 5, 7],
-        _ => vec![3, 7, 13],
-    }
-}
 
 #[test]
 fn integer_unchecked_crt_add_32_bits() {

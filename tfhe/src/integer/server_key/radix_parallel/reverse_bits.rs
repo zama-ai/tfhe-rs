@@ -31,7 +31,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let message_modulus = self.message_modulus().0 as u64;
+        let message_modulus = self.message_modulus().0;
 
         let mut clean_ct;
 

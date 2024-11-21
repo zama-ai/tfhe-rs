@@ -166,7 +166,7 @@ impl ServerKey {
             return;
         }
 
-        let message_modulus = self.key.message_modulus.0 as u64;
+        let message_modulus = self.key.message_modulus.0;
 
         // In the arithmetic shift case we have to pad with the value of the sign bit.
         //
@@ -320,7 +320,7 @@ impl ServerKey {
         inner_blocks: &[crate::shortint::Ciphertext],
         shift_within_block: u64,
     ) -> Vec<crate::shortint::Ciphertext> {
-        let message_modulus = self.key.message_modulus.0 as u64;
+        let message_modulus = self.key.message_modulus.0;
         let num_bits_in_block = message_modulus.ilog2() as u64;
 
         assert!(shift_within_block < num_bits_in_block);
@@ -592,10 +592,8 @@ impl ServerKey {
                     let current_block = current_block << shift_within_block;
                     let previous_block = previous_block << shift_within_block;
 
-                    let message_of_current_block =
-                        current_block % self.key.message_modulus.0 as u64;
-                    let carry_of_previous_block =
-                        previous_block / self.key.message_modulus.0 as u64;
+                    let message_of_current_block = current_block % self.key.message_modulus.0;
+                    let carry_of_previous_block = previous_block / self.key.message_modulus.0;
                     message_of_current_block + carry_of_previous_block
                 });
             let partial_blocks = ct.blocks()[rotations..]

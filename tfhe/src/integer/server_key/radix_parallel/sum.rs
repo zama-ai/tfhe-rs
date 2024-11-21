@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{BooleanBlock, IntegerCiphertext, RadixCiphertext, ServerKey};
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 
@@ -44,12 +45,8 @@ impl ServerKey {
         );
 
         // Pre-conditions and easy path are met, start the real work
-        let message_modulus = self.key.message_modulus.0;
-        let carry_modulus = self.key.carry_modulus.0;
-        let total_modulus = message_modulus * carry_modulus;
-        let message_max = message_modulus - 1;
-
-        let num_elements_to_fill_carry = (total_modulus - 1) / message_max;
+        let num_elements_to_fill_carry =
+            self.max_sum_size(Degree::new(self.key.message_modulus.0 - 1));
 
         // Re-organize radix terms into columns of blocks
         let mut columns = vec![vec![]; num_blocks];

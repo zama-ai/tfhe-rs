@@ -77,7 +77,7 @@ impl CudaServerKey {
         let ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
 
         let scalar = self.message_modulus.0 as u8 - 1;
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
         let shift_plaintext = u64::from(scalar) * delta;
 
         let scalar_vector = vec![shift_plaintext; ct_blocks];

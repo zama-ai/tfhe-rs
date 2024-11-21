@@ -69,17 +69,12 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let block_with_all_ones = self
-            .key
-            .create_trivial(self.key.message_modulus.0 as u64 - 1);
+        let block_with_all_ones = self.key.create_trivial(self.key.message_modulus.0 - 1);
         if T::IS_SIGNED {
             // The max of a two's complement number is a 0 in msb and then only 1
             let mut trivial_blocks = vec![block_with_all_ones; num_blocks - 1];
             // msb blocks has its last bit set to 0, the rest are 1
-            trivial_blocks.push(
-                self.key
-                    .create_trivial((self.message_modulus().0 >> 1) as u64 - 1),
-            );
+            trivial_blocks.push(self.key.create_trivial((self.message_modulus().0 >> 1) - 1));
             T::from_blocks(trivial_blocks)
         } else {
             // Max value is simply all bits set to one
@@ -96,9 +91,10 @@ impl ServerKey {
             let mut trivial_blocks = vec![self.key.create_trivial(0); num_blocks - 1];
             // msb block has its msb set to 1, rest is 0
             let num_bits_of_message = self.message_modulus().0.ilog2();
-            trivial_blocks.push(self.key.create_trivial(
-                (self.message_modulus().0 as u64 - 1) << (num_bits_of_message - 1),
-            ));
+            trivial_blocks.push(
+                self.key
+                    .create_trivial((self.message_modulus().0 - 1) << (num_bits_of_message - 1)),
+            );
             T::from_blocks(trivial_blocks)
         } else {
             // Min value is simply 0
@@ -168,7 +164,7 @@ impl ServerKey {
     /// assert_eq!(
     ///     7 * (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
     ///         .message_modulus
-    ///         .0 as u64)
+    ///         .0)
     ///         .pow(added_blocks as u32),
     ///     res
     /// );
@@ -210,7 +206,7 @@ impl ServerKey {
     /// assert_eq!(
     ///     7 * (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
     ///         .message_modulus
-    ///         .0 as u64)
+    ///         .0)
     ///         .pow(added_blocks as u32),
     ///     res
     /// );
@@ -468,7 +464,7 @@ impl ServerKey {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct)
         }
-        let message_modulus = self.key.message_modulus.0 as u64;
+        let message_modulus = self.key.message_modulus.0;
         let num_bits_in_block = message_modulus.ilog2();
         let padding_block_creator_lut = self.key.generate_lookup_table(|x| {
             let x = x % message_modulus;

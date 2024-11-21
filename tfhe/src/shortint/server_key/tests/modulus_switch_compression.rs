@@ -17,10 +17,9 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus_sup =
-        (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
+    let modulus_sup = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0;
 
-    let modulus = cks.parameters.message_modulus().0 as u64;
+    let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus_sup;

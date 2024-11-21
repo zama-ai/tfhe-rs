@@ -4,6 +4,17 @@ use crate::integer::ServerKey;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+pub(crate) fn make_basis(message_modulus: u64) -> Vec<u64> {
+    match message_modulus {
+        2 => vec![2],
+        3 => vec![2],
+        n if n < 8 => vec![2, 3],
+        n if n < 16 => vec![2, 5, 7],
+        _ => vec![3, 7, 13],
+    }
+}
+
 mod add_crt;
 mod mul_crt;
 mod neg_crt;

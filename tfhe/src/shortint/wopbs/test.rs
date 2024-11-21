@@ -118,13 +118,13 @@ fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {
     let mut tmp = 0;
     for _ in 0..NB_TESTS {
         let message_modulus = params.0.message_modulus.0;
-        let m = rng.gen::<usize>() % message_modulus;
-        let ct = cks.encrypt(m as u64);
-        let lut = wopbs_key.generate_lut(&ct, |x| x % message_modulus as u64);
+        let m = rng.gen::<u64>() % message_modulus;
+        let ct = cks.encrypt(m);
+        let lut = wopbs_key.generate_lut(&ct, |x| x % message_modulus);
         let ct_res = wopbs_key.programmable_bootstrapping(sks, &ct, &lut);
 
         let res = cks.decrypt(&ct_res);
-        if res != (m % message_modulus) as u64 {
+        if res != (m % message_modulus) {
             tmp += 1;
         }
     }
@@ -145,13 +145,13 @@ fn generate_lut_wop_only(params: WopbsParameters) {
     let mut tmp = 0;
     for _ in 0..NB_TESTS {
         let message_modulus = params.message_modulus.0;
-        let m = rng.gen::<usize>() % message_modulus;
-        let ct = cks.encrypt(m as u64);
-        let lut = wopbs_key.generate_lut(&ct, |x| x % message_modulus as u64);
+        let m = rng.gen::<u64>() % message_modulus;
+        let ct = cks.encrypt(m);
+        let lut = wopbs_key.generate_lut(&ct, |x| x % message_modulus);
         let ct_res = wopbs_key.wopbs(&ct, &lut);
 
         let res = cks.decrypt(&ct_res);
-        if res != (m % message_modulus) as u64 {
+        if res != (m % message_modulus) {
             tmp += 1;
         }
     }
@@ -170,17 +170,17 @@ fn generate_lut_modulus(params: (ClassicPBSParameters, WopbsParameters)) {
 
     for _ in 0..NB_TESTS {
         let message_modulus = MessageModulus(params.0.message_modulus.0 - 1);
-        let m = rng.gen::<usize>() % message_modulus.0;
+        let m = rng.gen::<u64>() % message_modulus.0;
 
-        let ct = cks.encrypt_with_message_modulus(m as u64, message_modulus);
+        let ct = cks.encrypt_with_message_modulus(m, message_modulus);
 
         let ct = wopbs_key.keyswitch_to_wopbs_params(sks, &ct);
-        let lut = wopbs_key.generate_lut(&ct, |x| (x * x) % message_modulus.0 as u64);
+        let lut = wopbs_key.generate_lut(&ct, |x| (x * x) % message_modulus.0);
         let ct_res = wopbs_key.wopbs(&ct, &lut);
         let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
 
         let res = cks.decrypt(&ct_res);
-        assert_eq!(res as usize, (m * m) % message_modulus.0);
+        assert_eq!(res, (m * m) % message_modulus.0);
     }
 }
 
@@ -196,12 +196,12 @@ fn generate_lut_modulus_not_power_of_two(params: WopbsParameters) {
     for _ in 0..NB_TESTS {
         let message_modulus = MessageModulus(params.message_modulus.0 - 1);
 
-        let m = rng.gen::<usize>() % message_modulus.0;
-        let ct = cks.encrypt_native_crt(m as u64, message_modulus);
-        let lut = wopbs_key.generate_lut_native_crt(&ct, |x| (x * x) % message_modulus.0 as u64);
+        let m = rng.gen::<u64>() % message_modulus.0;
+        let ct = cks.encrypt_native_crt(m, message_modulus);
+        let lut = wopbs_key.generate_lut_native_crt(&ct, |x| (x * x) % message_modulus.0);
 
         let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&ct, &lut);
         let res = cks.decrypt_message_native_crt(&ct_res, message_modulus);
-        assert_eq!(res as usize, (m * m) % message_modulus.0);
+        assert_eq!(res, (m * m) % message_modulus.0);
     }
 }

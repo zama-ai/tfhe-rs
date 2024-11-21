@@ -338,11 +338,11 @@ impl ServerKey {
 
         let lsb_block_mul_lut = self
             .key
-            .generate_lookup_table_bivariate(|x, y| (x * y) % message_modulus as u64);
+            .generate_lookup_table_bivariate(|x, y| (x * y) % message_modulus);
 
         let msb_block_mul_lut = self
             .key
-            .generate_lookup_table_bivariate(|x, y| (x * y) / message_modulus as u64);
+            .generate_lookup_table_bivariate(|x, y| (x * y) / message_modulus);
 
         let message_part_terms_generator = rhs
             .blocks()
@@ -669,7 +669,7 @@ impl ServerKey {
                     },
                     || {
                         let lut = self.key.generate_lookup_table_bivariate(|x, y| {
-                            u64::from((x * y) >= self.key.message_modulus.0 as u64)
+                            u64::from((x * y) >= self.key.message_modulus.0)
                         });
 
                         rhs.blocks
@@ -849,7 +849,7 @@ impl ServerKey {
                 .blocks
                 .resize_with(bigger_lhs.blocks.len(), || self.key.create_trivial(0));
             min_trivial.blocks.resize_with(bigger_lhs.blocks.len(), || {
-                self.key.create_trivial(self.message_modulus().0 as u64 - 1)
+                self.key.create_trivial(self.message_modulus().0 - 1)
             });
 
             rayon::join(

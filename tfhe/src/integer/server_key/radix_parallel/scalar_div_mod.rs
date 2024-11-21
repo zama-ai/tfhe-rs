@@ -749,13 +749,13 @@ impl ServerKey {
                 let divisor_sign_bit_is_set = u64::from(divisor < T::ZERO);
                 let sign_bit_pos = self.key.message_modulus.0.ilog2() - 1;
                 let lut = self.key.generate_lookup_table(|x| {
-                    let x = x % self.key.message_modulus.0 as u64;
+                    let x = x % self.key.message_modulus.0;
                     let numerator_sign_bit_is_set = (x >> sign_bit_pos) & 1;
                     let numerator_and_divisor_sign_differs =
                         numerator_sign_bit_is_set != divisor_sign_bit_is_set;
 
                     if numerator_and_divisor_sign_differs {
-                        self.key.message_modulus.0 as u64 - 1
+                        self.key.message_modulus.0 - 1
                     } else {
                         0
                     }

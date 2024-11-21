@@ -183,7 +183,7 @@ fn test_case_cpk_encrypt_cast_compute(
     assert_eq!(param_pke_only.message_modulus, param_fhe.message_modulus);
     assert_eq!(param_pke_only.carry_modulus, param_fhe.carry_modulus);
 
-    let modulus = param_fhe.message_modulus.0.pow(num_block as u32) as u64;
+    let modulus = param_fhe.message_modulus.0.pow(num_block as u32);
 
     let compact_private_key = CompactPrivateKey::new(param_pke_only);
     let pk = CompactPublicKey::new(&compact_private_key);

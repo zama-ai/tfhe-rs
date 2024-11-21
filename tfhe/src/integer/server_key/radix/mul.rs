@@ -34,7 +34,7 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_left);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn junchecked_block_mul_assign<T>(
+    pub fn unchecked_block_mul_assign<T>(
         &self,
         ct_left: &mut T,
         ct_right: &crate::shortint::Ciphertext,

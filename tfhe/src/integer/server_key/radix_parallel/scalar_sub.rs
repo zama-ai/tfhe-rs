@@ -150,16 +150,12 @@ impl ServerKey {
 
         // If the block does not have a carry after the subtraction, it means it needs to
         // borrow from the next block
-        let compute_borrow_lut = self.key.generate_lookup_table(|x| {
-            if x < self.message_modulus().0 as u64 {
-                1
-            } else {
-                0
-            }
-        });
+        let compute_borrow_lut =
+            self.key
+                .generate_lookup_table(|x| if x < self.message_modulus().0 { 1 } else { 0 });
 
         let mut borrow = self.key.create_trivial(0);
-        let delta = (1_u64 << 63) / (self.message_modulus().0 * self.carry_modulus().0) as u64;
+        let delta = (1_u64 << 63) / (self.message_modulus().0 * self.carry_modulus().0);
         for (lhs_b, scalar_b) in lhs.blocks.iter_mut().zip(scalar_blocks.iter().copied()) {
             // Here we use core_crypto instead of shortint scalar_sub_assign
             // because we need a true subtraction, not an addition of the inverse
@@ -169,10 +165,10 @@ impl ServerKey {
             );
             crate::core_crypto::algorithms::lwe_ciphertext_plaintext_add_assign(
                 &mut lhs_b.ct,
-                crate::core_crypto::prelude::Plaintext(self.message_modulus().0 as u64 * delta),
+                crate::core_crypto::prelude::Plaintext(self.message_modulus().0 * delta),
             );
             lhs_b.degree = crate::shortint::ciphertext::Degree::new(
-                lhs_b.degree.get() + (self.message_modulus().0 - usize::from(scalar_b)),
+                lhs_b.degree.get() + (self.message_modulus().0 - u64::from(scalar_b)),
             );
             // And here, it's because shortint sub_assign adds a correcting term,
             // which we do not want here
@@ -215,7 +211,7 @@ impl ServerKey {
     where
         Scalar: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
     {
-        let packed_modulus = (self.message_modulus().0 * self.message_modulus().0) as u64;
+        let packed_modulus = self.message_modulus().0 * self.message_modulus().0;
 
         let packed_blocks = lhs
             .blocks
@@ -248,7 +244,7 @@ impl ServerKey {
                     let modulus = if num_block_is_even {
                         packed_modulus
                     } else {
-                        self.message_modulus().0 as u64
+                        self.message_modulus().0
                     };
                     let last_scalar_block =
                         u64::from(packed_scalar_blocks.last().copied().unwrap());
@@ -325,10 +321,10 @@ impl ServerKey {
             || {
                 let extract_message_low_block_mut = self
                     .key
-                    .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0 as u64);
+                    .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0);
                 let extract_message_high_block_mut = self
                     .key
-                    .generate_lookup_table(|block| (block >> 2) % self.message_modulus().0 as u64);
+                    .generate_lookup_table(|block| (block >> 2) % self.message_modulus().0);
 
                 prepared_blocks
                     .par_iter_mut()
@@ -482,7 +478,7 @@ impl ServerKey {
         // _packing_ to be in a state were they are ready to receive `propagation simulator`
         // for previous packing in the same grouping they belong.
         let block_preparator_luts = {
-            let message_modulus = self.message_modulus().0 as u64;
+            let message_modulus = self.message_modulus().0;
             let mut luts = Vec::with_capacity(packed_blocks.len());
             for (i, packed_scalar_block) in packed_scalar_blocks.iter().copied().enumerate() {
                 let packed_scalar_block = u64::from(packed_scalar_block);
@@ -509,25 +505,25 @@ impl ServerKey {
 
                 // LUT to prepare the high block
                 luts.push(self.key.generate_lookup_table(|packed_block| {
-                    let high_block = packed_block / self.message_modulus().0 as u64;
-                    let high_scalar_block = packed_scalar_block / self.message_modulus().0 as u64;
-                    let low_block = packed_block % self.message_modulus().0 as u64;
-                    let low_scalar_block = packed_scalar_block % self.message_modulus().0 as u64;
+                    let high_block = packed_block / self.message_modulus().0;
+                    let high_scalar_block = packed_scalar_block / self.message_modulus().0;
+                    let low_block = packed_block % self.message_modulus().0;
+                    let low_scalar_block = packed_scalar_block % self.message_modulus().0;
 
                     let low_block_result = low_block
                         .wrapping_sub(low_scalar_block)
                         .wrapping_add(message_modulus);
 
-                    let low_block_state = if low_block_result < self.message_modulus().0 as u64 {
+                    let low_block_state = if low_block_result < self.message_modulus().0 {
                         2 // Borrows
-                    } else if low_block_result == self.message_modulus().0 as u64 {
+                    } else if low_block_result == self.message_modulus().0 {
                         1 // Propagate
                     } else {
                         0 // Neither
                     };
 
-                    let mut high_block_result = high_block.wrapping_sub(high_scalar_block)
-                        % self.message_modulus().0 as u64;
+                    let mut high_block_result =
+                        high_block.wrapping_sub(high_scalar_block) % self.message_modulus().0;
                     high_block_result <<= 2;
 
                     // Same idea as in the non scalar version

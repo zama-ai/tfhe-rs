@@ -679,7 +679,7 @@ impl ServerKey {
     where
         F: Fn(u64) -> u64,
     {
-        self.generate_lookup_table(|x| f(x % modulus.0 as u64) % modulus.0 as u64)
+        self.generate_lookup_table(|x| f(x % modulus.0) % modulus.0)
     }
 
     /// Constructs the lookup table given a set of function as input.
@@ -782,7 +782,7 @@ impl ServerKey {
     ///
     /// let msg: u64 = 3;
     /// let ct = cks.encrypt(msg);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     ///
     /// // Generate the lookup table for the function f: x -> x*x*x mod 4
     /// let lut = sks.generate_lookup_table(|x| x * x * x % modulus);
@@ -983,7 +983,7 @@ impl ServerKey {
     /// assert_eq!(2, res);
     /// ```
     pub fn carry_extract_assign(&self, ct: &mut Ciphertext) {
-        let modulus = ct.message_modulus.0 as u64;
+        let modulus = ct.message_modulus.0;
 
         let lookup_table = self.generate_lookup_table(|x| x / modulus);
 
@@ -1128,8 +1128,8 @@ impl ServerKey {
     /// assert_eq!(1, ct_res);
     /// ```
     pub fn create_trivial(&self, value: u64) -> Ciphertext {
-        let modular_value = value as usize % self.message_modulus.0;
-        self.unchecked_create_trivial(modular_value as u64)
+        let modular_value = value % self.message_modulus.0;
+        self.unchecked_create_trivial(modular_value)
     }
 
     pub(crate) fn unchecked_create_trivial_with_lwe_size(
@@ -1161,11 +1161,11 @@ impl ServerKey {
     }
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
-        let modular_value = value as usize % self.message_modulus.0;
+        let modular_value = value % self.message_modulus.0;
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
 
-        let shifted_value = (modular_value as u64) * delta;
+        let shifted_value = modular_value * delta;
 
         let encoded = Plaintext(shifted_value);
 
@@ -1208,13 +1208,13 @@ impl ServerKey {
 
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
         let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
         let ct_value = *ct.ct.get_body().data / delta;
 
-        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup;
-        let result = if ct_value >= modulus_sup as u64 {
+        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup as usize;
+        let result = if ct_value >= modulus_sup {
             // padding bit is 1
-            let ct_value = ct_value % modulus_sup as u64;
+            let ct_value = ct_value % modulus_sup;
             let index_in_lut = ct_value as usize * box_size;
             acc.acc.get_body().as_ref()[index_in_lut].wrapping_neg()
         } else {
@@ -1231,14 +1231,14 @@ impl ServerKey {
 
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
         let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
         let ct_value = *ct.ct.get_body().data / delta;
 
-        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup;
+        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup as usize;
 
-        let padding_bit_set = ct_value >= modulus_sup as u64;
+        let padding_bit_set = ct_value >= modulus_sup;
         let first_result_index_in_lut = {
-            let ct_value = ct_value % modulus_sup as u64;
+            let ct_value = ct_value % modulus_sup;
             ct_value as usize * box_size
         };
 
@@ -1550,7 +1550,7 @@ where
 
     LookupTableOwned {
         acc,
-        degree: Degree::new(max_value as usize),
+        degree: Degree::new(max_value),
     }
 }
 

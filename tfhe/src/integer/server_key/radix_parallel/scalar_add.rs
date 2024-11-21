@@ -348,7 +348,7 @@ impl ServerKey {
             };
         }
 
-        let packed_modulus = (self.message_modulus().0 * self.message_modulus().0) as u64;
+        let packed_modulus = self.message_modulus().0 * self.message_modulus().0;
 
         let packed_blocks = lhs
             .blocks()
@@ -421,7 +421,7 @@ impl ServerKey {
                         let modulus = if num_block_is_even {
                             packed_modulus
                         } else {
-                            self.message_modulus().0 as u64
+                            self.message_modulus().0
                         };
                         self.key.generate_lookup_table(|last_packed_block| {
                             let value = last_packed_block + last_scalar_block;
@@ -482,10 +482,10 @@ impl ServerKey {
 
         let extract_message_low_block_mut = self
             .key
-            .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0 as u64);
+            .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0);
         let extract_message_high_block_mut = self
             .key
-            .generate_lookup_table(|block| (block >> 2) % self.message_modulus().0 as u64);
+            .generate_lookup_table(|block| (block >> 2) % self.message_modulus().0);
 
         assert_eq!(compute_overflow, overflowed.is_some());
         rayon::scope(|s| {
@@ -648,8 +648,8 @@ impl ServerKey {
                 // LUT to prepare the low block
                 luts.push(self.key.generate_lookup_table(|packed_block| {
                     let carry = if i == 0 { u64::from(input_carry) } else { 0 };
-                    let result = (packed_block + packed_scalar_block + carry)
-                        % self.message_modulus().0 as u64;
+                    let result =
+                        (packed_block + packed_scalar_block + carry) % self.message_modulus().0;
 
                     // Shift by one as this will receive the carry of the group directly
                     result << 1
@@ -663,24 +663,24 @@ impl ServerKey {
 
                 // LUT to prepare the high block
                 luts.push(self.key.generate_lookup_table(|packed_block| {
-                    let high_block = packed_block / self.message_modulus().0 as u64;
-                    let high_scalar_block = packed_scalar_block / self.message_modulus().0 as u64;
-                    let low_block = packed_block % self.message_modulus().0 as u64;
-                    let low_scalar_block = packed_scalar_block % self.message_modulus().0 as u64;
+                    let high_block = packed_block / self.message_modulus().0;
+                    let high_scalar_block = packed_scalar_block / self.message_modulus().0;
+                    let low_block = packed_block % self.message_modulus().0;
+                    let low_scalar_block = packed_scalar_block % self.message_modulus().0;
                     let carry = if i == 0 { u64::from(input_carry) } else { 0 };
 
                     let low_block_result = low_block + low_scalar_block + carry;
 
-                    let low_block_state = if low_block_result >= self.message_modulus().0 as u64 {
+                    let low_block_state = if low_block_result >= self.message_modulus().0 {
                         2 // Generate
-                    } else if low_block_result == (self.message_modulus().0 - 1) as u64 {
+                    } else if low_block_result == (self.message_modulus().0 - 1) {
                         1 // Propagate
                     } else {
                         0 // Neither
                     };
 
                     let mut high_block_result =
-                        (high_block + high_scalar_block) % self.message_modulus().0 as u64;
+                        (high_block + high_scalar_block) % self.message_modulus().0;
                     high_block_result <<= 2;
 
                     (high_block_result + (low_block_state << 1)) % packed_modulus
@@ -789,13 +789,12 @@ impl ServerKey {
                         |last_block, input_carry_into_last_block| {
                             let output_carry =
                                 (last_block + last_scalar_b + input_carry_into_last_block)
-                                    / self.message_modulus().0 as u64;
+                                    / self.message_modulus().0;
 
                             if T::IS_SIGNED {
                                 let input_carry_to_last_bit = if self.message_modulus().0 > 2 {
                                     // i.e divided by 2
-                                    let modulus_without_last_bit =
-                                        (self.message_modulus().0 >> 1) as u64;
+                                    let modulus_without_last_bit = self.message_modulus().0 >> 1;
                                     let mask_to_remove_last_bit = modulus_without_last_bit - 1;
 
                                     let last_block_except_last_bit =

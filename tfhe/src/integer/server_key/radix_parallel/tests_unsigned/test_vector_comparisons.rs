@@ -87,7 +87,7 @@ pub(crate) fn unchecked_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
         let block_index = rng.gen_range(0..NB_CTXT);
         let value_to_avoid = cks.decrypt_one_block(&values[value_index].blocks()[block_index]);
         loop {
-            let new_value = rng.gen_range(0..cks.parameters().message_modulus().0 as u64);
+            let new_value = rng.gen_range(0..cks.parameters().message_modulus().0);
             if new_value != value_to_avoid {
                 let new_block = cks.encrypt_one_block(new_value);
                 values2[value_index].blocks_mut()[block_index] = new_block;
@@ -172,7 +172,7 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
         let block_index = rng.gen_range(0..NB_CTXT);
         let value_to_avoid = cks.decrypt_one_block(&values[value_index].blocks()[block_index]);
         loop {
-            let new_value = rng.gen_range(0..cks.parameters().message_modulus().0 as u64);
+            let new_value = rng.gen_range(0..cks.parameters().message_modulus().0);
             if new_value != value_to_avoid {
                 let new_block = cks.encrypt_one_block(new_value);
                 values2[value_index].blocks_mut()[block_index] = new_block;
