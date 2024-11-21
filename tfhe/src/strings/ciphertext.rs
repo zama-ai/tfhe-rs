@@ -21,6 +21,8 @@ pub struct FheString {
 }
 
 // For str functions that require unsigned integers as arguments
+
+#[derive(Clone)]
 pub enum UIntArg {
     Clear(u16),
     Enc(EncU16),

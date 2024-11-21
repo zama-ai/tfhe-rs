@@ -1,6 +1,7 @@
 use crate::integer::{ClientKey, RadixCiphertext};
 use crate::strings::ciphertext::{num_ascii_blocks, FheAsciiChar, FheString};
 
+#[derive(Clone)]
 pub struct EncU16 {
     cipher: RadixCiphertext,
     max: Option<u16>,
