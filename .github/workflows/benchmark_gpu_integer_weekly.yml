@@ -1,0 +1,92 @@
+# Run CUDA benchmarks on multiple Hyperstack VMs and return parsed results to Slab CI bot.
+name: Cuda weekly benchmarks
+
+on:
+  schedule:
+    # Weekly benchmarks will be triggered each Saturday at 1a.m.
+    - cron: '0 1 * * 6'
+
+jobs:
+  run-benchmarks-1-h100:
+    name: Run benchmarks (1xH100)
+    if: github.repository == 'zama-ai/tfhe-rs'
+    uses: ./.github/workflows/benchmark_gpu_integer_common.yml
+    with:
+      profile: single-h100
+      hardware_name: n3-H100x1
+      command: integer,integer_multi_bit
+      op_flavor: default
+      bench_type: latency
+      all_precisions: true
+    secrets:
+      FHE_ACTIONS_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTIONS_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  run-benchmarks-2-h100:
+    name: Run benchmarks (2xH100)
+    if: github.repository == 'zama-ai/tfhe-rs'
+    uses: ./.github/workflows/benchmark_gpu_integer_common.yml
+    with:
+      profile: 2-h100
+      hardware_name: n3-H100x2
+      command: integer_multi_bit
+      op_flavor: default
+      bench_type: latency
+      all_precisions: true
+    secrets:
+      FHE_ACTIONS_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTIONS_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  run-benchmarks-8-h100:
+    name: Run benchmarks (8xH100)
+    if: github.repository == 'zama-ai/tfhe-rs'
+    uses: ./.github/workflows/benchmark_gpu_integer_common.yml
+    with:
+      profile: multi-h100
+      hardware_name: n3-H100x8
+      command: integer_multi_bit
+      op_flavor: default
+      bench_type: latency
+      all_precisions: true
+    secrets:
+      FHE_ACTIONS_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTIONS_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  run-benchmarks-l40:
+    name: Run benchmarks (L40)
+    if: github.repository == 'zama-ai/tfhe-rs'
+    uses: ./.github/workflows/benchmark_gpu_integer_common.yml
+    with:
+      profile: l40
+      hardware_name: n3-L40x1
+      command: integer_multi_bit,integer_compression,pbs,ks
+      op_flavor: default
+      bench_type: latency
+      all_precisions: true
+    secrets:
+      FHE_ACTIONS_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTIONS_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

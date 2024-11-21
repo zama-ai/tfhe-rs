@@ -1,17 +1,47 @@
-# Run all integer benchmarks on an instance with CUDA and return parsed results to Slab CI bot.
-name: Integer GPU full benchmarks
+# Run integer benchmarks on CUDA instance and return parsed results to Slab CI bot.
+name: Cuda benchmarks common
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      run_throughput:
-        description: "Run throughput benchmarks"
+      backend:
+        type: string
+        default: hyperstack
+      profile:
+        type: string
+        required: true
+      hardware_name:
+        type: string
+        required: true
+      command: # Use a comma separated values to generate an array
+        type: string
+        required: true
+      op_flavor: # Use a comma separated values to generate an array
+        type: string
+        required: true
+      bench_type:
+        type: string
+        default: latency
+      all_precisions:
         type: boolean
         default: false
-
-  schedule:
-    # Weekly benchmarks will be triggered each Saturday at 1a.m.
-    - cron: '0 1 * * 6'
+    secrets:
+      FHE_ACTIONS_TOKEN:
+        required: true
+      SLAB_ACTION_TOKEN:
+        required: true
+      SLAB_BASE_URL:
+        required: true
+      SLAB_URL:
+        required: true
+      JOB_SECRET:
+        required: true
+      SLACK_CHANNEL:
+        required: true
+      BOT_USERNAME:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,14 +53,67 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  BENCH_TYPE: latency
+  FAST_BENCH: TRUE
 
 jobs:
-  setup-instance:
-    name: Setup instance (cuda-integer-full-benchmarks)
+  prepare-matrix:
+    name: Prepare operations matrix
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule' ||
-      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
+    outputs:
+      command: ${{ steps.set_command.outputs.command }}
+      op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
+      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+    steps:
+      - name: Set single command
+        if: ${{ !contains(inputs.command, ',')}}
+        run: |
+          echo "COMMAND=[\"${{ inputs.command }}\"]" >> "${GITHUB_ENV}"
+
+      - name: Set multiple commands
+        if: ${{ contains(inputs.command, ',')}}
+        run: |
+          PARSED_COMMAND=$(echo "${{ inputs.command }}" | sed 's/[[:space:]]*,[[:space:]]*/\\", \\"/g')
+          echo "COMMAND=[\"${PARSED_COMMAND}\"]" >> "${GITHUB_ENV}"
+
+      - name: Set single operations flavor
+        if: ${{ !contains(inputs.op_flavor, ',')}}
+        run: |
+          echo "OP_FLAVOR=[\"${{ inputs.op_flavor }}\"]" >> "${GITHUB_ENV}"
+
+      - name: Set multiple operations flavors
+        if: ${{ contains(inputs.op_flavor, ',')}}
+        run: |
+          PARSED_OP_FLAVOR=$(echo "${{ inputs.op_flavor }}" | sed 's/[[:space:]]*,[[:space:]]*/\\", \\"/g')
+          echo "OP_FLAVOR=[\"${PARSED_OP_FLAVOR}\"]" >> "${GITHUB_ENV}"
+
+      - name: Set benchmark types
+        run: |
+          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
+          if [[ "${{ inputs.bench_type }}" == "both" ]]; then
+            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+          else
+            echo "BENCH_TYPE=[\"${{ inputs.bench_type }}\"]" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Set command output
+        id: set_command
+        run: |
+          echo "command=${{ toJSON(env.COMMAND) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set operation flavor output
+        id: set_op_flavor
+        run: |
+          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set benchmark types output
+        id: set_bench_type
+        run: |
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
+  setup-instance:
+    name: Setup instance (cuda-${{ inputs.profile }}-benchmarks)
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
@@ -42,12 +125,12 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
-          profile: single-h100
+          backend: ${{ inputs.backend }}
+          profile: ${{ inputs.profile }}
 
-  cuda-integer-full-benchmarks:
-    name: Execute GPU integer benchmarks for all operations flavor
-    needs: setup-instance
+  cuda-benchmarks:
+    name: Cuda benchmarks (${{ inputs.profile }})
+    needs: [ prepare-matrix, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
     continue-on-error: true
@@ -55,8 +138,9 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        command: [integer, integer_multi_bit]
-        op_flavor: [default]
+        command: ${{ fromJSON(needs.prepare-matrix.outputs.command) }}
+        op_flavor: ${{ fromJSON(needs.prepare-matrix.outputs.op_flavor) }}
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
         # explicit include-based build matrix, of known valid options
         include:
           - os: ubuntu-22.04
@@ -133,34 +217,27 @@ jobs:
         if: ${{ !cancelled() }}
         run: nvidia-smi
 
-      - name: Should run throughput benchmarks
-        if: inputs.run_throughput
+      - name: Should run benchmarks with all precisions
+        if: inputs.all_precisions
         run: |
-          echo "BENCH_TYPE=throughput" >> "${GITHUB_ENV}"
+          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
 
-      - name: Run benchmarks with AVX512
+      - name: Run benchmarks
         run: |
           make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_${{ matrix.command }}_gpu
-
-      # Run these benchmarks only once
-      - name: Run compression benchmarks with AVX512
-        if: matrix.op_flavor == 'default' && matrix.command == 'integer'
-        run: |
-          make bench_integer_compression_gpu
 
       - name: Parse results
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --database tfhe_rs \
-          --hardware "n3-H100x1" \
+          --hardware "${{ inputs.hardware_name }}" \
           --backend gpu \
           --project-version "${{ env.COMMIT_HASH }}" \
           --branch ${{ github.ref_name }} \
           --commit-date "${{ env.COMMIT_DATE }}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
-          --name-suffix avx512 \
-          --bench-type ${{ env.BENCH_TYPE }}
+          --name-suffix avx512
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
@@ -176,21 +253,21 @@ jobs:
 
   slack-notify:
     name: Slack Notification
-    needs: [ setup-instance, cuda-integer-full-benchmarks ]
+    needs: [ setup-instance, cuda-benchmarks ]
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.cuda-integer-full-benchmarks.result != 'skipped' && failure() }}
+    if: ${{ always() && needs.cuda-benchmarks.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
       - name: Send message
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
-          SLACK_COLOR: ${{ needs.cuda-integer-full-benchmarks.result }}
-          SLACK_MESSAGE: "Integer GPU full benchmarks finished with status: ${{ needs.cuda-integer-full-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_COLOR: ${{ needs.cuda-benchmarks.result }}
+          SLACK_MESSAGE: "Cuda benchmarks (${{ inputs.profile }}) finished with status: ${{ needs.cuda-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (cuda-integer-full-benchmarks)
+    name: Teardown instance (cuda-${{ inputs.profile }}-benchmarks)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, cuda-integer-full-benchmarks, slack-notify ]
+    needs: [ setup-instance, cuda-benchmarks, slack-notify ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -209,4 +286,4 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-integer-full-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (cuda-${{ inputs.profile }}-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
