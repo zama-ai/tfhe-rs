@@ -657,7 +657,7 @@ impl ServerKey {
             // We interpret empty as 0
             return match compare {
                 ComparisonKind::Less => self.create_trivial_boolean_block(Scalar::ZERO < b),
-                ComparisonKind::LessOrEqual => self.create_trivial_boolean_block(Scalar::ZERO < b),
+                ComparisonKind::LessOrEqual => self.create_trivial_boolean_block(Scalar::ZERO <= b),
                 ComparisonKind::Greater => self.create_trivial_boolean_block(Scalar::ZERO > b),
                 ComparisonKind::GreaterOrEqual => {
                     self.create_trivial_boolean_block(Scalar::ZERO >= b)
