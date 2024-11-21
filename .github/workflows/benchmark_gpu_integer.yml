@@ -57,12 +57,12 @@ jobs:
       - name: Parse profile
         id: parse_profile
         run: |
-          echo "profile=$(echo \"${{ inputs.profile }}\" | sed 's|\(.*\)[[:space:]](.*)|\1|')" >> "${GITHUB_OUTPUT}"
+          echo "profile=$(echo '${{ inputs.profile }}' | sed 's|\(.*\)[[:space:]](.*)|\1|')" >> "${GITHUB_OUTPUT}"
 
       - name: Parse hardware name
         id: parse_hardware_name
         run: |
-          echo "name=$(echo \"${{ inputs.profile }}\" | sed 's|.*[[:space:]](\(.*\))|\1|')" >> "${GITHUB_OUTPUT}"
+          echo "name=$(echo '${{ inputs.profile }}' | sed 's|.*[[:space:]](\(.*\))|\1|')" >> "${GITHUB_OUTPUT}"
 
   run-benchmarks:
     name: Run benchmarks
@@ -75,12 +75,4 @@ jobs:
       op_flavor: ${{ inputs.op_flavor }}
       bench_type: ${{ inputs.bench_type }}
       all_precisions: ${{ inputs.all_precisions }}
-    secrets:
-      FHE_ACTIONS_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTIONS_TOKEN }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    secrets: inherit

@@ -18,15 +18,7 @@ jobs:
       op_flavor: default
       bench_type: latency
       all_precisions: true
-    secrets:
-      FHE_ACTIONS_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTIONS_TOKEN }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    secrets: inherit
 
   run-benchmarks-2-h100:
     name: Run benchmarks (2xH100)
@@ -39,15 +31,7 @@ jobs:
       op_flavor: default
       bench_type: latency
       all_precisions: true
-    secrets:
-      FHE_ACTIONS_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTIONS_TOKEN }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    secrets: inherit
 
   run-benchmarks-8-h100:
     name: Run benchmarks (8xH100)
@@ -60,15 +44,7 @@ jobs:
       op_flavor: default
       bench_type: latency
       all_precisions: true
-    secrets:
-      FHE_ACTIONS_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTIONS_TOKEN }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    secrets: inherit
 
   run-benchmarks-l40:
     name: Run benchmarks (L40)
@@ -81,12 +57,4 @@ jobs:
       op_flavor: default
       bench_type: latency
       all_precisions: true
-    secrets:
-      FHE_ACTIONS_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTIONS_TOKEN }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    secrets: inherit

@@ -224,7 +224,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_${{ matrix.command }}_gpu
+          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} BENCH_TYPE=${{ matrix.bench_type }} bench_${{ matrix.command }}_gpu
 
       - name: Parse results
         run: |
