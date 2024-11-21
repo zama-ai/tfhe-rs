@@ -55,7 +55,7 @@ impl ServerKey {
                 if self
                     .key
                     .max_degree
-                    .validate(ct_i.degree * scalar_i as usize)
+                    .validate(ct_i.degree * u64::from(scalar_i))
                     .is_ok()
                     && self
                         .key

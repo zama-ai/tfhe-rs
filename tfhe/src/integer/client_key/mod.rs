@@ -704,7 +704,7 @@ impl ClientKey {
             //decrypt the component i of the integer and multiply it by the radix product
             val.push(
                 self.key
-                    .decrypt_message_native_crt(c_i, MessageModulus(*b_i as usize)),
+                    .decrypt_message_native_crt(c_i, MessageModulus(*b_i)),
             );
         }
 

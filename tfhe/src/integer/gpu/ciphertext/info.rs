@@ -209,7 +209,7 @@ impl CudaRadixCiphertextInfo {
                 .iter()
                 .zip(scalar_composed)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: Degree::new(left.degree.get() + scalar_block as usize),
+                    degree: Degree::new(left.degree.get() + u64::from(scalar_block)),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
@@ -250,7 +250,7 @@ impl CudaRadixCiphertextInfo {
                 .iter()
                 .zip(decomposer)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: Degree::new(left.degree.get() + scalar_block as usize),
+                    degree: Degree::new(left.degree.get() + u64::from(scalar_block)),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
@@ -316,18 +316,19 @@ impl CudaRadixCiphertextInfo {
     {
         let message_modulus = self.blocks.first().unwrap().message_modulus;
         let bits_in_message = message_modulus.0.ilog2();
-        let decomposer =
-            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
-        let mut scalar_composed = decomposer.collect_vec();
-        scalar_composed.resize(self.blocks.len(), 0);
+        let decomposer = BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
+            .iter_as::<u8>()
+            .chain(std::iter::repeat(0u8));
 
         Self {
             blocks: self
                 .blocks
                 .iter()
-                .zip(scalar_composed)
+                .zip(decomposer)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: left.degree.after_bitand(Degree::new(scalar_block as usize)),
+                    degree: left
+                        .degree
+                        .after_bitand(Degree::new(u64::from(scalar_block))),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
@@ -343,18 +344,19 @@ impl CudaRadixCiphertextInfo {
     {
         let message_modulus = self.blocks.first().unwrap().message_modulus;
         let bits_in_message = message_modulus.0.ilog2();
-        let decomposer =
-            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
-        let mut scalar_composed = decomposer.collect_vec();
-        scalar_composed.resize(self.blocks.len(), 0);
+        let decomposer = BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
+            .iter_as::<u8>()
+            .chain(std::iter::repeat(0u8));
 
         Self {
             blocks: self
                 .blocks
                 .iter()
-                .zip(scalar_composed)
+                .zip(decomposer)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: left.degree.after_bitor(Degree::new(scalar_block as usize)),
+                    degree: left
+                        .degree
+                        .after_bitor(Degree::new(u64::from(scalar_block))),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
@@ -370,18 +372,19 @@ impl CudaRadixCiphertextInfo {
     {
         let message_modulus = self.blocks.first().unwrap().message_modulus;
         let bits_in_message = message_modulus.0.ilog2();
-        let decomposer =
-            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
-        let mut scalar_composed = decomposer.collect_vec();
-        scalar_composed.resize(self.blocks.len(), 0);
+        let decomposer = BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
+            .iter_as::<u8>()
+            .chain(std::iter::repeat(0u8));
 
         Self {
             blocks: self
                 .blocks
                 .iter()
-                .zip(scalar_composed)
+                .zip(decomposer)
                 .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: left.degree.after_bitxor(Degree::new(scalar_block as usize)),
+                    degree: left
+                        .degree
+                        .after_bitxor(Degree::new(u64::from(scalar_block))),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,

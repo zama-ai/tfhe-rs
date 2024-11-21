@@ -138,8 +138,8 @@ fn to_plaintext_iterator(
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
 ) -> impl Iterator<Item = Plaintext<u64>> {
-    let message_modulus = message_modulus.0 as u64;
-    let carry_modulus = carry_modulus.0 as u64;
+    let message_modulus = message_modulus.0;
+    let carry_modulus = carry_modulus.0;
 
     let full_modulus = message_modulus * carry_modulus;
 
@@ -268,7 +268,7 @@ impl CompactPublicKey {
     ///
     /// See [Self::encrypt_iter] for more details
     pub fn encrypt_slice(&self, messages: &[u64]) -> CompactCiphertextList {
-        self.encrypt_slice_with_modulus(messages, self.parameters.message_modulus.0 as u64)
+        self.encrypt_slice_with_modulus(messages, self.parameters.message_modulus.0)
     }
 
     /// Encrypts the messages coming from the iterator into a compact ciphertext list
@@ -276,7 +276,7 @@ impl CompactPublicKey {
     /// Values of the messages should be in range [0..message_modulus[
     /// (a modulo operation is applied to each input)
     pub fn encrypt_iter(&self, messages: impl Iterator<Item = u64>) -> CompactCiphertextList {
-        self.encrypt_iter_with_modulus(messages, self.parameters.message_modulus.0 as u64)
+        self.encrypt_iter_with_modulus(messages, self.parameters.message_modulus.0)
     }
 
     /// Encrypts the messages contained in the slice into a compact ciphertext list
@@ -359,7 +359,7 @@ impl CompactPublicKey {
         let message_modulus = self.parameters.message_modulus;
         CompactCiphertextList {
             ct_list,
-            degree: Degree::new(encryption_modulus as usize - 1),
+            degree: Degree::new(encryption_modulus - 1),
             message_modulus,
             carry_modulus: self.parameters.carry_modulus,
             expansion_kind: self.parameters.expansion_kind,
@@ -375,8 +375,7 @@ impl CompactPublicKey {
         load: ZkComputeLoad,
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
-        let plaintext_modulus =
-            (self.parameters.message_modulus.0 * self.parameters.carry_modulus.0) as u64;
+        let plaintext_modulus = self.parameters.message_modulus.0 * self.parameters.carry_modulus.0;
         let delta = (1u64 << 63) / plaintext_modulus;
         assert!(encryption_modulus <= plaintext_modulus);
 
@@ -447,7 +446,7 @@ impl CompactPublicKey {
             let message_modulus = self.parameters.message_modulus;
             let ciphertext = CompactCiphertextList {
                 ct_list,
-                degree: Degree::new(encryption_modulus as usize - 1),
+                degree: Degree::new(encryption_modulus - 1),
                 message_modulus,
                 carry_modulus: self.parameters.carry_modulus,
                 expansion_kind: self.parameters.expansion_kind,

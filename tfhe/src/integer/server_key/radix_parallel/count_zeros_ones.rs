@@ -175,8 +175,7 @@ impl ServerKey {
                     // We used a LUT that spans 2*num_bits_in_block, however there was only one
                     // block, so the estimated degree is not correct, we set it, otherwise
                     // a spurious full propagation would happen later
-                    block.degree =
-                        crate::shortint::ciphertext::Degree::new(num_bits_in_block as usize);
+                    block.degree = Degree::new(u64::from(num_bits_in_block));
                     RadixCiphertext::from(vec![block])
                 })
                 .collect::<Vec<_>>()
@@ -242,9 +241,9 @@ impl ServerKey {
                 || {
                     let lut = self.key.generate_lookup_table(|x| {
                         // extract message
-                        let x = x % self.key.message_modulus.0 as u64;
+                        let x = x % self.key.message_modulus.0;
                         // bitnot the message
-                        (!x) % self.key.message_modulus.0 as u64
+                        (!x) % self.key.message_modulus.0
                     });
                     result
                         .blocks
@@ -255,9 +254,9 @@ impl ServerKey {
                 || {
                     let lut = self.key.generate_lookup_table(|x| {
                         // extract carry
-                        let x = x / self.key.message_modulus.0 as u64;
+                        let x = x / self.key.message_modulus.0;
                         // bitnot the carry
-                        (!x) % self.key.message_modulus.0 as u64
+                        (!x) % self.key.message_modulus.0
                     });
                     let mut carry_blocks = Vec::with_capacity(num_unsigned_blocks);
                     result.blocks[..num_signed_blocks - 1] // last carry is not interesting
@@ -265,11 +264,7 @@ impl ServerKey {
                         .map(|block| self.key.apply_lookup_table(block, &lut))
                         .collect_into_vec(&mut carry_blocks);
                     // Normally this would be 0, but we want the bitnot of 0, which is msg_mod-1
-                    carry_blocks.insert(
-                        0,
-                        self.key
-                            .create_trivial((self.message_modulus().0 - 1) as u64),
-                    );
+                    carry_blocks.insert(0, self.key.create_trivial(self.message_modulus().0 - 1));
                     carry_blocks
                 },
             );

@@ -97,13 +97,13 @@ where
     accumulator_view.get_mut_mask().as_mut().fill(0);
 
     // Modulus of the msg contained in the msg bits and operations buffer
-    let modulus_sup = message_modulus.0 * carry_modulus.0;
+    let modulus_sup = (message_modulus.0 * carry_modulus.0) as usize;
 
     // N/(p/2) = size of each block
     let box_size = polynomial_size.0 / modulus_sup;
 
     // Value of the shift we multiply our messages by
-    let delta = (1_u64 << 63) / (message_modulus.0 * carry_modulus.0) as u64;
+    let delta = (1_u64 << 63) / (message_modulus.0 * carry_modulus.0);
 
     let mut body = accumulator_view.get_mut_body();
     let accumulator_u64 = body.as_mut();
@@ -180,7 +180,7 @@ where
     accumulator_view.get_mut_mask().as_mut().fill(0);
 
     // Modulus of the msg contained in the msg bits and operations buffer
-    let modulus_sup = message_modulus.0 * carry_modulus.0;
+    let modulus_sup = (message_modulus.0 * carry_modulus.0) as usize;
 
     // N/(p/2) = size of each block
     let box_size = polynomial_size.0 / modulus_sup;
@@ -202,12 +202,12 @@ where
     );
 
     // Max valid degree for a ciphertext when using the LUT we generate
-    let max_degree = MaxDegree::new(modulus_sup / fn_counts - 1);
+    let max_degree = MaxDegree::new((modulus_sup / fn_counts - 1) as u64);
 
     let mut per_fn_output_degree = vec![Degree::new(0); fn_counts];
 
     // If MaxDegree == 1, we can have two input values 0 and 1, so we need MaxDegree + 1 boxes
-    let single_function_sub_lut_size = (max_degree.get() + 1) * box_size;
+    let single_function_sub_lut_size = (max_degree.get() as usize + 1) * box_size;
 
     for ((function_sub_lut, output_degree), function) in accumulator_u64
         .chunks_mut(single_function_sub_lut_size)
@@ -217,7 +217,7 @@ where
         for (msg_value, sub_lut_box) in function_sub_lut.chunks_exact_mut(box_size).enumerate() {
             let msg_value = msg_value as u64;
             let function_eval = function(msg_value);
-            *output_degree = Degree::new((function_eval as usize).max(output_degree.get()));
+            *output_degree = Degree::new(function_eval.max(output_degree.get()));
             sub_lut_box.fill(function_eval * delta);
         }
     }

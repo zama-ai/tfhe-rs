@@ -67,7 +67,7 @@ impl CudaServerKey {
                 // (returns false for empty iter)
                 let at_least_one_block_is_not_full_of_1s = scalar_blocks[ct_len.0..]
                     .iter()
-                    .any(|&scalar_block| scalar_block != (self.message_modulus.0 as u64 - 1));
+                    .any(|&scalar_block| scalar_block != (self.message_modulus.0 - 1));
 
                 let sign_bit_pos = self.message_modulus.0.ilog2() - 1;
                 let sign_bit_is_unset = scalar_blocks

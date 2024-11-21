@@ -443,7 +443,7 @@ impl ServerKey {
         let mut subtract_borrow_and_cleanup_prepared_blocks = || {
             let message_extract_lut = self
                 .key
-                .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0 as u64);
+                .generate_lookup_table(|block| (block >> 1) % self.message_modulus().0);
 
             prepared_blocks
                 .par_iter_mut()
@@ -497,7 +497,7 @@ impl ServerKey {
     ) -> (Vec<Ciphertext>, Vec<Ciphertext>) {
         let num_blocks = blocks.len();
 
-        let message_modulus = self.message_modulus().0 as u64;
+        let message_modulus = self.message_modulus().0;
 
         let block_modulus = self.message_modulus().0 * self.carry_modulus().0;
         let num_bits_in_block = block_modulus.ilog2();
@@ -625,7 +625,7 @@ impl ServerKey {
             rhs.blocks.len()
         );
 
-        let modulus = self.key.message_modulus.0 as u64;
+        let modulus = self.key.message_modulus.0;
 
         // If the block does not have a carry after the subtraction, it means it needs to
         // borrow from the next block

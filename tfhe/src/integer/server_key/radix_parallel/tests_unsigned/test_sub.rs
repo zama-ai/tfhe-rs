@@ -315,7 +315,7 @@ where
 
     for num_blocks in 1..MAX_NB_CTXT {
         // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
 
         for _ in 0..nb_tests_smaller {
             let clear1 = rng.gen::<u64>() % modulus;
@@ -417,7 +417,7 @@ where
 
     for num_blocks in 1..MAX_NB_CTXT {
         // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
 
         for _ in 0..nb_tests_smaller {
             let clear_0 = rng.gen::<u64>() % modulus;
@@ -495,8 +495,8 @@ where
         for _ in 0..4 {
             // Reduce maximum value of random number such that at least the last block is a trivial
             // 0 (This is how the reproducing case was found)
-            let clear_0 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0 as u64);
-            let clear_1 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0 as u64);
+            let clear_0 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0);
+            let clear_1 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0);
 
             let a: RadixCiphertext = sks.create_trivial_radix(clear_0, num_blocks);
             let b: RadixCiphertext = sks.create_trivial_radix(clear_1, num_blocks);

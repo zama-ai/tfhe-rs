@@ -88,10 +88,10 @@ impl ServerKey {
     pub fn unchecked_scalar_div_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         assert_ne!(scalar, 0, "attempt to divide by zero");
 
-        let lookup_table =
-            self.generate_msg_lookup_table(|x| x / (scalar as u64), ct.message_modulus);
+        let scalar = u64::from(scalar);
+        let lookup_table = self.generate_msg_lookup_table(|x| x / scalar, ct.message_modulus);
         self.apply_lookup_table_assign(ct, &lookup_table);
-        ct.degree = Degree::new(ct.degree.get() / scalar as usize);
+        ct.degree = Degree::new(ct.degree.get() / scalar);
     }
 
     /// Alias to [`unchecked_scalar_mod`](`Self::unchecked_scalar_mod`) provided for convenience
@@ -178,8 +178,9 @@ impl ServerKey {
 
     pub fn unchecked_scalar_mod_assign(&self, ct: &mut Ciphertext, modulus: u8) {
         assert_ne!(modulus, 0);
-        let acc = self.generate_msg_lookup_table(|x| x % modulus as u64, ct.message_modulus);
+        let modulus = u64::from(modulus);
+        let acc = self.generate_msg_lookup_table(|x| x % modulus, ct.message_modulus);
         self.apply_lookup_table_assign(ct, &acc);
-        ct.degree = Degree::new(modulus as usize - 1);
+        ct.degree = Degree::new(modulus - 1);
     }
 }

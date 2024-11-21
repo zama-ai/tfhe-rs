@@ -235,7 +235,7 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn unchecked_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        let value_on_div_by_zero = (ct_left.message_modulus.0 - 1) as u64;
+        let value_on_div_by_zero = ct_left.message_modulus.0 - 1;
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |x, y| {
             safe_division(x, y, value_on_div_by_zero)
         });
@@ -289,7 +289,7 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn smart_div(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        let value_on_div_by_zero = (ct_left.message_modulus.0 - 1) as u64;
+        let value_on_div_by_zero = ct_left.message_modulus.0 - 1;
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |x, y| {
             safe_division(x, y, value_on_div_by_zero)
         })
@@ -343,7 +343,7 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn smart_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        let value_on_div_by_zero = (ct_left.message_modulus.0 - 1) as u64;
+        let value_on_div_by_zero = ct_left.message_modulus.0 - 1;
         self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |x, y| {
             safe_division(x, y, value_on_div_by_zero)
         });

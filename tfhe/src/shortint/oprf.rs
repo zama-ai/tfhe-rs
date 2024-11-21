@@ -149,7 +149,7 @@ impl ServerKey {
 
         Ciphertext {
             ct,
-            degree: Degree::new(p as usize - 1),
+            degree: Degree::new(p - 1),
             noise_level: NoiseLevel::NOMINAL,
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
@@ -220,7 +220,7 @@ pub(crate) mod test {
 
         let p_prime = 1 << random_bits_count;
 
-        let output_p = (2 * params.carry_modulus().0 * params.message_modulus().0) as u64;
+        let output_p = 2 * params.carry_modulus().0 * params.message_modulus().0;
 
         let poly_delta = 2 * params.polynomial_size().0 as u64 / p_prime;
 

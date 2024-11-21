@@ -166,7 +166,7 @@ impl CudaServerKey {
             PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_size(),
         };
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
 
         let decomposer = BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
             .iter_as::<u64>()
@@ -182,7 +182,7 @@ impl CudaServerKey {
         for (block_value, mut lwe) in decomposer.zip(cpu_lwe_list.iter_mut()) {
             *lwe.get_mut_body().data = block_value * delta;
             info.push(CudaBlockInfo {
-                degree: Degree::new(block_value as usize),
+                degree: Degree::new(block_value),
                 message_modulus: self.message_modulus,
                 carry_modulus: self.carry_modulus,
                 pbs_order: self.pbs_order,
@@ -468,7 +468,7 @@ impl CudaServerKey {
     /// // Decrypt
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(
-    ///     7 * (PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.message_modulus.0 as u64).pow(added_blocks as u32),
+    ///     7 * (PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.message_modulus.0).pow(added_blocks as u32),
     ///     res
     /// );
     /// ```
@@ -791,7 +791,7 @@ impl CudaServerKey {
 
         LookupTableOwned {
             acc,
-            degree: Degree::new(max_value as usize),
+            degree: Degree::new(max_value),
         }
     }
 
@@ -835,7 +835,7 @@ impl CudaServerKey {
         // Depending on the factor used, rhs and / or lhs may have carries
         // (degree >= message_modulus) which is why we need to apply the message_modulus
         // to clear them
-        let message_modulus = self.message_modulus.0 as u64;
+        let message_modulus = self.message_modulus.0;
         let factor_u64 = message_modulus;
         let wrapped_f = |input: u64| -> u64 {
             let lhs = (input / factor_u64) % message_modulus;
@@ -1162,7 +1162,7 @@ impl CudaServerKey {
         if num_blocks == 0 {
             return ct.duplicate_async(streams);
         }
-        let message_modulus = self.message_modulus.0 as u64;
+        let message_modulus = self.message_modulus.0;
         let num_bits_in_block = message_modulus.ilog2();
         let padding_block_creator_lut = self.generate_lookup_table(|x| {
             let x = x % message_modulus;

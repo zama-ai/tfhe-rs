@@ -3,7 +3,7 @@
 //! This module implements the generation of the server public key, together with all the
 //! available homomorphic integer operations.
 pub mod comparator;
-mod crt;
+pub(crate) mod crt;
 mod crt_parallel;
 pub(crate) mod radix;
 pub(crate) mod radix_parallel;
@@ -246,7 +246,7 @@ impl ServerKey {
             MaxDegree::from_msg_carry_modulus(self.message_modulus(), self.carry_modulus());
         let max_sum_to_full_carry = max_degree.get() / degree.get();
 
-        max_sum_to_full_carry.min(self.key.max_noise_level.get() as usize)
+        max_sum_to_full_carry.min(self.key.max_noise_level.get()) as usize
     }
 }
 

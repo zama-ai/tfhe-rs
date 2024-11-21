@@ -42,7 +42,7 @@ impl OutputFlag {
 }
 
 fn should_parallel_propagation_be_faster(
-    full_modulus: usize,
+    full_modulus: u64,
     num_blocks: usize,
     num_threads: usize,
 ) -> bool {
@@ -655,8 +655,8 @@ impl ServerKey {
                     let overflow_flag = overflow_flag.as_mut().unwrap();
                     let num_bits_in_message = self.message_modulus().0.ilog2() as u64;
                     let lut = self.key.generate_lookup_table(|lhs_rhs| {
-                        let lhs = lhs_rhs / self.message_modulus().0 as u64;
-                        let rhs = lhs_rhs % self.message_modulus().0 as u64;
+                        let lhs = lhs_rhs / self.message_modulus().0;
+                        let rhs = lhs_rhs % self.message_modulus().0;
                         overflow_flag_preparation_lut(lhs, rhs, num_bits_in_message)
                     });
                     self.key.apply_lookup_table_assign(overflow_flag, &lut);
@@ -876,7 +876,7 @@ impl ServerKey {
         let blocks = lhs;
         let num_blocks = blocks.len();
 
-        let message_modulus = self.message_modulus().0 as u64;
+        let message_modulus = self.message_modulus().0;
         let num_bits_in_message = message_modulus.ilog2() as u64;
 
         let block_modulus = self.message_modulus().0 * self.carry_modulus().0;
@@ -1054,8 +1054,8 @@ impl ServerKey {
                 vec![self.key.create_trivial(0)],
             );
         }
-        let message_modulus = self.key.message_modulus.0 as u64;
-        let block_modulus = message_modulus * self.carry_modulus().0 as u64;
+        let message_modulus = self.key.message_modulus.0;
+        let block_modulus = message_modulus * self.carry_modulus().0;
         let num_bits_in_block = block_modulus.ilog2();
         let num_blocks = block_states.len();
 
@@ -1204,7 +1204,7 @@ impl ServerKey {
                     } else {
                         self.key.unchecked_scalar_add_assign(cum_sum_block, 1);
                     }
-                    cum_sum_block.degree = Degree::new(message_modulus as usize - 1);
+                    cum_sum_block.degree = Degree::new(message_modulus - 1);
                 }
             });
 
@@ -1342,7 +1342,7 @@ impl ServerKey {
     ) -> (Vec<Ciphertext>, Vec<Ciphertext>) {
         let num_blocks = blocks.len();
 
-        let message_modulus = self.message_modulus().0 as u64;
+        let message_modulus = self.message_modulus().0;
 
         let block_modulus = self.message_modulus().0 * self.carry_modulus().0;
         let num_bits_in_block = block_modulus.ilog2();
@@ -1624,7 +1624,7 @@ mod tests {
             },
         ];
 
-        const FULL_MODULUS: usize = 32; // This is 2_2 parameters
+        const FULL_MODULUS: u64 = 32; // This is 2_2 parameters
 
         fn bool_to_algo_name(parallel_chosen: bool) -> &'static str {
             if parallel_chosen {

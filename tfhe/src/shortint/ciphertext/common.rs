@@ -46,7 +46,7 @@ impl MaxNoiseLevel {
         carry_modulus: CarryModulus,
     ) -> Self {
         let level = (carry_modulus.0 * msg_modulus.0 - 1) / (msg_modulus.0 - 1);
-        Self(level as u64)
+        Self(level)
     }
 
     pub const fn validate(&self, noise_level: NoiseLevel) -> Result<(), CheckError> {
@@ -114,14 +114,14 @@ impl std::ops::Mul<u64> for NoiseLevel {
 /// Maximum value that the degree can reach.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(MaxDegreeVersions)]
-pub struct MaxDegree(usize);
+pub struct MaxDegree(u64);
 
 impl MaxDegree {
-    pub fn new(value: usize) -> Self {
+    pub fn new(value: u64) -> Self {
         Self(value)
     }
 
-    pub fn get(&self) -> usize {
+    pub fn get(&self) -> u64 {
         self.0
     }
 
@@ -148,21 +148,21 @@ impl MaxDegree {
     Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Versionize,
 )]
 #[versionize(DegreeVersions)]
-pub struct Degree(pub(super) usize);
+pub struct Degree(pub(super) u64);
 
 impl Degree {
-    pub fn new(degree: usize) -> Self {
+    pub fn new(degree: u64) -> Self {
         Self(degree)
     }
 
-    pub fn get(self) -> usize {
+    pub fn get(self) -> u64 {
         self.0
     }
 }
 
 #[cfg(test)]
-impl AsMut<usize> for Degree {
-    fn as_mut(&mut self) -> &mut usize {
+impl AsMut<u64> for Degree {
+    fn as_mut(&mut self) -> &mut u64 {
         &mut self.0
     }
 }
@@ -201,28 +201,11 @@ impl Degree {
         Self(cmp::min(self.0, other.0))
     }
 
-    pub(crate) fn after_left_shift(self, shift: u8, modulus: usize) -> Self {
+    pub(crate) fn after_left_shift(self, shift: u8, modulus: u64) -> Self {
         let mut result = 0;
 
         for i in 0..self.0 + 1 {
             let tmp = (i << shift) % modulus;
-            if tmp > result {
-                result = tmp;
-            }
-        }
-
-        Self(result)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn after_pbs<F>(self, f: F) -> Self
-    where
-        F: Fn(usize) -> usize,
-    {
-        let mut result = 0;
-
-        for i in 0..self.0 + 1 {
-            let tmp = f(i);
             if tmp > result {
                 result = tmp;
             }
@@ -247,16 +230,16 @@ impl std::ops::Add for Degree {
     }
 }
 
-impl std::ops::MulAssign<usize> for Degree {
-    fn mul_assign(&mut self, rhs: usize) {
+impl std::ops::MulAssign<u64> for Degree {
+    fn mul_assign(&mut self, rhs: u64) {
         self.0 = self.0.saturating_mul(rhs);
     }
 }
 
-impl std::ops::Mul<usize> for Degree {
+impl std::ops::Mul<u64> for Degree {
     type Output = Self;
 
-    fn mul(mut self, rhs: usize) -> Self::Output {
+    fn mul(mut self, rhs: u64) -> Self::Output {
         self *= rhs;
 
         self

@@ -27,7 +27,7 @@ impl ServerKey {
     ///
     /// let ct_res = sks.blockshift_right(&ct, shift);
     ///
-    /// let div = cks.parameters().message_modulus().0.pow(shift as u32) as u64;
+    /// let div = cks.parameters().message_modulus().0.pow(shift as u32);
     ///
     /// // Decrypt:
     /// let clear = cks.decrypt(&ct_res);
@@ -147,7 +147,7 @@ impl ServerKey {
             return;
         }
 
-        let message_modulus = self.key.message_modulus.0 as u64;
+        let message_modulus = self.key.message_modulus.0;
         let lut = self
             .key
             .generate_lookup_table_bivariate(|current_block, mut previous_block| {
@@ -305,8 +305,8 @@ impl ServerKey {
                 let current_block = current_block << shift_within_block;
                 let previous_block = previous_block << shift_within_block;
 
-                let message_of_current_block = current_block % self.key.message_modulus.0 as u64;
-                let carry_of_previous_block = previous_block / self.key.message_modulus.0 as u64;
+                let message_of_current_block = current_block % self.key.message_modulus.0;
+                let carry_of_previous_block = previous_block / self.key.message_modulus.0;
                 message_of_current_block + carry_of_previous_block
             });
         let partial_blocks = ct.blocks[rotations..]

@@ -397,7 +397,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         assert!(condition_block.degree.get() < condition_block.message_modulus.0);
-        assert!(value < condition_block.message_modulus.0 as u64);
+        assert!(value < condition_block.message_modulus.0);
 
         self.zero_out_if(ct, condition_block, |x| x == value);
     }

@@ -45,7 +45,7 @@ impl CudaServerKey {
 
         let lut = match direction {
             Direction::Trailing => self.generate_lookup_table(|x| {
-                let x = x % self.message_modulus.0 as u64;
+                let x = x % self.message_modulus.0;
 
                 let mut count = 0;
                 for i in 0..self.message_modulus.0.ilog2() {
@@ -57,7 +57,7 @@ impl CudaServerKey {
                 count
             }),
             Direction::Leading => self.generate_lookup_table(|x| {
-                let x = x % self.message_modulus.0 as u64;
+                let x = x % self.message_modulus.0;
 
                 let mut count = 0;
                 for i in (0..self.message_modulus.0.ilog2()).rev() {
@@ -562,9 +562,9 @@ impl CudaServerKey {
         // while inverting their bits
         let lut_a = self.generate_lookup_table(|x| {
             // extract message
-            let x = x % self.message_modulus.0 as u64;
+            let x = x % self.message_modulus.0;
             // bitnot the message
-            (!x) % self.message_modulus.0 as u64
+            (!x) % self.message_modulus.0
         });
 
         let mut message_blocks = CudaLweCiphertextList::new(
@@ -639,9 +639,9 @@ impl CudaServerKey {
 
         let lut_b = self.generate_lookup_table(|x| {
             // extract carry
-            let x = x / self.message_modulus.0 as u64;
+            let x = x / self.message_modulus.0;
             // bitnot the carry
-            (!x) % self.message_modulus.0 as u64
+            (!x) % self.message_modulus.0
         });
 
         let mut carry_blocks = CudaLweCiphertextList::new(
@@ -654,7 +654,7 @@ impl CudaServerKey {
         );
 
         let mut trivial_last_block: CudaSignedRadixCiphertext =
-            self.create_trivial_radix_async((self.message_modulus.0 - 1) as u64, 1, streams);
+            self.create_trivial_radix_async(self.message_modulus.0 - 1, 1, streams);
         let trivial_last_block_slice = trivial_last_block
             .as_mut()
             .d_blocks

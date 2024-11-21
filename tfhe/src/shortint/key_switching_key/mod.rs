@@ -536,8 +536,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                 );
                 // We want to avoid the padding bit to be dirty, hence the modulus
                 let acc = src_server_key.generate_lookup_table(|n| {
-                    (n << -cast_rshift)
-                        % (input_ct.carry_modulus.0 * input_ct.message_modulus.0) as u64
+                    (n << -cast_rshift) % (input_ct.carry_modulus.0 * input_ct.message_modulus.0)
                 });
                 tmp_preprocessed = src_server_key.apply_lookup_table(input_ct, &acc);
                 &tmp_preprocessed
