@@ -32,16 +32,13 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M5_5: Multi
     };
 
 pub fn main() {
-    // PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M14 => 18 fails /100 expected
-    // PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M14 => 8 fails /100 expected
-    // PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M14 => 6 fails /100 expected
-    // Err prob ~= 2^-5.5
     let fhe_params = PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M5_5;
 
-    //let max_scalar_mul = fhe_params.max_noise_level.get() as u8;
+    let max_scalar_mul = fhe_params.max_noise_level.get() as u8;
 
-    let expected_fails = 100;
+    let expected_fails = 500;
 
+    println!("running");
     //    let num_pbs = (1 << 6) * expected_fails;
     let num_pbs = (2.0_f32.powf(5.5).ceil() as i32) * expected_fails;
 
@@ -53,7 +50,6 @@ pub fn main() {
     let actual_fails: u32 = (0..num_pbs)
         .into_par_iter()
         .map(|_i| {
-            // println!("running #{i}");
             // let mut engine = ShortintEngine::new();
             // let cks = engine.new_client_key(fhe_params.into());
             // let sks = engine.new_server_key(&cks);
