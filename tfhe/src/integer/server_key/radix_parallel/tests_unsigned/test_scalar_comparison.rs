@@ -398,6 +398,41 @@ fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
     }
 }
 
+// Given a ciphertext that consists of empty blocks,
+// the function tests whether comparisons still hold.
+fn integer_comparisons_for_empty_blocks(param: ClassicPBSParameters) {
+    let mut rng = rand::thread_rng();
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+    let scalar = rng.gen::<u64>();
+    let ct: RadixCiphertext = sks.create_trivial_radix(scalar, 0);
+
+    {
+        let result = sks.unchecked_scalar_ge_parallelized(&ct, scalar);
+        let decrypted = cks.decrypt_bool(&result);
+        // Scalar is u64, so it can't be smaller than 0
+        assert_eq!(decrypted, 0 == scalar);
+    }
+
+    {
+        let result = sks.unchecked_scalar_le_parallelized(&ct, scalar);
+        let decrypted = cks.decrypt_bool(&result);
+        assert!(decrypted);
+    }
+
+    {
+        let result = sks.unchecked_scalar_gt_parallelized(&ct, scalar);
+        let decrypted = cks.decrypt_bool(&result);
+        assert!(!decrypted);
+    }
+
+    {
+        let result = sks.unchecked_scalar_lt_parallelized(&ct, scalar);
+        let decrypted = cks.decrypt_bool(&result);
+        assert_eq!(decrypted, 0 < scalar);
+    }
+}
+
 fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = 128usize.div_ceil(param.message_modulus.0.ilog2() as usize);
@@ -736,6 +771,13 @@ mod no_coverage {
         // but with param 3_3 we actually encrypt more that 128bits
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
+
+    create_parametrized_test!(integer_comparisons_for_empty_blocks {
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    });
 }
 
 // Smaller integers are used in coverage to speed-up execution.
@@ -791,6 +833,8 @@ mod coverage {
     create_parametrized_test_classical_params!(integer_unchecked_scalar_comparisons_edge);
 
     create_parametrized_test_classical_params!(integer_is_scalar_out_of_bounds);
+
+    create_parametrized_test_classical_params!(integer_comparisons_for_empty_blocks);
 }
 
 create_parametrized_test!(integer_extensive_trivial_default_scalar_comparisons);
