@@ -68,7 +68,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_impl(
     // new w/ FFT & multi-bit fixes
     (1_f64 / 3.0)
         * input_lwe_dimension
-        * (0.508473512556829
+        * (5.08473512556829
             * (2.0 * 0.0_f64.max(1.44269504088896_f64 * modulus.ln() - 53.0_f64)).exp2()
             * decomposition_base.powf(2.0)
             * decomposition_level_count
