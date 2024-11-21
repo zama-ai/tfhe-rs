@@ -10,7 +10,7 @@ pub struct ShortintCompressedCiphertext(pub(in crate::c_api) shortint::Compresse
 #[no_mangle]
 pub unsafe extern "C" fn shortint_ciphertext_set_degree(
     ciphertext: *mut ShortintCiphertext,
-    degree: usize,
+    degree: u64,
 ) -> c_int {
     catch_panic(|| {
         let ciphertext = get_mut_checked(ciphertext).unwrap();
@@ -24,7 +24,7 @@ pub unsafe extern "C" fn shortint_ciphertext_set_degree(
 #[no_mangle]
 pub unsafe extern "C" fn shortint_ciphertext_get_degree(
     ciphertext: *const ShortintCiphertext,
-    result: *mut usize,
+    result: *mut u64,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();

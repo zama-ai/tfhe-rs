@@ -329,7 +329,7 @@ fn test_noise_level_propagation_ci_run_filter() {
     let mut sk = sk.clone();
     sk.max_noise_level = MaxNoiseLevel::UNKNOWN;
 
-    let modulus: u64 = params.message_modulus.0 as u64;
+    let modulus: u64 = params.message_modulus.0;
 
     for _ in 0..10 {
         let trivial0 = sk.create_trivial(0);

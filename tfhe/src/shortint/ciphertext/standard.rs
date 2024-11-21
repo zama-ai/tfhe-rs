@@ -196,7 +196,7 @@ impl Ciphertext {
     /// ```
     pub fn decrypt_trivial(&self) -> Result<u64, NotTrivialCiphertextError> {
         self.decrypt_trivial_message_and_carry()
-            .map(|x| x % self.message_modulus.0 as u64)
+            .map(|x| x % self.message_modulus.0)
     }
 
     /// See [Self::decrypt_trivial].
@@ -217,7 +217,7 @@ impl Ciphertext {
     /// sks.unchecked_scalar_add_assign(&mut trivial_ct, clear as u8);
     ///
     /// let res = trivial_ct.decrypt_trivial();
-    /// let expected = (msg + clear) % PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0 as u64;
+    /// let expected = (msg + clear) % PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
     /// assert_eq!(Ok(expected), res);
     ///
     /// let res = trivial_ct.decrypt_trivial_message_and_carry();
@@ -225,7 +225,7 @@ impl Ciphertext {
     /// ```
     pub fn decrypt_trivial_message_and_carry(&self) -> Result<u64, NotTrivialCiphertextError> {
         if self.is_trivial() {
-            let delta = (1u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+            let delta = (1u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
             Ok(self.ct.get_body().data / delta)
         } else {
             Err(NotTrivialCiphertextError)
@@ -241,7 +241,7 @@ pub(crate) fn unchecked_create_trivial_with_lwe_size(
     pbs_order: PBSOrder,
     ciphertext_modulus: CiphertextModulus,
 ) -> Ciphertext {
-    let delta = (1_u64 << 63) / (message_modulus.0 * carry_modulus.0) as u64;
+    let delta = (1_u64 << 63) / (message_modulus.0 * carry_modulus.0);
 
     let shifted_value = value * delta;
 
@@ -250,7 +250,7 @@ pub(crate) fn unchecked_create_trivial_with_lwe_size(
     let ct =
         allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded, ciphertext_modulus);
 
-    let degree = Degree::new(value as usize);
+    let degree = Degree::new(value);
 
     Ciphertext::new(
         ct,

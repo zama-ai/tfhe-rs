@@ -197,8 +197,7 @@ where
         .parameters()
         .message_modulus()
         .0
-        .pow(crate::integer::server_key::radix_parallel::tests_cases_unsigned::NB_CTXT as u32)
-        as u64;
+        .pow(crate::integer::server_key::radix_parallel::tests_cases_unsigned::NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
 
@@ -261,7 +260,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
 
@@ -306,7 +305,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
 
@@ -352,7 +351,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
 
@@ -395,7 +394,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
 
@@ -434,7 +433,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
 
     executor.setup(&cks, sks.clone());

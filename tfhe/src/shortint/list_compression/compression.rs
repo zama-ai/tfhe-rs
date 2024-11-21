@@ -88,7 +88,7 @@ impl CompressionKey {
 
                     let mut ct = ct.clone();
                     let max_noise_level =
-                        MaxNoiseLevel::new((ct.noise_level() * message_modulus.0 as u64).get());
+                        MaxNoiseLevel::new((ct.noise_level() * message_modulus.0).get());
                     unchecked_scalar_mul_assign(&mut ct, message_modulus.0 as u8, max_noise_level);
 
                     list.extend(ct.ct.as_ref());
@@ -137,7 +137,7 @@ impl DecompressionKey {
             packed.ciphertext_modulus,
             packed.message_modulus,
             packed.carry_modulus,
-            |x| x / packed.message_modulus.0 as u64,
+            |x| x / packed.message_modulus.0,
         );
 
         let polynomial_size = packed.modulus_switched_glwe_ciphertext_list[0].polynomial_size();

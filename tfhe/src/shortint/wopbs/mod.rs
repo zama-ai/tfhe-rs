@@ -348,7 +348,7 @@ mod experimental {
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-        /// let message_modulus = WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0 as u64;
+        /// let message_modulus = WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let m = 2;
         /// let ct = cks.encrypt(m);
         /// let lut = wopbs_key.generate_lut(&ct, |x| x * x % message_modulus);
@@ -362,11 +362,11 @@ mod experimental {
         {
             // The function is applied only on the message modulus bits
             let basis = ct.message_modulus.0 * ct.carry_modulus.0;
-            let delta = 64 - f64::log2((basis) as f64).ceil() as u64 - 1;
+            let delta = 64 - f64::log2(basis as f64).ceil() as u64 - 1;
             let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
             let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
-            for (i, value) in lut.iter_mut().enumerate().take(basis) {
-                *value = f((i % ct.message_modulus.0) as u64) << delta;
+            for (i, value) in lut.iter_mut().enumerate().take(basis as usize) {
+                *value = f(i as u64 % ct.message_modulus.0) << delta;
             }
             lut
         }
@@ -385,7 +385,7 @@ mod experimental {
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
-        /// let message_modulus = WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0 as u64;
+        /// let message_modulus = WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let m = 2;
         /// let ct = cks.encrypt_without_padding(m);
         /// let lut = wopbs_key.generate_lut(&ct, |x| x * x % message_modulus);
@@ -402,8 +402,8 @@ mod experimental {
             let delta = 64 - f64::log2((basis) as f64).ceil() as u64;
             let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
             let mut vec_lut = vec![0; poly_size];
-            for (i, value) in vec_lut.iter_mut().enumerate().take(basis) {
-                *value = f((i % ct.message_modulus.0) as u64) << delta;
+            for (i, value) in vec_lut.iter_mut().enumerate().take(basis as usize) {
+                *value = f(i as u64 % ct.message_modulus.0) << delta;
             }
             vec_lut
         }
@@ -440,9 +440,8 @@ mod experimental {
             let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
             let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
             for i in 0..basis {
-                let index_lut = (((i as u64 % basis as u64) << nb_bit) / basis as u64) as usize;
-                lut[index_lut] =
-                    (((f(i as u64) % basis as u64) as u128 * (1 << 64)) / basis as u128) as u64;
+                let index_lut = (((i % basis) << nb_bit) / basis) as usize;
+                lut[index_lut] = (((f(i) % basis) as u128 * (1 << 64)) / basis as u128) as u64;
             }
             lut
         }
@@ -509,8 +508,8 @@ mod experimental {
         /// ```
         pub fn wopbs(&self, ct_in: &Ciphertext, lut: &ShortintWopbsLUT) -> Ciphertext {
             let tmp_sks = &self.wopbs_server_key;
-            let message_modulus = tmp_sks.message_modulus.0 as u64;
-            let carry_modulus = tmp_sks.carry_modulus.0 as u64;
+            let message_modulus = tmp_sks.message_modulus.0;
+            let carry_modulus = tmp_sks.carry_modulus.0;
             let delta = (1u64 << 63) / (carry_modulus * message_modulus);
             // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
             let delta_log = DeltaLog(delta.ilog2() as usize);
@@ -554,8 +553,8 @@ mod experimental {
             lut: &ShortintWopbsLUT,
         ) -> Ciphertext {
             let sks = &self.wopbs_server_key;
-            let message_modulus = sks.message_modulus.0 as u64;
-            let carry_modulus = sks.carry_modulus.0 as u64;
+            let message_modulus = sks.message_modulus.0;
+            let carry_modulus = sks.carry_modulus.0;
             let delta = (1u64 << 63) / (carry_modulus * message_modulus) * 2;
             // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
             let delta_log = DeltaLog(delta.ilog2() as usize);

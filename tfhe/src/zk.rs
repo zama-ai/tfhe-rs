@@ -58,7 +58,7 @@ impl CompactPkeCrsConformanceParams {
         let params: CompactPublicKeyEncryptionParameters =
             value.try_into().map_err(|e| e.into())?;
 
-        let mut plaintext_modulus = (params.message_modulus.0 * params.carry_modulus.0) as u64;
+        let mut plaintext_modulus = params.message_modulus.0 * params.carry_modulus.0;
         // Add 1 bit of modulus for the padding bit
         plaintext_modulus *= 2;
 
@@ -353,7 +353,7 @@ mod test {
             4,
             params.encryption_noise_distribution,
             params.ciphertext_modulus,
-            (params.message_modulus.0 * params.carry_modulus.0 * 2) as u64,
+            params.message_modulus.0 * params.carry_modulus.0 * 2,
             ZkMSBZeroPaddingBitCount(1),
             &mut rng,
         )
@@ -383,7 +383,7 @@ mod test {
             4,
             params.encryption_noise_distribution,
             params.ciphertext_modulus,
-            (params.message_modulus.0 * params.carry_modulus.0 * 2) as u64,
+            params.message_modulus.0 * params.carry_modulus.0 * 2,
             ZkMSBZeroPaddingBitCount(1),
             &mut rng,
         )

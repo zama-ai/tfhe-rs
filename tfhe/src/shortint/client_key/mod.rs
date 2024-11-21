@@ -244,8 +244,8 @@ impl ClientKey {
 
     #[cfg(test)]
     pub fn create_trivial(&self, value: u64) -> Ciphertext {
-        let modular_value = value as usize % self.parameters.message_modulus().0;
-        self.unchecked_create_trivial(modular_value as u64)
+        let modular_value = value % self.parameters.message_modulus().0;
+        self.unchecked_create_trivial(modular_value)
     }
 
     #[cfg(test)]
@@ -288,7 +288,7 @@ impl ClientKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt(&self, message: u64) -> Ciphertext {
@@ -323,7 +323,7 @@ impl ClientKey {
     /// let ct = ct.decompress();
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt_compressed(&self, message: u64) -> CompressedCiphertext {
@@ -495,7 +495,7 @@ impl ClientKey {
         let decrypted_u64: u64 = self.decrypt_no_decode(ct);
 
         let delta = (1_u64 << 63)
-            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
+            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0);
 
         //The bit before the message
         let rounding_bit = delta >> 1;
@@ -538,7 +538,7 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt(&self, ct: &Ciphertext) -> u64 {
-        self.decrypt_message_and_carry(ct) % ct.message_modulus.0 as u64
+        self.decrypt_message_and_carry(ct) % ct.message_modulus.0
     }
 
     pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> u64 {
@@ -638,7 +638,7 @@ impl ClientKey {
         let decrypted_u64 = self.decrypt_no_decode(ct);
 
         let delta = ((1_u64 << 63)
-            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64)
+            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0))
             * 2;
 
         //The bit before the message
@@ -684,7 +684,7 @@ impl ClientKey {
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn decrypt_without_padding(&self, ct: &Ciphertext) -> u64 {
-        self.decrypt_message_and_carry_without_padding(ct) % ct.message_modulus.0 as u64
+        self.decrypt_message_and_carry_without_padding(ct) % ct.message_modulus.0
     }
 
     /// Encrypt a small integer message using the client key without padding bit with some modulus.
@@ -708,7 +708,7 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus.0 as u64);
+    /// assert_eq!(msg, dec % modulus.0);
     /// ```
     pub fn encrypt_native_crt(&self, message: u64, message_modulus: MessageModulus) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -740,7 +740,7 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus.0 as u64);
+    /// assert_eq!(msg, dec % modulus.0);
     /// ```
     pub fn encrypt_native_crt_compressed(
         &self,
@@ -775,7 +775,7 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus.0 as u64);
+    /// assert_eq!(msg, dec % modulus.0);
     ///
     /// // Generate the client key
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -785,14 +785,14 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus.0 as u64);
+    /// assert_eq!(msg, dec % modulus.0);
     /// ```
     pub fn decrypt_message_native_crt(
         &self,
         ct: &Ciphertext,
         message_modulus: MessageModulus,
     ) -> u64 {
-        let basis = message_modulus.0 as u64;
+        let basis = message_modulus.0;
 
         let decrypted_u64: u64 = self.decrypt_no_decode(ct);
 

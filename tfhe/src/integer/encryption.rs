@@ -127,7 +127,7 @@ where
 
     // Put each decomposition into a new ciphertext
     for modulus in base_vec.iter().copied() {
-        let ct = encrypt_block(encrypting_key, message, MessageModulus(modulus as usize));
+        let ct = encrypt_block(encrypting_key, message, MessageModulus(modulus));
 
         ctxt_vect.push(ct);
     }
@@ -151,10 +151,7 @@ where
     let ctxt_vect = encrypt_blocks(
         encrypting_key,
         message,
-        base_vec
-            .clone()
-            .into_iter()
-            .map(|x| MessageModulus(x as usize)),
+        base_vec.clone().into_iter().map(MessageModulus),
     );
 
     CrtCiphertextType::from((ctxt_vect, base_vec))

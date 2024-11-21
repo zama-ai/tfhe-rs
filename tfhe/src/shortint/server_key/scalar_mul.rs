@@ -38,7 +38,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(msg * scalar as u64 % modulus, clear);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -51,7 +51,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(msg * scalar as u64 % modulus, clear);
     /// ```
     pub fn scalar_mul(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
@@ -93,7 +93,7 @@ impl ServerKey {
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(
-    ///     msg * scalar as u64 % cks.parameters.message_modulus().0 as u64,
+    ///     msg * scalar as u64 % cks.parameters.message_modulus().0,
     ///     clear
     /// );
     ///
@@ -108,7 +108,7 @@ impl ServerKey {
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(
-    ///     msg * scalar as u64 % cks.parameters.message_modulus().0 as u64,
+    ///     msg * scalar as u64 % cks.parameters.message_modulus().0,
     ///     clear
     /// );
     /// ```
@@ -253,7 +253,7 @@ impl ServerKey {
         scalar: u8,
     ) {
         // Modulus of the msg in the msg bits
-        let modulus = ct.message_modulus.0 as u64;
+        let modulus = ct.message_modulus.0;
 
         let acc_mul = self.generate_lookup_table(|x| (x.wrapping_mul(scalar as u64)) % modulus);
 
@@ -292,8 +292,7 @@ impl ServerKey {
         ct: CiphertextNoiseDegree,
         scalar: u8,
     ) -> Result<(), CheckError> {
-        //scalar * ct.counter
-        let final_degree = scalar as usize * ct.degree.get();
+        let final_degree = u64::from(scalar) * ct.degree.get();
 
         self.max_degree.validate(Degree::new(final_degree))?;
 
@@ -431,7 +430,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(3, clear % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -447,7 +446,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(3, clear % modulus);
     /// ```
     #[allow(clippy::needless_pass_by_ref_mut)]
@@ -506,11 +505,11 @@ impl ServerKey {
             .is_ok()
         {
             self.unchecked_scalar_mul_assign(ct, scalar);
-            ct.degree = Degree::new(ct.degree.get() * scalar as usize);
+            ct.degree = Degree::new(ct.degree.get() * u64::from(scalar));
         }
         // If the ciphertext cannot be multiplied without exceeding the degree max
         else {
-            self.evaluate_msg_univariate_function_assign(ct, |x| scalar as u64 * x);
+            self.evaluate_msg_univariate_function_assign(ct, |x| u64::from(scalar) * x);
             ct.degree = Degree::new(self.message_modulus.0 - 1);
         }
     }
@@ -521,18 +520,18 @@ pub(crate) fn unchecked_scalar_mul_assign(
     scalar: u8,
     max_noise_level: MaxNoiseLevel,
 ) {
-    ct.set_noise_level(ct.noise_level() * u64::from(scalar), max_noise_level);
-    ct.degree = Degree::new(ct.degree.get() * scalar as usize);
+    let scalar = u64::from(scalar);
+    ct.set_noise_level(ct.noise_level() * scalar, max_noise_level);
+    ct.degree = Degree::new(ct.degree.get() * scalar);
 
     match scalar {
         0 => {
             trivially_encrypt_lwe_ciphertext(&mut ct.ct, Plaintext(0));
         }
         1 => {
-            // Multiplication by one is the identidy
+            // Multiplication by one is the identity
         }
         scalar => {
-            let scalar = u64::from(scalar);
             let cleartext_scalar = Cleartext(scalar);
             lwe_ciphertext_cleartext_mul_assign(&mut ct.ct, cleartext_scalar);
         }

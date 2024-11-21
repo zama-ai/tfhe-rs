@@ -394,11 +394,11 @@ impl ServerKey {
 
                     let b = match operation {
                         BarrelShifterOperation::LeftShift | BarrelShifterOperation::LeftRotate => {
-                            (input << shift_within_block) % self.message_modulus().0 as u64
+                            (input << shift_within_block) % self.message_modulus().0
                         }
                         BarrelShifterOperation::RightShift
                         | BarrelShifterOperation::RightRotate => {
-                            (input >> shift_within_block) % self.message_modulus().0 as u64
+                            (input >> shift_within_block) % self.message_modulus().0
                         }
                     };
 
@@ -419,11 +419,11 @@ impl ServerKey {
                         match operation {
                             BarrelShifterOperation::LeftShift
                             | BarrelShifterOperation::LeftRotate => {
-                                (previous << shift_within_block) % self.message_modulus().0 as u64
+                                (previous << shift_within_block) % self.message_modulus().0
                             }
                             BarrelShifterOperation::RightShift
                             | BarrelShifterOperation::RightRotate => {
-                                (previous >> shift_within_block) % self.message_modulus().0 as u64
+                                (previous >> shift_within_block) % self.message_modulus().0
                             }
                         }
                     } else {
@@ -436,7 +436,7 @@ impl ServerKey {
                             BarrelShifterOperation::RightShift
                             | BarrelShifterOperation::RightRotate => {
                                 (previous << (message_bits_per_block - shift_within_block))
-                                    % self.message_modulus().0 as u64
+                                    % self.message_modulus().0
                             }
                         }
                     }
@@ -458,7 +458,7 @@ impl ServerKey {
                             BarrelShifterOperation::RightShift
                             | BarrelShifterOperation::RightRotate => {
                                 (previous_previous << (message_bits_per_block - shift_within_block))
-                                    % self.message_modulus().0 as u64
+                                    % self.message_modulus().0
                             }
                         }
                     } else {
@@ -480,14 +480,14 @@ impl ServerKey {
 
                         let sign_bit_pos = message_bits_per_block - 1;
                         let sign_bit = (input >> sign_bit_pos) & 1;
-                        let padding_block = (self.message_modulus().0 - 1) as u64 * sign_bit;
+                        let padding_block = (self.message_modulus().0 - 1) * sign_bit;
 
                         if shift_to_next_block == 1 {
                             padding_block
                         } else {
                             // Pad with sign bits to 'simulate' an arithmetic shift
                             let input = (padding_block << message_bits_per_block) | input;
-                            (input >> shift_within_block) % self.message_modulus().0 as u64
+                            (input >> shift_within_block) % self.message_modulus().0
                         }
                     });
                 Some(lut)
@@ -506,17 +506,17 @@ impl ServerKey {
 
                     let sign_bit_pos = message_bits_per_block - 1;
                     let sign_bit = (previous >> sign_bit_pos) & 1;
-                    let padding_block = (self.message_modulus().0 - 1) as u64 * sign_bit;
+                    let padding_block = (self.message_modulus().0 - 1) * sign_bit;
 
                     if shift_to_next_block == 1 {
                         // Pad with sign bits to 'simulate' an arithmetic shift
                         let previous = (padding_block << message_bits_per_block) | previous;
                         // We get the message part of the previous block
-                        (previous >> shift_within_block) % self.message_modulus().0 as u64
+                        (previous >> shift_within_block) % self.message_modulus().0
                     } else {
                         // We get the carry part of the previous block
                         (previous << (message_bits_per_block - shift_within_block))
-                            % self.message_modulus().0 as u64
+                            % self.message_modulus().0
                     }
                 });
             Some(lut)

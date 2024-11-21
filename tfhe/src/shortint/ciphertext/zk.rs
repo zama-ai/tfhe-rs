@@ -30,7 +30,7 @@ impl CompactPkeCrs {
             params.encryption_noise_distribution,
         );
 
-        let mut plaintext_modulus = (params.message_modulus.0 * params.carry_modulus.0) as u64;
+        let mut plaintext_modulus = params.message_modulus.0 * params.carry_modulus.0;
         // Our plaintext modulus does not take into account the bit of padding
         plaintext_modulus *= 2;
 
@@ -289,9 +289,9 @@ mod tests {
 
         let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
 
-        let msg = random::<u64>() % params.message_modulus.0 as u64;
+        let msg = random::<u64>() % params.message_modulus.0;
         // No packing
-        let encryption_modulus = params.message_modulus.0 as u64;
+        let encryption_modulus = params.message_modulus.0;
 
         let proven_ct = pk
             .encrypt_and_prove(
@@ -337,7 +337,7 @@ mod tests {
         let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
 
         let msgs = (0..512)
-            .map(|_| random::<u64>() % params.message_modulus.0 as u64)
+            .map(|_| random::<u64>() % params.message_modulus.0)
             .collect::<Vec<_>>();
 
         let proven_ct = pk
@@ -346,7 +346,7 @@ mod tests {
                 &crs,
                 &metadata,
                 ZkComputeLoad::Proof,
-                params.message_modulus.0 as u64,
+                params.message_modulus.0,
             )
             .unwrap();
         assert!(proven_ct.verify(&crs, &pk, &metadata).is_valid());

@@ -71,7 +71,7 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_1);
-    println!("expected {}, found {}", ((msg1 * scalar as u64 - msg2) * msg2) % modulus as u64, output);
+    println!("expected {}, found {}", ((msg1 * scalar as u64 - msg2) * msg2) % modulus, output);
 }
 ```
 
@@ -114,7 +114,7 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_1);
-    assert_eq!(output, ((msg1 * scalar as u64 - msg2) * msg2) % modulus as u64);
+    assert_eq!(output, ((msg1 * scalar as u64 - msg2) * msg2) % modulus);
 }
 ```
 
@@ -146,7 +146,7 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_1);
-    assert_eq!(output, ((msg1 * scalar as u64 - msg2) * msg2) % modulus as u64);
+    assert_eq!(output, ((msg1 * scalar as u64 - msg2) * msg2) % modulus);
 }
 ```
 
@@ -180,7 +180,7 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_1);
-    assert_eq!(output, ((msg1 * scalar as u64 - msg2) * msg2) % modulus as u64);
+    assert_eq!(output, ((msg1 * scalar as u64 - msg2) * msg2) % modulus);
 }
 ```
 
@@ -255,7 +255,7 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_3);
-    assert_eq!(output, (msg1 + msg2) % modulus as u64);
+    assert_eq!(output, (msg1 + msg2) % modulus);
 }
 ```
 
@@ -286,7 +286,7 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_3);
-    assert_eq!(output, (msg1 & msg2) % modulus as u64);
+    assert_eq!(output, (msg1 & msg2) % modulus);
 }
 ```
 
@@ -317,7 +317,7 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_3);
-    assert_eq!(output, (msg1 >= msg2) as u64 % modulus as u64);
+    assert_eq!(output, (msg1 >= msg2) as u64 % modulus);
 }
 ```
 
@@ -365,7 +365,7 @@ fn main() {
     let msg1 = 3;
     let msg2 = 2;
 
-    let modulus = client_key.parameters.message_modulus().0 as u64;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the private client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);

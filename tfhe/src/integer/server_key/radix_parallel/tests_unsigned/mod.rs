@@ -187,7 +187,8 @@ pub(crate) fn overflowing_mul_under_modulus(a: u64, b: u64, modulus: u64) -> (u6
 }
 
 pub(crate) fn unsigned_modulus(block_modulus: MessageModulus, num_blocks: u32) -> u64 {
-    (block_modulus.0 as u64)
+    block_modulus
+        .0
         .checked_pow(num_blocks)
         .expect("Modulus exceed u64::MAX")
 }
@@ -215,7 +216,7 @@ where
     for (i, block) in ct.blocks.iter().enumerate() {
         let block_value = cks.key.decrypt_message_and_carry(block);
         assert!(
-            block_value <= block.degree.get() as u64,
+            block_value <= block.degree.get(),
             "Block at index {i} has a value {block_value} that exceeds its degree ({:?})",
             block.degree
         );
@@ -296,7 +297,7 @@ where
 
         let block_value = cks.key.decrypt_message_and_carry(block);
         assert!(
-            block_value <= block.degree.get() as u64,
+            block_value <= block.degree.get(),
             "Block at index {i} has a value {block_value} that exceeds its degree ({:?})",
             block.degree
         );
@@ -334,7 +335,7 @@ where
 
         let block_value = cks.key.decrypt_message_and_carry(block);
         assert!(
-            block_value <= block.degree.get() as u64,
+            block_value <= block.degree.get(),
             "Block at index {i} has a value {block_value} that exceeds its degree ({:?})",
             block.degree
         );
@@ -744,7 +745,9 @@ where
 {
     let param = param.into();
     let (client_key, server_key) = crate::integer::gen_keys_radix(param, NB_CTXT);
-    let modulus = (param.message_modulus().0 as u64)
+    let modulus = param
+        .message_modulus()
+        .0
         .checked_pow(NB_CTXT as u32)
         .expect("modulus of ciphertext exceed u64::MAX");
     let num_bits = param.message_modulus().0.ilog2() * NB_CTXT as u32;

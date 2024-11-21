@@ -57,7 +57,7 @@ impl ServerKey {
 
         let lut = match direction {
             Direction::Trailing => self.key.generate_lookup_table(|x| {
-                let x = x % self.key.message_modulus.0 as u64;
+                let x = x % self.key.message_modulus.0;
 
                 let mut count = 0;
                 for i in 0..self.key.message_modulus.0.ilog2() {
@@ -69,7 +69,7 @@ impl ServerKey {
                 count
             }),
             Direction::Leading => self.key.generate_lookup_table(|x| {
-                let x = x % self.key.message_modulus.0 as u64;
+                let x = x % self.key.message_modulus.0;
 
                 let mut count = 0;
                 for i in (0..self.key.message_modulus.0.ilog2()).rev() {
@@ -295,9 +295,9 @@ impl ServerKey {
             || {
                 let lut = self.key.generate_lookup_table(|x| {
                     // extract message
-                    let x = x % self.key.message_modulus.0 as u64;
+                    let x = x % self.key.message_modulus.0;
                     // bitnot the message
-                    (!x) % self.key.message_modulus.0 as u64
+                    (!x) % self.key.message_modulus.0
                 });
                 result
                     .blocks()
@@ -308,9 +308,9 @@ impl ServerKey {
             || {
                 let lut = self.key.generate_lookup_table(|x| {
                     // extract carry
-                    let x = x / self.key.message_modulus.0 as u64;
+                    let x = x / self.key.message_modulus.0;
                     // bitnot the carry
-                    (!x) % self.key.message_modulus.0 as u64
+                    (!x) % self.key.message_modulus.0
                 });
                 let mut carry_blocks = Vec::with_capacity(counter_num_blocks);
                 result.blocks()[..counter_num_blocks - 1] // last carry is not interesting
@@ -318,11 +318,7 @@ impl ServerKey {
                     .map(|block| self.key.apply_lookup_table(block, &lut))
                     .collect_into_vec(&mut carry_blocks);
                 // Normally this would be 0, but we want the bitnot of 0, which is msg_mod-1
-                carry_blocks.insert(
-                    0,
-                    self.key
-                        .create_trivial((self.message_modulus().0 - 1) as u64),
-                );
+                carry_blocks.insert(0, self.key.create_trivial(self.message_modulus().0 - 1));
                 carry_blocks
             },
         );

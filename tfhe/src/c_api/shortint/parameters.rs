@@ -13,7 +13,7 @@ pub enum ShortintEncryptionKeyChoice {
     ShortintEncryptionKeyChoiceSmall,
 }
 
-impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::EncryptionKeyChoice {
+impl From<ShortintEncryptionKeyChoice> for EncryptionKeyChoice {
     fn from(value: ShortintEncryptionKeyChoice) -> Self {
         match value {
             ShortintEncryptionKeyChoice::ShortintEncryptionKeyChoiceBig => Self::Big,
@@ -34,9 +34,9 @@ pub struct ShortintPBSParameters {
     pub pbs_level: usize,
     pub ks_base_log: usize,
     pub ks_level: usize,
-    pub message_modulus: usize,
-    pub carry_modulus: usize,
-    pub max_noise_level: usize,
+    pub message_modulus: u64,
+    pub carry_modulus: u64,
+    pub max_noise_level: u64,
     pub log2_p_fail: f64,
     pub modulus_power_of_2_exponent: usize,
     pub encryption_key_choice: ShortintEncryptionKeyChoice,
@@ -56,14 +56,12 @@ impl TryFrom<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
             pbs_level: DecompositionLevelCount(c_params.pbs_level),
             ks_base_log: DecompositionBaseLog(c_params.ks_base_log),
             ks_level: DecompositionLevelCount(c_params.ks_level),
-            message_modulus: crate::shortint::parameters::MessageModulus(c_params.message_modulus),
-            carry_modulus: crate::shortint::parameters::CarryModulus(c_params.carry_modulus),
-            ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
+            message_modulus: MessageModulus(c_params.message_modulus),
+            carry_modulus: CarryModulus(c_params.carry_modulus),
+            ciphertext_modulus: CiphertextModulus::try_new_power_of_2(
                 c_params.modulus_power_of_2_exponent,
             )?,
-            max_noise_level: crate::shortint::parameters::MaxNoiseLevel::new(
-                c_params.max_noise_level as u64,
-            ),
+            max_noise_level: MaxNoiseLevel::new(c_params.max_noise_level),
             log2_p_fail: c_params.log2_p_fail,
             encryption_key_choice: c_params.encryption_key_choice.into(),
         })
@@ -113,7 +111,7 @@ impl ShortintPBSParameters {
             ks_level: rust_params.ks_level.0,
             message_modulus: rust_params.message_modulus.0,
             carry_modulus: rust_params.carry_modulus.0,
-            max_noise_level: rust_params.max_noise_level.get() as usize,
+            max_noise_level: rust_params.max_noise_level.get(),
             log2_p_fail: rust_params.log2_p_fail,
             modulus_power_of_2_exponent: convert_modulus(rust_params.ciphertext_modulus),
             encryption_key_choice: ShortintEncryptionKeyChoice::convert(
@@ -170,8 +168,8 @@ impl ShortintCompactCiphertextListCastingParameters {
 pub struct ShortintCompactPublicKeyEncryptionParameters {
     pub encryption_lwe_dimension: usize,
     pub encryption_noise_distribution: crate::c_api::core_crypto::DynamicDistribution,
-    pub message_modulus: usize,
-    pub carry_modulus: usize,
+    pub message_modulus: u64,
+    pub carry_modulus: u64,
     pub modulus_power_of_2_exponent: usize,
     // Normally the CompactPublicKeyEncryptionParameters has an additional field expansion_kind,
     // but it's only used to manage different kind of parameters internally, for the C API

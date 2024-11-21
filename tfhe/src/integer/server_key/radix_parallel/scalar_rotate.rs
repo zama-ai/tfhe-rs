@@ -293,7 +293,7 @@ impl ServerKey {
         // rotate left as the blocks are from LSB to MSB
         ct.blocks_mut().rotate_left(rotations);
 
-        let message_modulus = self.key.message_modulus.0 as u64;
+        let message_modulus = self.key.message_modulus.0;
         if shift_within_block != 0 {
             let lut =
                 self.key
@@ -628,9 +628,8 @@ impl ServerKey {
                     let receiver_block = receiver_block << shift_within_block;
                     let giver_block = giver_block << shift_within_block;
 
-                    let message_of_receiver_block =
-                        receiver_block % self.key.message_modulus.0 as u64;
-                    let carry_of_giver_block = giver_block / self.key.message_modulus.0 as u64;
+                    let message_of_receiver_block = receiver_block % self.key.message_modulus.0;
+                    let carry_of_giver_block = giver_block / self.key.message_modulus.0;
                     message_of_receiver_block + carry_of_giver_block
                 });
             let mut new_blocks = (0..num_blocks)

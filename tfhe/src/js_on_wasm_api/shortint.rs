@@ -135,22 +135,22 @@ impl ShortintParameters {
     }
 
     #[wasm_bindgen]
-    pub fn message_modulus(&self) -> usize {
+    pub fn message_modulus(&self) -> u64 {
         self.0.message_modulus.0
     }
 
     #[wasm_bindgen]
-    pub fn set_message_modulus(&mut self, new_value: usize) {
+    pub fn set_message_modulus(&mut self, new_value: u64) {
         self.0.message_modulus.0 = new_value;
     }
 
     #[wasm_bindgen]
-    pub fn carry_modulus(&self) -> usize {
+    pub fn carry_modulus(&self) -> u64 {
         self.0.carry_modulus.0
     }
 
     #[wasm_bindgen]
-    pub fn set_carry_modulus(&mut self, new_value: usize) {
+    pub fn set_carry_modulus(&mut self, new_value: u64) {
         self.0.carry_modulus.0 = new_value;
     }
 
@@ -237,8 +237,8 @@ impl ShortintCompactPublicKeyEncryptionParameters {
         // Public Key Parameters
         encryption_lwe_dimension: usize,
         encryption_noise_distribution: &ShortintNoiseDistribution,
-        message_modulus: usize,
-        carry_modulus: usize,
+        message_modulus: u64,
+        carry_modulus: u64,
         modulus_power_of_2_exponent: usize,
         // Casting Parameters
         ks_base_log: usize,
@@ -415,8 +415,8 @@ impl Shortint {
         pbs_level: usize,
         ks_base_log: usize,
         ks_level: usize,
-        message_modulus: usize,
-        carry_modulus: usize,
+        message_modulus: u64,
+        carry_modulus: u64,
         max_noise_level: u64,
         log2_p_fail: f64,
         modulus_power_of_2_exponent: usize,

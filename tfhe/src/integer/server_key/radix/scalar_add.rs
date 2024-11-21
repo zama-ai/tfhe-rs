@@ -97,7 +97,7 @@ impl ServerKey {
         // Assumes message_modulus and carry_modulus matches between pairs of block
         let mut preceding_block_carry = Degree::new(0);
         for (left_block, scalar_block_value) in ct.blocks().iter().zip(decomposer) {
-            let degree_after_add = left_block.degree + Degree::new(scalar_block_value as usize);
+            let degree_after_add = left_block.degree + Degree::new(u64::from(scalar_block_value));
 
             // Also need to take into account preceding_carry
             let max_degree = MaxDegree::from_msg_carry_modulus(

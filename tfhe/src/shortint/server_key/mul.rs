@@ -41,7 +41,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -61,7 +61,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_mul_lsb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
@@ -100,7 +100,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -114,7 +114,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
@@ -125,7 +125,7 @@ impl ServerKey {
         }
 
         //Modulus of the msg in the msg bits
-        let res_modulus = ct_left.message_modulus.0 as u64;
+        let res_modulus = ct_left.message_modulus.0;
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |x, y| {
             (x * y) % res_modulus
         });
@@ -168,7 +168,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((clear_1 * clear_2) / modulus, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -189,7 +189,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((clear_1 * clear_2) / modulus, res);
     /// ```
     pub fn unchecked_mul_msb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
@@ -207,7 +207,7 @@ impl ServerKey {
         }
 
         // Modulus of the msg in the msg bits
-        let res_modulus = self.message_modulus.0 as u64;
+        let res_modulus = self.message_modulus.0;
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |x, y| {
             (x * y) / res_modulus
         });
@@ -227,7 +227,7 @@ impl ServerKey {
         let (mut ct_sub, z) = self.unchecked_sub_with_correcting_term(ct1, ct2);
 
         //Modulus of the msg in the msg bits
-        let modulus = ct1.message_modulus.0 as u64;
+        let modulus = ct1.message_modulus.0;
 
         let acc_add = self.generate_lookup_table(|x| ((x.wrapping_mul(x)) / 4) % modulus);
         let acc_sub = self.generate_lookup_table(|x| {
@@ -317,7 +317,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_mul_lsb(&ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res % modulus, 2);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -330,7 +330,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_mul_lsb(&ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn checked_mul_lsb(
@@ -371,7 +371,7 @@ impl ServerKey {
     /// sks.checked_mul_lsb_assign(&mut ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res % modulus, 2);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -384,7 +384,7 @@ impl ServerKey {
     /// sks.checked_mul_lsb_assign(&mut ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn checked_mul_lsb_assign(
@@ -437,7 +437,7 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(
     ///     clear_res,
-    ///     (msg_1 * msg_2) / cks.parameters.message_modulus().0 as u64
+    ///     (msg_1 * msg_2) / cks.parameters.message_modulus().0
     /// );
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -460,7 +460,7 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(
     ///     clear_res,
-    ///     (msg_1 * msg_2) / cks.parameters.message_modulus().0 as u64
+    ///     (msg_1 * msg_2) / cks.parameters.message_modulus().0
     /// );
     /// ```
     pub fn checked_mul_msb(
@@ -624,7 +624,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_mul_lsb_with_small_carry(&ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -637,7 +637,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_mul_lsb_with_small_carry(&ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
     /// ```
     pub fn checked_mul_lsb_with_small_carry(
@@ -699,7 +699,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
@@ -724,7 +724,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     /// ```
     pub fn mul_lsb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let mut ct_res = ct_left.clone();
@@ -780,7 +780,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
@@ -805,7 +805,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     /// ```
     pub fn mul(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         self.mul_lsb(ct_left, ct_right)
@@ -848,7 +848,7 @@ impl ServerKey {
     /// sks.mul_lsb_assign(&mut ct_1, &ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
     ///
     /// // Generate the client key and the server key:
@@ -862,7 +862,7 @@ impl ServerKey {
     /// sks.mul_lsb_assign(&mut ct_1, &ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
     /// ```
     pub fn mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
@@ -925,7 +925,7 @@ impl ServerKey {
     /// sks.mul_assign(&mut ct_1, &ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
     ///
     /// // Generate the client key and the server key:
@@ -939,7 +939,7 @@ impl ServerKey {
     /// sks.mul_assign(&mut ct_1, &ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
     /// ```
     pub fn mul_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
@@ -983,7 +983,7 @@ impl ServerKey {
     /// sks.mul_msb_assign(&mut ct_1, &ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -996,7 +996,7 @@ impl ServerKey {
     /// sks.mul_msb_assign(&mut ct_1, &ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     /// ```
     pub fn mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
@@ -1051,7 +1051,7 @@ impl ServerKey {
     /// let ct_res = sks.mul_msb(&ct_1, &ct_2);
     ///
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -1064,7 +1064,7 @@ impl ServerKey {
     /// let ct_res = sks.mul_msb(&ct_1, &ct_2);
     ///
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     /// ```
     pub fn mul_msb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
@@ -1102,7 +1102,7 @@ impl ServerKey {
     /// sks.smart_mul_lsb_assign(&mut ct_1, &mut ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
     ///
     /// // Generate the client key and the server key:
@@ -1116,7 +1116,7 @@ impl ServerKey {
     /// sks.smart_mul_lsb_assign(&mut ct_1, &mut ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
     /// ```
     pub fn smart_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
@@ -1135,7 +1135,7 @@ impl ServerKey {
                 .unwrap();
             self.unchecked_mul_lsb_small_carry_modulus_assign(ct_left, ct_right);
         } else {
-            let msg_modulus = ct_left.message_modulus.0 as u64;
+            let msg_modulus = ct_left.message_modulus.0;
 
             self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| {
                 (lhs * rhs) % msg_modulus
@@ -1172,7 +1172,7 @@ impl ServerKey {
     /// sks.smart_mul_msb_assign(&mut ct_1, &mut ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -1185,11 +1185,11 @@ impl ServerKey {
     /// sks.smart_mul_msb_assign(&mut ct_1, &mut ct_2);
     ///
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     /// ```
     pub fn smart_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        let msg_modulus = ct_left.message_modulus.0 as u64;
+        let msg_modulus = ct_left.message_modulus.0;
 
         self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| {
             (lhs * rhs) / msg_modulus
@@ -1236,7 +1236,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
     ///
@@ -1261,7 +1261,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     /// ```
     pub fn smart_mul_lsb(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
@@ -1280,7 +1280,7 @@ impl ServerKey {
 
             self.unchecked_mul_lsb_small_carry_modulus(ct_left, ct_right)
         } else {
-            let msg_modulus = ct_left.message_modulus.0 as u64;
+            let msg_modulus = ct_left.message_modulus.0;
 
             self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| {
                 (lhs * rhs) % msg_modulus
@@ -1315,7 +1315,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_mul_msb(&mut ct_1, &mut ct_2);
     ///
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -1328,11 +1328,11 @@ impl ServerKey {
     /// let ct_res = sks.smart_mul_msb(&mut ct_1, &mut ct_2);
     ///
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = sks.message_modulus.0 as u64;
+    /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     /// ```
     pub fn smart_mul_msb(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        let msg_modulus = ct_left.message_modulus.0 as u64;
+        let msg_modulus = ct_left.message_modulus.0;
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| {
             (lhs * rhs) / msg_modulus
         })

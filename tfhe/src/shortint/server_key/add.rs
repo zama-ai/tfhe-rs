@@ -95,7 +95,7 @@ impl ServerKey {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -111,7 +111,7 @@ impl ServerKey {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn add_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
@@ -471,7 +471,7 @@ impl ServerKey {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -487,7 +487,7 @@ impl ServerKey {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn smart_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {

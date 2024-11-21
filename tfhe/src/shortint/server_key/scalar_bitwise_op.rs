@@ -49,7 +49,7 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitand_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        let new_degree = lhs.degree.after_bitand(Degree::new(rhs as usize));
+        let new_degree = lhs.degree.after_bitand(Degree::new(u64::from(rhs)));
         self.evaluate_msg_univariate_function_assign(lhs, |x| x & rhs as u64);
         lhs.degree = new_degree;
     }
@@ -111,7 +111,7 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitxor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        let new_degree = lhs.degree.after_bitxor(Degree::new(rhs as usize));
+        let new_degree = lhs.degree.after_bitxor(Degree::new(u64::from(rhs)));
         self.evaluate_msg_univariate_function_assign(lhs, |x| x ^ rhs as u64);
         lhs.degree = new_degree;
     }
@@ -172,7 +172,7 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        let new_degree = lhs.degree.after_bitor(Degree::new(rhs as usize));
+        let new_degree = lhs.degree.after_bitor(Degree::new(u64::from(rhs)));
         self.evaluate_msg_univariate_function_assign(lhs, |x| x | rhs as u64);
         lhs.degree = new_degree;
     }

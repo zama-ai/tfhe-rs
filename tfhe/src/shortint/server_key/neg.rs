@@ -40,7 +40,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -53,7 +53,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn neg(&self, ct: &Ciphertext) -> Ciphertext {
@@ -96,7 +96,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -109,7 +109,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn neg_assign(&self, ct: &mut Ciphertext) {
@@ -148,7 +148,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let three = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(modulus - msg, three);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -161,7 +161,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let three = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(modulus - msg, three);
     /// ```
     pub fn unchecked_neg(&self, ct: &Ciphertext) -> Ciphertext {
@@ -200,7 +200,7 @@ impl ServerKey {
     /// sks.unchecked_neg_assign(&mut ct);
     ///
     /// // Decrypt
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(modulus - msg, cks.decrypt(&ct));
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -212,7 +212,7 @@ impl ServerKey {
     /// sks.unchecked_neg_assign(&mut ct);
     ///
     /// // Decrypt
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(modulus - msg, cks.decrypt(&ct));
     /// ```
     pub fn unchecked_neg_assign(&self, ct: &mut Ciphertext) {
@@ -224,11 +224,11 @@ impl ServerKey {
         let msg_mod = ct.message_modulus.0;
         // Ensure z is always >= 1 (which would not be the case if degree == 0)
         // some algorithms (e.g. overflowing_sub) require this even for trivial zeros
-        let mut z = ct.degree.get().div_ceil(msg_mod).max(1) as u64;
-        z *= msg_mod as u64;
+        let mut z = ct.degree.get().div_ceil(msg_mod).max(1);
+        z *= msg_mod;
 
         // Value of the shift we multiply our messages by
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
 
         //Scaling + 1 on the padding bit
         let w = Plaintext(z * delta);
@@ -239,7 +239,7 @@ impl ServerKey {
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, w);
 
         // Update the degree
-        ct.degree = Degree::new(z as usize);
+        ct.degree = Degree::new(z);
 
         z
     }
@@ -307,7 +307,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_neg(&ct).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -319,7 +319,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_neg(&ct).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn checked_neg(&self, ct: &Ciphertext) -> Result<Ciphertext, CheckError> {
@@ -356,7 +356,7 @@ impl ServerKey {
     /// sks.checked_neg_assign(&mut ct).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -368,7 +368,7 @@ impl ServerKey {
     /// sks.checked_neg_assign(&mut ct).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn checked_neg_assign(&self, ct: &mut Ciphertext) -> Result<(), CheckError> {
@@ -403,7 +403,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -416,7 +416,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn smart_neg(&self, ct: &mut Ciphertext) -> Ciphertext {
@@ -455,7 +455,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
@@ -468,7 +468,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn smart_neg_assign(&self, ct: &mut Ciphertext) {

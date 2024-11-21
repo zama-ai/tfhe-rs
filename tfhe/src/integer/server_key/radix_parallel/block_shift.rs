@@ -85,7 +85,7 @@ impl ServerKey {
 
         let message_after_shift_mut = |input| {
             let control_bit = (input >> message_bits_per_block) % 2;
-            let x = input % self.message_modulus().0 as u64;
+            let x = input % self.message_modulus().0;
 
             if control_bit == 1 {
                 0
@@ -95,7 +95,7 @@ impl ServerKey {
         };
         let carry_for_next_block = |input| {
             let control_bit = (input >> message_bits_per_block) % 2;
-            let x = input % self.message_modulus().0 as u64;
+            let x = input % self.message_modulus().0;
 
             if control_bit == 1 {
                 x
@@ -122,12 +122,12 @@ impl ServerKey {
         // depends on the sign bit
         let padding_block_lut = if T::IS_SIGNED && operation == BarrelShifterOperation::RightShift {
             let lut = self.key.generate_lookup_table(|shift_bit_and_last_block| {
-                let last_block = shift_bit_and_last_block % self.message_modulus().0 as u64;
+                let last_block = shift_bit_and_last_block % self.message_modulus().0;
                 let shift_bit = shift_bit_and_last_block >> self.message_modulus().0.ilog2();
                 let sign_bit_pos = self.message_modulus().0.ilog2() - 1;
                 if shift_bit == 1 {
                     let sign_bit = (last_block >> sign_bit_pos) & 1;
-                    (self.message_modulus().0 - 1) as u64 * sign_bit
+                    (self.message_modulus().0 - 1) * sign_bit
                 } else {
                     0
                 }

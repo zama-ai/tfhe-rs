@@ -224,7 +224,7 @@ impl ServerKey {
                 // bits (right shift mask by 0)
                 let shift_amount = num_bits_in_message - (pos_in_block + 1);
                 // Create mask of 1s on the message part, 0s in the carries
-                let full_message_mask = self.key.message_modulus.0 as u64 - 1;
+                let full_message_mask = self.key.message_modulus.0 - 1;
                 // Shift the mask so that we will only keep bits we should
                 let shifted_mask = full_message_mask >> shift_amount;
 
@@ -256,7 +256,7 @@ impl ServerKey {
                 // two bits (left shift mask by 2) let shift_amount =
                 // num_bits_in_message - pos_in_block as u64;
                 let shift_amount = pos_in_block + 1;
-                let full_message_mask = self.key.message_modulus.0 as u64 - 1;
+                let full_message_mask = self.key.message_modulus.0 - 1;
                 let shifted_mask = full_message_mask << shift_amount;
                 // Keep the mask within the range of message bits, so that
                 // the estimated degree of the output is < msg_modulus

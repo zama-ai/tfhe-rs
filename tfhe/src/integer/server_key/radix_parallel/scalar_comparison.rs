@@ -64,7 +64,7 @@ impl ServerKey {
                 // (returns false for empty iter)
                 let at_least_one_block_is_not_full_of_1s = scalar_blocks[ct.blocks().len()..]
                     .iter()
-                    .any(|&scalar_block| scalar_block != (self.key.message_modulus.0 as u64 - 1));
+                    .any(|&scalar_block| scalar_block != (self.key.message_modulus.0 - 1));
 
                 let sign_bit_pos = self.key.message_modulus.0.ilog2() - 1;
                 let sign_bit_is_unset = scalar_blocks
@@ -301,13 +301,13 @@ impl ServerKey {
         let num_elements_to_fill_carry = (total_modulus - 1) / message_max;
         let is_equal_to_zero = self.key.generate_lookup_table(|x| {
             if matches!(comparison_type, ZeroComparisonType::Equality) {
-                u64::from((x % total_modulus as u64) == 0)
+                u64::from((x % total_modulus) == 0)
             } else {
-                u64::from((x % total_modulus as u64) != 0)
+                u64::from((x % total_modulus) != 0)
             }
         });
 
-        lhs.par_chunks(num_elements_to_fill_carry)
+        lhs.par_chunks(num_elements_to_fill_carry as usize)
             .map(|chunk| {
                 let mut sum = chunk[0].clone();
                 for other_block in &chunk[1..] {
@@ -337,7 +337,7 @@ impl ServerKey {
     fn create_scalar_comparison_luts<F>(
         &self,
         scalar_blocks: &[u8],
-        total_modulus: usize,
+        total_modulus: u64,
         comparison_fn: F,
     ) -> Vec<Option<LookupTableOwned>>
     where
@@ -346,7 +346,7 @@ impl ServerKey {
         // One lut per scalar block
         // And only generate a lut for scalar block
         // actually present
-        let mut scalar_comp_luts = vec![None; total_modulus];
+        let mut scalar_comp_luts = vec![None; total_modulus as usize];
         for scalar_block in scalar_blocks.iter().copied() {
             if scalar_comp_luts[scalar_block as usize].is_some() {
                 // The LUT for this scalar has already been generated
@@ -702,7 +702,7 @@ impl ServerKey {
                 ComparisonKind::Less => {
                     return if self.message_modulus().0 > 2 {
                         let sign_bit_lut = self.key.generate_lookup_table(|last_block| {
-                            let modulus = self.key.message_modulus.0 as u64;
+                            let modulus = self.key.message_modulus.0;
                             (last_block % modulus) / (modulus / 2)
                         });
                         let sign_bit = self
@@ -716,7 +716,7 @@ impl ServerKey {
                 ComparisonKind::GreaterOrEqual => {
                     let mut sign_bit = if self.message_modulus().0 > 2 {
                         let sign_bit_lut = self.key.generate_lookup_table(|last_block| {
-                            let modulus = self.key.message_modulus.0 as u64;
+                            let modulus = self.key.message_modulus.0;
                             (last_block % modulus) / (modulus / 2)
                         });
                         let sign_bit = self
@@ -739,7 +739,7 @@ impl ServerKey {
             }
         }
 
-        let packed_modulus = (self.key.message_modulus.0 * self.key.message_modulus.0) as u64;
+        let packed_modulus = self.key.message_modulus.0 * self.key.message_modulus.0;
 
         // We have that `a < b` <=> `does_sub_overflows(a, b)` and we know how to do this.
         // Now, to have other comparisons, we will re-express them as less than (`<`)
@@ -768,7 +768,7 @@ impl ServerKey {
             let last_index = b_blocks.len() - 1;
             // We blindly padded with the ones, but as the num block is not even
             // the last packed block high part shall be 0 not 1s (i.e. no padding)
-            b_blocks[last_index] %= self.message_modulus().0 as u64;
+            b_blocks[last_index] %= self.message_modulus().0;
         }
 
         let b = b_blocks;
@@ -800,7 +800,7 @@ impl ServerKey {
         if a.len() == 1 {
             let lut = if T::IS_SIGNED {
                 let modulus = if num_block_is_even {
-                    MessageModulus(packed_modulus as usize)
+                    MessageModulus(packed_modulus)
                 } else {
                     self.message_modulus()
                 };
@@ -957,7 +957,7 @@ impl ServerKey {
                     // the 2 possible values for `lhs < rhs` depending on whether the last block
                     // will be borrowed from.
                     let modulus = if num_block_is_even {
-                        MessageModulus(packed_modulus as usize)
+                        MessageModulus(packed_modulus)
                     } else {
                         self.message_modulus()
                     };
@@ -977,7 +977,7 @@ impl ServerKey {
                     ))
                 } else if T::IS_SIGNED {
                     let modulus = if num_block_is_even {
-                        MessageModulus(packed_modulus as usize)
+                        MessageModulus(packed_modulus)
                     } else {
                         self.message_modulus()
                     };
@@ -1063,7 +1063,7 @@ impl ServerKey {
             .chain(std::iter::repeat(if rhs >= Scalar::ZERO {
                 0u64
             } else {
-                self.message_modulus().0 as u64 - 1
+                self.message_modulus().0 - 1
             }))
             .take(lhs.blocks().len())
             .map(|scalar_block| {
@@ -1102,7 +1102,7 @@ impl ServerKey {
             .chain(std::iter::repeat(if rhs >= Scalar::ZERO {
                 0u64
             } else {
-                self.message_modulus().0 as u64 - 1
+                self.message_modulus().0 - 1
             }))
             .take(lhs.blocks().len())
             .map(|scalar_block| {

@@ -123,7 +123,7 @@ fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
 
     let mut rng = rand::thread_rng();
 
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -343,9 +343,9 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
-    let scalar_modulus = param.message_modulus.0 as u64;
+    let scalar_modulus = param.message_modulus.0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -369,9 +369,9 @@ fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
-    let scalar_modulus = param.message_modulus.0 as u64;
+    let scalar_modulus = param.message_modulus.0;
 
     let mut clear_res;
     for _ in 0..NB_TESTS_SMALLER {
@@ -402,7 +402,7 @@ fn integer_blockshift(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -429,7 +429,7 @@ fn integer_blockshift_right(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -456,7 +456,7 @@ fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -530,9 +530,9 @@ fn integer_smart_block_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
-    let block_modulus = param.message_modulus.0 as u64;
+    let block_modulus = param.message_modulus.0;
 
     for _ in 0..5 {
         // Define the cleartexts

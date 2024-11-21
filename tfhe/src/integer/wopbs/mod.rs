@@ -279,7 +279,7 @@ mod experimental {
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut moduli = 1_u64;
         /// for _ in 0..nb_block {
-        ///     moduli *= cks.parameters().message_modulus().0 as u64;
+        ///     moduli *= cks.parameters().message_modulus().0;
         /// }
         /// let clear = 42 % moduli;
         /// let ct = cks.encrypt(clear);
@@ -317,8 +317,8 @@ mod experimental {
 
             // Extraction of each bit for each block
             for block in ct_in.blocks().iter().rev() {
-                let message_modulus = self.wopbs_key.param.message_modulus.0 as u64;
-                let carry_modulus = self.wopbs_key.param.carry_modulus.0 as u64;
+                let message_modulus = self.wopbs_key.param.message_modulus.0;
+                let carry_modulus = self.wopbs_key.param.carry_modulus.0;
                 let delta = (1u64 << 63) / (carry_modulus * message_modulus);
                 // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
                 let delta_log = DeltaLog(delta.ilog2() as usize);
@@ -369,7 +369,7 @@ mod experimental {
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
         /// let mut moduli = 1_u64;
         /// for _ in 0..nb_block {
-        ///     moduli *= cks.parameters().message_modulus().0 as u64;
+        ///     moduli *= cks.parameters().message_modulus().0;
         /// }
         /// let clear = 15 % moduli;
         /// let ct = cks.encrypt_without_padding(clear);
@@ -404,7 +404,7 @@ mod experimental {
             let mut bits_extracted_so_far = 0;
             // Extraction of each bit for each block
             for block in ct_in.blocks().iter().rev() {
-                let block_modulus = block.message_modulus.0 as u64 * block.carry_modulus.0 as u64;
+                let block_modulus = block.message_modulus.0 * block.carry_modulus.0;
                 let delta = (1_u64 << 63) / (block_modulus / 2);
                 // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
                 let delta_log = DeltaLog(delta.ilog2() as usize);
@@ -489,7 +489,7 @@ mod experimental {
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut moduli = 1_u64;
         /// for _ in 0..nb_block {
-        ///     moduli *= cks.parameters().message_modulus().0 as u64;
+        ///     moduli *= cks.parameters().message_modulus().0;
         /// }
         /// let clear1 = 42 % moduli;
         /// let clear2 = 24 % moduli;
@@ -529,7 +529,7 @@ mod experimental {
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut moduli = 1_u64;
         /// for _ in 0..nb_block {
-        ///     moduli *= cks.parameters().message_modulus().0 as u64;
+        ///     moduli *= cks.parameters().message_modulus().0;
         /// }
         /// let clear = 42 % moduli;
         /// let ct = cks.encrypt(clear);
@@ -570,8 +570,7 @@ mod experimental {
 
             let basis = ct.moduli()[0];
             let delta: u64 = (1 << 63)
-                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0)
-                    as u64;
+                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0);
 
             for lut_index_val in 0..(1 << total_bit) {
                 let encoded_with_deg_val = encode_mix_radix(lut_index_val, &vec_deg_basis, basis);
@@ -601,7 +600,7 @@ mod experimental {
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut moduli = 1_u64;
         /// for _ in 0..nb_block {
-        ///     moduli *= cks.parameters().message_modulus().0 as u64;
+        ///     moduli *= cks.parameters().message_modulus().0;
         /// }
         /// let clear = 15 % moduli;
         /// let ct = cks.encrypt_without_padding(clear);
@@ -759,8 +758,7 @@ mod experimental {
                 IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
             let delta: u64 = (1 << 63)
-                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0)
-                    as u64;
+                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0);
 
             for i in 0..(1 << total_bit) {
                 let mut decomp_terms = Vec::new();
@@ -775,7 +773,7 @@ mod experimental {
                 let value_corresponding_to_index = i_crt(&basis, &decomp_terms);
                 let f_eval = f(value_corresponding_to_index);
                 for (j, block) in ct.blocks.iter().enumerate() {
-                    lut[j][i as usize] = (f_eval % block.message_modulus.0 as u64) * delta;
+                    lut[j][i as usize] = (f_eval % block.message_modulus.0) * delta;
                 }
             }
             lut
@@ -797,7 +795,7 @@ mod experimental {
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut moduli = 1_u64;
         /// for _ in 0..nb_block {
-        ///     moduli *= cks.parameters().message_modulus().0 as u64;
+        ///     moduli *= cks.parameters().message_modulus().0;
         /// }
         /// let clear1 = 42 % moduli;
         /// let clear2 = 24 % moduli;
@@ -835,7 +833,7 @@ mod experimental {
             for (ct_num, ct) in [ct1, ct2].iter().enumerate() {
                 modulus = 1;
                 for deg in ct.blocks.iter() {
-                    modulus *= self.wopbs_key.param.message_modulus.0 as u64;
+                    modulus *= self.wopbs_key.param.message_modulus.0;
                     let b = f64::log2((deg.degree.get() + 1) as f64).ceil() as u64;
                     vec_deg_basis[ct_num].push(b);
                     nb_bit_to_extract[ct_num] += b;
@@ -854,8 +852,7 @@ mod experimental {
             let basis = ct1.moduli()[0];
 
             let delta: u64 = (1 << 63)
-                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0)
-                    as u64;
+                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0);
 
             for lut_index_val in 0..(1 << total_bit) {
                 let split = [
@@ -942,8 +939,7 @@ mod experimental {
                 IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
             let delta: u64 = (1 << 63)
-                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0)
-                    as u64;
+                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0);
 
             for index in 0..(1 << total_bit) {
                 let mut split = encode_radix(index, 1 << nb_bit_to_extract[0], 2);

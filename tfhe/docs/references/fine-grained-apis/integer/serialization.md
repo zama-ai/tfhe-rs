@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let msg2 = 12;
 
     // message_modulus^vec_length
-    let modulus = client_key.parameters().message_modulus().0.pow(num_block as u32) as u64;
+    let modulus = client_key.parameters().message_modulus().0.pow(num_block as u32);
     
     let ct_1 = client_key.encrypt(msg1);
     let ct_2 = client_key.encrypt(msg2);

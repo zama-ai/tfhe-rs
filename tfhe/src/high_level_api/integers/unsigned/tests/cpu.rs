@@ -514,7 +514,7 @@ fn test_cpk_encrypt_cast_compute_hl() {
     assert_eq!(param_pke_only.message_modulus, param_fhe.message_modulus);
     assert_eq!(param_pke_only.carry_modulus, param_fhe.carry_modulus);
 
-    let modulus = param_fhe.message_modulus.0.pow(num_block as u32) as u64;
+    let modulus = param_fhe.message_modulus.0.pow(num_block as u32);
 
     let (client_key, server_key) = generate_keys(
         ConfigBuilder::with_custom_parameters(param_fhe)
@@ -563,7 +563,7 @@ fn test_compressed_cpk_encrypt_cast_compute_hl() {
     assert_eq!(param_pke_only.message_modulus, param_fhe.message_modulus);
     assert_eq!(param_pke_only.carry_modulus, param_fhe.carry_modulus);
 
-    let modulus = param_fhe.message_modulus.0.pow(num_block as u32) as u64;
+    let modulus = param_fhe.message_modulus.0.pow(num_block as u32);
 
     let config = ConfigBuilder::with_custom_parameters(param_fhe)
         .use_dedicated_compact_public_key_parameters((param_pke_only, param_ksk))

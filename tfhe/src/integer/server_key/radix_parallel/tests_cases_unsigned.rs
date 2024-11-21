@@ -68,7 +68,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -104,9 +104,9 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
-    let block_modulus = cks.parameters().message_modulus().0 as u64;
+    let block_modulus = cks.parameters().message_modulus().0;
 
     executor.setup(&cks, sks);
 
@@ -183,7 +183,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -242,7 +242,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -300,7 +300,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -355,7 +355,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -410,7 +410,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -469,7 +469,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -527,7 +527,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -582,7 +582,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -641,7 +641,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -677,7 +677,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -767,7 +767,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     let nb_bits = modulus.ilog2();
 
     executor.setup(&cks, sks);
@@ -835,7 +835,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     let nb_bits = modulus.ilog2();
 
     executor.setup(&cks, sks);
@@ -913,7 +913,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -961,9 +961,9 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
-    let block_modulus = cks.parameters().message_modulus().0 as u64;
+    let block_modulus = cks.parameters().message_modulus().0;
 
     executor.setup(&cks, sks);
 
@@ -1013,7 +1013,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1061,7 +1061,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1110,7 +1110,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1158,7 +1158,7 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     let mut clear;
 
@@ -1200,7 +1200,7 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     let mut clear;
 
@@ -1243,7 +1243,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1306,7 +1306,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
 
@@ -1376,7 +1376,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
 
@@ -1501,7 +1501,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1533,7 +1533,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1577,7 +1577,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1620,7 +1620,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1665,7 +1665,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1716,7 +1716,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1767,7 +1767,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -1820,7 +1820,7 @@ where
     executor.setup(&cks, sks);
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
@@ -1866,7 +1866,7 @@ where
 
     for num_blocks in 1..MAX_NB_CTXT {
         // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
 
         for _ in 0..nb_tests_smaller {
             let clear_0 = rng.gen::<u64>() % modulus;
@@ -1921,7 +1921,7 @@ where
 
     for num_blocks in 1..MAX_NB_CTXT {
         // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
 
         for _ in 0..nb_tests_smaller {
             let clear_0 = rng.gen::<u64>() % modulus;
@@ -2072,7 +2072,7 @@ where
 
     for num_blocks in 1..MAX_NB_CTXT {
         // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
 
         for _ in 0..nb_tests_smaller {
             let clear_0 = rng.gen::<u64>() % modulus;
@@ -2121,7 +2121,7 @@ where
 
     for num_blocks in 1..MAX_NB_CTXT {
         // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
 
         for _ in 0..nb_tests_smaller {
             let clear_0 = rng.gen::<u64>() % modulus;
@@ -2263,7 +2263,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -2303,9 +2303,9 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
-    let block_modulus = cks.parameters().message_modulus().0 as u64;
+    let block_modulus = cks.parameters().message_modulus().0;
 
     executor.setup(&cks, sks);
 
@@ -2390,7 +2390,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     let mut clear;
 
@@ -2444,7 +2444,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     let mut clear;
 
@@ -2497,7 +2497,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     let mut clear;
 
@@ -2549,7 +2549,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     let nb_bits = modulus.ilog2();
 
     executor.setup(&cks, sks);
@@ -2612,7 +2612,7 @@ where
     executor.setup(&cks, sks);
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
     let nb_bits = modulus.ilog2();
 
     for _ in 0..nb_tests_smaller {
@@ -2672,12 +2672,12 @@ where
     let cks = RadixClientKey::from((cks, nb_ctxt));
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(nb_ctxt as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(nb_ctxt as u32);
 
     executor.setup(&cks, sks.clone());
 
-    let block_msg_mod = cks.parameters().message_modulus().0 as u64;
-    let block_carry_mod = cks.parameters().carry_modulus().0 as u64;
+    let block_msg_mod = cks.parameters().message_modulus().0;
+    let block_carry_mod = cks.parameters().carry_modulus().0;
     let block_total_mod = block_carry_mod * block_msg_mod;
 
     let clear_max_value = modulus - 1;
@@ -2726,7 +2726,7 @@ where
         assert!(
             ct.blocks
                 .iter()
-                .all(|b| b.degree.get() as u64 == block_msg_mod - 1),
+                .all(|b| b.degree.get() == block_msg_mod - 1),
             "Invalid degree after propagation"
         );
 
@@ -2761,14 +2761,14 @@ where
         assert!(ct
             .blocks
             .iter()
-            .all(|b| { b.degree.get() as u64 <= max_degree_that_can_absorb_carry }),);
+            .all(|b| { b.degree.get() <= max_degree_that_can_absorb_carry }),);
 
         // All but the first blocks are full,
         // So we do one more unchecked add on the first block to make it full
         sks.is_scalar_add_possible(&ct, block_msg_mod - 1).unwrap();
         sks.unchecked_scalar_add_assign(&mut ct, block_msg_mod - 1);
         assert_eq!(
-            ct.blocks[0].degree.get() as u64,
+            { ct.blocks[0].degree.get() },
             max_degree_that_can_absorb_carry + (block_msg_mod - 1)
         );
         expected_result = expected_result.wrapping_add(block_msg_mod - 1) % modulus;
@@ -2785,7 +2785,7 @@ where
         assert!(
             ct.blocks
                 .iter()
-                .all(|b| b.degree.get() as u64 == block_msg_mod - 1),
+                .all(|b| b.degree.get() == block_msg_mod - 1),
             "Invalid degree after propagation"
         );
 
@@ -2861,7 +2861,7 @@ where
         assert!(
             ct.blocks
                 .iter()
-                .all(|b| b.degree.get() as u64 == block_msg_mod - 1),
+                .all(|b| b.degree.get() == block_msg_mod - 1),
             "Invalid degree after propagation"
         );
 

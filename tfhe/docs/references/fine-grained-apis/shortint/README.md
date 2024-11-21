@@ -93,6 +93,6 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_3);
-    assert_eq!(output, (msg1 + msg2) % modulus as u64);
+    assert_eq!(output, (msg1 + msg2) % modulus);
 }
 ```

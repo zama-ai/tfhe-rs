@@ -67,11 +67,10 @@ impl ShortintEngine {
     {
         //The delta is the one defined by the parameters
         let delta = (1_u64 << 63)
-            / (client_key_parameters.message_modulus().0 * client_key_parameters.carry_modulus().0)
-                as u64;
+            / (client_key_parameters.message_modulus().0 * client_key_parameters.carry_modulus().0);
 
         //The input is reduced modulus the message_modulus
-        let m = message % message_modulus.0 as u64;
+        let m = message % message_modulus.0;
 
         let shifted_message = m * delta;
 
@@ -173,11 +172,10 @@ impl ShortintEngine {
 
         //The delta is the one defined by the parameters
         let delta = (1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
-                as u64;
+            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0);
 
         //The input is reduced modulus the message_modulus
-        let m = message % message_modulus.0 as u64;
+        let m = message % message_modulus.0;
 
         let shifted_message = m * delta;
 
@@ -213,8 +211,7 @@ impl ShortintEngine {
             client_key.encryption_key_and_noise();
 
         let delta = (1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
-                as u64;
+            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0);
         let shifted_message = message * delta;
 
         let encoded = Plaintext(shifted_message);
@@ -247,8 +244,8 @@ impl ShortintEngine {
     ) -> Ciphertext {
         //Multiply by 2 to reshift and exclude the padding bit
         let delta = ((1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
-                as u64)
+            / (client_key.parameters.message_modulus().0
+                * client_key.parameters.carry_modulus().0))
             * 2;
 
         let shifted_message = message * delta;
@@ -285,8 +282,8 @@ impl ShortintEngine {
     ) -> CompressedCiphertext {
         //Multiply by 2 to reshift and exclude the padding bit
         let delta = ((1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
-                as u64)
+            / (client_key.parameters.message_modulus().0
+                * client_key.parameters.carry_modulus().0))
             * 2;
 
         let shifted_message = message * delta;
@@ -323,7 +320,7 @@ impl ShortintEngine {
         message_modulus: MessageModulus,
     ) -> Ciphertext {
         let carry_modulus = CarryModulus(1);
-        let m = (message % message_modulus.0 as u64) as u128;
+        let m = (message % message_modulus.0) as u128;
         let shifted_message = (m * (1 << 64) / message_modulus.0 as u128) as u64;
 
         let encoded = Plaintext(shifted_message);
@@ -358,7 +355,7 @@ impl ShortintEngine {
         message_modulus: MessageModulus,
     ) -> CompressedCiphertext {
         let carry_modulus = CarryModulus(1);
-        let m = (message % message_modulus.0 as u64) as u128;
+        let m = (message % message_modulus.0) as u128;
         let shifted_message = (m * (1 << 64) / message_modulus.0 as u128) as u64;
 
         let encoded = Plaintext(shifted_message);

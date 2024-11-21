@@ -567,8 +567,8 @@ test('hlapi_compact_pk_conformance', (t) => {
     let serializedPublicKey = publicKey.safe_serialize(limit);
     let _publicKey = TfheCompactPublicKey.safe_deserialize_conformant(serializedPublicKey, limit, publicKeyParams);
 
-    const message_modulus = 4;
-    const carry_modulus = 4;
+    const message_modulus = BigInt(4);
+    const carry_modulus = BigInt(4);
     const modulus_pow_2_exponent = 64;
     const ks_level = 5;
     const ks_base_log = 3;

@@ -42,7 +42,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(num_block as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(num_block as u32);
 
     executor.setup(&cks, sks.clone());
 
