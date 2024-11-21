@@ -517,7 +517,7 @@ pub fn compute_crs_params(
     let effective_t_for_decomposition = t >> msbs_zero_padding_bit_count;
 
     // formula in Prove_pp: 2.
-    let D = d + k * effective_t_for_decomposition.ilog2() as usize;
+    let D = d + k * (effective_t_for_decomposition.ilog2() as usize);
     let n = D + 128 * m_bound;
 
     (n, D, B_bound_squared, m_bound)
@@ -2863,6 +2863,36 @@ mod tests {
                 expected_result,
             );
         }
+    }
+
+    /// Compare the computed params with manually calculated ones to check the formula
+    #[test]
+    fn test_compute_crs_params() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q: _,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let B_squared = inf_norm_bound_to_euclidean_squared(B, d + k);
+        assert_eq!(B_squared, 40681930227712);
+
+        let (n, D, B_bound_squared, m_bound) =
+            compute_crs_params(d, k, B_squared, t, msbs_zero_padding_bit_count, Bound::GHL);
+        assert_eq!(n, 6784);
+        assert_eq!(D, 3328);
+        assert_eq!(B_bound_squared, 3867562496364372);
+        assert_eq!(m_bound, 27);
+
+        let (n, D, B_bound_squared, m_bound) =
+            compute_crs_params(d, k, B_squared, t, msbs_zero_padding_bit_count, Bound::CS);
+        assert_eq!(n, 7168);
+        assert_eq!(D, 3328);
+        assert_eq!(B_bound_squared, 192844141830554880);
+        assert_eq!(m_bound, 30);
     }
 
     /// Test that the proof is rejected if we don't have the padding bit set to 0
