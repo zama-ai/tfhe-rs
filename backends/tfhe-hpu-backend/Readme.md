@@ -155,3 +155,34 @@ Following code snippet starts two operation on HPU and shows how to synced only 
   // Pay the xfer cost for last result only
   let axb_c_hpu = FheUint8::from(axb_c_hpu);
 ```
+
+## Pre-made Examples
+There are some example application already available in tfhe:
+ * hpu_Xb: Benchmark application where `X` could be within [8,16,32,64]. Used to extract IOp performances
+ * hpu_mixed: Showcase of mixing CPU/HPU operation with the help of HpuFheUint abstraction
+ * hpu_gtv: Used with hpu_mockup to generate RTL stimulus. Multiple IOp width is backed in the same binary
+
+In order to run those applications on hardware, user must build from the project root (i.e `tfhe-rs-internal`) with `hw-xrt` and `hpu-xfer` features:
+```
+cargo build --release --features="hpu-xfer,hw-xrt" --examples
+./target/release/hpu_64b --iop MUL --iter 10
+```
+
+## Test framework
+There is also a set of test backed in tfhe-rs. One for each IOp width in [8,16,32,64].
+Those test have 3 sub-kind: 
+* `alu`: Run and check all ct x ct IOp
+* `bitwise`: Run and check all bitwise IOp
+* `cmp`: Run and check all comparison IOp
+
+>NB: Like the premade examples, those test must be run from the project root.
+
+Snippets below give some example of command that could be used for testing:
+```
+# Run all sub-kind for 64b IOp
+cargo test --release --features="hw-xrt,hpu-xfer" --test hpu_64b
+
+# Run only `alu` sub-kind for 16b IOp
+cargo test --release --features="hw-xrt,hpu-xfer" --test hpu_16 -- alu
+```
+
