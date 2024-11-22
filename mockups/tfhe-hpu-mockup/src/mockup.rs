@@ -41,7 +41,7 @@ pub struct Args {
     /// Frequency in HZ
     /// Only use for report display
     #[clap(long, value_parser)]
-    freq_hz: Option<usize>,
+    freq_mhz: Option<usize>,
 
     /// Number of Register
     #[clap(long, value_parser)]
@@ -142,6 +142,9 @@ fn main() {
     let params = {
         let mut params = MockupParameters::from_ron(&args.params);
         // Override some parameters if required
+        if let Some(freq_mhz) = args.freq_mhz.as_ref() {
+            params.isc_sim_params.freq_MHz = *freq_mhz;
+        }
         if let Some(register) = args.register.as_ref() {
             params.isc_sim_params.register = *register;
         }
