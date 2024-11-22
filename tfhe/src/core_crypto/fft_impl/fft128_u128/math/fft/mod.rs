@@ -1253,7 +1253,7 @@ impl<'a> Fft128View<'a> {
         fourier_re1: &[f64],
         fourier_im0: &[f64],
         fourier_im1: &[f64],
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         self.backward_with_conv_split(
             standard_lo,
@@ -1308,7 +1308,7 @@ impl<'a> Fft128View<'a> {
         fourier_im0: &[f64],
         fourier_im1: &[f64],
         conv_fn: impl Fn(&mut [u64], &mut [u64], &mut [u64], &mut [u64], &[f64], &[f64], &[f64], &[f64]),
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         let n = standard_lo.len();
         debug_assert_eq!(n, 2 * fourier_re0.len());

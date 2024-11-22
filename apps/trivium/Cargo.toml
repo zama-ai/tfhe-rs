@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rayon = { version = "1.7.0"}
+rayon = { workspace = true }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies.tfhe]
 path = "../../tfhe"

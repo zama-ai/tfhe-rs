@@ -1,7 +1,7 @@
 use super::*;
 use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
 use aligned_vec::avec;
-use dyn_stack::{GlobalPodBuffer, ReborrowMut};
+use dyn_stack::GlobalPodBuffer;
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
@@ -24,7 +24,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         }
 
         let mut mem = GlobalPodBuffer::new(fft.backward_scratch().unwrap());
-        let mut stack = PodStack::new(&mut mem);
+        let stack = PodStack::new(&mut mem);
 
         fft.forward_as_torus(
             &mut fourier_re0,
@@ -39,7 +39,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             &fourier_re1,
             &fourier_im0,
             &fourier_im1,
-            stack.rb_mut(),
+            stack,
         );
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
@@ -111,7 +111,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             }
 
             let mut mem = GlobalPodBuffer::new(fft.backward_scratch().unwrap());
-            let mut stack = PodStack::new(&mut mem);
+            let stack = PodStack::new(&mut mem);
 
             fft.forward_as_torus(
                 &mut fourier0_re0,
@@ -153,7 +153,7 @@ fn test_product<Scalar: UnsignedTorus>() {
                 &fourier0_re1,
                 &fourier0_im0,
                 &fourier0_im1,
-                stack.rb_mut(),
+                stack,
             );
             convolution_naive(
                 convolution_from_naive.as_mut(),

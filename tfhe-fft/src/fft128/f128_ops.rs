@@ -645,7 +645,7 @@ pub mod x86 {
 
     #[inline(always)]
     pub(crate) fn two_diff_f64x4(simd: V3, a: f64x4, b: f64x4) -> (f64x4, f64x4) {
-        two_sum_f64x4(simd, a, simd.f64s_neg(b))
+        two_sum_f64x4(simd, a, simd.neg_f64s(b))
     }
 
     #[inline(always)]
@@ -677,7 +677,7 @@ pub mod x86 {
     #[inline(always)]
     #[cfg(feature = "nightly")]
     pub(crate) fn two_diff_f64x8(simd: V4, a: f64x8, b: f64x8) -> (f64x8, f64x8) {
-        two_sum_f64x8(simd, a, simd.f64s_neg(b))
+        two_sum_f64x8(simd, a, simd.neg_f64s(b))
     }
 
     #[cfg(feature = "nightly")]
@@ -714,8 +714,8 @@ pub mod x86 {
             simd,
             a,
             f64x16 {
-                lo: simd.f64s_neg(b.lo),
-                hi: simd.f64s_neg(b.hi),
+                lo: simd.neg_f64s(b.lo),
+                hi: simd.neg_f64s(b.hi),
             },
         )
     }

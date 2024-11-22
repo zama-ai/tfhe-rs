@@ -233,7 +233,7 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized<
     accumulator: &GlweCiphertext<AccCont>,
     fourier_bsk: &Fourier128LweBootstrapKey<KeyCont>,
     fft: Fft128View<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,

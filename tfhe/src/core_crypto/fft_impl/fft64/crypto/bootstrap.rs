@@ -20,7 +20,7 @@ use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapK
 use crate::core_crypto::fft_impl::fft64::math::fft::par_convert_polynomials_list_to_fourier;
 use crate::core_crypto::prelude::{CiphertextCount, CiphertextModulus, ContainerMut};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 use tfhe_versionable::Versionize;
 
@@ -191,12 +191,12 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
         mut self,
         coef_bsk: LweBootstrapKey<&'_ [Scalar]>,
         fft: FftView<'_>,
-        mut stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         for (fourier_ggsw, standard_ggsw) in
             izip!(self.as_mut_view().into_ggsw_iter(), coef_bsk.iter())
         {
-            fourier_ggsw.fill_with_forward_fourier(standard_ggsw, fft, stack.rb_mut());
+            fourier_ggsw.fill_with_forward_fourier(standard_ggsw, fft, stack);
         }
     }
     /// Fill a bootstrapping key with the Fourier transform of a bootstrapping key in the standard
@@ -288,7 +288,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         mut lut: GlweCiphertextMutView<'_, OutputScalar>,
         lwe: LweCiphertextView<'_, InputScalar>,
         fft: FftView<'_>,
-        mut stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         InputScalar: UnsignedTorus + CastInto<usize>,
         OutputScalar: UnsignedTorus,
@@ -303,9 +303,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         lut.as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
-                let (tmp_poly, _) = stack
-                    .rb_mut()
-                    .make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
+                let (tmp_poly, _) = stack.make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
 
                 let mut tmp_poly = Polynomial::from_container(&mut *tmp_poly);
                 tmp_poly.as_mut().copy_from_slice(poly.as_ref());
@@ -314,7 +312,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
 
         // We initialize the ct_0 used for the successive cmuxes
         let mut ct0 = lut;
-        let (ct1, mut stack) = stack.make_aligned_raw(ct0.as_ref().len(), CACHELINE_ALIGN);
+        let (ct1, stack) = stack.make_aligned_raw(ct0.as_ref().len(), CACHELINE_ALIGN);
         let mut ct1 =
             GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
 
@@ -349,7 +347,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
                     bootstrap_key_ggsw,
                     ct1.as_view(),
                     fft,
-                    stack.rb_mut(),
+                    stack,
                 );
             }
         }
@@ -375,7 +373,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         mut lut_list: GlweCiphertextListMutView<'_, OutputScalar>,
         lwe_list: LweCiphertextListView<'_, InputScalar>,
         fft: FftView<'_>,
-        mut stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         InputScalar: UnsignedTorus + CastInto<usize>,
         OutputScalar: UnsignedTorus,
@@ -393,9 +391,8 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
             lut.as_mut_polynomial_list()
                 .iter_mut()
                 .for_each(|mut poly| {
-                    let (tmp_poly, _) = stack
-                        .rb_mut()
-                        .make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
+                    let (tmp_poly, _) =
+                        stack.make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
 
                     let mut tmp_poly = Polynomial::from_container(&mut *tmp_poly);
                     tmp_poly.as_mut().copy_from_slice(poly.as_ref());
@@ -405,8 +402,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
 
         // We initialize the ct_0 used for the successive cmuxes
         let mut ct0_list = lut_list;
-        let (ct1_list, mut stack) =
-            stack.make_aligned_raw(ct0_list.as_ref().len(), CACHELINE_ALIGN);
+        let (ct1_list, stack) = stack.make_aligned_raw(ct0_list.as_ref().len(), CACHELINE_ALIGN);
         let mut ct1_list = GlweCiphertextListMutView::from_container(
             &mut *ct1_list,
             ct0_list.glwe_size(),
@@ -450,7 +446,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
                         bootstrap_key_ggsw,
                         ct1.as_view(),
                         fft,
-                        stack.rb_mut(),
+                        stack,
                     );
                 }
             }
@@ -478,7 +474,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         lwe_in: LweCiphertextView<'_, InputScalar>,
         accumulator: GlweCiphertextView<'_, OutputScalar>,
         fft: FftView<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         // CastInto required for PBS modulus switch which returns a usize
         InputScalar: UnsignedTorus + CastInto<usize>,
@@ -518,7 +514,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         lwe_in: LweCiphertextListView<'_, InputScalar>,
         accumulator: &GlweCiphertextListView<'_, OutputScalar>,
         fft: FftView<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         // CastInto required for PBS modulus switch which returns a usize
         InputScalar: UnsignedTorus + CastInto<usize>,
@@ -586,7 +582,7 @@ where
         &mut self,
         coef_bsk: &LweBootstrapKey<ContBsk>,
         fft: &Self::Fft,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         ContBsk: Container<Element = Scalar>,
     {
@@ -608,7 +604,7 @@ where
         lwe_in: &LweCiphertext<ContLweIn>,
         accumulator: &GlweCiphertext<ContAcc>,
         fft: &Self::Fft,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         ContLweOut: ContainerMut<Element = Scalar>,
         ContLweIn: Container<Element = Scalar>,

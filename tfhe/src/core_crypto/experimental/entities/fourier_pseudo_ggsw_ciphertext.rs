@@ -11,7 +11,7 @@ use crate::core_crypto::fft_impl::fft64::math::decomposition::DecompositionLevel
 use crate::core_crypto::fft_impl::fft64::math::fft::{FftView, FourierPolynomialList};
 use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomialMutView;
 use aligned_vec::{avec, ABox};
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 
 /// A pseudo GGSW ciphertext in the Fourier domain.
@@ -273,7 +273,7 @@ impl<'a> PseudoFourierGgswCiphertextMutView<'a> {
         self,
         coef_ggsw: &PseudoGgswCiphertext<InputCont>,
         fft: FftView<'_>,
-        mut stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) {
         debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
         let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
@@ -285,7 +285,7 @@ impl<'a> PseudoFourierGgswCiphertextMutView<'a> {
             fft.forward_as_torus(
                 FourierPolynomialMutView { data: fourier_poly },
                 coef_poly,
-                stack.rb_mut(),
+                stack,
             );
         }
     }
