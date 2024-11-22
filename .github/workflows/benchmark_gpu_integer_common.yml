@@ -1,5 +1,5 @@
 # Run integer benchmarks on CUDA instance and return parsed results to Slab CI bot.
-name: Cuda benchmarks common
+name: Cuda benchmarks - common
 
 on:
   workflow_call:
