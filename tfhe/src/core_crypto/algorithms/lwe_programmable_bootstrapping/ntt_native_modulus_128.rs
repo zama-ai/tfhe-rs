@@ -17,10 +17,13 @@ use crate::core_crypto::entities::{
     ggsw_ciphertext_size, GlweCiphertext, GlweCiphertextMutView, GlweCiphertextView,
     LweBootstrapKey, LweCiphertext, NttGgswCiphertext,
 };
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::collect_next_term;
+use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
+    collect_next_term, collect_take_next_term,
+};
 use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut};
+use rayon::prelude::*;
 use tfhe_ntt::native128::Plan32;
 
 pub struct CrtNtt128LweBsk<C: Container<Element = u32>> {
@@ -594,12 +597,12 @@ fn add_assign_ext_prod(
 ) {
     let align = CACHELINE_ALIGN;
     let ciphertext_modulus = glwe.ciphertext_modulus();
+    let decomposition_base_log = mod_p0.decomposition_base_log();
+    let decomposition_level_count = mod_p0.decomposition_level_count();
 
     // we round the input mask and body
-    let decomposer = SignedDecomposer::<u128>::new(
-        mod_p0.decomposition_base_log(),
-        mod_p0.decomposition_level_count(),
-    );
+    let decomposer =
+        SignedDecomposer::<u128>::new(decomposition_base_log, decomposition_level_count);
 
     let glwe_size = mod_p0.glwe_size();
     let polynomial_size = mod_p0.polynomial_size();
@@ -645,82 +648,99 @@ fn add_assign_ext_prod(
             substack0.rb_mut(),
         );
 
-        // We loop through the levels (we reverse to match the order of the
-        // decomposition iterator.)
-        for (
-            ggws_decomp_matrix_mod_p0,
-            ggws_decomp_matrix_mod_p1,
-            ggws_decomp_matrix_mod_p2,
-            ggws_decomp_matrix_mod_p3,
-            ggws_decomp_matrix_mod_p4,
-            ggws_decomp_matrix_mod_p5,
-            ggws_decomp_matrix_mod_p6,
-            ggws_decomp_matrix_mod_p7,
-            ggws_decomp_matrix_mod_p8,
-            ggws_decomp_matrix_mod_p9,
-        ) in izip!(
-            mod_p0.into_levels(),
-            mod_p1.into_levels(),
-            mod_p2.into_levels(),
-            mod_p3.into_levels(),
-            mod_p4.into_levels(),
-            mod_p5.into_levels(),
-            mod_p6.into_levels(),
-            mod_p7.into_levels(),
-            mod_p8.into_levels(),
-            mod_p9.into_levels(),
-        ) {
-            // We retrieve the decomposition of this level.
-            let (glwe_level, glwe_decomp_term, mut substack2) =
-                collect_next_term(&mut decomposition, &mut substack1, align);
-            let glwe_decomp_term = GlweCiphertextView::from_container(
-                &*glwe_decomp_term,
-                polynomial_size,
-                ciphertext_modulus,
-            );
-            debug_assert_eq!(ggws_decomp_matrix_mod_p0.decomposition_level(), glwe_level);
+        let mut decomp_levels = Vec::with_capacity(decomposition_level_count.0);
 
-            // For each level we have to add the result of the vector-matrix product
-            // between the decomposition of the glwe, and the
-            // ggsw level matrix to the output. To do so, we
-            // iteratively add to the output, the product between every line of the
-            // matrix, and the corresponding (scalar) polynomial
-            // in the glwe decomposition:
-            //
-            //                ggsw_mat                        ggsw_mat
-            //   glwe_dec   | - - - - | <        glwe_dec   | - - - - |
-            //  | - - - | x | - - - - |         | - - - | x | - - - - | <
-            //    ^         | - - - - |             ^       | - - - - |
-            //
-            //        t = 1                           t = 2                     ...
+        let mut substack2 = {
+            let mut tmp_substack = substack1;
+            for _ in 0..decomposition_level_count.0 {
+                // We retrieve the decomposition of this level.
+                let (_, glwe_decomp_term, substack2) =
+                    collect_take_next_term(&mut decomposition, tmp_substack, align);
+                let (ntt_mod_p0, stack) =
+                    substack2.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                let (ntt_mod_p1, stack) =
+                    stack.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                let (ntt_mod_p2, stack) =
+                    stack.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                let (ntt_mod_p3, stack) =
+                    stack.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                let (ntt_mod_p4, stack) =
+                    stack.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                let (ntt_mod_p5, stack) =
+                    stack.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                let (ntt_mod_p6, stack) =
+                    stack.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                let (ntt_mod_p7, stack) =
+                    stack.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                let (ntt_mod_p8, stack) =
+                    stack.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                let (ntt_mod_p9, stack) =
+                    stack.make_aligned_raw::<u32>(polynomial_size.0 * glwe_size.0, align);
+                decomp_levels.push((
+                    glwe_decomp_term,
+                    (
+                        ntt_mod_p0, ntt_mod_p1, ntt_mod_p2, ntt_mod_p3, ntt_mod_p4, ntt_mod_p5,
+                        ntt_mod_p6, ntt_mod_p7, ntt_mod_p8, ntt_mod_p9,
+                    ),
+                ));
+                tmp_substack = stack;
+            }
+            tmp_substack
+        };
 
-            for (
-                ggws_row_mod_p0,
-                ggws_row_mod_p1,
-                ggws_row_mod_p2,
-                ggws_row_mod_p3,
-                ggws_row_mod_p4,
-                ggws_row_mod_p5,
-                ggws_row_mod_p6,
-                ggws_row_mod_p7,
-                ggws_row_mod_p8,
-                ggws_row_mod_p9,
-                glwe_poly,
-            ) in izip!(
-                ggws_decomp_matrix_mod_p0.into_rows(),
-                ggws_decomp_matrix_mod_p1.into_rows(),
-                ggws_decomp_matrix_mod_p2.into_rows(),
-                ggws_decomp_matrix_mod_p3.into_rows(),
-                ggws_decomp_matrix_mod_p4.into_rows(),
-                ggws_decomp_matrix_mod_p5.into_rows(),
-                ggws_decomp_matrix_mod_p6.into_rows(),
-                ggws_decomp_matrix_mod_p7.into_rows(),
-                ggws_decomp_matrix_mod_p8.into_rows(),
-                ggws_decomp_matrix_mod_p9.into_rows(),
-                glwe_decomp_term.as_polynomial_list().iter()
-            ) {
+        // let stack = substack2.rb_mut();
+        // let (ntt_mod_p0, stack) = stack.make_aligned_raw::<u32>(len, align);
+        // let (ntt_mod_p1, stack) = stack.make_aligned_raw::<u32>(len, align);
+        // let (ntt_mod_p2, stack) = stack.make_aligned_raw::<u32>(len, align);
+        // let (ntt_mod_p3, stack) = stack.make_aligned_raw::<u32>(len, align);
+        // let (ntt_mod_p4, stack) = stack.make_aligned_raw::<u32>(len, align);
+        // let (ntt_mod_p5, stack) = stack.make_aligned_raw::<u32>(len, align);
+        // let (ntt_mod_p6, stack) = stack.make_aligned_raw::<u32>(len, align);
+        // let (ntt_mod_p7, stack) = stack.make_aligned_raw::<u32>(len, align);
+        // let (ntt_mod_p8, stack) = stack.make_aligned_raw::<u32>(len, align);
+        // let (ntt_mod_p9, _stack) = stack.make_aligned_raw::<u32>(len, align);
+
+        decomp_levels
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(index, (level_slice, out_buffers))| {
+                let ggws_decomp_matrix_mod_p0 = mod_p0.get_level(index);
+                let ggws_decomp_matrix_mod_p1 = mod_p1.get_level(index);
+                let ggws_decomp_matrix_mod_p2 = mod_p2.get_level(index);
+                let ggws_decomp_matrix_mod_p3 = mod_p3.get_level(index);
+                let ggws_decomp_matrix_mod_p4 = mod_p4.get_level(index);
+                let ggws_decomp_matrix_mod_p5 = mod_p5.get_level(index);
+                let ggws_decomp_matrix_mod_p6 = mod_p6.get_level(index);
+                let ggws_decomp_matrix_mod_p7 = mod_p7.get_level(index);
+                let ggws_decomp_matrix_mod_p8 = mod_p8.get_level(index);
+                let ggws_decomp_matrix_mod_p9 = mod_p9.get_level(index);
+
+                let mut buffer = ComputationBuffers::new();
+                buffer.resize(1 << 20);
+
+                let stack = buffer.stack();
+
+                let mut glwe_decomp_term = GlweCiphertextMutView::from_container(
+                    level_slice,
+                    polynomial_size,
+                    ciphertext_modulus,
+                );
+
+                let (
+                    output_ntt_buffer_mod_p0,
+                    output_ntt_buffer_mod_p1,
+                    output_ntt_buffer_mod_p2,
+                    output_ntt_buffer_mod_p3,
+                    output_ntt_buffer_mod_p4,
+                    output_ntt_buffer_mod_p5,
+                    output_ntt_buffer_mod_p6,
+                    output_ntt_buffer_mod_p7,
+                    output_ntt_buffer_mod_p8,
+                    output_ntt_buffer_mod_p9,
+                ) = out_buffers;
+
                 let len = polynomial_size.0;
-                let stack = substack2.rb_mut();
+
                 let (ntt_mod_p0, stack) = stack.make_aligned_raw::<u32>(len, align);
                 let (ntt_mod_p1, stack) = stack.make_aligned_raw::<u32>(len, align);
                 let (ntt_mod_p2, stack) = stack.make_aligned_raw::<u32>(len, align);
@@ -731,83 +751,51 @@ fn add_assign_ext_prod(
                 let (ntt_mod_p7, stack) = stack.make_aligned_raw::<u32>(len, align);
                 let (ntt_mod_p8, stack) = stack.make_aligned_raw::<u32>(len, align);
                 let (ntt_mod_p9, _stack) = stack.make_aligned_raw::<u32>(len, align);
-                // We perform the forward ntt transform for the glwe polynomial
-                ntt.fwd(
-                    glwe_poly.as_ref(),
-                    ntt_mod_p0,
-                    ntt_mod_p1,
-                    ntt_mod_p2,
-                    ntt_mod_p3,
-                    ntt_mod_p4,
-                    ntt_mod_p5,
-                    ntt_mod_p6,
-                    ntt_mod_p7,
-                    ntt_mod_p8,
-                    ntt_mod_p9,
-                );
-                // Now we loop through the polynomials of the output, and add the
-                // corresponding product of polynomials.
+
+                // For each level we have to add the result of the vector-matrix product
+                // between the decomposition of the glwe, and the
+                // ggsw level matrix to the output. To do so, we
+                // iteratively add to the output, the product between every line of the
+                // matrix, and the corresponding (scalar) polynomial
+                // in the glwe decomposition:
+                //
+                //                ggsw_mat                        ggsw_mat
+                //   glwe_dec   | - - - - | <        glwe_dec   | - - - - |
+                //  | - - - | x | - - - - |         | - - - | x | - - - - | <
+                //    ^         | - - - - |             ^       | - - - - |
+                //
+                //        t = 1                           t = 2                     ...
 
                 for (
-                    (
-                        out_poly_p0,
-                        out_poly_p1,
-                        out_poly_p2,
-                        out_poly_p3,
-                        out_poly_p4,
-                        out_poly_p5,
-                        out_poly_p6,
-                        out_poly_p7,
-                        out_poly_p8,
-                        out_poly_p9,
-                    ),
-                    (
-                        ggsw_poly_p0,
-                        ggsw_poly_p1,
-                        ggsw_poly_p2,
-                        ggsw_poly_p3,
-                        ggsw_poly_p4,
-                        ggsw_poly_p5,
-                        ggsw_poly_p6,
-                        ggsw_poly_p7,
-                        ggsw_poly_p8,
-                        ggsw_poly_p9,
-                    ),
+                    ggws_row_mod_p0,
+                    ggws_row_mod_p1,
+                    ggws_row_mod_p2,
+                    ggws_row_mod_p3,
+                    ggws_row_mod_p4,
+                    ggws_row_mod_p5,
+                    ggws_row_mod_p6,
+                    ggws_row_mod_p7,
+                    ggws_row_mod_p8,
+                    ggws_row_mod_p9,
+                    mut glwe_poly,
                 ) in izip!(
-                    output_ntt_buffer_mod_p0.chunks_exact_mut(polynomial_size.0),
-                    output_ntt_buffer_mod_p1.chunks_exact_mut(polynomial_size.0),
-                    output_ntt_buffer_mod_p2.chunks_exact_mut(polynomial_size.0),
-                    output_ntt_buffer_mod_p3.chunks_exact_mut(polynomial_size.0),
-                    output_ntt_buffer_mod_p4.chunks_exact_mut(polynomial_size.0),
-                    output_ntt_buffer_mod_p5.chunks_exact_mut(polynomial_size.0),
-                    output_ntt_buffer_mod_p6.chunks_exact_mut(polynomial_size.0),
-                    output_ntt_buffer_mod_p7.chunks_exact_mut(polynomial_size.0),
-                    output_ntt_buffer_mod_p8.chunks_exact_mut(polynomial_size.0),
-                    output_ntt_buffer_mod_p9.chunks_exact_mut(polynomial_size.0),
-                )
-                .zip(izip!(
-                    ggws_row_mod_p0.as_ref().chunks_exact(polynomial_size.0),
-                    ggws_row_mod_p1.as_ref().chunks_exact(polynomial_size.0),
-                    ggws_row_mod_p2.as_ref().chunks_exact(polynomial_size.0),
-                    ggws_row_mod_p3.as_ref().chunks_exact(polynomial_size.0),
-                    ggws_row_mod_p4.as_ref().chunks_exact(polynomial_size.0),
-                    ggws_row_mod_p5.as_ref().chunks_exact(polynomial_size.0),
-                    ggws_row_mod_p6.as_ref().chunks_exact(polynomial_size.0),
-                    ggws_row_mod_p7.as_ref().chunks_exact(polynomial_size.0),
-                    ggws_row_mod_p8.as_ref().chunks_exact(polynomial_size.0),
-                    ggws_row_mod_p9.as_ref().chunks_exact(polynomial_size.0),
-                )) {
-                    ntt.mul_accumulate(
-                        out_poly_p0,
-                        out_poly_p1,
-                        out_poly_p2,
-                        out_poly_p3,
-                        out_poly_p4,
-                        out_poly_p5,
-                        out_poly_p6,
-                        out_poly_p7,
-                        out_poly_p8,
-                        out_poly_p9,
+                    ggws_decomp_matrix_mod_p0.into_rows(),
+                    ggws_decomp_matrix_mod_p1.into_rows(),
+                    ggws_decomp_matrix_mod_p2.into_rows(),
+                    ggws_decomp_matrix_mod_p3.into_rows(),
+                    ggws_decomp_matrix_mod_p4.into_rows(),
+                    ggws_decomp_matrix_mod_p5.into_rows(),
+                    ggws_decomp_matrix_mod_p6.into_rows(),
+                    ggws_decomp_matrix_mod_p7.into_rows(),
+                    ggws_decomp_matrix_mod_p8.into_rows(),
+                    ggws_decomp_matrix_mod_p9.into_rows(),
+                    glwe_decomp_term.as_mut_polynomial_list().iter_mut()
+                ) {
+                    let len = polynomial_size.0;
+
+                    // We perform the forward ntt transform for the glwe polynomial
+                    ntt.fwd(
+                        glwe_poly.as_ref(),
                         ntt_mod_p0,
                         ntt_mod_p1,
                         ntt_mod_p2,
@@ -818,76 +806,311 @@ fn add_assign_ext_prod(
                         ntt_mod_p7,
                         ntt_mod_p8,
                         ntt_mod_p9,
-                        ggsw_poly_p0,
-                        ggsw_poly_p1,
-                        ggsw_poly_p2,
-                        ggsw_poly_p3,
-                        ggsw_poly_p4,
-                        ggsw_poly_p5,
-                        ggsw_poly_p6,
-                        ggsw_poly_p7,
-                        ggsw_poly_p8,
-                        ggsw_poly_p9,
                     );
-                }
+                    // Now we loop through the polynomials of the output, and add the
+                    // corresponding product of polynomials.
 
-                // // we initialized `output_fft_buffer, so we can set this to false
-                // is_output_uninit = false;
+                    for (
+                        (
+                            out_poly_p0,
+                            out_poly_p1,
+                            out_poly_p2,
+                            out_poly_p3,
+                            out_poly_p4,
+                            out_poly_p5,
+                            out_poly_p6,
+                            out_poly_p7,
+                            out_poly_p8,
+                            out_poly_p9,
+                        ),
+                        (
+                            ggsw_poly_p0,
+                            ggsw_poly_p1,
+                            ggsw_poly_p2,
+                            ggsw_poly_p3,
+                            ggsw_poly_p4,
+                            ggsw_poly_p5,
+                            ggsw_poly_p6,
+                            ggsw_poly_p7,
+                            ggsw_poly_p8,
+                            ggsw_poly_p9,
+                        ),
+                    ) in izip!(
+                        output_ntt_buffer_mod_p0.chunks_exact_mut(polynomial_size.0),
+                        output_ntt_buffer_mod_p1.chunks_exact_mut(polynomial_size.0),
+                        output_ntt_buffer_mod_p2.chunks_exact_mut(polynomial_size.0),
+                        output_ntt_buffer_mod_p3.chunks_exact_mut(polynomial_size.0),
+                        output_ntt_buffer_mod_p4.chunks_exact_mut(polynomial_size.0),
+                        output_ntt_buffer_mod_p5.chunks_exact_mut(polynomial_size.0),
+                        output_ntt_buffer_mod_p6.chunks_exact_mut(polynomial_size.0),
+                        output_ntt_buffer_mod_p7.chunks_exact_mut(polynomial_size.0),
+                        output_ntt_buffer_mod_p8.chunks_exact_mut(polynomial_size.0),
+                        output_ntt_buffer_mod_p9.chunks_exact_mut(polynomial_size.0),
+                    )
+                    .zip(izip!(
+                        ggws_row_mod_p0.as_ref().chunks_exact(polynomial_size.0),
+                        ggws_row_mod_p1.as_ref().chunks_exact(polynomial_size.0),
+                        ggws_row_mod_p2.as_ref().chunks_exact(polynomial_size.0),
+                        ggws_row_mod_p3.as_ref().chunks_exact(polynomial_size.0),
+                        ggws_row_mod_p4.as_ref().chunks_exact(polynomial_size.0),
+                        ggws_row_mod_p5.as_ref().chunks_exact(polynomial_size.0),
+                        ggws_row_mod_p6.as_ref().chunks_exact(polynomial_size.0),
+                        ggws_row_mod_p7.as_ref().chunks_exact(polynomial_size.0),
+                        ggws_row_mod_p8.as_ref().chunks_exact(polynomial_size.0),
+                        ggws_row_mod_p9.as_ref().chunks_exact(polynomial_size.0),
+                    )) {
+                        ntt.mul_accumulate(
+                            out_poly_p0,
+                            out_poly_p1,
+                            out_poly_p2,
+                            out_poly_p3,
+                            out_poly_p4,
+                            out_poly_p5,
+                            out_poly_p6,
+                            out_poly_p7,
+                            out_poly_p8,
+                            out_poly_p9,
+                            ntt_mod_p0,
+                            ntt_mod_p1,
+                            ntt_mod_p2,
+                            ntt_mod_p3,
+                            ntt_mod_p4,
+                            ntt_mod_p5,
+                            ntt_mod_p6,
+                            ntt_mod_p7,
+                            ntt_mod_p8,
+                            ntt_mod_p9,
+                            ggsw_poly_p0,
+                            ggsw_poly_p1,
+                            ggsw_poly_p2,
+                            ggsw_poly_p3,
+                            ggsw_poly_p4,
+                            ggsw_poly_p5,
+                            ggsw_poly_p6,
+                            ggsw_poly_p7,
+                            ggsw_poly_p8,
+                            ggsw_poly_p9,
+                        );
+
+                        ntt.inv(
+                            glwe_poly.as_mut(),
+                            out_poly_p0,
+                            out_poly_p1,
+                            out_poly_p2,
+                            out_poly_p3,
+                            out_poly_p4,
+                            out_poly_p5,
+                            out_poly_p6,
+                            out_poly_p7,
+                            out_poly_p8,
+                            out_poly_p9,
+                        );
+                    }
+
+                    // // we initialized `output_fft_buffer, so we can set this to false
+                    // is_output_uninit = false;
+                }
+            });
+
+        // // We loop through the levels (we reverse to match the order of the
+        // // decomposition iterator.)
+        // for (
+        //     ggws_decomp_matrix_mod_p0,
+        //     ggws_decomp_matrix_mod_p1,
+        //     ggws_decomp_matrix_mod_p2,
+        //     ggws_decomp_matrix_mod_p3,
+        //     ggws_decomp_matrix_mod_p4,
+        //     ggws_decomp_matrix_mod_p5,
+        //     ggws_decomp_matrix_mod_p6,
+        //     ggws_decomp_matrix_mod_p7,
+        //     ggws_decomp_matrix_mod_p8,
+        //     ggws_decomp_matrix_mod_p9,
+        // ) in izip!(
+        //     mod_p0.into_levels(),
+        //     mod_p1.into_levels(),
+        //     mod_p2.into_levels(),
+        //     mod_p3.into_levels(),
+        //     mod_p4.into_levels(),
+        //     mod_p5.into_levels(),
+        //     mod_p6.into_levels(),
+        //     mod_p7.into_levels(),
+        //     mod_p8.into_levels(),
+        //     mod_p9.into_levels(),
+        // ) {
+        //     let glwe_decomp_term = GlweCiphertextView::from_container(
+        //         &*glwe_decomp_term,
+        //         polynomial_size,
+        //         ciphertext_modulus,
+        //     );
+
+        //     // For each level we have to add the result of the vector-matrix product
+        //     // between the decomposition of the glwe, and the
+        //     // ggsw level matrix to the output. To do so, we
+        //     // iteratively add to the output, the product between every line of the
+        //     // matrix, and the corresponding (scalar) polynomial
+        //     // in the glwe decomposition:
+        //     //
+        //     //                ggsw_mat                        ggsw_mat
+        //     //   glwe_dec   | - - - - | <        glwe_dec   | - - - - |
+        //     //  | - - - | x | - - - - |         | - - - | x | - - - - | <
+        //     //    ^         | - - - - |             ^       | - - - - |
+        //     //
+        //     //        t = 1                           t = 2                     ...
+
+        //     for (
+        //         ggws_row_mod_p0,
+        //         ggws_row_mod_p1,
+        //         ggws_row_mod_p2,
+        //         ggws_row_mod_p3,
+        //         ggws_row_mod_p4,
+        //         ggws_row_mod_p5,
+        //         ggws_row_mod_p6,
+        //         ggws_row_mod_p7,
+        //         ggws_row_mod_p8,
+        //         ggws_row_mod_p9,
+        //         glwe_poly,
+        //     ) in izip!(
+        //         ggws_decomp_matrix_mod_p0.into_rows(),
+        //         ggws_decomp_matrix_mod_p1.into_rows(),
+        //         ggws_decomp_matrix_mod_p2.into_rows(),
+        //         ggws_decomp_matrix_mod_p3.into_rows(),
+        //         ggws_decomp_matrix_mod_p4.into_rows(),
+        //         ggws_decomp_matrix_mod_p5.into_rows(),
+        //         ggws_decomp_matrix_mod_p6.into_rows(),
+        //         ggws_decomp_matrix_mod_p7.into_rows(),
+        //         ggws_decomp_matrix_mod_p8.into_rows(),
+        //         ggws_decomp_matrix_mod_p9.into_rows(),
+        //         glwe_decomp_term.as_polynomial_list().iter()
+        //     ) {
+        //         let len = polynomial_size.0;
+
+        //         // We perform the forward ntt transform for the glwe polynomial
+        //         ntt.fwd(
+        //             glwe_poly.as_ref(),
+        //             ntt_mod_p0,
+        //             ntt_mod_p1,
+        //             ntt_mod_p2,
+        //             ntt_mod_p3,
+        //             ntt_mod_p4,
+        //             ntt_mod_p5,
+        //             ntt_mod_p6,
+        //             ntt_mod_p7,
+        //             ntt_mod_p8,
+        //             ntt_mod_p9,
+        //         );
+        //         // Now we loop through the polynomials of the output, and add the
+        //         // corresponding product of polynomials.
+
+        //         for (
+        //             (
+        //                 out_poly_p0,
+        //                 out_poly_p1,
+        //                 out_poly_p2,
+        //                 out_poly_p3,
+        //                 out_poly_p4,
+        //                 out_poly_p5,
+        //                 out_poly_p6,
+        //                 out_poly_p7,
+        //                 out_poly_p8,
+        //                 out_poly_p9,
+        //             ),
+        //             (
+        //                 ggsw_poly_p0,
+        //                 ggsw_poly_p1,
+        //                 ggsw_poly_p2,
+        //                 ggsw_poly_p3,
+        //                 ggsw_poly_p4,
+        //                 ggsw_poly_p5,
+        //                 ggsw_poly_p6,
+        //                 ggsw_poly_p7,
+        //                 ggsw_poly_p8,
+        //                 ggsw_poly_p9,
+        //             ),
+        //         ) in izip!(
+        //             output_ntt_buffer_mod_p0.chunks_exact_mut(polynomial_size.0),
+        //             output_ntt_buffer_mod_p1.chunks_exact_mut(polynomial_size.0),
+        //             output_ntt_buffer_mod_p2.chunks_exact_mut(polynomial_size.0),
+        //             output_ntt_buffer_mod_p3.chunks_exact_mut(polynomial_size.0),
+        //             output_ntt_buffer_mod_p4.chunks_exact_mut(polynomial_size.0),
+        //             output_ntt_buffer_mod_p5.chunks_exact_mut(polynomial_size.0),
+        //             output_ntt_buffer_mod_p6.chunks_exact_mut(polynomial_size.0),
+        //             output_ntt_buffer_mod_p7.chunks_exact_mut(polynomial_size.0),
+        //             output_ntt_buffer_mod_p8.chunks_exact_mut(polynomial_size.0),
+        //             output_ntt_buffer_mod_p9.chunks_exact_mut(polynomial_size.0),
+        //         )
+        //         .zip(izip!(
+        //             ggws_row_mod_p0.as_ref().chunks_exact(polynomial_size.0),
+        //             ggws_row_mod_p1.as_ref().chunks_exact(polynomial_size.0),
+        //             ggws_row_mod_p2.as_ref().chunks_exact(polynomial_size.0),
+        //             ggws_row_mod_p3.as_ref().chunks_exact(polynomial_size.0),
+        //             ggws_row_mod_p4.as_ref().chunks_exact(polynomial_size.0),
+        //             ggws_row_mod_p5.as_ref().chunks_exact(polynomial_size.0),
+        //             ggws_row_mod_p6.as_ref().chunks_exact(polynomial_size.0),
+        //             ggws_row_mod_p7.as_ref().chunks_exact(polynomial_size.0),
+        //             ggws_row_mod_p8.as_ref().chunks_exact(polynomial_size.0),
+        //             ggws_row_mod_p9.as_ref().chunks_exact(polynomial_size.0),
+        //         )) {
+        //             ntt.mul_accumulate(
+        //                 out_poly_p0,
+        //                 out_poly_p1,
+        //                 out_poly_p2,
+        //                 out_poly_p3,
+        //                 out_poly_p4,
+        //                 out_poly_p5,
+        //                 out_poly_p6,
+        //                 out_poly_p7,
+        //                 out_poly_p8,
+        //                 out_poly_p9,
+        //                 ntt_mod_p0,
+        //                 ntt_mod_p1,
+        //                 ntt_mod_p2,
+        //                 ntt_mod_p3,
+        //                 ntt_mod_p4,
+        //                 ntt_mod_p5,
+        //                 ntt_mod_p6,
+        //                 ntt_mod_p7,
+        //                 ntt_mod_p8,
+        //                 ntt_mod_p9,
+        //                 ggsw_poly_p0,
+        //                 ggsw_poly_p1,
+        //                 ggsw_poly_p2,
+        //                 ggsw_poly_p3,
+        //                 ggsw_poly_p4,
+        //                 ggsw_poly_p5,
+        //                 ggsw_poly_p6,
+        //                 ggsw_poly_p7,
+        //                 ggsw_poly_p8,
+        //                 ggsw_poly_p9,
+        //             );
+        //         }
+
+        //         // // we initialized `output_fft_buffer, so we can set this to false
+        //         // is_output_uninit = false;
+        //     }
+        // }
+
+        // --------------------------------------------  TRANSFORMATION OF RESULT TO
+        // STANDARD DOMAIN In this section, we bring the result from the
+        // fourier domain, back to the standard domain, and add it to the
+        // output.
+        //
+        // We iterate over the polynomials in the output.
+
+        // let (tmp_inv_buff, _stack) =
+        //     substack0.make_aligned_raw(polynomial_size.0 * glwe_size.0, align);
+
+        for level_data in decomp_levels.iter() {
+            let level_slice = &level_data.0;
+            for (mut out, inp) in out
+                .as_mut_polynomial_list()
+                .iter_mut()
+                .zip(level_slice.chunks_exact(polynomial_size.0))
+            {
+                out.as_mut()
+                    .iter_mut()
+                    .zip(inp.iter())
+                    .for_each(|(dst, src)| *dst = (*dst).wrapping_add(*src));
             }
         }
-    }
-
-    // --------------------------------------------  TRANSFORMATION OF RESULT TO
-    // STANDARD DOMAIN In this section, we bring the result from the
-    // fourier domain, back to the standard domain, and add it to the
-    // output.
-    //
-    // We iterate over the polynomials in the output.
-
-    let (tmp_inv_buff, _stack) = substack0.make_aligned_raw(polynomial_size.0 * glwe_size.0, align);
-
-    for (
-        mut out,
-        acc_mod_p0,
-        acc_mod_p1,
-        acc_mod_p2,
-        acc_mod_p3,
-        acc_mod_p4,
-        acc_mod_p5,
-        acc_mod_p6,
-        acc_mod_p7,
-        acc_mod_p8,
-        acc_mod_p9,
-    ) in izip!(
-        out.as_mut_polynomial_list().iter_mut(),
-        output_ntt_buffer_mod_p0.chunks_exact_mut(polynomial_size.0),
-        output_ntt_buffer_mod_p1.chunks_exact_mut(polynomial_size.0),
-        output_ntt_buffer_mod_p2.chunks_exact_mut(polynomial_size.0),
-        output_ntt_buffer_mod_p3.chunks_exact_mut(polynomial_size.0),
-        output_ntt_buffer_mod_p4.chunks_exact_mut(polynomial_size.0),
-        output_ntt_buffer_mod_p5.chunks_exact_mut(polynomial_size.0),
-        output_ntt_buffer_mod_p6.chunks_exact_mut(polynomial_size.0),
-        output_ntt_buffer_mod_p7.chunks_exact_mut(polynomial_size.0),
-        output_ntt_buffer_mod_p8.chunks_exact_mut(polynomial_size.0),
-        output_ntt_buffer_mod_p9.chunks_exact_mut(polynomial_size.0),
-    ) {
-        ntt.inv(
-            tmp_inv_buff,
-            acc_mod_p0,
-            acc_mod_p1,
-            acc_mod_p2,
-            acc_mod_p3,
-            acc_mod_p4,
-            acc_mod_p5,
-            acc_mod_p6,
-            acc_mod_p7,
-            acc_mod_p8,
-            acc_mod_p9,
-        );
-
-        out.as_mut()
-            .iter_mut()
-            .zip(tmp_inv_buff.iter())
-            .for_each(|(dst, src)| *dst = (*dst).wrapping_add(*src));
     }
 }

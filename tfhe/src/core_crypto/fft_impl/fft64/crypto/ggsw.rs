@@ -613,6 +613,17 @@ pub(crate) fn collect_next_term<'a, Scalar: UnsignedTorus>(
 }
 
 #[cfg_attr(feature = "__profiling", inline(never))]
+pub(crate) fn collect_take_next_term<'a, Scalar: UnsignedTorus>(
+    decomposition: &mut TensorSignedDecompositionLendingIter<'_, Scalar>,
+    substack1: PodStack<'a>,
+    align: usize,
+) -> (DecompositionLevel, &'a mut [Scalar], PodStack<'a>) {
+    let (glwe_level, _, glwe_decomp_term) = decomposition.next_term().unwrap();
+    let (glwe_decomp_term, substack2) = substack1.collect_aligned(align, glwe_decomp_term);
+    (glwe_level, glwe_decomp_term, substack2)
+}
+
+#[cfg_attr(feature = "__profiling", inline(never))]
 pub(crate) fn update_with_fmadd(
     output_fft_buffer: &mut [c64],
     lhs_polynomial_list: &[c64],

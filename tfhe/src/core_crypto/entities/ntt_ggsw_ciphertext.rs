@@ -170,6 +170,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertext<
         }
     }
 
+    pub fn get_level(&self, index: usize) -> NttGgswLevelMatrixView<'_, Scalar> {
+        let decomposition_level_count = self.decomposition_level_count.0;
+        let level_size = self.data.container_len() / decomposition_level_count;
+        let slice = &self.as_ref()[level_size * index..level_size * (index + 1)];
+
+        NttGgswLevelMatrixView::from_container(
+            slice,
+            self.glwe_size,
+            self.polynomial_size,
+            DecompositionLevel(decomposition_level_count - index),
+        )
+    }
+
     /// Return an iterator over the contiguous [`NttGgswLevelMatrix`]. This consumes the entity,
     /// consider calling [`NttGgswCiphertext::as_view`] or [`NttGgswCiphertext::as_mut_view`] first
     /// to have an iterator over borrowed contents instead of consuming the original entity.
