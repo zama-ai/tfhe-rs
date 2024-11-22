@@ -11,7 +11,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
 use crate::core_crypto::prelude::{Container, ContainerMut};
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{PodStack, ReborrowMut};
+use dyn_stack::PodStack;
 
 pub fn polynomial_wrapping_monic_monomial_mul_assign_split(
     output_lo: Polynomial<&mut [u64]>,
@@ -64,7 +64,7 @@ where
         lut_hi: &mut GlweCiphertext<ContLutHi>,
         lwe: &LweCiphertext<ContLwe>,
         fft: Fft128View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         ContLutLo: ContainerMut<Element = u64>,
         ContLutHi: ContainerMut<Element = u64>,
@@ -76,7 +76,7 @@ where
             mut lut_hi: GlweCiphertext<&mut [u64]>,
             lwe: LweCiphertext<&[u128]>,
             fft: Fft128View<'_>,
-            mut stack: PodStack<'_>,
+            stack: &mut PodStack,
         ) {
             let lwe = lwe.as_ref();
             let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
@@ -103,7 +103,7 @@ where
                 izip!(lwe_mask.iter(), this.into_ggsw_iter())
             {
                 if *lwe_mask_element != 0 {
-                    let stack = stack.rb_mut();
+                    let stack = &mut *stack;
                     // We copy ct_0 to ct_1
                     let (ct1_lo, stack) =
                         stack.collect_aligned(CACHELINE_ALIGN, ct0_lo.as_ref().iter().copied());
@@ -160,7 +160,7 @@ where
         lwe_in: &LweCiphertext<ContLweIn>,
         accumulator: &GlweCiphertext<ContAcc>,
         fft: Fft128View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         ContLweOut: ContainerMut<Element = u128>,
         ContLweIn: Container<Element = u128>,
@@ -172,14 +172,14 @@ where
             lwe_in: LweCiphertext<&[u128]>,
             accumulator: GlweCiphertext<&[u128]>,
             fft: Fft128View<'_>,
-            stack: PodStack<'_>,
+            stack: &mut PodStack,
         ) {
             let align = CACHELINE_ALIGN;
             let ciphertext_modulus = accumulator.ciphertext_modulus();
 
             let (local_accumulator_lo, stack) =
                 stack.collect_aligned(align, accumulator.as_ref().iter().map(|i| *i as u64));
-            let (local_accumulator_hi, mut stack) = stack.collect_aligned(
+            let (local_accumulator_hi, stack) = stack.collect_aligned(
                 align,
                 accumulator.as_ref().iter().map(|i| (*i >> 64) as u64),
             );
@@ -205,7 +205,7 @@ where
                 &mut local_accumulator_hi,
                 &lwe_in,
                 fft,
-                stack.rb_mut(),
+                stack,
             );
             let (local_accumulator, _) = stack.collect_aligned(
                 align,

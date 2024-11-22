@@ -16,7 +16,7 @@ use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 #[cfg(feature = "std")]
 use core::time::Duration;
 #[cfg(feature = "std")]
-use dyn_stack::{GlobalPodBuffer, ReborrowMut};
+use dyn_stack::GlobalPodBuffer;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
 /// Internal FFT algorithm.
@@ -65,7 +65,7 @@ fn measure_n_runs(
     buf: &mut [c64],
     twiddles_init: &[c64],
     twiddles: &[c64],
-    stack: PodStack,
+    stack: &mut PodStack,
 ) -> Duration {
     let n = buf.len();
     let (scratch, _) = stack.make_aligned_raw::<c64>(n, CACHELINE_ALIGN);
@@ -99,7 +99,7 @@ pub(crate) fn measure_fastest_scratch(n: usize) -> StackReq {
 pub(crate) fn measure_fastest(
     min_bench_duration_per_algo: Duration,
     n: usize,
-    stack: PodStack,
+    stack: &mut PodStack,
 ) -> (FftAlgo, Duration) {
     const N_ALGOS: usize = 8;
     const MIN_DURATION: Duration = if cfg!(target_arch = "wasm32") {
@@ -116,14 +116,14 @@ pub(crate) fn measure_fastest(
 
     let f = |_| c64 { re: 0.0, im: 0.0 };
 
-    let (twiddles, stack) = stack.make_aligned_with::<c64, _>(2 * n, align, f);
+    let (twiddles, stack) = stack.make_aligned_with::<c64>(2 * n, align, f);
     let twiddles_init = &twiddles[..n];
     let twiddles = &twiddles[n..];
-    let (buf, mut stack) = stack.make_aligned_with::<c64, _>(n, align, f);
+    let (buf, stack) = stack.make_aligned_with::<c64>(n, align, f);
 
     {
         // initialize scratch to load it in the cpu cache
-        drop(stack.rb_mut().make_aligned_with::<c64, _>(n, align, f));
+        drop(stack.make_aligned_with::<c64>(n, align, f));
     }
 
     let mut avg_durations = [Duration::ZERO; N_ALGOS];
@@ -149,8 +149,7 @@ pub(crate) fn measure_fastest(
             let mut n_runs: u128 = 1;
 
             loop {
-                let duration =
-                    measure_n_runs(n_runs, algo, buf, twiddles_init, twiddles, stack.rb_mut());
+                let duration = measure_n_runs(n_runs, algo, buf, twiddles_init, twiddles, stack);
 
                 if duration < MIN_DURATION {
                     n_runs *= 2;
@@ -165,8 +164,7 @@ pub(crate) fn measure_fastest(
         *avg = if n_runs <= init_n_runs {
             approx_duration
         } else {
-            let duration =
-                measure_n_runs(n_runs, algo, buf, twiddles_init, twiddles, stack.rb_mut());
+            let duration = measure_n_runs(n_runs, algo, buf, twiddles_init, twiddles, stack);
             duration_div_f64(duration, n_runs as f64)
         };
     }
@@ -339,7 +337,7 @@ impl Plan {
     /// let mut buf = [c64::default(); 4];
     /// plan.fwd(&mut buf, stack);
     /// ```
-    pub fn fwd(&self, buf: &mut [c64], stack: PodStack) {
+    pub fn fwd(&self, buf: &mut [c64], stack: &mut PodStack) {
         let n = self.fft_size();
         let (scratch, _) = stack.make_aligned_raw::<c64>(n, CACHELINE_ALIGN);
         let (w_init, w) = split_2(&self.twiddles);
@@ -353,19 +351,19 @@ impl Plan {
     #[cfg_attr(not(feature = "std"), doc = " ```ignore")]
     /// use tfhe_fft::c64;
     /// use tfhe_fft::ordered::{Method, Plan};
-    /// use dyn_stack::{PodStack, GlobalPodBuffer, ReborrowMut};
+    /// use dyn_stack::{PodStack, GlobalPodBuffer};
     /// use core::time::Duration;
     ///
     /// let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
     ///
     /// let mut memory = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
-    /// let mut stack = PodStack::new(&mut memory);
+    /// let stack = PodStack::new(&mut memory);
     ///
     /// let mut buf = [c64::default(); 4];
-    /// plan.fwd(&mut buf, stack.rb_mut());
+    /// plan.fwd(&mut buf, stack);
     /// plan.inv(&mut buf, stack);
     /// ```
-    pub fn inv(&self, buf: &mut [c64], stack: PodStack) {
+    pub fn inv(&self, buf: &mut [c64], stack: &mut PodStack) {
         let n = self.fft_size();
         let (scratch, _) = stack.make_aligned_raw::<c64>(n, CACHELINE_ALIGN);
         let (w_init, w) = split_2(&self.twiddles_inv);
