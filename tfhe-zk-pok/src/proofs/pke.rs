@@ -1262,6 +1262,8 @@ mod tests {
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
 
+    type Curve = curve_api::Bls12_446;
+
     /// Compact key params used with pkev1
     pub(super) const PKEV1_TEST_PARAMS: PkeTestParameters = PkeTestParameters {
         d: 1024,
@@ -1309,8 +1311,6 @@ mod tests {
 
         let mut fake_metadata = [255u8; METADATA_LEN];
         fake_metadata.fill_with(|| rng.gen::<u8>());
-
-        type Curve = curve_api::Bls12_446;
 
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
@@ -1397,9 +1397,9 @@ mod tests {
         }
     }
 
-    fn prove_and_verify<G: Curve>(
+    fn prove_and_verify(
         testcase: &PkeTestcase,
-        crs: &PublicParams<G>,
+        crs: &PublicParams<Curve>,
         load: ComputeLoad,
         rng: &mut StdRng,
     ) -> VerificationResult {
@@ -1434,10 +1434,10 @@ mod tests {
         }
     }
 
-    fn assert_prove_and_verify<G: Curve>(
+    fn assert_prove_and_verify(
         testcase: &PkeTestcase,
         testcase_name: &str,
-        crs: &PublicParams<G>,
+        crs: &PublicParams<Curve>,
         rng: &mut StdRng,
         expected_result: VerificationResult,
     ) {
@@ -1465,8 +1465,6 @@ mod tests {
         let rng = &mut StdRng::seed_from_u64(0);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
-
-        type Curve = curve_api::Bls12_446;
 
         // A CRS where the number of slots = the number of messages to encrypt
         let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
@@ -1630,7 +1628,6 @@ mod tests {
         };
 
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
-        type Curve = curve_api::Bls12_446;
 
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));

@@ -2412,6 +2412,8 @@ mod tests {
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
 
+    type Curve = curve_api::Bls12_446;
+
     /// Compact key params used with pkev2
     pub(super) const PKEV2_TEST_PARAMS: PkeTestParameters = PkeTestParameters {
         d: 2048,
@@ -2458,8 +2460,6 @@ mod tests {
 
         let mut fake_metadata = [255u8; METADATA_LEN];
         fake_metadata.fill_with(|| rng.gen::<u8>());
-
-        type Curve = curve_api::Bls12_446;
 
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
@@ -2546,14 +2546,14 @@ mod tests {
         }
     }
 
-    fn prove_and_verify<G: Curve>(
+    fn prove_and_verify(
         testcase: &PkeTestcase,
-        crs: &PublicParams<G>,
+        ct: &PkeTestCiphertext,
+        crs: &PublicParams<Curve>,
         load: ComputeLoad,
+        sanity_check_mode: ProofSanityCheckMode,
         rng: &mut StdRng,
     ) -> VerificationResult {
-        let ct = testcase.encrypt_unchecked(PKEV2_TEST_PARAMS);
-
         let (public_commit, private_commit) = commit(
             testcase.a.clone(),
             testcase.b.clone(),
@@ -2573,7 +2573,7 @@ mod tests {
             &testcase.metadata,
             load,
             rng,
-            ProofSanityCheckMode::Ignore,
+            sanity_check_mode,
         );
 
         if verify(&proof, (crs, &public_commit), &testcase.metadata).is_ok() {
@@ -2583,16 +2583,18 @@ mod tests {
         }
     }
 
-    fn assert_prove_and_verify<G: Curve>(
+    fn assert_prove_and_verify(
         testcase: &PkeTestcase,
+        ct: &PkeTestCiphertext,
         testcase_name: &str,
-        crs: &PublicParams<G>,
-        rng: &mut StdRng,
+        crs: &PublicParams<Curve>,
+        sanity_check_mode: ProofSanityCheckMode,
         expected_result: VerificationResult,
+        rng: &mut StdRng,
     ) {
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
             assert_eq!(
-                prove_and_verify(testcase, crs, load, rng),
+                prove_and_verify(testcase, ct, crs, load, sanity_check_mode, rng),
                 expected_result,
                 "Testcase {testcase_name} failed"
             )
@@ -2785,8 +2787,6 @@ mod tests {
 
         let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
 
-        type Curve = curve_api::Bls12_446;
-
         let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
         let crs_max_k = crs_gen::<Curve>(d, d, B, q, t, msbs_zero_padding_bit_count, rng);
 
@@ -2848,19 +2848,24 @@ mod tests {
             expected_result,
         } in testcases
         {
+            let ct = testcase.encrypt_unchecked(PKEV2_TEST_PARAMS);
             assert_prove_and_verify(
                 &testcase,
+                &ct,
                 &format!("{name}_crs"),
                 &crs,
-                rng,
+                ProofSanityCheckMode::Ignore,
                 expected_result,
+                rng,
             );
             assert_prove_and_verify(
                 &testcase,
+                &ct,
                 &format!("{name}_crs_max_k"),
                 &crs_max_k,
-                rng,
+                ProofSanityCheckMode::Ignore,
                 expected_result,
+                rng,
             );
         }
     }
@@ -2926,8 +2931,6 @@ mod tests {
 
         let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
 
-        type Curve = curve_api::Bls12_446;
-
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
 
@@ -2938,37 +2941,23 @@ mod tests {
         let public_param_that_was_not_compressed =
             serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
 
-        for public_param in [
-            original_public_param,
-            public_param_that_was_compressed,
-            public_param_that_was_not_compressed,
+        for (public_param, test_name) in [
+            (original_public_param, "original_params"),
+            (
+                public_param_that_was_compressed,
+                "serialized_compressed_params",
+            ),
+            (public_param_that_was_not_compressed, "serialize_params"),
         ] {
-            let (public_commit, private_commit) = commit(
-                testcase.a.clone(),
-                testcase.b.clone(),
-                ct.c1.clone(),
-                ct.c2.clone(),
-                testcase.r.clone(),
-                testcase.e1.clone(),
-                testcase.m.clone(),
-                testcase.e2.clone(),
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                test_name,
                 &public_param,
+                ProofSanityCheckMode::Panic,
+                VerificationResult::Reject,
                 rng,
             );
-
-            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-                let proof = prove(
-                    (&public_param, &public_commit),
-                    &private_commit,
-                    &testcase.metadata,
-                    load,
-                    rng,
-                );
-
-                assert!(
-                    verify(&proof, (&public_param, &public_commit), &testcase.metadata).is_err()
-                );
-            }
         }
     }
 
@@ -2988,8 +2977,6 @@ mod tests {
 
         let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
         let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
-
-        type Curve = curve_api::Bls12_446;
 
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
 
@@ -3041,8 +3028,6 @@ mod tests {
 
         let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
         let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
-
-        type Curve = curve_api::Bls12_446;
 
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
 
