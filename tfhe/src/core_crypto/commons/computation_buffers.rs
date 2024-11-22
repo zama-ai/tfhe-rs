@@ -23,7 +23,7 @@ impl ComputationBuffers {
 
     /// Return a `PodStack` borrowoing from the managed memory buffer for use with optimized fft
     /// primitives or other functions using `PodStack` to manage temporary memory.
-    pub fn stack(&mut self) -> PodStack<'_> {
+    pub fn stack(&mut self) -> &mut PodStack {
         PodStack::new(&mut self.memory)
     }
 }

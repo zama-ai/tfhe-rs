@@ -18,7 +18,7 @@ use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 #[cfg(feature = "std")]
 use core::time::Duration;
 #[cfg(feature = "std")]
-use dyn_stack::{GlobalPodBuffer, ReborrowMut};
+use dyn_stack::GlobalPodBuffer;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
 #[inline(always)]
@@ -553,7 +553,7 @@ fn measure_fastest_scratch(n: usize) -> StackReq {
 fn measure_fastest(
     mut min_bench_duration_per_algo: Duration,
     n: usize,
-    mut stack: PodStack,
+    stack: &mut PodStack,
 ) -> (FftAlgo, usize, Duration) {
     const MIN_DURATION: Duration = Duration::from_millis(1);
     min_bench_duration_per_algo = min_bench_duration_per_algo.max(MIN_DURATION);
@@ -581,11 +581,8 @@ fn measure_fastest(
             n_algos += 1;
 
             // we'll measure the corresponding plan
-            let (base_algo, duration) = crate::ordered::measure_fastest(
-                min_bench_duration_per_algo,
-                base_n,
-                stack.rb_mut(),
-            );
+            let (base_algo, duration) =
+                crate::ordered::measure_fastest(min_bench_duration_per_algo, base_n, stack);
 
             algos[i] = Some(base_algo);
 
@@ -599,11 +596,9 @@ fn measure_fastest(
 
             let f = |_| c64 { re: 0.0, im: 0.0 };
             let align = CACHELINE_ALIGN;
-            let (w, stack) = stack
-                .rb_mut()
-                .make_aligned_with::<c64, _>(n + base_n, align, f);
-            let (scratch, stack) = stack.make_aligned_with::<c64, _>(base_n, align, f);
-            let (z, _) = stack.make_aligned_with::<c64, _>(n, align, f);
+            let (w, stack) = stack.make_aligned_with::<c64>(n + base_n, align, f);
+            let (scratch, stack) = stack.make_aligned_with::<c64>(base_n, align, f);
+            let (z, _) = stack.make_aligned_with::<c64>(n, align, f);
 
             let n_runs = min_bench_duration_per_algo.as_secs_f64()
                 / (duration.as_secs_f64() * (n / base_n) as f64);
@@ -823,7 +818,7 @@ impl Plan {
     /// let mut buf = [c64::default(); 4];
     /// plan.fwd(&mut buf, stack);
     /// ```
-    pub fn fwd(&self, buf: &mut [c64], stack: PodStack) {
+    pub fn fwd(&self, buf: &mut [c64], stack: &mut PodStack) {
         assert_eq!(self.fft_size(), buf.len());
         let (scratch, _) = stack.make_aligned_raw::<c64>(self.algo().1, CACHELINE_ALIGN);
         fwd_depth(
@@ -912,19 +907,19 @@ impl Plan {
     #[cfg_attr(not(feature = "std"), doc = " ```ignore")]
     /// use tfhe_fft::c64;
     /// use tfhe_fft::unordered::{Method, Plan};
-    /// use dyn_stack::{PodStack, GlobalPodBuffer, ReborrowMut};
+    /// use dyn_stack::{PodStack, GlobalPodBuffer};
     /// use core::time::Duration;
     ///
     /// let plan = Plan::new(4, Method::Measure(Duration::from_millis(10)));
     ///
     /// let mut memory = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
-    /// let mut stack = PodStack::new(&mut memory);
+    /// let stack = PodStack::new(&mut memory);
     ///
     /// let mut buf = [c64::default(); 4];
-    /// plan.fwd(&mut buf, stack.rb_mut());
+    /// plan.fwd(&mut buf, stack);
     /// plan.inv(&mut buf, stack);
     /// ```
-    pub fn inv(&self, buf: &mut [c64], stack: PodStack) {
+    pub fn inv(&self, buf: &mut [c64], stack: &mut PodStack) {
         assert_eq!(self.fft_size(), buf.len());
         let (scratch, _) = stack.make_aligned_raw::<c64>(self.algo().1, CACHELINE_ALIGN);
         inv_depth(
@@ -1062,7 +1057,7 @@ fn bit_rev_twice_inv(nbits: u32, base_nbits: u32, i: usize) -> usize {
 mod tests {
     use super::*;
     use alloc::vec;
-    use dyn_stack::{GlobalPodBuffer, ReborrowMut};
+    use dyn_stack::GlobalPodBuffer;
     use num_complex::ComplexFloat;
     use rand::random;
 
@@ -1157,8 +1152,8 @@ mod tests {
                 },
             );
             let mut mem = GlobalPodBuffer::new(plan.fft_scratch().unwrap());
-            let mut stack = PodStack::new(&mut mem);
-            plan.fwd(&mut z, stack.rb_mut());
+            let stack = PodStack::new(&mut mem);
+            plan.fwd(&mut z, stack);
             plan.inv(&mut z, stack);
 
             for z in &mut z {
@@ -9400,7 +9395,7 @@ mod tests {
 mod tests_serde {
     use super::*;
     use alloc::{vec, vec::Vec};
-    use dyn_stack::{GlobalPodBuffer, ReborrowMut};
+    use dyn_stack::GlobalPodBuffer;
     use num_complex::ComplexFloat;
     use rand::random;
 
@@ -9440,9 +9435,9 @@ mod tests_serde {
                     .unwrap()
                     .or(plan2.fft_scratch().unwrap()),
             );
-            let mut stack = PodStack::new(&mut mem);
+            let stack = PodStack::new(&mut mem);
 
-            plan1.fwd(&mut z, stack.rb_mut());
+            plan1.fwd(&mut z, stack);
 
             let mut buf = Vec::<u8>::new();
             let mut serializer = bincode::Serializer::new(&mut buf, bincode::options());

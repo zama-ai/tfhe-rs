@@ -15,7 +15,7 @@ use crate::core_crypto::fft_impl::fft64::math::polynomial::{
     FourierPolynomialMutView, FourierPolynomialView,
 };
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 
 /// The caller must provide a properly configured [`FftView`] object and a `PodStack` used as a
@@ -156,7 +156,7 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
     pseudo_ggsw: &PseudoFourierGgswCiphertext<GgswCont>,
     glwe: &GlweCiphertext<InputGlweCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     OutputGlweCont: ContainerMut<Element = Scalar>,
@@ -174,7 +174,7 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
         ggsw: PseudoFourierGgswCiphertextView<'_>,
         glwe: &GlweCiphertext<InputGlweCont>,
         fft: FftView<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         Scalar: UnsignedTorus,
         InputGlweCont: Container<Element = Scalar>,
@@ -193,7 +193,7 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
             ggsw.decomposition_base_log(),
             ggsw.decomposition_level_count(),
         );
-        let (output_fft_buffer, mut substack0) =
+        let (output_fft_buffer, substack0) =
             stack.make_aligned_raw::<c64>(fourier_poly_size * ggsw.glwe_size_out().0, align);
         // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
         // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
@@ -204,21 +204,21 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
             // ------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
             // In this section, we perform the external product in the fourier
             // domain, and accumulate the result in the output_fft_buffer variable.
-            let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(
+            let (mut decomposition, substack1) = TensorSignedDecompositionLendingIter::new(
                 glwe.as_ref()
                     .iter()
                     .map(|s| decomposer.init_decomposer_state(*s)),
                 DecompositionBaseLog(decomposer.base_log),
                 DecompositionLevelCount(decomposer.level_count),
-                substack0.rb_mut(),
+                substack0,
             );
 
             // We loop through the levels (we reverse to match the order of the decomposition
             // iterator.)
             ggsw.into_levels().for_each(|ggsw_decomp_matrix| {
                 // We retrieve the decomposition of this level.
-                let (glwe_level, glwe_decomp_term, mut substack2) =
-                    collect_next_term(&mut decomposition, &mut substack1, align);
+                let (glwe_level, glwe_decomp_term, substack2) =
+                    collect_next_term(&mut decomposition, substack1, align);
                 let glwe_decomp_term = GlweCiphertextView::from_container(
                     &*glwe_decomp_term,
                     ggsw.polynomial_size(),
@@ -243,9 +243,8 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
                     glwe_decomp_term.get_mask().as_polynomial_list().iter()
                 )
                 .for_each(|(ggsw_row, glwe_poly)| {
-                    let (fourier, substack3) = substack2
-                        .rb_mut()
-                        .make_aligned_raw::<c64>(fourier_poly_size, align);
+                    let (fourier, substack3) =
+                        substack2.make_aligned_raw::<c64>(fourier_poly_size, align);
 
                     // We perform the forward fft transform for the glwe polynomial
                     let fourier = fft
@@ -285,7 +284,7 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
                     .map(|slice| FourierPolynomialView { data: slice }),
             )
             .for_each(|(out, fourier)| {
-                fft.add_backward_as_torus(out, fourier, substack0.rb_mut());
+                fft.add_backward_as_torus(out, fourier, substack0);
             });
         }
 

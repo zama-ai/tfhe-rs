@@ -327,7 +327,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized<
     delta_log: DeltaLog,
     number_of_bits_to_extract: ExtractedBitsCount,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,
@@ -661,7 +661,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimi
     base_log_cbs: DecompositionBaseLog,
     level_cbs: DecompositionLevelCount,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,

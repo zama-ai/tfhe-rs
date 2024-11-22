@@ -172,7 +172,7 @@ pub fn test_extract_bits() {
     };
     let req = req().unwrap();
     let mut mem = GlobalPodBuffer::new(req);
-    let mut stack = PodStack::new(&mut mem);
+    let stack = PodStack::new(&mut mem);
 
     fourier_bsk
         .as_mut_view()
@@ -225,7 +225,7 @@ pub fn test_extract_bits() {
             delta_log,
             number_values_to_extract,
             fft,
-            stack.rb_mut(),
+            stack,
         );
 
         // Decryption of extracted bit
