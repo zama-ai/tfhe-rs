@@ -5,6 +5,12 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub(crate) enum CarryPropagationAlgorithm {
+    Sequential,
+    Parallel,
+    Automatic,
+}
 /// Possible output flag that the advanced_add_assign_with_carry family of
 /// functions can compute.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -448,6 +454,7 @@ impl ServerKey {
             rhs.blocks(),
             input_carry,
             OutputFlag::None,
+            CarryPropagationAlgorithm::Automatic,
         );
     }
 
@@ -468,6 +475,7 @@ impl ServerKey {
             rhs.blocks(),
             input_carry,
             OutputFlag::from_signedness(T::IS_SIGNED),
+            CarryPropagationAlgorithm::Automatic,
         )
         .expect("internal error, overflow computation was not returned as was requested")
     }
@@ -493,21 +501,43 @@ impl ServerKey {
         rhs: &[Ciphertext],
         input_carry: Option<&BooleanBlock>,
         requested_flag: OutputFlag,
+        mut algorithm: CarryPropagationAlgorithm,
     ) -> Option<BooleanBlock> {
-        if self.is_eligible_for_parallel_single_carry_propagation(lhs.len()) {
-            self.advanced_add_assign_with_carry_at_least_4_bits(
-                lhs,
-                rhs,
-                input_carry,
-                requested_flag,
-            )
-        } else {
-            self.advanced_add_assign_with_carry_sequential_parallelized(
-                lhs,
-                rhs,
-                input_carry,
-                requested_flag,
-            )
+        // having 4-bits is a hard requirement
+        // So to protect against bad carry prop choice we do this check
+        let total_modulus = self.key.message_modulus.0 * self.key.carry_modulus.0;
+        let has_enough_bits_per_block = total_modulus >= (1 << 4);
+        if !has_enough_bits_per_block {
+            algorithm = CarryPropagationAlgorithm::Sequential;
+        }
+
+        if algorithm == CarryPropagationAlgorithm::Automatic {
+            if should_parallel_propagation_be_faster(
+                self.message_modulus().0 * self.carry_modulus().0,
+                lhs.len(),
+                rayon::current_num_threads(),
+            ) {
+                algorithm = CarryPropagationAlgorithm::Parallel;
+            } else {
+                algorithm = CarryPropagationAlgorithm::Sequential
+            }
+        }
+        match algorithm {
+            CarryPropagationAlgorithm::Parallel => self
+                .advanced_add_assign_with_carry_at_least_4_bits(
+                    lhs,
+                    rhs,
+                    input_carry,
+                    requested_flag,
+                ),
+            CarryPropagationAlgorithm::Sequential => self
+                .advanced_add_assign_with_carry_sequential_parallelized(
+                    lhs,
+                    rhs,
+                    input_carry,
+                    requested_flag,
+                ),
+            CarryPropagationAlgorithm::Automatic => unreachable!(),
         }
     }
 
@@ -969,10 +999,16 @@ impl ServerKey {
                 rayon::join(
                     || {
                         let block = output_flag.as_mut().unwrap();
-                        self.key.unchecked_add_assign(
-                            block,
-                            &resolved_carries[resolved_carries.len() - 1],
-                        );
+                        // When num block is 1, we have to use the input carry
+                        // given by the caller
+                        let carry_into_last_block = input_carry
+                            .as_ref()
+                            .filter(|_| num_blocks == 1)
+                            .map_or_else(
+                                || &resolved_carries[resolved_carries.len() - 1],
+                                |input_carry| &input_carry.0,
+                            );
+                        self.key.unchecked_add_assign(block, carry_into_last_block);
                         self.key
                             .apply_lookup_table_assign(block, &overflow_flag_lut);
                     },
@@ -1013,7 +1049,7 @@ impl ServerKey {
     ) -> (Vec<Ciphertext>, Vec<Ciphertext>) {
         if block_states.is_empty() {
             return (
-                vec![self.key.create_trivial(0)],
+                vec![self.key.create_trivial(1)],
                 vec![self.key.create_trivial(0)],
             );
         }
@@ -1175,7 +1211,7 @@ impl ServerKey {
         let mut propagation_simulators = Vec::with_capacity(num_blocks);
 
         // First block does not get a carry from
-        propagation_simulators.push(self.key.create_trivial(0));
+        propagation_simulators.push(self.key.create_trivial(1));
         for block in propagation_cum_sums.drain(..) {
             if propagation_simulators.len() % grouping_size == 0 {
                 groupings_pgns.push(block);

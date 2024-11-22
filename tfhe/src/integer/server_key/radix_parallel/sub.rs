@@ -1,6 +1,9 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
+use crate::integer::server_key::radix_parallel::add::CarryPropagationAlgorithm;
 use crate::integer::server_key::radix_parallel::OutputFlag;
-use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::integer::{
+    BooleanBlock, IntegerCiphertext, RadixCiphertext, ServerKey, SignedRadixCiphertext,
+};
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 
@@ -218,6 +221,7 @@ impl ServerKey {
             neg.blocks(),
             None,
             OutputFlag::None,
+            CarryPropagationAlgorithm::Automatic,
         );
     }
 
@@ -655,6 +659,19 @@ impl ServerKey {
         lhs: &SignedRadixCiphertext,
         rhs: &SignedRadixCiphertext,
     ) -> (SignedRadixCiphertext, BooleanBlock) {
+        self.unchecked_signed_overflowing_sub_parallelized_with_choice(
+            lhs,
+            rhs,
+            CarryPropagationAlgorithm::Automatic,
+        )
+    }
+
+    pub(crate) fn unchecked_signed_overflowing_sub_parallelized_with_choice(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        rhs: &SignedRadixCiphertext,
+        algorithm: CarryPropagationAlgorithm,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
         assert_eq!(
             lhs.blocks.len(),
             rhs.blocks.len(),
@@ -675,8 +692,15 @@ impl ServerKey {
         let flipped_rhs = self.bitnot(rhs);
         let input_carry = self.create_trivial_boolean_block(true);
         let mut result = lhs.clone();
-        let overflowed =
-            self.overflowing_add_assign_with_carry(&mut result, &flipped_rhs, Some(&input_carry));
+        let overflowed = self
+            .advanced_add_assign_with_carry_parallelized(
+                result.blocks_mut(),
+                flipped_rhs.blocks(),
+                Some(&input_carry),
+                OutputFlag::Overflow,
+                algorithm,
+            )
+            .expect("internal error, overflow computation was not returned as was requested");
         (result, overflowed)
     }
 
@@ -715,6 +739,19 @@ impl ServerKey {
         ctxt_left: &SignedRadixCiphertext,
         ctxt_right: &SignedRadixCiphertext,
     ) -> (SignedRadixCiphertext, BooleanBlock) {
+        self.signed_overflowing_sub_parallelized_with_choice(
+            ctxt_left,
+            ctxt_right,
+            CarryPropagationAlgorithm::Automatic,
+        )
+    }
+
+    pub(crate) fn signed_overflowing_sub_parallelized_with_choice(
+        &self,
+        ctxt_left: &SignedRadixCiphertext,
+        ctxt_right: &SignedRadixCiphertext,
+        algorithm: CarryPropagationAlgorithm,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -744,6 +781,6 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_signed_overflowing_sub_parallelized(lhs, rhs)
+        self.unchecked_signed_overflowing_sub_parallelized_with_choice(lhs, rhs, algorithm)
     }
 }
