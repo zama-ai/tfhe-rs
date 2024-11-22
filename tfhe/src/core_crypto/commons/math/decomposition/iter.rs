@@ -4,7 +4,7 @@ use crate::core_crypto::commons::math::decomposition::{
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-use dyn_stack::{PodStack, ReborrowMut};
+use dyn_stack::PodStack;
 
 /// An iterator that yields the terms of the signed decomposition of an integer.
 ///
@@ -302,8 +302,8 @@ impl<'buffers> TensorSignedDecompositionLendingIterNonNative<'buffers> {
         decomposer: &SignedDecomposerNonNative<u64>,
         input: &[u64],
         modulus: u64,
-        stack: PodStack<'buffers>,
-    ) -> (Self, PodStack<'buffers>) {
+        stack: &'buffers mut PodStack,
+    ) -> (Self, &'buffers mut PodStack) {
         let shift = modulus.ceil_ilog2() as usize - decomposer.base_log * decomposer.level_count;
         let input_size = input.len();
         let (states, stack) =
@@ -393,10 +393,9 @@ impl<'buffers> TensorSignedDecompositionLendingIterNonNative<'buffers> {
         &mut self,
         substack1: &'a mut PodStack,
         align: usize,
-    ) -> (DecompositionLevel, &'a mut [u64], PodStack<'a>) {
+    ) -> (DecompositionLevel, &'a mut [u64], &'a mut PodStack) {
         let (glwe_level, _, glwe_decomp_term) = self.next_term().unwrap();
-        let (glwe_decomp_term, substack2) =
-            substack1.rb_mut().collect_aligned(align, glwe_decomp_term);
+        let (glwe_decomp_term, substack2) = substack1.collect_aligned(align, glwe_decomp_term);
         (glwe_level, glwe_decomp_term, substack2)
     }
 }

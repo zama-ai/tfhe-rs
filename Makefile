@@ -25,6 +25,7 @@ BACKWARD_COMPAT_DATA_BRANCH?=v0.4
 BACKWARD_COMPAT_DATA_PROJECT=tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_DIR=$(BACKWARD_COMPAT_DATA_PROJECT)
 TFHE_SPEC:=tfhe
+WASM_PACK_VERSION="0.13.1"
 # We are kind of hacking the cut here, the version cannot contain a quote '"'
 WASM_BINDGEN_VERSION:=$(shell grep '^wasm-bindgen[[:space:]]*=' Cargo.toml | cut -d '"' -f 2 | xargs)
 WEB_RUNNER_DIR=web-test-runner
@@ -116,8 +117,8 @@ install_wasm_bindgen_cli: install_rs_build_toolchain
 
 .PHONY: install_wasm_pack # Install wasm-pack to build JS packages
 install_wasm_pack: install_rs_build_toolchain
-	@wasm-pack --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked wasm-pack@0.13.0 || \
+	@wasm-pack --version | grep "$(WASM_PACK_VERSION)" > /dev/null 2>&1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked wasm-pack@0.13.1 || \
 	( echo "Unable to install cargo wasm-pack, unknown error." && exit 1 )
 
 .PHONY: install_node # Install last version of NodeJS via nvm
@@ -1305,7 +1306,9 @@ sha256_bool: install_rs_check_toolchain
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
 pcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_tested check_intra_md_links \
-clippy_all tfhe_lints check_compile_tests
+clippy_all check_compile_tests
+# TFHE lints deactivated as it's incompatible with 1.83 - temporary
+# tfhe_lints
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu check_rust_bindings_did_not_change

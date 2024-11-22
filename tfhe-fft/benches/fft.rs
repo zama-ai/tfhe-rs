@@ -1,6 +1,6 @@
 use core::ptr::NonNull;
 use criterion::{criterion_group, criterion_main, Criterion};
-use dyn_stack::{PodStack, ReborrowMut, StackReq};
+use dyn_stack::{PodStack, StackReq};
 use serde::Serialize;
 use std::{fs, path::PathBuf};
 use tfhe_fft::c64;
@@ -129,7 +129,7 @@ pub fn bench_ffts(c: &mut Criterion) {
             StackReq::new_aligned::<c64>(n, 256),     // src
             StackReq::new_aligned::<c64>(n, 256),     // dst
         ]));
-        let mut stack = PodStack::new(&mut mem);
+        let stack = PodStack::new(&mut mem);
         let z = c64::new(0.0, 0.0);
 
         use rustfft::FftPlannerAvx;
@@ -139,8 +139,8 @@ pub fn bench_ffts(c: &mut Criterion) {
         let unordered =
             tfhe_fft::unordered::Plan::new(n, tfhe_fft::unordered::Method::Measure(bench_duration));
 
-        let (dst, stack) = stack.rb_mut().make_aligned_with::<c64, _>(n, 64, |_| z);
-        let (src, mut stack) = stack.make_aligned_with::<c64, _>(n, 64, |_| z);
+        let (dst, stack) = stack.make_aligned_with::<c64>(n, 64, |_| z);
+        let (src, stack) = stack.make_aligned_with::<c64>(n, 64, |_| z);
 
         let bench_id = format!("rustfft-fwd-{n}");
         c.bench_function(&bench_id, |b| {
@@ -164,19 +164,19 @@ pub fn bench_ffts(c: &mut Criterion) {
                 tfhe_fft::ordered::Plan::new(n, tfhe_fft::ordered::Method::Measure(bench_duration));
 
             let bench_id = format!("tfhe-ordered-fwd-{n}");
-            c.bench_function(&bench_id, |b| b.iter(|| ordered.fwd(dst, stack.rb_mut())));
+            c.bench_function(&bench_id, |b| b.iter(|| ordered.fwd(dst, stack)));
             write_to_json(&bench_id, "tfhe-ordered-fwd", n);
         }
 
         let bench_id = format!("tfhe-unordered-fwd-{n}");
         c.bench_function(&bench_id, |b| {
-            b.iter(|| unordered.fwd(dst, stack.rb_mut()));
+            b.iter(|| unordered.fwd(dst, stack));
         });
         write_to_json(&bench_id, "tfhe-unordered-fwd", n);
 
         let bench_id = format!("tfhe-unordered-inv-{n}");
         c.bench_function(&bench_id, |b| {
-            b.iter(|| unordered.inv(dst, stack.rb_mut()));
+            b.iter(|| unordered.inv(dst, stack));
         });
         write_to_json(&bench_id, "tfhe-unordered-inv", n);
 

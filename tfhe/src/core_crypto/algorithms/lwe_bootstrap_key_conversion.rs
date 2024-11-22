@@ -46,7 +46,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized<Scalar, Input
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut FourierLweBootstrapKey<OutputCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
