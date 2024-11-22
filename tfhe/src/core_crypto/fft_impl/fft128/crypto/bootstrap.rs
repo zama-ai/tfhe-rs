@@ -20,7 +20,7 @@ use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use core::any::TypeId;
 use core::mem::transmute;
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
@@ -250,7 +250,7 @@ where
         lut: &mut GlweCiphertext<ContLut>,
         lwe: &LweCiphertext<ContLwe>,
         fft: Fft128View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         Scalar: UnsignedTorus + CastInto<usize>,
         ContLut: ContainerMut<Element = Scalar>,
@@ -261,7 +261,7 @@ where
             mut lut: GlweCiphertext<&mut [Scalar]>,
             lwe: LweCiphertext<&[Scalar]>,
             fft: Fft128View<'_>,
-            mut stack: PodStack<'_>,
+            stack: &mut PodStack,
         ) {
             let lwe = lwe.as_ref();
             let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
@@ -287,7 +287,7 @@ where
                 izip!(lwe_mask.iter(), this.into_ggsw_iter())
             {
                 if *lwe_mask_element != Scalar::ZERO {
-                    let stack = stack.rb_mut();
+                    let stack = &mut *stack;
                     // We copy ct_0 to ct_1
                     let (ct1, stack) =
                         stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
@@ -335,7 +335,7 @@ where
         lwe_in: &LweCiphertext<ContLweIn>,
         accumulator: &GlweCiphertext<ContAcc>,
         fft: Fft128View<'_>,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         // CastInto required for PBS modulus switch which returns a usize
         Scalar: UnsignedTorus + CastInto<usize>,
@@ -349,7 +349,7 @@ where
             lwe_in: LweCiphertext<&[Scalar]>,
             accumulator: GlweCiphertext<&[Scalar]>,
             fft: Fft128View<'_>,
-            stack: PodStack<'_>,
+            stack: &mut PodStack,
         ) {
             // We type check dynamically with TypeId
             #[allow(clippy::transmute_undefined_repr)]
@@ -417,7 +417,7 @@ where
         &mut self,
         coef_bsk: &LweBootstrapKey<ContBsk>,
         fft: &Self::Fft,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         ContBsk: Container<Element = Scalar>,
     {
@@ -440,7 +440,7 @@ where
         lwe_in: &LweCiphertext<ContLweIn>,
         accumulator: &GlweCiphertext<ContAcc>,
         fft: &Self::Fft,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         ContLweOut: ContainerMut<Element = Scalar>,
         ContLweIn: Container<Element = Scalar>,

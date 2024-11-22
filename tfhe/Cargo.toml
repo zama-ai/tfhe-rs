@@ -17,12 +17,12 @@ exclude = [
     "/js_on_wasm_tests/",
     "/web_wasm_parallel_tests/",
 ]
-rust-version = "1.81"
+rust-version = "1.82"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = { workspace = true }
 rand_distr = "0.4.3"
 lazy_static = { version = "1.4.0" }
 criterion = "0.5.1"
@@ -33,7 +33,6 @@ serde_json = "1.0.94"
 clap = { version = "=4.4.4", features = ["derive"] }
 # Used in user documentation
 fs2 = { version = "0.4.3" }
-itertools = "0.11.0"
 statrs = "0.16"
 # For erf and normality test
 libm = "0.2.6"
@@ -60,7 +59,7 @@ tfhe-csprng = { version = "0.4.1", path = "../tfhe-csprng", features = [
 ] }
 lazy_static = { version = "1.4.0", optional = true }
 serde = { workspace = true, features = ["default", "derive"] }
-rayon = { version = "1.5.0" }
+rayon = { workspace = true }
 bincode = "1.3.3"
 tfhe-fft = { version = "0.6.0", path = "../tfhe-fft", features = [
     "serde",
@@ -75,8 +74,7 @@ paste = "1.0.7"
 fs2 = { version = "0.4.3", optional = true }
 # Used for OPRF in shortint
 sha3 = { version = "0.10", optional = true }
-# While we wait for repeat_n in rust standard library
-itertools = "0.11.0"
+itertools = { workspace = true }
 rand_core = { version = "0.6.4", features = ["std"] }
 tfhe-zk-pok = { version = "0.3.1", path = "../tfhe-zk-pok", optional = true }
 tfhe-versionable = { version = "0.3.2", path = "../utils/tfhe-versionable" }
@@ -156,6 +154,13 @@ x86_64-unix = ["x86_64", "seeder_unix"]
 
 aarch64 = ["generator_aarch64_aes"]
 aarch64-unix = ["aarch64", "seeder_unix"]
+
+# Cover several profiles as we cannot have a wildcard it seems
+[package.metadata.wasm-pack.profile.dev.wasm-bindgen]
+split-linked-modules = true
+
+[package.metadata.wasm-pack.profile.release.wasm-bindgen]
+split-linked-modules = true
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about

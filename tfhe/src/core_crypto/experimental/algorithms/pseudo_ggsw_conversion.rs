@@ -52,7 +52,7 @@ pub fn convert_standard_pseudo_ggsw_ciphertext_to_fourier_mem_optimized<
     input_ggsw: &PseudoGgswCiphertext<InputCont>,
     output_ggsw: &mut PseudoFourierGgswCiphertext<OutputCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,

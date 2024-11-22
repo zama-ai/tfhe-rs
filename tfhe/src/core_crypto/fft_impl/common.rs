@@ -43,7 +43,7 @@ pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
         &mut self,
         coef_bsk: &LweBootstrapKey<ContBsk>,
         fft: &Self::Fft,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         ContBsk: Container<Element = Scalar>;
 
@@ -59,7 +59,7 @@ pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
         lwe_in: &LweCiphertext<ContLweIn>,
         accumulator: &GlweCiphertext<ContAcc>,
         fft: &Self::Fft,
-        stack: PodStack<'_>,
+        stack: &mut PodStack,
     ) where
         ContLweOut: ContainerMut<Element = Scalar>,
         ContLweIn: Container<Element = Scalar>,
