@@ -306,6 +306,7 @@ mod test {
     use serde::{Deserialize, Serialize};
 
     use crate::curve_api::Compressible;
+    use crate::proofs::decode_q;
 
     // One of our usecases uses 320 bits of additional metadata
     pub(super) const METADATA_LEN: usize = (320 / u8::BITS) as usize;
@@ -438,8 +439,36 @@ mod test {
             }
         }
 
-        /// Encrypt using compact pke, the encryption is validated by doing a decryption
-        pub(super) fn encrypt(&self, params: PkeTestParameters) -> PkeTestCiphertext {
+        pub(super) fn sk_encrypt_zero(
+            &self,
+            params: PkeTestParameters,
+            rng: &mut StdRng,
+        ) -> Vec<i64> {
+            let PkeTestParameters {
+                d,
+                k: _,
+                B,
+                q: _,
+                t: _,
+                msbs_zero_padding_bit_count: _msbs_zero_padding_bit_count,
+            } = params;
+
+            let e = (rng.gen::<u64>() % (2 * B)) as i64 - B as i64;
+
+            let mut a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+
+            let b = a.iter().zip(&self.s).map(|(ai, si)| ai * si).sum::<i64>() + e;
+
+            a.push(b);
+            a
+        }
+
+        /// Decrypt a ciphertext list
+        pub(super) fn decrypt(
+            &self,
+            ct: &PkeTestCiphertext,
+            params: PkeTestParameters,
+        ) -> Vec<i64> {
             let PkeTestParameters {
                 d,
                 k,
@@ -448,8 +477,6 @@ mod test {
                 t,
                 msbs_zero_padding_bit_count: _msbs_zero_padding_bit_count,
             } = params;
-
-            let ct = self.encrypt_unchecked(params);
 
             // Check decryption
             let mut m_decrypted = vec![0i64; k];
@@ -465,14 +492,24 @@ mod test {
                     dot += self.s[d - j - 1] as i128 * c as i128;
                 }
 
-                let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+                let decoded_q = decode_q(q) as i128;
                 let val = ((ct.c2[i] as i128).wrapping_sub(dot)) * t as i128;
-                let div = val.div_euclid(q);
-                let rem = val.rem_euclid(q);
-                let result = div as i64 + (rem > (q / 2)) as i64;
+                let div = val.div_euclid(decoded_q);
+                let rem = val.rem_euclid(decoded_q);
+                let result = div as i64 + (rem > (decoded_q / 2)) as i64;
                 let result = result.rem_euclid(params.t as i64);
                 *decrypted = result;
             }
+
+            m_decrypted
+        }
+
+        /// Encrypt using compact pke, the encryption is validated by doing a decryption
+        pub(super) fn encrypt(&self, params: PkeTestParameters) -> PkeTestCiphertext {
+            let ct = self.encrypt_unchecked(params);
+
+            // Check decryption
+            let m_decrypted = self.decrypt(&ct, params);
 
             assert_eq!(self.m, m_decrypted);
 
@@ -491,7 +528,7 @@ mod test {
             } = params;
 
             let delta = {
-                let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+                let q = decode_q(q) as i128;
                 // delta takes the encoding with the padding bit
                 (q / t as i128) as u64
             };
