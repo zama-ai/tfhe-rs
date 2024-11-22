@@ -2424,6 +2424,16 @@ mod tests {
         msbs_zero_padding_bit_count: 1,
     };
 
+    /// Compact key params used with pkve2 to encrypt a single message
+    pub(super) const PKEV2_TEST_PARAMS_SINGLE: PkeTestParameters = PkeTestParameters {
+        d: 2048,
+        k: 1,
+        B: 131072, // 2**17
+        q: 0,
+        t: 32, // 2b msg, 2b carry, 1b padding
+        msbs_zero_padding_bit_count: 1,
+    };
+
     /// Test that the proof is rejected if we use a different value between encryption and proof
     #[test]
     fn test_pke() {
@@ -2958,6 +2968,128 @@ mod tests {
                 VerificationResult::Reject,
                 rng,
             );
+        }
+    }
+
+    /// Test verification with modified ciphertexts
+    #[test]
+    fn test_bad_ct() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS_SINGLE);
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS_SINGLE);
+
+        let ct_zero = testcase.sk_encrypt_zero(PKEV2_TEST_PARAMS_SINGLE, rng);
+
+        let c1_plus_zero = ct
+            .c1
+            .iter()
+            .zip(ct_zero.iter())
+            .map(|(a1, az)| a1.wrapping_add(*az))
+            .collect();
+        let c2_plus_zero = vec![ct.c2[0].wrapping_add(*ct_zero.last().unwrap())];
+
+        let ct_plus_zero = PkeTestCiphertext {
+            c1: c1_plus_zero,
+            c2: c2_plus_zero,
+        };
+
+        let m_plus_zero = testcase.decrypt(&ct_plus_zero, PKEV2_TEST_PARAMS_SINGLE);
+        assert_eq!(testcase.m, m_plus_zero);
+
+        let delta = {
+            let q = decode_q(q) as i128;
+            // delta takes the encoding with the padding bit
+            (q / t as i128) as u64
+        };
+
+        let trivial = rng.gen::<u64>() % effective_cleartext_t;
+        let trivial_pt = trivial * delta;
+        let c2_plus_trivial = vec![ct.c2[0].wrapping_add(trivial_pt as i64)];
+
+        let ct_plus_trivial = PkeTestCiphertext {
+            c1: ct.c1.clone(),
+            c2: c2_plus_trivial,
+        };
+
+        let m_plus_trivial = testcase.decrypt(&ct_plus_trivial, PKEV2_TEST_PARAMS_SINGLE);
+        assert_eq!(testcase.m[0] + trivial as i64, m_plus_trivial[0]);
+
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        // Test proving with one ct and verifying another
+        let (public_commit_proof, private_commit) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &crs,
+            rng,
+        );
+
+        let (public_commit_verify_zero, _) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct_plus_zero.c1.clone(),
+            ct_plus_zero.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &crs,
+            rng,
+        );
+
+        let (public_commit_verify_trivial, _) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct_plus_trivial.c1.clone(),
+            ct_plus_trivial.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &crs,
+            rng,
+        );
+
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            let proof = prove(
+                (&crs, &public_commit_proof),
+                &private_commit,
+                &testcase.metadata,
+                load,
+                rng,
+            );
+
+            assert!(verify(
+                &proof,
+                (&crs, &public_commit_verify_zero),
+                &testcase.metadata
+            )
+            .is_err());
+
+            assert!(verify(
+                &proof,
+                (&crs, &public_commit_verify_trivial),
+                &testcase.metadata
+            )
+            .is_err());
         }
     }
 
