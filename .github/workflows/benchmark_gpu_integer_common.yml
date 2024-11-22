@@ -88,7 +88,6 @@ jobs:
 
       - name: Set benchmark types
         run: |
-          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
           if [[ "${{ inputs.bench_type }}" == "both" ]]; then
             echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
           else
