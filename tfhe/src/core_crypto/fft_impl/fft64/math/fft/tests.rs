@@ -28,11 +28,11 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
                 .unwrap()
                 .and(fft.backward_scratch().unwrap()),
         );
-        let mut stack = PodStack::new(&mut mem);
+        let stack = PodStack::new(&mut mem);
 
         // Simple roundtrip
-        fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack.rb_mut());
-        fft.backward_as_torus(roundtrip.as_mut_view(), fourier.as_view(), stack.rb_mut());
+        fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack);
+        fft.backward_as_torus(roundtrip.as_mut_view(), fourier.as_view(), stack);
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
@@ -45,8 +45,8 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         // Simple add roundtrip
         // Need to zero out the buffer to have a correct result as we will be adding the result
         roundtrip.as_mut().fill(Scalar::ZERO);
-        fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack.rb_mut());
-        fft.add_backward_as_torus(roundtrip.as_mut_view(), fourier.as_view(), stack.rb_mut());
+        fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack);
+        fft.add_backward_as_torus(roundtrip.as_mut_view(), fourier.as_view(), stack);
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
@@ -59,12 +59,8 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         // Forward, then add backward in place
         // Need to zero out the buffer to have a correct result as we will be adding the result
         roundtrip.as_mut().fill(Scalar::ZERO);
-        fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack.rb_mut());
-        fft.add_backward_in_place_as_torus(
-            roundtrip.as_mut_view(),
-            fourier.as_mut_view(),
-            stack.rb_mut(),
-        );
+        fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack);
+        fft.add_backward_in_place_as_torus(roundtrip.as_mut_view(), fourier.as_mut_view(), stack);
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
@@ -134,10 +130,10 @@ fn test_product<Scalar: UnsignedTorus>() {
                     .unwrap()
                     .and(fft.backward_scratch().unwrap()),
             );
-            let mut stack = PodStack::new(&mut mem);
+            let stack = PodStack::new(&mut mem);
 
-            fft.forward_as_torus(fourier0.as_mut_view(), poly0.as_view(), stack.rb_mut());
-            fft.forward_as_integer(fourier1.as_mut_view(), poly1.as_view(), stack.rb_mut());
+            fft.forward_as_torus(fourier0.as_mut_view(), poly0.as_view(), stack);
+            fft.forward_as_integer(fourier1.as_mut_view(), poly1.as_view(), stack);
 
             for (f0, f1) in izip!(&mut *fourier0.data, &*fourier1.data) {
                 *f0 *= *f1;
@@ -153,7 +149,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             fft.backward_as_torus(
                 convolution_from_fft.as_mut_view(),
                 fourier0.as_view(),
-                stack.rb_mut(),
+                stack,
             );
 
             for (expected, actual) in izip!(
@@ -175,7 +171,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             fft.add_backward_as_torus(
                 convolution_from_fft.as_mut_view(),
                 fourier0.as_view(),
-                stack.rb_mut(),
+                stack,
             );
 
             for (expected, actual) in izip!(
@@ -199,7 +195,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             fft.add_backward_in_place_as_torus(
                 convolution_from_fft.as_mut_view(),
                 fourier0.as_mut_view(),
-                stack.rb_mut(),
+                stack,
             );
 
             for (expected, actual) in izip!(

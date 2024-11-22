@@ -8,7 +8,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::{
     par_convert_polynomials_list_to_fourier, Fft, FftView,
 };
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 
 /// Convert an [`LWE multi_bit bootstrap key`](`LweMultiBitBootstrapKey`) with standard
@@ -50,7 +50,7 @@ pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized<
     input_bsk: &LweMultiBitBootstrapKey<InputCont>,
     output_bsk: &mut FourierLweMultiBitBootstrapKey<OutputCont>,
     fft: FftView<'_>,
-    mut stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
@@ -69,7 +69,7 @@ pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized<
         .zip(input_bsk_as_polynomial_list.iter())
     {
         // SAFETY: forward_as_torus doesn't write any uninitialized values into its output
-        fft.forward_as_torus(fourier_poly, coef_poly, stack.rb_mut());
+        fft.forward_as_torus(fourier_poly, coef_poly, stack);
     }
 }
 

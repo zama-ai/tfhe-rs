@@ -49,7 +49,7 @@ pub fn convert_standard_ggsw_ciphertext_to_fourier_mem_optimized<Scalar, InputCo
     input_ggsw: &GgswCiphertext<InputCont>,
     output_ggsw: &mut FourierGgswCiphertext<OutputCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
