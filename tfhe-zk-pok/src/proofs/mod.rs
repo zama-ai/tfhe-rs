@@ -133,7 +133,7 @@ impl<G: Curve> GroupElements<G> {
 }
 
 /// Allows to compute proof with bad inputs for tests
-#[derive(PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 enum ProofSanityCheckMode {
     Panic,
     #[cfg(test)]
