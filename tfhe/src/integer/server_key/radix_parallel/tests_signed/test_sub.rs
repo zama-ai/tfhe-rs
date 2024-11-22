@@ -1,4 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::add::CarryPropagationAlgorithm;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
     create_iterator_of_signed_random_pairs, random_non_zero_value, signed_add_under_modulus,
@@ -23,6 +24,22 @@ create_parametrized_test!(integer_signed_unchecked_overflowing_sub);
 create_parametrized_test!(integer_signed_default_sub);
 create_parametrized_test!(integer_extensive_trivial_signed_default_sub);
 create_parametrized_test!(integer_signed_default_overflowing_sub);
+create_parametrized_test!(integer_signed_default_overflowing_sub_sequential);
+create_parametrized_test!(integer_signed_default_overflowing_sub_parallel {
+    coverage => {
+        COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
+    },
+    no_coverage => {
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
+    }
+});
 create_parametrized_test!(integer_extensive_trivial_signed_default_overflowing_sub);
 
 fn integer_signed_unchecked_sub<P>(param: P)
@@ -70,6 +87,36 @@ where
     P: Into<PBSParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::signed_overflowing_sub_parallelized);
+    signed_default_overflowing_sub_test(param, executor);
+}
+
+fn integer_signed_default_overflowing_sub_sequential<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let func = |sks: &ServerKey, lhs: &SignedRadixCiphertext, rhs: &SignedRadixCiphertext| {
+        sks.signed_overflowing_sub_parallelized_with_choice(
+            lhs,
+            rhs,
+            CarryPropagationAlgorithm::Sequential,
+        )
+    };
+    let executor = CpuFunctionExecutor::new(&func);
+    signed_default_overflowing_sub_test(param, executor);
+}
+
+fn integer_signed_default_overflowing_sub_parallel<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let func = |sks: &ServerKey, lhs: &SignedRadixCiphertext, rhs: &SignedRadixCiphertext| {
+        sks.signed_overflowing_sub_parallelized_with_choice(
+            lhs,
+            rhs,
+            CarryPropagationAlgorithm::Parallel,
+        )
+    };
+    let executor = CpuFunctionExecutor::new(&func);
     signed_default_overflowing_sub_test(param, executor);
 }
 
