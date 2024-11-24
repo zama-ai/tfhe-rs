@@ -39,7 +39,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
