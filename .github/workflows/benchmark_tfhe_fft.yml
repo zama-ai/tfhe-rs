@@ -110,7 +110,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "tfhe-fft benchmarks failed. (${{ env.ACTION_RUN_URL }})"
@@ -134,7 +134,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "EC2 teardown (fft-benchmarks) failed. (${{ env.ACTION_RUN_URL }})"
