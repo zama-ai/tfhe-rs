@@ -167,7 +167,7 @@ jobs:
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Install latest stable
-        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
+        uses: dtolnay/rust-toolchain@315e265cd78dad1e1dcf3a5074f6d6c47029d5aa
         with:
           toolchain: stable
 
