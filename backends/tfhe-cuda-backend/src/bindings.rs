@@ -1239,6 +1239,18 @@ extern "C" {
     );
 }
 extern "C" {
+    pub fn fourier_transform_forward_f128(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        re0: *mut ffi::c_void,
+        re1: *mut ffi::c_void,
+        im0: *mut ffi::c_void,
+        im1: *mut ffi::c_void,
+        standard: *const ffi::c_void,
+        N: u32,
+    );
+}
+extern "C" {
     pub fn cuda_fourier_polynomial_mul(
         stream: *mut ffi::c_void,
         gpu_index: u32,
