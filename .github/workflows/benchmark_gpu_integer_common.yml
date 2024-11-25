@@ -83,7 +83,7 @@ jobs:
       - name: Set multiple operations flavors
         if: ${{ contains(inputs.op_flavor, ',')}}
         run: |
-          PARSED_OP_FLAVOR=$(echo "${{ inputs.op_flavor }}" | sed 's/[[:space:]]*,[[:space:]]*/\\", \\"/g')
+          PARSED_OP_FLAVOR=$(echo "${{ inputs.op_flavor }}" | sed 's/[[:space:]]*,[[:space:]]*/", "/g')
           echo "OP_FLAVOR=[\"${PARSED_OP_FLAVOR}\"]" >> "${GITHUB_ENV}"
 
       - name: Set benchmark types
