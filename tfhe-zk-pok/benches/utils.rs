@@ -9,8 +9,9 @@ use serde::Serialize;
 use tfhe_zk_pok::proofs::pke::{commit, crs_gen, PrivateCommit, PublicCommit, PublicParams};
 
 use tfhe_zk_pok::proofs::pke_v2::{
-    commit as commitv2, crs_gen as crs_genv2, PrivateCommit as PrivateCommitv2,
-    PublicCommit as PublicCommitv2, PublicParams as PublicParamsv2,
+    commit as commitv2, crs_gen_cs as crs_genv2_cs, crs_gen_ghl as crs_genv2_ghl, Bound,
+    PrivateCommit as PrivateCommitv2, PublicCommit as PublicCommitv2,
+    PublicParams as PublicParamsv2,
 };
 
 // One of our usecases uses 320 bits of additional metadata
@@ -414,6 +415,7 @@ pub fn init_params_v1(
 #[allow(unused)]
 pub fn init_params_v2(
     test_params: PkeTestParameters,
+    bound: Bound,
 ) -> (
     PublicParamsv2<Curve>,
     PublicCommitv2<Curve>,
@@ -435,7 +437,10 @@ pub fn init_params_v2(
 
     let ct = testcase.encrypt(test_params);
 
-    let public_param = crs_genv2::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+    let public_param = match bound {
+        Bound::GHL => crs_genv2_ghl::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng),
+        Bound::CS => crs_genv2_cs::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng),
+    };
 
     let (public_commit, private_commit) = commitv2(
         testcase.a.clone(),
