@@ -1,13 +1,13 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{
     ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
 };
-use crate::strings::server_key::FheStringIterator;
+use crate::strings::server_key::{FheStringIterator, ServerKey};
 use std::iter::once;
 use std::sync::Arc;
 
@@ -48,15 +48,25 @@ where
     #[allow(clippy::type_complexity)]
     let ops: [(
         for<'a> fn(&'a str, &'a str) -> Option<(&'a str, &'a str)>,
-        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> (FheString, FheString, BooleanBlock),
+        fn(
+            &IntegerServerKey,
+            &FheString,
+            GenericPatternRef<'_>,
+        ) -> (FheString, FheString, BooleanBlock),
     ); 2] = [
         (
             |lhs: &str, rhs: &str| lhs.split_once(rhs),
-            |a, b, c| ServerKey::split_once(a, b, c),
+            |sk: &IntegerServerKey, str: &FheString, pat: GenericPatternRef| {
+                let sk = ServerKey::new(sk);
+                sk.split_once(str, pat)
+            },
         ),
         (
             |lhs: &str, rhs: &str| lhs.rsplit_once(rhs),
-            |a, b, c| ServerKey::rsplit_once(a, b, c),
+            |sk: &IntegerServerKey, str: &FheString, pat: GenericPatternRef| {
+                let sk = ServerKey::new(sk);
+                sk.rsplit_once(str, pat)
+            },
         ),
     ];
 
@@ -156,27 +166,46 @@ where
     #[allow(clippy::type_complexity)]
     let ops: [(
         for<'a> fn(&'a str, &'a str) -> Box<dyn Iterator<Item = &'a str> + 'a>,
-        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> Box<dyn FheStringIterator>,
+        fn(
+            &IntegerServerKey,
+            &FheString,
+            GenericPatternRef<'_>,
+        ) -> Box<dyn for<'a> FheStringIterator<&'a IntegerServerKey>>,
     ); 5] = [
         (
             |lhs: &str, rhs: &str| Box::new(lhs.split(rhs)),
-            |a, b, c| Box::new(ServerKey::split(a, b, c)),
+            |sk, str, pat| {
+                let sk = ServerKey::new(sk);
+                Box::new(sk.split(str, pat))
+            },
         ),
         (
             |lhs: &str, rhs: &str| Box::new(lhs.rsplit(rhs)),
-            |a, b, c| Box::new(ServerKey::rsplit(a, b, c)),
+            |sk, str, pat| {
+                let sk = ServerKey::new(sk);
+                Box::new(sk.rsplit(str, pat))
+            },
         ),
         (
             |lhs: &str, rhs: &str| Box::new(lhs.split_terminator(rhs)),
-            |a, b, c| Box::new(ServerKey::split_terminator(a, b, c)),
+            |sk, str, pat| {
+                let sk = ServerKey::new(sk);
+                Box::new(sk.split_terminator(str, pat))
+            },
         ),
         (
             |lhs: &str, rhs: &str| Box::new(lhs.rsplit_terminator(rhs)),
-            |a, b, c| Box::new(ServerKey::rsplit_terminator(a, b, c)),
+            |sk, str, pat| {
+                let sk = ServerKey::new(sk);
+                Box::new(sk.rsplit_terminator(str, pat))
+            },
         ),
         (
             |lhs: &str, rhs: &str| Box::new(lhs.split_inclusive(rhs)),
-            |a, b, c| Box::new(ServerKey::split_inclusive(a, b, c)),
+            |sk, str, pat| {
+                let sk = ServerKey::new(sk);
+                Box::new(sk.split_inclusive(str, pat))
+            },
         ),
     ];
 
@@ -194,13 +223,18 @@ pub(crate) fn string_split_test_impl<P, T>(
     clear_function: for<'a> fn(&'a str, &'a str) -> Box<dyn Iterator<Item = &'a str> + 'a>,
 ) where
     P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>), Box<dyn FheStringIterator>>,
+    T: for<'a> FunctionExecutor<
+        (&'a FheString, GenericPatternRef<'a>),
+        Box<dyn for<'b> FheStringIterator<&'b IntegerServerKey>>,
+    >,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     split_executor.setup(&cks2, sks.clone());
+
+    let sks = ServerKey::new(&*sks);
 
     // trivial
     for str_pad in 0..2 {
@@ -279,15 +313,26 @@ where
     #[allow(clippy::type_complexity)]
     let ops: [(
         for<'a> fn(&'a str, &'a str, u16) -> Box<dyn Iterator<Item = &'a str> + 'a>,
-        fn(&ServerKey, &FheString, GenericPatternRef<'_>, UIntArg) -> Box<dyn FheStringIterator>,
+        fn(
+            &IntegerServerKey,
+            &FheString,
+            GenericPatternRef<'_>,
+            UIntArg,
+        ) -> Box<dyn for<'a> FheStringIterator<&'a IntegerServerKey>>,
     ); 2] = [
         (
             |lhs: &str, rhs: &str, n: u16| Box::new(lhs.splitn(n as usize, rhs)),
-            |a, b, c, d| Box::new(ServerKey::splitn(a, b, c, d)),
+            |sk: &IntegerServerKey, str: &FheString, pat: GenericPatternRef<'_>, n: UIntArg| {
+                let sk = ServerKey::new(sk);
+                Box::new(sk.splitn(str, pat, n))
+            },
         ),
         (
             |lhs: &str, rhs: &str, n: u16| Box::new(lhs.rsplitn(n as usize, rhs)),
-            |a, b, c, d| Box::new(ServerKey::rsplitn(a, b, c, d)),
+            |sk: &IntegerServerKey, str: &FheString, pat: GenericPatternRef<'_>, n: UIntArg| {
+                let sk = ServerKey::new(sk);
+                Box::new(sk.rsplitn(str, pat, n))
+            },
         ),
     ];
 
@@ -307,7 +352,7 @@ pub(crate) fn string_splitn_test_impl<P, T>(
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<
         (&'a FheString, GenericPatternRef<'a>, UIntArg),
-        Box<dyn FheStringIterator>,
+        Box<dyn for<'b> FheStringIterator<&'b IntegerServerKey>>,
     >,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -315,6 +360,8 @@ pub(crate) fn string_splitn_test_impl<P, T>(
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     splitn_executor.setup(&cks2, sks.clone());
+
+    let sks = ServerKey::new(&*sks);
 
     // trivial
     for str_pad in 0..2 {

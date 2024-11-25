@@ -1,11 +1,14 @@
+use super::server_key::ServerKey;
 use crate::integer::{
-    ClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext, ServerKey,
+    ClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext,
+    ServerKey as IntegerServerKey,
 };
 use crate::shortint::MessageModulus;
 use crate::strings::client_key::EncU16;
 use crate::strings::N;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::ParallelSlice;
+use std::borrow::Borrow;
 
 /// Represents a encrypted ASCII character.
 #[derive(Clone)]
@@ -85,9 +88,11 @@ impl FheAsciiChar {
         &mut self.enc_char
     }
 
-    pub fn null(sk: &ServerKey) -> Self {
+    pub fn null<T: Borrow<IntegerServerKey> + Sync>(sk: &ServerKey<T>) -> Self {
+        let sk_integer = sk.inner();
+
         Self {
-            enc_char: sk.create_trivial_zero_radix(sk.num_ascii_blocks()),
+            enc_char: sk_integer.create_trivial_zero_radix(sk.num_ascii_blocks()),
         }
     }
 }
@@ -127,13 +132,18 @@ impl FheString {
         println!("]");
     }
 
-    pub fn trivial(server_key: &ServerKey, str: &str) -> Self {
+    pub fn trivial<T: Borrow<IntegerServerKey> + Sync>(
+        server_key: &ServerKey<T>,
+        str: &str,
+    ) -> Self {
         assert!(str.is_ascii() & !str.contains('\0'));
+
+        let server_key2 = server_key.inner();
 
         let enc_string: Vec<_> = str
             .bytes()
             .map(|char| FheAsciiChar {
-                enc_char: server_key.create_trivial_radix(char, server_key.num_ascii_blocks()),
+                enc_char: server_key2.create_trivial_radix(char, server_key.num_ascii_blocks()),
             })
             .collect();
 
@@ -213,7 +223,7 @@ impl FheString {
 
     /// Makes the string padded. Useful for when a string is potentially padded and we need to
     /// ensure it's actually padded.
-    pub fn append_null(&mut self, sk: &ServerKey) {
+    pub fn append_null<T: Borrow<IntegerServerKey> + Sync>(&mut self, sk: &ServerKey<T>) {
         let null = FheAsciiChar::null(sk);
 
         self.enc_string.push(null);

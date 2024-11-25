@@ -1,11 +1,11 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NotTuple};
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
-use crate::strings::server_key::{FheStringIsEmpty, FheStringLen};
+use crate::strings::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
 use std::sync::Arc;
 
 #[test]
@@ -42,7 +42,10 @@ fn string_is_empty_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::is_empty);
+    let executor = CpuFunctionExecutor::new(&|sk: &IntegerServerKey, str: &FheString| {
+        let sk = ServerKey::new(sk);
+        sk.is_empty(str)
+    });
     string_is_empty_test_impl(param, executor);
 }
 
@@ -105,7 +108,10 @@ fn string_len_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::len);
+    let executor = CpuFunctionExecutor::new(&|sk: &IntegerServerKey, str: &FheString| {
+        let sk = ServerKey::new(sk);
+        sk.len(str)
+    });
     string_len_test_impl(param, executor);
 }
 
@@ -175,16 +181,31 @@ where
     #[allow(clippy::type_complexity)]
     let ops: [(
         for<'a> fn(&'a str, &'a str) -> Option<&'a str>,
-        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> (FheString, BooleanBlock),
+        fn(
+            &ServerKey<&IntegerServerKey>,
+            &FheString,
+            GenericPatternRef<'_>,
+        ) -> (FheString, BooleanBlock),
     ); 2] = [
-        (|lhs, rhs| lhs.strip_prefix(rhs), ServerKey::strip_prefix),
-        (|lhs, rhs| lhs.strip_suffix(rhs), ServerKey::strip_suffix),
+        (
+            |lhs, rhs| lhs.strip_prefix(rhs),
+            |sk, str, pat| sk.strip_prefix(str, pat),
+        ),
+        (
+            |lhs, rhs| lhs.strip_suffix(rhs),
+            |sk, str, pat| sk.strip_suffix(str, pat),
+        ),
     ];
 
     let param = param.into();
 
     for (clear_op, encrypted_op) in ops {
-        let executor = CpuFunctionExecutor::new(&encrypted_op);
+        let encrypted_op_wrapper =
+            |sk: &IntegerServerKey, str: &FheString, pat: GenericPatternRef<'_>| {
+                let sk = ServerKey::new(sk);
+                encrypted_op(&sk, str, pat)
+            };
+        let executor = CpuFunctionExecutor::new(&encrypted_op_wrapper);
         string_strip_test_impl(param, executor, clear_op);
     }
 }
@@ -268,20 +289,25 @@ where
     #[allow(clippy::type_complexity)]
     let ops: [(
         fn(&str, &str) -> bool,
-        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> BooleanBlock,
+        fn(&ServerKey<&IntegerServerKey>, &FheString, GenericPatternRef<'_>) -> BooleanBlock,
     ); 6] = [
-        (|lhs, rhs| lhs == rhs, ServerKey::string_eq),
-        (|lhs, rhs| lhs != rhs, ServerKey::string_ne),
-        (|lhs, rhs| lhs >= rhs, ServerKey::string_ge),
-        (|lhs, rhs| lhs <= rhs, ServerKey::string_le),
-        (|lhs, rhs| lhs > rhs, ServerKey::string_gt),
-        (|lhs, rhs| lhs < rhs, ServerKey::string_lt),
+        (|lhs, rhs| lhs == rhs, |sk, lhs, rhs| sk.string_eq(lhs, rhs)),
+        (|lhs, rhs| lhs != rhs, |sk, lhs, rhs| sk.string_ne(lhs, rhs)),
+        (|lhs, rhs| lhs >= rhs, |sk, lhs, rhs| sk.string_ge(lhs, rhs)),
+        (|lhs, rhs| lhs <= rhs, |sk, lhs, rhs| sk.string_le(lhs, rhs)),
+        (|lhs, rhs| lhs > rhs, |sk, lhs, rhs| sk.string_gt(lhs, rhs)),
+        (|lhs, rhs| lhs < rhs, |sk, lhs, rhs| sk.string_lt(lhs, rhs)),
     ];
 
     let param = param.into();
 
     for (clear_op, encrypted_op) in ops {
-        let executor = CpuFunctionExecutor::new(&encrypted_op);
+        let encrypted_op_wrapper =
+            |sk: &IntegerServerKey, lhs: &FheString, rhs: GenericPatternRef<'_>| {
+                let sk = ServerKey::new(sk);
+                encrypted_op(&sk, lhs, rhs)
+            };
+        let executor = CpuFunctionExecutor::new(&encrypted_op_wrapper);
         string_comp_test_impl(param, executor, clear_op);
     }
 }

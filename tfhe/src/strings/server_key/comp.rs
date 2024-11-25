@@ -1,15 +1,18 @@
-use crate::integer::BooleanBlock;
+use crate::integer::{BooleanBlock, ServerKey as IntegerServerKey};
 use crate::strings::ciphertext::{FheString, GenericPatternRef};
 use crate::strings::server_key::{FheStringIsEmpty, ServerKey};
+use std::borrow::Borrow;
 
-impl ServerKey {
+impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     fn string_eq_length_checks(&self, lhs: &FheString, rhs: &FheString) -> Option<BooleanBlock> {
+        let sk = self.inner();
+
         // If lhs is empty, rhs must also be empty in order to be equal (the case where lhs is
         // empty with > 1 padding zeros is handled next)
         if lhs.is_empty() {
             return match self.is_empty(rhs) {
                 FheStringIsEmpty::Padding(enc_val) => Some(enc_val),
-                FheStringIsEmpty::NoPadding(val) => Some(self.create_trivial_boolean_block(val)),
+                FheStringIsEmpty::NoPadding(val) => Some(sk.create_trivial_boolean_block(val)),
             };
         }
 
@@ -18,13 +21,13 @@ impl ServerKey {
         if rhs.is_empty() {
             return match self.is_empty(lhs) {
                 FheStringIsEmpty::Padding(enc_val) => Some(enc_val),
-                FheStringIsEmpty::NoPadding(_) => Some(self.create_trivial_boolean_block(false)),
+                FheStringIsEmpty::NoPadding(_) => Some(sk.create_trivial_boolean_block(false)),
             };
         }
 
         // Two strings without padding that have different lengths cannot be equal
         if (!lhs.is_padded() && !rhs.is_padded()) && (lhs.len() != rhs.len()) {
-            return Some(self.create_trivial_boolean_block(false));
+            return Some(sk.create_trivial_boolean_block(false));
         }
 
         // A string without padding cannot be equal to a string with padding that has the same or
@@ -32,7 +35,7 @@ impl ServerKey {
         if (!lhs.is_padded() && rhs.is_padded()) && (rhs.len() <= lhs.len())
             || (!rhs.is_padded() && lhs.is_padded()) && (lhs.len() <= rhs.len())
         {
-            return Some(self.create_trivial_boolean_block(false));
+            return Some(sk.create_trivial_boolean_block(false));
         }
 
         None
@@ -65,6 +68,8 @@ impl ServerKey {
     /// assert!(are_equal);
     /// ```
     pub fn string_eq(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+        let sk = self.inner();
+
         let early_return = match rhs {
             GenericPatternRef::Clear(rhs) => {
                 self.string_eq_length_checks(lhs, &FheString::trivial(self, rhs.str()))
@@ -81,14 +86,14 @@ impl ServerKey {
             GenericPatternRef::Clear(rhs) => {
                 let rhs_clear_uint = self.pad_cipher_and_cleartext_lsb(&mut lhs_uint, rhs.str());
 
-                self.scalar_eq_parallelized(&lhs_uint, rhs_clear_uint)
+                sk.scalar_eq_parallelized(&lhs_uint, rhs_clear_uint)
             }
             GenericPatternRef::Enc(rhs) => {
                 let mut rhs_uint = rhs.to_uint();
 
                 self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-                self.eq_parallelized(&lhs_uint, &rhs_uint)
+                sk.eq_parallelized(&lhs_uint, &rhs_uint)
             }
         }
     }
@@ -121,9 +126,11 @@ impl ServerKey {
     /// assert!(are_not_equal);
     /// ```
     pub fn string_ne(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+        let sk = self.inner();
+
         let eq = self.string_eq(lhs, rhs);
 
-        self.boolean_bitnot(&eq)
+        sk.boolean_bitnot(&eq)
     }
 
     /// Returns `true` if the first encrypted string is less than the second encrypted string.
@@ -150,6 +157,8 @@ impl ServerKey {
     /// assert!(is_lt); // "apple" is less than "banana"
     /// ```
     pub fn string_lt(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+        let sk = self.inner();
+
         let mut lhs_uint = lhs.to_uint();
 
         let mut rhs_uint = match rhs {
@@ -159,7 +168,7 @@ impl ServerKey {
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-        self.lt_parallelized(&lhs_uint, &rhs_uint)
+        sk.lt_parallelized(&lhs_uint, &rhs_uint)
     }
 
     /// Returns `true` if the first encrypted string is greater than the second encrypted string.
@@ -186,6 +195,8 @@ impl ServerKey {
     /// assert!(is_gt); // "banana" is greater than "apple"
     /// ```
     pub fn string_gt(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+        let sk = self.inner();
+
         let mut lhs_uint = lhs.to_uint();
         let mut rhs_uint = match rhs {
             GenericPatternRef::Clear(rhs) => FheString::trivial(self, rhs.str()).to_uint(),
@@ -194,7 +205,7 @@ impl ServerKey {
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-        self.gt_parallelized(&lhs_uint, &rhs_uint)
+        sk.gt_parallelized(&lhs_uint, &rhs_uint)
     }
 
     /// Returns `true` if the first encrypted string is less than or equal to the second encrypted
@@ -222,6 +233,8 @@ impl ServerKey {
     /// assert!(is_le); // "apple" is less than or equal to "banana"
     /// ```
     pub fn string_le(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+        let sk = self.inner();
+
         let mut lhs_uint = lhs.to_uint();
         let mut rhs_uint = match rhs {
             GenericPatternRef::Clear(rhs) => FheString::trivial(self, rhs.str()).to_uint(),
@@ -229,7 +242,7 @@ impl ServerKey {
         };
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-        self.le_parallelized(&lhs_uint, &rhs_uint)
+        sk.le_parallelized(&lhs_uint, &rhs_uint)
     }
 
     /// Returns `true` if the first encrypted string is greater than or equal to the second
@@ -257,6 +270,8 @@ impl ServerKey {
     /// assert!(is_ge); // "banana" is greater than or equal to "apple"
     /// ```
     pub fn string_ge(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+        let sk = self.inner();
+
         let mut lhs_uint = lhs.to_uint();
         let mut rhs_uint = match rhs {
             GenericPatternRef::Clear(rhs) => FheString::trivial(self, rhs.str()).to_uint(),
@@ -265,6 +280,6 @@ impl ServerKey {
 
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
-        self.ge_parallelized(&lhs_uint, &rhs_uint)
+        sk.ge_parallelized(&lhs_uint, &rhs_uint)
     }
 }

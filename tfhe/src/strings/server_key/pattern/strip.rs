@@ -1,21 +1,24 @@
 use super::{clear_ends_with_cases, ends_with_cases};
 use crate::integer::prelude::*;
-use crate::integer::BooleanBlock;
+use crate::integer::{BooleanBlock, ServerKey as IntegerServerKey};
 use crate::strings::char_iter::CharIter;
 use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPatternRef};
 use crate::strings::server_key::pattern::IsMatch;
 use crate::strings::server_key::{FheStringLen, ServerKey};
 use rayon::prelude::*;
+use std::borrow::Borrow;
 use std::ops::Range;
 
-impl ServerKey {
+impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     fn compare_shifted_strip(
         &self,
         strip_str: &mut FheString,
         str_pat: (CharIter, CharIter),
         iter: Range<usize>,
     ) -> BooleanBlock {
-        let mut result = self.create_trivial_boolean_block(false);
+        let sk = self.inner();
+
+        let mut result = sk.create_trivial_boolean_block(false);
         let (str, pat) = str_pat;
 
         let pat_len = pat.len();
@@ -24,10 +27,10 @@ impl ServerKey {
         for start in iter {
             let is_matched = self.asciis_eq(str.into_iter().skip(start), pat.into_iter());
 
-            let mut mask = is_matched.clone().into_radix(self.num_ascii_blocks(), self);
+            let mut mask = is_matched.clone().into_radix(self.num_ascii_blocks(), sk);
 
             // If mask == 0u8, it will now be 255u8. If it was 1u8, it will now be 0u8
-            self.scalar_sub_assign_parallelized(&mut mask, 1);
+            sk.scalar_sub_assign_parallelized(&mut mask, 1);
 
             let mutate_chars = strip_str.chars_mut().par_iter_mut().skip(start).take(
                 if start + pat_len < str_len {
@@ -40,11 +43,11 @@ impl ServerKey {
             rayon::join(
                 || {
                     mutate_chars.for_each(|char| {
-                        self.bitand_assign_parallelized(char.ciphertext_mut(), &mask);
+                        sk.bitand_assign_parallelized(char.ciphertext_mut(), &mask);
                     });
                 },
                 // One of the possible values of pat must match the str
-                || self.boolean_bitor_assign(&mut result, &is_matched),
+                || sk.boolean_bitor_assign(&mut result, &is_matched),
             );
         }
 
@@ -57,7 +60,9 @@ impl ServerKey {
         str_pat: (CharIter, &str),
         iter: Range<usize>,
     ) -> BooleanBlock {
-        let mut result = self.create_trivial_boolean_block(false);
+        let sk = self.inner();
+
+        let mut result = sk.create_trivial_boolean_block(false);
         let (str, pat) = str_pat;
 
         let pat_len = pat.len();
@@ -65,10 +70,10 @@ impl ServerKey {
         for start in iter {
             let is_matched = self.clear_asciis_eq(str.into_iter().skip(start), pat);
 
-            let mut mask = is_matched.clone().into_radix(self.num_ascii_blocks(), self);
+            let mut mask = is_matched.clone().into_radix(self.num_ascii_blocks(), sk);
 
             // If mask == 0u8, it will now be 255u8. If it was 1u8, it will now be 0u8
-            self.scalar_sub_assign_parallelized(&mut mask, 1);
+            sk.scalar_sub_assign_parallelized(&mut mask, 1);
 
             let mutate_chars = strip_str.chars_mut().par_iter_mut().skip(start).take(
                 if start + pat_len < str_len {
@@ -81,11 +86,11 @@ impl ServerKey {
             rayon::join(
                 || {
                     mutate_chars.for_each(|char| {
-                        self.bitand_assign_parallelized(char.ciphertext_mut(), &mask);
+                        sk.bitand_assign_parallelized(char.ciphertext_mut(), &mask);
                     });
                 },
                 // One of the possible values of pat must match the str
-                || self.boolean_bitor_assign(&mut result, &is_matched),
+                || sk.boolean_bitor_assign(&mut result, &is_matched),
             );
         }
 
@@ -136,6 +141,8 @@ impl ServerKey {
         str: &FheString,
         pat: GenericPatternRef<'_>,
     ) -> (FheString, BooleanBlock) {
+        let sk = self.inner();
+
         let mut result = str.clone();
         let trivial_or_enc_pat = match pat {
             GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
@@ -144,7 +151,7 @@ impl ServerKey {
 
         match self.length_checks(str, &trivial_or_enc_pat) {
             // If IsMatch is Clear we return the same string (a true means the pattern is empty)
-            IsMatch::Clear(bool) => return (result, self.create_trivial_boolean_block(bool)),
+            IsMatch::Clear(bool) => return (result, sk.create_trivial_boolean_block(bool)),
 
             // If IsMatch is Cipher it means str is empty so in any case we return the same string
             IsMatch::Cipher(val) => return (result, val),
@@ -155,16 +162,16 @@ impl ServerKey {
             || self.starts_with(str, pat),
             || match self.len(&trivial_or_enc_pat) {
                 FheStringLen::Padding(enc_val) => enc_val,
-                FheStringLen::NoPadding(val) => self.create_trivial_radix(val as u32, 16),
+                FheStringLen::NoPadding(val) => sk.create_trivial_radix(val as u32, 16),
             },
         );
 
         // If there's match we shift the str left by `real_pat_len` (removing the prefix and adding
         // nulls at the end), else we shift it left by 0
-        let shift_left = self.if_then_else_parallelized(
+        let shift_left = sk.if_then_else_parallelized(
             &starts_with,
             &real_pat_len,
-            &self.create_trivial_zero_radix(16),
+            &sk.create_trivial_zero_radix(16),
         );
 
         result = self.left_shift_chars(str, &shift_left);
@@ -225,6 +232,8 @@ impl ServerKey {
         str: &FheString,
         pat: GenericPatternRef<'_>,
     ) -> (FheString, BooleanBlock) {
+        let sk = self.inner();
+
         let mut result = str.clone();
 
         let trivial_or_enc_pat = match pat {
@@ -234,7 +243,7 @@ impl ServerKey {
 
         match self.length_checks(str, &trivial_or_enc_pat) {
             // If IsMatch is Clear we return the same string (a true means the pattern is empty)
-            IsMatch::Clear(bool) => return (result, self.create_trivial_boolean_block(bool)),
+            IsMatch::Clear(bool) => return (result, sk.create_trivial_boolean_block(bool)),
 
             // If IsMatch is Cipher it means str is empty so in any case we return the same string
             IsMatch::Cipher(val) => return (result, val),

@@ -1,12 +1,15 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{
+    BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey as IntegerServerKey,
+};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{
     ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
 };
+use crate::strings::server_key::ServerKey;
 use std::sync::Arc;
 
 const TEST_CASES_FIND: [&str; 8] = ["", "a", "abc", "b", "ab", "dabc", "abce", "dabce"];
@@ -26,10 +29,22 @@ where
     #[allow(clippy::type_complexity)]
     let ops: [(
         for<'a> fn(&'a str, &'a str) -> Option<usize>,
-        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> (RadixCiphertext, BooleanBlock),
+        fn(&IntegerServerKey, &FheString, GenericPatternRef<'_>) -> (RadixCiphertext, BooleanBlock),
     ); 2] = [
-        (|lhs, rhs| lhs.find(rhs), ServerKey::find),
-        (|lhs, rhs| lhs.rfind(rhs), ServerKey::rfind),
+        (
+            |lhs, rhs| lhs.find(rhs),
+            |sk, str, pat| {
+                let sk = ServerKey::new(sk);
+                sk.find(str, pat)
+            },
+        ),
+        (
+            |lhs, rhs| lhs.rfind(rhs),
+            |sk, str, pat| {
+                let sk = ServerKey::new(sk);
+                sk.rfind(str, pat)
+            },
+        ),
     ];
 
     let param = param.into();
@@ -120,7 +135,14 @@ fn string_replace_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::replace);
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &IntegerServerKey,
+                                   str: &FheString,
+                                   from: GenericPatternRef<'_>,
+                                   to: &FheString| {
+            let sk = ServerKey::new(sk);
+            sk.replace(str, from, to)
+        });
     string_replace_test_impl(param, executor);
 }
 
@@ -207,7 +229,15 @@ fn string_replacen_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::replacen);
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &IntegerServerKey,
+                                   str: &FheString,
+                                   from: GenericPatternRef<'_>,
+                                   to: &FheString,
+                                   count: &UIntArg| {
+            let sk = ServerKey::new(sk);
+            sk.replacen(str, from, to, count)
+        });
     string_replacen_test_impl(param, executor);
 }
 

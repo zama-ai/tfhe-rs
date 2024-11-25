@@ -1,9 +1,10 @@
-use crate::integer::BooleanBlock;
+use crate::integer::{BooleanBlock, ServerKey as IntegerServerKey};
 use crate::strings::ciphertext::{FheString, GenericPatternRef, UIntArg};
 use crate::strings::server_key::pattern::split::{
     SplitInternal, SplitNInternal, SplitNoLeading, SplitNoTrailing, SplitType,
 };
 use crate::strings::server_key::{FheStringIterator, ServerKey};
+use std::borrow::Borrow;
 
 pub struct RSplit {
     internal: SplitInternal,
@@ -33,7 +34,7 @@ pub struct RSplitTerminator {
     internal: SplitNoLeading,
 }
 
-impl ServerKey {
+impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// Creates an iterator of encrypted substrings by splitting the original encrypted string based
     /// on a specified pattern (either encrypted or clear).
     ///
@@ -393,44 +394,44 @@ impl ServerKey {
     }
 }
 
-impl FheStringIterator for Split {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for Split {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for RSplit {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for RSplit {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for SplitN {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for SplitN {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for RSplitN {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for RSplitN {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for SplitTerminator {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for SplitTerminator {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for RSplitTerminator {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for RSplitTerminator {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for SplitInclusive {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for SplitInclusive {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }

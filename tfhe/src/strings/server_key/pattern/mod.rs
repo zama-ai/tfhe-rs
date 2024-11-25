@@ -4,10 +4,11 @@ mod replace;
 mod split;
 mod strip;
 
-use crate::integer::BooleanBlock;
+use crate::integer::{BooleanBlock, ServerKey as IntegerServerKey};
 use crate::strings::char_iter::CharIter;
 use crate::strings::ciphertext::{FheAsciiChar, FheString};
 use crate::strings::server_key::{FheStringIsEmpty, ServerKey};
+use std::borrow::Borrow;
 use std::ops::Range;
 
 // Useful for handling cases in which we know if there is or there isn't a match just by looking at
@@ -20,7 +21,7 @@ enum IsMatch {
 
 // `length_checks` allow us to return early in the pattern matching functions, while the other
 // methods below contain logic for the different cases
-impl ServerKey {
+impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     fn length_checks(&self, str: &FheString, pat: &FheString) -> IsMatch {
         let pat_len = pat.len();
         let str_len = str.len();
