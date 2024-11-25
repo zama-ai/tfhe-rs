@@ -1409,12 +1409,12 @@ mod tests {
 
     fn prove_and_verify(
         testcase: &PkeTestcase,
+        ct: &PkeTestCiphertext,
         crs: &PublicParams<Curve>,
         load: ComputeLoad,
+        sanity_check_mode: ProofSanityCheckMode,
         rng: &mut StdRng,
     ) -> VerificationResult {
-        let ct = testcase.encrypt_unchecked(PKEV1_TEST_PARAMS);
-
         let (public_commit, private_commit) = commit(
             testcase.a.clone(),
             testcase.b.clone(),
@@ -1434,7 +1434,7 @@ mod tests {
             &testcase.metadata,
             load,
             rng,
-            ProofSanityCheckMode::Ignore,
+            sanity_check_mode,
         );
 
         if verify(&proof, (crs, &public_commit), &testcase.metadata).is_ok() {
@@ -1446,14 +1446,16 @@ mod tests {
 
     fn assert_prove_and_verify(
         testcase: &PkeTestcase,
+        ct: &PkeTestCiphertext,
         testcase_name: &str,
         crs: &PublicParams<Curve>,
-        rng: &mut StdRng,
+        sanity_check_mode: ProofSanityCheckMode,
         expected_result: VerificationResult,
+        rng: &mut StdRng,
     ) {
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
             assert_eq!(
-                prove_and_verify(testcase, crs, load, rng),
+                prove_and_verify(testcase, ct, crs, load, sanity_check_mode, rng),
                 expected_result,
                 "Testcase {testcase_name} failed"
             )
@@ -1602,8 +1604,25 @@ mod tests {
                 VerificationResult::Accept,
             ),
         ] {
-            assert_prove_and_verify(&testcase, name, &crs, rng, expected_result);
-            assert_prove_and_verify(&testcase, name, &crs_bigger_k, rng, expected_result);
+            let ct = testcase.encrypt_unchecked(PKEV1_TEST_PARAMS);
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                name,
+                &crs,
+                ProofSanityCheckMode::Ignore,
+                expected_result,
+                rng,
+            );
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                name,
+                &crs_bigger_k,
+                ProofSanityCheckMode::Ignore,
+                expected_result,
+                rng,
+            );
         }
     }
 
@@ -1649,37 +1668,23 @@ mod tests {
         let public_param_that_was_not_compressed =
             serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
 
-        for public_param in [
-            original_public_param,
-            public_param_that_was_compressed,
-            public_param_that_was_not_compressed,
+        for (public_param, test_name) in [
+            (original_public_param, "original_params"),
+            (
+                public_param_that_was_compressed,
+                "serialized_compressed_params",
+            ),
+            (public_param_that_was_not_compressed, "serialize_params"),
         ] {
-            let (public_commit, private_commit) = commit(
-                testcase.a.clone(),
-                testcase.b.clone(),
-                ct.c1.clone(),
-                ct.c2.clone(),
-                testcase.r.clone(),
-                testcase.e1.clone(),
-                testcase.m.clone(),
-                testcase.e2.clone(),
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                test_name,
                 &public_param,
+                ProofSanityCheckMode::Panic,
+                VerificationResult::Reject,
                 rng,
             );
-
-            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-                let proof = prove(
-                    (&public_param, &public_commit),
-                    &private_commit,
-                    &testcase.metadata,
-                    load,
-                    rng,
-                );
-
-                assert!(
-                    verify(&proof, (&public_param, &public_commit), &testcase.metadata).is_err()
-                );
-            }
         }
     }
 
@@ -1803,6 +1808,52 @@ mod tests {
             )
             .is_err());
         }
+    }
+
+    /// Test encryption of a message where the delta used for encryption is not the one used for
+    /// proof/verify
+    #[test]
+    fn test_bad_delta() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV1_TEST_PARAMS;
+
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
+        let mut testcase_bad_delta = testcase.clone();
+
+        // Make sure that the messages lower bit is set so the change of delta has an impact on the
+        // validity of the ct
+        testcase_bad_delta.m = (0..k)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64 | 1)
+            .collect::<Vec<_>>();
+
+        let mut params_bad_delta = PKEV1_TEST_PARAMS;
+        params_bad_delta.t *= 2; // Multiply t by 2 to "spill" 1 bit of message into the noise
+
+        // Encrypt using wrong delta
+        let ct_bad_delta = testcase_bad_delta.encrypt(params_bad_delta);
+
+        // Prove using a crs built using the "right" delta
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        assert_prove_and_verify(
+            &testcase,
+            &ct_bad_delta,
+            "testcase_bad_delta",
+            &crs,
+            ProofSanityCheckMode::Panic,
+            VerificationResult::Reject,
+            rng,
+        );
     }
 
     /// Test compression of proofs
