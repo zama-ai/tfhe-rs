@@ -235,6 +235,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
         cuda_synchronize_stream(mem->local_streams_1[j], gpu_indexes[j]);
         cuda_synchronize_stream(mem->local_streams_2[j], gpu_indexes[j]);
       }
+      cudaSetDevice(gpu_indexes[0]);
     }
   } else {
     PANIC("Cuda error (scalar shift): left scalar shift is never of the "

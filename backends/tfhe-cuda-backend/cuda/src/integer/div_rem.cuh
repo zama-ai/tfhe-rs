@@ -592,6 +592,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
     cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
   }
+  cudaSetDevice(gpu_indexes[0]);
 }
 
 template <typename Torus>
@@ -688,6 +689,7 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
       cuda_synchronize_stream(int_mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(int_mem_ptr->sub_streams_2[j], gpu_indexes[j]);
     }
+    cudaSetDevice(gpu_indexes[0]);
   } else {
     host_unsigned_integer_div_rem_kb<Torus>(
         streams, gpu_indexes, gpu_count, quotient, remainder, numerator,
