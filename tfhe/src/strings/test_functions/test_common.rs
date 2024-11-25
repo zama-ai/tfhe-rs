@@ -5,6 +5,7 @@ use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as 
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
+use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
 use std::sync::Arc;
 
@@ -18,6 +19,8 @@ where
     P: Into<PBSParameters>,
 {
     let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+    let cks = ClientKey::new(cks);
 
     for str in ["", "a", "abc"] {
         for pad in 0..3 {
@@ -60,6 +63,8 @@ where
 
     is_empty_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
+
     // trivial
     for str in ["", "a", "abc"] {
         for pad in 0..3 {
@@ -72,7 +77,7 @@ where
             match result {
                 FheStringIsEmpty::NoPadding(result) => assert_eq!(result, expected_result),
                 FheStringIsEmpty::Padding(result) => {
-                    assert_eq!(cks.decrypt_bool(&result), expected_result)
+                    assert_eq!(cks.inner().decrypt_bool(&result), expected_result)
                 }
             }
         }
@@ -91,7 +96,7 @@ where
             match result {
                 FheStringIsEmpty::NoPadding(result) => assert_eq!(result, expected_result),
                 FheStringIsEmpty::Padding(result) => {
-                    assert_eq!(cks.decrypt_bool(&result), expected_result)
+                    assert_eq!(cks.inner().decrypt_bool(&result), expected_result)
                 }
             }
         }
@@ -126,6 +131,8 @@ where
 
     len_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
+
     // trivial
     for str in ["", "a", "abc"] {
         for pad in 0..3 {
@@ -140,7 +147,10 @@ where
                     assert_eq!(result, expected_result)
                 }
                 FheStringLen::Padding(result) => {
-                    assert_eq!(cks.decrypt_radix::<u16>(&result), expected_result as u16)
+                    assert_eq!(
+                        cks.inner().decrypt_radix::<u16>(&result),
+                        expected_result as u16
+                    )
                 }
             }
         }
@@ -161,7 +171,10 @@ where
                     assert_eq!(result, expected_result)
                 }
                 FheStringLen::Padding(result) => {
-                    assert_eq!(cks.decrypt_radix::<u64>(&result), expected_result as u64)
+                    assert_eq!(
+                        cks.inner().decrypt_radix::<u64>(&result),
+                        expected_result as u64
+                    )
                 }
             }
         }
@@ -224,8 +237,10 @@ pub(crate) fn string_strip_test_impl<P, T>(
 
     strip_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
+
     let assert_result = |expected_result: (&str, bool), result: (FheString, BooleanBlock)| {
-        assert_eq!(expected_result.1, cks.decrypt_bool(&result.1));
+        assert_eq!(expected_result.1, cks.inner().decrypt_bool(&result.1));
 
         assert_eq!(expected_result.0, cks.decrypt_ascii(&result.0));
     };
@@ -324,8 +339,10 @@ pub(crate) fn string_comp_test_impl<P, T>(
     let sks = Arc::new(sks);
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
+    let cks = ClientKey::new(cks);
+
     let assert_result = |expected_result, result: BooleanBlock| {
-        let dec_result = cks.decrypt_bool(&result);
+        let dec_result = cks.inner().decrypt_bool(&result);
 
         assert_eq!(dec_result, expected_result);
     };

@@ -9,6 +9,7 @@ use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{
     ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
 };
+use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::ServerKey;
 use std::sync::Arc;
 
@@ -72,6 +73,8 @@ pub(crate) fn string_find_test_impl<P, T>(
 
     find_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
+
     // trivial
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
@@ -87,8 +90,8 @@ pub(crate) fn string_find_test_impl<P, T>(
                     for rhs in [enc_rhs, clear_rhs] {
                         let (index, is_some) = find_executor.execute((&enc_lhs, rhs.as_ref()));
 
-                        let dec_index = cks.decrypt_radix::<u32>(&index);
-                        let dec_is_some = cks.decrypt_bool(&is_some);
+                        let dec_index = cks.inner().decrypt_radix::<u32>(&index);
+                        let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                         let dec = dec_is_some.then_some(dec_index as usize);
 
@@ -114,8 +117,8 @@ pub(crate) fn string_find_test_impl<P, T>(
             for rhs in [enc_rhs, clear_rhs] {
                 let (index, is_some) = find_executor.execute((&enc_lhs, rhs.as_ref()));
 
-                let dec_index = cks.decrypt_radix::<u32>(&index);
-                let dec_is_some = cks.decrypt_bool(&is_some);
+                let dec_index = cks.inner().decrypt_radix::<u32>(&index);
+                let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                 let dec = dec_is_some.then_some(dec_index as usize);
 
@@ -156,6 +159,8 @@ where
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     replace_executor.setup(&cks2, sks);
+
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -259,6 +264,8 @@ where
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     replacen_executor.setup(&cks2, sks);
+
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {

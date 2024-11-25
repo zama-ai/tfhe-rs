@@ -5,6 +5,7 @@ use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerK
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::FheString;
+use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::{split_ascii_whitespace, FheStringIterator, ServerKey};
 use std::iter::once;
 use std::sync::Arc;
@@ -70,6 +71,8 @@ pub(crate) fn string_trim_test_impl<P, T>(
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     trim_executor.setup(&cks2, sks);
+
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -146,6 +149,7 @@ where
     split_whitespace_executor.setup(&cks2, sks.clone());
 
     let sks = ServerKey::new(&*sks);
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -180,7 +184,7 @@ where
                     let (split, is_some) = iterator.next(&sks);
 
                     let dec_split = cks.decrypt_ascii(&split);
-                    let dec_is_some = cks.decrypt_bool(&is_some);
+                    let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                     let dec = dec_is_some.then_some(dec_split);
 
@@ -209,7 +213,7 @@ where
                 let (split, is_some) = iterator.next(&sks);
 
                 let dec_split = cks.decrypt_ascii(&split);
-                let dec_is_some = cks.decrypt_bool(&is_some);
+                let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                 let dec = dec_is_some.then_some(dec_split);
 

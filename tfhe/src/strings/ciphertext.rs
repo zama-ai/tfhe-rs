@@ -1,6 +1,7 @@
+use super::client_key::ClientKey;
 use super::server_key::ServerKey;
 use crate::integer::{
-    ClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext,
+    ClientKey as IntegerClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext,
     ServerKey as IntegerServerKey,
 };
 use crate::shortint::MessageModulus;
@@ -99,7 +100,11 @@ impl FheAsciiChar {
 
 impl FheString {
     #[cfg(test)]
-    pub fn new_trivial(client_key: &ClientKey, str: &str, padding: Option<u32>) -> Self {
+    pub fn new_trivial<T: Borrow<IntegerClientKey>>(
+        client_key: &ClientKey<T>,
+        str: &str,
+        padding: Option<u32>,
+    ) -> Self {
         client_key.trivial_encrypt_ascii(str, padding)
     }
 
@@ -111,7 +116,11 @@ impl FheString {
     /// # Panics
     ///
     /// This function will panic if the provided string is not ASCII.
-    pub fn new(client_key: &ClientKey, str: &str, padding: Option<u32>) -> Self {
+    pub fn new<T: Borrow<IntegerClientKey>>(
+        client_key: &ClientKey<T>,
+        str: &str,
+        padding: Option<u32>,
+    ) -> Self {
         client_key.encrypt_ascii(str, padding)
     }
 
@@ -260,12 +269,14 @@ pub(super) fn num_ascii_blocks(message_modulus: MessageModulus) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::integer::ClientKey;
+    use crate::integer::ClientKey as IntegerClientKey;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
     #[test]
     fn test_uint_conversion() {
-        let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+        let ck = IntegerClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+        let ck = ClientKey::new(ck);
 
         let str =
             "Los Sheikah fueron originalmente criados de la Diosa Hylia antes del sellado del \

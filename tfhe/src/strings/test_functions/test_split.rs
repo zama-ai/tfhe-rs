@@ -7,6 +7,7 @@ use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{
     ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
 };
+use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::{FheStringIterator, ServerKey};
 use std::iter::once;
 use std::sync::Arc;
@@ -95,6 +96,8 @@ pub(crate) fn string_split_once_test_impl<P, T>(
 
     split_once_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
+
     // trivial
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
@@ -113,7 +116,7 @@ pub(crate) fn string_split_once_test_impl<P, T>(
 
                     let dec_split2 = cks.decrypt_ascii(&split2);
 
-                    let dec_is_some = cks.decrypt_bool(&is_some);
+                    let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                     let dec = dec_is_some.then_some((dec_split1.as_str(), dec_split2.as_str()));
 
@@ -143,7 +146,7 @@ pub(crate) fn string_split_once_test_impl<P, T>(
 
                 let dec_split2 = cks.decrypt_ascii(&split2);
 
-                let dec_is_some = cks.decrypt_bool(&is_some);
+                let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                 let dec = dec_is_some.then_some((dec_split1.as_str(), dec_split2.as_str()));
 
@@ -235,6 +238,7 @@ pub(crate) fn string_split_test_impl<P, T>(
     split_executor.setup(&cks2, sks.clone());
 
     let sks = ServerKey::new(&*sks);
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -256,7 +260,7 @@ pub(crate) fn string_split_test_impl<P, T>(
                         let (split, is_some) = iterator.next(&sks);
 
                         let dec_split = cks.decrypt_ascii(&split);
-                        let dec_is_some = cks.decrypt_bool(&is_some);
+                        let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                         let dec = dec_is_some.then_some(dec_split);
 
@@ -289,7 +293,7 @@ pub(crate) fn string_split_test_impl<P, T>(
                     let (split, is_some) = iterator.next(&sks);
 
                     let dec_split = cks.decrypt_ascii(&split);
-                    let dec_is_some = cks.decrypt_bool(&is_some);
+                    let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                     let dec = dec_is_some.then_some(dec_split);
 
@@ -362,6 +366,7 @@ pub(crate) fn string_splitn_test_impl<P, T>(
     splitn_executor.setup(&cks2, sks.clone());
 
     let sks = ServerKey::new(&*sks);
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -391,7 +396,7 @@ pub(crate) fn string_splitn_test_impl<P, T>(
                                     let (split, is_some) = iterator.next(&sks);
 
                                     let dec_split = cks.decrypt_ascii(&split);
-                                    let dec_is_some = cks.decrypt_bool(&is_some);
+                                    let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                                     let dec = dec_is_some.then_some(dec_split);
 
@@ -431,7 +436,7 @@ pub(crate) fn string_splitn_test_impl<P, T>(
                     let (split, is_some) = iterator.next(&sks);
 
                     let dec_split = cks.decrypt_ascii(&split);
-                    let dec_is_some = cks.decrypt_bool(&is_some);
+                    let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                     let dec = dec_is_some.then_some(dec_split);
 

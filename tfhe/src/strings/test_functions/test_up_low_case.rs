@@ -5,6 +5,7 @@ use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as 
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
+use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::ServerKey;
 use std::sync::Arc;
 
@@ -71,6 +72,8 @@ pub(crate) fn string_to_lower_upper_case_test_impl<P, T>(
 
     to_lower_upper_case_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
+
     // trivial
     for str_pad in 0..2 {
         for str in UP_LOW_CASE {
@@ -131,6 +134,8 @@ where
 
     eq_ignore_case_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
+
     // trivial
     for str_pad in 0..2 {
         for rhs_pad in 0..2 {
@@ -147,7 +152,7 @@ where
                     for rhs in [enc_rhs, clear_rhs] {
                         let result = eq_ignore_case_executor.execute((&enc_str, rhs.as_ref()));
 
-                        assert_eq!(expected_result, cks.decrypt_bool(&result));
+                        assert_eq!(expected_result, cks.inner().decrypt_bool(&result));
                     }
                 }
             }
@@ -169,7 +174,7 @@ where
             for rhs in [enc_rhs, clear_rhs] {
                 let result = eq_ignore_case_executor.execute((&enc_str, rhs.as_ref()));
 
-                assert_eq!(expected_result, cks.decrypt_bool(&result));
+                assert_eq!(expected_result, cks.inner().decrypt_bool(&result));
             }
         }
     }
