@@ -525,7 +525,7 @@ Please select a smaller B, d and/or k"
     // safely used for this
     assert!(
         m_bound <= 64,
-        "Invalid paramters for zk_pok, w e only support 64 bits integer. \
+        "Invalid parameters for zk_pok, w e only support 64 bits integer. \
 The computed m parameter is {m_bound} > 64. Please select a smaller B, d and/or k"
     );
 

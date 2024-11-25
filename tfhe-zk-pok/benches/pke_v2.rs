@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use tfhe_zk_pok::proofs::pke_v2::{prove, verify};
+use tfhe_zk_pok::proofs::pke_v2::{prove, verify, Bound};
 use tfhe_zk_pok::proofs::ComputeLoad;
 use utils::{init_params_v2, write_to_json, PKEV1_TEST_PARAMS, PKEV2_TEST_PARAMS};
 
@@ -16,35 +16,33 @@ fn bench_pke_v2_prove(c: &mut Criterion) {
 
     let rng = &mut rand::thread_rng();
 
-    for (params, param_name) in [
-        (PKEV1_TEST_PARAMS, "PKEV1_TEST_PARAMS"),
-        (PKEV2_TEST_PARAMS, "PKEV2_TEST_PARAMS"),
-    ] {
-        let (public_param, public_commit, private_commit, metadata) = init_params_v2(params);
+    for ((params, param_name), load, bound) in itertools::iproduct!(
+        [
+            (PKEV1_TEST_PARAMS, "PKEV1_TEST_PARAMS"),
+            (PKEV2_TEST_PARAMS, "PKEV2_TEST_PARAMS"),
+        ],
+        [ComputeLoad::Proof, ComputeLoad::Verify],
+        [Bound::CS, Bound::GHL]
+    ) {
+        let (public_param, public_commit, private_commit, metadata) = init_params_v2(params, bound);
         let effective_t = params.t >> 1;
         let bits = (params.k as u32) * effective_t.ilog2();
 
-        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-            let zk_load = match load {
-                ComputeLoad::Proof => "compute_load_proof",
-                ComputeLoad::Verify => "compute_load_verify",
-            };
-            let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}");
+        let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}");
 
-            bench_group.bench_function(&bench_id, |b| {
-                b.iter(|| {
-                    prove(
-                        (&public_param, &public_commit),
-                        &private_commit,
-                        &metadata,
-                        load,
-                        rng,
-                    )
-                })
-            });
+        bench_group.bench_function(&bench_id, |b| {
+            b.iter(|| {
+                prove(
+                    (&public_param, &public_commit),
+                    &private_commit,
+                    &metadata,
+                    load,
+                    rng,
+                )
+            })
+        });
 
-            write_to_json(&bench_id, params, param_name, bench_shortname);
-        }
+        write_to_json(&bench_id, params, param_name, bench_shortname);
     }
 }
 
@@ -58,33 +56,35 @@ fn bench_pke_v2_verify(c: &mut Criterion) {
 
     let rng = &mut rand::thread_rng();
 
-    for (params, param_name) in [
-        (PKEV1_TEST_PARAMS, "PKEV1_TEST_PARAMS"),
-        (PKEV2_TEST_PARAMS, "PKEV2_TEST_PARAMS"),
-    ] {
-        let (public_param, public_commit, private_commit, metadata) = init_params_v2(params);
+    for ((params, param_name), load, bound) in itertools::iproduct!(
+        [
+            (PKEV1_TEST_PARAMS, "PKEV1_TEST_PARAMS"),
+            (PKEV2_TEST_PARAMS, "PKEV2_TEST_PARAMS"),
+        ],
+        [ComputeLoad::Proof, ComputeLoad::Verify],
+        [Bound::CS, Bound::GHL]
+    ) {
+        let (public_param, public_commit, private_commit, metadata) = init_params_v2(params, bound);
         let effective_t = params.t >> 1;
         let bits = (params.k as u32) * effective_t.ilog2();
 
-        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-            let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}");
+        let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}");
 
-            let proof = prove(
-                (&public_param, &public_commit),
-                &private_commit,
-                &metadata,
-                load,
-                rng,
-            );
+        let proof = prove(
+            (&public_param, &public_commit),
+            &private_commit,
+            &metadata,
+            load,
+            rng,
+        );
 
-            bench_group.bench_function(&bench_id, |b| {
-                b.iter(|| {
-                    verify(&proof, (&public_param, &public_commit), &metadata).unwrap();
-                })
-            });
+        bench_group.bench_function(&bench_id, |b| {
+            b.iter(|| {
+                verify(&proof, (&public_param, &public_commit), &metadata).unwrap();
+            })
+        });
 
-            write_to_json(&bench_id, params, param_name, bench_shortname);
-        }
+        write_to_json(&bench_id, params, param_name, bench_shortname);
     }
 }
 
