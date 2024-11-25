@@ -65,7 +65,7 @@ void cuda_wrapping_polynomial_mul_one_to_many_64(
   void const* poly_lhs, void const* poly_rhs, 
   uint32_t polynomial_size, uint32_t n_rhs) {
     
-    host_wrapping_polynomial_mul_one_to_many<uint64_, ulonglong4>(
+    host_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<uint64_t *>(result), 
         static_cast<uint64_t const*>(poly_lhs),

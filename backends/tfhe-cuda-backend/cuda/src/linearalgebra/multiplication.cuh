@@ -103,9 +103,9 @@ __global__ void tgemmVectorize1(int M, int N, int K,
   const uint cRow = blockIdx.y;
   const uint cCol = blockIdx.x;
 
-  const uint totalResultsBlocktile = BM * BN;
+  //const uint totalResultsBlocktile = BM * BN;
   // A thread is responsible for calculating TM elements in the blocktile
-  const uint numThreadsBlocktile = totalResultsBlocktile / TM;
+  //const uint numThreadsBlocktile = totalResultsBlocktile / TM;
 
   // each warp will calculate 32*TM elements, with 32 being the columnar dim.
   const int threadCol = threadIdx.x % BN;

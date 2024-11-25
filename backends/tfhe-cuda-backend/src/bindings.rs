@@ -1617,3 +1617,12 @@ unsafe extern "C" {
         pbs_buffer: *mut *mut i8,
     );
 }
+extern "C" {
+    void *stream, uint32_t gpu_index, void *result,
+    void const* poly_lhs, void const* poly_rhs, 
+    uint32_t polynomial_size, uint32_t n_rhs
+
+    pub fn cuda_wrapping_polynomial_mul_one_to_many_64(
+
+    );
+}

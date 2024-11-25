@@ -139,20 +139,20 @@ __device__ void polynomial_product_accumulate_by_monomial_nosync(
 template <typename Torus>
 __global__ void polynomial_make_circulant(
   Torus* result, const Torus* poly,  
-  uint32_t polynomial_size,
+  uint32_t polynomial_size
 ) {  
-  extern __shared__  Torus buf[2 * CIRCULANT_BLOCKTILE - 1];
+  __shared__  Torus buf[2 * CIRCULANT_BLOCKTILE - 1];
 
-  uint32_t block_start = blockIdx.x * CIRCULANT_BLOCKTILE * polynomial_size 
+  int32_t block_start = blockIdx.x * CIRCULANT_BLOCKTILE * polynomial_size 
         + blockIdx.y * CIRCULANT_BLOCKTILE;
 
-  uint32_t tid = threadIdx.x * CIRCULANT_BLOCKTILE + threadIdx.y;
+  int32_t tid = threadIdx.x * CIRCULANT_BLOCKTILE + threadIdx.y;
 
   if (tid < 2 * CIRCULANT_BLOCKTILE - 1) {                    
-      uint32_t read_idx_start = (blockIdx.y-blockIdx.x) * CIRCULANT_BLOCKTILE + 
+      int32_t read_idx_start = (blockIdx.y-blockIdx.x) * CIRCULANT_BLOCKTILE + 
                             tid - CIRCULANT_BLOCKTILE + 1;
       if (read_idx_start < 0) {
-          read_idx_start = N + read_idx_start
+          read_idx_start = polynomial_size + read_idx_start;
       }
       buf[tid] = poly[read_idx_start];
   }
@@ -169,7 +169,7 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
   const Torus* poly_lhs,  
   const Torus* poly_rhs,
   uint32_t polynomial_size,
-  uint32_t n_rhs,
+  uint32_t n_rhs
 ) {  
 
   if (polynomial_size % CIRCULANT_BLOCKTILE) 
@@ -191,7 +191,7 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
     circulant, 
     poly_lhs,
     polynomial_size
-  )
+  );
   check_cuda_error(cudaGetLastError());  
 
   //matmul circulant matrix with poly list

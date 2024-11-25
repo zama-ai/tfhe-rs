@@ -87,6 +87,3 @@ void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,
                                                 int8_t **fp_ks_buffer) {
   cuda_drop_async(*fp_ks_buffer, static_cast<cudaStream_t>(stream), gpu_index);
 }
-
-
-void 

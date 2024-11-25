@@ -381,14 +381,14 @@ pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
 ) where
     Scalar: UnsignedInteger,
 {
-    assert_eq!(rhs.len() % lhs.len() == 0,  
-        "CUDA polynomial multiplication one to many: the rhs "
-        "must contain multiple polynomials of the same size as the "
-        "lhs"); 
+    assert_eq!(rhs.len() % lhs.len(), 0,  
+        "CUDA polynomial multiplication one to many: the rhs 
+        must contain multiple polynomials of the same size as the 
+        lhs"); 
         
-    assert_eq!(lhs.len().is_power_of_two(), 
-        "CUDA polynomial multiplication one to many: expected "
-        "the polynomial size to be a multiple of two");
+    assert_eq!(lhs.len().is_power_of_two(), true, 
+        "CUDA polynomial multiplication one to many: expected 
+        the polynomial size to be a multiple of two");
 
     unsafe {
         cuda_wrapping_polynomial_mul_one_to_many_64(
