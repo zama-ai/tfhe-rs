@@ -4,7 +4,7 @@ use crate::shortint::parameters::multi_bit::MultiBitPBSParameters;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64:
     MultiBitPBSParameters = MultiBitPBSParameters {
-    lwe_dimension: LweDimension(882),
+    lwe_dimension: LweDimension(852),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
@@ -12,7 +12,7 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64:
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_base_log: DecompositionBaseLog(3),
-    ks_level: DecompositionLevelCount(5),
+    ks_level: DecompositionLevelCount(8),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     max_noise_level: MaxNoiseLevel::new(5),
