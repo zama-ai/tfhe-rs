@@ -62,6 +62,7 @@ fn main() {
             "cuda/include/integer/integer.h",
             "cuda/include/keyswitch.h",
             "cuda/include/linear_algebra.h",
+            "cuda/include/pbs/fft.h",
             "cuda/include/pbs/programmable_bootstrap.h",
             "cuda/include/pbs/programmable_bootstrap_multibit.h",
         ];
