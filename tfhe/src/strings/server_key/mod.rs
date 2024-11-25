@@ -7,11 +7,32 @@ pub use trim::split_ascii_whitespace;
 
 use crate::integer::bigint::static_unsigned::StaticUnsignedBigInt;
 use crate::integer::prelude::*;
-use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey as IntegerServerKey};
 use crate::strings::ciphertext::{num_ascii_blocks, FheAsciiChar, FheString};
 use crate::strings::N;
 use rayon::prelude::*;
+use std::borrow::Borrow;
 use std::cmp::Ordering;
+
+pub struct ServerKey<T>
+where
+    T: Borrow<IntegerServerKey> + Sync,
+{
+    inner: T,
+}
+
+impl<T> ServerKey<T>
+where
+    T: Borrow<IntegerServerKey> + Sync,
+{
+    pub fn inner(&self) -> &IntegerServerKey {
+        self.inner.borrow()
+    }
+
+    pub fn new(inner: T) -> Self {
+        Self { inner }
+    }
+}
 
 // With no padding, the length is just the vector's length (clear result). With padding it requires
 // homomorphically counting the non zero elements (encrypted result).
@@ -26,11 +47,13 @@ pub enum FheStringIsEmpty {
 }
 
 // A few helper functions for the implementations
-impl ServerKey {
+impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     pub(super) fn num_ascii_blocks(&self) -> usize {
-        assert_eq!(self.message_modulus().0, self.carry_modulus().0);
+        let sk = self.inner();
 
-        num_ascii_blocks(self.message_modulus())
+        assert_eq!(sk.message_modulus().0, sk.carry_modulus().0);
+
+        num_ascii_blocks(sk.message_modulus())
     }
 
     // If an iterator is longer than the other, the "excess" characters are ignored. This function
@@ -40,6 +63,8 @@ impl ServerKey {
         I: DoubleEndedIterator<Item = &'a FheAsciiChar>,
         U: DoubleEndedIterator<Item = &'a FheAsciiChar>,
     {
+        let sk = self.inner();
+
         let blocks_str = str
             .into_iter()
             .rev()
@@ -57,13 +82,15 @@ impl ServerKey {
 
         self.trim_ciphertexts_lsb(&mut uint_str, &mut uint_pat);
 
-        self.eq_parallelized(&uint_str, &uint_pat)
+        sk.eq_parallelized(&uint_str, &uint_pat)
     }
 
     fn clear_asciis_eq<'a, I>(&self, str: I, pat: &str) -> BooleanBlock
     where
         I: DoubleEndedIterator<Item = &'a FheAsciiChar>,
     {
+        let sk = self.inner();
+
         let num_blocks = self.num_ascii_blocks();
 
         let blocks_str: Vec<_> = str
@@ -87,38 +114,40 @@ impl ServerKey {
             }
             Ordering::Greater => {
                 let diff = str_block_len - pat_block_len;
-                self.trim_radix_blocks_lsb_assign(&mut uint_str, diff);
+                sk.trim_radix_blocks_lsb_assign(&mut uint_str, diff);
             }
             Ordering::Equal => (),
         }
 
         let clear_pat_uint = self.pad_cipher_and_cleartext_lsb(&mut uint_str, clear_pat);
 
-        self.scalar_eq_parallelized(&uint_str, clear_pat_uint)
+        sk.scalar_eq_parallelized(&uint_str, clear_pat_uint)
     }
 
     fn asciis_eq_ignore_pat_pad<'a, I>(&self, str_pat: I) -> BooleanBlock
     where
         I: ParallelIterator<Item = (&'a FheAsciiChar, &'a FheAsciiChar)>,
     {
-        let mut result = self.create_trivial_boolean_block(true);
+        let sk = self.inner();
+
+        let mut result = sk.create_trivial_boolean_block(true);
 
         let eq_or_null_pat: Vec<_> = str_pat
             .map(|(str_char, pat_char)| {
                 let (are_eq, pat_is_null) = rayon::join(
-                    || self.eq_parallelized(str_char.ciphertext(), pat_char.ciphertext()),
-                    || self.scalar_eq_parallelized(pat_char.ciphertext(), 0u8),
+                    || sk.eq_parallelized(str_char.ciphertext(), pat_char.ciphertext()),
+                    || sk.scalar_eq_parallelized(pat_char.ciphertext(), 0u8),
                 );
 
                 // If `pat_char` is null then `are_eq` is set to true. Hence if ALL `pat_char`s are
                 // null, the result is always true, which is correct since the pattern is empty
-                self.boolean_bitor(&are_eq, &pat_is_null)
+                sk.boolean_bitor(&are_eq, &pat_is_null)
             })
             .collect();
 
         for eq_or_null in eq_or_null_pat {
             // Will be false if `str_char` != `pat_char` and `pat_char` isn't null
-            self.boolean_bitand_assign(&mut result, &eq_or_null);
+            sk.boolean_bitand_assign(&mut result, &eq_or_null);
         }
 
         result
@@ -129,6 +158,8 @@ impl ServerKey {
         lhs: &mut RadixCiphertext,
         rhs: &str,
     ) -> StaticUnsignedBigInt<{ N * 8 / 64 }> {
+        let sk = self.inner();
+
         let num_blocks = self.num_ascii_blocks();
 
         let mut rhs_bytes = rhs.as_bytes().to_vec();
@@ -143,57 +174,63 @@ impl ServerKey {
         // Also fill the lhs with null blocks at the end
         if lhs.blocks().len() < N * num_blocks {
             let diff = N * num_blocks - lhs.blocks().len();
-            self.extend_radix_with_trivial_zero_blocks_lsb_assign(lhs, diff);
+            sk.extend_radix_with_trivial_zero_blocks_lsb_assign(lhs, diff);
         }
 
         rhs_clear_uint
     }
 
     fn pad_ciphertexts_lsb(&self, lhs: &mut RadixCiphertext, rhs: &mut RadixCiphertext) {
+        let sk = self.inner();
+
         let lhs_blocks = lhs.blocks().len();
         let rhs_blocks = rhs.blocks().len();
 
         match lhs_blocks.cmp(&rhs_blocks) {
             Ordering::Less => {
                 let diff = rhs_blocks - lhs_blocks;
-                self.extend_radix_with_trivial_zero_blocks_lsb_assign(lhs, diff);
+                sk.extend_radix_with_trivial_zero_blocks_lsb_assign(lhs, diff);
             }
             Ordering::Greater => {
                 let diff = lhs_blocks - rhs_blocks;
-                self.extend_radix_with_trivial_zero_blocks_lsb_assign(rhs, diff);
+                sk.extend_radix_with_trivial_zero_blocks_lsb_assign(rhs, diff);
             }
             Ordering::Equal => (),
         }
     }
 
     fn pad_or_trim_ciphertext(&self, cipher: &mut RadixCiphertext, len: usize) {
+        let sk = self.inner();
+
         let cipher_len = cipher.blocks().len();
 
         match cipher_len.cmp(&len) {
             Ordering::Less => {
                 let diff = len - cipher_len;
-                self.extend_radix_with_trivial_zero_blocks_msb_assign(cipher, diff);
+                sk.extend_radix_with_trivial_zero_blocks_msb_assign(cipher, diff);
             }
             Ordering::Greater => {
                 let diff = cipher_len - len;
-                self.trim_radix_blocks_msb_assign(cipher, diff);
+                sk.trim_radix_blocks_msb_assign(cipher, diff);
             }
             Ordering::Equal => (),
         }
     }
 
     fn trim_ciphertexts_lsb(&self, lhs: &mut RadixCiphertext, rhs: &mut RadixCiphertext) {
+        let sk = self.inner();
+
         let lhs_blocks = lhs.blocks().len();
         let rhs_blocks = rhs.blocks().len();
 
         match lhs_blocks.cmp(&rhs_blocks) {
             Ordering::Less => {
                 let diff = rhs_blocks - lhs_blocks;
-                self.trim_radix_blocks_lsb_assign(rhs, diff);
+                sk.trim_radix_blocks_lsb_assign(rhs, diff);
             }
             Ordering::Greater => {
                 let diff = lhs_blocks - rhs_blocks;
-                self.trim_radix_blocks_lsb_assign(lhs, diff);
+                sk.trim_radix_blocks_lsb_assign(lhs, diff);
             }
             Ordering::Equal => (),
         }
@@ -205,6 +242,8 @@ impl ServerKey {
         true_ct: &FheString,
         false_ct: &FheString,
     ) -> FheString {
+        let sk = self.inner();
+
         let mut true_ct = true_ct.clone();
         let mut false_ct = false_ct.clone();
 
@@ -216,7 +255,7 @@ impl ServerKey {
         let true_ct_uint = true_ct.into_uint();
         let false_ct_uint = false_ct.into_uint();
 
-        let result_uint = self.if_then_else_parallelized(condition, &true_ct_uint, &false_ct_uint);
+        let result_uint = sk.if_then_else_parallelized(condition, &true_ct_uint, &false_ct_uint);
 
         let mut result = FheString::from_uint(result_uint, false);
 
@@ -246,8 +285,10 @@ impl ServerKey {
     }
 
     fn left_shift_chars(&self, str: &FheString, shift: &RadixCiphertext) -> FheString {
+        let sk = self.inner();
+
         let uint = str.to_uint();
-        let mut shift_bits = self.scalar_left_shift_parallelized(shift, 3);
+        let mut shift_bits = sk.scalar_left_shift_parallelized(shift, 3);
 
         // `shift_bits` needs to have the same block len as `uint` for the tfhe-rs shift to work
         self.pad_or_trim_ciphertext(&mut shift_bits, uint.blocks().len());
@@ -257,17 +298,17 @@ impl ServerKey {
         let shifted = if len == 0 {
             uint
         } else {
-            self.left_shift_parallelized(&uint, &shift_bits)
+            sk.left_shift_parallelized(&uint, &shift_bits)
         };
 
         // If the shifting amount is >= than the str length we get zero i.e. all chars are out of
         // range (instead of wrapping, which is the behavior of Rust and tfhe-rs)
         let bit_len = (str.len() * 8) as u32;
-        let shift_ge_than_str = self.scalar_ge_parallelized(&shift_bits, bit_len);
+        let shift_ge_than_str = sk.scalar_ge_parallelized(&shift_bits, bit_len);
 
-        let result = self.if_then_else_parallelized(
+        let result = sk.if_then_else_parallelized(
             &shift_ge_than_str,
-            &self.create_trivial_zero_radix(len),
+            &sk.create_trivial_zero_radix(len),
             &shifted,
         );
 
@@ -275,8 +316,10 @@ impl ServerKey {
     }
 
     fn right_shift_chars(&self, str: &FheString, shift: &RadixCiphertext) -> FheString {
+        let sk = self.inner();
+
         let uint = str.to_uint();
-        let mut shift_bits = self.scalar_left_shift_parallelized(shift, 3);
+        let mut shift_bits = sk.scalar_left_shift_parallelized(shift, 3);
 
         // `shift_bits` needs to have the same block len as `uint` for the tfhe-rs shift to work
         self.pad_or_trim_ciphertext(&mut shift_bits, uint.blocks().len());
@@ -286,17 +329,17 @@ impl ServerKey {
         let shifted = if len == 0 {
             uint
         } else {
-            self.right_shift_parallelized(&uint, &shift_bits)
+            sk.right_shift_parallelized(&uint, &shift_bits)
         };
 
         // If the shifting amount is >= than the str length we get zero i.e. all chars are out of
         // range (instead of wrapping, which is the behavior of Rust and tfhe-rs)
         let bit_len = (str.len() * 8) as u32;
-        let shift_ge_than_str = self.scalar_ge_parallelized(&shift_bits, bit_len);
+        let shift_ge_than_str = sk.scalar_ge_parallelized(&shift_bits, bit_len);
 
-        let result = self.if_then_else_parallelized(
+        let result = sk.if_then_else_parallelized(
             &shift_ge_than_str,
-            &self.create_trivial_zero_radix(len),
+            &sk.create_trivial_zero_radix(len),
             &shifted,
         );
 
@@ -304,6 +347,6 @@ impl ServerKey {
     }
 }
 
-pub trait FheStringIterator {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock);
+pub trait FheStringIterator<T: Borrow<IntegerServerKey> + Sync> {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock);
 }

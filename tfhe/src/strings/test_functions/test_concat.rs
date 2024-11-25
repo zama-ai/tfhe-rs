@@ -1,10 +1,12 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{FheString, UIntArg};
+use crate::strings::client_key::ClientKey;
+use crate::strings::server_key::ServerKey;
 use std::sync::Arc;
 
 const TEST_CASES_CONCAT: [&str; 5] = ["", "a", "ab", "abc", "abcd"];
@@ -19,7 +21,11 @@ fn string_concat_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::concat);
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &IntegerServerKey, in1: &FheString, in2: &FheString| {
+            let sk = ServerKey::new(sk);
+            sk.concat(in1, in2)
+        });
     string_concat_test_impl(param, executor);
 }
 
@@ -34,6 +40,7 @@ where
 
     concat_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
     // trivial
     for str_pad in 0..2 {
         for rhs_pad in 0..2 {
@@ -79,7 +86,11 @@ fn string_repeat_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::repeat);
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &IntegerServerKey, str: &FheString, n: &UIntArg| {
+            let sk = ServerKey::new(sk);
+            sk.repeat(str, n)
+        });
     string_repeat_test_impl(param, executor);
 }
 
@@ -94,6 +105,7 @@ where
 
     repeat_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
     // trivial
     for str_pad in 0..2 {
         for n in 0..3 {

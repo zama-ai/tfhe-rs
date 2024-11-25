@@ -1,5 +1,7 @@
 use super::{clear_ends_with_cases, contains_cases, ends_with_cases};
-use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext};
+use crate::integer::{
+    BooleanBlock, IntegerRadixCiphertext, RadixCiphertext, ServerKey as IntegerServerKey,
+};
 use crate::strings::char_iter::CharIter;
 use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPatternRef};
 use crate::strings::server_key::pattern::IsMatch;
@@ -7,8 +9,9 @@ use crate::strings::server_key::ServerKey;
 use itertools::Itertools;
 use rayon::prelude::*;
 use rayon::range::Iter;
+use std::borrow::Borrow;
 
-impl ServerKey {
+impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     // Compare pat with str, with pat shifted right (in relation to str) the number given by iter
     fn compare_shifted(
         &self,
@@ -16,6 +19,8 @@ impl ServerKey {
         par_iter: Iter<usize>,
         ignore_pat_pad: bool,
     ) -> BooleanBlock {
+        let sk = self.inner();
+
         let (str, pat) = str_pat;
 
         let matched: Vec<_> = par_iter
@@ -33,7 +38,7 @@ impl ServerKey {
         let block_vec: Vec<_> = matched
             .into_iter()
             .map(|bool| {
-                let radix: RadixCiphertext = bool.into_radix(1, self);
+                let radix: RadixCiphertext = bool.into_radix(1, sk);
                 radix.into_blocks()[0].clone()
             })
             .collect();
@@ -41,7 +46,7 @@ impl ServerKey {
         // This will be 0 if there was no match, non-zero otherwise
         let combined_radix = RadixCiphertext::from(block_vec);
 
-        self.scalar_ne_parallelized(&combined_radix, 0)
+        sk.scalar_ne_parallelized(&combined_radix, 0)
     }
 
     fn clear_compare_shifted(
@@ -49,6 +54,8 @@ impl ServerKey {
         str_pat: (CharIter, &str),
         par_iter: Iter<usize>,
     ) -> BooleanBlock {
+        let sk = self.inner();
+
         let (str, pat) = str_pat;
 
         let matched: Vec<_> = par_iter
@@ -58,7 +65,7 @@ impl ServerKey {
         let block_vec: Vec<_> = matched
             .into_iter()
             .map(|bool| {
-                let radix: RadixCiphertext = bool.into_radix(1, self);
+                let radix: RadixCiphertext = bool.into_radix(1, sk);
                 radix.into_blocks()[0].clone()
             })
             .collect();
@@ -66,7 +73,7 @@ impl ServerKey {
         // This will be 0 if there was no match, non-zero otherwise
         let combined_radix = RadixCiphertext::from(block_vec);
 
-        self.scalar_ne_parallelized(&combined_radix, 0)
+        sk.scalar_ne_parallelized(&combined_radix, 0)
     }
 
     /// Returns `true` if the given pattern (either encrypted or clear) matches a substring of this
@@ -86,6 +93,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (bananas, nana, apples) = ("bananas", "nana", "apples");
     ///
     /// let enc_bananas = FheString::new(&ck, bananas, None);
@@ -95,20 +104,22 @@ impl ServerKey {
     /// let result1 = sk.contains(&enc_bananas, enc_nana.as_ref());
     /// let result2 = sk.contains(&enc_bananas, clear_apples.as_ref());
     ///
-    /// let should_be_true = ck.decrypt_bool(&result1);
-    /// let should_be_false = ck.decrypt_bool(&result2);
+    /// let should_be_true = ck.inner().decrypt_bool(&result1);
+    /// let should_be_false = ck.inner().decrypt_bool(&result2);
     ///
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
     /// ```
     pub fn contains(&self, str: &FheString, pat: GenericPatternRef<'_>) -> BooleanBlock {
+        let sk = self.inner();
+
         let trivial_or_enc_pat = match pat {
             GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
             GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
-            IsMatch::Clear(val) => return self.create_trivial_boolean_block(val),
+            IsMatch::Clear(val) => return sk.create_trivial_boolean_block(val),
             IsMatch::Cipher(val) => return val,
             IsMatch::None => (),
         }
@@ -147,6 +158,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (bananas, ba, nan) = ("bananas", "ba", "nan");
     ///
     /// let enc_bananas = FheString::new(&ck, bananas, None);
@@ -156,20 +169,22 @@ impl ServerKey {
     /// let result1 = sk.starts_with(&enc_bananas, enc_ba.as_ref());
     /// let result2 = sk.starts_with(&enc_bananas, clear_nan.as_ref());
     ///
-    /// let should_be_true = ck.decrypt_bool(&result1);
-    /// let should_be_false = ck.decrypt_bool(&result2);
+    /// let should_be_true = ck.inner().decrypt_bool(&result1);
+    /// let should_be_false = ck.inner().decrypt_bool(&result2);
     ///
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
     /// ```
     pub fn starts_with(&self, str: &FheString, pat: GenericPatternRef<'_>) -> BooleanBlock {
+        let sk = self.inner();
+
         let trivial_or_enc_pat = match pat {
             GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
             GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
-            IsMatch::Clear(val) => return self.create_trivial_boolean_block(val),
+            IsMatch::Clear(val) => return sk.create_trivial_boolean_block(val),
             IsMatch::Cipher(val) => return val,
             IsMatch::None => (),
         }
@@ -225,6 +240,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (bananas, anas, nana) = ("bananas", "anas", "nana");
     ///
     /// let enc_bananas = FheString::new(&ck, bananas, None);
@@ -234,20 +251,22 @@ impl ServerKey {
     /// let result1 = sk.ends_with(&enc_bananas, enc_anas.as_ref());
     /// let result2 = sk.ends_with(&enc_bananas, clear_nana.as_ref());
     ///
-    /// let should_be_true = ck.decrypt_bool(&result1);
-    /// let should_be_false = ck.decrypt_bool(&result2);
+    /// let should_be_true = ck.inner().decrypt_bool(&result1);
+    /// let should_be_false = ck.inner().decrypt_bool(&result2);
     ///
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
     /// ```
     pub fn ends_with(&self, str: &FheString, pat: GenericPatternRef<'_>) -> BooleanBlock {
+        let sk = self.inner();
+
         let trivial_or_enc_pat = match pat {
             GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
             GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
         match self.length_checks(str, &trivial_or_enc_pat) {
-            IsMatch::Clear(val) => return self.create_trivial_boolean_block(val),
+            IsMatch::Clear(val) => return sk.create_trivial_boolean_block(val),
             IsMatch::Cipher(val) => return val,
             IsMatch::None => (),
         }
