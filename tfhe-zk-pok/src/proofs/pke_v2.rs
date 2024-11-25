@@ -3093,6 +3093,52 @@ mod tests {
         }
     }
 
+    /// Test encryption of a message where the delta used for encryption is not the one used for
+    /// proof/verify
+    #[test]
+    fn test_bad_delta() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+        let mut testcase_bad_delta = testcase.clone();
+
+        // Make sure that the messages lower bit is set so the change of delta has an impact on the
+        // validity of the ct
+        testcase_bad_delta.m = (0..k)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64 | 1)
+            .collect::<Vec<_>>();
+
+        let mut params_bad_delta = PKEV2_TEST_PARAMS;
+        params_bad_delta.t *= 2; // Multiply t by 2 to "spill" 1 bit of message into the noise
+
+        // Encrypt using wrong delta
+        let ct_bad_delta = testcase_bad_delta.encrypt(params_bad_delta);
+
+        // Prove using a crs built using the "right" delta
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        assert_prove_and_verify(
+            &testcase,
+            &ct_bad_delta,
+            "testcase_bad_delta",
+            &crs,
+            ProofSanityCheckMode::Panic,
+            VerificationResult::Reject,
+            rng,
+        );
+    }
+
     /// Test compression of proofs
     #[test]
     fn test_proof_compression() {
