@@ -45,6 +45,9 @@ void cuda_synchronize_stream(cudaStream_t stream, uint32_t gpu_index) {
   check_cuda_error(cudaStreamSynchronize(stream));
 }
 
+// Determine if a CUDA device is available at runtime
+uint32_t cuda_is_available() { return cudaSetDevice(0) == cudaSuccess; }
+
 /// Unsafe function that will try to allocate even if gpu_index is invalid
 /// or if there's not enough memory. A safe wrapper around it must call
 /// cuda_check_valid_malloc() first

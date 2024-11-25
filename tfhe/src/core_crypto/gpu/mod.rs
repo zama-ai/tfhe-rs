@@ -678,6 +678,12 @@ pub fn synchronize_devices(gpu_count: u32) {
     }
 }
 
+// Determine if a cuda device is available, at runtime
+pub fn is_cuda_available() -> bool {
+    let result = unsafe { cuda_is_available() };
+    result == 1u32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -9,6 +9,8 @@ extern "C" {
 
     pub fn cuda_synchronize_stream(stream: *mut c_void, gpu_index: u32);
 
+    pub fn cuda_is_available() -> u32;
+
     pub fn cuda_malloc(size: u64, gpu_index: u32) -> *mut c_void;
 
     pub fn cuda_malloc_async(size: u64, stream: *mut c_void, gpu_index: u32) -> *mut c_void;
