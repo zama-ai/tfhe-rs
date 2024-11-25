@@ -1,10 +1,12 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
+use crate::strings::client_key::ClientKey;
+use crate::strings::server_key::ServerKey;
 use std::sync::Arc;
 
 const UP_LOW_CASE: [&str; 21] = [
@@ -30,10 +32,22 @@ where
     #[allow(clippy::type_complexity)]
     let ops: [(
         for<'a> fn(&'a str) -> String,
-        fn(&ServerKey, &FheString) -> FheString,
+        fn(&IntegerServerKey, &FheString) -> FheString,
     ); 2] = [
-        (|lhs| lhs.to_lowercase(), ServerKey::to_lowercase),
-        (|lhs| lhs.to_uppercase(), ServerKey::to_uppercase),
+        (
+            |lhs| lhs.to_lowercase(),
+            |sk, str| {
+                let sk = ServerKey::new(sk);
+                sk.to_lowercase(str)
+            },
+        ),
+        (
+            |lhs| lhs.to_uppercase(),
+            |sk, str| {
+                let sk = ServerKey::new(sk);
+                sk.to_uppercase(str)
+            },
+        ),
     ];
 
     let param = param.into();
@@ -57,6 +71,8 @@ pub(crate) fn string_to_lower_upper_case_test_impl<P, T>(
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     to_lower_upper_case_executor.setup(&cks2, sks);
+
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -96,7 +112,14 @@ fn string_eq_ignore_case_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::eq_ignore_case);
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &IntegerServerKey,
+                                   lhs: &FheString,
+                                   rhs: GenericPatternRef<'_>| {
+            let sk = ServerKey::new(sk);
+
+            sk.eq_ignore_case(lhs, rhs)
+        });
     string_eq_ignore_case_test_impl(param, executor);
 }
 
@@ -110,6 +133,8 @@ where
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     eq_ignore_case_executor.setup(&cks2, sks);
+
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -127,7 +152,7 @@ where
                     for rhs in [enc_rhs, clear_rhs] {
                         let result = eq_ignore_case_executor.execute((&enc_str, rhs.as_ref()));
 
-                        assert_eq!(expected_result, cks.decrypt_bool(&result));
+                        assert_eq!(expected_result, cks.inner().decrypt_bool(&result));
                     }
                 }
             }
@@ -149,7 +174,7 @@ where
             for rhs in [enc_rhs, clear_rhs] {
                 let result = eq_ignore_case_executor.execute((&enc_str, rhs.as_ref()));
 
-                assert_eq!(expected_result, cks.decrypt_bool(&result));
+                assert_eq!(expected_result, cks.inner().decrypt_bool(&result));
             }
         }
     }
