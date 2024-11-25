@@ -48,7 +48,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     uint32_t level_count, uint32_t lwe_offset, uint32_t lwe_chunk_size,
     uint32_t keybundle_size_per_input, int8_t *device_mem,
     uint64_t device_memory_size_per_block) {
-
+  __shared__ uint32_t monomial_degrees[8];
   extern __shared__ int8_t sharedmem[];
   int8_t *selected_memory;
 
@@ -59,6 +59,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
                       blockIdx.z * gridDim.x * gridDim.y;
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
+  double2 *fft = (double2 *)selected_memory;
 
   // Ids
   uint32_t level_id = blockIdx.z;
@@ -98,7 +99,8 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
         get_start_ith_ggsw_offset(polynomial_size, glwe_dimension, level_count);
 
     // Precalculate the monomial degrees and store them in shared memory
-    uint32_t *monomial_degrees = (uint32_t *)selected_memory;
+    // uint32_t *monomial_degrees = (uint32_t *)selected_memory;
+
     if (threadIdx.x < (1 << grouping_factor)) {
       const Torus *lwe_array_group =
           block_lwe_array_in + rev_lwe_iteration * grouping_factor;
@@ -117,23 +119,43 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
       polynomial_product_accumulate_by_monomial_nosync<Torus, params>(
           reg_acc, bsk_poly, monomial_degree);
     }
-    synchronize_threads_in_block(); // needed because we are going to reuse the
-                                    // shared memory for the fft
-
+    // synchronize_threads_in_block(); // needed because we are going to reuse
+    // the shared memory for the fft
+    // double2 *fft = (double2 *)selected_memory;
     // Move from local memory back to shared memory but as complex
-    int tid = threadIdx.x;
-    double2 *fft = (double2 *)selected_memory;
-#pragma unroll
-    for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] =
+    //     int tid = threadIdx.x;
+    //     double2 *fft = (double2 *)selected_memory;
+    // #pragma unroll
+    //     for (int i = 0; i < params::opt / 2; i++) {
+    //       fft[tid] =
+    //           make_double2(__ll2double_rn((int64_t)reg_acc[i]) /
+    //                            (double)std::numeric_limits<Torus>::max(),
+    //                        __ll2double_rn((int64_t)reg_acc[i + params::opt /
+    //                        2]) /
+    //                            (double)std::numeric_limits<Torus>::max());
+    //       tid += params::degree / params::opt;
+    //     }
+    double2 u[params::opt >> 2];
+    double2 v[params::opt >> 2];
+
+    for (int i = 0; i < params::opt / 4; i++) {
+      u[i] =
           make_double2(__ll2double_rn((int64_t)reg_acc[i]) /
                            (double)std::numeric_limits<Torus>::max(),
                        __ll2double_rn((int64_t)reg_acc[i + params::opt / 2]) /
                            (double)std::numeric_limits<Torus>::max());
-      tid += params::degree / params::opt;
     }
 
-    NSMFFT_direct<HalfDegree<params>>(fft);
+    for (int i = 0; i < params::opt / 4; i++) {
+      v[i] = make_double2(
+          __ll2double_rn((int64_t)reg_acc[i + params::opt / 4]) /
+              (double)std::numeric_limits<Torus>::max(),
+          __ll2double_rn(
+              (int64_t)reg_acc[i + params::opt / 2 + params::opt / 4]) /
+              (double)std::numeric_limits<Torus>::max());
+    }
+
+    NSMFFT_direct2<HalfDegree<params>>(fft, u, v);
 
     // lwe iteration
     auto keybundle_out = get_ith_mask_kth_block(
