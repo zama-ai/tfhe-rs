@@ -52,7 +52,7 @@ void *cuda_malloc_async(uint64_t size, cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
 
-void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
+void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,

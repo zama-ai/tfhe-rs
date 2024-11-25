@@ -13,3 +13,8 @@ extend-ignore-identifiers-re = [
     # Example in trivium
     "C9217BA0D762ACA1"
 ]
+
+[files]
+extend-exclude = [
+    "backends/tfhe-cuda-backend/cuda/src/fft128/twiddles.cu"
+]
