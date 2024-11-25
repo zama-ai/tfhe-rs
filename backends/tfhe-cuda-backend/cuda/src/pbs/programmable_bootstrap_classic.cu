@@ -656,6 +656,8 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     uint32_t num_samples, uint32_t lut_count, uint32_t lut_stride) {
   if (base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
+  if ((glwe_dimension + 1) * level_count > 8)
+    PANIC("Cuda error (multi-bit PBS): (k + 1)*l should be <= 8")
 
   pbs_buffer<uint64_t, CLASSICAL> *buffer =
       (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
