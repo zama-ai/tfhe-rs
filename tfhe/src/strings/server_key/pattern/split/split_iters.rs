@@ -1,9 +1,10 @@
-use crate::integer::BooleanBlock;
+use crate::integer::{BooleanBlock, ServerKey as IntegerServerKey};
 use crate::strings::ciphertext::{FheString, GenericPatternRef, UIntArg};
 use crate::strings::server_key::pattern::split::{
     SplitInternal, SplitNInternal, SplitNoLeading, SplitNoTrailing, SplitType,
 };
 use crate::strings::server_key::{FheStringIterator, ServerKey};
+use std::borrow::Borrow;
 
 pub struct RSplit {
     internal: SplitInternal,
@@ -33,7 +34,7 @@ pub struct RSplitTerminator {
     internal: SplitNoLeading,
 }
 
-impl ServerKey {
+impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// Creates an iterator of encrypted substrings by splitting the original encrypted string based
     /// on a specified pattern (either encrypted or clear).
     ///
@@ -54,6 +55,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, pat) = ("hello ", " ");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -65,10 +68,10 @@ impl ServerKey {
     /// let (_, no_more_items) = split_iter.next(&sk); // Attempting to get a third item
     ///
     /// let first_decrypted = ck.decrypt_ascii(&first_item);
-    /// let first_is_some = ck.decrypt_bool(&first_is_some);
+    /// let first_is_some = ck.inner().decrypt_bool(&first_is_some);
     /// let second_decrypted = ck.decrypt_ascii(&second_item);
-    /// let second_is_some = ck.decrypt_bool(&second_is_some);
-    /// let no_more_items = ck.decrypt_bool(&no_more_items);
+    /// let second_is_some = ck.inner().decrypt_bool(&second_is_some);
+    /// let no_more_items = ck.inner().decrypt_bool(&no_more_items);
     ///
     /// assert_eq!(first_decrypted, "hello");
     /// assert!(first_is_some); // There is a first item
@@ -102,6 +105,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, pat) = ("hello ", " ");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -113,10 +118,10 @@ impl ServerKey {
     /// let (_, no_more_items) = rsplit_iter.next(&sk); // Attempting to get a third item
     ///
     /// let last_decrypted = ck.decrypt_ascii(&last_item);
-    /// let last_is_some = ck.decrypt_bool(&last_is_some);
+    /// let last_is_some = ck.inner().decrypt_bool(&last_is_some);
     /// let second_last_decrypted = ck.decrypt_ascii(&second_last_item);
-    /// let second_last_is_some = ck.decrypt_bool(&second_last_is_some);
-    /// let no_more_items = ck.decrypt_bool(&no_more_items);
+    /// let second_last_is_some = ck.inner().decrypt_bool(&second_last_is_some);
+    /// let no_more_items = ck.inner().decrypt_bool(&no_more_items);
     ///
     /// assert_eq!(last_decrypted, "");
     /// assert!(last_is_some); // The last item is empty
@@ -151,6 +156,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, pat) = ("hello world", " ");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -163,8 +170,8 @@ impl ServerKey {
     /// let (_, no_more_items) = splitn_iter.next(&sk); // Attempting to get a second item
     ///
     /// let first_decrypted = ck.decrypt_ascii(&first_item);
-    /// let first_is_some = ck.decrypt_bool(&first_is_some);
-    /// let no_more_items = ck.decrypt_bool(&no_more_items);
+    /// let first_is_some = ck.inner().decrypt_bool(&first_is_some);
+    /// let no_more_items = ck.inner().decrypt_bool(&no_more_items);
     ///
     /// // We get the whole str as n is 1
     /// assert_eq!(first_decrypted, "hello world");
@@ -206,6 +213,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, pat) = ("hello world", " ");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -218,8 +227,8 @@ impl ServerKey {
     /// let (_, no_more_items) = rsplitn_iter.next(&sk); // Attempting to get a second item
     ///
     /// let last_decrypted = ck.decrypt_ascii(&last_item);
-    /// let last_is_some = ck.decrypt_bool(&last_is_some);
-    /// let no_more_items = ck.decrypt_bool(&no_more_items);
+    /// let last_is_some = ck.inner().decrypt_bool(&last_is_some);
+    /// let no_more_items = ck.inner().decrypt_bool(&no_more_items);
     ///
     /// // We get the whole str as n is 1
     /// assert_eq!(last_decrypted, "hello world");
@@ -259,6 +268,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, pat) = ("hello world ", " ");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -270,10 +281,10 @@ impl ServerKey {
     /// let (_, no_more_items) = split_terminator_iter.next(&sk); // Attempting to get a third item
     ///
     /// let first_decrypted = ck.decrypt_ascii(&first_item);
-    /// let first_is_some = ck.decrypt_bool(&first_is_some);
+    /// let first_is_some = ck.inner().decrypt_bool(&first_is_some);
     /// let second_decrypted = ck.decrypt_ascii(&second_item);
-    /// let second_is_some = ck.decrypt_bool(&second_is_some);
-    /// let no_more_items = ck.decrypt_bool(&no_more_items);
+    /// let second_is_some = ck.inner().decrypt_bool(&second_is_some);
+    /// let no_more_items = ck.inner().decrypt_bool(&no_more_items);
     ///
     /// assert_eq!(first_decrypted, "hello");
     /// assert!(first_is_some); // There is a first item
@@ -310,6 +321,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, pat) = ("hello world ", " ");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -321,10 +334,10 @@ impl ServerKey {
     /// let (_, no_more_items) = rsplit_terminator_iter.next(&sk); // Attempting to get a third item
     ///
     /// let last_decrypted = ck.decrypt_ascii(&last_item);
-    /// let last_is_some = ck.decrypt_bool(&last_is_some);
+    /// let last_is_some = ck.inner().decrypt_bool(&last_is_some);
     /// let second_last_decrypted = ck.decrypt_ascii(&second_last_item);
-    /// let second_last_is_some = ck.decrypt_bool(&second_last_is_some);
-    /// let no_more_items = ck.decrypt_bool(&no_more_items);
+    /// let second_last_is_some = ck.inner().decrypt_bool(&second_last_is_some);
+    /// let no_more_items = ck.inner().decrypt_bool(&no_more_items);
     ///
     /// assert_eq!(last_decrypted, "world");
     /// assert!(last_is_some); // The last item is "world" instead of ""
@@ -364,6 +377,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, pat) = ("hello world ", " ");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -375,10 +390,10 @@ impl ServerKey {
     /// let (_, no_more_items) = split_inclusive_iter.next(&sk); // Attempting to get a third item
     ///
     /// let first_decrypted = ck.decrypt_ascii(&first_item);
-    /// let first_is_some = ck.decrypt_bool(&first_is_some);
+    /// let first_is_some = ck.inner().decrypt_bool(&first_is_some);
     /// let second_decrypted = ck.decrypt_ascii(&second_item);
-    /// let second_is_some = ck.decrypt_bool(&second_is_some);
-    /// let no_more_items = ck.decrypt_bool(&no_more_items);
+    /// let second_is_some = ck.inner().decrypt_bool(&second_is_some);
+    /// let no_more_items = ck.inner().decrypt_bool(&no_more_items);
     ///
     /// assert_eq!(first_decrypted, "hello ");
     /// assert!(first_is_some); // The first item includes the delimiter
@@ -393,44 +408,44 @@ impl ServerKey {
     }
 }
 
-impl FheStringIterator for Split {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for Split {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for RSplit {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for RSplit {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for SplitN {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for SplitN {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for RSplitN {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for RSplitN {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for SplitTerminator {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for SplitTerminator {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for RSplitTerminator {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for RSplitTerminator {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }
 
-impl FheStringIterator for SplitInclusive {
-    fn next(&mut self, sk: &ServerKey) -> (FheString, BooleanBlock) {
+impl<T: Borrow<IntegerServerKey> + Sync> FheStringIterator<T> for SplitInclusive {
+    fn next(&mut self, sk: &ServerKey<T>) -> (FheString, BooleanBlock) {
         self.internal.next(sk)
     }
 }

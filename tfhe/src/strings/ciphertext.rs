@@ -1,11 +1,15 @@
+use super::client_key::ClientKey;
+use super::server_key::ServerKey;
 use crate::integer::{
-    ClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext, ServerKey,
+    ClientKey as IntegerClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext,
+    ServerKey as IntegerServerKey,
 };
 use crate::shortint::MessageModulus;
 use crate::strings::client_key::EncU16;
 use crate::strings::N;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::ParallelSlice;
+use std::borrow::Borrow;
 
 /// Represents a encrypted ASCII character.
 #[derive(Clone)]
@@ -85,16 +89,22 @@ impl FheAsciiChar {
         &mut self.enc_char
     }
 
-    pub fn null(sk: &ServerKey) -> Self {
+    pub fn null<T: Borrow<IntegerServerKey> + Sync>(sk: &ServerKey<T>) -> Self {
+        let sk_integer = sk.inner();
+
         Self {
-            enc_char: sk.create_trivial_zero_radix(sk.num_ascii_blocks()),
+            enc_char: sk_integer.create_trivial_zero_radix(sk.num_ascii_blocks()),
         }
     }
 }
 
 impl FheString {
     #[cfg(test)]
-    pub fn new_trivial(client_key: &ClientKey, str: &str, padding: Option<u32>) -> Self {
+    pub fn new_trivial<T: Borrow<IntegerClientKey>>(
+        client_key: &ClientKey<T>,
+        str: &str,
+        padding: Option<u32>,
+    ) -> Self {
         client_key.trivial_encrypt_ascii(str, padding)
     }
 
@@ -106,7 +116,11 @@ impl FheString {
     /// # Panics
     ///
     /// This function will panic if the provided string is not ASCII.
-    pub fn new(client_key: &ClientKey, str: &str, padding: Option<u32>) -> Self {
+    pub fn new<T: Borrow<IntegerClientKey>>(
+        client_key: &ClientKey<T>,
+        str: &str,
+        padding: Option<u32>,
+    ) -> Self {
         client_key.encrypt_ascii(str, padding)
     }
 
@@ -127,13 +141,18 @@ impl FheString {
         println!("]");
     }
 
-    pub fn trivial(server_key: &ServerKey, str: &str) -> Self {
+    pub fn trivial<T: Borrow<IntegerServerKey> + Sync>(
+        server_key: &ServerKey<T>,
+        str: &str,
+    ) -> Self {
         assert!(str.is_ascii() & !str.contains('\0'));
+
+        let server_key2 = server_key.inner();
 
         let enc_string: Vec<_> = str
             .bytes()
             .map(|char| FheAsciiChar {
-                enc_char: server_key.create_trivial_radix(char, server_key.num_ascii_blocks()),
+                enc_char: server_key2.create_trivial_radix(char, server_key.num_ascii_blocks()),
             })
             .collect();
 
@@ -213,7 +232,7 @@ impl FheString {
 
     /// Makes the string padded. Useful for when a string is potentially padded and we need to
     /// ensure it's actually padded.
-    pub fn append_null(&mut self, sk: &ServerKey) {
+    pub fn append_null<T: Borrow<IntegerServerKey> + Sync>(&mut self, sk: &ServerKey<T>) {
         let null = FheAsciiChar::null(sk);
 
         self.enc_string.push(null);
@@ -250,12 +269,14 @@ pub(super) fn num_ascii_blocks(message_modulus: MessageModulus) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::integer::ClientKey;
+    use crate::integer::ClientKey as IntegerClientKey;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
     #[test]
     fn test_uint_conversion() {
-        let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+        let ck = IntegerClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+        let ck = ClientKey::new(ck);
 
         let str =
             "Los Sheikah fueron originalmente criados de la Diosa Hylia antes del sellado del \
