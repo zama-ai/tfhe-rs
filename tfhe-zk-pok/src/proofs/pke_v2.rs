@@ -499,10 +499,18 @@ pub fn compute_crs_params(
     let mut B_bound_squared = {
         (match bound_type {
             // GHL factor is 9.75, 9.75**2 = 95.0625
-            // Result is multiplied and divided by 10000 to avoid floating point operations
+            // Result is multiplied and divided by 10000 to avoid floating point operations.
+            // This could be avoided if one day we need to support bigger params.
             Bound::GHL => 950625,
-            Bound::CS => (2 * (d + k) + 4) as u128,
-        }) * (B_squared + (sqr(d + 2) * (d + k)) as u128 / 4)
+            Bound::CS => 2 * (d as u128 + k as u128) + 4,
+        })
+        .checked_mul(B_squared + (sqr((d + 2) as u128) * (d + k) as u128) / 4)
+        .unwrap_or_else(|| {
+            panic!(
+                "Invalid parameters for zk_pok, B_squared: {B_squared}, d: {d}, k: {k}. \
+Please select a smaller B, d and/or k"
+            )
+        })
     };
 
     if bound_type == Bound::GHL {
@@ -512,6 +520,14 @@ pub fn compute_crs_params(
     // Formula is round_up(1 + B_bound.ilog2()).
     // Since we use B_bound_square, the log is divided by 2
     let m_bound = 1 + ceil_ilog2(B_bound_squared).div_ceil(2) as usize;
+
+    // m_bound is used to do the bit decomposition of a u64 integer, so we check that it can be
+    // safely used for this
+    assert!(
+        m_bound <= 64,
+        "Invalid paramters for zk_pok, w e only support 64 bits integer. \
+The computed m parameter is {m_bound} > 64. Please select a smaller B, d and/or k"
+    );
 
     // This is also the effective t for encryption
     let effective_t_for_decomposition = t >> msbs_zero_padding_bit_count;
@@ -529,9 +545,9 @@ pub fn compute_crs_params(
 /// Use the relationship: `||x||_2 <= sqrt(dim)*||x||_inf`. Since we are only interested in the
 /// squared bound, we avoid the sqrt by returning dim*(||x||_inf)^2.
 fn inf_norm_bound_to_euclidean_squared(B_inf: u64, dim: usize) -> u128 {
-    let norm_squared = sqr(B_inf) as u128;
-
-    norm_squared * dim as u128
+    checked_sqr(B_inf as u128)
+        .and_then(|norm_squared| norm_squared.checked_mul(dim as u128))
+        .unwrap_or_else(|| panic!("Invalid parameters for zk_pok, B_inf: {B_inf}, d+k: {dim}"))
 }
 
 /// Generates a CRS based on the bound the heuristic provided by the lemma 2 of the paper.
@@ -914,7 +930,11 @@ fn prove_impl<G: Curve>(
                     _ => unreachable!(),
                 });
             if sanity_check_mode == ProofSanityCheckMode::Panic {
-                assert!(sqr(acc) as u128 <= B_bound_squared);
+                assert!(
+                    checked_sqr(acc.unsigned_abs()).unwrap() <= B_bound_squared,
+                    "sqr(acc) ({}) > B_bound_squared ({B_bound_squared})",
+                    sqr(acc as u128)
+                );
             }
             acc as i64
         })
@@ -2434,6 +2454,27 @@ mod tests {
         msbs_zero_padding_bit_count: 1,
     };
 
+    /// Compact key params with limits values to test that there is no overflow, using a GHL bound
+    pub(super) const BIG_TEST_PARAMS_CS: PkeTestParameters = PkeTestParameters {
+        d: 2048,
+        k: 2048,
+        B: 1125899906842624, // 2**50
+        q: 0,
+        t: 4, // 1b message, 1b padding
+        msbs_zero_padding_bit_count: 1,
+    };
+
+    /// Compact key params with limits values to test that there is no overflow, using a
+    /// Cauchy-Schwarz bound
+    pub(super) const BIG_TEST_PARAMS_GHL: PkeTestParameters = PkeTestParameters {
+        d: 2048,
+        k: 2048,
+        B: 281474976710656, // 2**48
+        q: 0,
+        t: 4, // 1b message, 1b padding
+        msbs_zero_padding_bit_count: 1,
+    };
+
     /// Test that the proof is rejected if we use a different value between encryption and proof
     #[test]
     fn test_pke() {
@@ -2606,7 +2647,7 @@ mod tests {
             assert_eq!(
                 prove_and_verify(testcase, ct, crs, load, sanity_check_mode, rng),
                 expected_result,
-                "Testcase {testcase_name} failed"
+                "Testcase {testcase_name} with load {load} failed"
             )
         }
     }
@@ -3137,6 +3178,46 @@ mod tests {
             VerificationResult::Reject,
             rng,
         );
+    }
+
+    /// Test encryption of a message with params that are at the limits of what is supported
+    #[test]
+    fn test_big_params() {
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        for bound in [Bound::CS, Bound::GHL] {
+            let params = match bound {
+                Bound::GHL => BIG_TEST_PARAMS_GHL,
+                Bound::CS => BIG_TEST_PARAMS_CS,
+            };
+            let PkeTestParameters {
+                d,
+                k,
+                B,
+                q,
+                t,
+                msbs_zero_padding_bit_count,
+            } = params;
+
+            let testcase = PkeTestcase::gen(rng, params);
+            let ct = testcase.encrypt(params);
+
+            // Check that there is no overflow with both bounds
+            let crs = match bound {
+                Bound::GHL => crs_gen_ghl::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng),
+                Bound::CS => crs_gen_cs::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng),
+            };
+
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                &format!("testcase_big_params_{bound:?}"),
+                &crs,
+                ProofSanityCheckMode::Panic,
+                VerificationResult::Accept,
+                rng,
+            );
+        }
     }
 
     /// Test compression of proofs
