@@ -1,8 +1,12 @@
 use ark_ff::biginteger::arithmetic::widening_mul;
 use rand::prelude::*;
 
-pub fn sqr<T: Copy + core::ops::Mul>(x: T) -> T::Output {
+pub fn sqr(x: u128) -> u128 {
     x * x
+}
+
+pub fn checked_sqr(x: u128) -> Option<u128> {
+    x.checked_mul(x)
 }
 
 // copied from the standard library
