@@ -31,10 +31,10 @@ __host__ void host_integer_radix_scalar_bitop_kb(
   } else {
     // We have all possible LUTs pre-computed and we use the decomposed scalar
     // as index to recover the right one
-    cuda_memcpy_async_gpu_to_gpu(lut->get_lut_indexes(gpu_indexes[0], 0),
-                                 clear_blocks, num_clear_blocks * sizeof(Torus),
-                                 streams[0], gpu_indexes[0]);
-    lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+    cuda_memcpy_async_gpu_to_gpu(lut->get_lut_indexes(0, 0), clear_blocks,
+                                 num_clear_blocks * sizeof(Torus), streams[0],
+                                 gpu_indexes[0]);
+    lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_input, bsks,

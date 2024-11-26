@@ -267,8 +267,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         streams, gpu_indexes, gpu_count, mem_ptr->params, 2,
         2 * ch_amount * num_blocks, reused_lut);
   }
-  auto message_acc = luts_message_carry->get_lut(gpu_indexes[0], 0);
-  auto carry_acc = luts_message_carry->get_lut(gpu_indexes[0], 1);
+  auto message_acc = luts_message_carry->get_lut(0, 0);
+  auto carry_acc = luts_message_carry->get_lut(0, 1);
 
   // define functions for each accumulator
   auto lut_f_message = [message_modulus](Torus x) -> Torus {
@@ -285,7 +285,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   generate_device_accumulator<Torus>(
       streams[0], gpu_indexes[0], carry_acc, glwe_dimension, polynomial_size,
       message_modulus, carry_modulus, lut_f_carry);
-  luts_message_carry->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+  luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
 
   while (r > 2) {
     size_t cur_total_blocks = r * num_blocks;
@@ -334,10 +334,10 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     if (carry_count > 0)
       cuda_set_value_async<Torus>(
           streams[0], gpu_indexes[0],
-          luts_message_carry->get_lut_indexes(gpu_indexes[0], message_count), 1,
+          luts_message_carry->get_lut_indexes(0, message_count), 1,
           carry_count);
 
-    luts_message_carry->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+    luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
 
     /// For multi GPU execution we create vectors of pointers for inputs and
     /// outputs
