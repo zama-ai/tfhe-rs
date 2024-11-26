@@ -36,7 +36,7 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: hyperstack
-          profile: single-h100
+          profile: 2-h100
 
   cuda-tests:
     name: Long run GPU H100 tests
