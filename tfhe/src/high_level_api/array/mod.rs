@@ -1,6 +1,8 @@
 mod clear_ops;
 mod cpu;
 mod dynamic;
+#[cfg(feature = "gpu")]
+mod gpu;
 mod helpers;
 mod ops;
 pub mod stride;
@@ -25,6 +27,11 @@ pub use cpu::{
 pub use dynamic::{
     FheBoolArray, FheBoolSlice, FheBoolSliceMut, FheIntArray, FheIntSlice, FheIntSliceMut,
     FheUintArray, FheUintSlice, FheUintSliceMut,
+};
+#[cfg(feature = "gpu")]
+pub use gpu::{
+    GpuFheBoolArray, GpuFheBoolSlice, GpuFheBoolSliceMut, GpuFheIntArray, GpuFheIntSlice,
+    GpuFheIntSliceMut, GpuFheUintArray, GpuFheUintSlice, GpuFheUintSliceMut,
 };
 
 /// The base struct for Fhe array types.
@@ -289,6 +296,14 @@ macro_rules! declare_concrete_array_types {
                 pub type [<CpuFheUint $num_bits Slice>]<'a> = CpuFheUintSlice<'a, crate::[<FheUint $num_bits Id>]>;
                 pub type [<CpuFheUint $num_bits SliceMut>]<'a> = CpuFheUintSliceMut<'a, crate::[<FheUint $num_bits Id>]>;
 
+                // Instantiate Array Types for Gpu backend
+                #[cfg(feature="gpu")]
+                pub type [<GpuFheUint $num_bits Array>] = GpuFheUintArray<crate::[<FheUint $num_bits Id>]>;
+                #[cfg(feature="gpu")]
+                pub type [<GpuFheUint $num_bits Slice>]<'a> = GpuFheUintSlice<'a, crate::[<FheUint $num_bits Id>]>;
+                #[cfg(feature="gpu")]
+                pub type [<GpuFheUint $num_bits SliceMut>]<'a> = GpuFheUintSliceMut<'a, crate::[<FheUint $num_bits Id>]>;
+
             )*
 
         }
@@ -307,6 +322,14 @@ macro_rules! declare_concrete_array_types {
                 pub type [<CpuFheInt $num_bits Array>] = CpuFheIntArray<crate::[<FheInt $num_bits Id>]>;
                 pub type [<CpuFheInt $num_bits Slice>]<'a> = CpuFheIntSlice<'a, crate::[<FheInt $num_bits Id>]>;
                 pub type [<CpuFheInt $num_bits SliceMut>]<'a> = CpuFheIntSliceMut<'a, crate::[<FheInt $num_bits Id>]>;
+
+                // Instantiate Array Types for Gpu backend
+                #[cfg(feature="gpu")]
+                pub type [<GpuFheInt $num_bits Array>] = GpuFheIntArray<crate::[<FheInt $num_bits Id>]>;
+                #[cfg(feature="gpu")]
+                pub type [<GpuFheInt $num_bits Slice>]<'a> = GpuFheIntSlice<'a, crate::[<FheInt $num_bits Id>]>;
+                #[cfg(feature="gpu")]
+                pub type [<GpuFheInt $num_bits SliceMut>]<'a> = GpuFheIntSliceMut<'a, crate::[<FheInt $num_bits Id>]>;
 
             )*
 

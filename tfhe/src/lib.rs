@@ -72,6 +72,7 @@
 #![cfg_attr(all(doc, not(doctest)), feature(doc_auto_cfg))]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 #![warn(rustdoc::broken_intra_doc_links)]
+extern crate core;
 
 #[cfg(feature = "__c_api")]
 pub mod c_api;
