@@ -1,6 +1,5 @@
-use crate::integer::gpu::server_key::radix::tests_unsigned::{
-    create_gpu_parameterized_test, GpuFunctionExecutor,
-};
+use crate::integer::gpu::server_key::radix::tests_long_run::GpuMultiDeviceFunctionExecutor;
+use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::test_erc20::{
     no_cmux_erc20_test, safe_erc20_test, whitepaper_erc20_test,
@@ -22,11 +21,11 @@ where
     P: Into<PBSParameters>,
 {
     let overflowing_add_executor =
-        GpuFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
+        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
     let overflowing_sub_executor =
-        GpuFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_sub);
-    let if_then_else_executor = GpuFunctionExecutor::new(&CudaServerKey::if_then_else);
-    let bitwise_or_executor = GpuFunctionExecutor::new(&CudaServerKey::bitor);
+        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_sub);
+    let if_then_else_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::if_then_else);
+    let bitwise_or_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitor);
     safe_erc20_test(
         param,
         overflowing_add_executor,
@@ -40,10 +39,10 @@ fn whitepaper_erc20<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let ge_executor = GpuFunctionExecutor::new(&CudaServerKey::ge);
-    let add_executor = GpuFunctionExecutor::new(&CudaServerKey::add);
-    let if_then_else_executor = GpuFunctionExecutor::new(&CudaServerKey::if_then_else);
-    let sub_executor = GpuFunctionExecutor::new(&CudaServerKey::sub);
+    let ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
+    let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
+    let if_then_else_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::if_then_else);
+    let sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
     whitepaper_erc20_test(
         param,
         ge_executor,
@@ -57,9 +56,9 @@ fn no_cmux_erc20<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let ge_executor = GpuFunctionExecutor::new(&CudaServerKey::ge);
-    let mul_executor = GpuFunctionExecutor::new(&CudaServerKey::mul);
-    let add_executor = GpuFunctionExecutor::new(&CudaServerKey::add);
-    let sub_executor = GpuFunctionExecutor::new(&CudaServerKey::sub);
+    let ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
+    let mul_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);
+    let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
+    let sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
     no_cmux_erc20_test(param, ge_executor, mul_executor, add_executor, sub_executor);
 }
