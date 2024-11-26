@@ -1,7 +1,5 @@
 use super::*;
-use crate::asm::iop::IOp;
-use crate::asm::{ArchProperties, Asm};
-use program::Program;
+use crate::asm::{AsmIOpcode, DOp, IOpcode};
 
 pub mod ilp;
 
@@ -11,7 +9,7 @@ macro_rules! impl_fw {
     (
         $name: literal
         [
-            $($op: literal => $func: expr $(;)?)*
+            $($opcode: ident => $func: expr $(;)?)*
         ]
     ) => {
         ::paste::paste! {
@@ -24,21 +22,17 @@ macro_rules! impl_fw {
             }
 
             impl Fw for [<$name:camel>]{
-            fn expand(&mut self, arch: &ArchProperties, ops: &[IOp]) -> Program {
-                let mut prog = Program::new(arch);
-
-                for op in ops.iter() {
-                    match op.name() {
+                fn expand(&mut self, arch: &FwParameters, iopcode: &AsmIOpcode) -> asm::Program<DOp> {
+                    let mut prog = program::Program::new(arch);
+                    match IOpcode::from(iopcode) {
                         $(
-                          $op => $func(&mut prog, op),
+                          IOpcode($opcode) => $func(&mut prog),
                         )*
-                        _ => panic!("Fw {} doesn't support {op:?}", $name),
-                     }
-
+                        _ => panic!("Fw {} doesn't support `{iopcode}`", $name),
+                    }
+                    prog.into()
                 }
-                prog
             }
-        }
         }
     };
 }

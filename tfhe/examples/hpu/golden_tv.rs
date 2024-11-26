@@ -4,7 +4,6 @@
 //! With the `dump-out` option it enable to generate bit-accurate stimulus
 //! for RTL simulation
 
-use hpu_asm::Asm;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::DefaultRandomGenerator;
 use tfhe::prelude::*;
@@ -41,9 +40,8 @@ pub struct Args {
     pub integer_width: usize,
 
     /// Iop to expand and simulate
-    /// If None default to All IOp
     #[clap(long, value_parser)]
-    pub iop: hpu_asm::IOpName,
+    pub iop: hpu_asm::AsmIOpcode,
 
     /// Force input value for A operand
     #[clap(long, value_parser=maybe_hex::<u64>)]
@@ -52,6 +50,13 @@ pub struct Args {
     /// Force input value for B operand
     #[clap(long, value_parser=maybe_hex::<u64>)]
     pub src_b: Option<u64>,
+
+    /// Force immediat mode
+    /// Use for custom IOp testing
+    /// Currently there is no way for the SW to know the expected format of the custom IOp
+    /// Warn: Currently force all IOp input B, there is no way to force only some of them
+    #[clap(long, value_parser)]
+    pub force_imm: bool,
 
     /// Check that result match expected one
     #[clap(long, value_parser)]
@@ -148,43 +153,43 @@ pub fn main() {
     let res = match args.integer_width {
         2 => {
             impl_gtv_exec!(FheUint2, u8);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         4 => {
             impl_gtv_exec!(FheUint4, u8);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         6 => {
             impl_gtv_exec!(FheUint6, u8);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         8 => {
             impl_gtv_exec!(FheUint8, u8);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         10 => {
             impl_gtv_exec!(FheUint10, u16);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         12 => {
             impl_gtv_exec!(FheUint12, u16);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         14 => {
             impl_gtv_exec!(FheUint14, u16);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         16 => {
             impl_gtv_exec!(FheUint16, u16);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         32 => {
             impl_gtv_exec!(FheUint32, u32);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         64 => {
             impl_gtv_exec!(FheUint64, u64);
-            gtv_exec(&hpu_device, &cks, &args.iop, a, b)
+            gtv_exec(&hpu_device, &cks, &args.iop, a, b, args.force_imm)
         }
         _ => panic!(
             "Unsupported integer_w {}. Supported values are {AVAILABLE_INTEGER_W:?}",
@@ -218,28 +223,29 @@ macro_rules! impl_gtv_exec {
         fn gtv_exec(
             hpu_device: &HpuDevice,
             cks: &ClientKey,
-            iop_name: &hpu_asm::IOpName,
+            iop: &hpu_asm::AsmIOpcode,
             src_a: u64,
             src_b: u64,
+            force_imm: bool,
         ) -> u64 {
-            let iop = hpu_asm::IOp::from(*iop_name);
-
             // Encrypt on cpu side and clone value in Hpu world
             let a_fhe = $fhe_type::encrypt(src_a as $user_type, cks);
             let a_hpu = a_fhe.clone_on(&hpu_device);
 
             // Iteration over same operation reuse previous result
             // in the following manner: res_{i} = res_{i-1} OP src_b
-            println!("Start IOp {iop_name} ...");
+            println!("Start IOp {iop} ...");
 
-            let res_hpu = if iop.has_imm(){
-                a_hpu.iop_imm(*iop_name, src_b as usize)
+            let imm_fmt = iop.has_imm() || force_imm;
+
+            let res_hpu = if imm_fmt {
+                a_hpu.iop_imm(iop.opcode(), src_b as usize)
             } else {
                 // Encrypt on cpu side and clone value in Hpu world
                 let b_fhe = $fhe_type::encrypt(src_b as $user_type, cks);
                 let b_hpu = b_fhe.clone_on(&hpu_device);
 
-                a_hpu.iop_ct(*iop_name, b_hpu.clone())
+                a_hpu.iop_ct(iop.opcode(), b_hpu.clone())
             };
 
             let res_fhe = $fhe_type::from(res_hpu);

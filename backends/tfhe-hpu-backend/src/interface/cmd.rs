@@ -2,56 +2,62 @@
 /// Help with IOp management over HPU
 /// Track IOp status and handle backward update of associated HpuVariable
 use super::*;
-use crate::asm::{Arg, Asm, IOp, IOpName};
-use variable::HpuVarWrapped;
+use crate::asm::iop::{Immediat, Operand, OperandKind};
+use crate::asm::{IOp, IOpcode};
+use variable::{HpuImm, HpuVarWrapped};
 
 /// Structure that hold an IOp with there associated operands
+/// Wrap operands memory with the IOp for proper lifetime management
 pub struct HpuCmd {
     pub(crate) op: IOp,
-    pub(crate) dst: HpuVarWrapped,
-    pub(crate) src_a: HpuVarWrapped,
-    pub(crate) src_b: Option<HpuVarWrapped>,
+    pub(crate) dst: Vec<HpuVarWrapped>,
+    pub(crate) src: Vec<HpuVarWrapped>,
+    // NB: No need to track Immediat lifetime. It's simply constant completly held by the IOp
+    // definition
 }
 
 impl HpuCmd {
-    pub fn new_ct_ct(
-        op_name: IOpName,
-        dst: HpuVarWrapped,
-        src_a: HpuVarWrapped,
-        src_b: HpuVarWrapped,
+    pub fn new(
+        opcode: IOpcode,
+        dst: &[&HpuVarWrapped],
+        src: &[&HpuVarWrapped],
+        imm: &[HpuImm],
     ) -> Self {
         // TODO Check that dst/rhs_x backend match
-        let mut op = IOp::from(op_name);
-        let args = vec![dst.as_arg(), src_a.as_arg(), src_b.as_arg()];
-        op.from_args(args).expect("Invalid IOp arguments");
+        // Extract Operands definition from HpuVar
+        let dst_op = dst
+            .iter()
+            .map(|var| {
+                Operand::new(
+                    var.width as u8,
+                    var.id.0 as u16,
+                    1, /* TODO handle vec source !? */
+                    Some(OperandKind::Dst),
+                )
+            })
+            .collect::<Vec<_>>();
+        let src_op = src
+            .iter()
+            .map(|var| {
+                Operand::new(
+                    var.width as u8,
+                    var.id.0 as u16,
+                    1, /* TODO handle vec source !? */
+                    Some(OperandKind::Src),
+                )
+            })
+            .collect::<Vec<_>>();
+        let imm_op = imm
+            .iter()
+            .map(|var| Immediat::from_cst(*var as u128))
+            .collect::<Vec<_>>();
+
+        let op = IOp::new(opcode, dst_op, src_op, imm_op);
         // TODO set op_width
 
-        Self {
-            op,
-            dst,
-            src_a,
-            src_b: Some(src_b),
-        }
-    }
-
-    pub fn new_ct_imm(
-        op_name: IOpName,
-        dst: HpuVarWrapped,
-        src_a: HpuVarWrapped,
-        imm: usize,
-    ) -> Self {
-        // TODO Check that dst/rhs_x backend match
-        let mut op = IOp::from(op_name);
-        let args = vec![dst.as_arg(), src_a.as_arg(), Arg::Imm(imm)];
-        op.from_args(args).expect("Invalid IOp arguments");
-        // TODO set op_width
-
-        Self {
-            op,
-            dst,
-            src_a,
-            src_b: None,
-        }
+        let dst = dst.iter().map(|var| (*var).clone()).collect::<Vec<_>>();
+        let src = src.iter().map(|var| (*var).clone()).collect::<Vec<_>>();
+        Self { op, dst, src }
     }
 
     pub fn op(&self) -> &IOp {
