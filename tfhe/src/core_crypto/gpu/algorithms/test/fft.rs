@@ -7,7 +7,7 @@ use crate::core_crypto::gpu::{fourier_transform_forward_f128_async, CudaStreams}
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
-    for size_log in 8..=8 {
+    for size_log in 13..=13 {
         let size = 1_usize << size_log;
         let fourier_size = PolynomialSize(size).to_fourier_polynomial_size().0;
 

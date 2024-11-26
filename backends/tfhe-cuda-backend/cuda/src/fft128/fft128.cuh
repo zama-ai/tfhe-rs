@@ -8,6 +8,65 @@
 #include "pbs/fft.h"
 #include <iostream>
 
+using Index = unsigned;
+
+// zl - left part of butterfly operation
+// zr - right part of butterfly operation
+// re - real part
+// im - imaginary part
+// hi - high bits
+// lo - low bits
+// dt - list
+// cf - single coefficient
+
+template <class params>
+__device__ void negacyclic_forward_fft_f128(
+    double *dt_re_hi,
+    double *dt_re_lo,
+    double *dt_im_hi,
+    double *dt_im_lo){
+
+  __syncthreads();
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
+  double cf_zl_re_hi[BUTTERFLY_DEPTH], cf_zr_re_hi[BUTTERFLY_DEPTH];
+  double cf_zl_re_lo[BUTTERFLY_DEPTH], cf_zr_re_lo[BUTTERFLY_DEPTH];
+  double cf_zl_im_hi[BUTTERFLY_DEPTH], cf_zr_im_hi[BUTTERFLY_DEPTH];
+  double cf_zl_im_lo[BUTTERFLY_DEPTH], cf_zr_im_lo[BUTTERFLY_DEPTH];
+
+
+  Index tid = threadIdx.x;
+
+  // load into registers
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    cf_zl_re_hi[i] = dt_re_hi[tid]; cf_zr_re_hi[i] = dt_re_hi[tid + HALF_DEGREE];
+    cf_zl_re_lo[i] = dt_re_lo[tid]; cf_zr_re_lo[i] = dt_re_lo[tid + HALF_DEGREE];
+    cf_zl_im_hi[i] = dt_im_hi[tid]; cf_zr_im_hi[i] = dt_im_hi[tid + HALF_DEGREE];
+    cf_zl_im_lo[i] = dt_im_lo[tid]; cf_zr_im_lo[i] = dt_im_lo[tid + HALF_DEGREE];
+
+    tid += STRIDE;
+  }
+
+  // level 1
+  // we don't make actual complex multiplication on level1 since we have only
+  // one twiddle, it's real and image parts are equal, so we can multiply
+  // it with simpler operations
+  // TODO first we need to generate twiddles to implement first iteration
+
+//#pragma unroll
+//  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+//    w = v[i] * (double2){0.707106781186547461715008466854,
+//                         0.707106781186547461715008466854};
+//    v[i] = u[i] - w;
+//    u[i] = u[i] + w;
+//  }
+
+}
+
 void print_uint128_bits(__uint128_t value) {
   char buffer[129]; // 128 bits + null terminator
   buffer[128] = '\0'; // Null-terminate the string
