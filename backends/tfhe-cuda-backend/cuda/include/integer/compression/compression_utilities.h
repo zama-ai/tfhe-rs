@@ -102,13 +102,12 @@ template <typename Torus> struct int_decompression {
       };
 
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0],
-          carry_extract_lut->get_lut(gpu_indexes[0], 0),
+          streams[0], gpu_indexes[0], carry_extract_lut->get_lut(0, 0),
           encryption_params.glwe_dimension, encryption_params.polynomial_size,
           encryption_params.message_modulus, encryption_params.carry_modulus,
           carry_extract_f);
 
-      carry_extract_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+      carry_extract_lut->broadcast_lut(streams, gpu_indexes, 0);
     }
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,

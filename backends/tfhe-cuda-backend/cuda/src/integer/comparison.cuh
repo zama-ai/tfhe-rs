@@ -125,11 +125,11 @@ __host__ void are_all_comparisons_block_true(
           return x == chunk_length;
         };
         generate_device_accumulator<Torus>(
-            streams[0], gpu_indexes[0], new_lut->get_lut(gpu_indexes[0], 0),
-            glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+            streams[0], gpu_indexes[0], new_lut->get_lut(0, 0), glwe_dimension,
+            polynomial_size, message_modulus, carry_modulus,
             is_equal_to_num_blocks_lut_f);
 
-        new_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+        new_lut->broadcast_lut(streams, gpu_indexes, 0);
 
         (*is_equal_to_num_blocks_map)[chunk_length] = new_lut;
         lut = new_lut;
@@ -449,9 +449,9 @@ __host__ void tree_sign_reduction(
     f = sign_handler_f;
   }
   generate_device_accumulator<Torus>(
-      streams[0], gpu_indexes[0], last_lut->get_lut(gpu_indexes[0], 0),
-      glwe_dimension, polynomial_size, message_modulus, carry_modulus, f);
-  last_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+      streams[0], gpu_indexes[0], last_lut->get_lut(0, 0), glwe_dimension,
+      polynomial_size, message_modulus, carry_modulus, f);
+  last_lut->broadcast_lut(streams, gpu_indexes, 0);
 
   // Last leaf
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
