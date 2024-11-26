@@ -4,7 +4,7 @@
 //! underlying `core_crypto` module.
 
 use super::parameters::LweDimension;
-use super::CiphertextModulus;
+use super::{CiphertextModulus, PaddingBit, ShortintEncoding};
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
@@ -119,6 +119,13 @@ where
     assert_eq!(accumulator.polynomial_size(), polynomial_size);
     assert_eq!(accumulator.glwe_size(), glwe_size);
 
+    let output_encoding = ShortintEncoding {
+        ciphertext_modulus: accumulator.ciphertext_modulus(),
+        message_modulus: output_message_modulus,
+        carry_modulus: output_carry_modulus,
+        padding_bit: PaddingBit::Yes,
+    };
+
     let mut accumulator_view = accumulator.as_mut_view();
 
     accumulator_view.get_mut_mask().as_mut().fill(0);
@@ -128,9 +135,6 @@ where
 
     // N/(p/2) = size of each block
     let box_size = polynomial_size.0 / input_modulus_sup;
-
-    // Value of the shift we multiply our messages by
-    let output_delta = (1_u64 << 63) / (output_message_modulus.0 * output_carry_modulus.0);
 
     let mut body = accumulator_view.get_mut_body();
     let accumulator_u64 = body.as_mut();
@@ -142,7 +146,7 @@ where
         let index = i * box_size;
         let f_eval = f(i as u64);
         max_value = max_value.max(f_eval);
-        accumulator_u64[index..index + box_size].fill(f_eval * output_delta);
+        accumulator_u64[index..index + box_size].fill(output_encoding.encode(Cleartext(f_eval)).0);
     }
 
     let half_box_size = box_size / 2;
@@ -202,6 +206,13 @@ where
     assert_eq!(accumulator.polynomial_size(), polynomial_size);
     assert_eq!(accumulator.glwe_size(), glwe_size);
 
+    let encoding = ShortintEncoding {
+        ciphertext_modulus: accumulator.ciphertext_modulus(),
+        message_modulus,
+        carry_modulus,
+        padding_bit: PaddingBit::Yes,
+    };
+
     let mut accumulator_view = accumulator.as_mut_view();
 
     accumulator_view.get_mut_mask().as_mut().fill(0);
@@ -211,9 +222,6 @@ where
 
     // N/(p/2) = size of each block
     let box_size = polynomial_size.0 / modulus_sup;
-
-    // Value of the delta we multiply our messages by
-    let delta = (1_u64 << 63) / (modulus_sup as u64);
 
     let mut body = accumulator_view.get_mut_body();
     let accumulator_u64 = body.as_mut();
@@ -244,8 +252,8 @@ where
         for (msg_value, sub_lut_box) in function_sub_lut.chunks_exact_mut(box_size).enumerate() {
             let msg_value = msg_value as u64;
             let function_eval = function(msg_value);
-            *output_degree = Degree::new(function_eval.max(output_degree.get()));
-            sub_lut_box.fill(function_eval * delta);
+            *output_degree = Degree::new((function_eval).max(output_degree.get()));
+            sub_lut_box.fill(encoding.encode(Cleartext(function_eval)).0);
         }
     }
 

@@ -3,7 +3,7 @@
 pub(crate) mod secret_encryption_key;
 use tfhe_versionable::Versionize;
 
-use super::PBSOrder;
+use super::{PBSOrder, PaddingBit, ShortintEncoding};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
@@ -494,16 +494,9 @@ impl ClientKey {
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
         let decrypted_u64: u64 = self.decrypt_no_decode(ct);
 
-        let delta = (1_u64 << 63)
-            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0);
-
-        //The bit before the message
-        let rounding_bit = delta >> 1;
-
-        //compute the rounding bit
-        let rounding = (decrypted_u64 & rounding_bit) << 1;
-
-        (decrypted_u64.wrapping_add(rounding)) / delta
+        ShortintEncoding::from_parameters(self.parameters, PaddingBit::Yes)
+            .decode(Plaintext(decrypted_u64))
+            .0
     }
 
     /// Decrypt a ciphertext encrypting a message using the client key.
@@ -638,17 +631,9 @@ impl ClientKey {
     pub fn decrypt_message_and_carry_without_padding(&self, ct: &Ciphertext) -> u64 {
         let decrypted_u64 = self.decrypt_no_decode(ct);
 
-        let delta = ((1_u64 << 63)
-            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0))
-            * 2;
-
-        //The bit before the message
-        let rounding_bit = delta >> 1;
-
-        //compute the rounding bit
-        let rounding = (decrypted_u64 & rounding_bit) << 1;
-
-        (decrypted_u64.wrapping_add(rounding)) / delta
+        ShortintEncoding::from_parameters(self.parameters, PaddingBit::No)
+            .decode(Plaintext(decrypted_u64))
+            .0
     }
 
     /// Decrypt a ciphertext encrypting an integer message using the client key,
