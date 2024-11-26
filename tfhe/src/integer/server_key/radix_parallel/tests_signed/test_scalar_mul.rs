@@ -4,7 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{signed_mul_under_
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -12,7 +12,7 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_unchecked_scalar_mul);
+create_parameterized_test!(integer_signed_unchecked_scalar_mul);
 
 fn integer_signed_unchecked_scalar_mul<P>(param: P)
 where

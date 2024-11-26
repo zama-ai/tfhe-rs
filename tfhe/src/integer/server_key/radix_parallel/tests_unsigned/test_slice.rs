@@ -9,7 +9,7 @@ use crate::integer::server_key::radix::slice::normalize_range;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     overflowing_add_under_modulus, random_non_zero_value,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::prelude::CastFrom;
 #[cfg(tarpaulin)]
@@ -18,12 +18,12 @@ use crate::shortint::parameters::*;
 
 use super::{nb_tests_for_params, CpuFunctionExecutor, FunctionExecutor, PBSParameters, NB_CTXT};
 
-create_parametrized_test!(integer_unchecked_scalar_slice);
-create_parametrized_test!(integer_unchecked_scalar_slice_assign);
-create_parametrized_test!(integer_default_scalar_slice);
-create_parametrized_test!(integer_default_scalar_slice_assign);
-create_parametrized_test!(integer_smart_scalar_slice);
-create_parametrized_test!(integer_smart_scalar_slice_assign);
+create_parameterized_test!(integer_unchecked_scalar_slice);
+create_parameterized_test!(integer_unchecked_scalar_slice_assign);
+create_parameterized_test!(integer_default_scalar_slice);
+create_parameterized_test!(integer_default_scalar_slice_assign);
+create_parameterized_test!(integer_smart_scalar_slice);
+create_parameterized_test!(integer_smart_scalar_slice_assign);
 
 // Reference implementation of the slice
 fn slice_reference_impl<B, R>(value: u64, range: R, modulus: u64) -> u64

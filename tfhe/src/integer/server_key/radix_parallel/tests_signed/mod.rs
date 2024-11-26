@@ -28,7 +28,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, CpuFunctionExecutor, MAX_NB_CTXT, NB_CTXT,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
@@ -133,8 +133,8 @@ where
 //     Encrypt/Decrypt Tests
 //================================================================================
 
-create_parametrized_test!(integer_signed_encrypt_decrypt);
-create_parametrized_test!(integer_signed_encrypt_decrypt_128_bits);
+create_parameterized_test!(integer_signed_encrypt_decrypt);
+create_parameterized_test!(integer_signed_encrypt_decrypt_128_bits);
 
 fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
     let param = param.into();
@@ -192,7 +192,7 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
 //================================================================================
 //     Unchecked Scalar Tests
 //================================================================================
-create_parametrized_test!(integer_signed_unchecked_scalar_div_rem_floor);
+create_parameterized_test!(integer_signed_unchecked_scalar_div_rem_floor);
 
 fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -301,7 +301,7 @@ fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>
 //     Default Scalar Tests
 //================================================================================
 
-create_parametrized_test!(integer_signed_default_scalar_div_rem);
+create_parameterized_test!(integer_signed_default_scalar_div_rem);
 
 fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);

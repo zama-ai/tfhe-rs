@@ -72,4 +72,4 @@ fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_gpu_parametrized_test!(lwe_encrypt_add_assign_decrypt_custom_mod);
+create_gpu_parameterized_test!(lwe_encrypt_add_assign_decrypt_custom_mod);

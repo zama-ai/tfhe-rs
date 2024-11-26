@@ -27,7 +27,7 @@ pub(crate) mod test_vector_find;
 use super::tests_cases_unsigned::*;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
@@ -431,7 +431,7 @@ impl ExpectedDegrees {
 }
 
 // left/right shifts
-create_parametrized_test!(
+create_parameterized_test!(
     integer_unchecked_left_shift {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -449,7 +449,7 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(
+create_parameterized_test!(
     integer_unchecked_right_shift {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -468,7 +468,7 @@ create_parametrized_test!(
     }
 );
 // left/right rotations
-create_parametrized_test!(
+create_parameterized_test!(
     integer_unchecked_rotate_left {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -486,7 +486,7 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(
+create_parameterized_test!(
     integer_unchecked_rotate_right {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -505,8 +505,8 @@ create_parametrized_test!(
     }
 );
 // left/right rotations
-create_parametrized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
-create_parametrized_test!(
+create_parameterized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
+create_parameterized_test!(
     integer_full_propagate {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,

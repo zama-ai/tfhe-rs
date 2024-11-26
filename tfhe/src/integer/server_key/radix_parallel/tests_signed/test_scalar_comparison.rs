@@ -5,7 +5,7 @@ use crate::integer::client_key::RecomposableSignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, I256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -264,7 +264,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 )
             }
 
-            create_parametrized_test!([<integer_signed_unchecked_scalar_ $comparison_name _parallelized_  $clear_type>]
+            create_parameterized_test!([<integer_signed_unchecked_scalar_ $comparison_name _parallelized_  $clear_type>]
             {
 
                 PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
@@ -278,7 +278,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
 
-            create_parametrized_test!([<integer_signed_smart_scalar_ $comparison_name _parallelized_  $clear_type>]
+            create_parameterized_test!([<integer_signed_smart_scalar_ $comparison_name _parallelized_  $clear_type>]
             {
 
                 PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
@@ -294,7 +294,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
 
-            create_parametrized_test!([<integer_signed_default_scalar_ $comparison_name _parallelized_  $clear_type>]
+            create_parameterized_test!([<integer_signed_default_scalar_ $comparison_name _parallelized_  $clear_type>]
             {
 
                 PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
@@ -609,19 +609,19 @@ mod no_coverage {
         test_signed_default_scalar_minmax(params, 2, executor, std::cmp::max::<i128>);
     }
 
-    create_parametrized_test!(integer_signed_unchecked_scalar_max_parallelized_i128 {
+    create_parameterized_test!(integer_signed_unchecked_scalar_max_parallelized_i128 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_signed_unchecked_scalar_min_parallelized_i128 {
+    create_parameterized_test!(integer_signed_unchecked_scalar_min_parallelized_i128 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_signed_smart_scalar_max_parallelized_i128 {
+    create_parameterized_test!(integer_signed_smart_scalar_max_parallelized_i128 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -630,7 +630,7 @@ mod no_coverage {
         // of message so the overflow behaviour is not the same, leading to false negatives
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_signed_smart_scalar_min_parallelized_i128 {
+    create_parameterized_test!(integer_signed_smart_scalar_min_parallelized_i128 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -639,7 +639,7 @@ mod no_coverage {
         // of message so the overflow behaviour is not the same, leading to false negatives
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_signed_scalar_max_parallelized_i128 {
+    create_parameterized_test!(integer_signed_scalar_max_parallelized_i128 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -648,7 +648,7 @@ mod no_coverage {
         // of message so the overflow behaviour is not the same, leading to false negatives
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_signed_scalar_min_parallelized_i128 {
+    create_parameterized_test!(integer_signed_scalar_min_parallelized_i128 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -665,7 +665,7 @@ mod no_coverage {
     define_signed_scalar_comparison_test_functions!(gt, i128);
     define_signed_scalar_comparison_test_functions!(ge, i128);
 
-    create_parametrized_test!(integer_signed_is_scalar_out_of_bounds {
+    create_parameterized_test!(integer_signed_is_scalar_out_of_bounds {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -679,7 +679,7 @@ mod no_coverage {
 #[cfg(tarpaulin)]
 mod coverage {
     use super::*;
-    use crate::integer::tests::create_parametrized_test_classical_params;
+    use crate::integer::tests::create_parameterized_test_classical_params;
 
     fn integer_signed_unchecked_scalar_min_parallelized_i8(
         params: crate::shortint::ClassicPBSParameters,
@@ -718,12 +718,16 @@ mod coverage {
         test_signed_default_scalar_minmax(params, 1, executor, std::cmp::max::<i8>);
     }
 
-    create_parametrized_test_classical_params!(integer_signed_unchecked_scalar_min_parallelized_i8);
-    create_parametrized_test_classical_params!(integer_signed_unchecked_scalar_max_parallelized_i8);
-    create_parametrized_test_classical_params!(integer_signed_smart_scalar_min_parallelized_i8);
-    create_parametrized_test_classical_params!(integer_signed_smart_scalar_max_parallelized_i8);
-    create_parametrized_test_classical_params!(integer_signed_scalar_min_parallelized_i8);
-    create_parametrized_test_classical_params!(integer_signed_scalar_max_parallelized_i8);
+    create_parameterized_test_classical_params!(
+        integer_signed_unchecked_scalar_min_parallelized_i8
+    );
+    create_parameterized_test_classical_params!(
+        integer_signed_unchecked_scalar_max_parallelized_i8
+    );
+    create_parameterized_test_classical_params!(integer_signed_smart_scalar_min_parallelized_i8);
+    create_parameterized_test_classical_params!(integer_signed_smart_scalar_max_parallelized_i8);
+    create_parameterized_test_classical_params!(integer_signed_scalar_min_parallelized_i8);
+    create_parameterized_test_classical_params!(integer_signed_scalar_max_parallelized_i8);
 
     define_signed_scalar_comparison_test_functions!(eq, i8);
     define_signed_scalar_comparison_test_functions!(ne, i8);
@@ -732,10 +736,10 @@ mod coverage {
     define_signed_scalar_comparison_test_functions!(gt, i8);
     define_signed_scalar_comparison_test_functions!(ge, i8);
 
-    create_parametrized_test_classical_params!(integer_signed_is_scalar_out_of_bounds);
+    create_parameterized_test_classical_params!(integer_signed_is_scalar_out_of_bounds);
 }
 
-create_parametrized_test!(integer_extensive_trivial_signed_default_scalar_comparisons);
+create_parameterized_test!(integer_extensive_trivial_signed_default_scalar_comparisons);
 
 fn integer_extensive_trivial_signed_default_scalar_comparisons(params: impl Into<PBSParameters>) {
     let lt_executor = CpuFunctionExecutor::new(&ServerKey::scalar_lt_parallelized);

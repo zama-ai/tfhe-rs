@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
@@ -17,8 +17,8 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_unchecked_scalar_sub);
-create_parametrized_test!(integer_signed_default_overflowing_scalar_sub);
+create_parameterized_test!(integer_signed_unchecked_scalar_sub);
+create_parameterized_test!(integer_signed_default_overflowing_scalar_sub);
 
 fn integer_signed_unchecked_scalar_sub<P>(param: P)
 where

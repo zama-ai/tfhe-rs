@@ -121,4 +121,4 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize>>(
     }
 }
 
-create_gpu_parametrized_test!(lwe_encrypt_ks_decrypt_custom_mod);
+create_gpu_parameterized_test!(lwe_encrypt_ks_decrypt_custom_mod);

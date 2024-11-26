@@ -115,7 +115,7 @@ where
     }
 }
 
-create_parametrized_test!(lwe_encrypt_pks_to_glwe_decrypt_custom_mod);
+create_parameterized_test!(lwe_encrypt_pks_to_glwe_decrypt_custom_mod);
 
 fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar, P>(params: P)
 where
@@ -221,4 +221,4 @@ where
     }
 }
 
-create_parametrized_test!(lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod);
+create_parameterized_test!(lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod);

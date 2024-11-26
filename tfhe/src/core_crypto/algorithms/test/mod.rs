@@ -461,7 +461,7 @@ pub(crate) fn gen_keys_or_get_from_cache_if_enabled<
 }
 
 // Macro to generate tests for all parameter sets
-macro_rules! create_parametrized_test{
+macro_rules! create_parameterized_test{
     ($name:ident { $($param:ident),*  $(,)? }) => {
         ::paste::paste! {
             $(
@@ -473,7 +473,7 @@ macro_rules! create_parametrized_test{
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             TEST_PARAMS_4_BITS_NATIVE_U64,
             TEST_PARAMS_3_BITS_63_U64
@@ -482,9 +482,9 @@ macro_rules! create_parametrized_test{
 }
 
 // Macro to generate tests for all parameter sets
-macro_rules! create_parametrized_test_with_non_native_parameters {
+macro_rules! create_parameterized_test_with_non_native_parameters {
     ($name:ident) => {
-        create_parametrized_test!($name {
+        create_parameterized_test!($name {
             TEST_PARAMS_4_BITS_NATIVE_U64,
             TEST_PARAMS_3_BITS_63_U64,
             TEST_PARAMS_3_BITS_SOLINAS_U64
@@ -492,4 +492,4 @@ macro_rules! create_parametrized_test_with_non_native_parameters {
     };
 }
 
-pub(crate) use {create_parametrized_test, create_parametrized_test_with_non_native_parameters};
+pub(crate) use {create_parameterized_test, create_parameterized_test_with_non_native_parameters};

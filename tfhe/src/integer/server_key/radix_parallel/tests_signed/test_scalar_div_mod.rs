@@ -6,7 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     signed_div_under_modulus, signed_rem_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -15,7 +15,7 @@ use itertools::iproduct;
 use rand::prelude::*;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_unchecked_scalar_div_rem);
+create_parameterized_test!(integer_signed_unchecked_scalar_div_rem);
 
 fn integer_signed_unchecked_scalar_div_rem<P>(param: P)
 where

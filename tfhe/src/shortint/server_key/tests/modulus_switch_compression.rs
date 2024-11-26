@@ -1,12 +1,12 @@
 use super::NB_TESTS;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
-use crate::shortint::server_key::tests::parametrized_test::create_parametrized_test;
+use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use rand::Rng;
 
 // Remove multi bit PBS parameters as
 // modulus switch compression and multi bit PBS are currently not compatible
-create_parametrized_test!(shortint_modulus_switch_compression);
+create_parameterized_test!(shortint_modulus_switch_compression);
 
 fn shortint_modulus_switch_compression<P>(param: P)
 where

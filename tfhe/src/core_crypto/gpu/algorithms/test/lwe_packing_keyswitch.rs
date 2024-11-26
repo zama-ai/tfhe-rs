@@ -230,5 +230,5 @@ where
     }
 }
 
-create_gpu_parametrized_test!(lwe_encrypt_pks_to_glwe_decrypt_custom_mod);
-create_gpu_parametrized_test!(lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod);
+create_gpu_parameterized_test!(lwe_encrypt_pks_to_glwe_decrypt_custom_mod);
+create_gpu_parameterized_test!(lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod);

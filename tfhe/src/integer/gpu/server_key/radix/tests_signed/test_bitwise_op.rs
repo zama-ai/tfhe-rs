@@ -1,5 +1,5 @@
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
-    create_gpu_parametrized_test, GpuFunctionExecutor,
+    create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_bitwise_op::{
@@ -9,13 +9,13 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_bitwise_op::{
 };
 use crate::shortint::parameters::*;
 
-create_gpu_parametrized_test!(integer_signed_unchecked_bitand);
-create_gpu_parametrized_test!(integer_signed_unchecked_bitor);
-create_gpu_parametrized_test!(integer_signed_unchecked_bitxor);
-create_gpu_parametrized_test!(integer_signed_default_bitnot);
-create_gpu_parametrized_test!(integer_signed_default_bitand);
-create_gpu_parametrized_test!(integer_signed_default_bitor);
-create_gpu_parametrized_test!(integer_signed_default_bitxor);
+create_gpu_parameterized_test!(integer_signed_unchecked_bitand);
+create_gpu_parameterized_test!(integer_signed_unchecked_bitor);
+create_gpu_parameterized_test!(integer_signed_unchecked_bitxor);
+create_gpu_parameterized_test!(integer_signed_default_bitnot);
+create_gpu_parameterized_test!(integer_signed_default_bitand);
+create_gpu_parameterized_test!(integer_signed_default_bitor);
+create_gpu_parameterized_test!(integer_signed_default_bitxor);
 
 fn integer_signed_unchecked_bitand<P>(param: P)
 where

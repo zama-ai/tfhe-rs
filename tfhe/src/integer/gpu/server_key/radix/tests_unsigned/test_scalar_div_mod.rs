@@ -1,11 +1,11 @@
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
-    create_gpu_parametrized_test, GpuFunctionExecutor,
+    create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_scalar_div_mod::default_scalar_div_rem_test;
 use crate::shortint::parameters::*;
 
-create_gpu_parametrized_test!(integer_scalar_div_rem);
+create_gpu_parameterized_test!(integer_scalar_div_rem);
 
 fn integer_scalar_div_rem<P>(param: P)
 where

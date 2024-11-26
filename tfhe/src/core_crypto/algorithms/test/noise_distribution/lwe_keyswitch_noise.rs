@@ -170,6 +170,6 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
     }
 }
 
-create_parametrized_test!(lwe_encrypt_ks_decrypt_noise_distribution_custom_mod {
+create_parameterized_test!(lwe_encrypt_ks_decrypt_noise_distribution_custom_mod {
     NOISE_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN,
 });

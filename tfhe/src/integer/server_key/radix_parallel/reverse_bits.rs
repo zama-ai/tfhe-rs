@@ -65,7 +65,7 @@ mod tests {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
     use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-    use crate::integer::tests::create_parametrized_test;
+    use crate::integer::tests::create_parameterized_test;
     use crate::integer::{IntegerKeyKind, RadixClientKey};
     #[cfg(tarpaulin)]
     use crate::shortint::parameters::coverage_parameters::*;
@@ -122,5 +122,5 @@ mod tests {
         reverse_bits_test(param, executor);
     }
 
-    create_parametrized_test!(integer_reverse_bits);
+    create_parameterized_test!(integer_reverse_bits);
 }

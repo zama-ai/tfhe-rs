@@ -12,7 +12,7 @@ use rand::Rng;
 const NB_TESTS: usize = 1;
 
 #[cfg(not(tarpaulin))]
-macro_rules! create_parametrized_test{
+macro_rules! create_parameterized_test{
     ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* }) => {
         ::paste::paste! {
             $(
@@ -24,7 +24,7 @@ macro_rules! create_parametrized_test{
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             (PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS),
             (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
@@ -35,7 +35,7 @@ macro_rules! create_parametrized_test{
 }
 
 #[cfg(not(tarpaulin))]
-macro_rules! create_parametrized_wopbs_only_test{
+macro_rules! create_parameterized_wopbs_only_test{
     ($name:ident { $( $wopbs_param:ident ),* }) => {
         ::paste::paste! {
             $(
@@ -47,7 +47,7 @@ macro_rules! create_parametrized_wopbs_only_test{
         }
     };
     ($name:ident)=> {
-        create_parametrized_wopbs_only_test!($name
+        create_parameterized_wopbs_only_test!($name
         {
             WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
             WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -59,7 +59,7 @@ macro_rules! create_parametrized_wopbs_only_test{
 
 // Test against a small subset of parameters to speed up coverage tests
 #[cfg(tarpaulin)]
-macro_rules! create_parametrized_test{
+macro_rules! create_parameterized_test{
     ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* }) => {
         ::paste::paste! {
             $(
@@ -71,7 +71,7 @@ macro_rules! create_parametrized_test{
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS)
         });
@@ -79,7 +79,7 @@ macro_rules! create_parametrized_test{
 }
 
 #[cfg(tarpaulin)]
-macro_rules! create_parametrized_wopbs_only_test{
+macro_rules! create_parameterized_wopbs_only_test{
     ($name:ident { $( $wopbs_param:ident ),* }) => {
         ::paste::paste! {
             $(
@@ -91,19 +91,19 @@ macro_rules! create_parametrized_wopbs_only_test{
         }
     };
     ($name:ident)=> {
-        create_parametrized_wopbs_only_test!($name
+        create_parameterized_wopbs_only_test!($name
         {
             WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS
         });
     };
 }
 
-create_parametrized_test!(generate_lut);
-create_parametrized_test!(generate_lut_modulus);
+create_parameterized_test!(generate_lut);
+create_parameterized_test!(generate_lut_modulus);
 #[cfg(not(tarpaulin))]
-create_parametrized_wopbs_only_test!(generate_lut_modulus_not_power_of_two);
+create_parameterized_wopbs_only_test!(generate_lut_modulus_not_power_of_two);
 #[cfg(not(tarpaulin))]
-create_parametrized_wopbs_only_test!(generate_lut_wop_only {
+create_parameterized_wopbs_only_test!(generate_lut_wop_only {
     WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
     WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
     WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,

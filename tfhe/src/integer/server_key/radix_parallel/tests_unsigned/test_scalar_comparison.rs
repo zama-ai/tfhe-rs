@@ -4,7 +4,7 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, I256, U256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -242,7 +242,7 @@ macro_rules! define_scalar_comparison_test_functions {
                 )
             }
 
-            create_parametrized_test!([<integer_unchecked_scalar_ $comparison_name _parallelized_ $clear_type:lower>]
+            create_parameterized_test!([<integer_unchecked_scalar_ $comparison_name _parallelized_ $clear_type:lower>]
             {
 
                 PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
@@ -256,7 +256,7 @@ macro_rules! define_scalar_comparison_test_functions {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
 
-            create_parametrized_test!([<integer_smart_scalar_ $comparison_name _parallelized_ $clear_type:lower>]
+            create_parameterized_test!([<integer_smart_scalar_ $comparison_name _parallelized_ $clear_type:lower>]
             {
 
                 PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
@@ -271,7 +271,7 @@ macro_rules! define_scalar_comparison_test_functions {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
 
-            create_parametrized_test!([<integer_default_scalar_ $comparison_name _parallelized_ $clear_type:lower>]
+            create_parameterized_test!([<integer_default_scalar_ $comparison_name _parallelized_ $clear_type:lower>]
             {
 
                 PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
@@ -712,38 +712,38 @@ mod no_coverage {
         test_default_scalar_minmax(params, 2, executor, std::cmp::max::<U256>);
     }
 
-    create_parametrized_test!(integer_unchecked_scalar_min_parallelized_u256 {
+    create_parameterized_test!(integer_unchecked_scalar_min_parallelized_u256 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_unchecked_scalar_max_parallelized_u256 {
+    create_parameterized_test!(integer_unchecked_scalar_max_parallelized_u256 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_smart_scalar_min_parallelized_u256 {
+    create_parameterized_test!(integer_smart_scalar_min_parallelized_u256 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // No test for 3_3, see define_scalar_comparison_test_functions macro
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_smart_scalar_max_parallelized_u256 {
+    create_parameterized_test!(integer_smart_scalar_max_parallelized_u256 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // No test for 3_3, see define_scalar_comparison_test_functions macro
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
 
-    create_parametrized_test!(integer_scalar_min_parallelized_u256 {
+    create_parameterized_test!(integer_scalar_min_parallelized_u256 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // No test for 3_3, see define_scalar_comparison_test_functions macro
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
-    create_parametrized_test!(integer_scalar_max_parallelized_u256 {
+    create_parameterized_test!(integer_scalar_max_parallelized_u256 {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // No test for 3_3, see define_scalar_comparison_test_functions macro
@@ -757,14 +757,14 @@ mod no_coverage {
     define_scalar_comparison_test_functions!(gt, U256);
     define_scalar_comparison_test_functions!(ge, U256);
 
-    create_parametrized_test!(integer_unchecked_scalar_comparisons_edge {
+    create_parameterized_test!(integer_unchecked_scalar_comparisons_edge {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
 
-    create_parametrized_test!(integer_is_scalar_out_of_bounds {
+    create_parameterized_test!(integer_is_scalar_out_of_bounds {
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as the test relies on the ciphertext to encrypt 128bits
@@ -772,7 +772,7 @@ mod no_coverage {
         PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
 
-    create_parametrized_test!(integer_comparisons_for_empty_blocks {
+    create_parameterized_test!(integer_comparisons_for_empty_blocks {
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
@@ -784,7 +784,7 @@ mod no_coverage {
 #[cfg(tarpaulin)]
 mod coverage {
     use super::*;
-    use crate::integer::tests::create_parametrized_test_classical_params;
+    use crate::integer::tests::create_parameterized_test_classical_params;
 
     fn integer_unchecked_scalar_min_parallelized_u8(params: crate::shortint::ClassicPBSParameters) {
         let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_min_parallelized);
@@ -816,12 +816,12 @@ mod coverage {
         test_default_scalar_minmax(params, 1, executor, std::cmp::max::<u8>);
     }
 
-    create_parametrized_test_classical_params!(integer_unchecked_scalar_min_parallelized_u8);
-    create_parametrized_test_classical_params!(integer_unchecked_scalar_max_parallelized_u8);
-    create_parametrized_test_classical_params!(integer_smart_scalar_min_parallelized_u8);
-    create_parametrized_test_classical_params!(integer_smart_scalar_max_parallelized_u8);
-    create_parametrized_test_classical_params!(integer_scalar_min_parallelized_u8);
-    create_parametrized_test_classical_params!(integer_scalar_max_parallelized_u8);
+    create_parameterized_test_classical_params!(integer_unchecked_scalar_min_parallelized_u8);
+    create_parameterized_test_classical_params!(integer_unchecked_scalar_max_parallelized_u8);
+    create_parameterized_test_classical_params!(integer_smart_scalar_min_parallelized_u8);
+    create_parameterized_test_classical_params!(integer_smart_scalar_max_parallelized_u8);
+    create_parameterized_test_classical_params!(integer_scalar_min_parallelized_u8);
+    create_parameterized_test_classical_params!(integer_scalar_max_parallelized_u8);
 
     define_scalar_comparison_test_functions!(eq, u8);
     define_scalar_comparison_test_functions!(ne, u8);
@@ -830,14 +830,14 @@ mod coverage {
     define_scalar_comparison_test_functions!(gt, u8);
     define_scalar_comparison_test_functions!(ge, u8);
 
-    create_parametrized_test_classical_params!(integer_unchecked_scalar_comparisons_edge);
+    create_parameterized_test_classical_params!(integer_unchecked_scalar_comparisons_edge);
 
-    create_parametrized_test_classical_params!(integer_is_scalar_out_of_bounds);
+    create_parameterized_test_classical_params!(integer_is_scalar_out_of_bounds);
 
-    create_parametrized_test_classical_params!(integer_comparisons_for_empty_blocks);
+    create_parameterized_test_classical_params!(integer_comparisons_for_empty_blocks);
 }
 
-create_parametrized_test!(integer_extensive_trivial_default_scalar_comparisons);
+create_parameterized_test!(integer_extensive_trivial_default_scalar_comparisons);
 
 fn integer_extensive_trivial_default_scalar_comparisons(params: impl Into<PBSParameters>) {
     let lt_executor = CpuFunctionExecutor::new(&ServerKey::scalar_lt_parallelized);

@@ -6,7 +6,7 @@ use rand::Rng;
 
 // Macro to generate tests for all parameter sets
 #[cfg(not(tarpaulin))]
-macro_rules! create_parametrized_test{
+macro_rules! create_parameterized_test{
     ($name:ident { $($param:ident),* }) => {
         ::paste::paste! {
             $(
@@ -18,7 +18,7 @@ macro_rules! create_parametrized_test{
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
@@ -60,7 +60,7 @@ macro_rules! create_parametrized_test{
 
 // Test against a small subset of parameters to speed up coverage tests
 #[cfg(tarpaulin)]
-macro_rules! create_parametrized_test{
+macro_rules! create_parameterized_test{
     ($name:ident { $($param:ident),* }) => {
         ::paste::paste! {
             $(
@@ -72,7 +72,7 @@ macro_rules! create_parametrized_test{
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
@@ -81,59 +81,59 @@ macro_rules! create_parametrized_test{
     };
 }
 
-pub(crate) use create_parametrized_test;
+pub(crate) use create_parameterized_test;
 
 //These functions are compatible with all parameter sets.
-create_parametrized_test!(shortint_encrypt_decrypt);
-create_parametrized_test!(shortint_encrypt_with_message_modulus_decrypt);
-create_parametrized_test!(shortint_encrypt_decrypt_without_padding);
-create_parametrized_test!(shortint_keyswitch_bootstrap);
-create_parametrized_test!(shortint_keyswitch_programmable_bootstrap);
-create_parametrized_test!(shortint_keyswitch_programmable_bootstrap_many_lut);
-create_parametrized_test!(shortint_carry_extract);
-create_parametrized_test!(shortint_message_extract);
-create_parametrized_test!(shortint_generate_lookup_table);
-create_parametrized_test!(shortint_unchecked_add);
-create_parametrized_test!(shortint_smart_add);
-create_parametrized_test!(shortint_default_add);
-create_parametrized_test!(shortint_smart_mul_lsb);
-create_parametrized_test!(shortint_default_mul_lsb);
-create_parametrized_test!(shortint_unchecked_neg);
-create_parametrized_test!(shortint_smart_neg);
-create_parametrized_test!(shortint_default_neg);
-create_parametrized_test!(shortint_unchecked_scalar_add);
-create_parametrized_test!(shortint_smart_scalar_add);
-create_parametrized_test!(shortint_default_scalar_add);
-create_parametrized_test!(shortint_unchecked_scalar_sub);
-create_parametrized_test!(shortint_smart_scalar_sub);
-create_parametrized_test!(shortint_default_scalar_sub);
-create_parametrized_test!(shortint_unchecked_scalar_mul);
-create_parametrized_test!(shortint_smart_scalar_mul);
-create_parametrized_test!(shortint_default_scalar_mul);
-create_parametrized_test!(shortint_unchecked_right_shift);
-create_parametrized_test!(shortint_default_right_shift);
-create_parametrized_test!(shortint_unchecked_left_shift);
-create_parametrized_test!(shortint_default_left_shift);
-create_parametrized_test!(shortint_unchecked_sub);
-create_parametrized_test!(shortint_smart_sub);
-create_parametrized_test!(shortint_default_sub);
-create_parametrized_test!(shortint_mul_small_carry);
-create_parametrized_test!(shortint_mux);
-create_parametrized_test!(shortint_unchecked_scalar_bitand);
-create_parametrized_test!(shortint_unchecked_scalar_bitor);
-create_parametrized_test!(shortint_unchecked_scalar_bitxor);
-create_parametrized_test!(shortint_smart_scalar_bitand);
-create_parametrized_test!(shortint_smart_scalar_bitor);
-create_parametrized_test!(shortint_smart_scalar_bitxor);
-create_parametrized_test!(shortint_default_scalar_bitand);
-create_parametrized_test!(shortint_default_scalar_bitor);
-create_parametrized_test!(shortint_default_scalar_bitxor);
-create_parametrized_test!(shortint_trivial_pbs);
-create_parametrized_test!(shortint_trivial_pbs_many_lut);
-create_parametrized_test!(
+create_parameterized_test!(shortint_encrypt_decrypt);
+create_parameterized_test!(shortint_encrypt_with_message_modulus_decrypt);
+create_parameterized_test!(shortint_encrypt_decrypt_without_padding);
+create_parameterized_test!(shortint_keyswitch_bootstrap);
+create_parameterized_test!(shortint_keyswitch_programmable_bootstrap);
+create_parameterized_test!(shortint_keyswitch_programmable_bootstrap_many_lut);
+create_parameterized_test!(shortint_carry_extract);
+create_parameterized_test!(shortint_message_extract);
+create_parameterized_test!(shortint_generate_lookup_table);
+create_parameterized_test!(shortint_unchecked_add);
+create_parameterized_test!(shortint_smart_add);
+create_parameterized_test!(shortint_default_add);
+create_parameterized_test!(shortint_smart_mul_lsb);
+create_parameterized_test!(shortint_default_mul_lsb);
+create_parameterized_test!(shortint_unchecked_neg);
+create_parameterized_test!(shortint_smart_neg);
+create_parameterized_test!(shortint_default_neg);
+create_parameterized_test!(shortint_unchecked_scalar_add);
+create_parameterized_test!(shortint_smart_scalar_add);
+create_parameterized_test!(shortint_default_scalar_add);
+create_parameterized_test!(shortint_unchecked_scalar_sub);
+create_parameterized_test!(shortint_smart_scalar_sub);
+create_parameterized_test!(shortint_default_scalar_sub);
+create_parameterized_test!(shortint_unchecked_scalar_mul);
+create_parameterized_test!(shortint_smart_scalar_mul);
+create_parameterized_test!(shortint_default_scalar_mul);
+create_parameterized_test!(shortint_unchecked_right_shift);
+create_parameterized_test!(shortint_default_right_shift);
+create_parameterized_test!(shortint_unchecked_left_shift);
+create_parameterized_test!(shortint_default_left_shift);
+create_parameterized_test!(shortint_unchecked_sub);
+create_parameterized_test!(shortint_smart_sub);
+create_parameterized_test!(shortint_default_sub);
+create_parameterized_test!(shortint_mul_small_carry);
+create_parameterized_test!(shortint_mux);
+create_parameterized_test!(shortint_unchecked_scalar_bitand);
+create_parameterized_test!(shortint_unchecked_scalar_bitor);
+create_parameterized_test!(shortint_unchecked_scalar_bitxor);
+create_parameterized_test!(shortint_smart_scalar_bitand);
+create_parameterized_test!(shortint_smart_scalar_bitor);
+create_parameterized_test!(shortint_smart_scalar_bitxor);
+create_parameterized_test!(shortint_default_scalar_bitand);
+create_parameterized_test!(shortint_default_scalar_bitor);
+create_parameterized_test!(shortint_default_scalar_bitxor);
+create_parameterized_test!(shortint_trivial_pbs);
+create_parameterized_test!(shortint_trivial_pbs_many_lut);
+create_parameterized_test!(
     shortint_encrypt_with_message_modulus_unchecked_mul_lsb_small_carry_and_add
 );
-create_parametrized_test!(
+create_parameterized_test!(
     shortint_encrypt_with_message_and_carry_modulus_unchecked_mul_lsb_small_carry_and_add
 );
 
