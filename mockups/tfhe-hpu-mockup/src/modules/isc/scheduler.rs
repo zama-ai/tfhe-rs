@@ -5,8 +5,8 @@ use std::collections::{BinaryHeap, HashMap, VecDeque};
 
 use crate::report::{DOpRpt, TimeRpt};
 
-// TODO put the real value
-const QUERY_CYCLE: usize = 40;
+// NB: Pool query take 4 cycles on avg there are 3 pool request in a query
+const QUERY_CYCLE: usize = 12;
 
 #[derive(Debug)]
 pub struct Scheduler {
