@@ -20,8 +20,8 @@ pub struct HpuDevice {
 impl HpuDevice {
     pub fn from_config(config_toml: &str) -> Self {
         let config = HpuConfig::read_from(config_toml);
-        let device = Self::new(config);
-        device
+        
+        Self::new(config)
     }
 
     pub fn new(config: HpuConfig) -> Self {
@@ -83,7 +83,7 @@ impl HpuDevice {
         self.ksk_set(ksk);
 
         // Init GlweLut ciphertext
-        self.lut_init(|x, y| gen_lut(x, y));
+        self.lut_init(gen_lut);
 
         // Init Fw Lut and Translation table
         self.fw_init();

@@ -118,7 +118,7 @@ impl InfoPePbs {
             .register()
             .get("Bpip::timeout")
             .expect("Unknow register, check regmap definition");
-        self.bpip_timeout = ffi_hw.read_reg(*reg_timeout.offset() as u64) as u32;
+        self.bpip_timeout = ffi_hw.read_reg(*reg_timeout.offset() as u64);
     }
 
     pub fn update_loop(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
