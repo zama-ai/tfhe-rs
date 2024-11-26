@@ -60,6 +60,159 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
   double2 *fft = (double2 *)selected_memory;
+  double2 *fft2 = fft + polynomial_size / 2;
+  // Ids
+  uint32_t level_id = blockIdx.z;
+  uint32_t glwe_id = blockIdx.y; // / (glwe_dimension + 1);
+  //uint32_t poly_id = 0; // blockIdx.y;//  % (glwe_dimension + 1);
+  uint32_t lwe_iteration = (blockIdx.x % lwe_chunk_size + lwe_offset);
+  uint32_t input_idx = blockIdx.x / lwe_chunk_size;
+
+  if (lwe_iteration < (lwe_dimension / grouping_factor)) {
+
+    const Torus *block_lwe_array_in =
+        &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
+
+    double2 *keybundle = keybundle_array +
+                         // select the input
+                         input_idx * keybundle_size_per_input;
+
+    ////////////////////////////////////////////////////////////
+    // Computes all keybundles
+    uint32_t rev_lwe_iteration =
+        ((lwe_dimension / grouping_factor) - lwe_iteration - 1);
+
+    // ////////////////////////////////
+    // Keygen guarantees the first term is a constant term of the polynomial, no
+    // polynomial multiplication required
+    const Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+        bootstrapping_key, 0, rev_lwe_iteration, glwe_id, level_id,
+        grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
+    const Torus *bsk_poly_ini = bsk_slice; // + poly_id * params::degree;
+
+    Torus reg_acc[params::opt];
+    Torus reg_acc2[params::opt];
+
+    copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
+        bsk_poly_ini, reg_acc);
+
+    copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
+        bsk_poly_ini + params::degree, reg_acc2);
+
+    int offset =
+        get_start_ith_ggsw_offset(polynomial_size, glwe_dimension, level_count);
+
+    // Precalculate the monomial degrees and store them in shared memory
+    // uint32_t *monomial_degrees = (uint32_t *)selected_memory;
+
+    if (threadIdx.x < (1 << grouping_factor)) {
+      const Torus *lwe_array_group =
+          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+      monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus, params>(
+          lwe_array_group, threadIdx.x, grouping_factor);
+    }
+    synchronize_threads_in_block();
+
+    // Accumulate the other terms
+    for (int g = 1; g < (1 << grouping_factor); g++) {
+
+      uint32_t monomial_degree = monomial_degrees[g];
+
+      const Torus *bsk_poly = bsk_poly_ini + g * offset;
+      const Torus *bsk_poly2 = bsk_poly_ini + g * offset + params::degree;
+      
+      // Multiply by the bsk element
+      polynomial_product_accumulate_by_monomial_nosync_vec<Torus, params>(
+          reg_acc, reg_acc2, bsk_poly, bsk_poly2, monomial_degree);
+    }
+    // synchronize_threads_in_block(); // needed because we are going to reuse
+    // the shared memory for the fft
+    // double2 *fft = (double2 *)selected_memory;
+    // Move from local memory back to shared memory but as complex
+    //     int tid = threadIdx.x;
+    //     double2 *fft = (double2 *)selected_memory;
+    // #pragma unroll
+    //     for (int i = 0; i < params::opt / 2; i++) {
+    //       fft[tid] =
+    //           make_double2(__ll2double_rn((int64_t)reg_acc[i]) /
+    //                            (double)std::numeric_limits<Torus>::max(),
+    //                        __ll2double_rn((int64_t)reg_acc[i + params::opt /
+    //                        2]) /
+    //                            (double)std::numeric_limits<Torus>::max());
+    //       tid += params::degree / params::opt;
+    //     }
+    double2 u[params::opt >> 2];
+    double2 v[params::opt >> 2];
+
+    double2 u2[params::opt >> 2];
+    double2 v2[params::opt >> 2];
+    for (int i = 0; i < params::opt / 4; i++) {
+      u[i] =
+          make_double2(__ll2double_rn((int64_t)reg_acc[i]) /
+                           (double)std::numeric_limits<Torus>::max(),
+                       __ll2double_rn((int64_t)reg_acc[i + params::opt / 2]) /
+                           (double)std::numeric_limits<Torus>::max());
+      u2[i] =
+          make_double2(__ll2double_rn((int64_t)reg_acc2[i]) /
+                           (double)std::numeric_limits<Torus>::max(),
+                       __ll2double_rn((int64_t)reg_acc2[i + params::opt / 2]) /
+                           (double)std::numeric_limits<Torus>::max());
+
+    }
+
+    for (int i = 0; i < params::opt / 4; i++) {
+      v[i] = make_double2(
+          __ll2double_rn((int64_t)reg_acc[i + params::opt / 4]) /
+              (double)std::numeric_limits<Torus>::max(),
+          __ll2double_rn(
+              (int64_t)reg_acc[i + params::opt / 2 + params::opt / 4]) /
+              (double)std::numeric_limits<Torus>::max());
+      v2[i] = make_double2(
+          __ll2double_rn((int64_t)reg_acc2[i + params::opt / 4]) /
+              (double)std::numeric_limits<Torus>::max(),
+          __ll2double_rn(
+              (int64_t)reg_acc2[i + params::opt / 2 + params::opt / 4]) /
+              (double)std::numeric_limits<Torus>::max());
+
+    }
+
+    NSMFFT_direct2_vec<HalfDegree<params>>(fft, fft2, u, v, u2, v2);
+
+    // lwe iteration
+    auto keybundle_out = get_ith_mask_kth_block(
+        keybundle, blockIdx.x % lwe_chunk_size, glwe_id, level_id,
+        polynomial_size, glwe_dimension, level_count);
+   // auto keybundle_poly = keybundle_out;// + poly_id * params::degree / 2;
+
+    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
+        fft, keybundle_out);
+    
+    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
+        fft2, keybundle_out + params::degree / 2);
+  }
+}
+
+template <typename Torus, class params, sharedMemDegree SMD>
+__global__ void device_multi_bit_programmable_bootstrap_keybundle_bck(
+    const Torus *__restrict__ lwe_array_in,
+    const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
+    const Torus *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t level_count, uint32_t lwe_offset, uint32_t lwe_chunk_size,
+    uint32_t keybundle_size_per_input, int8_t *device_mem,
+    uint64_t device_memory_size_per_block) {
+  __shared__ uint32_t monomial_degrees[8];
+  extern __shared__ int8_t sharedmem[];
+  int8_t *selected_memory;
+
+  if constexpr (SMD == FULLSM) {
+    selected_memory = sharedmem;
+  } else {
+    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
+                      blockIdx.z * gridDim.x * gridDim.y;
+    selected_memory = &device_mem[block_index * device_memory_size_per_block];
+  }
+  double2 *fft = (double2 *)selected_memory;
 
   // Ids
   uint32_t level_id = blockIdx.z;
@@ -167,6 +320,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
         fft, keybundle_poly);
   }
 }
+
 
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
@@ -385,7 +539,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size) {
-  return sizeof(double2) * polynomial_size / 2; // accumulator
+  return sizeof(double2) * polynomial_size;// / 2; // accumulator
 }
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
@@ -535,8 +689,11 @@ __host__ void execute_compute_keybundle(
   auto keybundle_fft = buffer->keybundle_fft;
 
   // Compute a keybundle
+//  dim3 grid_keybundle(num_samples * chunk_size,
+//                      (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
   dim3 grid_keybundle(num_samples * chunk_size,
-                      (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
+                      (glwe_dimension + 1), level_count);
+
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < full_sm_keybundle)

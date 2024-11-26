@@ -394,4 +394,112 @@ __device__ void NSMFFT_direct2(double2 *A, double2 u[params::opt >> 1],
   __syncthreads();
 }
 
+template <class params>
+__device__ void NSMFFT_direct2_vec(double2 *A, double2 *B, double2 u[params::opt >> 1],
+                               double2 v[params::opt >> 1], double2 u2[params::opt>>1], 
+                               double2 v2[params::opt>>1]) {
+
+  /* We don't make bit reverse here, since twiddles are already reversed
+   *  Each thread is always in charge of "opt/2" pairs of coefficients,
+   *  which is why we always loop through N/2 by N/opt strides
+   *  The pragma unroll instruction tells the compiler to unroll the
+   *  full loop, which should increase performance
+   */
+
+  //__syncthreads();
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
+  Index tid = threadIdx.x;
+  //  double2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+  double2 w, w2;
+  // load into registers
+  // #pragma unroll
+  //   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+  //     u[i] = A[tid];
+  //     v[i] = A[tid + HALF_DEGREE];
+
+  //     tid += STRIDE;
+  //   }
+
+  // level 1
+  // we don't make actual complex multiplication on level1 since we have only
+  // one twiddle, it's real and image parts are equal, so we can multiply
+  // it with simpler operations
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = v[i] * (double2){0.707106781186547461715008466854,
+                         0.707106781186547461715008466854};
+    w2 = v2[i] * (double2){0.707106781186547461715008466854,
+                         0.707106781186547461715008466854};
+   
+    v[i] = u[i] - w;
+    u[i] = u[i] + w;
+
+    v2[i] = u2[i] - w2;
+    u2[i] = u2[i] + w2;
+  }
+
+  Index twiddle_shift = 1;
+  for (Index l = LOG2_DEGREE - 1; l >= 1; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
+
+    tid = threadIdx.x;
+//    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      A[tid] = (u_stays_in_register) ? v[i] : u[i];
+      B[tid] = (u_stays_in_register) ? v2[i] : u2[i];
+      
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = A[tid ^ lane_mask];
+      w2 = B[tid ^ lane_mask];
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+      u2[i] = (u_stays_in_register) ? u2[i] : w2;
+      v2[i] = (u_stays_in_register) ? w2 : v2[i];
+      
+      w = negtwiddles[tid / lane_mask + twiddle_shift];
+      w2 = w*v2[i];
+      w *= v[i];
+
+      v[i] = u[i] - w;
+      u[i] = u[i] + w;
+
+      v2[i] = u2[i] - w2;
+      u2[i] = u2[i] + w2;
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+  }
+  //__syncthreads();
+
+  // store registers in SM
+  tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    A[tid * 2] = u[i];
+    A[tid * 2 + 1] = v[i];
+    B[tid * 2] = u2[i];
+    B[tid * 2 + 1] = v2[i];
+    
+    tid = tid + STRIDE;
+  }
+  __syncthreads();
+}
+
 #endif // GPU_BOOTSTRAP_FFT_CUH
