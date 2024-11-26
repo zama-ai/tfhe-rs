@@ -44,6 +44,7 @@ impl MockupParameters {
 
         let params_f = OpenOptions::new()
             .create(true)
+            .truncate(true)
             .write(true)
             .append(false)
             .open(params_p)
@@ -84,7 +85,7 @@ impl MockupOptions {
             .unwrap()
     }
 
-    pub fn report_file(&self, iop: &hpu_asm::IOpName) -> Option<File> {
+    pub fn report_file(&self, iop: hpu_asm::AsmIOpcode) -> Option<File> {
         if let Some(report_out) = &self.report_out {
             let iop_file = format!("{report_out}/{iop}.rpt");
             Some(Self::open_wr_file(&iop_file))
@@ -92,7 +93,7 @@ impl MockupOptions {
             None
         }
     }
-    pub fn report_trace(&self, iop: &hpu_asm::IOpName) -> Option<File> {
+    pub fn report_trace(&self, iop: hpu_asm::AsmIOpcode) -> Option<File> {
         if self.report_out.is_some() && self.report_trace {
             let report_out = &self.report_out.as_ref().unwrap();
             let iop_file = format!("{report_out}/{iop}.trace");

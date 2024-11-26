@@ -89,7 +89,8 @@ impl HpuHw {
         req.send(cmd).unwrap();
 
         // Wait for ack
-        let val = match ack.recv() {
+        
+        match ack.recv() {
             Ok(ack) => {
                 tracing::trace!("Ack => {ack:x?}");
                 match ack {
@@ -98,8 +99,7 @@ impl HpuHw {
                 }
             }
             Err(err) => panic!("Ipc recv {err:?}"),
-        };
-        val
+        }
     }
 
     pub fn write_reg(&mut self, addr: u64, value: u32) {
@@ -253,7 +253,7 @@ impl MemZone {
                         match ack {
                             MemoryAck::Sync { data } => {
                                 let hw_data = data.expect("No data received on Device2Host sync");
-                                self.data.copy_from_slice(&*hw_data);
+                                self.data.copy_from_slice(&hw_data);
                             }
                             _ => panic!("Ack mismatch with sent request"),
                         }

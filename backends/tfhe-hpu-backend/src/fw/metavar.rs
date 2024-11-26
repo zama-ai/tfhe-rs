@@ -6,10 +6,8 @@
 
 use super::*;
 
-use crate::asm;
-use crate::asm::arg::{Arg, MemOrigin, MemSlot};
 use crate::asm::dop::DOp;
-use crate::asm::pbs::{DigitParameters, Pbs, PbsLut};
+use crate::asm::{self, DigitParameters, ImmId, PbsLut};
 use tracing::{debug, error, trace, warn};
 
 use std::cell::RefCell;
@@ -30,6 +28,17 @@ bitflags! {
         const PBS   = 0x8;
     }
 }
+
+/// Wrap any kind of DOp operand in an enum
+/// Enable to depict the position of the associated data in the architecture
+#[derive(Debug, Clone)]
+pub enum VarPos {
+    Reg(asm::dop::RegId),
+    Mem(asm::dop::MemId),
+    Imm(asm::dop::ImmId),
+    Pbs(asm::dop::Pbs),
+}
+
 /// Wrap asm::Arg with metadata
 /// asm::Arg is used to know position of the associated value
 #[derive(Clone)]
@@ -37,7 +46,7 @@ struct MetaVar {
     prog: Rc<RefCell<program::ProgramInner>>,
     #[allow(unused)]
     uid: usize,
-    pos: Option<Arg>,
+    pos: Option<VarPos>,
     degree: usize,
 }
 
@@ -51,20 +60,20 @@ impl std::fmt::Debug for MetaVar {
 impl Drop for MetaVar {
     fn drop(&mut self) {
         trace!(target: "MetaDrop", "Drop::{self:?}");
-        if let Some(pos) = self.pos {
+        if let Some(pos) = &self.pos {
             let mut prog = self.prog.borrow_mut();
             // Release ressource attached to inner
             match pos {
-                Arg::RegId(rid) => {
+                VarPos::Reg(rid) => {
                     trace!(target: "MetaDrop", "Release Reg {rid}");
-                    prog.reg_release(rid);
+                    prog.reg_release(*rid);
                 }
 
-                Arg::MemId(mid) => {
-                    trace!(target: "MetaDrop", "Release Heap {mid:?}");
-                    prog.heap_release(mid);
+                VarPos::Mem(mid) => {
+                    trace!(target: "MetaDrop", "Release Heap {mid}");
+                    prog.heap_release(*mid);
                 }
-                Arg::Imm(_) | Arg::Pbs(_) => {}
+                VarPos::Imm(_) | VarPos::Pbs(_) => {}
             }
         }
     }
@@ -103,14 +112,13 @@ impl MetaVarCell {
     pub fn new(
         prog: Rc<RefCell<program::ProgramInner>>,
         uid: usize,
-        from: Option<Arg>,
+        from: Option<VarPos>,
         tfhe_params: DigitParameters,
     ) -> Self {
-        let degree = if let Some(arg) = from {
-            match arg {
-                Arg::RegId(_) | Arg::MemId(_) => tfhe_params.msg_mask(),
-                Arg::Imm(val) => val,
-                Arg::Pbs(p) => p.degree(&tfhe_params, tfhe_params.msg_mask()),
+        let degree = if let Some(pos) = from.as_ref() {
+            match pos {
+                VarPos::Reg(_) | VarPos::Mem(_) | VarPos::Imm(_) => tfhe_params.msg_mask(),
+                VarPos::Pbs(lut) => lut.degree(&tfhe_params, tfhe_params.msg_mask()),
             }
         } else {
             0
@@ -164,14 +172,12 @@ impl MetaVarCell {
                 let inner = self.0.borrow();
                 let mut prog = inner.prog.borrow_mut();
 
-                let asm: DOp = match src.orig() {
-                    Some(MemOrigin::Dst) => panic!("Load from UserDst register"),
-                    Some(MemOrigin::SrcA) => asm::dop::DOpTlda { dst: rid, src }.into(),
-                    Some(MemOrigin::SrcB) => asm::dop::DOpTldb { dst: rid, src }.into(),
-                    Some(MemOrigin::Heap) => asm::dop::DOpTldh { dst: rid, src }.into(),
-                    _ => asm::dop::DOpLd { dst: rid, src }.into(),
-                };
-                prog.stmts.push(asm);
+                assert!(
+                    !matches!(src, asm::MemId::Dst { .. }),
+                    "Load from UserDst register"
+                );
+                let asm: DOp = asm::dop::DOpLd::new(rid, src).into();
+                prog.stmts.push_stmt(asm);
 
                 // Release associated heap slot and update reg cache
                 prog.heap_release(src);
@@ -182,7 +188,7 @@ impl MetaVarCell {
             }
         }
         // Update associated metadata
-        self.updt_pos(Some(Arg::RegId(rid)));
+        self.updt_pos(Some(VarPos::Reg(rid)));
     }
 
     /// Allocate in heap and moved MetaVar content if any
@@ -217,7 +223,8 @@ impl MetaVarCell {
                 let inner = self.0.borrow();
                 let mut prog = inner.prog.borrow_mut();
                 prog.heap_access(mid);
-                prog.stmts.push(asm::dop::DOpTsth { dst: mid, src }.into());
+                let asm: DOp = asm::dop::DOpSt::new(mid, src).into();
+                prog.stmts.push_stmt(asm);
 
                 if reg_release {
                     prog.reg_release(src);
@@ -228,7 +235,7 @@ impl MetaVarCell {
             }
         }
         // Update associated metadata
-        self.updt_pos(Some(Arg::MemId(mid)));
+        self.updt_pos(Some(VarPos::Mem(mid)));
     }
 }
 
@@ -238,10 +245,10 @@ impl MetaVarCell {
     pub fn get_pos(&self) -> PosKind {
         if let Some(pos) = self.0.borrow().pos.as_ref() {
             match pos {
-                Arg::RegId(_) => PosKind::REG,
-                Arg::MemId(_) => PosKind::MEM,
-                Arg::Imm(_) => PosKind::IMM,
-                Arg::Pbs(_) => PosKind::PBS,
+                VarPos::Reg(_) => PosKind::REG,
+                VarPos::Mem(_) => PosKind::MEM,
+                VarPos::Imm(_) => PosKind::IMM,
+                VarPos::Pbs(_) => PosKind::PBS,
             }
         } else {
             PosKind::empty()
@@ -252,10 +259,10 @@ impl MetaVarCell {
     pub fn is_in(&self, position: PosKind) -> bool {
         if let Some(pos) = self.0.borrow().pos.as_ref() {
             match pos {
-                Arg::RegId(_) => position.contains(PosKind::REG),
-                Arg::MemId(_) => position.contains(PosKind::MEM),
-                Arg::Imm(_) => position.contains(PosKind::IMM),
-                Arg::Pbs(_) => position.contains(PosKind::PBS),
+                VarPos::Reg(_) => position.contains(PosKind::REG),
+                VarPos::Mem(_) => position.contains(PosKind::MEM),
+                VarPos::Imm(_) => position.contains(PosKind::IMM),
+                VarPos::Pbs(_) => position.contains(PosKind::PBS),
             }
         } else {
             position.is_empty()
@@ -263,7 +270,7 @@ impl MetaVarCell {
     }
 
     /// Update MetaVar position
-    fn updt_pos(&self, pos: Option<Arg>) {
+    fn updt_pos(&self, pos: Option<VarPos>) {
         let mut inner = self.0.borrow_mut();
         inner.pos = pos;
     }
@@ -282,8 +289,8 @@ impl MetaVarCell {
 
     pub fn check_degree(&self) {
         let max_degree = {
-            let msg_w = self.0.borrow().prog.borrow().props.msg_w;
-            let carry_w = self.0.borrow().prog.borrow().props.carry_w;
+            let msg_w = self.0.borrow().prog.borrow().params.msg_w;
+            let carry_w = self.0.borrow().prog.borrow().params.carry_w;
             (1 << (msg_w + carry_w + 1/* padding */)) - 1
         };
 
@@ -293,33 +300,33 @@ impl MetaVarCell {
 
 /// Utilities for uncheck field extraction
 impl MetaVarCell {
-    fn as_reg(&self) -> Option<usize> {
-        if let Some(Arg::RegId(id)) = self.0.borrow().pos {
+    fn as_reg(&self) -> Option<asm::RegId> {
+        if let Some(VarPos::Reg(id)) = self.0.borrow().pos {
             Some(id)
         } else {
             None
         }
     }
 
-    fn as_mem(&self) -> Option<MemSlot> {
-        if let Some(Arg::MemId(slot)) = self.0.borrow().pos {
-            Some(slot)
+    fn as_mem(&self) -> Option<asm::MemId> {
+        if let Some(VarPos::Mem(mid)) = self.0.borrow().pos {
+            Some(mid)
         } else {
             None
         }
     }
 
-    fn as_imm(&self) -> Option<usize> {
-        if let Some(Arg::Imm(val)) = self.0.borrow().pos {
+    fn as_imm(&self) -> Option<asm::ImmId> {
+        if let Some(VarPos::Imm(val)) = self.0.borrow().pos {
             Some(val)
         } else {
             None
         }
     }
 
-    fn as_pbs(&self) -> Option<Pbs> {
-        if let Some(Arg::Pbs(lut)) = self.0.borrow().pos {
-            Some(lut)
+    fn as_pbs(&self) -> Option<asm::Pbs> {
+        if let Some(VarPos::Pbs(lut)) = self.0.borrow().pos.as_ref() {
+            Some(lut.clone())
         } else {
             None
         }
@@ -361,23 +368,11 @@ impl MetaVarCell {
 
         // Select between standard and flushed Pbs
         if flush {
-            dst.0.borrow().prog.borrow_mut().stmts.push(
-                asm::dop::DOpPbsF {
-                    dst: dst_rid,
-                    src: src_rid,
-                    lut: pbs,
-                }
-                .into(),
-            );
+            let asm = asm::dop::DOpPbsF::new(dst_rid, src_rid, pbs.gid()).into();
+            dst.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
         } else {
-            dst.0.borrow().prog.borrow_mut().stmts.push(
-                asm::dop::DOpPbs {
-                    dst: dst_rid,
-                    src: src_rid,
-                    lut: pbs,
-                }
-                .into(),
-            );
+            let asm = asm::dop::DOpPbs::new(dst_rid, src_rid, pbs.gid()).into();
+            dst.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
         }
 
         dst.updt_degree(degree);
@@ -394,7 +389,7 @@ impl MetaVarCell {
 
     pub fn pbs_assign(&mut self, lut: &MetaVarCell, flush: bool) {
         // Construct tfhe params
-        let tfhe_params = self.0.borrow().prog.borrow().props.clone().into();
+        let tfhe_params = self.0.borrow().prog.borrow().params.clone().into();
         // Deffered to default logic
         Self::pbs_raw(self, self, lut, flush, &tfhe_params);
     }
@@ -407,7 +402,7 @@ impl MetaVarCell {
         out.reg_alloc_mv();
 
         // Construct tfhe params
-        let tfhe_params = self.0.borrow().prog.borrow().props.clone().into();
+        let tfhe_params = self.0.borrow().prog.borrow().params.clone().into();
 
         // Deffered to default logic
         Self::pbs_raw(&out, self, lut, flush, &tfhe_params);
@@ -419,7 +414,7 @@ impl MetaVarCell {
 
 /// Implement mac operator
 impl MetaVarCell {
-    fn mac_raw(dst: &MetaVarCell, rhs_0: &MetaVarCell, mul_factor: usize, rhs_1: &MetaVarCell) {
+    fn mac_raw(dst: &MetaVarCell, rhs_0: &MetaVarCell, mul_factor: u8, rhs_1: &MetaVarCell) {
         // Check operand type
         assert!(
             rhs_0.is_in(PosKind::REG | PosKind::MEM | PosKind::IMM),
@@ -430,7 +425,7 @@ impl MetaVarCell {
             "Add src must be of kind Reg|Mem|IMM MetaVar"
         );
         assert!(
-            mul_factor <= (1 << rhs_0.0.borrow().prog.borrow().props.carry_w),
+            mul_factor <= (1 << rhs_0.0.borrow().prog.borrow().params.carry_w),
             "mul_factor must be <= carry_mask to prevent overflow"
         );
 
@@ -448,77 +443,119 @@ impl MetaVarCell {
                 dst.reg_alloc_mv();
                 let dst_rid = dst.as_reg().unwrap();
                 let rhs_rid = (rhs_0.as_reg().unwrap(), rhs_1.as_reg().unwrap());
-                let degree = rhs_0.get_degree() + (rhs_1.get_degree() * mul_factor);
+                let degree = rhs_0.get_degree() + (rhs_1.get_degree() * mul_factor as usize);
 
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpMac {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                        mul_factor,
-                    }
-                    .into(),
-                );
+                let asm = asm::dop::DOpMac::new(
+                    dst_rid,
+                    rhs_rid.0,
+                    rhs_rid.1,
+                    crate::asm::dop::MulFactor(mul_factor),
+                )
+                .into();
+
+                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 dst.updt_degree(degree);
             }
             (false, true) => {
-                // Ct x Imm
-                // -> dst must be in ALU
-                dst.reg_alloc_mv();
-                let dst_rid = dst.as_reg().unwrap();
-                let rhs_rid = rhs_0.as_reg().unwrap();
-                // Imm x mul_factor could be computed offline
-                let msg_cst = rhs_1.as_imm().unwrap() * mul_factor;
-                let degree = rhs_0.get_degree() + msg_cst;
-
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpAdds {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                        msg_cst,
-                    }
-                    .into(),
-                );
-                dst.updt_degree(degree);
-            }
-            (true, false) => {
                 // Imm x Ct
                 // -> dst must be in ALU
                 warn!("mac_raw anti-pattern. Expand on two DOps [Muls, Adds]");
 
                 dst.reg_alloc_mv();
                 let dst_rid = dst.as_reg().unwrap();
+                let rhs_rid = rhs_0.as_reg().unwrap();
+                let msg_cst = rhs_1.as_imm().unwrap();
+
+                // First DOp -> Muls
+                let mut degree = rhs_0.get_degree() * mul_factor as usize;
+                dst.0.borrow().prog.borrow_mut().stmts.push_stmt(
+                    asm::dop::DOpMuls::new(dst_rid, rhs_rid, ImmId::Cst(mul_factor as u16)).into(),
+                );
+
+                // Second DOp -> Adds
+                degree += match msg_cst {
+                    ImmId::Cst(cst) => cst as usize,
+                    ImmId::Var { .. } => {
+                        let tfhe_params: asm::DigitParameters =
+                            rhs_0.0.borrow().prog.borrow().params.clone().into();
+                        tfhe_params.msg_mask()
+                    }
+                };
+                dst.0
+                    .borrow()
+                    .prog
+                    .borrow_mut()
+                    .stmts
+                    .push_stmt(asm::dop::DOpAdds::new(dst_rid, dst_rid, msg_cst).into());
+                dst.updt_degree(degree);
+            }
+            (true, false) => {
+                // Ct x Imm
+                // -> dst must be in ALU
+                dst.reg_alloc_mv();
+                let dst_rid = dst.as_reg().unwrap();
                 let rhs_rid = rhs_1.as_reg().unwrap();
                 let msg_cst = rhs_0.as_imm().unwrap();
 
-                // First DOp -> Muls
-                let degree = rhs_1.get_degree() * mul_factor;
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpMuls {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                        msg_cst: mul_factor,
-                    }
-                    .into(),
-                );
-                dst.updt_degree(degree);
+                match msg_cst {
+                    asm::ImmId::Cst(imm) => {
+                        // Imm x mul_factor could be computed offline
+                        let msg_cst = imm * mul_factor as u16;
+                        let degree = rhs_0.get_degree() + msg_cst as usize;
 
-                // Second DOp -> Adds
-                let degree = rhs_1.get_degree() * mul_factor;
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpAdds {
-                        dst: dst_rid,
-                        src: dst_rid,
-                        msg_cst,
+                        let asm =
+                            asm::dop::DOpAdds::new(dst_rid, rhs_rid, asm::ImmId::Cst(msg_cst))
+                                .into();
+
+                        rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
+                        dst.updt_degree(degree);
                     }
-                    .into(),
-                );
-                dst.updt_degree(degree);
+                    asm::ImmId::Var { .. } => {
+                        // TODO add a warning, since it's not the native pattern expected by MAC ?
+                        // Move templated constant in register and recurse
+                        // Allocate extra register
+                        // Force it's value to Imm::Var
+                        let prog = dst.0.borrow().prog.clone();
+                        let prog_clone = prog.clone();
+                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        reg_0.reg_alloc_mv();
+                        reg_0.mv_assign(rhs_0);
+                        Self::mac_raw(dst, &reg_0, mul_factor, rhs_1)
+                    }
+                }
             }
             (true, true) => {
                 // Imm x Imm -> compile time computation
-                let imm = rhs_0.as_imm().unwrap() + (rhs_1.as_imm().unwrap() * mul_factor);
-                dst.updt_pos(Some(Arg::Imm(imm)));
-                dst.updt_degree(imm);
+                match (rhs_0.as_imm().unwrap(), rhs_1.as_imm().unwrap()) {
+                    (ImmId::Cst(cst_a), ImmId::Cst(cst_b)) => {
+                        // Compile time constant
+                        let imm = cst_a + (cst_b * mul_factor as u16);
+                        dst.updt_pos(Some(VarPos::Imm(ImmId::Cst(imm))));
+                        dst.updt_degree(imm as usize);
+                    }
+                    (ImmId::Var { .. }, _) => {
+                        // Move templated constant in register and recurse
+                        // Allocate extra register
+                        // Force it's value to Imm::Var
+                        let prog = dst.0.borrow().prog.clone();
+                        let prog_clone = prog.clone();
+                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        reg_0.reg_alloc_mv();
+                        reg_0.mv_assign(rhs_0);
+                        Self::mac_raw(dst, &reg_0, mul_factor, rhs_1)
+                    }
+                    (_, ImmId::Var { .. }) => {
+                        // Move templated constant in register and recurse
+                        // Allocate extra register
+                        // Force it's value to Imm::Var
+                        let prog = dst.0.borrow().prog.clone();
+                        let prog_clone = prog.clone();
+                        let mut reg_1 = prog.borrow_mut().new_var(prog_clone);
+                        reg_1.reg_alloc_mv();
+                        reg_1.mv_assign(rhs_1);
+                        Self::mac_raw(dst, rhs_0, mul_factor, &reg_1)
+                    }
+                }
             }
         }
         trace!(
@@ -531,7 +568,7 @@ impl MetaVarCell {
         dst.check_degree();
     }
 
-    pub fn mac(&self, mul_factor: usize, rhs: &MetaVarCell) -> MetaVarCell {
+    pub fn mac(&self, mul_factor: u8, rhs: &MetaVarCell) -> MetaVarCell {
         // Allocate output variable
         let prog_clone = self.0.borrow().prog.clone();
         let dst = self.0.borrow().prog.borrow_mut().new_var(prog_clone);
@@ -539,7 +576,7 @@ impl MetaVarCell {
         dst
     }
 
-    pub fn mac_assign(&mut self, mul_factor: usize, rhs: &MetaVarCell) {
+    pub fn mac_assign(&mut self, mul_factor: u8, rhs: &MetaVarCell) {
         MetaVarCell::mac_raw(self, self, mul_factor, rhs);
     }
 }
@@ -554,7 +591,7 @@ impl MetaVarCell {
     /// NB: Option Mem <- Mem isn't provided.
     ///   Indeed, this operation induce useless LD/ST and could be replaced by
     //    MetaVarCell swapping [0 cost at runtime]
-    pub fn mv_assign(&mut self, rhs: Self) {
+    pub fn mv_assign(&mut self, rhs: &Self) {
         // Case of self is uninit => Alloc and same as Reg
         if self.is_in(PosKind::empty()) {
             self.reg_alloc_mv();
@@ -572,29 +609,19 @@ impl MetaVarCell {
                 //Update reg cache
                 prog.reg_access(src);
                 prog.reg_access(dst);
-                prog.stmts.push(
-                    asm::dop::DOpAdds {
-                        dst,
-                        src,
-                        msg_cst: 0,
-                    }
-                    .into(),
-                );
+                let asm = asm::dop::DOpAdds::new(dst, src, asm::ImmId::Cst(0)).into();
+
+                prog.stmts.push_stmt(asm);
             }
             (PosKind::REG, PosKind::MEM) => {
                 let dst = self.as_reg().unwrap();
                 let src = rhs.as_mem().unwrap();
-                let asm: DOp = match src.orig() {
-                    None => {
-                        self.0.borrow().prog.borrow_mut().heap_access(src);
-                        self.0.borrow().prog.borrow_mut().reg_access(dst);
-                        asm::dop::DOpTldh { dst, src }.into()
-                    }
-                    Some(MemOrigin::SrcA) => asm::dop::DOpTlda { dst, src }.into(),
-                    Some(MemOrigin::SrcB) => asm::dop::DOpTldb { dst, src }.into(),
-                    _ => panic!("Load from UserDst register"),
-                };
-                self.0.borrow().prog.borrow_mut().stmts.push(asm);
+                assert!(
+                    !matches!(src, asm::MemId::Dst { .. }),
+                    "Load from UserDst register"
+                );
+                let asm: DOp = asm::dop::DOpLd::new(dst, src).into();
+                self.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
             }
             (PosKind::REG, PosKind::IMM) => {
                 // Way to Trivial encrypt Imm is to do:
@@ -605,35 +632,23 @@ impl MetaVarCell {
                 let imm = rhs.as_imm().unwrap();
                 let inner = self.0.borrow();
                 let mut prog = inner.prog.borrow_mut();
-
-                prog.stmts.push(
-                    asm::dop::DOpSub {
-                        dst,
-                        src: (dst, dst),
-                    }
-                    .into(),
-                );
-                prog.stmts.push(
-                    asm::dop::DOpAdds {
-                        dst,
-                        src: dst,
-                        msg_cst: imm,
-                    }
-                    .into(),
-                );
+                prog.stmts
+                    .push_stmt(asm::dop::DOpSub::new(dst, dst, dst).into());
+                prog.stmts
+                    .push_stmt(asm::dop::DOpAdds::new(dst, dst, imm).into());
             }
             (PosKind::MEM, PosKind::REG) => {
                 let dst = self.as_mem().unwrap();
                 let src = rhs.as_reg().unwrap();
-                let asm: DOp = match dst.orig() {
-                    None => {
-                        self.0.borrow().prog.borrow_mut().heap_access(dst);
-                        asm::dop::DOpSt { dst, src }.into()
-                    }
-                    Some(MemOrigin::Dst) => asm::dop::DOpTstd { dst, src }.into(),
-                    _ => panic!("Store into UserSrc register"),
-                };
-                self.0.borrow().prog.borrow_mut().stmts.push(asm);
+                assert!(
+                    !matches!(dst, asm::MemId::Src { .. }),
+                    "Store into UserSrc register"
+                );
+
+                // Update heap if required
+                self.0.borrow().prog.borrow_mut().heap_access(dst);
+                let asm: DOp = asm::dop::DOpSt::new(dst, src).into();
+                self.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
             }
             _ => panic!("Unsupported MOVE {self:?} <- {rhs:?}"),
         }
@@ -645,7 +660,7 @@ impl MetaVarCell {
 /// Overload <<= for syntaxic sugar around it
 impl ShlAssign for MetaVarCell {
     fn shl_assign(&mut self, rhs: Self) {
-        self.mv_assign(rhs)
+        self.mv_assign(&rhs)
     }
 }
 
@@ -678,13 +693,9 @@ impl MetaVarCell {
                 let rhs_rid = (rhs_0.as_reg().unwrap(), rhs_1.as_reg().unwrap());
                 let degree = rhs_0.get_degree() + rhs_1.get_degree();
 
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpAdd {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                    }
-                    .into(),
-                );
+                let asm = asm::dop::DOpAdd::new(dst_rid, rhs_rid.0, rhs_rid.1).into();
+
+                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 dst.updt_degree(degree);
             }
             (false, true) => {
@@ -694,16 +705,17 @@ impl MetaVarCell {
                 let dst_rid = dst.as_reg().unwrap();
                 let rhs_rid = rhs_0.as_reg().unwrap();
                 let msg_cst = rhs_1.as_imm().unwrap();
-                let degree = rhs_0.get_degree() + msg_cst;
-
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpAdds {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                        msg_cst,
+                let degree = match msg_cst {
+                    ImmId::Cst(cst) => rhs_0.get_degree() + cst as usize,
+                    ImmId::Var { .. } => {
+                        let tfhe_params: asm::DigitParameters =
+                            rhs_1.0.borrow().prog.borrow().params.clone().into();
+                        rhs_0.get_degree() + tfhe_params.msg_mask()
                     }
-                    .into(),
-                );
+                };
+
+                let asm = asm::dop::DOpAdds::new(dst_rid, rhs_rid, msg_cst).into();
+                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 dst.updt_degree(degree);
             }
             (true, false) => {
@@ -713,23 +725,52 @@ impl MetaVarCell {
                 let dst_rid = dst.as_reg().unwrap();
                 let rhs_rid = rhs_1.as_reg().unwrap();
                 let msg_cst = rhs_0.as_imm().unwrap();
-                let degree = rhs_1.get_degree() + msg_cst;
-
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpAdds {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                        msg_cst,
+                // let degree = rhs_1.get_degree() + msg_cst;
+                let degree = match msg_cst {
+                    ImmId::Cst(cst) => rhs_1.get_degree() + cst as usize,
+                    ImmId::Var { .. } => {
+                        let tfhe_params: asm::DigitParameters =
+                            rhs_0.0.borrow().prog.borrow().params.clone().into();
+                        rhs_1.get_degree() + tfhe_params.msg_mask()
                     }
-                    .into(),
-                );
+                };
+
+                let asm = asm::dop::DOpAdds::new(dst_rid, rhs_rid, msg_cst).into();
+                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 dst.updt_degree(degree);
             }
             (true, true) => {
-                // Imm x Imm -> compile time computation
-                let imm = rhs_0.as_imm().unwrap() + rhs_1.as_imm().unwrap();
-                dst.updt_pos(Some(Arg::Imm(imm)));
-                dst.updt_degree(imm);
+                // Imm x Imm -> Check if this could be a compiled time constant
+                match (rhs_0.as_imm().unwrap(), rhs_1.as_imm().unwrap()) {
+                    (ImmId::Cst(cst_a), ImmId::Cst(cst_b)) => {
+                        // Compile time constant
+                        let imm = cst_a + cst_b;
+                        dst.updt_pos(Some(VarPos::Imm(ImmId::Cst(imm))));
+                        dst.updt_degree(imm as usize);
+                    }
+                    (ImmId::Var { .. }, _) => {
+                        // Move templated constant in register and recurse
+                        // Allocate extra register
+                        // Force it's value to Imm::Var
+                        let prog = dst.0.borrow().prog.clone();
+                        let prog_clone = prog.clone();
+                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        reg_0.reg_alloc_mv();
+                        reg_0.mv_assign(rhs_0);
+                        Self::add_raw(dst, &reg_0, rhs_1)
+                    }
+                    (_, ImmId::Var { .. }) => {
+                        // Move templated constant in register and recurse
+                        // Allocate extra register
+                        // Force it's value to Imm::Var
+                        let prog = dst.0.borrow().prog.clone();
+                        let prog_clone = prog.clone();
+                        let mut reg_1 = prog.borrow_mut().new_var(prog_clone);
+                        reg_1.reg_alloc_mv();
+                        reg_1.mv_assign(rhs_1);
+                        Self::add_raw(dst, rhs_0, &reg_1)
+                    }
+                }
             }
         }
         trace!(
@@ -791,13 +832,8 @@ impl MetaVarCell {
                 let rhs_rid = (rhs_0.as_reg().unwrap(), rhs_1.as_reg().unwrap());
                 let degree = rhs_0.get_degree() - rhs_1.get_degree();
 
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpSub {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                    }
-                    .into(),
-                );
+                let asm = asm::dop::DOpSub::new(dst_rid, rhs_rid.0, rhs_rid.1).into();
+                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 dst.updt_degree(degree);
             }
             (false, true) => {
@@ -807,16 +843,22 @@ impl MetaVarCell {
                 let dst_rid = dst.as_reg().unwrap();
                 let rhs_rid = rhs_0.as_reg().unwrap();
                 let msg_cst = rhs_1.as_imm().unwrap();
-                let degree = rhs_0.get_degree() - msg_cst;
-
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpSubs {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                        msg_cst,
+                let degree = match msg_cst {
+                    ImmId::Cst(cst) => rhs_0.get_degree() - cst as usize,
+                    ImmId::Var { .. } => {
+                        let tfhe_params: asm::DigitParameters =
+                            rhs_1.0.borrow().prog.borrow().params.clone().into();
+                        rhs_0.get_degree() - tfhe_params.msg_mask()
                     }
-                    .into(),
-                );
+                };
+
+                rhs_0
+                    .0
+                    .borrow()
+                    .prog
+                    .borrow_mut()
+                    .stmts
+                    .push_stmt(asm::dop::DOpSubs::new(dst_rid, rhs_rid, msg_cst).into());
                 dst.updt_degree(degree);
             }
             (true, false) => {
@@ -826,23 +868,56 @@ impl MetaVarCell {
                 let dst_rid = dst.as_reg().unwrap();
                 let rhs_rid = rhs_1.as_reg().unwrap();
                 let msg_cst = rhs_0.as_imm().unwrap();
-                let degree = msg_cst - rhs_1.get_degree();
-
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpSsub {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                        msg_cst,
+                let degree = match msg_cst {
+                    ImmId::Cst(cst) => cst as usize - rhs_1.get_degree(),
+                    ImmId::Var { .. } => {
+                        let tfhe_params: asm::DigitParameters =
+                            rhs_0.0.borrow().prog.borrow().params.clone().into();
+                        tfhe_params.msg_mask() - rhs_0.get_degree()
                     }
-                    .into(),
-                );
+                };
+
+                rhs_0
+                    .0
+                    .borrow()
+                    .prog
+                    .borrow_mut()
+                    .stmts
+                    .push_stmt(asm::dop::DOpSsub::new(dst_rid, rhs_rid, msg_cst).into());
                 dst.updt_degree(degree);
             }
             (true, true) => {
-                // Imm x Imm -> compile time computation
-                let imm = rhs_0.as_imm().unwrap() - rhs_1.as_imm().unwrap();
-                dst.updt_pos(Some(Arg::Imm(imm)));
-                dst.updt_degree(imm);
+                // Imm x Imm -> Check if this could be a compiled time constant
+                match (rhs_0.as_imm().unwrap(), rhs_1.as_imm().unwrap()) {
+                    (ImmId::Cst(cst_a), ImmId::Cst(cst_b)) => {
+                        // Compile time constant
+                        let imm = cst_a - cst_b;
+                        dst.updt_pos(Some(VarPos::Imm(ImmId::Cst(imm))));
+                        dst.updt_degree(imm as usize);
+                    }
+                    (ImmId::Var { .. }, _) => {
+                        // Move templated constant in register and recurse
+                        // Allocate extra register
+                        // Force it's value to Imm::Var
+                        let prog = dst.0.borrow().prog.clone();
+                        let prog_clone = prog.clone();
+                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        reg_0.reg_alloc_mv();
+                        reg_0.mv_assign(rhs_0);
+                        Self::sub_raw(dst, &reg_0, rhs_1)
+                    }
+                    (_, ImmId::Var { .. }) => {
+                        // Move templated constant in register and recurse
+                        // Allocate extra register
+                        // Force it's value to Imm::Var
+                        let prog = dst.0.borrow().prog.clone();
+                        let prog_clone = prog.clone();
+                        let mut reg_1 = prog.borrow_mut().new_var(prog_clone);
+                        reg_1.reg_alloc_mv();
+                        reg_1.mv_assign(rhs_1);
+                        Self::sub_raw(dst, rhs_0, &reg_1)
+                    }
+                }
             }
         }
         trace!(
@@ -907,16 +982,22 @@ impl MetaVarCell {
                 let dst_rid = dst.as_reg().unwrap();
                 let rhs_rid = rhs_0.as_reg().unwrap();
                 let msg_cst = rhs_1.as_imm().unwrap();
-                let degree = rhs_0.get_degree() * msg_cst;
-
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpMuls {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                        msg_cst,
+                let degree = match msg_cst {
+                    ImmId::Cst(cst) => rhs_0.get_degree() * cst as usize,
+                    ImmId::Var { .. } => {
+                        let tfhe_params: asm::DigitParameters =
+                            rhs_1.0.borrow().prog.borrow().params.clone().into();
+                        rhs_0.get_degree() * tfhe_params.msg_mask()
                     }
-                    .into(),
-                );
+                };
+
+                rhs_0
+                    .0
+                    .borrow()
+                    .prog
+                    .borrow_mut()
+                    .stmts
+                    .push_stmt(asm::dop::DOpMuls::new(dst_rid, rhs_rid, msg_cst).into());
                 dst.updt_degree(degree);
             }
             (true, false) => {
@@ -926,23 +1007,56 @@ impl MetaVarCell {
                 let dst_rid = dst.as_reg().unwrap();
                 let rhs_rid = rhs_1.as_reg().unwrap();
                 let msg_cst = rhs_0.as_imm().unwrap();
-                let degree = rhs_1.get_degree() * msg_cst;
-
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push(
-                    asm::dop::DOpMuls {
-                        dst: dst_rid,
-                        src: rhs_rid,
-                        msg_cst,
+                let degree = match msg_cst {
+                    ImmId::Cst(cst) => rhs_1.get_degree() * cst as usize,
+                    ImmId::Var { .. } => {
+                        let tfhe_params: asm::DigitParameters =
+                            rhs_0.0.borrow().prog.borrow().params.clone().into();
+                        rhs_1.get_degree() + tfhe_params.msg_mask()
                     }
-                    .into(),
-                );
+                };
+
+                rhs_0
+                    .0
+                    .borrow()
+                    .prog
+                    .borrow_mut()
+                    .stmts
+                    .push_stmt(asm::dop::DOpMuls::new(dst_rid, rhs_rid, msg_cst).into());
                 dst.updt_degree(degree);
             }
             (true, true) => {
-                // Imm x Imm -> compile time computation
-                let imm = rhs_0.as_imm().unwrap() * rhs_1.as_imm().unwrap();
-                dst.updt_pos(Some(Arg::Imm(imm)));
-                dst.updt_degree(imm);
+                // Imm x Imm -> Check if this could be a compiled time constant
+                match (rhs_0.as_imm().unwrap(), rhs_1.as_imm().unwrap()) {
+                    (ImmId::Cst(cst_a), ImmId::Cst(cst_b)) => {
+                        // Compile time constant
+                        let imm = cst_a * cst_b;
+                        dst.updt_pos(Some(VarPos::Imm(ImmId::Cst(imm))));
+                        dst.updt_degree(imm as usize);
+                    }
+                    (ImmId::Var { .. }, _) => {
+                        // Move templated constant in register and recurse
+                        // Allocate extra register
+                        // Force it's value to Imm::Var
+                        let prog = dst.0.borrow().prog.clone();
+                        let prog_clone = prog.clone();
+                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        reg_0.reg_alloc_mv();
+                        reg_0.mv_assign(rhs_0);
+                        Self::mul_raw(dst, &reg_0, rhs_1)
+                    }
+                    (_, ImmId::Var { .. }) => {
+                        // Move templated constant in register and recurse
+                        // Allocate extra register
+                        // Force it's value to Imm::Var
+                        let prog = dst.0.borrow().prog.clone();
+                        let prog_clone = prog.clone();
+                        let mut reg_1 = prog.borrow_mut().new_var(prog_clone);
+                        reg_1.reg_alloc_mv();
+                        reg_1.mv_assign(rhs_1);
+                        Self::mul_raw(dst, rhs_0, &reg_1)
+                    }
+                }
             }
         }
         trace!(

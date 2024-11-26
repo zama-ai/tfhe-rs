@@ -113,7 +113,7 @@ impl HpuHw {
         #[cfg(not(feature = "hw-xrt"))]
         {
             match mode {
-                FFIMode::Sim { ipc_name } => Self(sim::HpuHw::new_hpu_hw(&ipc_name)),
+                FFIMode::Sim { ipc_name } => Self(sim::HpuHw::new_hpu_hw(ipc_name)),
                 _ => panic!("Unsupported config type with ffi::sim"),
             }
         }

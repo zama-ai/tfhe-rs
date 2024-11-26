@@ -1,33 +1,14 @@
 //!
 //! Memory manager for HPU
 //! Memory is allocatod upfront and abstract as a set of slot
-//! Slot are gather in banks
 use crate::ffi;
 use std::collections::VecDeque;
 use std::sync::mpsc;
 
 /// Describe Slot position
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
-pub struct SlotId {
-    pub(crate) bid: usize,
-    pub(crate) cid: usize,
-}
-
-impl Ord for SlotId {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.bid == other.bid {
-            self.cid.cmp(&other.cid)
-        } else {
-            self.bid.cmp(&other.bid)
-        }
-    }
-}
-
-/// Describe Bank position
-#[derive(Debug)]
-struct BankId {
-    paddr: Vec<u64>,
-}
+/// Abstract from internal ASM type to help with future
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+pub struct SlotId(pub(crate) usize);
 
 /// Ciphertext could be spread over multiple HbmPc.
 /// A Slot is describe as a position and a set of associated MemZone
@@ -65,7 +46,6 @@ impl CiphertextSlot {
 
 #[derive(Debug, Clone)]
 pub struct CiphertextMemoryProperties {
-    pub bank: usize,
     pub hbm_cut: Vec<usize>,
     pub cut_size_b: usize,
     pub slot_nb: usize,
@@ -73,8 +53,6 @@ pub struct CiphertextMemoryProperties {
 
 #[derive(Debug)]
 pub struct CiphertextMemory {
-    #[allow(unused)]
-    bank_id: Vec<BankId>,
     pool: VecDeque<CiphertextSlot>,
     /// Slot free are done through mpsc channel
     free_rx: mpsc::Receiver<CiphertextSlot>,
@@ -118,68 +96,58 @@ impl CiphertextMemory {
     pub fn alloc(
         ffi_hw: &mut ffi::HpuHw,
         regmap: &hw_regmap::FlatRegmap,
-        props: &[CiphertextMemoryProperties],
+        props: &CiphertextMemoryProperties,
     ) -> Self {
-        let mut bank_id = Vec::new();
-        let mut pool = VecDeque::new();
+        let pool = (0..props.slot_nb)
+            .map(|cid| {
+                let id = SlotId(cid);
+                CiphertextSlot::alloc(ffi_hw, id, props)
+            })
+            .collect::<VecDeque<_>>();
 
-        for p in props {
-            let bank = (0..p.slot_nb)
-                .map(|cid| {
-                    let id = SlotId { bid: p.bank, cid };
-                    CiphertextSlot::alloc(ffi_hw, id, p)
+        let mut paddr = Vec::with_capacity(props.hbm_cut.len());
+        if !pool.is_empty() {
+            // Sanity check
+            // Slot must be contiguous in each cut
+
+            for cut_nb in 0..props.hbm_cut.len() {
+                let base_addr = pool[0].mz[cut_nb].paddr();
+                paddr.push(base_addr);
+
+                pool.iter().enumerate().for_each(|(i, slot)| {
+                    let cont_addr = base_addr + (i * props.cut_size_b) as u64;
+                    let real_addr = slot.mz[cut_nb].paddr();
+                    assert_eq!(
+                        cont_addr, real_addr,
+                        "Ct slot@{i} weren't contiguous in memory"
+                    );
+                });
+            }
+
+            // Extract LdSt_addr_pc register addr
+            let ldst_addr_pc = (0..props.hbm_cut.len())
+                .map(|idx| {
+                    let lsb_name = format!("LdSt::addr_pc{idx}_lsb");
+                    let msb_name = format!("LdSt::addr_pc{idx}_msb");
+                    let lsb = regmap
+                        .register()
+                        .get(&lsb_name)
+                        .expect("Unknow register, check regmap definition");
+                    let msb = regmap
+                        .register()
+                        .get(&msb_name)
+                        .expect("Unknow register, check regmap definition");
+                    (lsb, msb)
                 })
                 .collect::<Vec<_>>();
 
-            if !bank.is_empty() {
-                // Sanity check
-                // Slot must be contiguous in each cut
-                let mut bid = BankId {
-                    paddr: Vec::with_capacity(p.hbm_cut.len()),
-                };
-
-                for cut_nb in 0..p.hbm_cut.len() {
-                    let base_addr = bank[0].mz[cut_nb].paddr();
-                    bid.paddr.push(base_addr);
-
-                    bank.iter().enumerate().for_each(|(i, slot)| {
-                        let cont_addr = base_addr + (i * p.cut_size_b) as u64;
-                        let real_addr = slot.mz[cut_nb].paddr();
-                        assert_eq!(
-                            cont_addr, real_addr,
-                            "Ct slot@{i} weren't contiguous in memory"
-                        );
-                    });
-                }
-
-                // Extract LdSt_bank addr_pc register addr
-                let ldst_addr_pc = (0..p.hbm_cut.len())
-                    .map(|idx| {
-                        let lsb_name = format!("LdSt_bank{}::addr_pc{idx}_lsb", p.bank);
-                        let msb_name = format!("LdSt_bank{}::addr_pc{idx}_msb", p.bank);
-                        let lsb = regmap
-                            .register()
-                            .get(&lsb_name)
-                            .expect("Unknow register, check regmap definition");
-                        let msb = regmap
-                            .register()
-                            .get(&msb_name)
-                            .expect("Unknow register, check regmap definition");
-                        (lsb, msb)
-                    })
-                    .collect::<Vec<_>>();
-
-                // Write pc_addr in registers
-                for (addr, (lsb, msb)) in std::iter::zip(bid.paddr.iter(), ldst_addr_pc.iter()) {
-                    ffi_hw.write_reg(
-                        *msb.offset() as u64,
-                        ((addr >> u32::BITS) & (u32::MAX) as u64) as u32,
-                    );
-                    ffi_hw.write_reg(*lsb.offset() as u64, (addr & (u32::MAX as u64)) as u32);
-                }
-
-                bank_id.push(bid);
-                pool.extend(bank);
+            // Write pc_addr in registers
+            for (addr, (lsb, msb)) in std::iter::zip(paddr.iter(), ldst_addr_pc.iter()) {
+                ffi_hw.write_reg(
+                    *msb.offset() as u64,
+                    ((addr >> u32::BITS) & (u32::MAX) as u64) as u32,
+                );
+                ffi_hw.write_reg(*lsb.offset() as u64, (addr & (u32::MAX as u64)) as u32);
             }
         }
         // Construct channel for mt API
@@ -187,7 +155,6 @@ impl CiphertextMemory {
         let (free_tx, free_rx) = mpsc::channel();
 
         Self {
-            bank_id,
             pool,
             free_rx,
             free_tx,
@@ -206,6 +173,12 @@ impl CiphertextMemory {
     pub fn get_bundle(&mut self, bundle_size: usize) -> CiphertextBundle {
         // TODO handle fragmentation
         // Check that bundle is contiguous
+
+        // TODO check that given bundle wasn't reserved for heap
+        // NB: Heap must be outside of allocated memory to prevent collision
+        // However, this `unseen` memory couldn't be correctly handled by the
+        // current mockup implementation
+        // FIXME
 
         let mut slots = Vec::with_capacity(bundle_size);
         for _ in 0..bundle_size {

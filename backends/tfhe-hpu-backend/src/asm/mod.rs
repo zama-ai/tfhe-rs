@@ -1,223 +1,113 @@
-//!
-//! Set of trait used to described and handle an instruction set
-//!
-//! Provide two concrete implementation of those traits
-//! * DigitOperations (DOp)
-//! * IntegerOperarions (IOp)
-
-pub mod arg;
 pub mod dop;
+pub use dop::arg::Arg as DOpArg;
+pub use dop::{DOp, DigitParameters, ImmId, MemId, Pbs, PbsGid, PbsLut, RegId, ToHex};
 pub mod iop;
-pub mod pbs;
+pub use iop::{AsmIOpcode, IOp, IOpcode, OperandKind};
 
-pub use strum;
+use std::collections::VecDeque;
+use std::io::{BufRead, Write};
 
-use enum_dispatch::enum_dispatch;
+pub const ASM_COMMENT_PREFIX: [char; 2] = [';', '#'];
 
-pub use arg::{Arg, MemMode, MemOrigin, MemSlot, ARG_MIN_WIDTH};
-pub use dop::*;
-pub use iop::*;
-pub use pbs::*;
+// Common type use in both DOp/IOp definition ---------------------------------
+/// Ciphertext Id
+/// On-board memory is view as an array of ciphertext,
+/// Thus, instead of using bytes address, ct id is used
+/// => Id of the first ciphertext of the vector
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct CtId(pub u16);
 
-use rand::rngs::StdRng;
-use serde::{Deserialize, Serialize};
-use std::any::Any;
-use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader, Write};
-use std::path::Path;
-use std::str::FromStr;
-use thiserror::Error;
+// ---------------------------------------------------------------------------
 
-// #[cfg(test)]
-// mod unit_tests;
+/// Simple test for Asm parsing
+#[cfg(test)]
+mod tests;
 
-// Parsing error
-#[derive(Error, Debug, Clone)]
-pub enum ArgError {
-    #[error("Invalid arguments number: {self:?}[exp, get]")]
-    InvalidNumber(usize, usize),
-    #[error("Invalid arguments: {self:?}[exp, get]")]
-    InvalidField(String, Arg),
-}
-
-// Parsing error
-#[derive(Error, Debug, Clone)]
-pub enum ParsingError {
-    #[error("Unmatch Asm Operation")]
-    Unmatch,
-    #[error("Invalid arguments: {0}")]
-    InvalidArg(String),
-    #[error("Empty line")]
-    Empty,
-}
-
-/// Describe Hw Properties
-/// Use to generate valid Random values
+/// Type to aggregate Op and header
+/// Aims is to kept correct interleaving while parsing
 #[derive(Debug, Clone)]
-pub struct ArchProperties {
-    pub regs: usize,
-    pub mem: MemRegion,
-    pub pbs_w: usize,
-
-    pub msg_w: usize,
-    pub carry_w: usize,
-    pub nu: usize,
-    pub integer_w: usize,
+pub enum AsmOp<Op> {
+    Comment(String),
+    Stmt(Op),
 }
 
-impl ArchProperties {
-    pub fn blk_w(&self) -> usize {
-        self.integer_w.div_ceil(self.msg_w)
-    }
-}
-
-/// Memory region definition
-/// Only used to define memory size and shape
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-pub struct MemRegion {
-    pub bid: usize,
-    pub size: usize,
-}
-impl FromStr for MemRegion {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (bid_str, size_str) = s
-            .strip_prefix('{')
-            .and_then(|s| s.strip_suffix('}'))
-            .and_then(|s| s.split_once(':'))
-            .ok_or(anyhow::Error::msg(
-                "Parsing error: expect something like '{{bid: size}}'",
-            ))?;
-
-        // Convert str to usize
-        let bid = bid_str.trim().parse::<usize>()?;
-        let size = size_str.trim().parse::<usize>()?;
-        Ok(Self { bid, size })
-    }
-}
-
-/// Base trait to depict an ASM instruction
-/// Provides a set of method to raison about intruction and access fields
-#[enum_dispatch(DOp, IOp)]
-pub trait Asm {
-    fn name(&self) -> &'static str;
-    fn has_imm(&self) -> bool;
-
-    // Generic arguments handling
-    fn args(&self) -> Vec<Arg>;
-    fn dst(&self) -> Vec<Arg>;
-    fn src(&self) -> Vec<Arg>;
-
-    // Randomization
-    fn randomize(&mut self, props: &ArchProperties, rng: &mut StdRng);
-
-    // Serde as human readable ASM
-    fn asm_encode(&self, width: usize) -> String;
-    fn from_args(&mut self, args: Vec<Arg>) -> Result<(), anyhow::Error>;
-}
-
-#[enum_dispatch(DOp, IOp)]
-// #[enum_dispatch(DOp)]
-pub trait AsmBin {
-    // Serde as binary values
-    fn bin_encode_le(&self) -> Result<Vec<u8>, anyhow::Error>;
-    fn from_deku(&mut self, any: &dyn Any) -> Result<(), ParsingError>;
-}
-
-/// Generic structure use to encode/decode ASM operation to/from a file
-#[derive(Debug)]
-pub struct Parser<Op> {
-    op_list: Vec<Op>,
-}
-
-impl<Op> Parser<Op> {
-    pub fn new(op_list: Vec<Op>) -> Self {
-        Self { op_list }
-    }
-}
-
-impl<Op> Parser<Op> {
-    pub fn from_asm(&mut self, asm: &str) -> Result<Op, ParsingError>
-    where
-        Arg: std::str::FromStr,
-        Op: Asm + Clone,
-    {
-        // Parse Args
-        let arg_str = asm.split_whitespace().collect::<Vec<_>>();
-        if !arg_str.is_empty() {
-            let name = arg_str[0];
-            let args = arg_str[1..]
-                .iter()
-                .map(|s| Arg::from_str(s))
-                .collect::<Result<Vec<_>, _>>()?;
-
-            // Template name patching if need
-            let mut template_args = args
-                .iter()
-                .map(|arg| {
-                    if let Arg::MemId(MemSlot {
-                        mode: MemMode::Template,
-                        orig,
-                        ..
-                    }) = arg
-                    {
-                        orig
-                    } else {
-                        &None
-                    }
-                })
-                .filter(|orig| orig.is_some())
-                .collect::<Vec<_>>();
-
-            let name = if let Some(orig) = template_args.pop() {
-                match orig.unwrap() {
-                    MemOrigin::Dst => "TSTD".to_string(),
-                    MemOrigin::SrcA => "TLDA".to_string(),
-                    MemOrigin::SrcB => "TLDB".to_string(),
-                    MemOrigin::Heap => {
-                        format!("T{name}H")
-                    }
-                }
-            } else {
-                name.to_string()
-            };
-
-            // Try match against op
-            for op in self.op_list.iter_mut() {
-                if name == op.name() {
-                    op.from_args(args)
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
-                    return Ok(op.clone());
-                }
-            }
-            Err(ParsingError::Unmatch)
-        } else {
-            Err(ParsingError::Empty)
+impl<Op: std::fmt::Display> std::fmt::Display for AsmOp<Op> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Comment(c) => write!(f, "{}{c}", ASM_COMMENT_PREFIX[0]),
+            Self::Stmt(op) => write!(f, "{op}"),
         }
     }
+}
 
-    pub fn read_asm<Arg>(&mut self, file: &str) -> Result<(String, Vec<Op>), anyhow::Error>
-    where
-        Arg: std::str::FromStr,
-        Op: Asm + Clone,
-    {
+/// Generic struct to represent sequence of operations
+/// Used to extract OP from ASM file
+/// Work on any kind of Op that implement FromStr
+#[derive(Debug, Clone)]
+pub struct Program<Op>(Vec<AsmOp<Op>>);
+
+impl<Op> Default for Program<Op> {
+    fn default() -> Self {
+        Self(Vec::new())
+    }
+}
+
+impl<Op> Program<Op> {
+    pub fn new(ops: Vec<AsmOp<Op>>) -> Self {
+        Self(ops)
+    }
+    pub fn push_stmt(&mut self, op: Op) {
+        self.0.push(AsmOp::Stmt(op))
+    }
+    pub fn push_comment(&mut self, comment: String) {
+        self.0.push(AsmOp::Comment(comment))
+    }
+}
+
+impl<Op> std::ops::Deref for Program<Op> {
+    type Target = Vec<AsmOp<Op>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<Op: std::fmt::Display> std::fmt::Display for Program<Op> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for op in self.0.iter() {
+            writeln!(f, "{op}")?;
+        }
+        Ok(())
+    }
+}
+
+impl<Op, Err> Program<Op>
+where
+    Op: std::str::FromStr<Err = Err>,
+    Err: std::error::Error,
+{
+    /// Generic function to extract OP from ASM file
+    /// Work on any kind of Op that implement FromStr
+    pub fn read_asm(file: &str) -> Result<Self, anyhow::Error> {
         // Open file
-        let rd_f = BufReader::new(OpenOptions::new().create(false).read(true).open(file)?);
+        let rd_f = std::io::BufReader::new(
+            std::fs::OpenOptions::new()
+                .create(false)
+                .read(true)
+                .open(file)?,
+        );
 
-        let mut header = String::new();
-        let mut ops = Vec::new();
+        let mut asm_ops = Vec::new();
         for (line, val) in rd_f.lines().flatten().enumerate() {
-            if let Some(comment) = val.trim().strip_prefix('#') {
-                header += comment.trim();
-                header += "\n";
-            } else {
-                match self.from_asm(&val) {
-                    Ok(op) => ops.push(op),
-                    Err(ParsingError::Empty) => {}
+            if let Some(comment) = val.trim().strip_prefix(ASM_COMMENT_PREFIX) {
+                asm_ops.push(AsmOp::Comment(comment.to_string()))
+            } else if !val.is_empty() {
+                match Op::from_str(&val) {
+                    Ok(op) => asm_ops.push(AsmOp::Stmt(op)),
                     Err(err) => {
+                        tracing::warn!("ReadAsm failed @{file}:{}", line + 1);
                         anyhow::bail!(
-                            "ReadAsm parser encounter error @{file}:{} ->{}",
+                            "ReadAsm failed @{file}:{} with {}",
                             line + 1,
                             err.to_string()
                         );
@@ -225,149 +115,201 @@ impl<Op> Parser<Op> {
                 }
             }
         }
-        Ok((header, ops))
+        Ok(Self(asm_ops))
     }
 }
 
-impl<Op> Parser<Op> {
-    pub fn from_be_bytes<Deku>(&mut self, bin: &[u8]) -> Result<Op, anyhow::Error>
-    where
-        Deku: for<'a> deku::DekuContainerRead<'a> + 'static,
-        Op: AsmBin + Clone,
-    {
-        let (_, deku) = Deku::from_bytes((bin, 0))?;
-        for op in self.op_list.iter_mut() {
-            if op.from_deku(&deku).is_ok() {
-                return Ok(op.clone());
-            }
+impl<Op> Program<Op>
+where
+    Op: std::fmt::Display,
+{
+    /// Generic function to write Op in ASM file
+    /// Work on any kind of Op that implement Display
+    pub fn write_asm(&self, file: &str) -> Result<(), anyhow::Error> {
+        // Create path
+        let path = std::path::Path::new(file);
+        if let Some(dir_p) = path.parent() {
+            std::fs::create_dir_all(dir_p).unwrap();
         }
-        Err(ParsingError::Unmatch.into())
-    }
 
-    pub fn read_hex<Deku>(&mut self, file: &str) -> Result<(String, Vec<Op>), anyhow::Error>
-    where
-        Deku: for<'a> deku::DekuContainerRead<'a> + 'static,
-        Op: AsmBin + Clone,
-    {
         // Open file
-        let rd_f = BufReader::new(OpenOptions::new().create(false).read(true).open(file)?);
+        let mut wr_f = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(path)?;
 
-        let mut header = String::new();
-        let mut ops = Vec::new();
+        writeln!(wr_f, "{self}").map_err(anyhow::Error::new)
+    }
+}
 
+// Implement dedicated hex parser/dumper for DOp
+impl Program<dop::DOp> {
+    /// Generic function to extract OP from hex file
+    /// Work on any kind of Op that implement FromStr
+    pub fn read_hex(file: &str) -> Result<Self, anyhow::Error> {
+        // Open file
+        let rd_f = std::io::BufReader::new(
+            std::fs::OpenOptions::new()
+                .create(false)
+                .read(true)
+                .open(file)
+                .unwrap_or_else(|_| panic!("Invalid HEX file {file}")),
+        );
+
+        let mut prog = Self::default();
         for (line, val) in rd_f.lines().flatten().enumerate() {
-            if let Some(comment) = val.trim().strip_prefix('#') {
-                header += comment.trim();
-                header += "\n";
+            if let Some(comment) = val.trim().strip_prefix(ASM_COMMENT_PREFIX) {
+                prog.push_comment(comment.to_string());
             } else {
-                // WARN: Deku expect BigEndian order (required to use Opcode as enum encoder)
-                // File were written word by word (thus first byte read is the MSB one)
-                let bytes = val
-                    .as_bytes()
-                    .chunks(2)
-                    .map(|x| u8::from_str_radix(std::str::from_utf8(x).unwrap(), 16))
-                    .collect::<Result<Vec<u8>, _>>()?;
-
-                match self.from_be_bytes::<Deku>(&bytes) {
-                    Ok(op) => ops.push(op),
+                let val_u32 =
+                    dop::DOpRepr::from_str_radix(std::str::from_utf8(val.as_bytes()).unwrap(), 16)?;
+                match dop::DOp::from_hex(val_u32) {
+                    Ok(op) => prog.push_stmt(op),
                     Err(err) => {
-                        anyhow::bail!(
-                            "ReadHex parser encounter error @{file}:{} ->{}",
-                            line + 1,
-                            err.to_string()
-                        );
+                        tracing::warn!("DOp::ReadHex failed @{file}:{}", line + 1);
+                        return Err(err.into());
                     }
                 }
             }
         }
-        Ok((header, ops))
-    }
-}
-
-pub fn write_asm<Op>(
-    header: &str,
-    ops: &[Op],
-    file: &str,
-    width: usize,
-) -> Result<(), anyhow::Error>
-where
-    Op: Asm,
-{
-    // Create path
-    let path = Path::new(file);
-    if let Some(dir_p) = path.parent() {
-        std::fs::create_dir_all(dir_p).unwrap();
+        Ok(prog)
     }
 
-    // Open file
-    let mut wr_f = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(path)?;
-
-    // TODO handle write error properly
-    for l in header.lines() {
-        writeln!(wr_f, "# {l}")?;
-    }
-
-    for op in ops.iter() {
-        writeln!(wr_f, "{}", op.asm_encode(width))?;
-    }
-    Ok(())
-}
-
-pub fn write_hex<Op>(header: &str, ops: &[Op], file: &str) -> Result<(), anyhow::Error>
-where
-    Op: AsmBin + Clone,
-{
-    // Create path
-    let path = Path::new(file);
-    if let Some(dir_p) = path.parent() {
-        std::fs::create_dir_all(dir_p).unwrap();
-    }
-
-    // Open file
-    let mut wr_f = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(path)?;
-
-    // TODO handle write error properly
-    for l in header.lines() {
-        writeln!(wr_f, "# {l}")?;
-    }
-
-    // TODO handle write error properly
-    for op in ops {
-        let bytes = op.bin_encode_le()?;
-        // Bytes are in little-endian but written from first to last line
-        // To keep correct endianness -> reverse the chunked vector
-        for bytes_chunks in bytes.chunks(std::mem::size_of::<u32>()).rev() {
-            let word_b = bytes_chunks.try_into().expect("Invalid slice length");
-            let word_u32 = u32::from_le_bytes(word_b);
-            writeln!(wr_f, "{word_u32:08x}")?;
+    /// Generic function to write Op in Hex file
+    pub fn write_hex(&self, file: &str) -> Result<(), anyhow::Error> {
+        // Create path
+        let path = std::path::Path::new(file);
+        if let Some(dir_p) = path.parent() {
+            std::fs::create_dir_all(dir_p).unwrap();
         }
+
+        // Open file
+        let mut wr_f = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(path)?;
+
+        for op in self.0.iter() {
+            match op {
+                AsmOp::Comment(comment) => writeln!(wr_f, "{}{}", ASM_COMMENT_PREFIX[0], comment)?,
+                AsmOp::Stmt(op) => writeln!(wr_f, "{:x}", op.to_hex())?,
+            }
+        }
+        Ok(())
     }
-    Ok(())
 }
 
-/// Convert prog in translation table (word with 32)
-/// First word is the table length
-/// Other word are list of Op in hex format
-pub fn tr_table<Op>(ops: &[Op]) -> Vec<u32>
-where
-    Op: AsmBin + Clone,
-{
-    let mut words_stream = Vec::with_capacity(ops.len() + 1);
+impl Program<dop::DOp> {
+    /// Convert a program of Dops in translation table
+    /// TODO modify it to support multiple integer width
+    pub fn tr_table(&self) -> Vec<dop::DOpRepr> {
+        let ops_stream = self
+            .iter()
+            .map(|op| match op {
+                AsmOp::Comment(_) => None,
+                AsmOp::Stmt(op) => Some(op),
+            })
+            .filter(|x| x.is_some())
+            .collect::<Vec<_>>();
 
-    // First word of the stream is length in DOp
-    words_stream.push(ops.len() as u32);
-    ops.iter().for_each(|op| {
-        let op_bytes = op.bin_encode_le().unwrap();
-        let op_word = op_bytes.try_into().expect("Invalid slice length");
-        words_stream.push(u32::from_le_bytes(op_word));
-    });
-    words_stream
+        let mut words_stream = Vec::with_capacity(ops_stream.len() + 1);
+        // First word of the stream is length in DOp
+        words_stream.push(ops_stream.len() as u32);
+
+        ops_stream.iter().for_each(|op| {
+            words_stream.push(op.unwrap().to_hex());
+        });
+        words_stream
+    }
+}
+
+// Implement dedicated hex parser/dumper for IOp
+impl Program<iop::IOp> {
+    /// Generic function to extract OP from hex file
+    pub fn read_hex(file: &str) -> Result<Self, anyhow::Error> {
+        // Open file
+        let rd_f = std::io::BufReader::new(
+            std::fs::OpenOptions::new()
+                .create(false)
+                .read(true)
+                .open(file)
+                .unwrap_or_else(|_| panic!("Invalid HEX file {file}")),
+        );
+
+        let mut prog = Self::default();
+        // Buffer word stream.
+        // When comment token occured, convert the word stream into IOp
+        // -> No comment could be inserted in a middle of IOp word stream
+        let mut word_stream = VecDeque::new();
+        let mut file_len = 0;
+
+        for val in rd_f.lines().flatten() {
+            file_len += 1;
+            if let Some(comment) = val.trim().strip_prefix(ASM_COMMENT_PREFIX) {
+                while !word_stream.is_empty() {
+                    match iop::IOp::from_words(&mut word_stream) {
+                        Ok(op) => prog.push_stmt(op),
+                        Err(err) => {
+                            tracing::warn!(
+                                "IOp::ReadHex failed @{file}:{}",
+                                file_len - word_stream.len()
+                            );
+                            return Err(err.into());
+                        }
+                    }
+                }
+                prog.push_comment(comment.to_string());
+            } else {
+                let word = iop::IOpWordRepr::from_str_radix(
+                    std::str::from_utf8(val.as_bytes()).unwrap(),
+                    16,
+                )?;
+                word_stream.push_back(word);
+            }
+        }
+        // Flush word stream
+        while !word_stream.is_empty() {
+            match iop::IOp::from_words(&mut word_stream) {
+                Ok(op) => prog.push_stmt(op),
+                Err(err) => {
+                    tracing::warn!(
+                        "IOp::ReadHex failed @{file}:{}",
+                        file_len - word_stream.len()
+                    );
+                    return Err(err.into());
+                }
+            }
+        }
+        Ok(prog)
+    }
+
+    /// Generic function to write Op in Hex file
+    pub fn write_hex(&self, file: &str) -> Result<(), anyhow::Error> {
+        // Create path
+        let path = std::path::Path::new(file);
+        if let Some(dir_p) = path.parent() {
+            std::fs::create_dir_all(dir_p).unwrap();
+        }
+
+        // Open file
+        let mut wr_f = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(path)?;
+
+        for op in self.0.iter() {
+            match op {
+                AsmOp::Comment(comment) => writeln!(wr_f, "{}{}", ASM_COMMENT_PREFIX[0], comment)?,
+                AsmOp::Stmt(op) => {
+                    op.to_words()
+                        .into_iter()
+                        .try_for_each(|word| writeln!(wr_f, "{:0>8x}", word))?;
+                }
+            }
+        }
+        Ok(())
+    }
 }

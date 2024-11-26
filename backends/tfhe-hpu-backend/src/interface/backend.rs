@@ -1,10 +1,9 @@
 /// Implement inner-view of Hpu backend
 use super::*;
-use crate::asm::strum::IntoEnumIterator;
-use crate::asm::{self, Asm, AsmBin, PbsLut};
+use crate::asm::PbsLut;
 use crate::entities::*;
-use crate::ffi;
-use crate::fw::Fw;
+use crate::fw::{Fw, FwParameters};
+use crate::{asm, ffi};
 use rtl::FromRtl;
 
 use std::collections::VecDeque;
@@ -70,7 +69,7 @@ impl HpuBackendWrapped {
         Self(Arc::new(HpuBackendLock::new(inner)))
     }
     pub fn new_wrapped(config: &config::HpuConfig) -> Self {
-        Self(Arc::new(HpuBackendLock::new(HpuBackend::new(&config))))
+        Self(Arc::new(HpuBackendLock::new(HpuBackend::new(config))))
     }
 }
 impl std::ops::Deref for HpuBackendWrapped {
@@ -192,7 +191,7 @@ impl HpuBackend {
         // Allocate memory for GlweLut
         let lut_props = memory::HugeMemoryProperties {
             hbm_cut: vec![config.board.lut_pc],
-            cut_coefs: config.board.lut_bank * params.pbs_params.polynomial_size,
+            cut_coefs: config.board.lut_mem * params.pbs_params.polynomial_size,
         };
         let lut_mem = memory::HugeMemory::alloc(&mut hpu_hw, lut_props);
 
@@ -212,18 +211,15 @@ impl HpuBackend {
             hpu_big_lwe_ciphertext_size(&params).div_ceil(params.pc_params.pem_pc)
                 * std::mem::size_of::<u64>(),
         );
-        let ct_banks = (0..config::HPU_MEM_BANK_NB)
-            .map(|bid| memory::CiphertextMemoryProperties {
-                bank: bid,
-                hbm_cut: config.board.ct_pc.clone(),
-                // NB: Xrt only support page align memory allocation. Thus we round cut coefs to
-                // match the next 4k page boundary
-                cut_size_b,
-                slot_nb: config.board.ct_bank[bid],
-            })
-            .collect::<Vec<_>>();
-        debug!("Ct bank -> {:?}", ct_banks);
-        let ct_mem = memory::CiphertextMemory::alloc(&mut hpu_hw, &regmap, &ct_banks);
+        let ct_props = memory::CiphertextMemoryProperties {
+            hbm_cut: config.board.ct_pc.clone(),
+            // NB: Xrt only support page align memory allocation. Thus we round cut coefs to
+            // match the next 4k page boundary
+            cut_size_b,
+            slot_nb: config.board.ct_mem,
+        };
+        debug!("Ct_mem properties -> {:?}", ct_props);
+        let ct_mem = memory::CiphertextMemory::alloc(&mut hpu_hw, &regmap, &ct_props);
 
         // Construct channel for mt API
         // Keep track of the sender for clone it later on
@@ -501,10 +497,8 @@ impl HpuBackend {
         // Iterate over HwHpu::PbsLut
         // Construct them with associated parameters set
         // And upload them in memory
-        for lut in asm::PbsName::iter() {
-            // Create associated real lut
-            let lut_impl = asm::Pbs::from(lut);
-            let lut_gid = lut_impl.gid();
+        for lut_impl in asm::Pbs::list_all() {
+            let lut_gid = lut_impl.gid().0 as usize;
 
             // Write it in on-board memory
             // Lut are encoded as trivial ciphertext.
@@ -552,53 +546,41 @@ impl HpuBackend {
     pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
         // Create Asm architecture properties and Fw instanciation
         // TODO construct from real params
-        let fw_arch_props = asm::ArchProperties {
+        let fw_arch_props = FwParameters {
             regs: self.params.regf_params.reg_nb,
-            mem: asm::MemRegion {
-                bid: 3,
-                size: config.board.ct_bank[3],
-            },
-            pbs_w: config.firmware.pbs_w,
+            heap_size: config.board.heap_size,
+            pbs_batch_w: config.firmware.pbs_batch_w,
             msg_w: 2,
             carry_w: 2,
             nu: 5,
             // TODO extend with multi-width support
             integer_w: config.firmware.integer_w[0],
         };
-        let mut fw = crate::fw::fw_impl::ilp::Ilp::default();
 
+        let mut fw = crate::fw::fw_impl::ilp::Ilp::default();
         // Generate Fw for standard operation
-        let mut id_fw = asm::IOpName::iter()
-            .filter(|x| !(x.to_string().contains("CUST") || x.to_string().contains("CTL")))
-            .map(|x| {
-                let iop = asm::IOp::from(x);
-                let iop_opcode = *iop.bin_encode_le().unwrap().last().unwrap();
-                let prog = fw.expand(&fw_arch_props, &[iop]);
-                (iop_opcode as usize, prog.tr_table())
+        // -> All operation with an associated alias
+        let mut id_fw = asm::iop::IOP_LIST
+            .iter()
+            .map(|iop| {
+                let opcode = iop.opcode();
+                let prog = fw.expand(&fw_arch_props, iop);
+                (opcode.0 as usize, prog.tr_table())
             })
             .collect::<Vec<_>>();
 
         // Load custom IOp from file
-        // Create dop parser
-        let dops_ref = asm::dop::DOp::iter().collect::<Vec<_>>();
-        let mut dop_parser = asm::Parser::new(dops_ref);
 
         for (name, asm_file) in config.firmware.custom_iop.iter() {
-            let iop_name = asm::IOpName::from_str(name).expect("Invalid Custom Iop name");
-            let iop = asm::IOp::from(iop_name);
-            let iop_opcode = *iop.bin_encode_le().unwrap().last().unwrap();
-            let (_, dops) = dop_parser
-                .read_asm::<asm::Arg>(asm_file)
-                .expect("Invalid custom_iop file");
-            id_fw.push((iop_opcode as usize, asm::tr_table(&dops)));
+            let iop = asm::AsmIOpcode::from_str(name).expect("Invalid Custom Iop name");
+            let opcode = iop.opcode();
+            let prog =
+                asm::Program::<asm::DOp>::read_asm(asm_file).expect("Invalid custom_iop file");
+            id_fw.push((opcode.0 as usize, prog.tr_table()));
         }
 
         // Sanity check
-        let sync_opcode = {
-            let op_bytes = asm::DOpSync::default().bin_encode_le().unwrap();
-            let op_word = op_bytes.try_into().expect("Invalid slice length");
-            u32::from_le_bytes(op_word)
-        };
+        let _sync_opcode = asm::dop::DOpSync::opcode();
         for (id, fw_bytes) in id_fw.iter() {
             // All IOp entry must be gte (MIN_IOP_SIZE-1)
             // NB fw_bytes contain size + DOps -> gte MIN_IOP_SIZE
@@ -607,8 +589,11 @@ impl HpuBackend {
                 "Error: IOp {id} is too short and could lead to sync_id overflow"
             );
             // All IOp mustn't contain SYNC token
-            assert!(!fw_bytes.contains(&sync_opcode),
-                    "Error: IOp {id} contain SYNC. This break the min_iop_size requirement and could lead to sync_id overflow");
+            // TODO enable sync check
+            // -> Find a proper way to match on Sync opcode
+            // assert!(!fw_bytes.contains(&sync_opcode),
+            //         "Error: IOp {id} contain SYNC. This break the min_iop_size requirement and
+            // could lead to sync_id overflow");
         }
 
         // Sort by opcode and write Lut and translation table into memory
@@ -653,29 +638,27 @@ impl HpuBackend {
 
         // Steps are as follow
         // 1. Enforce that source ops are synced on Hw
-        cmd.src_a.inner.lock().unwrap().try_hpu_sync()?;
-        if let Some(src) = cmd.src_b.as_ref() {
-            src.inner.lock().unwrap().try_hpu_sync()?;
-        }
+        cmd.src
+            .iter()
+            .map(|src| src.inner.lock().unwrap().try_hpu_sync())
+            .collect::<Result<Vec<_>, _>>()?;
 
         // 2. Issue work to Hpu through workq
-
         // Convert Iop in a stream of bytes
-        let op_bytes = cmd.op.bin_encode_le().unwrap();
-        let op_words = bytemuck::cast_slice::<_, u32>(op_bytes.as_slice());
-        tracing::debug!("Op Asm {}", cmd.op.asm_encode(8));
+        let op_words = cmd.op.to_words();
+        tracing::debug!("Op Asm {}", cmd.op);
         tracing::trace!("Op Words {:x?}", op_words);
 
         // Write them in workq entry
-        // NB: For parsing purpose, we must send the msb word (that contain opcode) first
-        //   -> Thus we use a reversed version of the iterator
         // NB: No queue full check was done ...
-        for w in op_words.iter().rev() {
+        for w in op_words.iter() {
             hpu_hw.write_reg(*workq_addr, *w);
         }
 
         // 3. Update dst state to OpPending
-        cmd.dst.inner.lock().unwrap().operation_pending();
+        cmd.dst
+            .iter()
+            .for_each(|dst| dst.inner.lock().unwrap().operation_pending());
 
         // Keep track of op in cmd_q for lifetime tracking
         cmd_q.push_back(cmd);
@@ -716,13 +699,12 @@ impl HpuBackend {
         if ack_code != ACKQ_EMPTY {
             let ack_cmd = cmd_q.pop_front().unwrap();
             // TODO check that ack_code match with expected op msb
-            tracing::debug!(
-                "Received ack {:x} for IOp  {}",
-                ack_code,
-                ack_cmd.op.asm_encode(8)
-            );
+            tracing::debug!("Received ack {:x} for IOp  {}", ack_code, ack_cmd.op);
             // update dst state and drop srcs ref
-            ack_cmd.dst.inner.lock().unwrap().operation_done();
+            ack_cmd
+                .dst
+                .iter()
+                .for_each(|dst| dst.inner.lock().unwrap().operation_done());
             Ok(true)
         } else {
             Ok(false)

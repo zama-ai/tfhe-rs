@@ -1,5 +1,3 @@
-pub use hpu_asm::strum::IntoEnumIterator;
-pub use hpu_asm::Asm;
 pub use tfhe::prelude::*;
 pub use tfhe::*;
 pub use tfhe_hpu_backend::prelude::*;
@@ -33,7 +31,7 @@ pub struct Args {
     /// Iop to expand and simulate
     /// If None default to All IOp
     #[clap(long, value_parser)]
-    pub iop: Vec<hpu_asm::IOpName>,
+    pub iop: Vec<hpu_asm::AsmIOpcode>,
 
     /// Number of iteration for each IOp
     #[clap(long, value_parser, default_value_t = 1)]
@@ -48,6 +46,13 @@ pub struct Args {
     /// Warn: Currently force all IOp input B, there is no way to force only some of them
     #[clap(long, value_parser=maybe_hex::<usize>)]
     pub src_b: Option<usize>,
+
+    /// Force immediat mode
+    /// Use for custom IOp testing
+    /// Currently there is no way for the SW to know the expected format of the custom IOp
+    /// Warn: Currently force all IOp input B, there is no way to force only some of them
+    #[clap(long, value_parser)]
+    pub force_imm: bool,
 
     /// Check that result match expected one
     #[clap(long, value_parser)]
@@ -147,15 +152,13 @@ macro_rules! impl_hpu_bench {
             let bench_iop = if !args.iop.is_empty() {
                 args.iop.clone()
             } else {
-                hpu_asm::IOpName::iter()
-                    .filter(|x| !(x.to_string().contains("CUST") | x.to_string().contains("CTL")))
-                    .collect::<Vec<_>>()
+                hpu_asm::iop::IOP_LIST.to_vec()
             };
 
             // Benchmark body --------------------------------------------------------
             let mut perf_report = HashMap::new();
             for iop in bench_iop {
-                let imm_fmt = hpu_asm::IOp::from(iop).has_imm();
+                let imm_fmt = iop.has_imm() || args.force_imm;
 
                 // Generate clear value
                 let a = if let Some(val) = args.src_a {
@@ -184,12 +187,12 @@ macro_rules! impl_hpu_bench {
                 let roi_start = Instant::now();
 
                 let res_hpu = if imm_fmt {
-                    (1..args.iter).fold(a_hpu.iop_imm(iop, b as usize), |acc, _val| {
-                        acc.iop_imm(iop, b as usize)
+                    (1..args.iter).fold(a_hpu.iop_imm(iop.opcode(), b as usize), |acc, _val| {
+                        acc.iop_imm(iop.opcode(), b as usize)
                     })
                 } else {
-                    (1..args.iter).fold(a_hpu.iop_ct(iop, b_hpu.clone()), |acc, _val| {
-                        acc.iop_ct(iop, b_hpu.clone())
+                    (1..args.iter).fold(a_hpu.iop_ct(iop.opcode(), b_hpu.clone()), |acc, _val| {
+                        acc.iop_ct(iop.opcode(), b_hpu.clone())
                     })
                 };
                 let res_fhe = $fhe_type::from(res_hpu);

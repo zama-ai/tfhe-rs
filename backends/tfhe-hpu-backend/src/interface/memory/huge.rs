@@ -79,7 +79,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         Self {
             cut_mem,
             cut_coefs: props.cut_coefs,
-            phantom: std::marker::PhantomData::<T>::default(),
+            phantom: std::marker::PhantomData::<T>,
         }
     }
 
@@ -108,7 +108,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         // Indeed, we must used a bytes ofset to compute the sub-bfr id and thus keep a
         // byte approach everywhere to prevent mismatch
         let ofst_b = ofst * std::mem::size_of::<T>();
-        let len_b = data.len() * std::mem::size_of::<T>();
+        let len_b = std::mem::size_of_val(data);
 
         let bid_start = ofst_b / MEM_CHUNK_SIZE_B;
         let bid_stop = (ofst_b + len_b) / MEM_CHUNK_SIZE_B;
@@ -144,7 +144,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         // Indeed, we must used a bytes ofset to compute the sub-bfr id and thus keep a
         // byte approach everywhere to prevent mismatch
         let ofst_b = ofst * std::mem::size_of::<T>();
-        let len_b = data.len() * std::mem::size_of::<T>();
+        let len_b = std::mem::size_of_val(data);
 
         let bid_start = ofst_b / MEM_CHUNK_SIZE_B;
         let bid_stop = (ofst_b + len_b) / MEM_CHUNK_SIZE_B;

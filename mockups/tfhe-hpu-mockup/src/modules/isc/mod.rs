@@ -94,41 +94,18 @@ impl From<&hpu_asm::DOp> for InstructionKind {
             | hpu_asm::DOp::SUBS(_)
             | hpu_asm::DOp::SSUB(_)
             | hpu_asm::DOp::MULS(_) => Self::Arith,
-            hpu_asm::DOp::LD(_)
-            | hpu_asm::DOp::TLDA(_)
-            | hpu_asm::DOp::TLDB(_)
-            | hpu_asm::DOp::TLDH(_) => Self::MemLd,
-            hpu_asm::DOp::ST(_) | hpu_asm::DOp::TSTD(_) | hpu_asm::DOp::TSTH(_) => Self::MemSt,
-            hpu_asm::DOp::PBS(_) | hpu_asm::DOp::PBS_F(_) => Self::Pbs,
+            hpu_asm::DOp::LD(_) => Self::MemLd,
+            hpu_asm::DOp::ST(_) => Self::MemSt,
+            hpu_asm::DOp::PBS(_)
+            | hpu_asm::DOp::PBS_ML2(_)
+            | hpu_asm::DOp::PBS_ML4(_)
+            | hpu_asm::DOp::PBS_ML8(_) => Self::Pbs,
+            hpu_asm::DOp::PBS_F(_)
+            | hpu_asm::DOp::PBS_ML2_F(_)
+            | hpu_asm::DOp::PBS_ML4_F(_)
+            | hpu_asm::DOp::PBS_ML8_F(_) => Self::Pbs,
             hpu_asm::DOp::SYNC(_) => Self::Sync,
         }
-    }
-}
-
-impl From<&hpu_asm::DOpName> for InstructionKind {
-    fn from(value: &hpu_asm::DOpName) -> Self {
-        match value {
-            hpu_asm::DOpName::ADD
-            | hpu_asm::DOpName::SUB
-            | hpu_asm::DOpName::MAC
-            | hpu_asm::DOpName::ADDS
-            | hpu_asm::DOpName::SUBS
-            | hpu_asm::DOpName::SSUB
-            | hpu_asm::DOpName::MULS => Self::Arith,
-            hpu_asm::DOpName::LD
-            | hpu_asm::DOpName::TLDA
-            | hpu_asm::DOpName::TLDB
-            | hpu_asm::DOpName::TLDH => Self::MemLd,
-            hpu_asm::DOpName::ST | hpu_asm::DOpName::TSTD | hpu_asm::DOpName::TSTH => Self::MemSt,
-            hpu_asm::DOpName::PBS | hpu_asm::DOpName::PBS_F => Self::Pbs,
-            hpu_asm::DOpName::SYNC => Self::Sync,
-        }
-    }
-}
-
-impl InstructionKind {
-    pub fn from_name_list(dops: &[hpu_asm::DOpName]) -> Self {
-        dops.iter().fold(Self::None, |acc, dop| acc | dop.into())
     }
 }
 
