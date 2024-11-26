@@ -1,7 +1,6 @@
 use std::array::from_fn;
 use std::collections::VecDeque;
 use std::io::Write;
-use strum::IntoEnumIterator;
 use tfhe::core_crypto::algorithms::{
     lwe_ciphertext_add_assign, lwe_ciphertext_cleartext_mul_assign, lwe_ciphertext_opposite_assign,
     lwe_ciphertext_plaintext_add_assign, lwe_ciphertext_plaintext_sub_assign,
@@ -27,7 +26,6 @@ mod modules;
 pub use modules::isc;
 use modules::{HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 
-use hpu_asm::{Asm, AsmBin};
 use tfhe::tfhe_hpu_backend::interface::io_dump::HexMem;
 use tfhe::tfhe_hpu_backend::prelude::*;
 
@@ -53,9 +51,7 @@ pub struct HpuSim {
     isc: isc::Scheduler,
 
     // WorkAckq interface -----------------------------------------------------
-    workq_stream: Vec<u8>,
-    /// Parser for workq_stream
-    iop_parser: hpu_asm::Parser<hpu_asm::IOp>,
+    workq_stream: VecDeque<hpu_asm::iop::IOpWordRepr>,
     /// Pending Iop
     iop_req: VecDeque<hpu_asm::IOp>,
     iop_nb: usize,
@@ -92,10 +88,6 @@ impl HpuSim {
         // Allocate register map emulation
         let regmap = RegisterMap::new(params.rtl_params.clone(), &config.fpga.regmap);
 
-        // Allocate IOp parser for workq_stream
-        let iops_ref = hpu_asm::IOp::iter().collect::<Vec<_>>();
-        let iop_parser = hpu_asm::Parser::new(iops_ref);
-
         // Allocate on-board memory emulation
         let hbm_bank: [HbmBank; HBM_BANK_NB] = from_fn(HbmBank::new);
 
@@ -121,8 +113,7 @@ impl HpuSim {
             pc: 0,
             ucore,
             isc,
-            workq_stream: Vec::new(),
-            iop_parser,
+            workq_stream: VecDeque::new(),
             iop_req: VecDeque::new(),
             iop_nb: 0,
             iop_pdg: VecDeque::new(),
@@ -153,17 +144,9 @@ impl HpuSim {
                             }
                             RegisterEvent::WorkQ(word) => {
                                 // Append to workq_stream and try to extract an iop
-                                let word_b = word.to_be_bytes();
-                                self.workq_stream.extend_from_slice(&word_b);
-                                match self
-                                    .iop_parser
-                                    .from_be_bytes::<hpu_asm::FmtIOp>(self.workq_stream.as_slice())
-                                {
-                                    Ok(iop) => {
-                                        // Iop properly parsed, consume the stream
-                                        self.workq_stream.clear();
-                                        self.iop_req.push_back(iop);
-                                    }
+                                self.workq_stream.push_back(word);
+                                match hpu_asm::IOp::from_words(&mut self.workq_stream) {
+                                    Ok(iop) => self.iop_req.push_back(iop),
                                     Err(_) => {
                                         // not enough data to match
                                     }
@@ -227,23 +210,40 @@ impl HpuSim {
 
                 // Write required input material if needed
                 if let Some(dump_path) = self.options.dump_out.as_ref() {
-                    let iop_hex = iop.bin_encode_le().unwrap();
-                    let opcode = iop_hex.last().unwrap();
+                    let iopcode = iop.opcode().0;
 
                     // Generate IOp file
                     let asm_p = format!("{dump_path}/iop/iop_{}.asm", self.iop_nb);
-                    hpu_asm::write_asm("", &[iop.clone()], &asm_p, hpu_asm::ARG_MIN_WIDTH).unwrap();
                     let hex_p = format!("{dump_path}/iop/iop_{}.hex", self.iop_nb);
-                    hpu_asm::write_hex("", &[iop.clone()], &hex_p).unwrap();
+                    let mut iop_prog = hpu_asm::Program::default();
+                    iop_prog.push_comment(format!("{}", iop));
+                    iop_prog.push_stmt(iop.clone());
+                    iop_prog.write_asm(&asm_p).unwrap();
+                    iop_prog.write_hex(&hex_p).unwrap();
                     self.iop_nb += 1;
 
                     // Generate DOps file
-                    let iop_as_header = format!("# {}", iop.asm_encode(0));
-                    let asm_p = format!("{dump_path}/dop/dop_{opcode:x}.asm");
-                    hpu_asm::write_asm(&iop_as_header, &dops, &asm_p, hpu_asm::ARG_MIN_WIDTH)
-                        .unwrap();
-                    let hex_p = format!("{dump_path}/dop/dop_{opcode:x}.hex");
-                    hpu_asm::write_hex(&iop_as_header, &dops, &hex_p).unwrap();
+                    // TODO find a proper way to add the header back
+                    let asm_p = format!("{dump_path}/dop/dop_{iopcode:0>2x}.asm");
+                    let hex_p = format!("{dump_path}/dop/dop_{iopcode:0>2x}.hex");
+                    let dop_prog = hpu_asm::Program::new(
+                        dops.iter()
+                            .map(|op| hpu_asm::AsmOp::Stmt(op.clone()))
+                            .collect::<Vec<_>>(),
+                    );
+                    dop_prog.write_asm(&asm_p).unwrap();
+                    dop_prog.write_hex(&hex_p).unwrap();
+                    // Generate patched DOps file
+                    let asm_patched_p = format!("{dump_path}/dop/dop_patched_{iopcode:0>2x}.asm");
+                    let hex_patched_p = format!("{dump_path}/dop/dop_patched_{iopcode:0>2x}.hex");
+                    let dop_patched_prog = hpu_asm::Program::new(
+                        dops_patched
+                            .iter()
+                            .map(|op| hpu_asm::AsmOp::Stmt(op.clone()))
+                            .collect::<Vec<_>>(),
+                    );
+                    dop_patched_prog.write_asm(&asm_patched_p).unwrap();
+                    dop_patched_prog.write_hex(&hex_patched_p).unwrap();
                 }
 
                 // Use to check correct scheduling at runtime
@@ -285,8 +285,11 @@ impl HpuSim {
         // Read operands
         match dop {
             hpu_asm::DOp::LD(op_impl) => {
-                let dst = &mut self.regfile[op_impl.dst];
-                let hpu_asm::MemSlot { bid, cid_ofst, .. } = op_impl.src;
+                let dst = &mut self.regfile[op_impl.0.rid.0 as usize];
+                let cid_ofst = match op_impl.0.slot {
+                    hpu_asm::MemId::Addr(ct_id) => ct_id.0 as usize,
+                    _ => panic!("Template must have been resolved before execution"),
+                };
 
                 // Ct_ofst is equal over PC
                 let ct_ofst = cid_ofst
@@ -302,11 +305,11 @@ impl HpuSim {
                     .iter()
                     .enumerate()
                     .map(|(id, pc)| {
-                        let bid_ofst = {
-                            let (msb, lsb) = self.regmap.addr_offset().ldst_bid[bid][id];
+                        let ldst_ofst = {
+                            let (msb, lsb) = self.regmap.addr_offset().ldst[id];
                             ((msb as u64) << 32) + lsb as u64
                         };
-                        self.hbm_bank[*pc].get_chunk(bid_ofst + ct_ofst as u64)
+                        self.hbm_bank[*pc].get_chunk(ldst_ofst + ct_ofst as u64)
                     })
                     .collect::<Vec<_>>();
 
@@ -320,14 +323,13 @@ impl HpuSim {
                     hpu.clone_from_slice(hbm_u64);
                 });
             }
-            hpu_asm::DOp::TLDA(_) | hpu_asm::DOp::TLDB(_) | hpu_asm::DOp::TLDH(_) => panic!(
-                "Templated operation mustn't reach the Hpu execution
-                unit. Check ucore translation"
-            ),
 
             hpu_asm::DOp::ST(op_impl) => {
-                let src = &self.regfile[op_impl.src];
-                let hpu_asm::MemSlot { bid, cid_ofst, .. } = op_impl.dst;
+                let src = &self.regfile[op_impl.0.rid.0 as usize];
+                let cid_ofst = match op_impl.0.slot {
+                    hpu_asm::MemId::Addr(ct_id) => ct_id.0 as usize,
+                    _ => panic!("Template must have been resolved before execution"),
+                };
 
                 // Ct_ofst is equal over PC
                 let ct_ofst = cid_ofst
@@ -341,12 +343,12 @@ impl HpuSim {
                     .into_iter()
                     .enumerate()
                     .for_each(|(id, hpu)| {
-                        let bid_ofst = {
-                            let (msb, lsb) = self.regmap.addr_offset().ldst_bid[bid][id];
+                        let ldst_ofst = {
+                            let (msb, lsb) = self.regmap.addr_offset().ldst[id];
                             ((msb as u64) << 32) + lsb as u64
                         };
                         let ct_chunk = self.hbm_bank[self.config.board.ct_pc[id]]
-                            .get_mut_chunk(bid_ofst + ct_ofst as u64);
+                            .get_mut_chunk(ldst_ofst + ct_ofst as u64);
 
                         // NB: hbm chunk are extended to enforce page align buffer
                         // -> Shrinked it to slice size to prevent error during copy
@@ -358,87 +360,99 @@ impl HpuSim {
                         ct_chunk_u64.copy_from_slice(hpu);
                     });
             }
-            hpu_asm::DOp::TSTD(_) | hpu_asm::DOp::TSTH(_) => panic!(
-                "Templated operation mustn't reach the Hpu execution
-                unit. Check ucore translation"
-            ),
 
             hpu_asm::DOp::ADD(op_impl) => {
                 // NB: The first src is used as destination to prevent useless allocation
-                let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
-                let cpu_s1 = self.reg2cpu(op_impl.src.1);
+                let mut cpu_s0 = self.reg2cpu(op_impl.0.src0_rid);
+                let cpu_s1 = self.reg2cpu(op_impl.0.src1_rid);
                 lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
-                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
             }
             hpu_asm::DOp::SUB(op_impl) => {
                 // NB: The first src is used as destination to prevent useless allocation
-                let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
-                let cpu_s1 = self.reg2cpu(op_impl.src.1);
+                let mut cpu_s0 = self.reg2cpu(op_impl.0.src0_rid);
+                let cpu_s1 = self.reg2cpu(op_impl.0.src1_rid);
                 lwe_ciphertext_sub_assign(&mut cpu_s0, &cpu_s1);
-                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
             }
             hpu_asm::DOp::MAC(op_impl) => {
                 // NB: Srcs are used as destination to prevent useless allocation
-                let mut cpu_s0 = self.reg2cpu(op_impl.src.0);
-                let cpu_s1 = self.reg2cpu(op_impl.src.1);
+                let mut cpu_s0 = self.reg2cpu(op_impl.0.src0_rid);
+                let cpu_s1 = self.reg2cpu(op_impl.0.src1_rid);
 
                 lwe_ciphertext_cleartext_mul_assign(
                     &mut cpu_s0,
-                    Cleartext(op_impl.mul_factor as u64),
+                    Cleartext(op_impl.0.mul_factor.0 as u64),
                 );
                 lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
 
-                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
             }
             hpu_asm::DOp::ADDS(op_impl) => {
                 // NB: The first src is used as destination to prevent useless allocation
-                let mut cpu_s0 = self.reg2cpu(op_impl.src);
-                let msg_encoded =
-                    op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
+                let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
+                let msg_cst = match op_impl.0.msg_cst {
+                    hpu_asm::ImmId::Cst(cst) => cst as u64,
+                    _ => panic!("Template must have been resolved before execution"),
+                };
+                let msg_encoded = msg_cst * self.params.rtl_params.pbs_params.delta();
                 lwe_ciphertext_plaintext_add_assign(&mut cpu_s0, Plaintext(msg_encoded));
-                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
             }
             hpu_asm::DOp::SUBS(op_impl) => {
                 // NB: The first src is used as destination to prevent useless allocation
-                let mut cpu_s0 = self.reg2cpu(op_impl.src);
-                let msg_encoded =
-                    op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
+                let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
+                let msg_cst = match op_impl.0.msg_cst {
+                    hpu_asm::ImmId::Cst(cst) => cst as u64,
+                    _ => panic!("Template must have been resolved before execution"),
+                };
+                let msg_encoded = msg_cst * self.params.rtl_params.pbs_params.delta();
                 lwe_ciphertext_plaintext_sub_assign(&mut cpu_s0, Plaintext(msg_encoded));
-                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
             }
             hpu_asm::DOp::SSUB(op_impl) => {
                 // NB: The first src is used as destination to prevent useless allocation
-                let mut cpu_s0 = self.reg2cpu(op_impl.src);
+                let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
                 lwe_ciphertext_opposite_assign(&mut cpu_s0);
-                let msg_encoded =
-                    op_impl.msg_cst as u64 * self.params.rtl_params.pbs_params.delta();
+                let msg_cst = match op_impl.0.msg_cst {
+                    hpu_asm::ImmId::Cst(cst) => cst as u64,
+                    _ => panic!("Template must have been resolved before execution"),
+                };
+                let msg_encoded = msg_cst * self.params.rtl_params.pbs_params.delta();
                 lwe_ciphertext_plaintext_add_assign(&mut cpu_s0, Plaintext(msg_encoded));
-                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
             }
             hpu_asm::DOp::MULS(op_impl) => {
                 // NB: The first src is used as destination to prevent useless allocation
-                let mut cpu_s0 = self.reg2cpu(op_impl.src);
-                lwe_ciphertext_cleartext_mul_assign(&mut cpu_s0, Cleartext(op_impl.msg_cst as u64));
-                self.cpu2reg(op_impl.dst, cpu_s0.as_view());
+                let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
+                let msg_cst = match op_impl.0.msg_cst {
+                    hpu_asm::ImmId::Cst(cst) => cst as u64,
+                    _ => panic!("Template must have been resolved before execution"),
+                };
+                lwe_ciphertext_cleartext_mul_assign(&mut cpu_s0, Cleartext(msg_cst));
+                self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
             }
-            hpu_asm::DOp::PBS(op_impl) => self.apply_pbs2reg(op_impl.dst, op_impl.src, op_impl.lut),
+            hpu_asm::DOp::PBS(op_impl) => {
+                self.apply_pbs2reg(op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
+            }
+            hpu_asm::DOp::PBS_ML2(_op_impl) => todo!("Add support for many-lut PBS"),
+            hpu_asm::DOp::PBS_ML4(_op_impl) => todo!("Add support for many-lut PBS"),
+            hpu_asm::DOp::PBS_ML8(_op_impl) => todo!("Add support for many-lut PBS"),
             hpu_asm::DOp::PBS_F(op_impl) => {
-                self.apply_pbs2reg(op_impl.dst, op_impl.src, op_impl.lut)
+                self.apply_pbs2reg(op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
             }
+            hpu_asm::DOp::PBS_ML2_F(_op_impl) => todo!("Add support for many-lut PBS"),
+            hpu_asm::DOp::PBS_ML4_F(_op_impl) => todo!("Add support for many-lut PBS"),
+            hpu_asm::DOp::PBS_ML8_F(_op_impl) => todo!("Add support for many-lut PBS"),
             hpu_asm::DOp::SYNC(_) => {
                 // Push ack in stream
                 let iop = self
                     .iop_pdg
                     .pop_front()
                     .expect("SYNC received but no pending IOp to acknowledge");
-                // Bytes are in little-endian but written from first to last line
-                // To keep correct endianness -> reverse the chunked vector
-                let bytes = iop.bin_encode_le().unwrap();
-                for bytes_chunks in bytes.chunks(std::mem::size_of::<u32>()).rev().take(1) {
-                    let word_b = bytes_chunks.try_into().expect("Invalid slice length");
-                    let word_u32 = u32::from_le_bytes(word_b);
-                    self.regmap.ack_pdg(word_u32);
-                }
+                // Answer with IOp header
+                let iop_header_u32 = iop.to_words()[0];
+                self.regmap.ack_pdg(iop_header_u32);
 
                 // Generate executed DOp order
                 #[cfg(feature = "isc-order-check")]
@@ -462,19 +476,19 @@ impl HpuSim {
                 // Generate report
                 let time_rpt = self.isc.time_report();
                 let dop_rpt = self.isc.dop_report();
-                tracing::info!("Report for IOp: {}", iop.asm_encode(8));
+                tracing::info!("Report for IOp: {}", iop);
                 tracing::info!("{time_rpt:?}");
                 tracing::info!("{dop_rpt}");
 
-                if let Some(mut rpt_file) = self.options.report_file(&iop.clone().into()) {
-                    writeln!(rpt_file, "Report for IOp: {}", iop.asm_encode(8)).unwrap();
+                if let Some(mut rpt_file) = self.options.report_file((&iop).into()) {
+                    writeln!(rpt_file, "Report for IOp: {}", iop).unwrap();
                     writeln!(rpt_file, "{time_rpt:?}").unwrap();
                     writeln!(rpt_file, "{dop_rpt}").unwrap();
                 }
 
                 let trace = self.isc.reset_trace();
                 trace.iter().for_each(|pt| tracing::trace!("{pt}"));
-                if let Some(mut trace_file) = self.options.report_trace(&iop.into()) {
+                if let Some(mut trace_file) = self.options.report_trace((&iop).into()) {
                     trace
                         .into_iter()
                         .for_each(|pt| writeln!(trace_file, "{pt}").unwrap());
@@ -493,8 +507,14 @@ impl HpuSim {
     /// Use a function to prevent code duplication in PBS/PBS_F implementation
     /// NB: Current Pbs lookup function arn't reverted from Hbm memory
     /// TODO: Read PbsLut from Hbm instead of online generation based on Pbs Id
-    fn apply_pbs2reg(&mut self, dst_rid: usize, src_rid: usize, lut: hpu_asm::Pbs) {
+    fn apply_pbs2reg(
+        &mut self,
+        dst_rid: hpu_asm::RegId,
+        src_rid: hpu_asm::RegId,
+        gid: hpu_asm::PbsGid,
+    ) {
         let mut cpu_reg = self.reg2cpu(src_rid);
+        let lut = hpu_asm::Pbs::from_hex(gid).expect("Invalid PBS Gid");
 
         // Generate Lut
         let hpu_lut = create_hpu_lookuptable(self.params.rtl_params.clone(), lut);
@@ -515,16 +535,18 @@ impl HpuSim {
     // the regfile. A clone is also required for conversion
     // Thus, directly cast value in Cpu version to prevent extra clone
     /// Extract a cpu value from register file
-    fn reg2cpu(&self, reg_id: usize) -> LweCiphertextOwned<u64> {
-        let reg = self.regfile[reg_id].as_view();
+    fn reg2cpu(&self, reg_id: hpu_asm::RegId) -> LweCiphertextOwned<u64> {
+        let reg = self.regfile[reg_id.0 as usize].as_view();
         LweCiphertextOwned::from(reg)
     }
 
     /// Insert a cpu value into the register file
-    fn cpu2reg(&mut self, reg_id: usize, cpu: LweCiphertextView<u64>) {
+    fn cpu2reg(&mut self, reg_id: hpu_asm::RegId, cpu: LweCiphertextView<u64>) {
         let hpu = HpuLweCiphertextOwned::<u64>::from_with(cpu, self.params.rtl_params.clone());
         std::iter::zip(
-            self.regfile[reg_id].as_mut_view().into_container(),
+            self.regfile[reg_id.0 as usize]
+                .as_mut_view()
+                .into_container(),
             hpu.into_container(),
         )
         .for_each(|(reg, hpu)| {
@@ -613,30 +635,27 @@ impl HpuSim {
             let dump_out = self.options.dump_out.as_ref().unwrap();
 
             // Dump register value
-            let regf = match op {
-                hpu_asm::DOp::LD(op_impl) => self.regfile[op_impl.dst].as_view(),
-
-                hpu_asm::DOp::TLDA(_) | hpu_asm::DOp::TLDB(_) | hpu_asm::DOp::TLDH(_) => panic!(
-                    "Templated operation mustn't reach the Hpu execution
-                unit. Check ucore translation"
-                ),
-                hpu_asm::DOp::ST(op_impl) => self.regfile[op_impl.src].as_view(),
-                hpu_asm::DOp::TSTD(_) | hpu_asm::DOp::TSTH(_) => panic!(
-                    "Templated operation mustn't reach the Hpu execution
-                unit. Check ucore translation"
-                ),
-
-                hpu_asm::DOp::ADDS(op_impl) => self.regfile[op_impl.dst].as_view(),
-                hpu_asm::DOp::SUBS(op_impl) => self.regfile[op_impl.dst].as_view(),
-                hpu_asm::DOp::SSUB(op_impl) => self.regfile[op_impl.dst].as_view(),
-                hpu_asm::DOp::MULS(op_impl) => self.regfile[op_impl.dst].as_view(),
-                hpu_asm::DOp::ADD(op_impl) => self.regfile[op_impl.dst].as_view(),
-                hpu_asm::DOp::SUB(op_impl) => self.regfile[op_impl.dst].as_view(),
-                hpu_asm::DOp::MAC(op_impl) => self.regfile[op_impl.dst].as_view(),
-                hpu_asm::DOp::PBS(op_impl) => self.regfile[op_impl.dst].as_view(),
-                hpu_asm::DOp::PBS_F(op_impl) => self.regfile[op_impl.dst].as_view(),
+            let regid = match op {
+                hpu_asm::DOp::LD(op_impl) => op_impl.0.rid.0 as usize,
+                hpu_asm::DOp::ST(op_impl) => op_impl.0.rid.0 as usize,
+                hpu_asm::DOp::ADDS(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::SUBS(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::SSUB(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::MULS(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::ADD(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::SUB(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::MAC(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::PBS(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::PBS_ML2(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::PBS_ML4(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::PBS_ML8(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::PBS_F(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::PBS_ML2_F(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::PBS_ML4_F(op_impl) => op_impl.0.dst_rid.0 as usize,
+                hpu_asm::DOp::PBS_ML8_F(op_impl) => op_impl.0.dst_rid.0 as usize,
                 _ => return,
             };
+            let regf = self.regfile[regid].as_view();
 
             // Create base-path
             let base_path = format!("{}/blwe/run/blwe_isc{}_reg", dump_out, self.pc,);

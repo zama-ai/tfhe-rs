@@ -33,7 +33,6 @@ paste = "1.0.15"
 thiserror = "1.0.61"
 bytemuck = "1.16.0"
 anyhow = "1.0.82"
-deku = "0.16.0"
 lazy_static = "1.4.0"
 rand = "0.8.5"
 regex = "1.10.4"
@@ -51,6 +50,7 @@ ipc-channel = "0.18.3"
 num-traits = { version = "*", optional=true}
 clap = { version = "4.4.4", features = ["derive"], optional=true}
 clap-num = {version = "1.1.1", optional=true}
+bitfield-struct = "0.10.0"
 
 
 # Binary for manual debugging
@@ -63,8 +63,14 @@ required-features = ["utils"]
 # Binary for asm manipulation
 # Enable to convert back and forth between asm/hex format
 [[bin]]
-name = "fmt"
-path = "src/utils/fmt.rs"
+name = "dop_fmt"
+path = "src/utils/dop_fmt.rs"
+required-features = ["utils"]
+
+# Enable to convert back and forth between asm/hex format
+[[bin]]
+name = "iop_fmt"
+path = "src/utils/iop_fmt.rs"
 required-features = ["utils"]
 
 # Firmware generation

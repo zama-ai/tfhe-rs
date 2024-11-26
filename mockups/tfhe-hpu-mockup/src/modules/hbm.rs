@@ -11,7 +11,6 @@ const HBM_PAGE_SIZE_B: usize = 4096;
 pub const HBM_BSK_PC_MAX: usize = 8;
 pub const HBM_KSK_PC_MAX: usize = 8;
 pub const HBM_CT_PC_MAX: usize = 2;
-pub const HBM_CT_BANK_MAX: usize = 4;
 
 // WARN: XRT currently not suppor allocation greater than 16MiB
 const HBM_CHUNK_SIZE_B: usize = 16 * 1024 * 1024;
