@@ -2,12 +2,9 @@
 //! Application used to handle Iop/Dop translation
 //! It could be used to convert a single IOp or a list of them
 
-use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader};
 use std::path::Path;
-use tfhe_hpu_backend::asm::strum::IntoEnumIterator;
-use tfhe_hpu_backend::asm::{self, Asm, MemRegion};
-use tfhe_hpu_backend::fw::{AvlblFw, Fw, FwName};
+use tfhe_hpu_backend::asm;
+use tfhe_hpu_backend::fw::{self, Fw};
 
 /// Define CLI arguments
 use clap::Parser;
@@ -17,38 +14,29 @@ pub struct Args {
     // Input/Output configuration --------------------------------------------
     /// Fw kind
     #[clap(long, value_parser, default_value = "Ilp")]
-    fw_kind: FwName,
+    fw_kind: fw::FwName,
 
-    // Convert from the given file
-    #[clap(long, value_parser)]
-    convert_file: Option<String>,
-
-    /// Expand the given IOp
+    /// Expand the given IOpcode
     /// NB: couldn't use `convert_file` and `expand` at the same time
     #[clap(short, long, value_parser)]
-    expand: Option<String>,
+    expand: Vec<asm::AsmIOpcode>,
 
     /// Output folder
     #[clap(long, value_parser, default_value = "output")]
     out_folder: String,
-
-    /// Output filename, if nothing provided used input one
-    #[clap(long, value_parser)]
-    out_file: Option<String>,
 
     // Arch configuration ----------------------------------------------------
     /// Number of Register
     #[clap(long, value_parser, default_value_t = 64)]
     register: usize,
 
-    /// Number of Heap slots for each cid
-    // TODO add support for cid
-    #[clap(long, value_parser, default_value = "{0:512}")]
-    heap: MemRegion,
+    /// Number of Heap slots
+    #[clap(long, value_parser, default_value_t = 512)]
+    heap: usize,
 
-    /// Number of Pbs slot in IPIP
+    /// Number of Pbs slot in BPIP/IPIP
     #[clap(long, value_parser, default_value_t = 12)]
-    pbs_w: usize,
+    pbs_batch_w: usize,
 
     /// Digit msg width
     #[clap(long, value_parser, default_value_t = 2)]
@@ -69,13 +57,12 @@ pub struct Args {
 }
 
 /// Extract ArchProperties from CliArgs
-impl From<&Args> for asm::ArchProperties {
+impl From<&Args> for fw::FwParameters {
     fn from(args: &Args) -> Self {
         Self {
             regs: args.register,
-            mem: args.heap,
-            pbs_w: args.pbs_w,
-
+            heap_size: args.heap,
+            pbs_batch_w: args.pbs_batch_w,
             msg_w: args.msg_w,
             carry_w: args.carry_w,
             nu: args.nu,
@@ -105,59 +92,25 @@ fn main() -> Result<(), anyhow::Error> {
     let dirpath = Path::new(&args.out_folder);
     std::fs::create_dir_all(dirpath).unwrap();
 
-    let base_file = match (&args.out_file, &args.convert_file) {
-        (Some(f), _) => f.clone(),
-        (None, Some(f)) => Path::new(&f.replace("iop", "dop"))
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string(),
-        _ => "expand.dop".to_string(),
-    };
-
-    let asm_p = dirpath.join(Path::new(&format!("{base_file}.asm")));
-    let hex_p = dirpath.join(Path::new(&format!("{base_file}.hex")));
-
-    // Instanciate Fw and start translation ----------------------------------------
-    let mut fw = AvlblFw::new(&args.fw_kind);
-    let iops = asm::iop::IOp::iter().collect::<Vec<_>>();
-    let mut iop_parser = asm::Parser::new(iops);
-
-    let iops = if args.convert_file.is_some() {
-        let conv_p = Path::new(args.convert_file.as_ref().unwrap());
-        let conv_f = OpenOptions::new().read(true).open(conv_p).unwrap();
-        let reader = BufReader::new(conv_f);
-
-        let mut conv_iops = Vec::new();
-        for line in reader.lines() {
-            let line = line.unwrap();
-            let iop = iop_parser.from_asm(&line)?;
-            conv_iops.push(iop);
-        }
-        conv_iops
-    } else if args.expand.is_some() {
-        let iop = iop_parser.from_asm(args.expand.as_ref().unwrap())?;
-        vec![iop]
+    let expand_list = if args.expand.is_empty() {
+        asm::iop::IOP_LIST.to_vec()
     } else {
-        panic!("User must select `convert_file` or `expand` option");
+        args.expand.clone()
     };
 
-    // Create header
-    // => Header describe behavior of prog it top-level instructions
-    let header = iops
-        .iter()
-        .map(|op| op.asm_encode(asm::ARG_MIN_WIDTH) + "\n")
-        .collect::<String>();
+    for iop in expand_list.iter() {
+        let base_file = format!("{}_{}b.dop", iop.to_string().trim(), args.integer_w);
 
-    let props = asm::ArchProperties::from(&args);
-    let prog = fw.expand(&props, &iops);
-    prog.write_asm(
-        &asm_p.as_os_str().to_str().unwrap(),
-        &header,
-        asm::ARG_MIN_WIDTH,
-    );
-    prog.write_hex(&hex_p.as_os_str().to_str().unwrap(), &header);
+        let asm_p = dirpath.join(Path::new(&format!("{base_file}.asm")));
+        let hex_p = dirpath.join(Path::new(&format!("{base_file}.hex")));
+
+        // Instanciate Fw and start translation ----------------------------------------
+        let mut fw = fw::AvlblFw::new(&args.fw_kind);
+        let props = fw::FwParameters::from(&args);
+        let prog = fw.expand(&props, iop);
+        prog.write_asm(&asm_p.as_os_str().to_str().unwrap())?;
+        prog.write_hex(&hex_p.as_os_str().to_str().unwrap())?;
+    }
 
     Ok(())
 }

@@ -15,6 +15,8 @@ enum SyncState {
     BothSync,
     OperationPending,
 }
+/// Underlying type used for Immediat value;
+pub(crate) type HpuImm = usize;
 
 pub(crate) struct HpuVar {
     /// Reference to associated backend to be able to allocate dst variable with std::ops trait
@@ -93,8 +95,8 @@ impl HpuVar {
 #[derive(Clone)]
 pub struct HpuVarWrapped {
     pub(crate) inner: Arc<Mutex<HpuVar>>,
-    id: memory::ciphertext::SlotId,
-    width: usize,
+    pub(crate) id: memory::ciphertext::SlotId,
+    pub(crate) width: usize,
 }
 
 impl std::fmt::Debug for HpuVarWrapped {
@@ -113,7 +115,7 @@ impl HpuVarWrapped {
 
         Self {
             width,
-            id: bundle.id().clone(),
+            id: *bundle.id(),
             inner: Arc::new(Mutex::new(HpuVar {
                 backend,
                 cmd_api,
@@ -139,7 +141,7 @@ impl HpuVarWrapped {
                 #[cfg(feature = "io-dump")]
                 let params = ct.params().clone();
                 for (id, cut) in ct.into_container().iter().enumerate() {
-                    slot.mz[id].write(0, &cut);
+                    slot.mz[id].write(0, cut);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
                         &cut.as_slice(),
@@ -219,37 +221,32 @@ impl HpuVarWrapped {
     }
 }
 
-/// Easily construct asm::Arg from HpuVarWrapped
-impl HpuVarWrapped {
-    pub fn as_arg(&self) -> asm::Arg {
-        // Extract bid/cid of first ct slot
-        let memory::ciphertext::SlotId { bid, cid } = self.id;
-        let mem_slot = asm::MemSlot::new_uncheck(bid, cid, asm::arg::MemMode::Raw, None);
-        asm::Arg::MemId(mem_slot)
-    }
-}
-
 /// Generic Iop function call
 impl HpuVarWrapped {
     /// This function format and push associated work in cmd_api
-    /// IOp format is Ct <- Ct x Ct
+    /// IOp format is &[Ct] <- &[Ct] &[Imm]
     /// IOp width is inferred from operand width
+    /// TODO clarify this point the new IOp format and width support
     #[inline(always)]
-    fn iop_ct_raw(name: crate::asm::IOpName, dst: &Self, rhs_0: &Self, rhs_1: &Self) {
-        let hpu_op = cmd::HpuCmd::new_ct_ct(name, dst.clone(), rhs_0.clone(), rhs_1.clone());
-        dst.inner
+    fn iop_raw(opcode: crate::asm::IOpcode, dst: &[&Self], rhs_ct: &[&Self], rhs_imm: &[HpuImm]) {
+        let hpu_op = cmd::HpuCmd::new(opcode, dst, rhs_ct, rhs_imm);
+
+        dst.first()
+            .expect("Try to generate an IOp without any destination")
+            .inner
             .lock()
             .unwrap()
             .cmd_api
-            .send(hpu_op.into())
+            .send(hpu_op)
             .expect("Issue with cmd_api");
     }
 
     /// This function format and push associated work in cmd_api
     /// IOp format is Ct <- Ct x Ct
-    /// IOp width is inferred from operand width
     /// Dst operand is allocated
-    pub fn iop_ct(self, name: crate::asm::IOpName, rhs: Self) -> Self {
+    /// -> Narrow possible IOp format for ease of use and mapping on common operation format
+    /// IOp width is inferred from operand width
+    pub fn iop_ct(self, opcode: crate::asm::IOpcode, rhs: Self) -> Self {
         // Allocate output variable
         let backend = {
             // NB: use extra scop to take care of mutex lifetime
@@ -258,37 +255,23 @@ impl HpuVarWrapped {
         };
         let dst = Self::new_on(backend, self.width);
 
-        Self::iop_ct_raw(name, &dst, &self, &rhs);
+        Self::iop_raw(opcode, &[&dst], &[&self, &rhs], &[]);
         dst
     }
 
     /// This function format and push associated work in cmd_api
     /// IOp format is Ct <- Ct x Ct
-    /// IOp width is inferred from operand width
     /// Dest operand is first src operand
-    pub fn iop_ct_assign(&mut self, name: crate::asm::IOpName, rhs: Self) {
-        Self::iop_ct_raw(name, &self, &self, &rhs);
+    pub fn iop_ct_assign(&mut self, opcode: crate::asm::IOpcode, rhs: Self) {
+        Self::iop_raw(opcode, &[self], &[self, &rhs], &[]);
     }
 
     /// This function format and push associated work in dst cmd_api
     /// IOp format is Ct <- Ct x Imm
-    /// IOp width is inferred from operand width
-    #[inline(always)]
-    fn iop_imm_raw(name: crate::asm::IOpName, dst: &Self, rhs_0: &Self, rhs_1: usize) {
-        let hpu_op = cmd::HpuCmd::new_ct_imm(name, dst.clone(), rhs_0.clone(), rhs_1);
-        dst.inner
-            .lock()
-            .unwrap()
-            .cmd_api
-            .send(hpu_op.into())
-            .expect("Issue with cmd_api");
-    }
-
-    /// This function format and push associated work in dst cmd_api
-    /// IOp format is Ct <- Ct x Imm
-    /// IOp width is inferred from operand width
     /// Dst operand is allocated
-    pub fn iop_imm(self, name: crate::asm::IOpName, rhs: usize) -> Self {
+    /// -> Narrow possible IOp format for ease of use and mapping on common operation format
+    /// IOp width is inferred from operand width
+    pub fn iop_imm(self, opcode: crate::asm::IOpcode, rhs: HpuImm) -> Self {
         // Allocate output variable
         let backend = {
             // NB: use extra scop to take care of mutex lifetime
@@ -297,16 +280,17 @@ impl HpuVarWrapped {
         };
         let dst = Self::new_on(backend, self.width);
 
-        Self::iop_imm_raw(name, &dst, &self, rhs);
+        Self::iop_raw(opcode, &[&dst], &[&self], &[rhs]);
         dst
     }
 
     /// This function format and push associated work in dst cmd_api
     /// IOp format is Ct <- Ct x Imm
-    /// IOp width is inferred from operand width
     /// Dest operand is first src operand
-    pub fn iop_imm_assign(&mut self, name: crate::asm::IOpName, rhs: usize) {
-        Self::iop_imm_raw(name, &self, &self, rhs);
+    /// -> Narrow possible IOp format for ease of use and mapping on common operation format
+    /// IOp width is inferred from operand width
+    pub fn iop_imm_assign(&mut self, opcode: crate::asm::IOpcode, rhs: HpuImm) {
+        Self::iop_raw(opcode, &[self], &[self], &[rhs]);
     }
 }
 
@@ -323,7 +307,7 @@ macro_rules! impl_ct_ct_raw {
             {
                 /// This function format and push associated work in dst cmd_api
                 fn [<$hpu_op:lower _raw>](dst: &Self, rhs_0: &Self, rhs_1: &Self) {
-                    Self::iop_ct_raw(crate::asm::IOpName::[<$hpu_op:upper>],dst, rhs_0, rhs_1)
+                    Self::iop_raw(asm::iop::IOpcode(asm::iop::opcode::[<$hpu_op:upper>]),&[dst], &[rhs_0, rhs_1], &[])
                 }
             }
         }
@@ -413,8 +397,8 @@ macro_rules! impl_ct_imm_raw {
                 cmd::HpuCmd: From<cmd::HpuCmd>,
             {
                 /// This function format and push associated work in dst cmd_api
-                fn [<$hpu_op:lower _raw>](dst: &Self, rhs_0: &Self, rhs_1: usize) {
-                    Self::iop_imm_raw(crate::asm::IOpName::[<$hpu_op:upper>], dst, rhs_0, rhs_1);
+                fn [<$hpu_op:lower _raw>](dst: &Self, rhs_0: &Self, rhs_1: HpuImm) {
+                    Self::iop_raw(asm::iop::IOpcode(asm::iop::opcode::[<$hpu_op:upper>]), &[dst], &[rhs_0], &[rhs_1]);
                 }
             }
         }
@@ -499,121 +483,3 @@ map_imm_ct!("MULS" -> "Mul");
 // Keep two steps approach:
 // 1. Behavior expressed in a `_raw` function
 // 2. std function/ assign function impl based on `_raw` one
-
-#[macro_export]
-/// Easily map custom Hpu operation on variables
-macro_rules! cust_map_ct_ct {
-    ($hpu_op: literal) => {
-        ::paste::paste! {
-
-            impl HpuVarWrapped{
-                pub fn [<$hpu_op:lower>](self, rhs: Self) -> HpuVarWrapped {
-                    // Allocate output variable
-                    let backend = {
-                        // NB: use extra scop to take care of mutex lifetime
-                        let inner = self.inner.lock().unwrap();
-                        inner.backend.clone()
-                    };
-                    let dst = Self::new_on(backend, self.width);
-
-                    Self::[<$hpu_op:lower _raw>](&dst, &self, &rhs);
-                    dst
-                }
-
-                pub fn [<$hpu_op:lower _assign>](&mut self, rhs: Self) {
-                    Self::[<$hpu_op:lower _raw>](&self, &self, &rhs);
-                }
-            }
-        }
-    };
-}
-
-impl_ct_ct_raw!("CUST_0");
-cust_map_ct_ct!("CUST_0");
-impl_ct_ct_raw!("CUST_1");
-cust_map_ct_ct!("CUST_1");
-impl_ct_ct_raw!("CUST_2");
-cust_map_ct_ct!("CUST_2");
-impl_ct_ct_raw!("CUST_3");
-cust_map_ct_ct!("CUST_3");
-impl_ct_ct_raw!("CUST_4");
-cust_map_ct_ct!("CUST_4");
-impl_ct_ct_raw!("CUST_5");
-cust_map_ct_ct!("CUST_5");
-impl_ct_ct_raw!("CUST_6");
-cust_map_ct_ct!("CUST_6");
-impl_ct_ct_raw!("CUST_7");
-cust_map_ct_ct!("CUST_7");
-impl_ct_ct_raw!("CUST_8");
-cust_map_ct_ct!("CUST_8");
-impl_ct_ct_raw!("CUST_9");
-cust_map_ct_ct!("CUST_9");
-impl_ct_ct_raw!("CUST_A");
-cust_map_ct_ct!("CUST_A");
-impl_ct_ct_raw!("CUST_B");
-cust_map_ct_ct!("CUST_B");
-impl_ct_ct_raw!("CUST_C");
-cust_map_ct_ct!("CUST_C");
-impl_ct_ct_raw!("CUST_D");
-cust_map_ct_ct!("CUST_D");
-impl_ct_ct_raw!("CUST_E");
-cust_map_ct_ct!("CUST_E");
-impl_ct_ct_raw!("CUST_F");
-cust_map_ct_ct!("CUST_F");
-
-macro_rules! cust_map_ct_imm {
-    ( $hpu_op: literal) => {
-        ::paste::paste! {
-            impl HpuVarWrapped{
-                pub fn [<$hpu_op:lower>](self, rhs: usize) -> HpuVarWrapped {
-                    // Allocate output variable
-                    let backend = {
-                        // NB: use extra scop to take care of mutex lifetime
-                        let inner = self.inner.lock().unwrap();
-                        inner.backend.clone()
-                    };
-                    let dst = Self::new_on(backend, self.width);
-
-                    Self::[<$hpu_op:lower _raw>](&dst, &self, rhs);
-                    dst
-                }
-
-                pub fn [<$hpu_op:lower _assign>](&mut self, rhs: usize) {
-                        Self::[<$hpu_op:lower _raw>](&self, &self, rhs);
-                    }
-            }
-        }
-    };
-}
-impl_ct_imm_raw!("CUSTI_0");
-cust_map_ct_imm!("CUSTI_0");
-impl_ct_imm_raw!("CUSTI_1");
-cust_map_ct_imm!("CUSTI_1");
-impl_ct_imm_raw!("CUSTI_2");
-cust_map_ct_imm!("CUSTI_2");
-impl_ct_imm_raw!("CUSTI_3");
-cust_map_ct_imm!("CUSTI_3");
-impl_ct_imm_raw!("CUSTI_4");
-cust_map_ct_imm!("CUSTI_4");
-impl_ct_imm_raw!("CUSTI_5");
-cust_map_ct_imm!("CUSTI_5");
-impl_ct_imm_raw!("CUSTI_6");
-cust_map_ct_imm!("CUSTI_6");
-impl_ct_imm_raw!("CUSTI_7");
-cust_map_ct_imm!("CUSTI_7");
-impl_ct_imm_raw!("CUSTI_8");
-cust_map_ct_imm!("CUSTI_8");
-impl_ct_imm_raw!("CUSTI_9");
-cust_map_ct_imm!("CUSTI_9");
-impl_ct_imm_raw!("CUSTI_A");
-cust_map_ct_imm!("CUSTI_A");
-impl_ct_imm_raw!("CUSTI_B");
-cust_map_ct_imm!("CUSTI_B");
-impl_ct_imm_raw!("CUSTI_C");
-cust_map_ct_imm!("CUSTI_C");
-impl_ct_imm_raw!("CUSTI_D");
-cust_map_ct_imm!("CUSTI_D");
-impl_ct_imm_raw!("CUSTI_E");
-cust_map_ct_imm!("CUSTI_E");
-impl_ct_imm_raw!("CUSTI_F");
-cust_map_ct_imm!("CUSTI_F");

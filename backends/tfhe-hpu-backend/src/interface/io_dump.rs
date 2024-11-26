@@ -62,16 +62,14 @@ pub fn dump<T: num_traits::PrimInt + num_traits::cast::AsPrimitive<u32>>(
             let file_path = match id {
                 DumpId::Slot(sid, cut) => match kind {
                     DumpKind::BlweIn => format!(
-                        "{}/blwe/input/blwe_{:0>4x}_{:0>1x}_{cut:0>1x}.hex",
+                        "{}/blwe/input/blwe_{:0>4x}_{cut:0>1x}.hex",
                         path.display(),
-                        sid.cid,
-                        sid.bid,
+                        sid.0,
                     ),
                     DumpKind::BlweOut => format!(
-                        "{}/blwe/output/blwe_{:0>4x}_{:0>1x}_{cut:0>1x}.hex",
+                        "{}/blwe/output/blwe_{:0>4x}_{cut:0>1x}.hex",
                         path.display(),
-                        sid.cid,
-                        sid.bid,
+                        sid.0,
                     ),
                     _ => panic!("Unexpected DumpId {id:?} with kind {kind:?}"),
                 },

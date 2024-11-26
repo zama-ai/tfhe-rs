@@ -177,7 +177,6 @@ align_offset=true
 [section.LdSt]
 description="Define some properties of CT buffers in board-memory"
 align_offset=true
-duplicate=["_bank0","_bank1","_bank2","_bank3"]
 [section.LdSt.register.addr]
   description="Ciphertext buffer addr"
   owner="User"

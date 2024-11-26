@@ -3,8 +3,6 @@
 
 use std::collections::HashMap;
 
-pub const HPU_MEM_BANK_NB: usize = 4;
-
 /// Configuration of targeted FFI bridge witht the Hw
 /// Enable to select targeted ffi interface with specific properties
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -44,13 +42,16 @@ pub struct RtlConfig {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct BoardConfig {
     /// Ciphertext memory
-    /// Expressed the number of ciphertext slot to allocated in each bank
-    pub ct_bank: [usize; HPU_MEM_BANK_NB],
+    /// Expressed the number of ciphertext slot to allocate
+    pub ct_mem: usize,
     /// Depict the list of hbm_pc connected to ct master_axi
     pub ct_pc: Vec<usize>,
+    /// Expressed the number of ct_mem slot used for heap
+    /// Heap is then used downward
+    pub heap_size: usize,
 
     /// Expressed the number of PbsLut slot to allocate
-    pub lut_bank: usize,
+    pub lut_mem: usize,
     /// Depict the hbm_pc connected to glwe master_axi
     pub lut_pc: usize,
 
@@ -69,7 +70,7 @@ pub struct BoardConfig {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct FwConfig {
     /// Select pe-pbs block width
-    pub pbs_w: usize,
+    pub pbs_batch_w: usize,
 
     /// List of supported integer width
     /// NB: Currently only one width is supported at a time

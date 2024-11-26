@@ -217,7 +217,6 @@ impl Scheduler {
             let kind_mh = self.wr_unlock_kind();
             let slot = self.pool.retire(kind_mh);
             self.ack_wr_unlock(slot.inst.kind);
-            self.dop_exec.push(slot.inst.op.clone());
 
             self.trace.push(Trace {
                 timestamp: self.sim_cycles,

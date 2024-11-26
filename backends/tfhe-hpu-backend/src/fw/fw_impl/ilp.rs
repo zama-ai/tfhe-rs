@@ -5,47 +5,79 @@
 use std::collections::VecDeque;
 
 use super::*;
-use crate::asm::{self, Arg, Pbs};
+use crate::asm::{self, OperandKind, Pbs};
 use itertools::Itertools;
 use tracing::{debug, instrument, trace};
 
 use crate::new_pbs;
 
+use crate::asm::iop::opcode::*;
 crate::impl_fw!("Ilp" [
-    "ADD" => fw_impl::ilp::iop_addx;
-    "SUB" => fw_impl::ilp::iop_subx;
-    "MUL" => fw_impl::ilp::iop_mulx;
+    ADD => fw_impl::ilp::iop_add;
+    SUB => fw_impl::ilp::iop_sub;
+    MUL => fw_impl::ilp::iop_mul;
 
-    "ADDS" => fw_impl::ilp::iop_addx;
-    "SUBS" => fw_impl::ilp::iop_subx;
-    "SSUB" => fw_impl::ilp::iop_ssub;
-    "MULS" => fw_impl::ilp::iop_mulx;
+    ADDS => fw_impl::ilp::iop_adds;
+    SUBS => fw_impl::ilp::iop_subs;
+    SSUB => fw_impl::ilp::iop_ssub;
+    MULS => fw_impl::ilp::iop_muls;
 
 
-    "BW_AND" => (|prog, arg| {fw_impl::ilp::iop_bw(prog, arg, asm::PbsBwAnd::default().into())});
-    "BW_OR"  => (|prog, arg| {fw_impl::ilp::iop_bw(prog, arg, asm::PbsBwOr::default().into())});
-    "BW_XOR" => (|prog, arg| {fw_impl::ilp::iop_bw(prog, arg, asm::PbsBwXor::default().into())});
+    BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
+    BW_OR  => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwOr::default().into())});
+    BW_XOR => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwXor::default().into())});
 
-    "CMP_GT"  => (|prog, arg| {fw_impl::ilp::iop_cmp(prog, arg, asm::PbsCmpGt::default().into())});
-    "CMP_GTE" => (|prog, arg| {fw_impl::ilp::iop_cmp(prog, arg, asm::PbsCmpGte::default().into())});
-    "CMP_LT"  => (|prog, arg| {fw_impl::ilp::iop_cmp(prog, arg, asm::PbsCmpLt::default().into())});
-    "CMP_LTE" => (|prog, arg| {fw_impl::ilp::iop_cmp(prog, arg, asm::PbsCmpLte::default().into())});
-    "CMP_EQ"  => (|prog, arg| {fw_impl::ilp::iop_cmp(prog, arg, asm::PbsCmpEq::default().into())});
-    "CMP_NEQ" => (|prog, arg| {fw_impl::ilp::iop_cmp(prog, arg, asm::PbsCmpNeq::default().into())});
+    CMP_GT  => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpGt::default().into())});
+    CMP_GTE => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpGte::default().into())});
+    CMP_LT  => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpLt::default().into())});
+    CMP_LTE => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpLte::default().into())});
+    CMP_EQ  => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpEq::default().into())});
+    CMP_NEQ => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpNeq::default().into())});
 
 ]);
 
 #[instrument(level = "info", skip(prog))]
-pub fn iop_addx(prog: &mut Program, op: &IOp) {
-    assert!(
-        (op.name() == "ADD") | (op.name() == "ADDS"),
-        "Check used of impl_macro"
-    );
-    let props = prog.props();
+pub fn iop_add(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Operand
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
-    let mut dst = prog.user_var(op.dst()[0]);
-    let src_a = prog.user_var(op.src()[0]);
-    let src_b = prog.user_var(op.src()[1]);
+    // Add Comment header
+    prog.push_comment("ADD Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic addx function
+    iop_addx(prog, &mut dst, &src_a, &src_b);
+}
+
+pub fn iop_adds(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("ADDS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    // Deferred implementation to generic addx function
+    iop_addx(prog, &mut dst, &src_a, &src_b);
+}
+
+/// Generic Add operation
+/// One destination and two sources operation
+/// Source could be Operand or Immediat
+#[instrument(level = "info", skip(prog))]
+pub fn iop_addx(
+    prog: &mut Program,
+    dst: &mut [metavar::MetaVarCell],
+    src_a: &[metavar::MetaVarCell],
+    src_b: &[metavar::MetaVarCell],
+) {
+    let props = prog.props();
 
     // Wrapped required lookup table in MetaVar
     let pbs_msg = new_pbs!(prog, "MsgOnly");
@@ -54,6 +86,8 @@ pub fn iop_addx(prog: &mut Program, op: &IOp) {
     let mut carry: Option<metavar::MetaVarCell> = None;
 
     (0..prog.props().blk_w()).for_each(|blk| {
+        prog.push_comment(format!(" ==> Work on output block {blk}"));
+
         let mut msg = &src_a[blk] + &src_b[blk];
         if let Some(cin) = &carry {
             msg += cin.clone();
@@ -65,22 +99,53 @@ pub fn iop_addx(prog: &mut Program, op: &IOp) {
         let msg = msg.pbs(&pbs_msg, false);
 
         // Store result
-        dst[blk].mv_assign(msg);
+        dst[blk].mv_assign(&msg);
     });
 }
 
 #[instrument(level = "info", skip(prog))]
-pub fn iop_subx(prog: &mut Program, op: &IOp) {
-    assert!(
-        (op.name() == "SUB") | (op.name() == "SUBS"),
-        "Check used of impl_macro"
-    );
+pub fn iop_sub(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("SUB Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic subx function
+    iop_subx(prog, &mut dst, &src_a, &src_b);
+}
+
+pub fn iop_subs(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    // Deferred implementation to generic subx function
+    iop_subx(prog, &mut dst, &src_a, &src_b);
+}
+
+/// Generic sub operation
+/// One destination and two sources operation
+/// Source could be Operand or Immediat
+#[instrument(level = "info", skip(prog))]
+pub fn iop_subx(
+    prog: &mut Program,
+    dst: &mut [metavar::MetaVarCell],
+    src_a: &[metavar::MetaVarCell],
+    src_b: &[metavar::MetaVarCell],
+) {
     let props = prog.props();
     let tfhe_params: asm::DigitParameters = props.clone().into();
-
-    let mut dst = prog.user_var(op.dst()[0]);
-    let src_a = prog.user_var(op.src()[0]);
-    let src_b = prog.user_var(op.src()[1]);
 
     // Wrapped required lookup table in MetaVar
     let pbs_msg = new_pbs!(prog, "MsgOnly");
@@ -128,16 +193,23 @@ pub fn iop_subx(prog: &mut Program, op: &IOp) {
     });
 }
 
+/// Implemenation of SSUB
+/// Provide its own implementation to match SUBS perfs
 #[instrument(level = "info", skip(prog))]
-pub fn iop_ssub(prog: &mut Program, op: &IOp) {
-    // NB: Dedicated implementation to achieved same perf as SUBS
-    assert!((op.name() == "SSUB"), "Check used of impl_macro");
+pub fn iop_ssub(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("SSUB Operand::Dst Operand::Src Operand::Immediat".to_string());
+
     let props = prog.props();
     let tfhe_params: asm::DigitParameters = props.clone().into();
-
-    let mut dst = prog.user_var(op.dst()[0]);
-    let src_a = prog.user_var(op.src()[0]);
-    let src_b = prog.user_var(op.src()[1]);
 
     // Wrapped required lookup table in MetaVar
     let pbs_msg = new_pbs!(prog, "MsgOnly");
@@ -186,18 +258,49 @@ pub fn iop_ssub(prog: &mut Program, op: &IOp) {
 }
 
 #[instrument(level = "info", skip(prog))]
-pub fn iop_mulx(prog: &mut Program, op: &IOp) {
-    assert!(
-        (op.name() == "MUL") | (op.name() == "MULS"),
-        "Check used of impl_macro"
-    );
+pub fn iop_mul(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("MUL Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic mulx function
+    iop_mulx(prog, &mut dst, &src_a, &src_b);
+}
+
+pub fn iop_muls(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    // Deferred implementation to generic mulx function
+    iop_mulx(prog, &mut dst, &src_a, &src_b);
+}
+
+/// Generic mul operation
+/// One destination and two sources operation
+/// Source could be Operand or Immediat
+#[instrument(level = "info", skip(prog))]
+pub fn iop_mulx(
+    prog: &mut Program,
+    dst: &mut [metavar::MetaVarCell],
+    src_a: &[metavar::MetaVarCell],
+    src_b: &[metavar::MetaVarCell],
+) {
     let props = prog.props();
     let tfhe_params: asm::DigitParameters = props.clone().into();
     let blk_w = props.blk_w();
-
-    let mut dst = prog.user_var(op.dst()[0]);
-    let src_a = prog.user_var(op.src()[0]);
-    let src_b = prog.user_var(op.src()[1]);
 
     // Wrapped required lookup table in MetaVar
     let pbs_msg = new_pbs!(prog, "MsgOnly");
@@ -221,12 +324,12 @@ pub fn iop_mulx(prog: &mut Program, op: &IOp) {
     // And store result in a Deque with associated weight (i.e. blk)
     let mut pp_vars = VecDeque::new();
 
-    for pp in pp_deg_idx.chunks(props.pbs_w) {
+    for pp in pp_deg_idx.chunks(props.pbs_batch_w) {
         // Pack
         let pack = pp
             .iter()
             .map(|(w, i, j)| {
-                let mac = src_a[*i].mac(tfhe_params.msg_range(), &src_b[*j]);
+                let mac = src_a[*i].mac(tfhe_params.msg_range() as u8, &src_b[*j]);
                 debug!(target: "Fw", "@{w}[{i}, {j}] -> {mac:?}",);
                 (w, mac)
             })
@@ -234,7 +337,7 @@ pub fn iop_mulx(prog: &mut Program, op: &IOp) {
 
         // Pbs Mul
         // Reserve twice as pbs_w since 2 pbs could be generated for a given block
-        prog.reg_bulk_reserve(2 * props.pbs_w);
+        prog.reg_bulk_reserve(2 * props.pbs_batch_w);
         pack.into_iter().for_each(|(w, pp)| {
             let lsb = pp.pbs(&pbs_mul_lsb, false);
             debug!(target: "Fw", "Pbs generate @{w} -> {lsb:?}");
@@ -361,7 +464,7 @@ pub fn iop_mulx(prog: &mut Program, op: &IOp) {
             }
         }
 
-        if pdg_pbs.len() == props.pbs_w || (pp_vars.is_empty()) {
+        if pdg_pbs.len() == props.pbs_batch_w || (pp_vars.is_empty()) {
             trace!(target: "Fw", "pdg_pbs[{}] <- {pdg_pbs:?}", pdg_pbs.len());
             prog.reg_bulk_reserve(pdg_pbs.len());
             while let Some((w, var)) = pdg_pbs.pop() {
@@ -394,28 +497,30 @@ pub fn iop_mulx(prog: &mut Program, op: &IOp) {
 }
 
 #[instrument(level = "info", skip(prog))]
-pub fn iop_bw(prog: &mut Program, op: &IOp, bw_op: Pbs) {
-    assert!(
-        (op.name() == "BW_AND") | (op.name() == "BW_OR") | (op.name() == "BW_XOR"),
-        "Check used of impl_macro"
-    );
+pub fn iop_bw(prog: &mut Program, bw_op: Pbs) {
+    // Dest -> Operand
+    let dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Operand
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment(format!("BW_{bw_op} Operand::Dst Operand::Src Operand::Src"));
+
     let props = prog.props();
     let tfhe_params: asm::DigitParameters = props.clone().into();
 
-    let dst = prog.user_var(op.dst()[0]);
-    let src_a = prog.user_var(op.src()[0]);
-    let src_b = prog.user_var(op.src()[1]);
-
     // Wrapped given bw_op lookup table in MetaVar
-    let bw_op = prog.var_from(Some(Arg::Pbs(bw_op)));
+    let bw_op = prog.var_from(Some(metavar::VarPos::Pbs(bw_op)));
 
     itertools::izip!(dst, src_a, src_b)
-        .chunks(props.pbs_w)
+        .chunks(props.pbs_batch_w)
         .into_iter()
         .for_each(|chunk| {
             let chunk_pack = chunk
                 .into_iter()
-                .map(|(d, a, b)| (d, a.mac(tfhe_params.msg_range(), &b)))
+                .map(|(d, a, b)| (d, a.mac(tfhe_params.msg_range() as u8, &b)))
                 .collect::<Vec<_>>();
             chunk_pack.into_iter().for_each(|(mut d, mut pack)| {
                 pack.pbs_assign(&bw_op, false);
@@ -425,18 +530,24 @@ pub fn iop_bw(prog: &mut Program, op: &IOp, bw_op: Pbs) {
 }
 
 #[instrument(level = "info", skip(prog))]
-pub fn iop_cmp(prog: &mut Program, op: &IOp, cmp_op: Pbs) {
-    assert!(op.name().contains("CMP_"), "Check used of impl_macro");
+pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Operand
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment(format!(
+        "CMP_{cmp_op} Operand::Dst Operand::Src Operand::Src"
+    ));
 
     let props = prog.props();
     let tfhe_params: asm::DigitParameters = props.clone().into();
 
-    let mut dst = prog.user_var(op.dst()[0]);
-    let src_a = prog.user_var(op.src()[0]);
-    let src_b = prog.user_var(op.src()[1]);
-
     // Wrapped given cmp_op and comp_sign lookup table in MetaVar
-    let cmp_op = prog.var_from(Some(Arg::Pbs(cmp_op)));
+    let cmp_op = prog.var_from(Some(metavar::VarPos::Pbs(cmp_op)));
     let pbs_none = new_pbs!(prog, "None");
     let cmp_sign = new_pbs!(prog, "CmpSign");
     let cmp_reduce = new_pbs!(prog, "CmpReduce");
@@ -446,14 +557,14 @@ pub fn iop_cmp(prog: &mut Program, op: &IOp, cmp_op: Pbs) {
         .map(|(a, b)| {
             let pack_a = if a.len() > 1 {
                 // Reset noise for future block merge through sub
-                a[1].mac(tfhe_params.msg_range(), &a[0])
+                a[1].mac(tfhe_params.msg_range() as u8, &a[0])
                     .pbs(&pbs_none, false)
             } else {
                 a[0].clone()
             };
 
             let pack_b = if b.len() > 1 {
-                b[1].mac(tfhe_params.msg_range(), &b[0])
+                b[1].mac(tfhe_params.msg_range() as u8, &b[0])
                     .pbs(&pbs_none, false)
             } else {
                 b[0].clone()
@@ -465,7 +576,7 @@ pub fn iop_cmp(prog: &mut Program, op: &IOp, cmp_op: Pbs) {
     let cst_1 = prog.new_imm(1);
     let merged = packed
         .into_iter()
-        .chunks(props.pbs_w)
+        .chunks(props.pbs_batch_w)
         .into_iter()
         .flat_map(|chunk| {
             let chunk = chunk
@@ -488,9 +599,10 @@ pub fn iop_cmp(prog: &mut Program, op: &IOp, cmp_op: Pbs) {
         })
         .collect::<Vec<_>>();
 
-    let reduce = merged
-        .into_iter()
-        .reduce(|acc, x| x.mac(tfhe_params.msg_range(), &acc).pbs(&cmp_reduce, false));
+    let reduce = merged.into_iter().reduce(|acc, x| {
+        x.mac(tfhe_params.msg_range() as u8, &acc)
+            .pbs(&cmp_reduce, false)
+    });
 
     // Compute cst for destination MSB and interpret reduce for LSB
     let cst_0 = prog.new_cst(0);
