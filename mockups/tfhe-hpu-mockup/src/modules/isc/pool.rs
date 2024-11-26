@@ -1,4 +1,4 @@
-use hpu_asm::Asm;
+use hpu_asm::dop::ToAsm;
 use tracing::instrument;
 
 use crate::mockup_params::IscSimParameters;
@@ -226,7 +226,13 @@ impl Pool {
                 // Update slot and insert back
                 slot.state.pdg = true;
                 let kind_1h = slot.inst.kind;
-                let flush = hpu_asm::DOpName::from(&slot.inst.op) == hpu_asm::DOpName::PBS_F;
+                let flush = matches!(
+                    slot.inst.op,
+                    hpu_asm::DOp::PBS_F(_)
+                        | hpu_asm::DOp::PBS_ML2_F(_)
+                        | hpu_asm::DOp::PBS_ML4_F(_)
+                        | hpu_asm::DOp::PBS_ML8_F(_)
+                );
                 let trace_slot = slot.clone();
                 self.store.push(slot);
                 IssueEvt::DOp {
@@ -338,21 +344,23 @@ struct ArgId {
 }
 
 impl ArgId {
-    fn from_arg(arg: hpu_asm::Arg) -> Self {
+    fn from_arg(arg: hpu_asm::DOpArg) -> Self {
         match arg {
-            hpu_asm::Arg::RegId(rid) => Self {
+            hpu_asm::DOpArg::Reg(rid) => Self {
                 mode: DOpMode::Register,
-                id: rid,
+                id: rid.0 as usize,
             },
-            hpu_asm::Arg::MemId(ms) => Self {
-                mode: DOpMode::Memory,
-                id: ms.cid_ofst,
-            },
-            hpu_asm::Arg::Imm(_) => Self {
-                mode: DOpMode::Unused,
-                id: 0,
-            },
-            hpu_asm::Arg::Pbs(_) => Self {
+            hpu_asm::DOpArg::Mem(ms) => {
+                let id = match ms {
+                    hpu_asm::MemId::Addr(ct_id) => ct_id.0 as usize,
+                    _ => panic!("Template must have been resolved before execution"),
+                };
+                Self {
+                    mode: DOpMode::Memory,
+                    id,
+                }
+            }
+            hpu_asm::DOpArg::Imm(_) | hpu_asm::DOpArg::Pbs(_) | hpu_asm::DOpArg::Sync(_) => Self {
                 mode: DOpMode::Unused,
                 id: 0,
             },
@@ -368,7 +376,7 @@ impl ArgId {
                 id: 0,
             }
         } else {
-            Self::from_arg(dst[0])
+            Self::from_arg(dst[0].clone())
         }
     }
 
@@ -381,7 +389,7 @@ impl ArgId {
                 id: 0,
             }
         } else {
-            Self::from_arg(src[0])
+            Self::from_arg(src[0].clone())
         }
     }
     fn from_srcb(dop: &hpu_asm::DOp) -> Self {
@@ -392,7 +400,7 @@ impl ArgId {
                 id: 0,
             }
         } else {
-            Self::from_arg(src[1])
+            Self::from_arg(src[1].clone())
         }
     }
 }

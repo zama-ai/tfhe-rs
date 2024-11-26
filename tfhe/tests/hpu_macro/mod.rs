@@ -9,8 +9,6 @@
 pub use serial_test::serial;
 use std::str::FromStr;
 
-pub use hpu_asm::strum::IntoEnumIterator;
-pub use hpu_asm::{Asm, IOp, IOpName};
 pub use tfhe::prelude::*;
 pub use tfhe::*;
 pub use tfhe_hpu_backend::prelude::*;
@@ -88,8 +86,8 @@ macro_rules! hpu_testcase {
             $(
             #[allow(unused)]
             pub fn [<hpu_ $iop:lower _ $user_type>](device: &mut HpuDevice, cks: &ClientKey) -> bool {
-                let iop = IOpName::from_str($iop).expect("Invalid IOp name");
-                let imm_fmt = IOp::from(iop).has_imm();
+                let iop = hpu_asm::AsmIOpcode::from_str($iop).expect("Invalid AsmIOpcode ");
+                let imm_fmt = iop.has_imm();
 
                 (0..TEST_ITER).map(|_| {
                     // Generate clear value
@@ -109,9 +107,9 @@ macro_rules! hpu_testcase {
 
                     // execute on Hpu
                     let res_hpu = if imm_fmt {
-                        a_hpu.iop_imm(iop, b as usize)
+                        a_hpu.iop_imm(iop.opcode(), b as usize)
                     } else {
-                        a_hpu.iop_ct(iop, b_hpu.clone())
+                        a_hpu.iop_ct(iop.opcode(), b_hpu.clone())
                     };
                     let res_fhe = $fhe_type::from(res_hpu);
                     let res: $user_type = res_fhe.decrypt(cks);

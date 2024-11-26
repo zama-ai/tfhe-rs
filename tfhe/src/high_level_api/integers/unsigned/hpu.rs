@@ -113,13 +113,13 @@ export_std_ops!("BitXor");
 
 // For bench purpose also expose iop_ct/iop_imm function
 impl<Id: FheUintId> HpuFheUint<Id> {
-    pub fn iop_ct(self, name: hpu_asm::IOpName, rhs: Self) -> Self {
+    pub fn iop_ct(self, opcode: hpu_asm::IOpcode, rhs: Self) -> Self {
         let Self {
             ciphertext,
             id,
             tag,
         } = self;
-        let inner_dst_var = ciphertext.0.iop_ct(name, rhs.ciphertext.0);
+        let inner_dst_var = ciphertext.0.iop_ct(opcode, rhs.ciphertext.0);
         Self {
             ciphertext: HpuRadixCiphertext(inner_dst_var),
             id,
@@ -127,17 +127,17 @@ impl<Id: FheUintId> HpuFheUint<Id> {
         }
     }
 
-    pub fn iop_ct_assign(&mut self, name: hpu_asm::IOpName, rhs: Self) {
-        self.ciphertext.0.iop_ct_assign(name, rhs.ciphertext.0)
+    pub fn iop_ct_assign(&mut self, opcode: hpu_asm::IOpcode, rhs: Self) {
+        self.ciphertext.0.iop_ct_assign(opcode, rhs.ciphertext.0)
     }
 
-    pub fn iop_imm(self, name: hpu_asm::IOpName, rhs: usize) -> Self {
+    pub fn iop_imm(self, opcode: hpu_asm::IOpcode, rhs: usize) -> Self {
         let Self {
             ciphertext,
             id,
             tag,
         } = self;
-        let inner_dst_var = ciphertext.0.iop_imm(name, rhs);
+        let inner_dst_var = ciphertext.0.iop_imm(opcode, rhs);
         Self {
             ciphertext: HpuRadixCiphertext(inner_dst_var),
             id,
@@ -145,7 +145,7 @@ impl<Id: FheUintId> HpuFheUint<Id> {
         }
     }
 
-    pub fn iop_imm_assign(&mut self, name: hpu_asm::IOpName, rhs: usize) {
-        self.ciphertext.0.iop_imm_assign(name, rhs)
+    pub fn iop_imm_assign(&mut self, opcode: hpu_asm::IOpcode, rhs: usize) {
+        self.ciphertext.0.iop_imm_assign(opcode, rhs)
     }
 }

@@ -3,7 +3,6 @@
 //! Use offline approach to ease user-edition of generated pe-store
 
 use hpu_sim::isc;
-use tfhe::tfhe_hpu_backend::prelude::*;
 
 /// High-level Hw Parameters structure used to derived ALUStore properties
 pub struct HwParams {
@@ -35,10 +34,7 @@ impl HwParams {
         for i in 0..self.ldst_nb {
             let name = format!("LdSt_{i}");
             let cost = isc::PeCost::new(ldst_cycle, ldst_cycle + 1);
-            let kind = isc::InstructionKind::from_name_list(&[
-                hpu_asm::dop::DOpName::LD,
-                hpu_asm::dop::DOpName::ST,
-            ]);
+            let kind = isc::InstructionKind::MemLd | isc::InstructionKind::MemSt;
             pe_config_store.push((name, isc::PeConfig::new(cost, kind, 1)));
         }
 
@@ -50,15 +46,7 @@ impl HwParams {
         for i in 0..self.lin_nb {
             let name = format!("Lin_{i}");
             let cost = isc::PeCost::new(lin_cycle, lin_cycle + 1);
-            let kind = isc::InstructionKind::from_name_list(&[
-                hpu_asm::dop::DOpName::SUBS,
-                hpu_asm::dop::DOpName::SSUB,
-                hpu_asm::dop::DOpName::ADDS,
-                hpu_asm::dop::DOpName::MULS,
-                hpu_asm::dop::DOpName::ADD,
-                hpu_asm::dop::DOpName::SUB,
-                hpu_asm::dop::DOpName::MAC,
-            ]);
+            let kind = isc::InstructionKind::Arith;
             pe_config_store.push((name, isc::PeConfig::new(cost, kind, 1)));
         }
 
@@ -72,10 +60,7 @@ impl HwParams {
         for i in 0..self.pbs_nb {
             let name = format!("KsPbs_{}", i);
             let cost = isc::PeCost::new(kspbs_rd_cycle, kspbs_wr_cycle);
-            let kind = isc::InstructionKind::from_name_list(&[
-                hpu_asm::dop::DOpName::PBS,
-                hpu_asm::dop::DOpName::PBS_F,
-            ]);
+            let kind = isc::InstructionKind::Pbs;
             pe_config_store.push((name, isc::PeConfig::new(cost, kind, self.batch_pbs)));
         }
 

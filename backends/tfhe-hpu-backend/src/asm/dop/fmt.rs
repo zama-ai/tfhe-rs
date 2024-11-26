@@ -1,159 +1,245 @@
 //!
 //! Define binary format encoding of instructions
-//! Rely on `deku` crate to define bit-accurate insn format and enable serde to byte-stream
-//!
-//! Also propose a `trait` that should be implemented by Op to be enable conversion between Op <->
+//! Rely on `bitfield_struct` crate to define bit-accurate insn format and enable serde to
 //! byte-stream
+//!
+//! Provide conversion implementation between raw bitfield and DOp types
+use bitfield_struct::bitfield;
 
-use deku::prelude::*;
+use super::*;
 
-// Binary encoding of DOp
-// See PeArithInsn/PeArithMsgInsn/PeMemInsn/PePbsInsn for subformat definition
-pub mod dopcode {
-    // Arith
-    pub const ADD: u8 = 0b00_0001;
-    pub const SUB: u8 = 0b00_0010;
-    pub const MAC: u8 = 0b00_0101;
+// List of DOp format with there associated encoding
+// NB: typedef couldn't be used in bitfield_struct macro. Thus macro rely on u32 instead of
+// DOpRepr...
+// ------------------------------------------------------------------------------------------------
+/// Raw type used for encoding
+pub type DOpRepr = u32;
 
-    // ArithMsg
-    pub const ADDS: u8 = 0b00_1001;
-    pub const SUBS: u8 = 0b00_1010;
-    pub const SSUB: u8 = 0b00_1011;
-    pub const MULS: u8 = 0b00_0100;
-
-    //Sync
-    pub const SYNC: u8 = 0b01_0000;
-
-    // LD/ST and templated LD/ST
-    pub const LD: u8 = 0b10_0000;
-    pub const TLDA: u8 = 0b10_1000;
-    pub const TLDB: u8 = 0b10_0100;
-    pub const TLDH: u8 = 0b10_0010;
-    pub const ST: u8 = 0b10_0001;
-    pub const TSTD: u8 = 0b10_1001;
-    pub const TSTH: u8 = 0b10_0101;
-
-    // PBS
-    pub const PBS: u8 = 0b11_0000;
-    pub const PBS_F: u8 = 0b11_0001;
+#[enum_dispatch]
+pub trait ToHex {
+    fn to_hex(&self) -> DOpRepr;
 }
 
-/// Opcode
-/// Used to define instruction and associated format
-#[derive(Debug, Clone, Copy, PartialEq, DekuRead, DekuWrite)]
-#[deku(endian = "big")]
-pub(super) struct Opcode(#[deku(bits = "6")] pub(super) u8);
-
-/// Top-level type used to define an DOp
-/// Contain the opcode and an enum with associated format
-#[derive(Debug, PartialEq, DekuRead, DekuWrite)]
-pub struct DOp {
-    pub(super) opcode: Opcode,
-    #[deku(ctx = "*opcode")]
-    pub(super) fields: DOpField,
-}
-
-/// Match opcode with instruction name and format
-#[derive(Debug, PartialEq, DekuRead, DekuWrite)]
-#[deku(ctx = "opcode: Opcode", id = "opcode")]
-#[allow(non_camel_case_types)]
-pub(super) enum DOpField {
-    #[deku(id = "Opcode(dopcode::ADD)")]
-    ADD(PeArithInsn),
-    #[deku(id = "Opcode(dopcode::SUB)")]
-    SUB(PeArithInsn),
-    #[deku(id = "Opcode(dopcode::MAC)")]
-    MAC(PeArithInsn),
-
-    #[deku(id = "Opcode(dopcode::ADDS)")]
-    ADDS(PeArithMsgInsn),
-    #[deku(id = "Opcode(dopcode::SUBS)")]
-    SUBS(PeArithMsgInsn),
-    #[deku(id = "Opcode(dopcode::SSUB)")]
-    SSUB(PeArithMsgInsn),
-    #[deku(id = "Opcode(dopcode::MULS)")]
-    MULS(PeArithMsgInsn),
-
-    #[deku(id = "Opcode(dopcode::SYNC)")]
-    SYNC(PeSyncInsn),
-
-    #[deku(id = "Opcode(dopcode::LD)")]
-    LD(PeMemInsn),
-    #[deku(id = "Opcode(dopcode::TLDA)")]
-    TLDA(PeMemInsn),
-    #[deku(id = "Opcode(dopcode::TLDB)")]
-    TLDB(PeMemInsn),
-    #[deku(id = "Opcode(dopcode::TLDH)")]
-    TLDH(PeMemInsn),
-    #[deku(id = "Opcode(dopcode::ST)")]
-    ST(PeMemInsn),
-    #[deku(id = "Opcode(dopcode::TSTD)")]
-    TSTD(PeMemInsn),
-    #[deku(id = "Opcode(dopcode::TSTH)")]
-    TSTH(PeMemInsn),
-
-    #[deku(id = "Opcode(dopcode::PBS)")]
-    PBS(PePbsInsn),
-    #[deku(id = "Opcode(dopcode::PBS_F)")]
-    PBS_F(PePbsInsn),
+/// DOp raw encoding used for Opcode extraction
+#[bitfield(u32)]
+pub struct DOpRawHex {
+    #[bits(26)]
+    _reserved: u32,
+    #[bits(6)]
+    pub opcode: u8,
 }
 
 /// PeArith instructions
-/// Pe arithmetics format specialized for MAC insn
-#[derive(Debug, PartialEq, DekuRead, DekuWrite)]
-#[deku(endian = "big")]
-pub(super) struct PeArithInsn {
-    #[deku(bits = "5")]
-    pub(super) mul_factor: u8,
-    #[deku(bits = "7")]
-    pub(super) src1_rid: u8,
-    #[deku(bits = "7")]
-    pub(super) src0_rid: u8,
-    #[deku(bits = "7")]
-    pub(super) dst_rid: u8,
+/// Arithmetic operation that use one destination register and two sources register
+/// Have also an extra mul_factor field for MAC insn
+#[bitfield(u32)]
+pub struct PeArithHex {
+    #[bits(7)]
+    dst_rid: u8,
+    #[bits(7)]
+    src0_rid: u8,
+    #[bits(7)]
+    src1_rid: u8,
+    #[bits(5)]
+    mul_factor: u8,
+    #[bits(6)]
+    opcode: u8,
+}
+
+impl From<&PeArithInsn> for PeArithHex {
+    fn from(value: &PeArithInsn) -> Self {
+        Self::new()
+            .with_dst_rid(value.dst_rid.0)
+            .with_src0_rid(value.src0_rid.0)
+            .with_src1_rid(value.src1_rid.0)
+            .with_mul_factor(value.mul_factor.0)
+            .with_opcode(value.opcode.0)
+    }
+}
+impl From<&PeArithHex> for PeArithInsn {
+    fn from(value: &PeArithHex) -> Self {
+        Self {
+            dst_rid: RegId(value.dst_rid()),
+            src0_rid: RegId(value.src0_rid()),
+            src1_rid: RegId(value.src1_rid()),
+            mul_factor: MulFactor(value.mul_factor()),
+            opcode: Opcode(value.opcode()),
+        }
+    }
 }
 
 /// PeaMsg instructions
-/// Pe arithmetics format specialized for MAC insn
-#[derive(Debug, PartialEq, DekuRead, DekuWrite)]
-#[deku(endian = "big")]
-pub(super) struct PeArithMsgInsn {
-    #[deku(bits = "12")]
-    pub(super) msg_cst: u16,
-    #[deku(bits = "7")]
-    pub(super) src_rid: u8,
-    #[deku(bits = "7")]
-    pub(super) dst_rid: u8,
+/// Arithmetic operation that use one destination register, one source register and an immediat
+/// value
+#[bitfield(u32)]
+pub struct PeArithMsgHex {
+    #[bits(7)]
+    dst_rid: u8,
+    #[bits(7)]
+    src_rid: u8,
+    #[bits(1)]
+    msg_mode: bool,
+    #[bits(11)]
+    msg_cst: u16,
+    #[bits(6)]
+    opcode: u8,
+}
+// Define encoding for msg_mode
+const IMM_CST: bool = false;
+const IMM_VAR: bool = true;
+
+impl From<&PeArithMsgInsn> for PeArithMsgHex {
+    fn from(value: &PeArithMsgInsn) -> Self {
+        let (mode, cst) = match value.msg_cst {
+            ImmId::Cst(cst) => (IMM_CST, cst),
+            ImmId::Var { tid, bid } => (IMM_VAR, (((tid as u16) << 8) + bid as u16)),
+        };
+
+        Self::new()
+            .with_dst_rid(value.dst_rid.0)
+            .with_src_rid(value.src_rid.0)
+            .with_msg_mode(mode)
+            .with_msg_cst(cst)
+            .with_opcode(value.opcode.0)
+    }
+}
+
+impl From<&PeArithMsgHex> for PeArithMsgInsn {
+    fn from(value: &PeArithMsgHex) -> Self {
+        let msg_cst = match value.msg_mode() {
+            IMM_CST => ImmId::Cst(value.msg_cst()),
+            IMM_VAR => ImmId::new_var((value.msg_cst() >> 8) as u8, (value.msg_cst() & 0xff) as u8),
+        };
+
+        Self {
+            dst_rid: RegId(value.dst_rid()),
+            src_rid: RegId(value.src_rid()),
+            msg_cst,
+            opcode: Opcode(value.opcode()),
+        }
+    }
 }
 
 /// PeMem instructions
-#[derive(Debug, PartialEq, DekuRead, DekuWrite)]
-#[deku(endian = "big")]
-pub(super) struct PeMemInsn {
-    #[deku(bits = "3")]
-    pub(super) ct_ofst: u8,
-    #[deku(bits = "16")]
-    pub(super) cid: u16,
-    #[deku(bits = "7")]
-    pub(super) rid: u8,
+/// LD/St operation with one register and one memory slot
+#[bitfield(u32)]
+pub struct PeMemHex {
+    #[bits(7)]
+    rid: u8,
+    #[bits(1)]
+    _pad: u8,
+    #[bits(2)]
+    mode: u8,
+    #[bits(16)]
+    slot: u16,
+    #[bits(6)]
+    opcode: u8,
+}
+
+// Define encoding for mem_mode
+const MEM_ADDR: u8 = 0x0;
+const MEM_HEAP: u8 = 0x1;
+const MEM_SRC: u8 = 0x2;
+const MEM_DST: u8 = 0x3;
+
+impl From<&PeMemInsn> for PeMemHex {
+    fn from(value: &PeMemInsn) -> Self {
+        let (mode, slot) = match value.slot {
+            MemId::Addr(ct_id) => (MEM_ADDR, ct_id.0),
+            MemId::Heap { bid } => (MEM_HEAP, bid),
+            MemId::Src { tid, bid } => (MEM_SRC, ((tid as u16) << 8) + bid as u16),
+            MemId::Dst { tid, bid } => (MEM_DST, ((tid as u16) << 8) + bid as u16),
+        };
+
+        Self::new()
+            .with_rid(value.rid.0)
+            .with_mode(mode)
+            .with_slot(slot)
+            .with_opcode(value.opcode.0)
+    }
+}
+
+impl From<&PeMemHex> for PeMemInsn {
+    fn from(value: &PeMemHex) -> Self {
+        let slot = if MEM_ADDR == value.mode() {
+            MemId::Addr(crate::asm::CtId(value.slot()))
+        } else if MEM_HEAP == value.mode() {
+            MemId::Heap { bid: value.slot() }
+        } else if MEM_SRC == value.mode() {
+            MemId::Src {
+                tid: (value.slot() >> 8) as u8,
+                bid: (value.slot() & 0xff) as u8,
+            }
+        } else if MEM_DST == value.mode() {
+            MemId::Dst {
+                tid: (value.slot() >> 8) as u8,
+                bid: (value.slot() & 0xff) as u8,
+            }
+        } else {
+            panic!("Unsupported memory mode")
+        };
+
+        Self {
+            rid: RegId(value.rid()),
+            slot,
+            opcode: Opcode(value.opcode()),
+        }
+    }
 }
 
 /// PePbs instructions
-#[derive(Debug, PartialEq, DekuRead, DekuWrite)]
-#[deku(endian = "big")]
-pub(super) struct PePbsInsn {
-    #[deku(bits = "12")]
-    pub(super) gid: u32,
-    #[deku(bits = "7")]
-    pub(super) src_rid: u8,
-    #[deku(bits = "7")]
-    pub(super) dst_rid: u8,
+#[bitfield(u32)]
+pub struct PePbsHex {
+    #[bits(7)]
+    dst_rid: u8,
+    #[bits(7)]
+    src_rid: u8,
+    #[bits(12)]
+    gid: u16,
+    #[bits(6)]
+    opcode: u8,
+}
+
+impl From<&PePbsInsn> for PePbsHex {
+    fn from(value: &PePbsInsn) -> Self {
+        Self::new()
+            .with_dst_rid(value.dst_rid.0)
+            .with_src_rid(value.src_rid.0)
+            .with_gid(value.gid.0)
+            .with_opcode(value.opcode.0)
+    }
+}
+impl From<&PePbsHex> for PePbsInsn {
+    fn from(value: &PePbsHex) -> Self {
+        Self {
+            dst_rid: RegId(value.dst_rid()),
+            src_rid: RegId(value.src_rid()),
+            gid: PbsGid(value.gid()),
+            opcode: Opcode(value.opcode()),
+        }
+    }
 }
 
 /// PeSync instructions
-#[derive(Debug, PartialEq, DekuRead, DekuWrite)]
-#[deku(endian = "big")]
-pub(super) struct PeSyncInsn {
-    #[deku(bits = "26")]
-    pub(super) sid: u32,
+#[bitfield(u32)]
+pub struct PeSyncHex {
+    #[bits(26)]
+    sid: u32,
+    #[bits(6)]
+    opcode: u8,
+}
+impl From<&PeSyncInsn> for PeSyncHex {
+    fn from(value: &PeSyncInsn) -> Self {
+        Self::new()
+            .with_sid(value.sid.0)
+            .with_opcode(value.opcode.0)
+    }
+}
+impl From<&PeSyncHex> for PeSyncInsn {
+    fn from(value: &PeSyncHex) -> Self {
+        Self {
+            sid: SyncId(value.sid()),
+            opcode: Opcode(value.opcode()),
+        }
+    }
 }

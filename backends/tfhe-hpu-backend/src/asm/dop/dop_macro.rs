@@ -2,994 +2,357 @@
 //!
 //! Indeed except the behavior DOp shared a small set of format.
 //! And for a given format all the parsing logic is the same
-//! This could be done with derive proc macro with a set of attributes
-//! But for timinig purpose (and lake of knowledge of proc_macro) we use simple macro_rules
-//! The results is less extendable but enable to reduce the repetition in DOp definition
+//! A macro rules is used to help with DOp definition
 
 #[macro_export]
-macro_rules! arith_dop {
-    (
-        $asm: literal
-        $(,)?
-    ) => {
-        ::paste::paste! {
-        #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-        pub struct [<DOp $asm:camel>] {
-            pub dst: usize,
-            pub src: (usize, usize),
-        }
-
-        impl Default for [<DOp $asm:camel>]{
-            fn default() -> Self {
-                Self {
-                    dst: 0,
-                    src: (0, 0),
-                }
-            }
-        }
-
-        impl Asm for [<DOp $asm:camel>] {
-            fn name(&self) -> &'static str {
-                $asm
-            }
-
-            fn has_imm(&self) -> bool {
-                false
-            }
-
-            fn args(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst), Arg::RegId(self.src.0), Arg::RegId(self.src.1)]
-            }
-
-            fn dst(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst)]
-            }
-
-            fn src(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.src.0), Arg::RegId(self.src.1)]
-            }
-
-            fn from_args(&mut self, args: Vec<Arg>) -> Result<(), anyhow::Error> {
-                if args.len() != 3 {
-                    return Err(ArgError::InvalidNumber(3, args.len()).into());
-                }
-
-                match args[0] {
-                    Arg::RegId(id) => {
-                        self.dst = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[0]).into()),
-                }
-
-                match args[1] {
-                    Arg::RegId(id) => {
-                        self.src.0 = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[1]).into()),
-                }
-
-                match args[2] {
-                    Arg::RegId(id) => {
-                        self.src.1 = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[2]).into()),
-                }
-
-                Ok(())
-            }
-
-            fn randomize(&mut self, props: &ArchProperties, rng: &mut StdRng) {
-                self.dst = rng.gen_range(0..props.regs);
-                self.src.0 = rng.gen_range(0..props.regs);
-                self.src.1 = rng.gen_range(0..props.regs);
-            }
-
-            fn asm_encode(&self, width: usize) -> String {
-                format!(
-                    "{: <width$} {: <width$} {: <width$} {: <width$}",
-                    self.name(),
-                    // NB: Trick to impose width rendering
-                    format!("{}", Arg::RegId(self.dst)),
-                    format!("{}", Arg::RegId(self.src.0)),
-                    format!("{}", Arg::RegId(self.src.1)),
-                    width = width,
-                )
-            }
-    }
-
-    impl AsmBin for [<DOp $asm:camel>] {
-            fn bin_encode_le(&self) -> Result<Vec<u8>, anyhow::Error> {
-                let fmt_dop = fmt::DOp {
-                    opcode : fmt::Opcode(fmt::dopcode::[<$asm>]),
-                    fields : fmt::DOpField::[<$asm>](fmt::PeArithInsn {
-                        mul_factor: 0,
-                        src1_rid: self.src.1 as u8,
-                        src0_rid: self.src.0 as u8,
-                        dst_rid: self.dst as u8,
-                        }),
-                };
-                // fmt is defined in big-endian to correctly use opcode for field decoding
-                // However, the rest of the stack expect Little-endian ordering
-                // -> revert the bytes stream
-                let mut bytes_be = fmt_dop.to_bytes()?;
-                let bytes_le = {
-                    let be = bytes_be.as_mut_slice();
-                    be.reverse();
-                    bytes_be
-                };
-                Ok(bytes_le)
-            }
-
-            fn from_deku(&mut self, any: &dyn Any) -> Result<(), ParsingError>{
-                let deku = match any.downcast_ref::<dop::fmt::DOp>() {
-                    Some(d) => d,
-                    None => return Err(ParsingError::Unmatch),
-                };
-
-                if deku.opcode.0 != fmt::dopcode::[<$asm>] {
-                    Err(ParsingError::Unmatch.into())
-                } else {
-                    match &deku.fields {
-                        fmt::DOpField::[<$asm>](f) => {
-                            self.src.1 = f.src1_rid as usize;
-                            self.src.0 = f.src0_rid as usize;
-                            self.dst = f.dst_rid as usize;
-                            Ok(())
-                        }
-                        _ => Err(ParsingError::InvalidArg("".to_string()))
-                    }
-                }
-            }
-        }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! arith_mf_dop {
-    (
-        $asm: literal
-        $(,)?
-    ) => {
-        ::paste::paste! {
-        #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-        pub struct [<DOp $asm:camel>] {
-            pub dst: usize,
-            pub src: (usize, usize),
-            pub mul_factor: usize
-        }
-
-        impl Default for [<DOp $asm:camel>]{
-            fn default()-> Self {
-                Self {
-                    dst: 0,
-                    src: (0, 0),
-                    mul_factor: 0
-                }
-            }
-        }
-
-        impl Asm for [<DOp $asm:camel>] {
-            fn name(&self) -> &'static str {
-                $asm
-            }
-
-            fn has_imm(&self) -> bool {
-                true
-            }
-
-            fn args(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst), Arg::RegId(self.src.0), Arg::RegId(self.src.1), Arg::Imm(self.mul_factor)]
-            }
-
-            fn dst(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst)]
-            }
-
-            fn src(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.src.0), Arg::RegId(self.src.1)]
-            }
-
-            fn from_args(&mut self, args: Vec<Arg>) -> Result<(), anyhow::Error> {
-                if args.len() != 4{
-                    return Err(ArgError::InvalidNumber(4, args.len()).into());
-                }
-
-                match args[0] {
-                    Arg::RegId(id) => {
-                        self.dst = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[0]).into()),
-                }
-
-                match args[1] {
-                    Arg::RegId(id) => {
-                        self.src.0 = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[1]).into()),
-                }
-
-                match args[2] {
-                    Arg::RegId(id) => {
-                        self.src.1 = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[2]).into()),
-                }
-
-                match args[3] {
-                    Arg::Imm(s) => {
-                        self.mul_factor = s;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::Imm".to_string(), args[3]).into()),
-                }
-                Ok(())
-            }
-
-            fn randomize(&mut self, props: &ArchProperties, rng: &mut StdRng) {
-                self.dst = rng.gen_range(0..props.regs);
-                self.src.0 = rng.gen_range(0..props.regs);
-                self.src.1 = rng.gen_range(0..props.regs);
-                self.mul_factor = rng.gen_range(0..(1 << props.msg_w));
-            }
-
-            fn asm_encode(&self, width: usize) -> String {
-                format!(
-                    "{: <width$} {: <width$} {: <width$} {: <width$} {: <width$}",
-                    self.name(),
-                    // NB: Trick to impose width rendering
-                    format!("{}", Arg::RegId(self.dst)),
-                    format!("{}", Arg::RegId(self.src.0)),
-                    format!("{}", Arg::RegId(self.src.1)),
-                    format!("{}", Arg::Imm(self.mul_factor)),
-                    width = width,
-                )
-            }
-    }
-
-    impl AsmBin for [<DOp $asm:camel>] {
-            fn bin_encode_le(&self) -> Result<Vec<u8>, anyhow::Error> {
-                let fmt_dop = fmt::DOp {
-                    opcode : fmt::Opcode(fmt::dopcode::[<$asm>]),
-                    fields : fmt::DOpField::[<$asm>](fmt::PeArithInsn {
-                        mul_factor: self.mul_factor as u8,
-                        src1_rid: self.src.1 as u8,
-                        src0_rid: self.src.0 as u8,
-                        dst_rid: self.dst as u8,
-                        }),
-                };
-                // fmt is defined in big-endian to correctly use opcode for field decoding
-                // However, the rest of the stack expect Little-endian ordering
-                // -> revert the bytes stream
-                let mut bytes_be = fmt_dop.to_bytes()?;
-                let bytes_le = {
-                    let be = bytes_be.as_mut_slice();
-                    be.reverse();
-                    bytes_be
-                };
-                Ok(bytes_le)
-            }
-
-            fn from_deku(&mut self, any: &dyn Any) -> Result<(), ParsingError>{
-                let deku = match any.downcast_ref::<dop::fmt::DOp>() {
-                    Some(d) => d,
-                    None => return Err(ParsingError::Unmatch),
-                };
-
-                if deku.opcode.0 != fmt::dopcode::[<$asm>] {
-                    Err(ParsingError::Unmatch)
-                } else {
-                    match &deku.fields {
-                        fmt::DOpField::[<$asm>](f) => {
-                            self.mul_factor = f.mul_factor as usize;
-                            self.src.1 = f.src1_rid as usize;
-                            self.src.0 = f.src0_rid as usize;
-                            self.dst = f.dst_rid as usize;
-                            Ok(())
-                        }
-                        _ => Err(ParsingError::InvalidArg("".to_string()))
-                    }
-                }
-            }
-        }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! arith_msg_dop {
-    (
-        $asm: literal
-        $(,)?
-    ) => {
-        ::paste::paste! {
-        #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-        pub struct [<DOp $asm:camel>] {
-            pub dst: usize,
-            pub src: usize,
-            pub msg_cst: usize
-        }
-
-        impl Default for [<DOp $asm:camel>]{
-            fn default() -> Self {
-                Self {
-                    dst: 0,
-                    src: 0,
-                    msg_cst: 0
-                }
-            }
-        }
-
-        impl Asm for [<DOp $asm:camel>] {
-            fn name(&self) -> &'static str {
-                $asm
-            }
-
-            fn has_imm(&self) -> bool {
-                true
-            }
-
-            fn args(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst), Arg::RegId(self.src), Arg::Imm(self.msg_cst)]
-            }
-
-            fn dst(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst)]
-            }
-
-            fn src(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.src)]
-            }
-
-            fn from_args(&mut self, args: Vec<Arg>) -> Result<(), anyhow::Error> {
-                if args.len() != 3{
-                    return Err(ArgError::InvalidNumber(3, args.len()).into());
-                }
-
-                match args[0] {
-                    Arg::RegId(id) => {
-                        self.dst = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[0]).into()),
-                }
-
-                match args[1] {
-                    Arg::RegId(id) => {
-                        self.src = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[1]).into()),
-                }
-
-                match args[2] {
-                    Arg::Imm(s) => {
-                        self.msg_cst= s;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::Imm".to_string(), args[2]).into()),
-                }
-                Ok(())
-            }
-
-            fn randomize(&mut self, props: &ArchProperties, rng: &mut StdRng) {
-                self.dst = rng.gen_range(0..props.regs);
-                self.src = rng.gen_range(0..props.regs);
-                self.msg_cst = rng.gen_range(0..(1 << (props.carry_w + props.msg_w)));
-            }
-
-            fn asm_encode(&self, width: usize) -> String {
-                format!(
-                    "{: <width$} {: <width$} {: <width$} {: <width$}",
-                    self.name(),
-                    // NB: Trick to impose width rendering
-                    format!("{}", Arg::RegId(self.dst)),
-                    format!("{}", Arg::RegId(self.src)),
-                    format!("{}", Arg::Imm(self.msg_cst)),
-                    width = width,
-                )
-            }
-    }
-
-    impl AsmBin for [<DOp $asm:camel>] {
-            fn bin_encode_le(&self) -> Result<Vec<u8>, anyhow::Error> {
-                let fmt_dop = fmt::DOp {
-                    opcode : fmt::Opcode(fmt::dopcode::[<$asm>]),
-                    fields : fmt::DOpField::[<$asm>](fmt::PeArithMsgInsn {
-                        msg_cst: self.msg_cst as u16,
-                        src_rid: self.src as u8,
-                        dst_rid: self.dst as u8,
-                        }),
-                };
-                // fmt is defined in big-endian to correctly use opcode for field decoding
-                // However, the rest of the stack expect Little-endian ordering
-                // -> revert the bytes stream
-                let mut bytes_be = fmt_dop.to_bytes()?;
-                let bytes_le = {
-                    let be = bytes_be.as_mut_slice();
-                    be.reverse();
-                    bytes_be
-                };
-                Ok(bytes_le)
-            }
-
-            fn from_deku(&mut self, any: &dyn Any) -> Result<(), ParsingError>{
-                let deku = match any.downcast_ref::<dop::fmt::DOp>() {
-                    Some(d) => d,
-                    None => return Err(ParsingError::Unmatch),
-                };
-
-                if deku.opcode.0 != fmt::dopcode::[<$asm>] {
-                    Err(ParsingError::Unmatch)
-                } else {
-                    match &deku.fields {
-                        fmt::DOpField::[<$asm>](f) => {
-                            self.msg_cst = f.msg_cst as usize;
-                            self.src = f.src_rid as usize;
-                            self.dst = f.dst_rid as usize;
-                            Ok(())
-                        }
-                        _ => Err(ParsingError::InvalidArg("".to_string()))
-                    }
-                }
-            }
-        }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! memld_dop {
+macro_rules! impl_dop_parser {
     (
         $asm: literal,
-        $mem_orig: expr
+        $opcode: expr,
+        $field: ty,
+        $fmt: ty
         $(,)?
     ) => {
         ::paste::paste! {
-        #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-        pub struct [<DOp $asm:camel>] {
-            pub dst: usize,
-            pub src: MemSlot,
-        }
-
-        impl Default for [<DOp $asm:camel>]{
-            fn default() -> Self {
-                Self {
-                    dst: 0,
-                    src: MemSlot::default(),
-                }
-            }
-        }
-
-        impl Asm for [<DOp $asm:camel>] {
-            fn name(&self) -> &'static str {
-                $asm
-            }
-
-            fn has_imm(&self) -> bool {
-                false
-            }
-
-            fn args(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst), Arg::MemId(self.src)]
-            }
-
-            fn dst(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst)]
-            }
-
-            fn src(&self) -> Vec<Arg> {
-                vec![Arg::MemId(self.src)]
-            }
-
-            fn from_args(&mut self, args: Vec<Arg>) -> Result<(), anyhow::Error> {
-                if args.len() != 2 {
-                    return Err(ArgError::InvalidNumber(2, args.len()).into());
+            impl [<DOp $asm:camel>] {
+                fn from_args(args: &[arg::Arg]) -> Result<DOp, ParsingError> {
+                    let fmt_op = $field::from_args($opcode, args)?;
+                    Ok(DOp::[< $asm:upper >](Self(fmt_op)))
                 }
 
-                match args[0] {
-                    Arg::RegId(id) => {
-                        self.dst = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[0]).into()),
+                fn from_hex(hex: DOpRepr) -> DOp {
+                    DOp::[< $asm:upper >](Self($field::from(&$fmt::from_bits(hex))))
                 }
 
-                match args[1] {
-                    Arg::MemId(ids) => {
-                        self.src = ids;
-                        if $mem_orig.is_some() {
-                            // NB: Integer mode inner slot must be ported back on cid_ofst
-                            match self.src.mode {
-                                MemMode::Int{pos,..} => {
-                                    self.src.cid_ofst += pos.unwrap_or(0);
-                                }
-                                _ =>{}
-                            }
-                            self.src.mode = MemMode::Template;
-                        }
-                        self.src.orig = $mem_orig;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::MemId".to_string(), args[1]).into()),
-                }
-                Ok(())
-            }
-
-            fn randomize(&mut self, props: &ArchProperties, rng: &mut StdRng) {
-                self.dst = rng.gen_range(0..props.regs);
-                self.src = if $mem_orig.is_some() {
-                        MemSlot::new(props, props.mem.bid, rng.gen_range(0..props.mem.size), MemMode::Template, $mem_orig).unwrap()
-                    } else {
-                        MemSlot::new(props, props.mem.bid, rng.gen_range(0..props.mem.size), MemMode::Int{width: props.blk_w(), pos: Some(rng.gen_range(0..props.blk_w()))}, $mem_orig).unwrap()
-                    };
-            }
-
-            fn asm_encode(&self, width: usize) -> String {
-                format!(
-                    "{: <width$} {: <width$} {: <width$}",
-                    "LD",
-                    // NB: Trick to impose width rendering
-                    format!("{}", Arg::RegId(self.dst)),
-                    format!("{}", Arg::MemId(self.src)),
-                    width = width,
-                )
-            }
-    }
-
-    impl AsmBin for [<DOp $asm:camel>] {
-            fn bin_encode_le(&self) -> Result<Vec<u8>, anyhow::Error> {
-                let fmt_dop = fmt::DOp {
-                    opcode : fmt::Opcode(fmt::dopcode::[<$asm>]),
-                    fields : fmt::DOpField::[<$asm>](fmt::PeMemInsn {
-                        ct_ofst: self.src.bid as u8,
-                        cid: self.src.cid() as u16,
-                        rid: self.dst as u8,
-                        }),
-                };
-                // fmt is defined in big-endian to correctly use opcode for field decoding
-                // However, the rest of the stack expect Little-endian ordering
-                // -> revert the bytes stream
-                let mut bytes_be = fmt_dop.to_bytes()?;
-                let bytes_le = {
-                    let be = bytes_be.as_mut_slice();
-                    be.reverse();
-                    bytes_be
-                };
-                Ok(bytes_le)
-            }
-
-            fn from_deku(&mut self, any: &dyn Any) -> Result<(), ParsingError>{
-                let deku = match any.downcast_ref::<dop::fmt::DOp>() {
-                    Some(d) => d,
-                    None => return Err(ParsingError::Unmatch),
-                };
-
-                if deku.opcode.0 != fmt::dopcode::[<$asm>] {
-                    Err(ParsingError::Unmatch)
-                } else {
-                    match &deku.fields {
-                        fmt::DOpField::[<$asm>](f) => {
-                            if $mem_orig.is_some() { // Templated LD
-                                self.src.bid = f.ct_ofst as usize;
-                                self.src.cid_ofst = f.cid as usize;
-                                self.src.mode = MemMode::Template;
-                                self.src.orig = $mem_orig;
-                                self.dst = f.rid as usize;
-                            } else {
-                                self.src.bid = f.ct_ofst as usize;
-                                self.src.cid_ofst = f.cid as usize;
-                                self.src.mode = MemMode::Raw;
-                                self.src.orig = $mem_orig;
-                                self.dst = f.rid as usize;
-                            }
-                            Ok(())
-                        }
-                        _ => Err(ParsingError::InvalidArg("".to_string()))
-                    }
+                pub fn opcode() -> u8 {
+                    $opcode
                 }
             }
-        }
+
+            impl ToAsm for [<DOp $asm:camel>]{
+                fn name(&self) -> &'static str {
+                    $asm
+                }
+                fn args(&self) -> Vec<arg::Arg> {
+                    self.0.args()
+                }
+                fn dst(&self) -> Vec<arg::Arg> {
+                    self.0.dst()
+                }
+                fn src(&self) -> Vec<arg::Arg> {
+                    self.0.src()
+                }
+            }
+
+            impl ToHex for [<DOp $asm:camel>] {
+                fn to_hex(&self) -> DOpRepr {
+                    $fmt::from(&self.0).into_bits()
+                }
+            }
         }
     };
 }
 
 #[macro_export]
-macro_rules! memst_dop {
+macro_rules! impl_dop {
+    // Arith operations ---------------------------------------------------------------------------
     (
         $asm: literal,
-        $mem_orig: expr
+        $opcode: expr,
+        PeArithInsn
         $(,)?
     ) => {
         ::paste::paste! {
-        #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-        pub struct [<DOp $asm:camel>] {
-            pub dst: MemSlot,
-            pub src: usize,
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            pub struct [<DOp $asm:camel>](pub PeArithInsn);
+
+            impl [<DOp $asm:camel>] {
+                pub fn new(dst: RegId, src0: RegId, src1: RegId) -> Self {
+                    Self(PeArithInsn {
+                        opcode: Opcode($opcode as u8),
+                        mul_factor: MulFactor(0),
+                        src1_rid: src1,
+                        src0_rid: src0,
+                        dst_rid: dst,
+                        })
+                }
+            }
+            impl_dop_parser!($asm, $opcode, PeArithInsn, PeArithHex);
         }
+    };
+    // Arith operations with mult_factor ----------------------------------------------------------
+    (
+        $asm: literal,
+        $opcode: expr,
+        PeArithInsn_mul_factor
+        $(,)?
+    ) => {
+        ::paste::paste! {
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            pub struct [<DOp $asm:camel>](pub PeArithInsn);
 
-        impl Default for [<DOp $asm:camel>]{
-            fn default() -> Self {
-                Self {
-                    dst: MemSlot::default(),
-                    src: 0
+            impl [<DOp $asm:camel>] {
+                pub fn new(dst_rid: RegId, src0_rid: RegId, src1_rid: RegId, mul_factor: MulFactor) -> Self {
+                    Self(PeArithInsn {
+                        opcode: Opcode($opcode as u8),
+                        mul_factor,
+                        src1_rid,
+                        src0_rid,
+                        dst_rid,
+                        })
                 }
             }
+            impl_dop_parser!($asm, $opcode, PeArithInsn, PeArithHex);
         }
+    };
+    // ArithMsg operations ------------------------------------------------------------------------
+    (
+        $asm: literal,
+        $opcode: expr,
+        PeArithMsgInsn
+        $(,)?
+    ) => {
+        ::paste::paste! {
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            pub struct [<DOp $asm:camel>](pub PeArithMsgInsn);
 
-        impl Asm for [<DOp $asm:camel>] {
-            fn name(&self) -> &'static str {
-                $asm
-            }
-
-            fn has_imm(&self) -> bool {
-                false
-            }
-
-            fn args(&self) -> Vec<Arg> {
-                vec![Arg::MemId(self.dst), Arg::RegId(self.src)]
-            }
-
-            fn dst(&self) -> Vec<Arg> {
-                vec![Arg::MemId(self.dst)]
-            }
-
-            fn src(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.src)]
-            }
-
-            fn from_args(&mut self, args: Vec<Arg>) -> Result<(), anyhow::Error> {
-                if args.len() != 2 {
-                    return Err(ArgError::InvalidNumber(2, args.len()).into());
+            impl [<DOp $asm:camel>] {
+                pub fn new(dst_rid: RegId, src_rid: RegId, msg_cst: ImmId) -> Self {
+                    Self(PeArithMsgInsn {
+                        opcode: Opcode($opcode as u8),
+                        msg_cst,
+                        src_rid,
+                        dst_rid,
+                        })
                 }
-
-                match args[0] {
-                    Arg::MemId(ids) => {
-                        self.dst = ids;
-                        if $mem_orig.is_some() {
-                            // NB: Integer mode inner slot must be ported back on cid_ofst
-                            match self.dst.mode {
-                                MemMode::Int{pos,..} => {
-                                    self.dst.cid_ofst += pos.unwrap_or(0);
-                                }
-                                _ =>{}
-                            }
-                            self.dst.mode = MemMode::Template;
-                        }
-                        self.dst.orig = $mem_orig;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::MemId".to_string(), args[1]).into()),
+                /// Access inner imm for template patching
+                pub fn msg_mut(&mut self) -> &mut ImmId {
+                    &mut self.0.msg_cst
                 }
-                match args[1] {
-                    Arg::RegId(id) => {
-                        self.src = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[0]).into()),
-                }
+            }
+            impl_dop_parser!($asm, $opcode, PeArithMsgInsn, PeArithMsgHex);
+        }
+    };
 
-                Ok(())
+    // Mem operations ------------------------------------------------------------------------
+    // Load flavor
+    (
+        $asm: literal,
+        $opcode: expr,
+        PeMemInsn_ld
+        $(,)?
+    ) => {
+        ::paste::paste! {
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            pub struct [<DOp $asm:camel>](pub PeMemInsn);
+
+            impl [<DOp $asm:camel>] {
+                pub fn new(rid: RegId, mid: MemId) -> Self {
+                    Self(PeMemInsn {
+                        opcode: Opcode($opcode as u8),
+                        slot: mid,
+                        rid,
+                        })
+                }
+                /// Access inner rid
+                pub fn rid(&self) -> &RegId {
+                    &self.0.rid
+                }
+                /// Access inner memory slot
+                pub fn slot(&self) -> &MemId {
+                    &self.0.slot
+                }
+                /// Access inner memory for template patching
+                pub fn slot_mut(&mut self) -> &mut MemId {
+                    &mut self.0.slot
+                }
+            }
+            impl_dop_parser!($asm, $opcode, PeMemInsn, PeMemHex);
+        }
+    };
+
+    // Store flavor
+    (
+        $asm: literal,
+        $opcode: expr,
+        PeMemInsn_st
+        $(,)?
+    ) => {
+        ::paste::paste! {
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            pub struct [<DOp $asm:camel>](pub PeMemInsn);
+
+            impl [<DOp $asm:camel>] {
+                pub fn new( mid: MemId, rid: RegId) -> Self {
+                    Self(PeMemInsn {
+                        opcode: Opcode($opcode as u8),
+                        slot: mid,
+                        rid,
+                        })
+                }
+                /// Access inner rid
+                pub fn rid(&self) -> &RegId {
+                    &self.0.rid
+                }
+                /// Access inner memory slot
+                pub fn slot(&self) -> &MemId {
+                    &self.0.slot
+                }
+                /// Access inner memory for template patching
+                pub fn slot_mut(&mut self) -> &mut MemId {
+                    &mut self.0.slot
+                }
+            }
+            impl_dop_parser!($asm, $opcode, PeMemInsn, PeMemHex);
+        }
+    };
+
+    // Pbs operations ------------------------------------------------------------------------
+    (
+        $asm: literal,
+        $opcode: expr,
+        PePbsInsn
+        $(,)?
+    ) => {
+        ::paste::paste! {
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            pub struct [<DOp $asm:camel>](pub PePbsInsn);
+
+            impl [<DOp $asm:camel>] {
+                pub fn new(dst_rid: RegId, src_rid: RegId, gid: PbsGid) -> Self {
+                    Self(PePbsInsn {
+                        opcode: Opcode($opcode as u8),
+                        gid,
+                        src_rid,
+                        dst_rid,
+                        })
+                }
+            }
+            impl_dop_parser!($asm, $opcode, PePbsInsn, PePbsHex);
+        }
+    };
+
+    // Sync operations ------------------------------------------------------------------------
+    (
+        $asm: literal,
+        $opcode: expr,
+        PeSyncInsn
+        $(,)?
+    ) => {
+        ::paste::paste! {
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            pub struct [<DOp $asm:camel>](pub PeSyncInsn);
+
+            impl [<DOp $asm:camel>] {
+                pub fn new(sid: Option<SyncId>) -> Self {
+                    Self(PeSyncInsn {
+                        opcode: Opcode($opcode as u8),
+                        sid: sid.unwrap_or(SyncId(0))
+                        })
+                }
+            }
+            impl_dop_parser!($asm, $opcode, PeSyncInsn, PeSyncHex);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! dop {
+    (
+        $([$asm: literal, $opcode: expr, $type: ty $({$fmt: tt})?] $(,)?)*
+    ) => {
+        ::paste::paste! {
+            type AsmCallback = fn(&[arg::Arg]) -> Result<DOp, ParsingError>;
+            type HexCallback = fn(DOpRepr) -> DOp;
+
+            $(
+                impl_dop!($asm, $opcode, [< $type $(_ $fmt)? >]);
+            )*
+
+            /// Aggregate DOp concrete type in one enumeration
+            // #[derive(Debug, Clone)]
+            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            #[enum_dispatch(ToAsm, ToHex)]
+            #[allow(non_camel_case_types)]
+            pub enum DOp{
+                    // $([< $asm:upper >]($type),)*
+                    $([< $asm:upper >]([< DOp $asm:camel>]),)*
             }
 
-            fn randomize(&mut self, props: &ArchProperties, rng: &mut StdRng) {
-                self.dst = if $mem_orig.is_some() {
-                        MemSlot::new(props, props.mem.bid, rng.gen_range(0..props.mem.size), MemMode::Template, $mem_orig).unwrap()
+            impl DOp {
+                pub fn from_args(name: &str, args: &[arg::Arg]) -> Result<Self, ParsingError> {
+                    if let Some(cb) = DOP_LUT.asm.get(name) {
+                        cb(args)
                     } else {
-                        MemSlot::new(props, props.mem.bid, rng.gen_range(0..props.mem.size), MemMode::Int{width: props.blk_w(), pos: Some(rng.gen_range(0..props.blk_w()))}, $mem_orig).unwrap()
+                        Err(ParsingError::Unmatch(format!("{name} unknown")))
+                    }
+                }
+                /// Construct DOp from hex word
+                pub fn from_hex(hex: DOpRepr) -> Result<Self, ParsingError> {
+                    let raw = DOpRawHex::from_bits(hex);
+                    if let Some(cb) = DOP_LUT.hex.get(&raw.opcode()) {
+                        Ok(cb(hex))
+                    } else {
+                        Err(ParsingError::Unmatch(format!("DOp {:x?} unknown  [hex {:x}]", raw.opcode(), hex)))
+                    }
+                }
+            }
+
+            impl std::fmt::Display for DOp {
+                fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    write!(f, "{:<width$}", self.name(), width= arg::DOP_MIN_WIDTH)?;
+                    for arg in self.args().iter() {
+                        write!(f, "{:<width$} ", arg.to_string(), width = arg::ARG_MIN_WIDTH)?
+                    }
+                    Ok(())
+                }
+            }
+
+            /// Construct DOp from ASM str
+            impl std::str::FromStr for DOp {
+                type Err = ParsingError;
+
+                fn from_str(asm: &str) -> Result<Self, Self::Err> {
+
+                    // Split asm string in a vector of arguments
+                    let arg_str = asm.split_whitespace().collect::<Vec<_>>();
+                    if !arg_str.is_empty() {
+                        let name = arg_str[0];
+                        let args = arg_str[1..]
+                            .iter()
+                            .map(|s| {
+                                arg::Arg::from_str(s)
+                            })
+                            .collect::<Result<Vec<_>, _>>()?;
+
+                        Self::from_args(name, args.as_slice())
+                    }else {
+                        Err(ParsingError::Empty)
+                    }
+                }
+            }
+
+            /// Parser utilities
+            /// Hashmap for Name -> to fromArg impl
+            struct DOpFromArg{
+                asm: HashMap<String, AsmCallback>,
+                hex: HashMap<u8, HexCallback>,
+            }
+            lazy_static! {
+                static ref DOP_LUT: DOpFromArg = {
+
+                    let mut dop_from_arg = DOpFromArg{
+                        asm: HashMap::new(),
+                        hex: HashMap::new(),
                     };
-                self.src = rng.gen_range(0..props.regs);
-            }
 
-            fn asm_encode(&self, width: usize) -> String {
-                format!(
-                    "{: <width$} {: <width$} {: <width$}",
-                    "ST",
-                    // NB: Trick to impose width rendering
-                    format!("{}", Arg::MemId(self.dst)),
-                    format!("{}", Arg::RegId(self.src)),
-                    width = width,
-                )
-            }
-    }
-
-    impl AsmBin for [<DOp $asm:camel>] {
-            fn bin_encode_le(&self) -> Result<Vec<u8>, anyhow::Error> {
-                let fmt_dop = fmt::DOp {
-                    opcode : fmt::Opcode(fmt::dopcode::[<$asm>]),
-                    fields : fmt::DOpField::[<$asm>](fmt::PeMemInsn {
-                        ct_ofst: self.dst.bid as u8,
-                        cid: self.dst.cid() as u16,
-                        rid: self.src as u8,
-                        }),
+                    $(
+                        dop_from_arg.asm.insert(stringify!([< $asm:upper >]).to_string(), [<DOp $asm:camel >]::from_args);
+                        dop_from_arg.hex.insert($opcode, [<DOp $asm:camel >]::from_hex);
+                    )*
+                    dop_from_arg
                 };
-                // fmt is defined in big-endian to correctly use opcode for field decoding
-                // However, the rest of the stack expect Little-endian ordering
-                // -> revert the bytes stream
-                let mut bytes_be = fmt_dop.to_bytes()?;
-                let bytes_le = {
-                    let be = bytes_be.as_mut_slice();
-                    be.reverse();
-                    bytes_be
-                };
-                Ok(bytes_le)
             }
-
-            fn from_deku(&mut self, any: &dyn Any) -> Result<(), ParsingError>{
-                let deku = match any.downcast_ref::<dop::fmt::DOp>() {
-                    Some(d) => d,
-                    None => return Err(ParsingError::Unmatch),
-                };
-
-                if deku.opcode.0 != fmt::dopcode::[<$asm>] {
-                    Err(ParsingError::Unmatch)
-                } else {
-                    match &deku.fields {
-                        fmt::DOpField::[<$asm>](f) => {
-                            if $mem_orig.is_some() { // Templated LD
-                                self.dst.bid = f.ct_ofst as usize;
-                                self.dst.cid_ofst = f.cid as usize;
-                                self.dst.mode = MemMode::Template;
-                                self.dst.orig = $mem_orig;
-                                self.src = f.rid as usize;
-                            } else {
-                                self.dst.bid = f.ct_ofst as usize;
-                                self.dst.cid_ofst = f.cid as usize;
-                                self.dst.mode = MemMode::Raw;
-                                self.dst.orig = $mem_orig;
-                                self.src = f.rid as usize;
-                            }
-                            Ok(())
-                        }
-                        _ => Err(ParsingError::InvalidArg("".to_string()))
-                    }
-                }
-            }
-        }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! pbs_dop {
-    (
-        $asm: literal
-        $(,)?
-    ) => {
-        ::paste::paste! {
-        #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-        pub struct [<DOp $asm:camel>] {
-            pub dst: usize,
-            pub src: usize,
-            pub lut: Pbs,
-        }
-
-        impl Default for [<DOp $asm:camel>]{
-            fn default() -> Self {
-                Self {
-                    dst: 0,
-                    src: 0,
-                    lut: Pbs::from_gid(0)
-                }
-            }
-        }
-
-        impl Asm for [<DOp $asm:camel>] {
-            fn name(&self) -> &'static str {
-                $asm
-            }
-
-            fn has_imm(&self) -> bool {
-                false
-            }
-
-            fn args(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst), Arg::RegId(self.src), Arg::Pbs(self.lut)]
-            }
-
-            fn dst(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.dst)]
-            }
-
-            fn src(&self) -> Vec<Arg> {
-                vec![Arg::RegId(self.src)]
-            }
-
-            fn from_args(&mut self, args: Vec<Arg>) -> Result<(), anyhow::Error> {
-                if args.len() != 3{
-                    return Err(ArgError::InvalidNumber(3, args.len()).into());
-                }
-
-                match args[0] {
-                    Arg::RegId(id) => {
-                        self.dst = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[0]).into()),
-                }
-
-                match args[1] {
-                    Arg::RegId(id) => {
-                        self.src = id;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::RegId".to_string(), args[1]).into()),
-                }
-
-                match args[2] {
-                    Arg::Pbs(lut) => {
-                        self.lut = lut;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::Pbs".to_string(), args[2]).into()),
-                }
-                Ok(())
-            }
-
-            fn randomize(&mut self, props: &ArchProperties, rng: &mut StdRng) {
-                self.dst = rng.gen_range(0..props.regs);
-                self.src = rng.gen_range(0..props.regs);
-                self.lut = Pbs::from_gid(rng.gen_range(0..Pbs::iter().count()));
-            }
-
-            fn asm_encode(&self, width: usize) -> String {
-                format!(
-                    "{: <width$} {: <width$} {: <width$} {: <width$}",
-                    self.name(),
-                    // NB: Trick to impose width rendering
-                    format!("{}", Arg::RegId(self.dst)),
-                    format!("{}", Arg::RegId(self.src)),
-                    format!("{}", Arg::Pbs(self.lut)),
-                    width = width,
-                )
-            }
-    }
-
-    impl AsmBin for [<DOp $asm:camel>] {
-            fn bin_encode_le(&self) -> Result<Vec<u8>, anyhow::Error> {
-                let fmt_dop = fmt::DOp {
-                    opcode : fmt::Opcode(fmt::dopcode::[<$asm>]),
-                    fields : fmt::DOpField::[<$asm>](fmt::PePbsInsn {
-                        gid: self.lut.gid() as u32,
-                        src_rid: self.src as u8,
-                        dst_rid: self.dst as u8,
-                        }),
-                };
-                // fmt is defined in big-endian to correctly use opcode for field decoding
-                // However, the rest of the stack expect Little-endian ordering
-                // -> revert the bytes stream
-                let mut bytes_be = fmt_dop.to_bytes()?;
-                let bytes_le = {
-                    let be = bytes_be.as_mut_slice();
-                    be.reverse();
-                    bytes_be
-                };
-                Ok(bytes_le)
-            }
-
-            fn from_deku(&mut self, any: &dyn Any) -> Result<(), ParsingError>{
-                let deku = match any.downcast_ref::<dop::fmt::DOp>() {
-                    Some(d) => d,
-                    None => return Err(ParsingError::Unmatch),
-                };
-
-                if deku.opcode.0 != fmt::dopcode::[<$asm>] {
-                    Err(ParsingError::Unmatch)
-                } else {
-                    match &deku.fields {
-                        fmt::DOpField::[<$asm>](f) => {
-                            self.lut = Pbs::from_gid(f.gid as usize).into();
-                            self.src = f.src_rid as usize;
-                            self.dst = f.dst_rid as usize;
-                            Ok(())
-                        }
-                        _ => Err(ParsingError::InvalidArg("".to_string()))
-                    }
-                }
-            }
-        }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! sync_dop {
-    (
-        $asm: literal
-        $(,)?
-    ) => {
-        ::paste::paste! {
-        #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-        pub struct [<DOp $asm:camel>] {
-            pub sid: usize
-        }
-
-        impl Default for [<DOp $asm:camel>]{
-            fn default() -> Self {
-                Self {
-                    sid: 0
-                }
-            }
-        }
-
-        impl Asm for [<DOp $asm:camel>] {
-            fn name(&self) -> &'static str {
-                $asm
-            }
-
-            fn has_imm(&self) -> bool {
-                false
-            }
-
-            fn args(&self) -> Vec<Arg> {
-                vec![Arg::Imm(self.sid)]
-            }
-
-            fn dst(&self) -> Vec<Arg> {
-                vec![]
-            }
-
-            fn src(&self) -> Vec<Arg> {
-                vec![]
-            }
-
-            fn from_args(&mut self, args: Vec<Arg>) -> Result<(), anyhow::Error> {
-                if args.len() != 1{
-                    return Err(ArgError::InvalidNumber(1, args.len()).into());
-                }
-
-                match args[0] {
-                    Arg::Imm(s) => {
-                        self.sid= s;
-                    }
-                    _ => return Err(ArgError::InvalidField("Arg::Imm".to_string(), args[0]).into()),
-                }
-                Ok(())
-            }
-
-            fn randomize(&mut self, _props: &ArchProperties, rng: &mut StdRng) {
-                self.sid = rng.gen_range(0..(1 << 26));
-            }
-
-            fn asm_encode(&self, width: usize) -> String {
-                format!(
-                    "{: <width$} {: <width$}",
-                    self.name(),
-                    // NB: Trick to impose width rendering
-                    format!("{}", Arg::Imm(self.sid)),
-                    width = width,
-                )
-            }
-    }
-
-    impl AsmBin for [<DOp $asm:camel>] {
-            fn bin_encode_le(&self) -> Result<Vec<u8>, anyhow::Error> {
-                let fmt_dop = fmt::DOp {
-                    opcode : fmt::Opcode(fmt::dopcode::[<$asm>]),
-                    fields : fmt::DOpField::[<$asm>](fmt::PeSyncInsn {
-                        sid: self.sid as u32,
-                        }),
-                };
-                // fmt is defined in big-endian to correctly use opcode for field decoding
-                // However, the rest of the stack expect Little-endian ordering
-                // -> revert the bytes stream
-                let mut bytes_be = fmt_dop.to_bytes()?;
-                let bytes_le = {
-                    let be = bytes_be.as_mut_slice();
-                    be.reverse();
-                    bytes_be
-                };
-                Ok(bytes_le)
-            }
-
-            fn from_deku(&mut self, any: &dyn Any) -> Result<(), ParsingError>{
-                let deku = match any.downcast_ref::<dop::fmt::DOp>() {
-                    Some(d) => d,
-                    None => return Err(ParsingError::Unmatch),
-                };
-
-                if deku.opcode.0 != fmt::dopcode::[<$asm>] {
-                    Err(ParsingError::Unmatch.into())
-                } else {
-                    match &deku.fields {
-                        fmt::DOpField::[<$asm>](f) => {
-                            self.sid = f.sid as usize;
-                            Ok(())
-                        }
-                        _ => Err(ParsingError::InvalidArg("".to_string()))
-                    }
-                }
-            }
-        }
         }
     };
 }

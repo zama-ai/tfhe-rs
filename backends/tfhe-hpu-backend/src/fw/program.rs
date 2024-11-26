@@ -9,57 +9,51 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::asm::arg::{Arg, MemMode, MemOrigin};
-use crate::asm::dop::DOp;
-use crate::asm::pbs::DigitParameters;
-use crate::asm::{ArchProperties, MemSlot};
+use crate::asm;
 
-use super::metavar::{MetaVarCell, MetaVarCellWeak};
+use super::metavar::{MetaVarCell, MetaVarCellWeak, VarPos};
+use super::FwParameters;
 
 #[derive(Debug)]
 pub struct ProgramInner {
     uid: usize,
-    pub(crate) props: ArchProperties,
-    pub(crate) regs: LruCache<usize, Option<MetaVarCellWeak>>,
-    pub(crate) heap: LruCache<MemSlot, Option<MetaVarCellWeak>>,
+    pub(crate) params: FwParameters,
+    pub(crate) regs: LruCache<asm::RegId, Option<MetaVarCellWeak>>,
+    pub(crate) heap: LruCache<asm::MemId, Option<MetaVarCellWeak>>,
     pub(crate) vars: HashMap<usize, MetaVarCellWeak>,
-    pub(crate) stmts: Vec<DOp>,
+    pub(crate) stmts: asm::Program<asm::DOp>,
 }
 
 /// ProgramInner constructors
 impl ProgramInner {
-    pub fn new(props: &ArchProperties) -> Self {
+    pub fn new(props: &FwParameters) -> Self {
         let nb_regs = match std::num::NonZeroUsize::try_from(props.regs) {
             Ok(val) => val,
             _ => panic!("Error: Number of registers must be >= 0"),
         };
-        let mut regs = LruCache::<usize, Option<MetaVarCellWeak>>::new(nb_regs);
+        let mut regs = LruCache::<asm::RegId, Option<MetaVarCellWeak>>::new(nb_regs);
         // At start regs cache is full of unused slot
         for rid in 0..props.regs {
-            regs.put(rid, None);
+            regs.put(asm::RegId(rid as u8), None);
         }
 
-        let nb_heap = match std::num::NonZeroUsize::try_from(props.mem.size) {
+        let nb_heap = match std::num::NonZeroUsize::try_from(props.heap_size) {
             Ok(val) => val,
             _ => panic!("Error: Number of heap slot must be >= 0"),
         };
-        let mut heap = LruCache::<MemSlot, Option<MetaVarCellWeak>>::new(nb_heap);
+        let mut heap = LruCache::<asm::MemId, Option<MetaVarCellWeak>>::new(nb_heap);
         // At start heap cache is full of unused slot
-        // TODO add user define bid
-        for cid in 0..props.mem.size {
-            heap.put(
-                MemSlot::new(props, 0, cid, MemMode::Template, Some(MemOrigin::Heap)).unwrap(),
-                None,
-            );
+        for hid in 0..props.heap_size as u16 {
+            heap.put(asm::MemId::new_heap(hid), None);
         }
 
         Self {
             uid: 0,
-            props: props.clone(),
+            params: props.clone(),
             regs,
             heap,
             vars: HashMap::new(),
-            stmts: Vec::new(),
+            stmts: asm::Program::default(),
         }
     }
 }
@@ -69,7 +63,7 @@ impl ProgramInner {
     /// Retrieved least-recent-used register entry
     /// Return associated register id and evicted variable if any
     /// Warn: Keep cache state unchanged ...
-    fn reg_lru(&mut self) -> (usize, Option<MetaVarCell>) {
+    fn reg_lru(&mut self) -> (asm::RegId, Option<MetaVarCell>) {
         let (rid, rdata) = self
             .regs
             .peek_lru()
@@ -90,7 +84,7 @@ impl ProgramInner {
     }
 
     /// Release register entry
-    pub(crate) fn reg_release(&mut self, rid: usize) {
+    pub(crate) fn reg_release(&mut self, rid: asm::RegId) {
         *(self
             .regs
             .get_mut(&rid)
@@ -111,12 +105,12 @@ impl ProgramInner {
     }
 
     /// Notify register access to update LRU state
-    pub(crate) fn reg_access(&mut self, rid: usize) {
+    pub(crate) fn reg_access(&mut self, rid: asm::RegId) {
         self.regs.promote(&rid)
     }
 
     /// Insert MetaVar in cache and return evicted value if any
-    pub(crate) fn reg_swap_lru(&mut self, var: MetaVarCell) -> (usize, Option<MetaVarCell>) {
+    pub(crate) fn reg_swap_lru(&mut self, var: MetaVarCell) -> (asm::RegId, Option<MetaVarCell>) {
         // Find lru slot
         let (rid, evicted) = self.reg_lru();
 
@@ -132,7 +126,7 @@ impl ProgramInner {
     /// Retrieved least-recent-used heap entry
     /// Return associated heap id and evicted variable if any
     /// Warn: Keep cache state unchanged ...
-    fn heap_lru(&mut self) -> (MemSlot, Option<MetaVarCell>) {
+    fn heap_lru(&mut self) -> (asm::MemId, Option<MetaVarCell>) {
         let (mid, rdata) = self
             .heap
             .peek_lru()
@@ -153,35 +147,40 @@ impl ProgramInner {
     }
 
     /// Release register entry
-    pub(crate) fn heap_release(&mut self, mid: MemSlot) {
-        // Check if slot belong to heap
-        if mid.orig().is_none() {
-            *(self
-                .heap
-                .get_mut(&mid)
-                .expect("Release an `unused` heap slot")) = None;
-            // Update cache state
-            // Put this slot in front of all `empty` slot instead of in lru pos
-            self.heap.promote(&mid);
-            let demote_order = self
-                .heap
-                .iter()
-                .filter(|(_mid, var)| var.is_none())
-                .map(|(mid, _)| *mid)
-                .collect::<Vec<_>>();
-            demote_order
-                .into_iter()
-                .for_each(|mid| self.heap.demote(&mid));
+    pub(crate) fn heap_release(&mut self, mid: asm::MemId) {
+        match mid {
+            asm::MemId::Heap { .. } => {
+                *(self
+                    .heap
+                    .get_mut(&mid)
+                    .expect("Release an `unused` heap slot")) = None;
+                // Update cache state
+                // Put this slot in front of all `empty` slot instead of in lru pos
+                self.heap.promote(&mid);
+                let demote_order = self
+                    .heap
+                    .iter()
+                    .filter(|(_mid, var)| var.is_none())
+                    .map(|(mid, _)| *mid)
+                    .collect::<Vec<_>>();
+                demote_order
+                    .into_iter()
+                    .for_each(|mid| self.heap.demote(&mid));
+            }
+            _ => { /*Only release Heap slot*/ }
         }
     }
 
     /// Notify heap access to update LRU state
-    pub(crate) fn heap_access(&mut self, mid: MemSlot) {
-        self.heap.promote(&mid);
+    pub(crate) fn heap_access(&mut self, mid: asm::MemId) {
+        match mid {
+            asm::MemId::Heap { .. } => self.heap.promote(&mid),
+            _ => { /* Do Nothing slot do not below to heap*/ }
+        }
     }
 
     /// Insert MetaVar in cache and return evicted value if any
-    pub(crate) fn heap_swap_lru(&mut self, var: MetaVarCell) -> (MemSlot, Option<MetaVarCell>) {
+    pub(crate) fn heap_swap_lru(&mut self, var: MetaVarCell) -> (asm::MemId, Option<MetaVarCell>) {
         // Find lru slot
         let (mid, evicted) = self.heap_lru();
 
@@ -199,13 +198,13 @@ impl ProgramInner {
 impl ProgramInner {
     /// Create MetaVar from an optional argument
     /// Hack around to have access to a reference to RefCell Wrapped
-    fn var_from(&mut self, from: Option<Arg>, ref_to_self: Rc<RefCell<Self>>) -> MetaVarCell {
+    fn var_from(&mut self, from: Option<VarPos>, ref_to_self: Rc<RefCell<Self>>) -> MetaVarCell {
         // Create MetaVar
         let uid = self.uid;
         self.uid += 1;
 
         // Construct tfhe params
-        let tfhe_params: DigitParameters = self.props.clone().into();
+        let tfhe_params: asm::DigitParameters = self.params.clone().into();
         let var = MetaVarCell::new(ref_to_self, uid, from, tfhe_params);
 
         // Register in var store
@@ -224,21 +223,24 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn new(props: &ArchProperties) -> Self {
+    pub fn new(props: &FwParameters) -> Self {
         Self {
             inner: Rc::new(RefCell::new(ProgramInner::new(props))),
         }
     }
 
-    pub fn props(&self) -> ArchProperties {
-        self.inner.borrow().props.clone()
+    pub fn props(&self) -> FwParameters {
+        self.inner.borrow().params.clone()
+    }
+    pub fn push_comment(&mut self, comment: String) {
+        self.inner.borrow_mut().stmts.push_comment(comment)
     }
 
-    pub fn get_stmts(&self) -> Vec<DOp> {
-        self.inner.borrow().stmts.clone()
-    }
+    // pub fn get_stmts(&self) -> Vec<asm::DOp> {
+    //     self.inner.borrow().stmts.clone()
+    // }
 
-    pub fn var_from(&mut self, from: Option<Arg>) -> MetaVarCell {
+    pub fn var_from(&mut self, from: Option<VarPos>) -> MetaVarCell {
         let inner_clone = self.inner.clone();
         self.inner.borrow_mut().var_from(from, inner_clone)
     }
@@ -249,7 +251,7 @@ impl Program {
 
     /// Easy way to create new imm value
     pub fn new_imm(&mut self, imm: usize) -> MetaVarCell {
-        let arg = Some(Arg::Imm(imm));
+        let arg = Some(VarPos::Imm(asm::ImmId::Cst(imm as u16)));
         self.var_from(arg)
     }
 
@@ -267,39 +269,39 @@ impl Program {
         var
     }
 
-    /// Take User argument (i.e. IOp MemId) and convert it program arg (i.e. vector of DOp MemId)
-    /// User var will be used through Templated ops, thus bid/cid information is removed
-    pub fn user_var(&mut self, arg: Arg) -> Vec<MetaVarCell> {
-        let nb_blk = self.inner.borrow().props.blk_w();
-        match arg {
-            Arg::MemId(hid) => {
-                // Digit in user arg are contiguous
+    /// Create templated arguments
+    /// kind is used to specify if it's bind to src/dst or immediat template
+    /// pos_id is used to bind the template to an IOp operand position
+    // TODO pass the associated operand or immediat to obtain the inner blk properties instead of
+    // using the global one
+    pub fn iop_template_var(&mut self, kind: asm::OperandKind, pos_id: u8) -> Vec<MetaVarCell> {
+        let nb_blk = self.inner.borrow().params.blk_w() as u8;
+        match kind {
+            asm::OperandKind::Src => {
+                // Digit in iop arg are contiguous
                 (0..nb_blk)
-                    .map(|i| {
-                        let cur_hid = MemSlot::new(
-                            &self.props(),
-                            0,
-                            i,
-                            MemMode::Template,
-                            hid.orig().clone(),
-                        )
-                        .unwrap();
-                        self.var_from(Some(Arg::MemId(cur_hid)))
+                    .map(|bid| {
+                        let mid = asm::MemId::new_src(pos_id, bid);
+                        self.var_from(Some(VarPos::Mem(mid)))
                     })
                     .collect::<Vec<_>>()
             }
-            Arg::Imm(scalar) => {
-                // Slice scalar in digit
+            asm::OperandKind::Dst => {
+                // Digit in iop arg are contiguous
                 (0..nb_blk)
-                    .map(|i| {
-                        let msg_w = self.props().msg_w;
-                        let mask = (1 << self.props().msg_w) - 1;
-                        let cur_s = (scalar >> (i * msg_w)) & mask;
-                        self.var_from(Some(Arg::Imm(cur_s)))
+                    .map(|bid| {
+                        let mid = asm::MemId::new_dst(pos_id, bid);
+                        self.var_from(Some(VarPos::Mem(mid)))
                     })
                     .collect::<Vec<_>>()
             }
-            _ => panic!("User_var required MemId||Imm argument"),
+            asm::OperandKind::Imm => (0..nb_blk)
+                .map(|bid| {
+                    let iid = asm::ImmId::new_var(pos_id, bid);
+                    self.var_from(Some(VarPos::Imm(iid)))
+                })
+                .collect::<Vec<_>>(),
+            asm::OperandKind::Unknow => panic!("Template var required a known kind"),
         }
     }
 
@@ -327,21 +329,12 @@ impl Program {
             }
         });
     }
+}
 
-    pub fn write_asm(&self, asm_f: &str, header: &str, width: usize) {
-        let inner = self.inner.borrow();
-        crate::asm::write_asm(header, inner.stmts.as_slice(), asm_f, width).unwrap()
-    }
-
-    pub fn write_hex(&self, hex_f: &str, header: &str) {
-        let inner = self.inner.borrow();
-        crate::asm::write_hex(header, inner.stmts.as_slice(), hex_f).unwrap()
-    }
-
-    /// Convert prog in translation table
-    pub fn tr_table(&self) -> Vec<u32> {
-        let inner = self.inner.borrow();
-        crate::asm::tr_table(&inner.stmts)
+impl From<Program> for asm::Program<asm::DOp> {
+    fn from(value: Program) -> Self {
+        let inner = value.inner.borrow();
+        inner.stmts.clone()
     }
 }
 
@@ -352,7 +345,7 @@ macro_rules! new_pbs {
         $prog:ident, $pbs: literal
     ) => {
         ::paste::paste! {
-            $prog.var_from(Some(Arg::Pbs(asm::[<Pbs $pbs:camel>]::default().into())))
+            $prog.var_from(Some(metavar::VarPos::Pbs(asm::dop::[<Pbs $pbs:camel>]::default().into())))
         }
     };
 }

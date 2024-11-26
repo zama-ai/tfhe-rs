@@ -294,6 +294,7 @@ impl PeConfigStore {
 
         let cfg_f = OpenOptions::new()
             .create(true)
+            .truncate(true)
             .write(true)
             .append(false)
             .open(config)
