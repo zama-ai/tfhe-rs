@@ -14,13 +14,13 @@ use std::sync::Arc;
 
 use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use rand::prelude::*;
 
-create_parametrized_test!(integer_unchecked_all_eq_slices_test_case);
-create_parametrized_test!(integer_default_all_eq_slices_test_case);
+create_parameterized_test!(integer_unchecked_all_eq_slices_test_case);
+create_parameterized_test!(integer_default_all_eq_slices_test_case);
 
-create_parametrized_test!(integer_unchecked_contains_slice_test_case);
+create_parameterized_test!(integer_unchecked_contains_slice_test_case);
 
 fn integer_unchecked_all_eq_slices_test_case<P>(param: P)
 where

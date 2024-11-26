@@ -1,22 +1,22 @@
 use super::make_basis;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::tests::create_parametrized_test_classical_params;
+use crate::integer::tests::create_parameterized_test_classical_params;
 use crate::integer::IntegerKeyKind;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
 
-create_parametrized_test_classical_params!(integer_unchecked_crt_mul);
-create_parametrized_test_classical_params!(integer_smart_crt_add);
-create_parametrized_test_classical_params!(integer_smart_crt_mul);
-create_parametrized_test_classical_params!(integer_smart_crt_neg);
+create_parameterized_test_classical_params!(integer_unchecked_crt_mul);
+create_parameterized_test_classical_params!(integer_smart_crt_add);
+create_parameterized_test_classical_params!(integer_smart_crt_mul);
+create_parameterized_test_classical_params!(integer_smart_crt_neg);
 
-create_parametrized_test_classical_params!(integer_smart_crt_scalar_add);
+create_parameterized_test_classical_params!(integer_smart_crt_scalar_add);
 
-create_parametrized_test_classical_params!(integer_smart_crt_scalar_mul);
-create_parametrized_test_classical_params!(integer_smart_crt_scalar_sub);
-create_parametrized_test_classical_params!(integer_smart_crt_sub);
+create_parameterized_test_classical_params!(integer_smart_crt_scalar_mul);
+create_parameterized_test_classical_params!(integer_smart_crt_scalar_sub);
+create_parameterized_test_classical_params!(integer_smart_crt_sub);
 
 /// Number of loop iteration within randomized tests
 #[cfg(not(tarpaulin))]

@@ -19,7 +19,7 @@ const NB_TESTS: usize = 10;
 #[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
-macro_rules! create_parametrized_test{    (
+macro_rules! create_parameterized_test{    (
         $name:ident {
             $($(#[$cfg:meta])* ($sks_param:ident, $wopbs_param:ident)),*
             $(,)?
@@ -36,7 +36,7 @@ macro_rules! create_parametrized_test{    (
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
             #[cfg(not(tarpaulin))]
@@ -47,11 +47,11 @@ macro_rules! create_parametrized_test{    (
     };
 }
 
-create_parametrized_test!(wopbs_crt);
-create_parametrized_test!(wopbs_crt_non_reg);
-create_parametrized_test!(wopbs_bivariate_radix);
-create_parametrized_test!(wopbs_bivariate_crt);
-create_parametrized_test!(wopbs_radix);
+create_parameterized_test!(wopbs_crt);
+create_parameterized_test!(wopbs_crt_non_reg);
+create_parameterized_test!(wopbs_bivariate_radix);
+create_parameterized_test!(wopbs_bivariate_crt);
+create_parameterized_test!(wopbs_radix);
 
 // test wopbs fake crt with different degree for each Ct
 pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {

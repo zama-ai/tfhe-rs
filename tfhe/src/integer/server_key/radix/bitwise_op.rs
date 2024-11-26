@@ -748,15 +748,15 @@ impl ServerKey {
 #[cfg(test)]
 mod tests {
     use crate::integer::keycache::KEY_CACHE;
-    use crate::integer::tests::create_parametrized_test;
+    use crate::integer::tests::create_parameterized_test;
     use crate::integer::{BooleanBlock, IntegerKeyKind};
     #[cfg(tarpaulin)]
     use crate::shortint::parameters::coverage_parameters::*;
     use crate::shortint::parameters::*;
 
-    create_parametrized_test!(boolean_bitxor);
-    create_parametrized_test!(boolean_bitor);
-    create_parametrized_test!(boolean_bitand);
+    create_parameterized_test!(boolean_bitxor);
+    create_parameterized_test!(boolean_bitor);
+    create_parameterized_test!(boolean_bitand);
 
     const INPUT_BOOLEANS: [(bool, bool); 4] =
         [(false, false), (false, true), (true, false), (true, true)];

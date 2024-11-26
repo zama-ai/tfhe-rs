@@ -10,36 +10,36 @@ use super::{
     ExpectedDegrees, ExpectedNoiseLevels, MAX_VEC_LEN, NB_CTXT,
 };
 use crate::integer::server_key::MatchValues;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use rand::prelude::*;
 
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 
-create_parametrized_test!(integer_unchecked_match_value);
-create_parametrized_test!(integer_unchecked_match_value_or);
-create_parametrized_test!(integer_unchecked_contains);
-create_parametrized_test!(integer_unchecked_contains_clear);
-create_parametrized_test!(integer_unchecked_is_in_clears);
-create_parametrized_test!(integer_unchecked_index_in_clears);
-create_parametrized_test!(integer_unchecked_first_index_in_clears);
-create_parametrized_test!(integer_unchecked_index_of);
-create_parametrized_test!(integer_unchecked_index_of_clear);
-create_parametrized_test!(integer_unchecked_first_index_of);
-create_parametrized_test!(integer_unchecked_first_index_of_clear);
+create_parameterized_test!(integer_unchecked_match_value);
+create_parameterized_test!(integer_unchecked_match_value_or);
+create_parameterized_test!(integer_unchecked_contains);
+create_parameterized_test!(integer_unchecked_contains_clear);
+create_parameterized_test!(integer_unchecked_is_in_clears);
+create_parameterized_test!(integer_unchecked_index_in_clears);
+create_parameterized_test!(integer_unchecked_first_index_in_clears);
+create_parameterized_test!(integer_unchecked_index_of);
+create_parameterized_test!(integer_unchecked_index_of_clear);
+create_parameterized_test!(integer_unchecked_first_index_of);
+create_parameterized_test!(integer_unchecked_first_index_of_clear);
 
-create_parametrized_test!(integer_default_match_value);
-create_parametrized_test!(integer_default_match_value_or);
-create_parametrized_test!(integer_default_contains);
-create_parametrized_test!(integer_default_contains_clear);
-create_parametrized_test!(integer_default_is_in_clears);
-create_parametrized_test!(integer_default_index_in_clears);
-create_parametrized_test!(integer_default_first_index_in_clears);
-create_parametrized_test!(integer_default_index_of);
-create_parametrized_test!(integer_default_index_of_clear);
-create_parametrized_test!(integer_default_first_index_of);
-create_parametrized_test!(integer_default_first_index_of_clear);
+create_parameterized_test!(integer_default_match_value);
+create_parameterized_test!(integer_default_match_value_or);
+create_parameterized_test!(integer_default_contains);
+create_parameterized_test!(integer_default_contains_clear);
+create_parameterized_test!(integer_default_is_in_clears);
+create_parameterized_test!(integer_default_index_in_clears);
+create_parameterized_test!(integer_default_first_index_in_clears);
+create_parameterized_test!(integer_default_index_of);
+create_parameterized_test!(integer_default_index_of_clear);
+create_parameterized_test!(integer_default_first_index_of);
+create_parameterized_test!(integer_default_first_index_of_clear);
 
 fn integer_unchecked_match_value<P>(param: P)
 where

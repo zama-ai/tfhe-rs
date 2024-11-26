@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
@@ -17,13 +17,13 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_unchecked_rotate_right);
+create_parameterized_test!(integer_signed_unchecked_rotate_right);
 
-create_parametrized_test!(integer_signed_unchecked_rotate_left);
+create_parameterized_test!(integer_signed_unchecked_rotate_left);
 
-create_parametrized_test!(integer_signed_rotate_right);
+create_parameterized_test!(integer_signed_rotate_right);
 
-create_parametrized_test!(integer_signed_rotate_left);
+create_parameterized_test!(integer_signed_rotate_left);
 
 pub(crate) fn signed_default_rotate_left_test<P, T>(param: P, mut executor: T)
 where

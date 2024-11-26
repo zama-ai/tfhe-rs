@@ -374,6 +374,6 @@ fn lwe_encrypt_fast_ks_decrypt_custom_mod<
     }
 }
 
-create_parametrized_test!(lwe_encrypt_fast_ks_decrypt_custom_mod {
+create_parameterized_test!(lwe_encrypt_fast_ks_decrypt_custom_mod {
     PRECISION_4_FAST_KS
 });

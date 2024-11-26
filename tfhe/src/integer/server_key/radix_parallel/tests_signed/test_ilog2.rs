@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
@@ -18,12 +18,12 @@ use crate::shortint::PBSParameters;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_default_trailing_zeros);
-create_parametrized_test!(integer_signed_default_trailing_ones);
-create_parametrized_test!(integer_signed_default_leading_zeros);
-create_parametrized_test!(integer_signed_default_leading_ones);
-create_parametrized_test!(integer_signed_default_ilog2);
-create_parametrized_test!(integer_signed_default_checked_ilog2 {
+create_parameterized_test!(integer_signed_default_trailing_zeros);
+create_parameterized_test!(integer_signed_default_trailing_ones);
+create_parameterized_test!(integer_signed_default_leading_zeros);
+create_parameterized_test!(integer_signed_default_leading_ones);
+create_parameterized_test!(integer_signed_default_ilog2);
+create_parameterized_test!(integer_signed_default_checked_ilog2 {
     // uses comparison so 1_1 parameters are not supported
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,

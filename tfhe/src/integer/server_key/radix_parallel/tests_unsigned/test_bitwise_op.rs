@@ -4,23 +4,23 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     unchecked_bitnot_test, unchecked_bitor_test, unchecked_bitxor_test,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::ServerKey;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 
-create_parametrized_test!(integer_smart_bitand);
-create_parametrized_test!(integer_smart_bitor);
-create_parametrized_test!(integer_smart_bitxor);
-create_parametrized_test!(integer_default_bitand);
-create_parametrized_test!(integer_default_bitor);
-create_parametrized_test!(integer_default_bitnot);
-create_parametrized_test!(integer_default_bitxor);
-create_parametrized_test!(integer_unchecked_bitand);
-create_parametrized_test!(integer_unchecked_bitor);
-create_parametrized_test!(integer_unchecked_bitnot);
-create_parametrized_test!(integer_unchecked_bitxor);
+create_parameterized_test!(integer_smart_bitand);
+create_parameterized_test!(integer_smart_bitor);
+create_parameterized_test!(integer_smart_bitxor);
+create_parameterized_test!(integer_default_bitand);
+create_parameterized_test!(integer_default_bitor);
+create_parameterized_test!(integer_default_bitnot);
+create_parameterized_test!(integer_default_bitxor);
+create_parameterized_test!(integer_unchecked_bitand);
+create_parameterized_test!(integer_unchecked_bitor);
+create_parameterized_test!(integer_unchecked_bitnot);
+create_parameterized_test!(integer_unchecked_bitxor);
 
 fn integer_smart_bitand<P>(param: P)
 where

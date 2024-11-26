@@ -1,6 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey, RadixCiphertext};
 use crate::shortint::parameters::classic::compact_pk::*;
 #[cfg(tarpaulin)]
@@ -8,7 +8,7 @@ use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
 
-create_parametrized_test!(big_radix_encrypt_decrypt_128_bits {
+create_parameterized_test!(big_radix_encrypt_decrypt_128_bits {
 
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -22,7 +22,7 @@ create_parametrized_test!(big_radix_encrypt_decrypt_128_bits {
     }
 );
 
-create_parametrized_test!(
+create_parameterized_test!(
     radix_encrypt_decrypt_compressed_128_bits {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -36,7 +36,7 @@ create_parametrized_test!(
     }
 );
 
-create_parametrized_test!(
+create_parameterized_test!(
     big_radix_encrypt_decrypt_compact_128_bits_list {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
@@ -47,7 +47,7 @@ create_parametrized_test!(
     }
 );
 
-create_parametrized_test!(
+create_parameterized_test!(
     small_radix_encrypt_decrypt_compact_128_bits_list {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,

@@ -3,7 +3,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, CpuFunctionExecutor, MAX_NB_CTXT, NB_CTXT,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
@@ -13,8 +13,8 @@ use crate::shortint::PBSParameters;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_extensive_trivial_signed_default_count_zeros_ones);
-create_parametrized_test!(integer_signed_default_count_zeros_ones);
+create_parameterized_test!(integer_extensive_trivial_signed_default_count_zeros_ones);
+create_parameterized_test!(integer_signed_default_count_zeros_ones);
 
 fn integer_extensive_trivial_signed_default_count_zeros_ones<P>(param: P)
 where

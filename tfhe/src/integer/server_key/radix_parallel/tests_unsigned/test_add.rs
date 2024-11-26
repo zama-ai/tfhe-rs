@@ -8,7 +8,7 @@ use super::{
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::OutputFlag;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -16,14 +16,14 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_unchecked_add);
-create_parametrized_test!(integer_unchecked_add_assign);
-create_parametrized_test!(integer_smart_add);
-create_parametrized_test!(integer_default_add);
-create_parametrized_test!(integer_extensive_trivial_default_add);
-create_parametrized_test!(integer_default_overflowing_add);
-create_parametrized_test!(integer_extensive_trivial_default_overflowing_add);
-create_parametrized_test!(integer_advanced_overflowing_add_assign_with_carry_at_least_4_bits {
+create_parameterized_test!(integer_unchecked_add);
+create_parameterized_test!(integer_unchecked_add_assign);
+create_parameterized_test!(integer_smart_add);
+create_parameterized_test!(integer_default_add);
+create_parameterized_test!(integer_extensive_trivial_default_add);
+create_parameterized_test!(integer_default_overflowing_add);
+create_parameterized_test!(integer_extensive_trivial_default_overflowing_add);
+create_parameterized_test!(integer_advanced_overflowing_add_assign_with_carry_at_least_4_bits {
     coverage => {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
@@ -38,8 +38,8 @@ create_parametrized_test!(integer_advanced_overflowing_add_assign_with_carry_at_
         PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
     }
 });
-create_parametrized_test!(integer_advanced_add_assign_with_carry_sequential);
-create_parametrized_test!(integer_extensive_trivial_overflowing_advanced_add_assign_with_carry_at_least_4_bits {
+create_parameterized_test!(integer_advanced_add_assign_with_carry_sequential);
+create_parameterized_test!(integer_extensive_trivial_overflowing_advanced_add_assign_with_carry_at_least_4_bits {
     coverage => {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
@@ -54,7 +54,7 @@ create_parametrized_test!(integer_extensive_trivial_overflowing_advanced_add_ass
         PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
     }
 });
-create_parametrized_test!(
+create_parameterized_test!(
     integer_extensive_trivial_advanced_overflowing_add_assign_with_carry_sequential
 );
 

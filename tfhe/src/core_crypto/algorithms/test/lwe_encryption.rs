@@ -135,7 +135,7 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
     }
 }
 
-create_parametrized_test!(parallel_and_seeded_lwe_list_encryption_equivalence {
+create_parameterized_test!(parallel_and_seeded_lwe_list_encryption_equivalence {
     TEST_PARAMS_4_BITS_NATIVE_U64,
     TEST_PARAMS_3_BITS_63_U64,
     DUMMY_NATIVE_U32,
@@ -204,7 +204,7 @@ fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPara
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_encrypt_decrypt_custom_mod);
 
 fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -258,7 +258,7 @@ fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_allocate_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_allocate_encrypt_decrypt_custom_mod);
 
 fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -310,7 +310,7 @@ fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
         break;
     }
 }
-create_parametrized_test_with_non_native_parameters!(lwe_trivial_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_trivial_encrypt_decrypt_custom_mod);
 
 fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -361,7 +361,7 @@ fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(
+create_parameterized_test_with_non_native_parameters!(
     lwe_allocate_trivial_encrypt_decrypt_custom_mod
 );
 
@@ -432,7 +432,7 @@ fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTes
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_list_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_list_encrypt_decrypt_custom_mod);
 
 fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -503,7 +503,7 @@ fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_list_par_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_list_par_encrypt_decrypt_custom_mod);
 
 fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -569,7 +569,7 @@ fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_public_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_public_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -644,7 +644,7 @@ fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_seeded_public_encrypt_decrypt_custom_mod);
+create_parameterized_test!(lwe_seeded_public_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -727,7 +727,7 @@ fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync +
     }
 }
 
-create_parametrized_test!(lwe_seeded_list_par_encrypt_decrypt_custom_mod);
+create_parameterized_test!(lwe_seeded_list_par_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -793,7 +793,7 @@ fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_seeded_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(lwe_seeded_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -854,7 +854,7 @@ fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(
+create_parameterized_test_with_non_native_parameters!(
     lwe_seeded_allocate_encrypt_decrypt_custom_mod
 );
 
@@ -992,7 +992,7 @@ fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_compact_public_encrypt_decrypt_custom_mod {
+create_parameterized_test!(lwe_compact_public_encrypt_decrypt_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
@@ -1099,7 +1099,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
 }
 
 #[cfg(feature = "zk-pok")]
-create_parametrized_test!(lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod {
+create_parameterized_test!(lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64
 });
 

@@ -6,7 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -14,9 +14,9 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_default_absolute_value);
-create_parametrized_test!(integer_signed_unchecked_absolute_value);
-create_parametrized_test!(integer_signed_smart_absolute_value);
+create_parameterized_test!(integer_signed_default_absolute_value);
+create_parameterized_test!(integer_signed_unchecked_absolute_value);
+create_parameterized_test!(integer_signed_smart_absolute_value);
 
 fn integer_signed_default_absolute_value<P>(param: P)
 where

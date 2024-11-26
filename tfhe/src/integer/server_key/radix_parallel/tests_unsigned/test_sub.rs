@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
     unsigned_modulus_u128, CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -17,13 +17,13 @@ use std::sync::Arc;
 
 use super::MAX_NB_CTXT;
 
-create_parametrized_test!(integer_unchecked_sub);
-create_parametrized_test!(integer_smart_sub);
-create_parametrized_test!(integer_default_sub);
-create_parametrized_test!(integer_extensive_trivial_default_sub);
-create_parametrized_test!(integer_default_overflowing_sub);
-create_parametrized_test!(integer_extensive_trivial_default_overflowing_sub);
-create_parametrized_test!(integer_advanced_sub_assign_with_borrow_at_least_4_bits {
+create_parameterized_test!(integer_unchecked_sub);
+create_parameterized_test!(integer_smart_sub);
+create_parameterized_test!(integer_default_sub);
+create_parameterized_test!(integer_extensive_trivial_default_sub);
+create_parameterized_test!(integer_default_overflowing_sub);
+create_parameterized_test!(integer_extensive_trivial_default_overflowing_sub);
+create_parameterized_test!(integer_advanced_sub_assign_with_borrow_at_least_4_bits {
     coverage => {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
@@ -38,7 +38,7 @@ create_parametrized_test!(integer_advanced_sub_assign_with_borrow_at_least_4_bit
         PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
     }
 });
-create_parametrized_test!(integer_advanced_sub_assign_with_borrow_sequential);
+create_parameterized_test!(integer_advanced_sub_assign_with_borrow_sequential);
 
 fn integer_unchecked_sub<P>(param: P)
 where
