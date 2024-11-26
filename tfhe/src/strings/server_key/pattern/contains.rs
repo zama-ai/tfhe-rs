@@ -93,6 +93,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (bananas, nana, apples) = ("bananas", "nana", "apples");
     ///
     /// let enc_bananas = FheString::new(&ck, bananas, None);
@@ -102,8 +104,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// let result1 = sk.contains(&enc_bananas, enc_nana.as_ref());
     /// let result2 = sk.contains(&enc_bananas, clear_apples.as_ref());
     ///
-    /// let should_be_true = ck.decrypt_bool(&result1);
-    /// let should_be_false = ck.decrypt_bool(&result2);
+    /// let should_be_true = ck.inner().decrypt_bool(&result1);
+    /// let should_be_false = ck.inner().decrypt_bool(&result2);
     ///
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
@@ -156,6 +158,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (bananas, ba, nan) = ("bananas", "ba", "nan");
     ///
     /// let enc_bananas = FheString::new(&ck, bananas, None);
@@ -165,8 +169,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// let result1 = sk.starts_with(&enc_bananas, enc_ba.as_ref());
     /// let result2 = sk.starts_with(&enc_bananas, clear_nan.as_ref());
     ///
-    /// let should_be_true = ck.decrypt_bool(&result1);
-    /// let should_be_false = ck.decrypt_bool(&result2);
+    /// let should_be_true = ck.inner().decrypt_bool(&result1);
+    /// let should_be_false = ck.inner().decrypt_bool(&result2);
     ///
     /// assert!(should_be_true);
     /// assert!(!should_be_false);
@@ -236,6 +240,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (bananas, anas, nana) = ("bananas", "anas", "nana");
     ///
     /// let enc_bananas = FheString::new(&ck, bananas, None);
@@ -245,8 +251,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// let result1 = sk.ends_with(&enc_bananas, enc_anas.as_ref());
     /// let result2 = sk.ends_with(&enc_bananas, clear_nana.as_ref());
     ///
-    /// let should_be_true = ck.decrypt_bool(&result1);
-    /// let should_be_false = ck.decrypt_bool(&result2);
+    /// let should_be_true = ck.inner().decrypt_bool(&result1);
+    /// let should_be_false = ck.inner().decrypt_bool(&result2);
     ///
     /// assert!(should_be_true);
     /// assert!(!should_be_false);

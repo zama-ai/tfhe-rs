@@ -219,6 +219,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, from, to) = ("hello", "l", "r");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -348,6 +350,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, from, to) = ("hi", "i", "o");
     ///
     /// let enc_s = FheString::new(&ck, s, None);

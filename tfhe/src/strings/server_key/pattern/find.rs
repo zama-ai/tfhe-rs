@@ -109,6 +109,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (haystack, needle) = ("hello world", "world");
     ///
     /// let enc_haystack = FheString::new(&ck, haystack, None);
@@ -116,8 +118,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let (index, found) = sk.find(&enc_haystack, enc_needle.as_ref());
     ///
-    /// let index = ck.decrypt_radix::<u32>(&index);
-    /// let found = ck.decrypt_bool(&found);
+    /// let index = ck.inner().decrypt_radix::<u32>(&index);
+    /// let found = ck.inner().decrypt_bool(&found);
     ///
     /// assert!(found);
     /// assert_eq!(index, 6); // "world" starts at index 6 in "hello world"
@@ -185,6 +187,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (haystack, needle) = ("hello world world", "world");
     ///
     /// let enc_haystack = FheString::new(&ck, haystack, None);
@@ -192,8 +196,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let (index, found) = sk.rfind(&enc_haystack, enc_needle.as_ref());
     ///
-    /// let index = ck.decrypt_radix::<u32>(&index);
-    /// let found = ck.decrypt_bool(&found);
+    /// let index = ck.inner().decrypt_radix::<u32>(&index);
+    /// let found = ck.inner().decrypt_bool(&found);
     ///
     /// assert!(found);
     /// assert_eq!(index, 12); // The last "world" starts at index 12 in "hello world world"

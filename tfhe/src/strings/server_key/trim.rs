@@ -203,6 +203,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let s = "  hello world";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -261,6 +263,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let s = "hello world  ";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -303,6 +307,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let s = "  hello world  ";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -341,6 +347,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
 ///
 /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 /// let sk = ServerKey::new_radix_server_key(&ck);
+/// let ck = tfhe::strings::ClientKey::new(ck);
+/// let sk = tfhe::strings::ServerKey::new(sk);
 /// let s = "hello \t\nworld ";
 ///
 /// let enc_s = FheString::new(&ck, s, None);
@@ -351,11 +359,11 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
 /// let (empty, no_more_items) = whitespace_iter.next(&sk); // Attempting to get a third item
 ///
 /// let first_decrypted = ck.decrypt_ascii(&first_item);
-/// let first_is_some = ck.decrypt_bool(&first_is_some);
+/// let first_is_some = ck.inner().decrypt_bool(&first_is_some);
 /// let second_decrypted = ck.decrypt_ascii(&second_item);
-/// let second_is_some = ck.decrypt_bool(&second_is_some);
+/// let second_is_some = ck.inner().decrypt_bool(&second_is_some);
 /// let empty = ck.decrypt_ascii(&empty);
-/// let no_more_items = ck.decrypt_bool(&no_more_items);
+/// let no_more_items = ck.inner().decrypt_bool(&no_more_items);
 ///
 /// assert_eq!(first_decrypted, "hello");
 /// assert!(first_is_some);

@@ -82,6 +82,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, pat) = (" hello world", " ");
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
@@ -90,7 +92,7 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let lhs_decrypted = ck.decrypt_ascii(&lhs);
     /// let rhs_decrypted = ck.decrypt_ascii(&rhs);
-    /// let split_occurred = ck.decrypt_bool(&split_occurred);
+    /// let split_occurred = ck.inner().decrypt_bool(&split_occurred);
     ///
     /// assert_eq!(lhs_decrypted, " hello");
     /// assert_eq!(rhs_decrypted, "world");
@@ -156,6 +158,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, pat) = (" hello world", " ");
     /// let enc_s = FheString::new(&ck, s, None);
     /// let enc_pat = GenericPattern::Enc(FheString::new(&ck, pat, None));
@@ -164,7 +168,7 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let lhs_decrypted = ck.decrypt_ascii(&lhs);
     /// let rhs_decrypted = ck.decrypt_ascii(&rhs);
-    /// let split_occurred = ck.decrypt_bool(&split_occurred);
+    /// let split_occurred = ck.inner().decrypt_bool(&split_occurred);
     ///
     /// assert_eq!(lhs_decrypted, "");
     /// assert_eq!(rhs_decrypted, "hello world");

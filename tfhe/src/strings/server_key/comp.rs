@@ -57,13 +57,15 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s1, s2) = ("hello", "hello");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.string_eq(&enc_s1, enc_s2.as_ref());
-    /// let are_equal = ck.decrypt_bool(&result);
+    /// let are_equal = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(are_equal);
     /// ```
@@ -115,13 +117,15 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s1, s2) = ("hello", "world");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.string_ne(&enc_s1, enc_s2.as_ref());
-    /// let are_not_equal = ck.decrypt_bool(&result);
+    /// let are_not_equal = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(are_not_equal);
     /// ```
@@ -146,13 +150,15 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s1, s2) = ("apple", "banana");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.string_lt(&enc_s1, enc_s2.as_ref());
-    /// let is_lt = ck.decrypt_bool(&result);
+    /// let is_lt = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(is_lt); // "apple" is less than "banana"
     /// ```
@@ -184,13 +190,15 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s1, s2) = ("banana", "apple");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.string_gt(&enc_s1, enc_s2.as_ref());
-    /// let is_gt = ck.decrypt_bool(&result);
+    /// let is_gt = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(is_gt); // "banana" is greater than "apple"
     /// ```
@@ -222,13 +230,15 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s1, s2) = ("apple", "banana");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.string_le(&enc_s1, enc_s2.as_ref());
-    /// let is_le = ck.decrypt_bool(&result);
+    /// let is_le = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(is_le); // "apple" is less than or equal to "banana"
     /// ```
@@ -259,13 +269,15 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s1, s2) = ("banana", "apple");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.string_ge(&enc_s1, enc_s2.as_ref());
-    /// let is_ge = ck.decrypt_bool(&result);
+    /// let is_ge = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(is_ge); // "banana" is greater than or equal to "apple"
     /// ```

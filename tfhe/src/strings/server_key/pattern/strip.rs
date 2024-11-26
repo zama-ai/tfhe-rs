@@ -116,6 +116,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, prefix, not_prefix) = ("hello world", "hello", "world");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -124,11 +126,11 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let (result, found) = sk.strip_prefix(&enc_s, enc_prefix.as_ref());
     /// let stripped = ck.decrypt_ascii(&result);
-    /// let found = ck.decrypt_bool(&found);
+    /// let found = ck.inner().decrypt_bool(&found);
     ///
     /// let (result_no_match, not_found) = sk.strip_prefix(&enc_s, clear_not_prefix.as_ref());
     /// let not_stripped = ck.decrypt_ascii(&result_no_match);
-    /// let not_found = ck.decrypt_bool(&not_found);
+    /// let not_found = ck.inner().decrypt_bool(&not_found);
     ///
     /// assert!(found);
     /// assert_eq!(stripped, " world"); // "hello" is stripped from "hello world"
@@ -207,6 +209,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s, suffix, not_suffix) = ("hello world", "world", "hello");
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -215,11 +219,11 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let (result, found) = sk.strip_suffix(&enc_s, enc_suffix.as_ref());
     /// let stripped = ck.decrypt_ascii(&result);
-    /// let found = ck.decrypt_bool(&found);
+    /// let found = ck.inner().decrypt_bool(&found);
     ///
     /// let (result_no_match, not_found) = sk.strip_suffix(&enc_s, clear_not_suffix.as_ref());
     /// let not_stripped = ck.decrypt_ascii(&result_no_match);
-    /// let not_found = ck.decrypt_bool(&not_found);
+    /// let not_found = ck.inner().decrypt_bool(&not_found);
     ///
     /// assert!(found);
     /// assert_eq!(stripped, "hello "); // "world" is stripped from "hello world"

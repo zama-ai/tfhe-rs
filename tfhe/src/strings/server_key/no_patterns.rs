@@ -22,6 +22,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// use tfhe::strings::server_key::FheStringLen;
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let s = "hello";
     /// let number_of_nulls = 3;
     ///
@@ -40,7 +42,7 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///     FheStringLen::NoPadding(_) => panic!("Unexpected no padding"),
     ///     FheStringLen::Padding(ciphertext) => {
     ///         // Homomorphically computed length, requires decryption for actual length
-    ///         let length = ck.decrypt_radix::<u32>(&ciphertext);
+    ///         let length = ck.inner().decrypt_radix::<u32>(&ciphertext);
     ///         assert_eq!(length, 5)
     ///     }
     /// }
@@ -85,6 +87,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let s = "";
     /// let number_of_nulls = 2;
     ///
@@ -103,7 +107,7 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///     FheStringIsEmpty::NoPadding(_) => panic!("Unexpected no padding"),
     ///     FheStringIsEmpty::Padding(ciphertext) => {
     ///         // Homomorphically computed emptiness, requires decryption for actual value
-    ///         let is_empty = ck.decrypt_bool(&ciphertext);
+    ///         let is_empty = ck.inner().decrypt_bool(&ciphertext);
     ///         assert!(is_empty)
     ///     }
     /// }
@@ -136,6 +140,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let s = "Hello World";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -191,6 +197,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let s = "Hello World";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
@@ -252,13 +260,15 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (s1, s2) = ("Hello", "hello");
     ///
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
     /// let result = sk.eq_ignore_case(&enc_s1, enc_s2.as_ref());
-    /// let are_equal = ck.decrypt_bool(&result);
+    /// let are_equal = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(are_equal);
     /// ```
@@ -289,6 +299,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (lhs, rhs) = ("Hello, ", "world!");
     ///
     /// let enc_lhs = FheString::new(&ck, lhs, None);
@@ -344,6 +356,8 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let s = "hi";
     ///
     /// let enc_s = FheString::new(&ck, s, None);
