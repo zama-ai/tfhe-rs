@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_unchecked_tests_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -15,13 +15,13 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_unchecked_bitand);
-create_parametrized_test!(integer_signed_unchecked_bitor);
-create_parametrized_test!(integer_signed_unchecked_bitxor);
-create_parametrized_test!(integer_signed_default_bitnot);
-create_parametrized_test!(integer_signed_default_bitand);
-create_parametrized_test!(integer_signed_default_bitor);
-create_parametrized_test!(integer_signed_default_bitxor);
+create_parameterized_test!(integer_signed_unchecked_bitand);
+create_parameterized_test!(integer_signed_unchecked_bitor);
+create_parameterized_test!(integer_signed_unchecked_bitxor);
+create_parameterized_test!(integer_signed_default_bitnot);
+create_parameterized_test!(integer_signed_default_bitand);
+create_parameterized_test!(integer_signed_default_bitor);
+create_parameterized_test!(integer_signed_default_bitxor);
 
 fn integer_signed_unchecked_bitand<P>(param: P)
 where

@@ -1,4 +1,4 @@
-macro_rules! create_parametrized_test {
+macro_rules! create_parameterized_test {
     (
         $name:ident {
             $($(#[$cfg:meta])* $param:ident),*
@@ -16,7 +16,7 @@ macro_rules! create_parametrized_test {
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             coverage => {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -56,11 +56,11 @@ macro_rules! create_parametrized_test {
         }
     };
 }
-macro_rules! create_parametrized_test_classical_params {
+macro_rules! create_parameterized_test_classical_params {
     (
         $name:ident
     ) => {
-        $crate::integer::tests::create_parametrized_test!($name {
+        $crate::integer::tests::create_parameterized_test!($name {
             coverage => {
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             },
@@ -73,4 +73,4 @@ macro_rules! create_parametrized_test_classical_params {
         });
     };
 }
-pub(crate) use {create_parametrized_test, create_parametrized_test_classical_params};
+pub(crate) use {create_parameterized_test, create_parameterized_test_classical_params};

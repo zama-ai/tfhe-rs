@@ -118,4 +118,4 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
     }
 }
 
-create_parametrized_test!(glwe_encrypt_sample_extract_decrypt_custom_mod);
+create_parameterized_test!(glwe_encrypt_sample_extract_decrypt_custom_mod);

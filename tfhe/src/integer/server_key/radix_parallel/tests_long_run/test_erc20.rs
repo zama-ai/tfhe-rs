@@ -4,7 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_long_run::{
     NB_CTXT_LONG_RUN, NB_TESTS_LONG_RUN,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerCiphertext, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey,
 };
@@ -12,16 +12,16 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(safe_erc20 {
+create_parameterized_test!(safe_erc20 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
-create_parametrized_test!(whitepaper_erc20 {
+create_parameterized_test!(whitepaper_erc20 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
-create_parametrized_test!(no_cmux_erc20 {
+create_parameterized_test!(no_cmux_erc20 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
-create_parametrized_test!(overflow_erc20 {
+create_parameterized_test!(overflow_erc20 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 

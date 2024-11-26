@@ -9,7 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params, nb_unchecked_tests_for_params,
     CpuFunctionExecutor, MAX_NB_CTXT,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
@@ -19,13 +19,13 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_signed_unchecked_sub);
-create_parametrized_test!(integer_signed_unchecked_overflowing_sub);
-create_parametrized_test!(integer_signed_default_sub);
-create_parametrized_test!(integer_extensive_trivial_signed_default_sub);
-create_parametrized_test!(integer_signed_default_overflowing_sub);
-create_parametrized_test!(integer_signed_default_overflowing_sub_sequential);
-create_parametrized_test!(integer_signed_default_overflowing_sub_parallel {
+create_parameterized_test!(integer_signed_unchecked_sub);
+create_parameterized_test!(integer_signed_unchecked_overflowing_sub);
+create_parameterized_test!(integer_signed_default_sub);
+create_parameterized_test!(integer_extensive_trivial_signed_default_sub);
+create_parameterized_test!(integer_signed_default_overflowing_sub);
+create_parameterized_test!(integer_signed_default_overflowing_sub_sequential);
+create_parameterized_test!(integer_signed_default_overflowing_sub_parallel {
     coverage => {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
@@ -40,7 +40,7 @@ create_parametrized_test!(integer_signed_default_overflowing_sub_parallel {
         PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
     }
 });
-create_parametrized_test!(integer_extensive_trivial_signed_default_overflowing_sub);
+create_parameterized_test!(integer_extensive_trivial_signed_default_overflowing_sub);
 
 fn integer_signed_unchecked_sub<P>(param: P)
 where

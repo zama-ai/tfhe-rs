@@ -4,7 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, random_non_zero_value, CpuFunctionExecutor, NB_CTXT,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -12,12 +12,12 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_default_trailing_zeros);
-create_parametrized_test!(integer_default_trailing_ones);
-create_parametrized_test!(integer_default_leading_zeros);
-create_parametrized_test!(integer_default_leading_ones);
-create_parametrized_test!(integer_default_ilog2);
-create_parametrized_test!(integer_default_checked_ilog2 {
+create_parameterized_test!(integer_default_trailing_zeros);
+create_parameterized_test!(integer_default_trailing_ones);
+create_parameterized_test!(integer_default_leading_zeros);
+create_parameterized_test!(integer_default_leading_ones);
+create_parameterized_test!(integer_default_ilog2);
+create_parameterized_test!(integer_default_checked_ilog2 {
     // This uses comparisons, so require more than 1 bit
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,

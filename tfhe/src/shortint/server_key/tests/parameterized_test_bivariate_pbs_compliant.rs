@@ -1,6 +1,6 @@
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
-use crate::shortint::server_key::tests::parametrized_test::create_parametrized_test;
+use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use rand::Rng;
 
 /// Number of assert in randomized tests
@@ -27,7 +27,7 @@ const NB_SUB_TEST_SMART: usize = 5;
 
 //Macro to generate tests for parameters sets compatible with the bivariate pbs
 #[cfg(not(tarpaulin))]
-macro_rules! create_parametrized_test_bivariate_pbs_compliant{
+macro_rules! create_parameterized_test_bivariate_pbs_compliant{
     ($name:ident { $($param:ident),* }) => {
         ::paste::paste! {
             $(
@@ -39,7 +39,7 @@ macro_rules! create_parametrized_test_bivariate_pbs_compliant{
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
@@ -69,7 +69,7 @@ macro_rules! create_parametrized_test_bivariate_pbs_compliant{
 
 // Test against a small subset of parameters to speed up coverage tests
 #[cfg(tarpaulin)]
-macro_rules! create_parametrized_test_bivariate_pbs_compliant{
+macro_rules! create_parameterized_test_bivariate_pbs_compliant{
     ($name:ident { $($param:ident),* }) => {
         ::paste::paste! {
             $(
@@ -81,7 +81,7 @@ macro_rules! create_parametrized_test_bivariate_pbs_compliant{
         }
     };
     ($name:ident)=> {
-        create_parametrized_test!($name
+        create_parameterized_test!($name
         {
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
@@ -113,46 +113,46 @@ fn test_shortint_public_key_smart_add_param_message_2_carry_2_ks_pbs() {
 
 //These functions are compatible with some parameter sets where the carry modulus is larger than
 // the message modulus.
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_bitand);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_bitor);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_bitxor);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_greater);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_greater_or_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_bitand);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_default_bitand);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_bitor);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_default_bitor);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_bitxor);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_default_bitxor);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_greater);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_default_greater);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_greater_or_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_default_greater_or_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_less);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_default_less);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_less_or_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_default_less_or_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_default_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_scalar_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_scalar_less);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_scalar_less_or_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_scalar_greater);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_scalar_greater_or_equal);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_div);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_scalar_div);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_mod);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_mul_lsb);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_mul_msb);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_mul_msb);
-create_parametrized_test_bivariate_pbs_compliant!(shortint_default_mul_msb);
-create_parametrized_test_bivariate_pbs_compliant!(
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_bitand);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_bitor);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_bitxor);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_greater);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_greater_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_less);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_bitand);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_default_bitand);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_bitor);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_default_bitor);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_bitxor);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_default_bitxor);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_greater);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_default_greater);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_greater_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_default_greater_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_less);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_default_less);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_less_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_default_less_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_default_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_scalar_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_scalar_less);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_scalar_less_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_scalar_greater);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_scalar_greater_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_div);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_scalar_div);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_mod);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_mul_lsb);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_mul_msb);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_mul_msb);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_default_mul_msb);
+create_parameterized_test_bivariate_pbs_compliant!(
     shortint_keyswitch_bivariate_programmable_bootstrap
 );
-create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal_trivial);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal_trivial);
 
 fn shortint_keyswitch_bivariate_programmable_bootstrap<P>(param: P)
 where

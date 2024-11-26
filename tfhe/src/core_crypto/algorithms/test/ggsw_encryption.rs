@@ -240,7 +240,7 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(ggsw_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(ggsw_encrypt_decrypt_custom_mod);
 
 fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     params: ClassicTestParams<Scalar>,
@@ -308,7 +308,7 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(ggsw_par_encrypt_decrypt_custom_mod);
+create_parameterized_test_with_non_native_parameters!(ggsw_par_encrypt_decrypt_custom_mod);
 
 fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -379,7 +379,7 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(ggsw_seeded_encrypt_decrypt_custom_mod);
+create_parameterized_test!(ggsw_seeded_encrypt_decrypt_custom_mod);
 
 fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -450,4 +450,4 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
     }
 }
 
-create_parametrized_test!(ggsw_seeded_par_encrypt_decrypt_custom_mod);
+create_parameterized_test!(ggsw_seeded_par_encrypt_decrypt_custom_mod);

@@ -3,7 +3,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, CpuFunctionExecutor, NB_CTXT,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -11,7 +11,7 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(
+create_parameterized_test!(
     integer_smart_div_rem {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -30,7 +30,7 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(
+create_parameterized_test!(
     integer_smart_div {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -49,7 +49,7 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(
+create_parameterized_test!(
     integer_smart_rem {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -68,7 +68,7 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(
+create_parameterized_test!(
     integer_default_div_rem {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -87,7 +87,7 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(
+create_parameterized_test!(
     integer_default_rem {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -106,7 +106,7 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(
+create_parameterized_test!(
     integer_default_div {
         coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,

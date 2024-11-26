@@ -27,7 +27,7 @@ use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U
 use std::sync::Arc;
 
 // Macro to generate tests for all parameter sets
-macro_rules! create_gpu_parametrized_test{
+macro_rules! create_gpu_parameterized_test{
     ($name:ident { $($param:ident),* $(,)? }) => {
         ::paste::paste! {
             $(
@@ -39,7 +39,7 @@ macro_rules! create_gpu_parametrized_test{
         }
     };
     ($name:ident)=> {
-        create_gpu_parametrized_test!($name
+        create_gpu_parameterized_test!($name
         {
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
@@ -50,7 +50,7 @@ macro_rules! create_gpu_parametrized_test{
     };
 }
 
-pub(crate) use create_gpu_parametrized_test;
+pub(crate) use create_gpu_parameterized_test;
 
 pub(crate) struct GpuContext {
     pub(crate) streams: CudaStreams,

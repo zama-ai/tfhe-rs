@@ -82,7 +82,7 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
     );
 }
 
-create_parametrized_test!(lwe_encrypt_decrypt_noise_distribution_custom_mod {
+create_parameterized_test!(lwe_encrypt_decrypt_noise_distribution_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64,
     TEST_PARAMS_3_BITS_SOLINAS_U64,
     TEST_PARAMS_3_BITS_63_U64
@@ -194,7 +194,7 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
     );
 }
 
-create_parametrized_test!(lwe_compact_public_encrypt_noise_distribution_custom_mod {
+create_parameterized_test!(lwe_compact_public_encrypt_noise_distribution_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
@@ -266,7 +266,7 @@ fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(
     );
 }
 
-create_parametrized_test!(random_noise_roundtrip {
+create_parameterized_test!(random_noise_roundtrip {
     TEST_PARAMS_4_BITS_NATIVE_U64,
     TEST_PARAMS_3_BITS_SOLINAS_U64,
     TEST_PARAMS_3_BITS_63_U64

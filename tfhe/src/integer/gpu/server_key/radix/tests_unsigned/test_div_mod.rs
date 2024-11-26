@@ -1,5 +1,5 @@
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
-    create_gpu_parametrized_test, GpuFunctionExecutor,
+    create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_div_mod::{
@@ -7,9 +7,9 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_div_mod::{
 };
 use crate::shortint::parameters::*;
 
-create_gpu_parametrized_test!(integer_div);
-create_gpu_parametrized_test!(integer_div_rem);
-create_gpu_parametrized_test!(integer_rem);
+create_gpu_parameterized_test!(integer_div);
+create_gpu_parameterized_test!(integer_div_rem);
+create_gpu_parameterized_test!(integer_rem);
 
 fn integer_div<P>(param: P)
 where

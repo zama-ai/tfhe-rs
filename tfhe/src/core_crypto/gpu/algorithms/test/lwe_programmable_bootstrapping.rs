@@ -172,4 +172,4 @@ fn lwe_encrypt_pbs_decrypt<
     }
 }
 
-create_gpu_parametrized_test!(lwe_encrypt_pbs_decrypt);
+create_gpu_parameterized_test!(lwe_encrypt_pbs_decrypt);

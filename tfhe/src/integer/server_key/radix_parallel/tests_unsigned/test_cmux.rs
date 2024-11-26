@@ -4,7 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionE
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, CpuFunctionExecutor,
 };
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -12,8 +12,8 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parametrized_test!(integer_smart_if_then_else);
-create_parametrized_test!(integer_default_if_then_else);
+create_parameterized_test!(integer_smart_if_then_else);
+create_parameterized_test!(integer_default_if_then_else);
 
 fn integer_smart_if_then_else<P>(param: P)
 where

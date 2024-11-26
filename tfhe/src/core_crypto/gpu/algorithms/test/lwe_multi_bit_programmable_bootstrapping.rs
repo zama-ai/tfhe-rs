@@ -174,4 +174,4 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
     }
 }
 
-create_gpu_multi_bit_parametrized_test!(lwe_encrypt_multi_bit_pbs_decrypt_custom_mod);
+create_gpu_multi_bit_parameterized_test!(lwe_encrypt_multi_bit_pbs_decrypt_custom_mod);
