@@ -3,7 +3,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, PaddingBit, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically an addition between a ciphertext and a scalar.
@@ -209,9 +209,9 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_add_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-        let shift_plaintext = u64::from(scalar) * delta;
-        let encoded_scalar = Plaintext(shift_plaintext);
+        let encoded_scalar = self
+            .encoding(PaddingBit::Yes)
+            .encode(Cleartext(u64::from(scalar)));
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
 
         ct.degree = Degree::new(ct.degree.get() + u64::from(scalar));

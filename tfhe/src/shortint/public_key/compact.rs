@@ -2,7 +2,7 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_lwe_secret_key,
     allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
-    Container, LweCiphertextCount, LweCompactCiphertextListOwned,
+    Cleartext, Container, LweCiphertextCount, LweCompactCiphertextListOwned,
     LweCompactPublicKeyEncryptionParameters, LweCompactPublicKeyOwned, LweSecretKey, Plaintext,
     PlaintextList, SeededLweCompactPublicKeyOwned,
 };
@@ -15,7 +15,7 @@ use crate::shortint::ciphertext::{CompactCiphertextList, Degree};
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
-use crate::shortint::{CarryModulus, ClientKey, MessageModulus};
+use crate::shortint::{ClientKey, PaddingBit, ShortintEncoding};
 #[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::Error;
@@ -135,11 +135,10 @@ pub struct CompactPublicKey {
 fn to_plaintext_iterator(
     message_iter: impl Iterator<Item = u64>,
     encryption_modulus: u64,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
+    parameters: &CompactPublicKeyEncryptionParameters,
 ) -> impl Iterator<Item = Plaintext<u64>> {
-    let message_modulus = message_modulus.0;
-    let carry_modulus = carry_modulus.0;
+    let message_modulus = parameters.message_modulus.0;
+    let carry_modulus = parameters.carry_modulus.0;
 
     let full_modulus = message_modulus * carry_modulus;
 
@@ -148,15 +147,15 @@ fn to_plaintext_iterator(
         "Encryption modulus cannot exceed the plaintext modulus"
     );
 
+    let encoding = ShortintEncoding {
+        ciphertext_modulus: parameters.ciphertext_modulus,
+        message_modulus: parameters.message_modulus,
+        carry_modulus: parameters.carry_modulus,
+        padding_bit: PaddingBit::Yes,
+    };
     message_iter.map(move |message| {
-        //The delta is the one defined by the parameters
-        let delta = (1_u64 << 63) / (full_modulus);
-
         let m = message % encryption_modulus;
-
-        let shifted_message = m * delta;
-        // encode the message
-        Plaintext(shifted_message)
+        encoding.encode(Cleartext(m))
     })
 }
 
@@ -303,14 +302,10 @@ impl CompactPublicKey {
         messages: impl Iterator<Item = u64>,
         encryption_modulus: u64,
     ) -> CompactCiphertextList {
-        let plaintext_container = to_plaintext_iterator(
-            messages,
-            encryption_modulus,
-            self.parameters.message_modulus,
-            self.parameters.carry_modulus,
-        )
-        .map(|plaintext| plaintext.0)
-        .collect::<Vec<_>>();
+        let plaintext_container =
+            to_plaintext_iterator(messages, encryption_modulus, &self.parameters)
+                .map(|plaintext| plaintext.0)
+                .collect::<Vec<_>>();
 
         let plaintext_list = PlaintextList::from_container(plaintext_container);
         let mut ct_list = LweCompactCiphertextListOwned::new(
@@ -376,8 +371,14 @@ impl CompactPublicKey {
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         let plaintext_modulus = self.parameters.message_modulus.0 * self.parameters.carry_modulus.0;
-        let delta = (1u64 << 63) / plaintext_modulus;
         assert!(encryption_modulus <= plaintext_modulus);
+        let delta = ShortintEncoding {
+            ciphertext_modulus: self.parameters.ciphertext_modulus,
+            message_modulus: self.parameters.message_modulus,
+            carry_modulus: self.parameters.carry_modulus,
+            padding_bit: PaddingBit::Yes,
+        }
+        .delta();
 
         // This is the maximum number of lwe that can share the same mask in lwe compact pk
         // encryption

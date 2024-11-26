@@ -3,7 +3,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, MessageModulus, ServerKey};
+use crate::shortint::{Ciphertext, MessageModulus, PaddingBit, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -207,9 +207,9 @@ impl ServerKey {
     pub fn unchecked_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         let neg_scalar = neg_scalar(scalar, ct.message_modulus);
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-        let shift_plaintext = u64::from(neg_scalar) * delta;
-        let encoded_scalar = Plaintext(shift_plaintext);
+        let encoded_scalar = self
+            .encoding(PaddingBit::Yes)
+            .encode(Cleartext(u64::from(neg_scalar)));
 
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
 
@@ -222,15 +222,13 @@ impl ServerKey {
         scalar: u8,
     ) {
         let msg_mod = self.message_modulus.0;
-        assert!((u64::from(scalar)) < msg_mod);
+        let encoding = self.encoding(PaddingBit::Yes);
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-
-        let encoded_scalar = Plaintext(scalar as u64 * delta);
+        let encoded_scalar = encoding.encode(Cleartext(u64::from(scalar)));
         lwe_ciphertext_plaintext_sub_assign(&mut ct.ct, encoded_scalar);
 
         let correcting_term = ct.degree.get().div_ceil(msg_mod).max(1) * msg_mod;
-        let encoded_msg_mod = Plaintext(correcting_term * delta);
+        let encoded_msg_mod = encoding.encode(Cleartext(correcting_term));
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_msg_mod);
 
         // subtracted scalar, added the correcting term.
