@@ -98,6 +98,26 @@ The compiled WASM packages are located in `tfhe/pkg`.
 The browser API and the Node.js API are available as npm packages. Using `npm i tfhe` for the browser API and `npm i node-tfhe` for the Node.js API.
 {% endhint %}
 
+### Extra steps for web bundlers
+
+When using the browser API _with parallelism_, some extra step might be needed depending on the bundler used:
+
+#### Usage with Webpack
+
+If you're using Webpack v5 (version >= 5.25.1), you don't need to do anything special, as it already supports [bundling Workers](https://webpack.js.org/guides/web-workers/) out of the box.
+
+#### Usage with Parcel
+
+Parcel v2 also recognises the used syntax and works out of the box.
+
+#### Usage with Rollup
+
+For Rollup, you'll need [`@surma/rollup-plugin-off-main-thread`](https://github.com/surma/rollup-plugin-off-main-thread) plugin (version >= 2.1.0) which brings the same functionality and was tested with this crate.
+
+Alternatively, you can use [Vite](https://vitejs.dev/) which has necessary plugins built-in.
+
+(Taken from [RReverser/wasm-bindgen-rayon](https://github.com/RReverser/wasm-bindgen-rayon?tab=readme-ov-file#usage-with-various-bundlers))
+
 ## Using the JS on WASM API
 
 **TFHE-rs** uses WASM to provide a JavaScript (JS) binding to the client-side primitives, like key generation and encryption within the Boolean and shortint modules.
