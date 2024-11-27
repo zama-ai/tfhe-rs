@@ -59,7 +59,7 @@ void test_shortint_pbs_2_bits_message(void) {
     int encrypt_ok = shortint_client_key_encrypt(cks, in_val, &ct);
     assert(encrypt_ok == 0);
 
-    size_t degree = -1;
+    uint64_t degree = -1;
     int get_degree_ok = shortint_ciphertext_get_degree(ct, &degree);
     assert(get_degree_ok == 0);
 
