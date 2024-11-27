@@ -1,12 +1,12 @@
 use crate::core_crypto::algorithms::test::*;
 
+mod fft;
 mod glwe_sample_extraction;
 mod lwe_keyswitch;
 mod lwe_linear_algebra;
 mod lwe_multi_bit_programmable_bootstrapping;
 mod lwe_packing_keyswitch;
 mod lwe_programmable_bootstrapping;
-mod fft;
 
 pub struct CudaPackingKeySwitchKeys<Scalar: UnsignedInteger> {
     pub lwe_sk: LweSecretKey<Vec<Scalar>>,

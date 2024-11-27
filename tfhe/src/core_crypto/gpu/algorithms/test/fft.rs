@@ -1,9 +1,9 @@
 use super::*;
 use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
-use aligned_vec::avec;
-use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::gpu::{fourier_transform_forward_f128_async, CudaStreams};
+use aligned_vec::avec;
+use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
@@ -44,13 +44,21 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             println!("poly.len: {:?}", poly.len());
             println!("rust poly");
             for coefficient in poly.iter() {
-                println!("{:0width$b}", coefficient, width = std::mem::size_of::<Scalar>() * 8);
+                println!(
+                    "{:0width$b}",
+                    coefficient,
+                    width = std::mem::size_of::<Scalar>() * 8
+                );
             }
-            fourier_transform_forward_f128_async(&stream,
-                                                    &mut fourier_re0, &mut fourier_re1,
-                                                    &mut fourier_im0, &mut fourier_im1,
-                                                    &poly, poly.len() as u32);
-
+            fourier_transform_forward_f128_async(
+                &stream,
+                &mut fourier_re0,
+                &mut fourier_re1,
+                &mut fourier_im0,
+                &mut fourier_im1,
+                &poly,
+                poly.len() as u32,
+            );
         }
 
         fft.backward_as_torus(
@@ -206,12 +214,10 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
 //     test_roundtrip::<u64>();
 // }
 
-
 #[test]
 fn test_roundtrip_u128() {
     test_roundtrip::<u128>();
 }
-
 
 // fn test_roundtrip_u128<
 //     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize>,
