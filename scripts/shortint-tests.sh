@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -ex
 
 function usage() {
     echo "$0: shortint test runner"
@@ -111,15 +111,16 @@ and not test(~smart_add_and_mul)"""
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
         --profile ci \
-        --features="${ARCH_FEATURE}",shortint,internal-keycache,experimental \
+        --features="${ARCH_FEATURE}",shortint,internal-keycache,zk-pok,experimental \
         --test-threads "${n_threads_big}" \
+        --no-tests=warn \
         -E "${filter_expression_big_params}"
 
         if [[ "${multi_bit}" == "" ]]; then
             cargo "${RUST_TOOLCHAIN}" test \
                 --profile "${cargo_profile}" \
                 --package "${tfhe_package}" \
-                --features="${ARCH_FEATURE}",shortint,internal-keycache,experimental \
+                --features="${ARCH_FEATURE}",shortint,internal-keycache,zk-pok,experimental \
                 --doc \
                 -- shortint::
         fi
