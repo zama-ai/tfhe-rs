@@ -1,8 +1,11 @@
 use super::*;
 use crate::core_crypto::algorithms::misc::check_clear_content_respects_mod;
+use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use crate::core_crypto::commons::test_tools::{
     modular_distance, modular_distance_custom_mod, torus_modular_diff, variance,
 };
+use csv::Writer;
+use libm::exp;
 use std::io;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
@@ -10,7 +13,7 @@ use std::io;
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 const NB_TESTS: usize = 1000;
-const NB_HPU_TESTS: usize = 4;
+const NB_HPU_TESTS: usize = 1;
 const NB_PBS: usize = 10;
 
 fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + CastInto<usize>>(
@@ -158,6 +161,28 @@ pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21: HpuTestParams = HpuTestParams {
     ntt_modulus: 18446744069414584321,
 };
 
+pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132: HpuTestParams = HpuTestParams {
+    lwe_dimension: LweDimension(804),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(5.963599673924788e-06),
+    glwe_modular_std_dev: StandardDev(2.8452674713391114e-15),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(8),
+    ks_base_log: DecompositionBaseLog(2),
+    pfks_level: DecompositionLevelCount(1),
+    pfks_base_log: DecompositionBaseLog(23),
+    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    cbs_level: DecompositionLevelCount(0),
+    cbs_base_log: DecompositionBaseLog(0),
+    message_modulus_log: CiphertextModulusLog(4),
+    ct_width: 64,
+    ksk_width: 21,
+    norm2: 5,
+    ntt_modulus: 18446744069414584321,
+};
+
 pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
@@ -222,14 +247,38 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     //let num_samples = NB_TESTS * <Scalar as CastInto<usize>>::cast_into(msg);
     let num_samples = NB_PBS * NB_HPU_TESTS * (msg as usize);
     let mut noise_samples = vec![Vec::with_capacity(num_samples); 4];
-    println!("ciphertext_modulus {:?} message_modulus_log {:?} encoding_with_padding {} expected_variance {:?} msg_modulus {} msg {} delta {}",
+    let min_lwe_variance =
+        variance_formula::secure_noise::minimal_lwe_variance_for_128_bits_security_gaussian(
+            lwe_dimension,
+            get_modulo_value(&ciphertext_modulus) as f64,
+        );
+    let min_glwe_variance =
+        variance_formula::secure_noise::minimal_glwe_variance_for_128_bits_security_gaussian(
+            glwe_dimension,
+            polynomial_size,
+            get_modulo_value(&ciphertext_modulus) as f64,
+        );
+    println!("ciphertext_modulus {:?}ksk_modulus {:?} message_modulus_log {:?} encoding_with_padding {} expected_variance {:?} msg_modulus {} msg {} delta {}",
         ciphertext_modulus,
+        ksk_modulus,
         message_modulus_log,
         encoding_with_padding,
         expected_variance,
         msg_modulus,
         msg,
         delta);
+    println!(
+        "min lwe var {:?} ({:?}) - param: {:?}",
+        min_lwe_variance.0,
+        min_lwe_variance.get_standard_dev(),
+        lwe_modular_std_dev
+    );
+    println!(
+        "min glwe var {:?} ({:?}) - param: {:?}",
+        min_glwe_variance.0,
+        min_glwe_variance.get_standard_dev(),
+        glwe_modular_std_dev
+    );
 
     let f = |x: u64| x.wrapping_rem(msg_modulus);
 
@@ -266,7 +315,31 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         ksk_modulus,
         &mut rsc.encryption_random_generator,
     );
+    println!(
+        "n {:?} k {:?} N {:?} k*N {:?}",
+        lwe_sk.lwe_dimension(),
+        glwe_dimension,
+        polynomial_size,
+        blwe_sk.lwe_dimension()
+    );
 
+    // it includes variance of mod switch from KS modulus to 2N
+    let (exp_add_ks_variance, exp_modswitch_variance) =
+        variance_formula::lwe_keyswitch::keyswitch_additive_variance_128_bits_security_gaussian(
+            glwe_dimension,
+            polynomial_size,
+            lwe_sk.lwe_dimension(),
+            ks_decomp_level_count,
+            ks_decomp_base_log,
+            get_modulo_value(&ksk_modulus) as f64,
+            get_modulo_value(&ciphertext_modulus) as f64,
+        );
+    println!(
+        "KS additive theo variance: {:?} theo std_dev {:?} / {:?}",
+        exp_add_ks_variance.0,
+        exp_add_ks_variance.get_standard_dev(),
+        exp_add_ks_variance.get_log_standard_dev()
+    );
     let mut bsk = LweBootstrapKey::new(
         0,
         glwe_dimension.to_glwe_size(),
@@ -285,7 +358,22 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         &mut rsc.encryption_random_generator,
     );
 
-    use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
+    let mut exp_pbs_variance =
+        variance_formula::lwe_programmable_bootstrap::pbs_variance_128_bits_security_gaussian(
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            pbs_decomp_level_count,
+            pbs_decomp_base_log,
+            get_modulo_value(&ciphertext_modulus) as f64,
+            get_modulo_value(&ntt_modulus) as f64,
+        );
+    println!(
+        "PBS theo variance without modswitch: {:?} std_dev {:?}/{:?}",
+        exp_pbs_variance.0,
+        exp_pbs_variance.get_standard_dev(),
+        exp_pbs_variance.get_log_standard_dev()
+    );
 
     let mut nbsk = NttLweBootstrapKeyOwned::<u64>::new(
         0,
@@ -550,23 +638,46 @@ fn hpu_noise_distribution(params: HpuTestParams) {
             .as_str(),
     ]);
 
-    // does not compare to expected encryption variance as it needs lots of sample to be valid
-    // and has already been done in many other TFHErs tests
-    //let var_abs_diff = (expected_variance.0 - encryption_variance.0).abs();
-    //let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance.0;
-    //assert!(
-    //    var_abs_diff < tolerance_threshold,
-    //    "Absolute difference for variance: {var_abs_diff}, \
-    //    tolerance threshold: {tolerance_threshold}, \
-    //    got variance: {encryption_variance:?}, \
-    //    expected variance: {expected_variance:?}"
-    //);
+    // variance after *norm2 must be around (exp_pbs_variance)*(norm2**2)
+    // variance after KS must be around (exp_pbs_variance)*(norm2**2)+exp_add_ks_variance
+    // variance after PBS must be around (exp_pbs_variance)
+    let expexted_bynorm2_variance = Variance(after_pbs_variance.0 * (norm2 as f64).powf(2.0));
+    let expexted_after_ks_variance = Variance(expexted_bynorm2_variance.0 + exp_add_ks_variance.0);
+
+    let after_pbs_errbit = after_pbs_variance.get_log_standard_dev();
+    let after_pbs_exp_errbit = exp_pbs_variance.get_log_standard_dev();
+    let after_pbs_errbit_diff = after_pbs_exp_errbit.0 - after_pbs_errbit.0;
+    let bynorm2_errbit = bynorm2_variance.get_log_standard_dev();
+    let bynorm2_exp_errbit = expexted_bynorm2_variance.get_log_standard_dev();
+    let bynorm2_errbit_diff = bynorm2_exp_errbit.0 - bynorm2_errbit.0;
+    let after_ks_errbit = after_ks_variance.get_log_standard_dev();
+    let after_ks_exp_errbit = expexted_after_ks_variance.get_log_standard_dev();
+    let after_ks_errbit_diff = after_ks_exp_errbit.0 - after_ks_errbit.0;
+    assert!(
+        0.0 < after_pbs_errbit_diff && after_pbs_errbit_diff < 1.0,
+        "Absolute difference for after PBS is incorrect: {after_pbs_errbit_diff:?} > 1 bit or < 0, \
+        got variance: {after_pbs_variance:?} - log2(str_dev): {after_pbs_errbit:?}, \
+        expected variance: {exp_pbs_variance:?} - log2(std_dev): {after_pbs_exp_errbit:?}"
+    );
+    assert!(
+        0.0 < bynorm2_errbit_diff && bynorm2_errbit_diff < 1.0,
+        "Absolute difference for after *norm2 in incorrect: {bynorm2_errbit_diff} > 1 bit or < 0, \
+        got variance: {bynorm2_variance:?} - log2(str_dev): {bynorm2_errbit:?}, \
+        expected variance: {expexted_bynorm2_variance:?} - log2(std_dev): {bynorm2_exp_errbit:?}"
+    );
+    assert!(
+        0.0 < after_ks_errbit_diff && after_ks_errbit_diff < 1.0,
+        "Absolute difference for after KS is incorrect: {after_ks_errbit_diff} > 1 bit or < 0, \
+        got variance: {after_ks_variance:?} - log2(str_dev): {after_ks_errbit:?}, \
+        expected variance: {expexted_after_ks_variance:?} - log2(std_dev): {after_ks_exp_errbit:?}"
+    );
 }
 
 create_parameterized_test!(hpu_noise_distribution {
     HPU_TEST_PARAMS_4_BITS_NATIVE_U64,
     HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21,
     HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21,
+    HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132,
 });
 
 fn lwe_compact_public_key_encryption_expected_variance(
