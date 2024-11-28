@@ -129,7 +129,7 @@ __host__ void host_integer_overflowing_sub(
   // of num_blocks changes
   uint32_t block_modulus =
       radix_params.message_modulus * radix_params.carry_modulus;
-  uint32_t num_bits_in_block = std::log2(block_modulus);
+  uint32_t num_bits_in_block = log2_int(block_modulus);
   uint32_t grouping_size = num_bits_in_block;
   uint32_t num_groups = (num_blocks + grouping_size - 1) / grouping_size;
 

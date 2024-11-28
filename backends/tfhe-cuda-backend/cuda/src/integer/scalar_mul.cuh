@@ -54,7 +54,7 @@ __host__ void host_integer_scalar_mul_radix(
   // whereas lwe_dimension is the number of elements in the mask
   uint32_t lwe_size = input_lwe_dimension + 1;
   uint32_t lwe_size_bytes = lwe_size * sizeof(T);
-  uint32_t msg_bits = (uint32_t)std::log2(message_modulus);
+  uint32_t msg_bits = log2_int(message_modulus);
   uint32_t num_ciphertext_bits = msg_bits * num_radix_blocks;
 
   T *preshifted_buffer = mem->preshifted_buffer;

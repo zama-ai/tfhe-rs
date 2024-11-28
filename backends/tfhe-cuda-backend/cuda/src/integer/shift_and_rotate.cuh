@@ -29,7 +29,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     uint32_t gpu_count, Torus *lwe_array, Torus const *lwe_shift,
     int_shift_and_rotate_buffer<Torus> *mem, void *const *bsks,
     Torus *const *ksks, uint32_t num_radix_blocks) {
-  uint32_t bits_per_block = std::log2(mem->params.message_modulus);
+  uint32_t bits_per_block = log2_int(mem->params.message_modulus);
   uint32_t total_nb_bits = bits_per_block * num_radix_blocks;
   if (total_nb_bits == 0)
     return;
@@ -55,7 +55,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   // then the behaviour of shifting won't be the same
   // if shift >= total_nb_bits compared to when total_nb_bits
   // is a power of two, as will 'capture' more bits in `shift_bits`
-  uint32_t max_num_bits_that_tell_shift = std::log2(total_nb_bits);
+  uint32_t max_num_bits_that_tell_shift = log2_int(total_nb_bits);
   if (!is_power_of_two(total_nb_bits))
     max_num_bits_that_tell_shift += 1;
   // Extracts bits and put them in the bit index 2 (=> bit number 3)

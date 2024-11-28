@@ -38,7 +38,7 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
   size_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-  size_t num_bits_in_message = (size_t)log2(message_modulus);
+  size_t num_bits_in_message = (size_t)log2_int(message_modulus);
   size_t total_num_bits = num_bits_in_message * num_blocks;
   n = n % total_num_bits;
 
