@@ -579,7 +579,7 @@ __host__ void host_integer_mult_radix_kb(
       2 * num_blocks, mem_ptr->luts_array);
 
   uint32_t block_modulus = message_modulus * carry_modulus;
-  uint32_t num_bits_in_block = std::log2(block_modulus);
+  uint32_t num_bits_in_block = log2_int(block_modulus);
 
   auto scp_mem_ptr = mem_ptr->sc_prop_mem;
   uint32_t requested_flag = outputFlag::FLAG_NONE;

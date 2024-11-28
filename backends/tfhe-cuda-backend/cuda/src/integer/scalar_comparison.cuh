@@ -292,7 +292,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     Torus const *sign_block =
         lwe_array_in + (total_num_radix_blocks - 1) * big_lwe_size;
 
-    auto sign_bit_pos = (int)std::log2(message_modulus) - 1;
+    auto sign_bit_pos = (int)log2_int(message_modulus) - 1;
 
     auto scalar_last_leaf_with_respect_to_zero_lut_f =
         [sign_handler_f, sign_bit_pos,
