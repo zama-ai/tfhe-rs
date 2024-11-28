@@ -50,6 +50,7 @@ pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::unchecked_sub_test;
 #[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sum::default_sum_ciphertexts_vec_test;
+use crate::shortint::server_key::CiphertextNoiseDegree;
 //=============================================================================
 // Unchecked Tests
 //=============================================================================
@@ -2729,6 +2730,12 @@ where
                 .all(|b| b.degree.get() == block_msg_mod - 1),
             "Invalid degree after propagation"
         );
+        assert!(
+            ct.blocks
+                .iter()
+                .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+            "Invalid noise_level after propagation"
+        );
 
         // Manually check each shortint block of the output
         let shortint_cks = &cks.as_ref().key;
@@ -2787,6 +2794,12 @@ where
                 .iter()
                 .all(|b| b.degree.get() == block_msg_mod - 1),
             "Invalid degree after propagation"
+        );
+        assert!(
+            ct.blocks
+                .iter()
+                .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+            "Invalid noise_level after propagation"
         );
 
         // Manually check each shortint block of the output
@@ -2864,6 +2877,12 @@ where
                 .all(|b| b.degree.get() == block_msg_mod - 1),
             "Invalid degree after propagation"
         );
+        assert!(
+            ct.blocks
+                .iter()
+                .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+            "Invalid noise_level after propagation"
+        );
 
         // Take the initial value, but remove any bits below absober block
         // as the bits below will have changed, but bits above will not.
@@ -2898,5 +2917,125 @@ where
             assert_eq!(msg, expected_msg);
             assert_eq!(carry, 0);
         }
+    }
+    {
+        // Here, we want to ensure at the end of full propagate
+        // all the blocks are clean, that is, noise_level == NOMINAL && degree = msg_mod -1
+
+        let block_max_value = block_msg_mod - 1;
+        let blocks = vec![
+            cks.encrypt_one_block(block_max_value),
+            cks.encrypt_one_block(block_max_value),
+            cks.encrypt_one_block(block_max_value),
+            cks.encrypt_one_block(block_max_value),
+        ];
+
+        let mut ct = RadixCiphertext::from(blocks);
+        // Check we crafted what we want
+        for block in &ct.blocks {
+            assert_eq!(
+                block.noise_degree(),
+                CiphertextNoiseDegree::new(NoiseLevel::NOMINAL, Degree::new(block_max_value))
+            );
+        }
+
+        // For the noise level to be not zero, but non of the blocks have carries
+        for block in &mut ct.blocks {
+            block.set_noise_level(NoiseLevel::NOMINAL * 2, sks.key.max_noise_level);
+        }
+
+        executor.execute(&mut ct);
+        // For the ct we crafted, the full_propagate implementation may not do the carry propagation
+        // But we still expect it to clean the noise
+        let clean_noise_degree =
+            CiphertextNoiseDegree::new(NoiseLevel::NOMINAL, Degree::new(block_max_value));
+        assert_eq!(ct.blocks[0].noise_degree(), clean_noise_degree);
+        assert_eq!(ct.blocks[1].noise_degree(), clean_noise_degree);
+        assert_eq!(ct.blocks[2].noise_degree(), clean_noise_degree);
+        assert_eq!(ct.blocks[3].noise_degree(), clean_noise_degree);
+    }
+    {
+        // Also here, we want to ensure at the end of full propagate
+        // all the blocks are clean, that is, noise_level == NOMINAL && degree = msg_mod -1
+        // as the full_propagate may skip blocks until there is one that actually has a carry
+
+        let block_max_value = block_msg_mod - 1;
+        let blocks = vec![
+            cks.encrypt_bool(true).0,
+            cks.encrypt_bool(true).0,
+            cks.encrypt_one_block(block_max_value),
+            cks.encrypt_one_block(block_max_value),
+        ];
+
+        let mut ct = RadixCiphertext::from(blocks);
+        // Check we crafted what we want
+        assert_eq!(
+            ct.blocks[0].noise_degree(),
+            CiphertextNoiseDegree::new(NoiseLevel::NOMINAL, Degree::new(1))
+        );
+        assert_eq!(
+            ct.blocks[1].noise_degree(),
+            CiphertextNoiseDegree::new(NoiseLevel::NOMINAL, Degree::new(1))
+        );
+        assert_eq!(
+            ct.blocks[2].noise_degree(),
+            CiphertextNoiseDegree::new(NoiseLevel::NOMINAL, Degree::new(block_max_value))
+        );
+        assert_eq!(
+            ct.blocks[3].noise_degree(),
+            CiphertextNoiseDegree::new(NoiseLevel::NOMINAL, Degree::new(block_max_value))
+        );
+        let ct_cloned = ct.clone();
+        // We want to add such that the first two blocks have a degree that indicates no carry,
+        // but we also want to make sure doing that won't cause overflow in other blocks and/or
+        // go beyond max noise level
+        let num_ct_to_sum = block_max_value
+            .min((block_total_mod - 1) / block_max_value)
+            .min(sks.key.max_noise_level.get());
+        let num_add = num_ct_to_sum - 1;
+        for _ in 0..num_add {
+            sks.unchecked_add_assign(&mut ct, &ct_cloned);
+        }
+        // Check we crafted what we want
+        assert_eq!(
+            ct.blocks[0].noise_degree(),
+            CiphertextNoiseDegree::new(
+                NoiseLevel::NOMINAL * num_ct_to_sum,
+                Degree::new(num_ct_to_sum)
+            )
+        );
+        assert_eq!(
+            ct.blocks[1].noise_degree(),
+            CiphertextNoiseDegree::new(
+                NoiseLevel::NOMINAL * num_ct_to_sum,
+                Degree::new(num_ct_to_sum)
+            )
+        );
+        assert_eq!(
+            ct.blocks[2].noise_degree(),
+            CiphertextNoiseDegree::new(
+                NoiseLevel::NOMINAL * num_ct_to_sum,
+                Degree::new(block_max_value * num_ct_to_sum)
+            )
+        );
+        assert_eq!(
+            ct.blocks[3].noise_degree(),
+            CiphertextNoiseDegree::new(
+                NoiseLevel::NOMINAL * num_ct_to_sum,
+                Degree::new(block_max_value * num_ct_to_sum)
+            )
+        );
+
+        executor.execute(&mut ct);
+        // For the ct we crafted, the full_propagate implementation may not start propagating
+        // from blocks index 0, since it does not have carries.
+        // If the implementation does skip blocks, then we still expect it to clean the noise of
+        // preceding blocks Check we crafted what we want
+        let clean_noise_degree =
+            CiphertextNoiseDegree::new(NoiseLevel::NOMINAL, Degree::new(block_max_value));
+        assert_eq!(ct.blocks[0].noise_degree(), clean_noise_degree);
+        assert_eq!(ct.blocks[1].noise_degree(), clean_noise_degree);
+        assert_eq!(ct.blocks[2].noise_degree(), clean_noise_degree);
+        assert_eq!(ct.blocks[3].noise_degree(), clean_noise_degree);
     }
 }
