@@ -30,6 +30,12 @@ struct alignas(16) f128 {
     return f128(p, __fma_rn(a, b, -p));
   }
 
+  __host__ __device__ __forceinline__ static f128 two_diff(double a, double b) {
+    double s = a - b;
+    double bb = s - a;
+    return (s, (a - (s - bb)) - (b + bb));
+  }
+
   // Addition
   __host__ __device__ static f128 add(const f128 &a, const f128 &b) {
     auto s = two_sum(a.hi, b.hi);
@@ -55,6 +61,22 @@ struct alignas(16) f128 {
     return f128(hi, lo);
   }
 
+  // Subtraction with estimate
+  __host__ __device__ static f128 sub_estimate(const f128 &a, const f128 &b) {
+    f128 se = two_diff(a.hi, b.hi);
+    se.lo += a.lo;
+    se.lo -= b.lo;
+    return quick_two_sum(se.hi, se.lo);
+  }
+
+  // Subtraction
+  __host__ __device__ static f128 sub(const f128 &a, const f128 &b) {
+    auto s = two_diff(a.hi, b.hi);
+    auto t = two_diff(a.lo, b.lo);
+    s = quick_two_sum(s.hi, s.lo + t.hi);
+    return quick_two_sum(s.hi, s.lo + t.lo);
+  }
+
   // Multiplication
   __host__ __device__ static f128 mul(const f128 &a, const f128 &b) {
     double hi, lo;
@@ -66,6 +88,19 @@ struct alignas(16) f128 {
     lo = lo - (hi - p.hi);
 
     return f128(hi, lo);
+  }
+
+  __host__ __device__ static void
+  cplx_f128_mul_assign(f128 &c_re, f128 &c_im,
+                       const f128 &a_re, const f128 &a_im,
+                       const f128 &b_re, const f128 &b_im) {
+    auto a_re_x_b_re = mul(a_re, b_re);
+    auto a_re_x_b_im = mul(a_re, b_im);
+    auto a_im_x_b_re = mul(a_im, b_re);
+    auto a_im_x_b_im = mul(a_im, b_im);
+
+    c_re = add_estimate(a_re_x_b_re, a_im_x_b_im);
+    c_im = sub_estimate(a_im_x_b_re, a_re_x_b_im);
   }
 };
 #endif
