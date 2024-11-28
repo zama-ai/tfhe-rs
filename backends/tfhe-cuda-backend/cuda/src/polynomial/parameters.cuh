@@ -1,7 +1,24 @@
 #ifndef CUDA_PARAMETERS_CUH
 #define CUDA_PARAMETERS_CUH
 
-constexpr int log2(int n) { return (n <= 2) ? 1 : 1 + log2(n / 2); }
+#include "device.h"
+#include <cstdint>
+
+// If decide to support something else than 32 and 64 bits, this method will
+// need to be adjusted
+template <typename T> constexpr unsigned log2_int(T n) {
+  if (n == 0) {
+    PANIC("Cuda error (log2): log2 is undefined for 0");
+  }
+
+  if constexpr (sizeof(T) == 4) { // uint32_t
+    return (unsigned)(8 * sizeof(uint32_t) - __builtin_clz(n) - 1);
+  } else if constexpr (sizeof(T) == 8) { // uint64_t
+    return (unsigned)(8 * sizeof(uint64_t) - __builtin_clzll(n) - 1);
+  } else {
+    return (n <= 2) ? 1 : 1 + log2_int(n / 2);
+  }
+}
 
 constexpr int choose_opt_amortized(int degree) {
   if (degree <= 1024)
@@ -41,14 +58,14 @@ template <int N> class Degree {
 public:
   constexpr static int degree = N;
   constexpr static int opt = choose_opt(N);
-  constexpr static int log2_degree = log2(N);
+  constexpr static int log2_degree = log2_int(N);
 };
 
 template <int N> class AmortizedDegree {
 public:
   constexpr static int degree = N;
   constexpr static int opt = choose_opt_amortized(N);
-  constexpr static int log2_degree = log2(N);
+  constexpr static int log2_degree = log2_int(N);
 };
 enum sharedMemDegree { NOSM = 0, PARTIALSM = 1, FULLSM = 2 };
 

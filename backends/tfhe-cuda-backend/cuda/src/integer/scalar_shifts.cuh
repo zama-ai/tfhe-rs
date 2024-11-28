@@ -38,7 +38,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
   size_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-  size_t num_bits_in_block = (size_t)log2(message_modulus);
+  size_t num_bits_in_block = (size_t)log2_int(message_modulus);
   size_t total_num_bits = num_bits_in_block * num_blocks;
   shift = shift % total_num_bits;
 
@@ -141,7 +141,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
   size_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-  size_t num_bits_in_block = (size_t)log2(message_modulus);
+  size_t num_bits_in_block = (size_t)log2_int(message_modulus);
   size_t total_num_bits = num_bits_in_block * num_blocks;
   shift = shift % total_num_bits;
 
