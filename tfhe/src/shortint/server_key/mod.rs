@@ -1385,10 +1385,19 @@ impl ServerKey {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct CiphertextNoiseDegree {
     pub noise_level: NoiseLevel,
     pub degree: Degree,
+}
+
+impl CiphertextNoiseDegree {
+    pub fn new(noise_level: NoiseLevel, degree: Degree) -> Self {
+        Self {
+            noise_level,
+            degree,
+        }
+    }
 }
 
 impl Ciphertext {
