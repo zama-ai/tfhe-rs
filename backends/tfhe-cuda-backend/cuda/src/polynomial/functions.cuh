@@ -18,10 +18,33 @@ __device__ void copy_polynomial(const T *__restrict__ source, T *dst) {
   }
 }
 template <typename T, int elems_per_thread, int block_size>
+__device__ void copy_polynomial_vec(const T *__restrict__ source, T *dst,
+                                    const T *__restrict__ source2, T *dst2) {
+  int tid = threadIdx.x;
+#pragma unroll
+  for (int i = 0; i < elems_per_thread; i++) {
+    dst[tid] = source[tid];
+    dst2[tid] = source2[tid];
+    tid = tid + block_size;
+  }
+}
+
+template <typename T, int elems_per_thread, int block_size>
 __device__ void copy_polynomial_in_regs(const T *__restrict__ source, T *dst) {
 #pragma unroll
   for (int i = 0; i < elems_per_thread; i++) {
     dst[i] = source[threadIdx.x + i * block_size];
+  }
+}
+
+template <typename T, int elems_per_thread, int block_size>
+__device__ void
+copy_polynomial_in_regs_vec(const T *__restrict__ source, T *dst,
+                            const T *__restrict__ source2, T *dst2) {
+#pragma unroll
+  for (int i = 0; i < elems_per_thread; i++) {
+    dst[i] = source[threadIdx.x + i * block_size];
+    dst2[i] = source2[threadIdx.x + i * block_size];
   }
 }
 

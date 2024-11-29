@@ -64,7 +64,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
   // Ids
   uint32_t level_id = blockIdx.z;
   uint32_t glwe_id = blockIdx.y; // / (glwe_dimension + 1);
-  //uint32_t poly_id = 0; // blockIdx.y;//  % (glwe_dimension + 1);
+  // uint32_t poly_id = 0; // blockIdx.y;//  % (glwe_dimension + 1);
   uint32_t lwe_iteration = (blockIdx.x % lwe_chunk_size + lwe_offset);
   uint32_t input_idx = blockIdx.x / lwe_chunk_size;
 
@@ -82,6 +82,14 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     uint32_t rev_lwe_iteration =
         ((lwe_dimension / grouping_factor) - lwe_iteration - 1);
 
+    if (threadIdx.x < (1 << grouping_factor)) {
+      const Torus *lwe_array_group =
+          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+      monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus, params>(
+          lwe_array_group, threadIdx.x, grouping_factor);
+    }
+    synchronize_threads_in_block();
+
     // ////////////////////////////////
     // Keygen guarantees the first term is a constant term of the polynomial, no
     // polynomial multiplication required
@@ -93,11 +101,17 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     Torus reg_acc[params::opt];
     Torus reg_acc2[params::opt];
 
-    copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
-        bsk_poly_ini, reg_acc);
+    // copy_polynomial_in_regs<Torus, params::opt, params::degree /
+    // params::opt>(
+    //     bsk_poly_ini, reg_acc);
 
-    copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
-        bsk_poly_ini + params::degree, reg_acc2);
+    // copy_polynomial_in_regs<Torus, params::opt, params::degree /
+    // params::opt>(
+    //     bsk_poly_ini + params::degree, reg_acc2);
+
+    copy_polynomial_in_regs_vec<Torus, params::opt,
+                                params::degree / params::opt>(
+        bsk_poly_ini, reg_acc, bsk_poly_ini + params::degree, reg_acc2);
 
     int offset =
         get_start_ith_ggsw_offset(polynomial_size, glwe_dimension, level_count);
@@ -105,13 +119,14 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // Precalculate the monomial degrees and store them in shared memory
     // uint32_t *monomial_degrees = (uint32_t *)selected_memory;
 
-    if (threadIdx.x < (1 << grouping_factor)) {
-      const Torus *lwe_array_group =
-          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
-      monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus, params>(
-          lwe_array_group, threadIdx.x, grouping_factor);
-    }
-    synchronize_threads_in_block();
+    // if (threadIdx.x < (1 << grouping_factor)) {
+    //   const Torus *lwe_array_group =
+    //       block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+    //   monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus,
+    //   params>(
+    //       lwe_array_group, threadIdx.x, grouping_factor);
+    // }
+    // synchronize_threads_in_block();
 
     // Accumulate the other terms
     for (int g = 1; g < (1 << grouping_factor); g++) {
@@ -120,7 +135,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
       const Torus *bsk_poly = bsk_poly_ini + g * offset;
       const Torus *bsk_poly2 = bsk_poly_ini + g * offset + params::degree;
-      
+
       // Multiply by the bsk element
       polynomial_product_accumulate_by_monomial_nosync_vec<Torus, params>(
           reg_acc, reg_acc2, bsk_poly, bsk_poly2, monomial_degree);
@@ -157,10 +172,6 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
                            (double)std::numeric_limits<Torus>::max(),
                        __ll2double_rn((int64_t)reg_acc2[i + params::opt / 2]) /
                            (double)std::numeric_limits<Torus>::max());
-
-    }
-
-    for (int i = 0; i < params::opt / 4; i++) {
       v[i] = make_double2(
           __ll2double_rn((int64_t)reg_acc[i + params::opt / 4]) /
               (double)std::numeric_limits<Torus>::max(),
@@ -173,8 +184,23 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
           __ll2double_rn(
               (int64_t)reg_acc2[i + params::opt / 2 + params::opt / 4]) /
               (double)std::numeric_limits<Torus>::max());
-
     }
+
+    // for (int i = 0; i < params::opt / 4; i++) {
+    //   v[i] = make_double2(
+    //       __ll2double_rn((int64_t)reg_acc[i + params::opt / 4]) /
+    //           (double)std::numeric_limits<Torus>::max(),
+    //       __ll2double_rn(
+    //           (int64_t)reg_acc[i + params::opt / 2 + params::opt / 4]) /
+    //           (double)std::numeric_limits<Torus>::max());
+    //   v2[i] = make_double2(
+    //       __ll2double_rn((int64_t)reg_acc2[i + params::opt / 4]) /
+    //           (double)std::numeric_limits<Torus>::max(),
+    //       __ll2double_rn(
+    //           (int64_t)reg_acc2[i + params::opt / 2 + params::opt / 4]) /
+    //           (double)std::numeric_limits<Torus>::max());
+
+    // }
 
     NSMFFT_direct2_vec<HalfDegree<params>>(fft, fft2, u, v, u2, v2);
 
@@ -182,13 +208,16 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     auto keybundle_out = get_ith_mask_kth_block(
         keybundle, blockIdx.x % lwe_chunk_size, glwe_id, level_id,
         polynomial_size, glwe_dimension, level_count);
-   // auto keybundle_poly = keybundle_out;// + poly_id * params::degree / 2;
+    // auto keybundle_poly = keybundle_out;// + poly_id * params::degree / 2;
 
-    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
-        fft, keybundle_out);
-    
-    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
-        fft2, keybundle_out + params::degree / 2);
+    copy_polynomial_vec<double2, params::opt / 2, params::degree / params::opt>(
+        fft, keybundle_out, fft2, keybundle_out + params::degree / 2);
+
+    // copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
+    //     fft, keybundle_out);
+
+    // copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
+    //     fft2, keybundle_out + params::degree / 2);
   }
 }
 
@@ -320,7 +349,6 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_bck(
         fft, keybundle_poly);
   }
 }
-
 
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
@@ -539,7 +567,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size) {
-  return sizeof(double2) * polynomial_size;// / 2; // accumulator
+  return sizeof(double2) * polynomial_size; // / 2; // accumulator
 }
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
@@ -689,10 +717,11 @@ __host__ void execute_compute_keybundle(
   auto keybundle_fft = buffer->keybundle_fft;
 
   // Compute a keybundle
-//  dim3 grid_keybundle(num_samples * chunk_size,
-//                      (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
-  dim3 grid_keybundle(num_samples * chunk_size,
-                      (glwe_dimension + 1), level_count);
+  //  dim3 grid_keybundle(num_samples * chunk_size,
+  //                      (glwe_dimension + 1) * (glwe_dimension + 1),
+  //                      level_count);
+  dim3 grid_keybundle(num_samples * chunk_size, (glwe_dimension + 1),
+                      level_count);
 
   dim3 thds(polynomial_size / params::opt, 1, 1);
 

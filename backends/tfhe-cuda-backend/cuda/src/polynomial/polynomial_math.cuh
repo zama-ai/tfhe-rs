@@ -132,7 +132,8 @@ __device__ void polynomial_product_accumulate_by_monomial_nosync(
 
 template <typename T, class params>
 __device__ void polynomial_product_accumulate_by_monomial_nosync_vec(
-    T *result,T *result2, const T *__restrict__ poly,const T *__restrict__ poly2, uint32_t monomial_degree) {
+    T *result, T *result2, const T *__restrict__ poly,
+    const T *__restrict__ poly2, uint32_t monomial_degree) {
   // monomial_degree \in [0, 2 * params::degree)
   int full_cycles_count = monomial_degree / params::degree;
   int remainder_degrees = monomial_degree % params::degree;
@@ -149,18 +150,20 @@ __device__ void polynomial_product_accumulate_by_monomial_nosync_vec(
     T element2 = poly2[pos];
     T x = SEL(element, -element, full_cycles_count % 2);
     T x2 = SEL(element2, -element2, full_cycles_count % 2);
-    
-    x = SEL(-x, x,
-            threadIdx.x + i * (params::degree / params::opt) >=
-                remainder_degrees);
-    x2 = SEL(-x2, x2,
-            threadIdx.x + i * (params::degree / params::opt) >=
-                remainder_degrees);
+    bool condition =
+        threadIdx.x + i * (params::degree / params::opt) >= remainder_degrees;
+    x = SEL(-x, x, condition);
+    x2 = SEL(-x2, x2, condition);
+    // x = SEL(-x, x,
+    //         threadIdx.x + i * (params::degree / params::opt) >=
+    //             remainder_degrees);
+    // x2 = SEL(-x2, x2,
+    //         threadIdx.x + i * (params::degree / params::opt) >=
+    //             remainder_degrees);
 
     result[i] += x;
     result2[i] += x2;
   }
 }
-
 
 #endif // CNCRT_POLYNOMIAL_MATH_H

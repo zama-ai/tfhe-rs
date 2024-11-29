@@ -395,9 +395,10 @@ __device__ void NSMFFT_direct2(double2 *A, double2 u[params::opt >> 1],
 }
 
 template <class params>
-__device__ void NSMFFT_direct2_vec(double2 *A, double2 *B, double2 u[params::opt >> 1],
-                               double2 v[params::opt >> 1], double2 u2[params::opt>>1], 
-                               double2 v2[params::opt>>1]) {
+__device__ void
+NSMFFT_direct2_vec(double2 *A, double2 *B, double2 u[params::opt >> 1],
+                   double2 v[params::opt >> 1], double2 u2[params::opt >> 1],
+                   double2 v2[params::opt >> 1]) {
 
   /* We don't make bit reverse here, since twiddles are already reversed
    *  Each thread is always in charge of "opt/2" pairs of coefficients,
@@ -433,8 +434,8 @@ __device__ void NSMFFT_direct2_vec(double2 *A, double2 *B, double2 u[params::opt
     w = v[i] * (double2){0.707106781186547461715008466854,
                          0.707106781186547461715008466854};
     w2 = v2[i] * (double2){0.707106781186547461715008466854,
-                         0.707106781186547461715008466854};
-   
+                           0.707106781186547461715008466854};
+
     v[i] = u[i] - w;
     u[i] = u[i] + w;
 
@@ -456,10 +457,14 @@ __device__ void NSMFFT_direct2_vec(double2 *A, double2 *B, double2 u[params::opt
       bool u_stays_in_register = rank < lane_mask;
       A[tid] = (u_stays_in_register) ? v[i] : u[i];
       B[tid] = (u_stays_in_register) ? v2[i] : u2[i];
-      
+
       tid = tid + STRIDE;
     }
     __syncthreads();
+    // if(l >= 5)
+    //   __syncthreads();
+    // else
+    //   __syncwarp();
 
     tid = threadIdx.x;
 #pragma unroll
@@ -472,9 +477,9 @@ __device__ void NSMFFT_direct2_vec(double2 *A, double2 *B, double2 u[params::opt
       v[i] = (u_stays_in_register) ? w : v[i];
       u2[i] = (u_stays_in_register) ? u2[i] : w2;
       v2[i] = (u_stays_in_register) ? w2 : v2[i];
-      
+
       w = negtwiddles[tid / lane_mask + twiddle_shift];
-      w2 = w*v2[i];
+      w2 = w * v2[i];
       w *= v[i];
 
       v[i] = u[i] - w;
@@ -485,6 +490,10 @@ __device__ void NSMFFT_direct2_vec(double2 *A, double2 *B, double2 u[params::opt
       tid = tid + STRIDE;
     }
     __syncthreads();
+    // if(l >= 5)
+    //   __syncthreads();
+    // else
+    //   __syncwarp();
   }
   //__syncthreads();
 
@@ -496,7 +505,7 @@ __device__ void NSMFFT_direct2_vec(double2 *A, double2 *B, double2 u[params::opt
     A[tid * 2 + 1] = v[i];
     B[tid * 2] = u2[i];
     B[tid * 2 + 1] = v2[i];
-    
+
     tid = tid + STRIDE;
   }
   __syncthreads();
