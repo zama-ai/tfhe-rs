@@ -184,7 +184,7 @@ pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, S
     fft.forward_scratch()
 }
 
-impl<'a> FourierLweBootstrapKeyMutView<'a> {
+impl FourierLweBootstrapKeyMutView<'_> {
     /// Fill a bootstrapping key with the Fourier transform of a bootstrapping key in the standard
     /// domain.
     pub fn fill_with_forward_fourier<Scalar: UnsignedTorus>(
@@ -281,7 +281,7 @@ pub fn batch_bootstrap_scratch<Scalar>(
         )?)
 }
 
-impl<'a> FourierLweBootstrapKeyView<'a> {
+impl FourierLweBootstrapKeyView<'_> {
     // CastInto required for PBS modulus switch which returns a usize
     pub fn blind_rotate_assign<InputScalar, OutputScalar>(
         self,

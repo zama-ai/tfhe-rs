@@ -68,7 +68,7 @@ impl From<Vec<CudaBooleanBlock>> for GpuBooleanOwned {
     }
 }
 
-impl<'a> BackendDataContainer for GpuBooleanSlice<'a> {
+impl BackendDataContainer for GpuBooleanSlice<'_> {
     type Backend = GpuFheBoolArrayBackend;
 
     fn len(&self) -> usize {
@@ -89,7 +89,7 @@ impl<'a> BackendDataContainer for GpuBooleanSlice<'a> {
     }
 }
 
-impl<'a> BackendDataContainer for GpuBooleanSliceMut<'a> {
+impl BackendDataContainer for GpuBooleanSliceMut<'_> {
     type Backend = GpuFheBoolArrayBackend;
 
     fn len(&self) -> usize {
@@ -110,7 +110,7 @@ impl<'a> BackendDataContainer for GpuBooleanSliceMut<'a> {
     }
 }
 
-impl<'a> BackendDataContainerMut for GpuBooleanSliceMut<'a> {
+impl BackendDataContainerMut for GpuBooleanSliceMut<'_> {
     fn as_sub_slice_mut(
         &mut self,
         range: impl RangeBounds<usize>,
@@ -271,7 +271,7 @@ impl FheTryEncrypt<&[bool], ClientKey> for GpuFheBoolArray {
     }
 }
 
-impl<'a> FheDecrypt<Vec<bool>> for GpuFheBoolSlice<'a> {
+impl FheDecrypt<Vec<bool>> for GpuFheBoolSlice<'_> {
     fn decrypt(&self, key: &ClientKey) -> Vec<bool> {
         with_thread_local_cuda_streams(|streams| {
             self.elems
@@ -287,7 +287,7 @@ impl<'a> FheDecrypt<Vec<bool>> for GpuFheBoolSlice<'a> {
     }
 }
 
-impl<'a> FheDecrypt<Vec<bool>> for GpuFheBoolSliceMut<'a> {
+impl FheDecrypt<Vec<bool>> for GpuFheBoolSliceMut<'_> {
     fn decrypt(&self, key: &ClientKey) -> Vec<bool> {
         self.as_slice().decrypt(key)
     }

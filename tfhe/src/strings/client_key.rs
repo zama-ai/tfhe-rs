@@ -49,7 +49,7 @@ where
 
         assert!(str.is_ascii() & !str.contains('\0'));
 
-        let padded = padding.map_or(false, |p| p != 0);
+        let padded = padding.is_some_and(|p| p != 0);
 
         let num_blocks = self.num_ascii_blocks();
 
@@ -84,7 +84,7 @@ where
 
         assert!(str.is_ascii() & !str.contains('\0'));
 
-        let padded = padding.map_or(false, |p| p != 0);
+        let padded = padding.is_some_and(|p| p != 0);
 
         let num_blocks = self.num_ascii_blocks();
 

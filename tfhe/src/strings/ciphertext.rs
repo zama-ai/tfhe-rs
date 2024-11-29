@@ -71,7 +71,7 @@ pub enum GenericPatternRef<'a> {
     Enc(&'a FheString),
 }
 
-impl<'a> GenericPatternRef<'a> {
+impl GenericPatternRef<'_> {
     pub fn to_owned(self) -> GenericPattern {
         match self {
             GenericPatternRef::Clear(clear_string) => GenericPattern::Clear(clear_string.clone()),

@@ -41,7 +41,7 @@ impl CudaServerKey {
             let sign_bit_pos = self.message_modulus.0.ilog2() - 1;
             let sign_bit_is_set = scalar_blocks
                 .get(ct_len.0 - 1)
-                .map_or(false, |block| (block >> sign_bit_pos) == 1);
+                .is_some_and(|block| (block >> sign_bit_pos) == 1);
 
             if scalar > Scalar::ZERO
                 && (scalar_blocks.len() > ct_len.0
@@ -72,7 +72,7 @@ impl CudaServerKey {
                 let sign_bit_pos = self.message_modulus.0.ilog2() - 1;
                 let sign_bit_is_unset = scalar_blocks
                     .get(ct_len.0 - 1)
-                    .map_or(false, |block| (block >> sign_bit_pos) == 0);
+                    .is_some_and(|block| (block >> sign_bit_pos) == 0);
 
                 if at_least_one_block_is_not_full_of_1s || sign_bit_is_unset {
                     // Scalar is smaller than lowest value of T

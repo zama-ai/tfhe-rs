@@ -87,7 +87,7 @@ pub struct KeySwitchingKey {
     pub(crate) src_server_key: Option<ServerKey>,
 }
 
-impl<'keys> From<KeySwitchingKeyBuildHelper<'keys>> for KeySwitchingKey {
+impl From<KeySwitchingKeyBuildHelper<'_>> for KeySwitchingKey {
     fn from(value: KeySwitchingKeyBuildHelper) -> Self {
         let KeySwitchingKeyBuildHelper {
             key_switching_key_material,
@@ -816,7 +816,7 @@ pub struct CompressedKeySwitchingKey {
     pub(crate) src_server_key: Option<CompressedServerKey>,
 }
 
-impl<'keys> From<CompressedKeySwitchingKeyBuildHelper<'keys>> for CompressedKeySwitchingKey {
+impl From<CompressedKeySwitchingKeyBuildHelper<'_>> for CompressedKeySwitchingKey {
     fn from(value: CompressedKeySwitchingKeyBuildHelper) -> Self {
         let CompressedKeySwitchingKeyBuildHelper {
             key_switching_key_material,
