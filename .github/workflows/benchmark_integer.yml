@@ -35,7 +35,6 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   FAST_BENCH: TRUE
-  BENCH_TYPE: latency
 
 jobs:
   prepare-matrix:
@@ -168,7 +167,7 @@ jobs:
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --bench-type ${{ env.BENCH_TYPE }}
+          --bench-type ${{ matrix.bench_type }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
