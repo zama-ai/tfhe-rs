@@ -117,6 +117,93 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   __syncthreads();
 }
 
+template <class params>
+__device__ void negacyclic_inverse_fft_f128(double *dt_re_hi, double *dt_re_lo,
+                                            double *dt_im_hi,
+                                            double *dt_im_lo) {
+  __syncthreads();
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index DEGREE = params::degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
+  size_t tid = threadIdx.x;
+  f128x2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+
+  // load into registers and divide by compressed polynomial size
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+
+    F64x4_TO_F128x2(u[i], 2 * tid);
+    F64x4_TO_F128x2(v[i], 2 * tid + 1);
+
+    // TODO f128 / double and f128x2/double
+    //    u[i] /= DEGREE;
+    //    v[i] /= DEGREE;
+
+    tid += STRIDE;
+  }
+
+  Index twiddle_shift = DEGREE;
+  for (Index l = 1; l <= LOG2_DEGREE - 1; ++l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    tid = threadIdx.x;
+    twiddle_shift >>= 1;
+
+    // at this point registers are ready for the  butterfly
+    tid = threadIdx.x;
+    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      w = (u[i] - v[i]);
+      u[i] += v[i];
+      v[i] = w * NEG_TWID(tid / lane_mask + twiddle_shift).conjugate();
+
+      // keep one of the register for next iteration and store another one in sm
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      F128x2_TO_F64x4((u_stays_in_register) ? v[i] : u[i], tid);
+
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+
+    // prepare registers for next butterfly iteration
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      F64x4_TO_F128x2(w, tid ^ lane_mask);
+
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+
+      tid = tid + STRIDE;
+    }
+  }
+
+  // last iteration
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = (u[i] - v[i]);
+    u[i] = u[i] + v[i];
+    v[i] = w * NEG_TWID(1).conjugate();
+  }
+  __syncthreads();
+  // store registers in SM
+  tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    F128x2_TO_F64x4(u[i], tid);
+    F128x2_TO_F64x4(v[i], tid + HALF_DEGREE);
+
+    tid = tid + STRIDE;
+  }
+  __syncthreads();
+}
+
 void print_uint128_bits(__uint128_t value) {
   char buffer[129];   // 128 bits + null terminator
   buffer[128] = '\0'; // Null-terminate the string
