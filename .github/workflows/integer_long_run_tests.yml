@@ -15,8 +15,8 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   schedule:
-    # Weekly tests will be triggered each Friday at 1a.m.
-    - cron: '0 1 * * FRI'
+    # Nightly tests @ 1AM after each work day
+    - cron: "0 1 * * MON-FRI"
 
 jobs:
   setup-instance:

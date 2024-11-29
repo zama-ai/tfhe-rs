@@ -555,6 +555,8 @@ impl<T> NotTuple for &mut crate::integer::ciphertext::BaseSignedRadixCiphertext<
 
 impl<T> NotTuple for &Vec<T> {}
 
+impl NotTuple for &crate::integer::ciphertext::BooleanBlock {}
+
 /// For unary operations
 ///
 /// Note, we need to `NotTuple` constraint to avoid conflicts with binary or ternary operations
