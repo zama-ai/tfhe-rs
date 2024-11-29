@@ -126,6 +126,7 @@ impl BooleanKeySwitchingParameters {
 
 /// Parameter sets given in TFHE-lib:
 /// <https://github.com/tfhe/tfhe/blob/bc71bfae7ad9d5f8ce5f29bdfd691189bfe207f3/src/libtfhe/tfhe_gate_bootstrapping.cpp#L51>
+///
 /// Original security in 2020 was 129-bits, while it is currently around 120 bits.
 pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
     lwe_dimension: LweDimension(630),

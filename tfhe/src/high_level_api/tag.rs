@@ -203,7 +203,7 @@ impl serde::Serialize for SmallVec {
 
 struct SmallVecVisitor;
 
-impl<'de> serde::de::Visitor<'de> for SmallVecVisitor {
+impl serde::de::Visitor<'_> for SmallVecVisitor {
     type Value = SmallVec;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

@@ -420,7 +420,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainer for GpuSlice<'a, T>
+impl<T> BackendDataContainer for GpuSlice<'_, T>
 where
     T: CudaIntegerRadixCiphertext,
 {
@@ -444,7 +444,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainer for GpuSliceMut<'a, T>
+impl<T> BackendDataContainer for GpuSliceMut<'_, T>
 where
     T: CudaIntegerRadixCiphertext,
 {
@@ -468,7 +468,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainerMut for GpuSliceMut<'a, T>
+impl<T> BackendDataContainerMut for GpuSliceMut<'_, T>
 where
     T: CudaIntegerRadixCiphertext,
 {
@@ -553,7 +553,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheUintSliceMut<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheUintSliceMut<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
@@ -563,7 +563,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheUintSlice<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheUintSlice<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
@@ -617,7 +617,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheIntSliceMut<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheIntSliceMut<'_, Id>
 where
     Id: FheIntId,
     Clear: RecomposableSignedInteger,
@@ -627,7 +627,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheIntSlice<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheIntSlice<'_, Id>
 where
     Id: FheIntId,
     Clear: RecomposableSignedInteger,

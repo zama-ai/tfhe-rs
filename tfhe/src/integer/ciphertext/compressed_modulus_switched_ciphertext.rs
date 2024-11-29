@@ -129,9 +129,9 @@ impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertextGeneric 
             .all(|block| block.is_conformant(&shortint_params));
 
         let last_item_ok = if params.num_blocks_per_integer % 2 == 1 {
-            last_block.as_ref().map_or(false, |last_block| {
-                last_block.is_conformant(&params.shortint_params)
-            })
+            last_block
+                .as_ref()
+                .is_some_and(|last_block| last_block.is_conformant(&params.shortint_params))
         } else {
             true
         };

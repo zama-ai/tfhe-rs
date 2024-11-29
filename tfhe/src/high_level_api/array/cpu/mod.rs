@@ -57,7 +57,7 @@ where
     type Owned = ClearContainer<Vec<T>>;
 }
 
-impl<'a, T> BackendDataContainer for ClearContainer<&'a [T]>
+impl<T> BackendDataContainer for ClearContainer<&'_ [T]>
 where
     T: Copy,
 {
@@ -79,7 +79,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainer for ClearContainer<&'a mut [T]>
+impl<T> BackendDataContainer for ClearContainer<&mut [T]>
 where
     T: Copy,
 {
@@ -101,7 +101,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainerMut for ClearContainer<&'a mut [T]>
+impl<T> BackendDataContainerMut for ClearContainer<&mut [T]>
 where
     T: Copy,
 {

@@ -263,7 +263,7 @@ pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, S
     fft.forward_scratch()
 }
 
-impl<'a> PseudoFourierGgswCiphertextMutView<'a> {
+impl PseudoFourierGgswCiphertextMutView<'_> {
     /// Fill a GGSW ciphertext with the Fourier transform of a GGSW ciphertext in the standard
     /// domain.
     pub fn fill_with_forward_fourier<
