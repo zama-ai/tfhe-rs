@@ -16,6 +16,9 @@ on:
   push:
     branches:
       - "main"
+    paths:
+      - tfhe-ntt/**
+      - .github/workflows/benchmark_tfhe_ntt.yml
   schedule:
     # Job will be triggered each Friday at 11p.m.
     - cron: "0 23 * * 5"
