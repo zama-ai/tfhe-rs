@@ -8,7 +8,7 @@ macro_rules! impl_other_binary_ops_variants {
     (
         $trait_name:ident($trait_method:ident) => $backend_trait:ident($backend_method:ident)
     ) => {
-        impl<'a, 'b, C1, C2, Id> $trait_name<&'a FheArrayBase<C2, Id>> for &'b FheArrayBase<C1, Id>
+        impl<'b, C1, C2, Id> $trait_name<&FheArrayBase<C2, Id>> for &'b FheArrayBase<C1, Id>
         where
             Id: Default,
             C1: BackendDataContainer<Backend = C2::Backend>,
@@ -17,7 +17,7 @@ macro_rules! impl_other_binary_ops_variants {
         {
             type Output = FheArrayBase<<C1::Backend as ArrayBackend>::Owned, Id>;
 
-            fn $trait_method(self, rhs: &'a FheArrayBase<C2, Id>) -> Self::Output {
+            fn $trait_method(self, rhs: &'_ FheArrayBase<C2, Id>) -> Self::Output {
                 if !self.has_same_shape(rhs) {
                     panic!("Array operands do not have the same shape");
                 }
@@ -28,7 +28,7 @@ macro_rules! impl_other_binary_ops_variants {
             }
         }
 
-        impl<'a, C1, C2, Id> $trait_name<FheArrayBase<C2, Id>> for &'a FheArrayBase<C1, Id>
+        impl<C1, C2, Id> $trait_name<FheArrayBase<C2, Id>> for &FheArrayBase<C1, Id>
         where
             Id: Default,
             C1: BackendDataContainer<Backend = C2::Backend>,
@@ -48,7 +48,7 @@ macro_rules! impl_other_binary_ops_variants {
             }
         }
 
-        impl<'a, C1, C2, Id> $trait_name<&'a FheArrayBase<C2, Id>> for FheArrayBase<C1, Id>
+        impl<C1, C2, Id> $trait_name<&FheArrayBase<C2, Id>> for FheArrayBase<C1, Id>
         where
             Id: Default,
             C1: BackendDataContainer<Backend = C2::Backend>,
@@ -57,7 +57,7 @@ macro_rules! impl_other_binary_ops_variants {
         {
             type Output = FheArrayBase<<C1::Backend as ArrayBackend>::Owned, Id>;
 
-            fn $trait_method(self, rhs: &'a FheArrayBase<C2, Id>) -> Self::Output {
+            fn $trait_method(self, rhs: &'_ FheArrayBase<C2, Id>) -> Self::Output {
                 if !self.has_same_shape(rhs) {
                     panic!("Array operands do not have the same shape");
                 }
@@ -111,9 +111,8 @@ where
     }
 }
 
-impl<'a, 's, C1, Id> Not for &'a FheArrayBase<C1, Id>
+impl<C1, Id> Not for &FheArrayBase<C1, Id>
 where
-    'a: 's,
     Id: Default,
     C1: BackendDataContainer,
     C1::Backend: BitwiseArrayBackend,

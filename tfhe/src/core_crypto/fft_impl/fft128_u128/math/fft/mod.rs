@@ -1218,7 +1218,7 @@ pub fn convert_add_backward_torus(
     );
 }
 
-impl<'a> Fft128View<'a> {
+impl Fft128View<'_> {
     pub fn forward_as_integer_split(
         self,
         fourier_re0: &mut [f64],

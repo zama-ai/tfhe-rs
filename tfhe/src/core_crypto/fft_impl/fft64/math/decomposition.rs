@@ -46,6 +46,7 @@ impl<'buffers, Scalar: UnsignedInteger> TensorSignedDecompositionLendingIter<'bu
 
     // inlining this improves perf of external product by about 25%, even in LTO builds
     #[inline]
+    #[allow(clippy::type_complexity)]
     pub fn next_term<'short>(
         &'short mut self,
     ) -> Option<(

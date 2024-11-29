@@ -367,7 +367,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainer for &'a [T]
+impl<T> BackendDataContainer for &[T]
 where
     T: IntegerRadixCiphertext,
 {
@@ -389,7 +389,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainer for &'a mut [T]
+impl<T> BackendDataContainer for &mut [T]
 where
     T: IntegerRadixCiphertext,
 {
@@ -411,7 +411,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainerMut for &'a mut [T]
+impl<T> BackendDataContainerMut for &mut [T]
 where
     T: IntegerRadixCiphertext,
 {
@@ -423,14 +423,14 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheTryEncrypt<&'a [Clear], ClientKey> for FheArrayBase<Vec<RadixCiphertext>, Id>
+impl<Clear, Id> FheTryEncrypt<&[Clear], ClientKey> for FheArrayBase<Vec<RadixCiphertext>, Id>
 where
     Id: FheUintId,
     Clear: DecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = Error;
 
-    fn try_encrypt(clears: &'a [Clear], key: &ClientKey) -> Result<Self, Self::Error> {
+    fn try_encrypt(clears: &[Clear], key: &ClientKey) -> Result<Self, Self::Error> {
         let num_blocks = Id::num_blocks(key.message_modulus());
         Ok(Self::new(
             clears
@@ -443,7 +443,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheTryEncrypt<(&'a [Clear], Vec<usize>), ClientKey>
+impl<Clear, Id> FheTryEncrypt<(&[Clear], Vec<usize>), ClientKey>
     for FheArrayBase<Vec<RadixCiphertext>, Id>
 where
     Id: FheUintId,
@@ -452,7 +452,7 @@ where
     type Error = Error;
 
     fn try_encrypt(
-        (clears, shape): (&'a [Clear], Vec<usize>),
+        (clears, shape): (&'_ [Clear], Vec<usize>),
         key: &ClientKey,
     ) -> Result<Self, Self::Error> {
         if clears.len() != shape.iter().copied().product::<usize>() {
@@ -481,7 +481,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheUintSliceMut<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheUintSliceMut<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
@@ -491,7 +491,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheUintSlice<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheUintSlice<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
@@ -504,14 +504,14 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheTryEncrypt<&'a [Clear], ClientKey> for CpuFheIntArray<Id>
+impl<Clear, Id> FheTryEncrypt<&[Clear], ClientKey> for CpuFheIntArray<Id>
 where
     Id: FheIntId,
     Clear: DecomposableInto<u64> + SignedNumeric,
 {
     type Error = Error;
 
-    fn try_encrypt(clears: &'a [Clear], key: &ClientKey) -> Result<Self, Self::Error> {
+    fn try_encrypt(clears: &[Clear], key: &ClientKey) -> Result<Self, Self::Error> {
         let num_blocks = Id::num_blocks(key.message_modulus());
         Ok(Self::new(
             clears
@@ -534,7 +534,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheIntSliceMut<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheIntSliceMut<'_, Id>
 where
     Id: FheIntId,
     Clear: RecomposableSignedInteger,
@@ -544,7 +544,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheIntSlice<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheIntSlice<'_, Id>
 where
     Id: FheIntId,
     Clear: RecomposableSignedInteger,

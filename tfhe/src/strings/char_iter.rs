@@ -8,15 +8,15 @@ pub(super) struct OptionalEndSliceIter<'a, T> {
     last: Option<&'a T>,
 }
 
-impl<'a, T> Clone for OptionalEndSliceIter<'a, T> {
+impl<T> Clone for OptionalEndSliceIter<'_, T> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<'a, T> Copy for OptionalEndSliceIter<'a, T> {}
+impl<T> Copy for OptionalEndSliceIter<'_, T> {}
 
-impl<'a, T> OptionalEndSliceIter<'a, T> {
+impl<T> OptionalEndSliceIter<'_, T> {
     pub(super) fn len(&self) -> usize {
         self.slice.len() + if self.last.is_some() { 1 } else { 0 }
     }
@@ -29,7 +29,7 @@ impl<'a, T> OptionalEndSliceIter<'a, T> {
 pub mod iter {
     use super::*;
 
-    impl<'a, T> IntoIterator for OptionalEndSliceIter<'a, T> {
+    impl<T> IntoIterator for OptionalEndSliceIter<'_, T> {
         type Item = &'a T;
 
         type IntoIter = OptionalEndSliceIterator<'a, T>;
@@ -46,7 +46,7 @@ pub mod iter {
         last: Option<&'a T>,
     }
 
-    impl<'a, T> Iterator for OptionalEndSliceIterator<'a, T> {
+    impl<T> Iterator for OptionalEndSliceIterator<'_, T> {
         type Item = &'a T;
 
         fn next(&mut self) -> Option<Self::Item> {
@@ -62,7 +62,7 @@ pub mod iter {
         }
     }
 
-    impl<'a, T> DoubleEndedIterator for OptionalEndSliceIterator<'a, T> {
+    impl<T> DoubleEndedIterator for OptionalEndSliceIterator<'_, T> {
         fn next_back(&mut self) -> Option<Self::Item> {
             if let Some(last) = self.last.take() {
                 Some(last)
@@ -72,7 +72,7 @@ pub mod iter {
         }
     }
 
-    impl<'a, T> ExactSizeIterator for OptionalEndSliceIterator<'a, T> {
+    impl<T> ExactSizeIterator for OptionalEndSliceIterator<'_, T> {
         fn len(&self) -> usize {
             self.slice_iter.len() + if self.last.is_some() { 1 } else { 0 }
         }
@@ -161,7 +161,7 @@ pub mod iter {
     }
 }
 
-impl<'a> IntoParallelRefIterator<'a> for CharIter<'a> {
+impl IntoParallelRefIterator<'a> for CharIter<'_> {
     type Item = &'a FheAsciiChar;
 
     type Iter = rayon::iter::Chain<

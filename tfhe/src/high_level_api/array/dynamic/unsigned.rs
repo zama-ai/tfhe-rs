@@ -36,7 +36,7 @@ pub enum InnerUintSlice<'a> {
     Cpu(&'a [RadixCiphertext]),
 }
 
-impl<'a> InnerUintSlice<'a> {
+impl InnerUintSlice<'_> {
     pub(crate) fn on_cpu(&self) -> Cow<'_, [RadixCiphertext]> {
         match self {
             InnerUintSlice::Cpu(cpu_slice) => Cow::Borrowed(cpu_slice),
@@ -44,8 +44,8 @@ impl<'a> InnerUintSlice<'a> {
     }
 }
 
-impl<'a> From<InnerUintSlice<'a>> for InnerUintArray {
-    fn from(value: InnerUintSlice<'a>) -> Self {
+impl From<InnerUintSlice<'_>> for InnerUintArray {
+    fn from(value: InnerUintSlice<'_>) -> Self {
         match value {
             InnerUintSlice::Cpu(cpu_slice) => Self::Cpu(cpu_slice.to_vec()),
         }
@@ -56,8 +56,8 @@ pub enum InnerUintSliceMut<'a> {
     Cpu(&'a mut [RadixCiphertext]),
 }
 
-impl<'a> From<InnerUintSliceMut<'a>> for InnerUintArray {
-    fn from(value: InnerUintSliceMut<'a>) -> Self {
+impl From<InnerUintSliceMut<'_>> for InnerUintArray {
+    fn from(value: InnerUintSliceMut<'_>) -> Self {
         match value {
             InnerUintSliceMut::Cpu(cpu_slice) => Self::Cpu(cpu_slice.to_vec()),
         }
@@ -98,7 +98,7 @@ impl BackendDataContainerMut for InnerUintArray {
     }
 }
 
-impl<'a> BackendDataContainer for InnerUintSlice<'a> {
+impl BackendDataContainer for InnerUintSlice<'_> {
     type Backend = DynUintBackend;
 
     fn len(&self) -> usize {
@@ -123,7 +123,7 @@ impl<'a> BackendDataContainer for InnerUintSlice<'a> {
     }
 }
 
-impl<'a> BackendDataContainer for InnerUintSliceMut<'a> {
+impl BackendDataContainer for InnerUintSliceMut<'_> {
     type Backend = DynUintBackend;
 
     fn len(&self) -> usize {
@@ -148,7 +148,7 @@ impl<'a> BackendDataContainer for InnerUintSliceMut<'a> {
     }
 }
 
-impl<'a> BackendDataContainerMut for InnerUintSliceMut<'a> {
+impl BackendDataContainerMut for InnerUintSliceMut<'_> {
     fn as_sub_slice_mut(&mut self, range: impl RangeBounds<usize>) -> InnerUintSliceMut<'_> {
         match self {
             Self::Cpu(cpu_slice) => {
@@ -359,19 +359,19 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheTryEncrypt<&'a [Clear], ClientKey> for FheUintArray<Id>
+impl<Clear, Id> FheTryEncrypt<&[Clear], ClientKey> for FheUintArray<Id>
 where
     Id: FheUintId,
     Clear: DecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = Error;
 
-    fn try_encrypt(clears: &'a [Clear], key: &ClientKey) -> Result<Self, Self::Error> {
+    fn try_encrypt(clears: &[Clear], key: &ClientKey) -> Result<Self, Self::Error> {
         Self::try_encrypt((clears, vec![clears.len()]), key)
     }
 }
 
-impl<'a, Clear, Id> FheTryEncrypt<(&'a [Clear], Vec<usize>), ClientKey> for FheUintArray<Id>
+impl<Clear, Id> FheTryEncrypt<(&[Clear], Vec<usize>), ClientKey> for FheUintArray<Id>
 where
     Id: FheUintId,
     Clear: DecomposableInto<u64> + UnsignedNumeric,
@@ -379,7 +379,7 @@ where
     type Error = Error;
 
     fn try_encrypt(
-        (clears, shape): (&'a [Clear], Vec<usize>),
+        (clears, shape): (&'_ [Clear], Vec<usize>),
         key: &ClientKey,
     ) -> Result<Self, Self::Error> {
         if clears.len() != shape.iter().copied().product::<usize>() {
@@ -403,7 +403,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSliceMut<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSliceMut<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
@@ -413,7 +413,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSlice<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSlice<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,

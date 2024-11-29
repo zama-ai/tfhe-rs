@@ -229,7 +229,7 @@ pub enum InnerBoolSlice<'a> {
     Cpu(&'a [BooleanBlock]),
 }
 
-impl<'a> InnerBoolSlice<'a> {
+impl InnerBoolSlice<'_> {
     fn on_cpu(&self) -> Cow<'_, [BooleanBlock]> {
         match self {
             InnerBoolSlice::Cpu(cpu_slice) => Cow::Borrowed(cpu_slice),
@@ -237,7 +237,7 @@ impl<'a> InnerBoolSlice<'a> {
     }
 }
 
-impl<'a> BackendDataContainer for InnerBoolSlice<'a> {
+impl BackendDataContainer for InnerBoolSlice<'_> {
     type Backend = DynFheBoolArrayBackend;
 
     fn len(&self) -> usize {
@@ -268,7 +268,7 @@ pub enum InnerBoolSliceMut<'a> {
     Cpu(&'a mut [BooleanBlock]),
 }
 
-impl<'a> BackendDataContainer for InnerBoolSliceMut<'a> {
+impl BackendDataContainer for InnerBoolSliceMut<'_> {
     type Backend = DynFheBoolArrayBackend;
 
     fn len(&self) -> usize {
@@ -295,7 +295,7 @@ impl<'a> BackendDataContainer for InnerBoolSliceMut<'a> {
     }
 }
 
-impl<'a> BackendDataContainerMut for InnerBoolSliceMut<'a> {
+impl BackendDataContainerMut for InnerBoolSliceMut<'_> {
     fn as_sub_slice_mut(
         &mut self,
         range: impl RangeBounds<usize>,
@@ -308,10 +308,10 @@ impl<'a> BackendDataContainerMut for InnerBoolSliceMut<'a> {
     }
 }
 
-impl<'a> FheTryEncrypt<&'a [bool], ClientKey> for FheBoolArray {
+impl FheTryEncrypt<&[bool], ClientKey> for FheBoolArray {
     type Error = crate::Error;
 
-    fn try_encrypt(value: &'a [bool], key: &ClientKey) -> Result<Self, Self::Error> {
+    fn try_encrypt(value: &[bool], key: &ClientKey) -> Result<Self, Self::Error> {
         let cpu_array = crate::CpuFheBoolArray::try_encrypt(value, key)?;
         let inner = InnerBoolArray::Cpu(cpu_array.into_container());
         // TODO move to default device
