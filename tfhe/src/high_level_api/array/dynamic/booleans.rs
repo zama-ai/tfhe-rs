@@ -229,7 +229,7 @@ pub enum InnerBoolSlice<'a> {
     Cpu(&'a [BooleanBlock]),
 }
 
-impl<'a> InnerBoolSlice<'a> {
+impl InnerBoolSlice<'_> {
     fn on_cpu(&self) -> Cow<'_, [BooleanBlock]> {
         match self {
             InnerBoolSlice::Cpu(cpu_slice) => Cow::Borrowed(cpu_slice),
@@ -237,7 +237,7 @@ impl<'a> InnerBoolSlice<'a> {
     }
 }
 
-impl<'a> BackendDataContainer for InnerBoolSlice<'a> {
+impl BackendDataContainer for InnerBoolSlice<'_> {
     type Backend = DynFheBoolArrayBackend;
 
     fn len(&self) -> usize {
@@ -268,7 +268,7 @@ pub enum InnerBoolSliceMut<'a> {
     Cpu(&'a mut [BooleanBlock]),
 }
 
-impl<'a> BackendDataContainer for InnerBoolSliceMut<'a> {
+impl BackendDataContainer for InnerBoolSliceMut<'_> {
     type Backend = DynFheBoolArrayBackend;
 
     fn len(&self) -> usize {
@@ -295,7 +295,7 @@ impl<'a> BackendDataContainer for InnerBoolSliceMut<'a> {
     }
 }
 
-impl<'a> BackendDataContainerMut for InnerBoolSliceMut<'a> {
+impl BackendDataContainerMut for InnerBoolSliceMut<'_> {
     fn as_sub_slice_mut(
         &mut self,
         range: impl RangeBounds<usize>,

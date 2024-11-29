@@ -36,7 +36,7 @@ impl ArrayBackend for CpuFheBoolArrayBackend {
     type Owned = Vec<BooleanBlock>;
 }
 
-impl<'a> BackendDataContainer for &'a [BooleanBlock] {
+impl BackendDataContainer for &[BooleanBlock] {
     type Backend = CpuFheBoolArrayBackend;
 
     fn len(&self) -> usize {
@@ -55,7 +55,7 @@ impl<'a> BackendDataContainer for &'a [BooleanBlock] {
     }
 }
 
-impl<'a> BackendDataContainer for &'a mut [BooleanBlock] {
+impl BackendDataContainer for &mut [BooleanBlock] {
     type Backend = CpuFheBoolArrayBackend;
 
     fn len(&self) -> usize {
@@ -74,7 +74,7 @@ impl<'a> BackendDataContainer for &'a mut [BooleanBlock] {
     }
 }
 
-impl<'a> BackendDataContainerMut for &'a mut [BooleanBlock] {
+impl BackendDataContainerMut for &mut [BooleanBlock] {
     fn as_sub_slice_mut(
         &mut self,
         range: impl RangeBounds<usize>,
@@ -220,7 +220,7 @@ impl FheTryEncrypt<&[bool], ClientKey> for CpuFheBoolArray {
     }
 }
 
-impl<'a> FheDecrypt<Vec<bool>> for CpuFheBoolSlice<'a> {
+impl FheDecrypt<Vec<bool>> for CpuFheBoolSlice<'_> {
     fn decrypt(&self, key: &ClientKey) -> Vec<bool> {
         self.elems
             .iter()
@@ -229,7 +229,7 @@ impl<'a> FheDecrypt<Vec<bool>> for CpuFheBoolSlice<'a> {
     }
 }
 
-impl<'a> FheDecrypt<Vec<bool>> for CpuFheBoolSliceMut<'a> {
+impl FheDecrypt<Vec<bool>> for CpuFheBoolSliceMut<'_> {
     fn decrypt(&self, key: &ClientKey) -> Vec<bool> {
         self.as_slice().decrypt(key)
     }

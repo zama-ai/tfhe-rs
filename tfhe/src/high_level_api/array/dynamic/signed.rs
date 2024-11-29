@@ -74,7 +74,7 @@ pub enum InnerIntSlice<'a> {
     Cpu(&'a [SignedRadixCiphertext]),
 }
 
-impl<'a> InnerIntSlice<'a> {
+impl InnerIntSlice<'_> {
     pub(crate) fn on_cpu(&self) -> Cow<'_, [SignedRadixCiphertext]> {
         match self {
             Self::Cpu(cpu_slice) => Cow::Borrowed(cpu_slice),
@@ -82,7 +82,7 @@ impl<'a> InnerIntSlice<'a> {
     }
 }
 
-impl<'a> BackendDataContainer for InnerIntSlice<'a> {
+impl BackendDataContainer for InnerIntSlice<'_> {
     type Backend = DynIntBackend;
 
     fn len(&self) -> usize {
@@ -111,7 +111,7 @@ pub enum InnerIntSliceMut<'a> {
     Cpu(&'a mut [SignedRadixCiphertext]),
 }
 
-impl<'a> BackendDataContainer for InnerIntSliceMut<'a> {
+impl BackendDataContainer for InnerIntSliceMut<'_> {
     type Backend = DynIntBackend;
 
     fn len(&self) -> usize {
@@ -136,7 +136,7 @@ impl<'a> BackendDataContainer for InnerIntSliceMut<'a> {
     }
 }
 
-impl<'a> BackendDataContainerMut for InnerIntSliceMut<'a> {
+impl BackendDataContainerMut for InnerIntSliceMut<'_> {
     fn as_sub_slice_mut(&mut self, range: impl RangeBounds<usize>) -> InnerIntSliceMut<'_> {
         match self {
             Self::Cpu(cpu_slice) => {

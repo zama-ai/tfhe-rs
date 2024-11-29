@@ -367,7 +367,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainer for &'a [T]
+impl<T> BackendDataContainer for &[T]
 where
     T: IntegerRadixCiphertext,
 {
@@ -389,7 +389,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainer for &'a mut [T]
+impl<T> BackendDataContainer for &mut [T]
 where
     T: IntegerRadixCiphertext,
 {
@@ -411,7 +411,7 @@ where
     }
 }
 
-impl<'a, T> BackendDataContainerMut for &'a mut [T]
+impl<T> BackendDataContainerMut for &mut [T]
 where
     T: IntegerRadixCiphertext,
 {
@@ -481,7 +481,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheUintSliceMut<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheUintSliceMut<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
@@ -491,7 +491,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheUintSlice<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheUintSlice<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
@@ -534,7 +534,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheIntSliceMut<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheIntSliceMut<'_, Id>
 where
     Id: FheIntId,
     Clear: RecomposableSignedInteger,
@@ -544,7 +544,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheIntSlice<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for CpuFheIntSlice<'_, Id>
 where
     Id: FheIntId,
     Clear: RecomposableSignedInteger,

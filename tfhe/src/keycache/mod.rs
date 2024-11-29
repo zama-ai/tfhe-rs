@@ -87,7 +87,7 @@ pub mod utils {
             if path_buf.exists() {
                 let file = File::open(&path_buf).unwrap();
                 // Lock for reading
-                file.lock_shared().unwrap();
+                fs2::FileExt::lock_shared(&file).unwrap();
                 let file_reader = BufReader::new(file);
                 bincode::deserialize_from::<_, (P, K)>(file_reader)
                     .ok()
