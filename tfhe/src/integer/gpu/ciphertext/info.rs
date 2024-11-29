@@ -122,7 +122,23 @@ impl CudaRadixCiphertextInfo {
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
-                    noise_level: left.noise_level + NoiseLevel::NOMINAL,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+
+    pub(crate) fn after_ilog2(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|info| CudaBlockInfo {
+                    degree: info.degree,
+                    message_modulus: info.message_modulus,
+                    carry_modulus: info.carry_modulus,
+                    pbs_order: info.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }
@@ -229,7 +245,7 @@ impl CudaRadixCiphertextInfo {
                     message_modulus: info.message_modulus,
                     carry_modulus: info.carry_modulus,
                     pbs_order: info.pbs_order,
-                    noise_level: info.noise_level + NoiseLevel::NOMINAL,
+                    noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }
