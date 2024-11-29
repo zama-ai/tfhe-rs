@@ -16,6 +16,9 @@ on:
   push:
     branches:
       - "main"
+    paths:
+      - tfhe-fft/**
+      - .github/workflows/benchmark_tfhe_fft.yml
   schedule:
     # Job will be triggered each Thursday at 11p.m.
     - cron: '0 23 * * 4'
