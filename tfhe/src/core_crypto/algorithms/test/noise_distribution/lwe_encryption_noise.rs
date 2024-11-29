@@ -315,6 +315,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         ksk_modulus,
         &mut rsc.encryption_random_generator,
     );
+
     println!(
         "n {:?} k {:?} N {:?} k*N {:?}",
         lwe_sk.lwe_dimension(),
@@ -324,7 +325,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     );
 
     // it includes variance of mod switch from KS modulus to 2N
-    let (exp_add_ks_variance, exp_modswitch_variance) =
+    let (exp_add_ks_variance, _exp_modswitch_variance) =
         variance_formula::lwe_keyswitch::keyswitch_additive_variance_128_bits_security_gaussian(
             glwe_dimension,
             polynomial_size,
@@ -358,7 +359,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         &mut rsc.encryption_random_generator,
     );
 
-    let mut exp_pbs_variance =
+    let exp_pbs_variance =
         variance_formula::lwe_programmable_bootstrap::pbs_variance_128_bits_security_gaussian(
             lwe_dimension,
             glwe_dimension,
@@ -440,10 +441,6 @@ fn hpu_noise_distribution(params: HpuTestParams) {
             assert_eq!(msg, decoded);
 
             let torus_diff = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
-            println!(
-                "after decryption: plaintext {:?} decrypted {:?} torus_diff {:?}",
-                plaintext.0, decrypted.0, torus_diff
-            );
             noise_samples[0].push(torus_diff);
 
             for j in 0..NB_PBS {
@@ -469,10 +466,6 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                 let decode_prodnorm2 = round_decode(decrypted_prodnorm2.0, delta) % msg_modulus;
 
                 let torus_diff = torus_modular_diff(0, decrypted_prodnorm2.0, ciphertext_modulus);
-                println!(
-                    "after by norm2: plaintext {:?} bynorm2 {:?} torus_diff {:?}",
-                    0, decrypted_prodnorm2.0, torus_diff
-                );
                 assert_eq!(0, decode_prodnorm2);
                 noise_samples[1].push(torus_diff);
                 // b = b + (Delta * msg) to have a noisy encryption of msg
@@ -506,10 +499,6 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                 if cm_f == ksm_f {
                     torus_diff =
                         torus_modular_diff(plaintext.0, decrypted_after_ks.0, ciphertext_modulus);
-                    println!(
-                        "after ks {} / {} vs {}",
-                        torus_diff, plaintext.0, decrypted_after_ks.0
-                    );
                 } else {
                     let decrypted_after_ks_modswitched =
                         decrypted_after_ks.0 * ((cm_f / ksm_f) as u64);
@@ -517,13 +506,6 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                         plaintext.0,
                         decrypted_after_ks_modswitched,
                         ciphertext_modulus,
-                    );
-                    println!(
-                        "after ks {} / {} vs {}*CT_MOD/KS_MOD={}",
-                        torus_diff,
-                        plaintext.0,
-                        decrypted_after_ks.0,
-                        decrypted_after_ks_modswitched
                     );
                 }
 
