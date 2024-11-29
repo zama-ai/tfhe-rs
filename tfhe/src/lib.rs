@@ -7,8 +7,14 @@
 #![doc(test(attr(warn(unused))))]
 #![doc(test(attr(allow(unused_variables))))]
 #![doc(test(attr(allow(unused_imports))))]
+// Enable all warnings first as it may break the "allow" priority/activation as some lints gets
+// moved around in clippy categories
+
 // Enable pedantic lints
 #![warn(clippy::pedantic)]
+// Nursery lints
+#![warn(clippy::nursery)]
+#![warn(rustdoc::broken_intra_doc_links)]
 // The following lints have been temporarily allowed
 // They are expected to be fixed progressively
 #![allow(clippy::unreadable_literal)] // 830
@@ -50,8 +56,6 @@
 #![allow(clippy::explicit_iter_loop)]
 // End allowed pedantic lints
 
-// Nursery lints
-#![warn(clippy::nursery)]
 // The following lints have been temporarily allowed
 // They are expected to be fixed progressively
 #![allow(clippy::missing_const_for_fn)] // 243
@@ -71,8 +75,8 @@
 )]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_auto_cfg))]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
-#![warn(rustdoc::broken_intra_doc_links)]
-extern crate core;
+// Weird clippy lint triggering without any code location
+#![cfg_attr(test, allow(clippy::large_stack_arrays))]
 
 #[cfg(feature = "__c_api")]
 pub mod c_api;

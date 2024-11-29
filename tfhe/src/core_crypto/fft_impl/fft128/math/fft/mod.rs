@@ -346,7 +346,7 @@ fn convert_backward_torus<Scalar: UnsignedTorus>(
     }
 }
 
-impl<'a> Fft128View<'a> {
+impl Fft128View<'_> {
     pub fn polynomial_size(self) -> PolynomialSize {
         PolynomialSize(2 * self.plan.fft_size())
     }

@@ -194,13 +194,13 @@ impl<'a, T> Iterator for StridedIter<'a, T> {
     }
 }
 
-impl<'a, T> ExactSizeIterator for StridedIter<'a, T> {
+impl<T> ExactSizeIterator for StridedIter<'_, T> {
     fn len(&self) -> usize {
         self.index_producer.len()
     }
 }
 
-impl<'a, T> DoubleEndedIterator for StridedIter<'a, T> {
+impl<T> DoubleEndedIterator for StridedIter<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let current_flat_index = self.index_producer.next_back()?;
         self.data.get(current_flat_index)
@@ -240,13 +240,13 @@ impl<'a, T> Iterator for CountedStridedIter<'a, T> {
     }
 }
 
-impl<'a, T> ExactSizeIterator for CountedStridedIter<'a, T> {
+impl<T> ExactSizeIterator for CountedStridedIter<'_, T> {
     fn len(&self) -> usize {
         self.max_count - self.current_count
     }
 }
 
-impl<'a, T> DoubleEndedIterator for CountedStridedIter<'a, T> {
+impl<T> DoubleEndedIterator for CountedStridedIter<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.current_count == 0 {
             None
@@ -290,7 +290,7 @@ where
     }
 }
 
-impl<'a, T> rayon::iter::IndexedParallelIterator for ParStridedIter<'a, T>
+impl<T> rayon::iter::IndexedParallelIterator for ParStridedIter<'_, T>
 where
     T: Send + Sync,
 {
@@ -407,7 +407,7 @@ impl<'a, T> Iterator for OffsettedStridedIterMut<'a, T> {
     }
 }
 
-impl<'a, T> DoubleEndedIterator for OffsettedStridedIterMut<'a, T> {
+impl<T> DoubleEndedIterator for OffsettedStridedIterMut<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.current_count == 0 {
             None
@@ -427,7 +427,7 @@ impl<'a, T> DoubleEndedIterator for OffsettedStridedIterMut<'a, T> {
     }
 }
 
-impl<'a, T> ExactSizeIterator for OffsettedStridedIterMut<'a, T> {
+impl<T> ExactSizeIterator for OffsettedStridedIterMut<'_, T> {
     fn len(&self) -> usize {
         ExactSizeIterator::len(&self.index_producer)
     }
@@ -466,7 +466,7 @@ where
     }
 }
 
-impl<'a, T> rayon::iter::IndexedParallelIterator for ParStridedIterMut<'a, T>
+impl<T> rayon::iter::IndexedParallelIterator for ParStridedIterMut<'_, T>
 where
     T: Send,
 {
