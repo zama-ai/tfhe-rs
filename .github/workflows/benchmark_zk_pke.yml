@@ -4,10 +4,14 @@ name: PKE ZK benchmarks
 on:
   workflow_dispatch:
     inputs:
-      run_throughput:
-        description: "Run throughput benchmarks"
-        type: boolean
-        default: false
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
+          - both
 
   push:
     branches:
@@ -26,7 +30,6 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  BENCH_TYPE: latency
 
 jobs:
   should-run:
@@ -60,10 +63,37 @@ jobs:
               - tfhe/benches/integer/zk_pke.rs
               - .github/workflows/zk_pke_benchmark.yml
 
+  prepare-matrix:
+    name: Prepare operations matrix
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
+    outputs:
+      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+    steps:
+      - name: Set benchmark types
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ "${{ inputs.bench_type }}" == "both" ]]; then
+            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+          else
+            echo "BENCH_TYPE=[\"${{ inputs.bench_type }}\"]" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Default benchmark type
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
+
+      - name: Set benchmark types output
+        id: set_bench_type
+        run: |
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
   setup-instance:
     name: Setup instance (pke-zk-benchmarks)
     runs-on: ubuntu-latest
-    needs: should-run
+    needs: [ should-run, prepare-matrix ]
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
       (github.event_name == 'push' &&
@@ -86,11 +116,15 @@ jobs:
   pke-zk-benchmarks:
     name: Execute PKE ZK benchmarks
     if: needs.setup-instance.result != 'skipped'
-    needs: setup-instance
+    needs: [ prepare-matrix, setup-instance ]
     concurrency:
       group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -118,14 +152,9 @@ jobs:
           path: slab
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
-      - name: Should run throughput benchmarks
-        if: inputs.run_throughput
-        run: |
-          echo "BENCH_TYPE=throughput" >> "${GITHUB_ENV}"
-
       - name: Run benchmarks with AVX512
         run: |
-          make bench_integer_zk
+          make BENCH_TYPE=${{ matrix.bench_type }} bench_integer_zk
 
       - name: Parse results
         run: |
@@ -139,7 +168,7 @@ jobs:
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --bench-type ${{ env.BENCH_TYPE }}
+          --bench-type ${{ matrix.bench_type }}
 
       - name: Parse CRS sizes results
         run: |
