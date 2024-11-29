@@ -2,6 +2,7 @@ use super::*;
 use crate::core_crypto::gpu::algorithms::lwe_packing_keyswitch::cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_async;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -67,7 +68,7 @@ where
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
     let gpu_index = 0;
-    let stream = CudaStreams::new_single_gpu(gpu_index);
+    let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -151,7 +152,7 @@ where
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
     let gpu_index = 0;
-    let stream = CudaStreams::new_single_gpu(gpu_index);
+    let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);

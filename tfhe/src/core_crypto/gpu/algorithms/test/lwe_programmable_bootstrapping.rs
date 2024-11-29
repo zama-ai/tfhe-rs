@@ -2,7 +2,7 @@ use super::*;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
+use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams};
 use itertools::Itertools;
 
@@ -26,7 +26,7 @@ fn lwe_encrypt_pbs_decrypt<
     let decomp_level_count = params.pbs_level;
 
     let gpu_index = 0;
-    let stream = CudaStreams::new_single_gpu(gpu_index);
+    let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
     let mut rsc = TestResources::new();
 

@@ -1,4 +1,4 @@
-use crate::core_crypto::gpu::vec::range_bounds_to_start_end;
+use crate::core_crypto::gpu::vec::{range_bounds_to_start_end, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::Numeric;
 use std::ffi::c_void;
@@ -9,7 +9,7 @@ use tfhe_cuda_backend::cuda_bind::{cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_asy
 pub struct CudaSlice<'a, T: Numeric> {
     ptrs: Vec<*const c_void>,
     _lengths: Vec<usize>,
-    gpu_indexes: Vec<u32>,
+    gpu_indexes: Vec<GpuIndex>,
     _phantom_1: PhantomData<T>,
     _phantom_2: PhantomData<&'a ()>,
 }
@@ -18,7 +18,7 @@ pub struct CudaSlice<'a, T: Numeric> {
 pub struct CudaSliceMut<'a, T: Numeric> {
     ptrs: Vec<*mut c_void>,
     lengths: Vec<usize>,
-    gpu_indexes: Vec<u32>,
+    gpu_indexes: Vec<GpuIndex>,
     _phantom_1: PhantomData<T>,
     _phantom_2: PhantomData<&'a mut ()>,
 }
@@ -31,7 +31,7 @@ where
     ///
     /// The ptr must be valid for reads for len * std::mem::size_of::<T> bytes on
     /// the cuda side.
-    pub(crate) unsafe fn new(ptr: *const c_void, len: usize, gpu_index: u32) -> Self {
+    pub(crate) unsafe fn new(ptr: *const c_void, len: usize, gpu_index: GpuIndex) -> Self {
         Self {
             ptrs: vec![ptr; 1],
             _lengths: vec![len; 1],
@@ -48,7 +48,7 @@ where
     pub(crate) unsafe fn as_c_ptr(&self, gpu_index: u32) -> *const c_void {
         self.ptrs[gpu_index as usize]
     }
-    pub(crate) fn gpu_index(&self, index: u32) -> u32 {
+    pub(crate) fn gpu_index(&self, index: u32) -> GpuIndex {
         self.gpu_indexes[index as usize]
     }
 }
@@ -61,7 +61,7 @@ where
     ///
     /// The ptr must be valid for reads and writes for len * std::mem::size_of::<T> bytes on
     /// the cuda side.
-    pub(crate) unsafe fn new(ptr: *mut c_void, len: usize, gpu_index: u32) -> Self {
+    pub(crate) unsafe fn new(ptr: *mut c_void, len: usize, gpu_index: GpuIndex) -> Self {
         Self {
             ptrs: vec![ptr; 1],
             lengths: vec![len; 1],
@@ -83,8 +83,8 @@ where
     ///
     /// The caller must ensure that the slice outlives the pointer this function returns,
     /// or else it will end up pointing to garbage.
-    pub(crate) unsafe fn as_c_ptr(&self, gpu_index: u32) -> *const c_void {
-        self.ptrs[gpu_index as usize].cast_const()
+    pub(crate) unsafe fn as_c_ptr(&self, index: u32) -> *const c_void {
+        self.ptrs[index as usize].cast_const()
     }
 
     /// Copies data between two `CudaSlice`
@@ -110,7 +110,7 @@ where
                 src.as_c_ptr(stream_index),
                 size as u64,
                 streams.ptr[stream_index as usize],
-                streams.gpu_indexes[stream_index as usize],
+                streams.gpu_indexes[stream_index as usize].0,
             );
         }
     }
@@ -135,7 +135,7 @@ where
                 self.as_c_ptr(stream_index),
                 size as u64,
                 streams.ptr[stream_index as usize],
-                streams.gpu_indexes[stream_index as usize],
+                streams.gpu_indexes[stream_index as usize].0,
             );
         }
     }
@@ -150,27 +150,27 @@ where
         self.lengths[index as usize] == 0
     }
 
-    pub(crate) fn get_mut<R>(&mut self, range: R, index: u32) -> Option<CudaSliceMut<T>>
+    pub(crate) fn get_mut<R>(&mut self, range: R, index: GpuIndex) -> Option<CudaSliceMut<T>>
     where
         R: std::ops::RangeBounds<usize>,
         T: Numeric,
     {
-        let (start, end) = range_bounds_to_start_end(self.len(index), range).into_inner();
+        let (start, end) = range_bounds_to_start_end(self.len(index.0), range).into_inner();
 
         // Check the range is compatible with the vec
-        if end <= start || end > self.lengths[index as usize] - 1 {
+        if end <= start || end > self.lengths[index.0 as usize] - 1 {
             None
         } else {
             // Shift ptr
             let shifted_ptr: *mut c_void =
-                self.ptrs[index as usize].wrapping_byte_add(start * std::mem::size_of::<T>());
+                self.ptrs[index.0 as usize].wrapping_byte_add(start * std::mem::size_of::<T>());
 
             // Compute the length
             let new_len = end - start + 1;
 
             // Create the slice
             Some(unsafe {
-                CudaSliceMut::new(shifted_ptr, new_len, self.gpu_indexes[index as usize])
+                CudaSliceMut::new(shifted_ptr, new_len, self.gpu_indexes[index.0 as usize])
             })
         }
     }
@@ -178,31 +178,31 @@ where
     pub(crate) fn split_at_mut(
         &mut self,
         mid: usize,
-        index: u32,
+        index: GpuIndex,
     ) -> (Option<CudaSliceMut<T>>, Option<CudaSliceMut<T>>)
     where
         T: Numeric,
     {
         // Check the index is compatible with the vec
-        if mid > self.lengths[index as usize] - 1 {
+        if mid > self.lengths[index.0 as usize] - 1 {
             (None, None)
         } else if mid == 0 {
             (
                 None,
                 Some(unsafe {
                     CudaSliceMut::new(
-                        self.ptrs[index as usize],
-                        self.lengths[index as usize],
+                        self.ptrs[index.0 as usize],
+                        self.lengths[index.0 as usize],
                         index,
                     )
                 }),
             )
-        } else if mid == self.lengths[index as usize] - 1 {
+        } else if mid == self.lengths[index.0 as usize] - 1 {
             (
                 Some(unsafe {
                     CudaSliceMut::new(
-                        self.ptrs[index as usize],
-                        self.lengths[index as usize],
+                        self.ptrs[index.0 as usize],
+                        self.lengths[index.0 as usize],
                         index,
                     )
                 }),
@@ -210,19 +210,19 @@ where
             )
         } else {
             let new_len_1 = mid;
-            let new_len_2 = self.lengths[index as usize] - mid;
+            let new_len_2 = self.lengths[index.0 as usize] - mid;
             // Shift ptr
             let shifted_ptr: *mut c_void =
-                self.ptrs[index as usize].wrapping_byte_add(mid * std::mem::size_of::<T>());
+                self.ptrs[index.0 as usize].wrapping_byte_add(mid * std::mem::size_of::<T>());
 
             // Create the slice
             (
-                Some(unsafe { CudaSliceMut::new(self.ptrs[index as usize], new_len_1, index) }),
+                Some(unsafe { CudaSliceMut::new(self.ptrs[index.0 as usize], new_len_1, index) }),
                 Some(unsafe { CudaSliceMut::new(shifted_ptr, new_len_2, index) }),
             )
         }
     }
-    pub(crate) fn gpu_index(&self, index: u32) -> u32 {
+    pub(crate) fn gpu_index(&self, index: u32) -> GpuIndex {
         self.gpu_indexes[index as usize]
     }
 }
