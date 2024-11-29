@@ -95,9 +95,8 @@ struct alignas(16) f128 {
   }
 
   __host__ __device__ static void
-  cplx_f128_mul_assign(f128 &c_re, f128 &c_im,
-                       const f128 &a_re, const f128 &a_im,
-                       const f128 &b_re, const f128 &b_im) {
+  cplx_f128_mul_assign(f128 &c_re, f128 &c_im, const f128 &a_re,
+                       const f128 &a_im, const f128 &b_re, const f128 &b_im) {
     auto a_re_x_b_re = mul(a_re, b_re);
     auto a_re_x_b_im = mul(a_re, b_im);
     auto a_im_x_b_re = mul(a_im, b_re);
@@ -114,17 +113,22 @@ struct f128x2 {
 
   __host__ __device__ f128x2() : re(), im() {}
 
-  __host__ __device__ f128x2(const f128& real, const f128& imag) : re(real), im(imag) {}
+  __host__ __device__ f128x2(const f128 &real, const f128 &imag)
+      : re(real), im(imag) {}
 
-  __host__ __device__ f128x2(double real, double imag) : re(real, 0.0), im(imag, 0.0) {}
+  __host__ __device__ f128x2(double real, double imag)
+      : re(real, 0.0), im(imag, 0.0) {}
 
-  __host__ __device__ explicit f128x2(double real) : re(real, 0.0), im(0.0, 0.0) {}
+  __host__ __device__ explicit f128x2(double real)
+      : re(real, 0.0), im(0.0, 0.0) {}
 
-  __host__ __device__ f128x2(const f128x2& other) : re(other.re), im(other.im) {}
+  __host__ __device__ f128x2(const f128x2 &other)
+      : re(other.re), im(other.im) {}
 
-  __host__ __device__ f128x2(f128x2&& other) noexcept : re(std::move(other.re)), im(std::move(other.im)) {}
+  __host__ __device__ f128x2(f128x2 &&other) noexcept
+      : re(std::move(other.re)), im(std::move(other.im)) {}
 
-  __host__ __device__ f128x2& operator=(const f128x2& other) {
+  __host__ __device__ f128x2 &operator=(const f128x2 &other) {
     if (this != &other) {
       re = other.re;
       im = other.im;
@@ -132,7 +136,7 @@ struct f128x2 {
     return *this;
   }
 
-  __host__ __device__ f128x2& operator=(f128x2&& other) noexcept {
+  __host__ __device__ f128x2 &operator=(f128x2 &&other) noexcept {
     if (this != &other) {
       re = std::move(other.re);
       im = std::move(other.im);
@@ -154,45 +158,51 @@ struct f128x2 {
   }
 
   // Addition
-  __host__ __device__ friend f128x2 operator+(const f128x2& a, const f128x2& b) {
+  __host__ __device__ friend f128x2 operator+(const f128x2 &a,
+                                              const f128x2 &b) {
     return f128x2(f128::add(a.re, b.re), f128::add(a.im, b.im));
   }
 
   // Subtraction
-  __host__ __device__ friend f128x2 operator-(const f128x2& a, const f128x2& b) {
+  __host__ __device__ friend f128x2 operator-(const f128x2 &a,
+                                              const f128x2 &b) {
     return f128x2(f128::add(a.re, f128(-b.re.hi, -b.re.lo)),
                   f128::add(a.im, f128(-b.im.hi, -b.im.lo)));
   }
 
   // Multiplication (complex multiplication)
-  __host__ __device__ friend f128x2 operator*(const f128x2& a, const f128x2& b) {
-    f128 real_part = f128::add(f128::mul(a.re, b.re), f128(-f128::mul(a.im, b.im).hi, -f128::mul(a.im, b.im).lo));
+  __host__ __device__ friend f128x2 operator*(const f128x2 &a,
+                                              const f128x2 &b) {
+    f128 real_part =
+        f128::add(f128::mul(a.re, b.re),
+                  f128(-f128::mul(a.im, b.im).hi, -f128::mul(a.im, b.im).lo));
     f128 imag_part = f128::add(f128::mul(a.re, b.im), f128::mul(a.im, b.re));
     return f128x2(real_part, imag_part);
   }
 
   // Addition-assignment operator
-  __host__ __device__ f128x2& operator+=(const f128x2& other) {
+  __host__ __device__ f128x2 &operator+=(const f128x2 &other) {
     re = f128::add(re, other.re);
     im = f128::add(im, other.im);
     return *this;
   }
 
   // Subtraction-assignment operator
-  __host__ __device__ f128x2& operator-=(const f128x2& other) {
+  __host__ __device__ f128x2 &operator-=(const f128x2 &other) {
     re = f128::add(re, f128(-other.re.hi, -other.re.lo));
     im = f128::add(im, f128(-other.im.hi, -other.im.lo));
     return *this;
   }
 
   // Multiplication-assignment operator
-  __host__ __device__ f128x2& operator*=(const f128x2& other) {
-    f128 new_re = f128::add(f128::mul(re, other.re), f128(-f128::mul(im, other.im).hi, -f128::mul(im, other.im).lo));
+  __host__ __device__ f128x2 &operator*=(const f128x2 &other) {
+    f128 new_re =
+        f128::add(f128::mul(re, other.re), f128(-f128::mul(im, other.im).hi,
+                                                -f128::mul(im, other.im).lo));
     f128 new_im = f128::add(f128::mul(re, other.im), f128::mul(im, other.re));
     re = new_re;
     im = new_im;
     return *this;
   }
-
 };
 #endif

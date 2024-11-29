@@ -11,6 +11,22 @@
 
 using Index = unsigned;
 
+#define NEG_TWID(i)                                                            \
+  f128x2(f128(neg_twiddles_re_hi[(i)], neg_twiddles_re_lo[(i)]),               \
+         f128(neg_twiddles_im_hi[(i)], neg_twiddles_im_lo[(i)]))
+
+#define F64x4_TO_F128x2(f128x2_reg, ind)                                       \
+  f128x2_reg.re.hi = dt_re_hi[ind];                                            \
+  f128x2_reg.re.lo = dt_re_lo[ind];                                            \
+  f128x2_reg.im.hi = dt_im_hi[ind];                                            \
+  f128x2_reg.im.lo = dt_im_lo[ind];
+
+#define F128x2_TO_F64x4(f128x2_reg, ind)                                       \
+  dt_re_hi[ind] = f128x2_reg.re.hi;                                            \
+  dt_re_lo[ind] = f128x2_reg.re.lo;                                            \
+  dt_im_hi[ind] = f128x2_reg.im.hi;                                            \
+  dt_im_lo[ind] = f128x2_reg.im.lo;
+
 // zl - left part of butterfly operation
 // zr - right part of butterfly operation
 // re - real part
@@ -19,7 +35,6 @@ using Index = unsigned;
 // lo - low bits
 // dt - list
 // cf - single coefficient
-
 template <class params>
 __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
                                             double *dt_im_hi,
@@ -31,25 +46,15 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   constexpr Index HALF_DEGREE = params::degree >> 1;
   constexpr Index STRIDE = params::degree / params::opt;
 
-  double cf_zl_re_hi[BUTTERFLY_DEPTH], cf_zr_re_hi[BUTTERFLY_DEPTH];
-  double cf_zl_re_lo[BUTTERFLY_DEPTH], cf_zr_re_lo[BUTTERFLY_DEPTH];
-  double cf_zl_im_hi[BUTTERFLY_DEPTH], cf_zr_im_hi[BUTTERFLY_DEPTH];
-  double cf_zl_im_lo[BUTTERFLY_DEPTH], cf_zr_im_lo[BUTTERFLY_DEPTH];
+  f128x2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
 
   Index tid = threadIdx.x;
 
   // load into registers
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-    cf_zl_re_hi[i] = dt_re_hi[tid];
-    cf_zr_re_hi[i] = dt_re_hi[tid + HALF_DEGREE];
-    cf_zl_re_lo[i] = dt_re_lo[tid];
-    cf_zr_re_lo[i] = dt_re_lo[tid + HALF_DEGREE];
-    cf_zl_im_hi[i] = dt_im_hi[tid];
-    cf_zr_im_hi[i] = dt_im_hi[tid + HALF_DEGREE];
-    cf_zl_im_lo[i] = dt_im_lo[tid];
-    cf_zr_im_lo[i] = dt_im_lo[tid + HALF_DEGREE];
-
+    F64x4_TO_F128x2(u[i], tid);
+    F64x4_TO_F128x2(v[i], tid + HALF_DEGREE);
     tid += STRIDE;
   }
 
@@ -57,15 +62,59 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   // we don't make actual complex multiplication on level1 since we have only
   // one twiddle, it's real and image parts are equal, so we can multiply
   // it with simpler operations
-  // TODO first we need to generate twiddles to implement first iteration
 
-  // #pragma unroll
-  //   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-  //     w = v[i] * (double2){0.707106781186547461715008466854,
-  //                          0.707106781186547461715008466854};
-  //     v[i] = u[i] - w;
-  //     u[i] = u[i] + w;
-  //   }
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = v[i] * NEG_TWID(1);
+    v[i] = u[i] - w;
+    u[i] = u[i] + w;
+  }
+
+  Index twiddle_shift = 1;
+  for (Index l = LOG2_DEGREE - 1; l >= 1; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
+
+    tid = threadIdx.x;
+    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      F128x2_TO_F64x4((u_stays_in_register) ? v[i] : u[i], tid);
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      F64x4_TO_F128x2(w, tid ^ lane_mask);
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+
+      w *= v[i];
+
+      v[i] = u[i] - w;
+      u[i] = u[i] + w;
+      tid = tid + STRIDE;
+    }
+  }
+  __syncthreads();
+
+  // store registers in SM
+  tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    F128x2_TO_F64x4(u[i], tid * 2);
+    F128x2_TO_F64x4(v[i], tid * 2 + 1);
+    tid = tid + STRIDE;
+  }
+  __syncthreads();
 }
 
 void print_uint128_bits(__uint128_t value) {
