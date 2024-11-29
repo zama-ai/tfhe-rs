@@ -830,7 +830,7 @@ mod cuda {
     use tfhe::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
-    use tfhe::core_crypto::gpu::vec::CudaVec;
+    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
     use tfhe::core_crypto::gpu::{
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext,
         cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams,
@@ -900,7 +900,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(gpu_index);
+        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params) in parameters.iter() {
             // Create the LweSecretKey
@@ -1021,7 +1021,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(gpu_index);
+        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params, grouping_factor) in parameters.iter() {
             // Create the LweSecretKey
@@ -1143,7 +1143,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(gpu_index);
+        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params) in parameters.iter() {
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1283,7 +1283,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(gpu_index);
+        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params, grouping_factor) in parameters.iter() {
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(

@@ -16,27 +16,28 @@ impl CudaServerKey {
     /// ```rust
     /// // Encrypt two messages:
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
     /// let modulus = 1 << 8;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 159u64;
     ///
     /// // Encrypt a message
     /// let mut ctxt = cks.encrypt(msg);
-    /// let mut d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &streams);
     ///
     /// // Compute homomorphically a negation
-    /// let d_res = sks.unchecked_neg(&mut d_ctxt, &mut stream);
-    /// let res = d_res.to_radix_ciphertext(&mut stream);
+    /// let d_res = sks.unchecked_neg(&mut d_ctxt, &streams);
+    /// let res = d_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt
     /// let dec: u64 = cks.decrypt(&res);
@@ -45,17 +46,17 @@ impl CudaServerKey {
     pub fn unchecked_neg<T: CudaIntegerRadixCiphertext>(
         &self,
         ctxt: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T {
-        let result = unsafe { self.unchecked_neg_async(ctxt, stream) };
-        stream.synchronize();
+        let result = unsafe { self.unchecked_neg_async(ctxt, streams) };
+        streams.synchronize();
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_neg_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ctxt: &T,
@@ -93,27 +94,28 @@ impl CudaServerKey {
     /// ```rust
     /// // Encrypt two messages:
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
     /// let modulus = 1 << 8;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 159u64;
     ///
     /// // Encrypt a message
     /// let mut ctxt = cks.encrypt(msg);
-    /// let mut d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &streams);
     ///
     /// // Compute homomorphically a negation
-    /// let d_res = sks.neg(&mut d_ctxt, &mut stream);
-    /// let res = d_res.to_radix_ciphertext(&mut stream);
+    /// let d_res = sks.neg(&mut d_ctxt, &streams);
+    /// let res = d_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt
     /// let dec: u64 = cks.decrypt(&res);
@@ -127,8 +129,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn neg_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ctxt: &T,

@@ -10,13 +10,13 @@ use crate::integer::gpu::{
 impl CudaServerKey {
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_right_shift_assign_async<T>(
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -26,7 +26,7 @@ impl CudaServerKey {
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_right_shift_integer_radix_kb_assign_async(
-                    stream,
+                    streams,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &shift.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
@@ -53,7 +53,7 @@ impl CudaServerKey {
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_right_shift_integer_radix_kb_assign_async(
-                    stream,
+                    streams,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &shift.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
@@ -83,19 +83,19 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_right_shift_async<T>(
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = ct.duplicate_async(stream);
-        self.unchecked_right_shift_assign_async(&mut result, shift, stream);
+        let mut result = ct.duplicate_async(streams);
+        self.unchecked_right_shift_assign_async(&mut result, shift, streams);
         result
     }
 
@@ -103,13 +103,13 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.unchecked_right_shift_async(ct, shift, stream) };
-        stream.synchronize();
+        let result = unsafe { self.unchecked_right_shift_async(ct, shift, streams) };
+        streams.synchronize();
         result
     }
 
@@ -117,23 +117,23 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe { self.unchecked_right_shift_assign_async(ct, shift, stream) };
-        stream.synchronize();
+        unsafe { self.unchecked_right_shift_assign_async(ct, shift, streams) };
+        streams.synchronize();
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_left_shift_assign_async<T>(
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -143,7 +143,7 @@ impl CudaServerKey {
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_left_shift_integer_radix_kb_assign_async(
-                    stream,
+                    streams,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &shift.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
@@ -170,7 +170,7 @@ impl CudaServerKey {
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_left_shift_integer_radix_kb_assign_async(
-                    stream,
+                    streams,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &shift.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
@@ -200,19 +200,19 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_left_shift_async<T>(
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = ct.duplicate_async(stream);
-        self.unchecked_left_shift_assign_async(&mut result, shift, stream);
+        let mut result = ct.duplicate_async(streams);
+        self.unchecked_left_shift_assign_async(&mut result, shift, streams);
         result
     }
 
@@ -220,13 +220,13 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.unchecked_left_shift_async(ct, shift, stream) };
-        stream.synchronize();
+        let result = unsafe { self.unchecked_left_shift_async(ct, shift, streams) };
+        streams.synchronize();
         result
     }
 
@@ -234,23 +234,23 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe { self.unchecked_left_shift_assign_async(ct, shift, stream) };
-        stream.synchronize();
+        unsafe { self.unchecked_left_shift_assign_async(ct, shift, streams) };
+        streams.synchronize();
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn right_shift_async<T>(
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -264,39 +264,39 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct, shift),
             (true, false) => {
-                tmp_rhs = shift.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                tmp_rhs = shift.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                tmp_lhs = ct.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, shift)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate_async(stream);
-                tmp_rhs = shift.duplicate_async(stream);
+                tmp_lhs = ct.duplicate_async(streams);
+                tmp_rhs = shift.duplicate_async(streams);
 
-                self.full_propagate_assign_async(&mut tmp_lhs, stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                self.full_propagate_assign_async(&mut tmp_lhs, streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (&tmp_lhs, &tmp_rhs)
             }
         };
 
-        let mut result = lhs.duplicate_async(stream);
-        self.unchecked_right_shift_assign_async(&mut result, rhs, stream);
+        let mut result = lhs.duplicate_async(streams);
+        self.unchecked_right_shift_assign_async(&mut result, rhs, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn right_shift_assign_async<T>(
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -309,26 +309,26 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct, shift),
             (true, false) => {
-                tmp_rhs = shift.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                tmp_rhs = shift.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                tmp_lhs = ct.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&mut tmp_lhs, shift)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate_async(stream);
-                tmp_rhs = shift.duplicate_async(stream);
+                tmp_lhs = ct.duplicate_async(streams);
+                tmp_rhs = shift.duplicate_async(streams);
 
-                self.full_propagate_assign_async(&mut tmp_lhs, stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                self.full_propagate_assign_async(&mut tmp_lhs, streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (&mut tmp_lhs, &tmp_rhs)
             }
         };
 
-        self.unchecked_right_shift_assign_async(lhs, rhs, stream);
+        self.unchecked_right_shift_assign_async(lhs, rhs, streams);
     }
 
     /// Computes homomorphically a right shift by an encrypted amount
@@ -339,16 +339,17 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 128;
     /// let shift = 2;
@@ -356,13 +357,13 @@ impl CudaServerKey {
     /// let ct = cks.encrypt(msg);
     /// let shift_ct = cks.encrypt(shift as u64);
     /// // Copy to GPU
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
-    /// let mut d_shift_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&shift_ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+    /// let mut d_shift_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&shift_ct, &streams);
     ///
-    /// let d_ct_res = sks.unchecked_right_shift(&d_ct, &d_shift_ct, &mut stream);
+    /// let d_ct_res = sks.unchecked_right_shift(&d_ct, &d_shift_ct, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt(&ct_res);
@@ -372,13 +373,13 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.right_shift_async(ct, shift, stream) };
-        stream.synchronize();
+        let result = unsafe { self.right_shift_async(ct, shift, streams) };
+        streams.synchronize();
         result
     }
 
@@ -386,23 +387,23 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe { self.right_shift_assign_async(ct, shift, stream) };
-        stream.synchronize();
+        unsafe { self.right_shift_assign_async(ct, shift, streams) };
+        streams.synchronize();
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn left_shift_async<T>(
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -416,39 +417,39 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct, shift),
             (true, false) => {
-                tmp_rhs = shift.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                tmp_rhs = shift.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                tmp_lhs = ct.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&tmp_lhs, shift)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate_async(stream);
-                tmp_rhs = shift.duplicate_async(stream);
+                tmp_lhs = ct.duplicate_async(streams);
+                tmp_rhs = shift.duplicate_async(streams);
 
-                self.full_propagate_assign_async(&mut tmp_lhs, stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                self.full_propagate_assign_async(&mut tmp_lhs, streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (&tmp_lhs, &tmp_rhs)
             }
         };
 
-        let mut result = lhs.duplicate_async(stream);
-        self.unchecked_left_shift_assign_async(&mut result, rhs, stream);
+        let mut result = lhs.duplicate_async(streams);
+        self.unchecked_left_shift_assign_async(&mut result, rhs, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn left_shift_assign_async<T>(
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -461,26 +462,26 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct, shift),
             (true, false) => {
-                tmp_rhs = shift.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                tmp_rhs = shift.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                tmp_lhs = ct.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_lhs, streams);
                 (&mut tmp_lhs, shift)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate_async(stream);
-                tmp_rhs = shift.duplicate_async(stream);
+                tmp_lhs = ct.duplicate_async(streams);
+                tmp_rhs = shift.duplicate_async(streams);
 
-                self.full_propagate_assign_async(&mut tmp_lhs, stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                self.full_propagate_assign_async(&mut tmp_lhs, streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (&mut tmp_lhs, &tmp_rhs)
             }
         };
 
-        self.unchecked_left_shift_assign_async(lhs, rhs, stream);
+        self.unchecked_left_shift_assign_async(lhs, rhs, streams);
     }
 
     /// Computes homomorphically a left shift by an encrypted amount
@@ -491,16 +492,17 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 21;
     /// let shift = 2;
@@ -508,13 +510,13 @@ impl CudaServerKey {
     /// let ct = cks.encrypt(msg);
     /// let shift_ct = cks.encrypt(shift as u64);
     /// // Copy to GPU
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
-    /// let mut d_shift_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&shift_ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+    /// let mut d_shift_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&shift_ct, &streams);
     ///
-    /// let d_ct_res = sks.left_shift(&d_ct, &d_shift_ct, &mut stream);
+    /// let d_ct_res = sks.left_shift(&d_ct, &d_shift_ct, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt(&ct_res);
@@ -524,13 +526,13 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let result = unsafe { self.left_shift_async(ct, shift, stream) };
-        stream.synchronize();
+        let result = unsafe { self.left_shift_async(ct, shift, streams) };
+        streams.synchronize();
         result
     }
 
@@ -538,11 +540,11 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe { self.left_shift_assign_async(ct, shift, stream) };
-        stream.synchronize();
+        unsafe { self.left_shift_assign_async(ct, shift, streams) };
+        streams.synchronize();
     }
 }

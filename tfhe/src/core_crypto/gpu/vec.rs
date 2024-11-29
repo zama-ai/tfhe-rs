@@ -10,6 +10,9 @@ use tfhe_cuda_backend::cuda_bind::{
     cuda_synchronize_device,
 };
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GpuIndex(pub u32);
+
 /// A contiguous array type stored in the gpu memory.
 ///
 /// Note:
@@ -26,7 +29,7 @@ use tfhe_cuda_backend::cuda_bind::{
 pub struct CudaVec<T: Numeric> {
     pub ptr: Vec<*mut c_void>,
     pub len: usize,
-    pub gpu_indexes: Vec<u32>,
+    pub gpu_indexes: Vec<GpuIndex>,
     _phantom: PhantomData<T>,
 }
 
@@ -36,9 +39,9 @@ impl<T: Numeric> Clone for CudaVec<T> {
         let mut cloned_vec = Vec::with_capacity(self.ptr.len());
         for (index, &gpu_index) in self.gpu_indexes.iter().enumerate() {
             unsafe {
-                cuda_synchronize_device(gpu_index);
-                let ptr = cuda_malloc(size, gpu_index);
-                cuda_memcpy_gpu_to_gpu(ptr, self.ptr[index], size, gpu_index);
+                cuda_synchronize_device(gpu_index.0);
+                let ptr = cuda_malloc(size, gpu_index.0);
+                cuda_memcpy_gpu_to_gpu(ptr, self.ptr[index], size, gpu_index.0);
                 cloned_vec.push(ptr);
             }
         }
@@ -67,14 +70,14 @@ impl<T: Numeric> CudaVec<T> {
         let ptr = cuda_malloc_async(
             size,
             streams.ptr[stream_index as usize],
-            streams.gpu_indexes[stream_index as usize],
+            streams.gpu_indexes[stream_index as usize].0,
         );
         cuda_memset_async(
             ptr,
             0u64,
             size,
             streams.ptr[stream_index as usize],
-            streams.gpu_indexes[stream_index as usize],
+            streams.gpu_indexes[stream_index as usize].0,
         );
 
         Self {
@@ -98,7 +101,7 @@ impl<T: Numeric> CudaVec<T> {
                     0u64,
                     size,
                     streams.ptr[index],
-                    streams.gpu_indexes[index],
+                    streams.gpu_indexes[index].0,
                 );
             }
             streams.synchronize_one(index as u32);
@@ -155,7 +158,7 @@ impl<T: Numeric> CudaVec<T> {
                 value.into(),
                 size as u64,
                 streams.ptr[stream_index as usize],
-                streams.gpu_indexes[stream_index as usize],
+                streams.gpu_indexes[stream_index as usize].0,
             );
         }
     }
@@ -185,7 +188,7 @@ impl<T: Numeric> CudaVec<T> {
                 src.as_ptr().cast(),
                 size as u64,
                 streams.ptr[stream_index as usize],
-                streams.gpu_indexes[stream_index as usize],
+                streams.gpu_indexes[stream_index as usize].0,
             );
         }
     }
@@ -212,7 +215,7 @@ impl<T: Numeric> CudaVec<T> {
                     src.as_ptr().cast(),
                     size as u64,
                     stream,
-                    streams.gpu_indexes[gpu_index],
+                    streams.gpu_indexes[gpu_index].0,
                 );
             }
         }
@@ -241,7 +244,7 @@ impl<T: Numeric> CudaVec<T> {
                 src.as_c_ptr(stream_index),
                 size as u64,
                 streams.ptr[stream_index as usize],
-                streams.gpu_indexes[stream_index as usize],
+                streams.gpu_indexes[stream_index as usize].0,
             );
         }
     }
@@ -279,7 +282,7 @@ impl<T: Numeric> CudaVec<T> {
             src_ptr,
             size as u64,
             streams.ptr[stream_index as usize],
-            streams.gpu_indexes[stream_index as usize],
+            streams.gpu_indexes[stream_index as usize].0,
         );
     }
 
@@ -316,7 +319,7 @@ impl<T: Numeric> CudaVec<T> {
             src.as_c_ptr(stream_index),
             size as u64,
             streams.ptr[stream_index as usize],
-            streams.gpu_indexes[stream_index as usize],
+            streams.gpu_indexes[stream_index as usize].0,
         );
     }
 
@@ -340,7 +343,7 @@ impl<T: Numeric> CudaVec<T> {
                 self.as_c_ptr(stream_index),
                 size as u64,
                 streams.ptr[stream_index as usize],
-                streams.gpu_indexes[stream_index as usize],
+                streams.gpu_indexes[stream_index as usize].0,
             );
         }
     }
@@ -377,7 +380,7 @@ impl<T: Numeric> CudaVec<T> {
             let new_len = end - start + 1;
 
             // Create the slice
-            Some(unsafe { CudaSlice::new(shifted_ptr, new_len, index) })
+            Some(unsafe { CudaSlice::new(shifted_ptr, new_len, GpuIndex(index)) })
         }
     }
 
@@ -402,12 +405,12 @@ impl<T: Numeric> CudaVec<T> {
             let new_len = end - start + 1;
 
             // Create the slice
-            Some(unsafe { CudaSliceMut::new(shifted_ptr, new_len, index) })
+            Some(unsafe { CudaSliceMut::new(shifted_ptr, new_len, GpuIndex(index)) })
         }
     }
 
     /// Returns the GPU index at index
-    pub fn gpu_index(&self, index: u32) -> u32 {
+    pub fn gpu_index(&self, index: u32) -> GpuIndex {
         self.gpu_indexes[index as usize]
     }
 
@@ -439,10 +442,15 @@ unsafe impl<T> Sync for CudaVec<T> where T: Sync + Numeric {}
 impl<T: Numeric> Drop for CudaVec<T> {
     /// Free memory for pointer `ptr` synchronously
     fn drop(&mut self) {
-        for (index, &gpu_index) in self.gpu_indexes.iter().enumerate() {
+        for (ptr, gpu_index) in self
+            .ptr
+            .iter()
+            .copied()
+            .zip(self.gpu_indexes.iter().copied())
+        {
             // Synchronizes the device to be sure no stream is still using this pointer
-            synchronize_device(gpu_index);
-            unsafe { cuda_drop(self.get_mut_c_ptr(index as u32), gpu_index) };
+            synchronize_device(gpu_index.0);
+            unsafe { cuda_drop(ptr, gpu_index.0) };
         }
     }
 }
