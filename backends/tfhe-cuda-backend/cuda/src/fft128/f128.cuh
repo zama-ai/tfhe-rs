@@ -27,13 +27,17 @@ struct alignas(16) f128 {
   // Two-product
   __host__ __device__ __forceinline__ static f128 two_prod(double a, double b) {
     double p = a * b;
+#ifdef __CUDA_ARCH__
     return f128(p, __fma_rn(a, b, -p));
+#else
+    return f128(p, fma(a, b, -p));
+#endif
   }
 
   __host__ __device__ __forceinline__ static f128 two_diff(double a, double b) {
     double s = a - b;
     double bb = s - a;
-    return (s, (a - (s - bb)) - (b + bb));
+    return f128(s, (a - (s - bb)) - (b + bb));
   }
 
   // Addition
@@ -102,5 +106,93 @@ struct alignas(16) f128 {
     c_re = add_estimate(a_re_x_b_re, a_im_x_b_im);
     c_im = sub_estimate(a_im_x_b_re, a_re_x_b_im);
   }
+};
+
+struct f128x2 {
+  f128 re;
+  f128 im;
+
+  __host__ __device__ f128x2() : re(), im() {}
+
+  __host__ __device__ f128x2(const f128& real, const f128& imag) : re(real), im(imag) {}
+
+  __host__ __device__ f128x2(double real, double imag) : re(real, 0.0), im(imag, 0.0) {}
+
+  __host__ __device__ explicit f128x2(double real) : re(real, 0.0), im(0.0, 0.0) {}
+
+  __host__ __device__ f128x2(const f128x2& other) : re(other.re), im(other.im) {}
+
+  __host__ __device__ f128x2(f128x2&& other) noexcept : re(std::move(other.re)), im(std::move(other.im)) {}
+
+  __host__ __device__ f128x2& operator=(const f128x2& other) {
+    if (this != &other) {
+      re = other.re;
+      im = other.im;
+    }
+    return *this;
+  }
+
+  __host__ __device__ f128x2& operator=(f128x2&& other) noexcept {
+    if (this != &other) {
+      re = std::move(other.re);
+      im = std::move(other.im);
+    }
+    return *this;
+  }
+
+  __host__ __device__ f128x2 conjugate() const {
+    return f128x2(re, f128(-im.hi, -im.lo));
+  }
+
+  __host__ __device__ f128 norm_squared() const {
+    return f128::add(f128::mul(re, re), f128::mul(im, im));
+  }
+
+  __host__ __device__ void zero() {
+    re = f128(0.0, 0.0);
+    im = f128(0.0, 0.0);
+  }
+
+  // Addition
+  __host__ __device__ friend f128x2 operator+(const f128x2& a, const f128x2& b) {
+    return f128x2(f128::add(a.re, b.re), f128::add(a.im, b.im));
+  }
+
+  // Subtraction
+  __host__ __device__ friend f128x2 operator-(const f128x2& a, const f128x2& b) {
+    return f128x2(f128::add(a.re, f128(-b.re.hi, -b.re.lo)),
+                  f128::add(a.im, f128(-b.im.hi, -b.im.lo)));
+  }
+
+  // Multiplication (complex multiplication)
+  __host__ __device__ friend f128x2 operator*(const f128x2& a, const f128x2& b) {
+    f128 real_part = f128::add(f128::mul(a.re, b.re), f128(-f128::mul(a.im, b.im).hi, -f128::mul(a.im, b.im).lo));
+    f128 imag_part = f128::add(f128::mul(a.re, b.im), f128::mul(a.im, b.re));
+    return f128x2(real_part, imag_part);
+  }
+
+  // Addition-assignment operator
+  __host__ __device__ f128x2& operator+=(const f128x2& other) {
+    re = f128::add(re, other.re);
+    im = f128::add(im, other.im);
+    return *this;
+  }
+
+  // Subtraction-assignment operator
+  __host__ __device__ f128x2& operator-=(const f128x2& other) {
+    re = f128::add(re, f128(-other.re.hi, -other.re.lo));
+    im = f128::add(im, f128(-other.im.hi, -other.im.lo));
+    return *this;
+  }
+
+  // Multiplication-assignment operator
+  __host__ __device__ f128x2& operator*=(const f128x2& other) {
+    f128 new_re = f128::add(f128::mul(re, other.re), f128(-f128::mul(im, other.im).hi, -f128::mul(im, other.im).lo));
+    f128 new_im = f128::add(f128::mul(re, other.im), f128::mul(im, other.re));
+    re = new_re;
+    im = new_im;
+    return *this;
+  }
+
 };
 #endif
