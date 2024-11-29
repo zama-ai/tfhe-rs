@@ -21,7 +21,7 @@ impl ClientKey {
     pub fn trivial_encrypt_ascii(&self, str: &str, padding: Option<u32>) -> FheString {
         assert!(str.is_ascii() & !str.contains('\0'));
 
-        let padded = padding.map_or(false, |p| p != 0);
+        let padded = padding.is_some_and(|p| p != 0);
 
         let num_blocks = self.num_ascii_blocks();
 
@@ -54,7 +54,7 @@ impl ClientKey {
     pub fn encrypt_ascii(&self, str: &str, padding: Option<u32>) -> FheString {
         assert!(str.is_ascii() & !str.contains('\0'));
 
-        let padded = padding.map_or(false, |p| p != 0);
+        let padded = padding.is_some_and(|p| p != 0);
 
         let num_blocks = self.num_ascii_blocks();
 

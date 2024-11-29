@@ -77,10 +77,9 @@ pub struct StandardMultiBitModulusSwitchedCt<
 }
 
 impl<
-        'a,
         Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
         C: Container<Element = Scalar> + Sync,
-    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<'a, Scalar, C>
+    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<'_, Scalar, C>
 {
     fn lwe_dimension(&self) -> LweDimension {
         self.input.lwe_size().to_lwe_dimension()

@@ -23,7 +23,7 @@ pub struct CudaSliceMut<'a, T: Numeric> {
     _phantom_2: PhantomData<&'a mut ()>,
 }
 
-impl<'a, T> CudaSlice<'a, T>
+impl<T> CudaSlice<'_, T>
 where
     T: Numeric,
 {
@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<'a, T> CudaSliceMut<'a, T>
+impl<T> CudaSliceMut<'_, T>
 where
     T: Numeric,
 {

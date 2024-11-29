@@ -36,7 +36,7 @@ pub enum InnerUintSlice<'a> {
     Cpu(&'a [RadixCiphertext]),
 }
 
-impl<'a> InnerUintSlice<'a> {
+impl InnerUintSlice<'_> {
     pub(crate) fn on_cpu(&self) -> Cow<'_, [RadixCiphertext]> {
         match self {
             InnerUintSlice::Cpu(cpu_slice) => Cow::Borrowed(cpu_slice),
@@ -98,7 +98,7 @@ impl BackendDataContainerMut for InnerUintArray {
     }
 }
 
-impl<'a> BackendDataContainer for InnerUintSlice<'a> {
+impl BackendDataContainer for InnerUintSlice<'_> {
     type Backend = DynUintBackend;
 
     fn len(&self) -> usize {
@@ -123,7 +123,7 @@ impl<'a> BackendDataContainer for InnerUintSlice<'a> {
     }
 }
 
-impl<'a> BackendDataContainer for InnerUintSliceMut<'a> {
+impl BackendDataContainer for InnerUintSliceMut<'_> {
     type Backend = DynUintBackend;
 
     fn len(&self) -> usize {
@@ -148,7 +148,7 @@ impl<'a> BackendDataContainer for InnerUintSliceMut<'a> {
     }
 }
 
-impl<'a> BackendDataContainerMut for InnerUintSliceMut<'a> {
+impl BackendDataContainerMut for InnerUintSliceMut<'_> {
     fn as_sub_slice_mut(&mut self, range: impl RangeBounds<usize>) -> InnerUintSliceMut<'_> {
         match self {
             Self::Cpu(cpu_slice) => {
@@ -403,7 +403,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSliceMut<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSliceMut<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
@@ -413,7 +413,7 @@ where
     }
 }
 
-impl<'a, Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSlice<'a, Id>
+impl<Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSlice<'_, Id>
 where
     Id: FheUintId,
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
