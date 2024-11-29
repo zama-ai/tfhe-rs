@@ -101,7 +101,7 @@ pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
         .into_iter()
         .filter_map(|entry| {
             let path = entry.path().canonicalize().ok()?;
-            if path.is_file() && path.extension().map_or(false, |e| e == "md") {
+            if path.is_file() && path.extension().is_some_and(|e| e == "md") {
                 let file_content = std::fs::read_to_string(&path).ok()?;
                 if file_content.contains("```rust") {
                     Some(path.to_path_buf())

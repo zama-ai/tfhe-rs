@@ -329,7 +329,7 @@ fn convert_add_backward_torus<Scalar: UnsignedTorus>(
     convert_add_backward_torus_scalar::<Scalar>(out_re, out_im, inp, twisties);
 }
 
-impl<'a> FftView<'a> {
+impl FftView<'_> {
     /// Return the polynomial size that this FFT was made for.
     pub fn polynomial_size(self) -> PolynomialSize {
         PolynomialSize(2 * self.plan.fft_size())
@@ -629,7 +629,7 @@ impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> 
                 buf: &'a [c64],
             }
 
-            impl<'a> serde::Serialize for SingleFourierPolynomial<'a> {
+            impl serde::Serialize for SingleFourierPolynomial<'_> {
                 fn serialize<S: serde::Serializer>(
                     &self,
                     serializer: S,
@@ -701,7 +701,7 @@ impl<'de, C: IntoContainerOwned<Element = c64>> serde::Deserialize<'de>
                     buf: &'a mut [c64],
                 }
 
-                impl<'de, 'a> serde::de::DeserializeSeed<'de> for FillFourier<'a> {
+                impl<'de> serde::de::DeserializeSeed<'de> for FillFourier<'_> {
                     type Value = ();
 
                     fn deserialize<D: serde::Deserializer<'de>>(
