@@ -59,6 +59,7 @@ jobs:
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**
               - tfhe/src/integer/**
+              - .github/workflows/aws_tfhe_integer_tests.yml
 
   setup-instance:
     name: Setup instance (unsigned-integer-tests)
