@@ -61,6 +61,7 @@
 #![allow(clippy::cognitive_complexity)] // 6
 #![allow(clippy::iter_with_drain)] // 2
 #![allow(clippy::large_stack_frames)] // 1
+#![allow(clippy::too_long_first_doc_paragraph)]
 #![cfg_attr(feature = "__wasm_api", allow(dead_code))]
 #![cfg_attr(
     all(

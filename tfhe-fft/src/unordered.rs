@@ -995,7 +995,7 @@ impl Plan {
             base_n: usize,
         }
 
-        impl<'de, 'a> Visitor<'de> for SeqVisitor<'a> {
+        impl<'de> Visitor<'de> for SeqVisitor<'_> {
             type Value = ();
 
             fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
