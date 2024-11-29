@@ -1,3 +1,4 @@
+use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
@@ -26,7 +27,7 @@ impl<F> GpuMultiDeviceFunctionExecutor<F> {
 impl<F> GpuMultiDeviceFunctionExecutor<F> {
     pub(crate) fn setup_from_keys(&mut self, cks: &RadixClientKey, _sks: &Arc<ServerKey>) {
         let num_gpus = unsafe { cuda_get_number_of_gpus() } as u32;
-        let streams = CudaStreams::new_single_gpu(num_gpus - 1);
+        let streams = CudaStreams::new_single_gpu(GpuIndex(num_gpus - 1));
 
         let sks = CudaServerKey::new(cks.as_ref(), &streams);
         streams.synchronize();

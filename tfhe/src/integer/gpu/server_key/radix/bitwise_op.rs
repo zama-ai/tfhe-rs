@@ -23,30 +23,31 @@ impl CudaServerKey {
     /// ```rust
     /// use std::ops::Not;
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 1u64;
     ///
     /// let ct = cks.encrypt(msg);
     ///
     /// // Copy to GPU
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitnot(&d_ct, &mut streams);
+    /// let d_ct_res = sks.unchecked_bitnot(&d_ct, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -114,17 +115,18 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg1 = 201u64;
     /// let msg2 = 1u64;
@@ -133,14 +135,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitand(&d_ct1, &d_ct2, &mut streams);
+    /// let d_ct_res = sks.unchecked_bitand(&d_ct1, &d_ct2, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -261,17 +263,18 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg1 = 200u64;
     /// let msg2 = 1u64;
@@ -280,14 +283,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitor(&d_ct1, &d_ct2, &mut streams);
+    /// let d_ct_res = sks.unchecked_bitor(&d_ct1, &d_ct2, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -328,17 +331,18 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg1 = 49;
     /// let msg2 = 64;
@@ -347,14 +351,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitxor(&d_ct1, &d_ct2, &mut streams);
+    /// let d_ct_res = sks.unchecked_bitxor(&d_ct1, &d_ct2, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -395,17 +399,18 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg1 = 201u64;
     /// let msg2 = 1u64;
@@ -414,14 +419,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.bitand(&d_ct1, &d_ct2, &mut streams);
+    /// let d_ct_res = sks.bitand(&d_ct1, &d_ct2, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -500,17 +505,18 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg1 = 201u64;
     /// let msg2 = 1u64;
@@ -519,14 +525,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.bitor(&d_ct1, &d_ct2, &mut streams);
+    /// let d_ct_res = sks.bitor(&d_ct1, &d_ct2, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -604,17 +610,18 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg1 = 201u64;
     /// let msg2 = 1u64;
@@ -623,14 +630,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.bitxor(&d_ct1, &d_ct2, &mut streams);
+    /// let d_ct_res = sks.bitxor(&d_ct1, &d_ct2, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -709,30 +716,31 @@ impl CudaServerKey {
     /// ```rust
     /// use std::ops::Not;
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 1u64;
     ///
     /// let ct = cks.encrypt(msg);
     ///
     /// // Copy to GPU
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.bitnot(&d_ct, &mut streams);
+    /// let d_ct_res = sks.bitnot(&d_ct, &streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);

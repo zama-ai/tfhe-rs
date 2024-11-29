@@ -307,7 +307,7 @@ mod cuda {
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
     use tfhe::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-    use tfhe::core_crypto::gpu::vec::CudaVec;
+    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
     use tfhe::core_crypto::gpu::{
         cuda_keyswitch_lwe_ciphertext, cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext,
         CudaStreams,
@@ -330,7 +330,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(gpu_index);
+        let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params) in parameters.iter() {
             let lwe_dimension = params.lwe_dimension.unwrap();
@@ -433,7 +433,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(gpu_index);
+        let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
         for (name, params) in parameters.iter() {
             let lwe_dimension = params.lwe_dimension.unwrap();

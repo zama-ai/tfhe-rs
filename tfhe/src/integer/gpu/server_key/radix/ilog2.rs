@@ -21,8 +21,8 @@ impl CudaServerKey {
     /// block was not full of ones/zeros
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub(crate) unsafe fn prepare_count_of_consecutive_bits_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &T,
@@ -41,7 +41,7 @@ impl CudaServerKey {
 
         // Allocate the necessary amount of memory
         let mut tmp_radix =
-            CudaVec::new_async(num_ct_blocks * lwe_size, streams, streams.gpu_indexes[0]);
+            CudaVec::new_async(num_ct_blocks * lwe_size, streams, streams.gpu_indexes[0].0);
 
         let lut = match direction {
             Direction::Trailing => self.generate_lookup_table(|x| {
@@ -73,10 +73,10 @@ impl CudaServerKey {
         tmp_radix.copy_from_gpu_async(
             &ct.as_ref().d_blocks.0.d_vec,
             streams,
-            streams.gpu_indexes[0],
+            streams.gpu_indexes[0].0,
         );
         let mut output_slice = tmp_radix
-            .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
+            .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
             .unwrap();
 
         let input_slice = ct
@@ -84,7 +84,7 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
+            .as_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
             .unwrap();
 
         // Assign to each block its number of leading/trailing zeros/ones
@@ -175,7 +175,7 @@ impl CudaServerKey {
         );
 
         let mut generates_or_propagates = tmp_radix
-            .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
+            .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
             .unwrap();
 
         match &self.bootstrapping_key {
@@ -185,7 +185,7 @@ impl CudaServerKey {
                     &mut output_cts
                         .0
                         .d_vec
-                        .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
+                        .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
                         .unwrap(),
                     &mut generates_or_propagates,
                     sum_lut.acc.acc.as_ref(),
@@ -214,7 +214,7 @@ impl CudaServerKey {
                     &mut output_cts
                         .0
                         .d_vec
-                        .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
+                        .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
                         .unwrap(),
                     &mut generates_or_propagates,
                     sum_lut.acc.acc.as_ref(),
@@ -248,8 +248,8 @@ impl CudaServerKey {
     /// needed to represent the maximum possible number of bits.
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub(crate) unsafe fn count_consecutive_bits_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &T,
@@ -294,13 +294,16 @@ impl CudaServerKey {
                 .d_blocks
                 .0
                 .d_vec
-                .as_mut_slice(0..lwe_size, streams.gpu_indexes[0])
+                .as_mut_slice(0..lwe_size, streams.gpu_indexes[0].0)
                 .unwrap();
 
             let src_slice = leading_count_per_blocks
                 .0
                 .d_vec
-                .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), streams.gpu_indexes[0])
+                .as_mut_slice(
+                    (i * lwe_size)..((i + 1) * lwe_size),
+                    streams.gpu_indexes[0].0,
+                )
                 .unwrap();
             dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
             cts.push(new_item);
@@ -331,8 +334,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_trailing_zeros_async<T>(
         &self,
         ct: &T,
@@ -362,8 +365,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_trailing_ones_async<T>(
         &self,
         ct: &T,
@@ -393,8 +396,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_leading_zeros_async<T>(
         &self,
         ct: &T,
@@ -424,8 +427,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_leading_ones_async<T>(
         &self,
         ct: &T,
@@ -453,8 +456,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_ilog2_async<T>(
         &self,
         ct: &T,
@@ -534,13 +537,16 @@ impl CudaServerKey {
                 .d_blocks
                 .0
                 .d_vec
-                .as_mut_slice(0..lwe_size, streams.gpu_indexes[0])
+                .as_mut_slice(0..lwe_size, streams.gpu_indexes[0].0)
                 .unwrap();
 
             let src_slice = leading_zeros_per_blocks
                 .0
                 .d_vec
-                .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), streams.gpu_indexes[0])
+                .as_mut_slice(
+                    (i * lwe_size)..((i + 1) * lwe_size),
+                    streams.gpu_indexes[0].0,
+                )
                 .unwrap();
             dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
             cts.push(new_item);
@@ -576,14 +582,14 @@ impl CudaServerKey {
         let mut message_blocks_slice = message_blocks
             .0
             .d_vec
-            .as_mut_slice(0..lwe_size * counter_num_blocks, streams.gpu_indexes[0])
+            .as_mut_slice(0..lwe_size * counter_num_blocks, streams.gpu_indexes[0].0)
             .unwrap();
         let result_slice = result
             .as_mut()
             .d_blocks
             .0
             .d_vec
-            .as_slice(0..lwe_size * counter_num_blocks, streams.gpu_indexes[0])
+            .as_slice(0..lwe_size * counter_num_blocks, streams.gpu_indexes[0].0)
             .unwrap();
 
         match &self.bootstrapping_key {
@@ -660,7 +666,7 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_mut_slice(0..lwe_size, streams.gpu_indexes[0])
+            .as_mut_slice(0..lwe_size, streams.gpu_indexes[0].0)
             .unwrap();
 
         let mut carry_blocks_last = carry_blocks
@@ -668,7 +674,7 @@ impl CudaServerKey {
             .d_vec
             .as_mut_slice(
                 lwe_size * (counter_num_blocks - 1)..lwe_size * counter_num_blocks,
-                streams.gpu_indexes[0],
+                streams.gpu_indexes[0].0,
             )
             .unwrap();
 
@@ -677,7 +683,7 @@ impl CudaServerKey {
         let mut carry_blocks_slice = carry_blocks
             .0
             .d_vec
-            .as_mut_slice(0..lwe_size * counter_num_blocks, streams.gpu_indexes[0])
+            .as_mut_slice(0..lwe_size * counter_num_blocks, streams.gpu_indexes[0].0)
             .unwrap();
         unsafe {
             match &self.bootstrapping_key {
@@ -741,13 +747,13 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_mut_slice(0..counter_num_blocks * lwe_size, streams.gpu_indexes[0])
+            .as_mut_slice(0..counter_num_blocks * lwe_size, streams.gpu_indexes[0].0)
             .unwrap();
 
         let src_slice = message_blocks
             .0
             .d_vec
-            .as_mut_slice(0..(counter_num_blocks * lwe_size), streams.gpu_indexes[0])
+            .as_mut_slice(0..(counter_num_blocks * lwe_size), streams.gpu_indexes[0].0)
             .unwrap();
 
         dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
@@ -761,13 +767,13 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_mut_slice(0..counter_num_blocks * lwe_size, streams.gpu_indexes[0])
+            .as_mut_slice(0..counter_num_blocks * lwe_size, streams.gpu_indexes[0].0)
             .unwrap();
 
         let src_slice = carry_blocks
             .0
             .d_vec
-            .as_mut_slice(0..(counter_num_blocks * lwe_size), streams.gpu_indexes[0])
+            .as_mut_slice(0..(counter_num_blocks * lwe_size), streams.gpu_indexes[0].0)
             .unwrap();
 
         dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
@@ -796,6 +802,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -803,23 +810,23 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &mut stream);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
     /// let msg = -4i8;
     ///
     /// // Encrypt two messages
     /// let ctxt = cks.encrypt_signed_radix(msg, number_of_blocks);
     ///
-    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &streams);
     ///
     /// // Compute homomorphically trailing zeros
-    /// let mut d_ct_res = sks.trailing_zeros(&d_ctxt, &stream);
+    /// let mut d_ct_res = sks.trailing_zeros(&d_ctxt, &streams);
     ///
     /// // Decrypt
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// let res: u32 = cks.decrypt_radix(&ct_res);
     /// assert_eq!(res, msg.trailing_zeros());
     /// ```
@@ -834,8 +841,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn trailing_zeros_async<T>(
         &self,
         ct: &T,
@@ -868,6 +875,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -875,23 +883,23 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &mut stream);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
     /// let msg = -4i8;
     ///
     /// // Encrypt two messages
     /// let ctxt = cks.encrypt_signed_radix(msg, number_of_blocks);
     ///
-    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &streams);
     ///
     /// // Compute homomorphically trailing ones
-    /// let mut d_ct_res = sks.trailing_ones(&d_ctxt, &stream);
+    /// let mut d_ct_res = sks.trailing_ones(&d_ctxt, &streams);
     ///
     /// // Decrypt
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// let res: u32 = cks.decrypt_radix(&ct_res);
     /// assert_eq!(res, msg.trailing_ones());
     /// ```
@@ -906,8 +914,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn trailing_ones_async<T>(
         &self,
         ct: &T,
@@ -940,6 +948,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -947,23 +956,23 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &mut stream);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
     /// let msg = -4i8;
     ///
     /// // Encrypt two messages
     /// let ctxt = cks.encrypt_signed_radix(msg, number_of_blocks);
     ///
-    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &streams);
     ///
     /// // Compute homomorphically leading zeros
-    /// let mut d_ct_res = sks.leading_zeros(&d_ctxt, &stream);
+    /// let mut d_ct_res = sks.leading_zeros(&d_ctxt, &streams);
     ///
     /// // Decrypt
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// let res: u32 = cks.decrypt_radix(&ct_res);
     /// assert_eq!(res, msg.leading_zeros());
     /// ```
@@ -978,8 +987,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn leading_zeros_async<T>(
         &self,
         ct: &T,
@@ -1012,6 +1021,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -1019,23 +1029,23 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &mut stream);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
     /// let msg = -4i8;
     ///
     /// // Encrypt two messages
     /// let ctxt = cks.encrypt_signed_radix(msg, number_of_blocks);
     ///
-    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &streams);
     ///
     /// // Compute homomorphically leading ones
-    /// let mut d_ct_res = sks.leading_ones(&d_ctxt, &stream);
+    /// let mut d_ct_res = sks.leading_ones(&d_ctxt, &streams);
     ///
     /// // Decrypt
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// let res: u32 = cks.decrypt_radix(&ct_res);
     /// assert_eq!(res, msg.leading_ones());
     /// ```
@@ -1050,8 +1060,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn leading_ones_async<T>(
         &self,
         ct: &T,
@@ -1077,6 +1087,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -1084,23 +1095,23 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &mut stream);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
     /// let msg = 5i8;
     ///
     /// // Encrypt two messages
     /// let ctxt = cks.encrypt_signed_radix(msg, number_of_blocks);
     ///
-    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &streams);
     ///
     /// // Compute homomorphically a log2
-    /// let mut d_ct_res = sks.ilog2(&d_ctxt, &stream);
+    /// let mut d_ct_res = sks.ilog2(&d_ctxt, &streams);
     ///
     /// // Decrypt
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// let res: u32 = cks.decrypt_radix(&ct_res);
     /// assert_eq!(res, msg.ilog2());
     /// ```
@@ -1115,8 +1126,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn ilog2_async<T>(
         &self,
         ct: &T,
@@ -1146,6 +1157,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -1153,25 +1165,25 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &mut stream);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
     /// let msg = 5i8;
     ///
     /// // Encrypt two messages
     /// let ctxt = cks.encrypt_signed_radix(msg, number_of_blocks);
     ///
-    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &streams);
     /// // Compute homomorphically a log2 and a check if input is valid
-    /// let (mut d_ct_res, mut d_is_oks) = sks.checked_ilog2(&d_ctxt, &stream);
+    /// let (mut d_ct_res, mut d_is_oks) = sks.checked_ilog2(&d_ctxt, &streams);
     ///
     /// // Decrypt
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// let res: u32 = cks.decrypt_radix(&ct_res);
     /// assert_eq!(res, msg.ilog2());
-    /// let is_oks = d_is_oks.to_boolean_block(&mut stream);
+    /// let is_oks = d_is_oks.to_boolean_block(&streams);
     /// let is_ok = cks.decrypt_bool(&is_oks);
     /// assert!(is_ok);
     pub fn checked_ilog2<T>(
@@ -1189,8 +1201,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn checked_ilog2_async<T>(
         &self,
         ct: &T,

@@ -14,8 +14,8 @@ use crate::prelude::{CastFrom, CastInto};
 impl CudaServerKey {
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     unsafe fn scalar_mul_high_async<Scalar>(
         &self,
         lhs: &CudaUnsignedRadixCiphertext,
@@ -42,8 +42,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     unsafe fn signed_scalar_mul_high_async<Scalar>(
         &self,
         lhs: &CudaSignedRadixCiphertext,
@@ -70,27 +70,28 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 30;
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar division:
-    /// let d_ct_res = sks.unchecked_scalar_div(&d_ct, scalar, &mut streams);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let d_ct_res = sks.unchecked_scalar_div(&d_ct, scalar, &streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg / scalar, clear);
@@ -111,8 +112,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn unchecked_scalar_div_async<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
@@ -237,27 +238,28 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 30;
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// let d_ct_res = sks.scalar_div(&d_ct, scalar, &mut streams);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let d_ct_res = sks.scalar_div(&d_ct, scalar, &streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg / scalar, clear);
@@ -278,8 +280,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn scalar_div_async<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
@@ -325,8 +327,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn unchecked_scalar_div_rem_async<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
@@ -362,28 +364,29 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 30;
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// let (d_ct_q, d_ct_r) = sks.scalar_div_rem(&d_ct, scalar, &mut streams);
-    /// let ct_q = d_ct_q.to_radix_ciphertext(&mut streams);
-    /// let ct_r = d_ct_r.to_radix_ciphertext(&mut streams);
+    /// let (d_ct_q, d_ct_r) = sks.scalar_div_rem(&d_ct, scalar, &streams);
+    /// let ct_q = d_ct_q.to_radix_ciphertext(&streams);
+    /// let ct_r = d_ct_r.to_radix_ciphertext(&streams);
     ///
     /// let quotient: u64 = cks.decrypt(&ct_q);
     /// let remainder: u64 = cks.decrypt(&ct_r);
@@ -406,8 +409,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn scalar_div_rem_async<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
@@ -445,8 +448,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn unchecked_scalar_rem_async<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
@@ -475,27 +478,28 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 30;
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// let d_ct_res = sks.scalar_rem(&d_ct, scalar, &mut streams);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
+    /// let d_ct_res = sks.scalar_rem(&d_ct, scalar, &streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg % scalar, clear);
@@ -516,8 +520,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn scalar_rem_async<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
@@ -556,8 +560,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn unchecked_signed_scalar_div_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
@@ -712,27 +716,28 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 30;
     /// let scalar = -3;
     ///
     /// let ct = cks.encrypt_signed(msg);
-    /// let mut d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &mut streams);
+    /// let mut d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar division:
-    /// let d_ct_res = sks.signed_scalar_div(&d_ct, scalar, &mut streams);
-    /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&mut streams);
+    /// let d_ct_res = sks.signed_scalar_div(&d_ct, scalar, &streams);
+    /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
     ///
     /// let clear: i64 = cks.decrypt_signed(&ct_res);
     /// assert_eq!(msg / scalar, clear);
@@ -754,8 +759,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn signed_scalar_div_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
@@ -796,8 +801,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn unchecked_signed_scalar_div_rem_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
@@ -826,28 +831,29 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 30;
     /// let scalar = -3;
     ///
     /// let ct = cks.encrypt_signed(msg);
-    /// let mut d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &mut streams);
+    /// let mut d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar division:
-    /// let (d_ct_q, d_ct_r) = sks.signed_scalar_div_rem(&d_ct, scalar, &mut streams);
-    /// let ct_q = d_ct_q.to_signed_radix_ciphertext(&mut streams);
-    /// let ct_r = d_ct_r.to_signed_radix_ciphertext(&mut streams);
+    /// let (d_ct_q, d_ct_r) = sks.signed_scalar_div_rem(&d_ct, scalar, &streams);
+    /// let ct_q = d_ct_q.to_signed_radix_ciphertext(&streams);
+    /// let ct_r = d_ct_r.to_signed_radix_ciphertext(&streams);
     ///
     /// let quotient: i64 = cks.decrypt_signed(&ct_q);
     /// let remainder: i64 = cks.decrypt_signed(&ct_r);
@@ -871,8 +877,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn signed_scalar_div_rem_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
@@ -914,8 +920,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn unchecked_signed_scalar_rem_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
@@ -940,27 +946,28 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
     ///
     /// let msg = 30;
     /// let scalar = -3;
     ///
     /// let ct = cks.encrypt_signed(msg);
-    /// let mut d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &mut streams);
+    /// let mut d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// let d_ct_res = sks.signed_scalar_rem(&d_ct, scalar, &mut streams);
-    /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&mut streams);
+    /// let d_ct_res = sks.signed_scalar_rem(&d_ct, scalar, &streams);
+    /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
     ///
     /// let clear: i64 = cks.decrypt_signed(&ct_res);
     /// assert_eq!(msg % scalar, clear);
@@ -982,8 +989,8 @@ impl CudaServerKey {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronized
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
     pub unsafe fn signed_scalar_rem_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,

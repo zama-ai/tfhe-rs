@@ -20,56 +20,62 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, num_blocks, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, num_blocks, &streams);
     ///
     /// let msg = 40;
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically an addition:
-    /// let d_ct_res = sks.unchecked_scalar_sub(&d_ct, scalar, &mut stream);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let d_ct_res = sks.unchecked_scalar_sub(&d_ct, scalar, &streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn unchecked_scalar_sub<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
+    pub fn unchecked_scalar_sub<Scalar, T>(
+        &self,
+        ct: &T,
+        scalar: Scalar,
+        streams: &CudaStreams,
+    ) -> T
     where
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(stream) };
-        self.unchecked_scalar_sub_assign(&mut result, scalar, stream);
+        let mut result = unsafe { ct.duplicate_async(streams) };
+        self.unchecked_scalar_sub_assign(&mut result, scalar, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_scalar_sub_assign_async<Scalar, T>(
         &self,
         ct: &mut T,
         scalar: Scalar,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let negated_scalar = scalar.twos_complement_negation();
-        self.unchecked_scalar_add_assign_async(ct, negated_scalar, stream);
+        self.unchecked_scalar_add_assign_async(ct, negated_scalar, streams);
         ct.as_mut().info = ct.as_ref().info.after_scalar_sub(scalar);
     }
 
@@ -77,15 +83,15 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         scalar: Scalar,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         unsafe {
-            self.unchecked_scalar_sub_assign_async(ct, scalar, stream);
+            self.unchecked_scalar_sub_assign_async(ct, scalar, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically a subtraction between a ciphertext and a scalar.
@@ -99,81 +105,83 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, num_blocks, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, num_blocks, &streams);
     ///
     /// let msg = 40;
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically an addition:
-    /// let d_ct_res = sks.scalar_sub(&d_ct, scalar, &mut stream);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let d_ct_res = sks.scalar_sub(&d_ct, scalar, &streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn scalar_sub<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
+    pub fn scalar_sub<Scalar, T>(&self, ct: &T, scalar: Scalar, streams: &CudaStreams) -> T
     where
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(stream) };
-        self.scalar_sub_assign(&mut result, scalar, stream);
+        let mut result = unsafe { ct.duplicate_async(streams) };
+        self.scalar_sub_assign(&mut result, scalar, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn scalar_sub_assign_async<Scalar, T>(
         &self,
         ct: &mut T,
         scalar: Scalar,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, stream);
+            self.full_propagate_assign_async(ct, streams);
         };
 
-        self.unchecked_scalar_sub_assign_async(ct, scalar, stream);
-        let _carry = self.propagate_single_carry_assign_async(ct, stream, None, OutputFlag::None);
+        self.unchecked_scalar_sub_assign_async(ct, scalar, streams);
+        let _carry = self.propagate_single_carry_assign_async(ct, streams, None, OutputFlag::None);
     }
 
-    pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStreams)
+    pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
     where
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         unsafe {
-            self.scalar_sub_assign_async(ct, scalar, stream);
+            self.scalar_sub_assign_async(ct, scalar, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;

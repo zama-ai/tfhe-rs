@@ -91,24 +91,23 @@ impl CudaCompressionKey {
 
         let lwe_ciphertext_count = LweCiphertextCount(total_num_blocks);
 
-        let gpu_index = streams.gpu_indexes[0];
         let mut d_vec = CudaVec::new_async(
             lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
             streams,
-            gpu_index,
+            0,
         );
         let mut offset: usize = 0;
         for ciphertext in vec_ciphertexts {
             let dest_ptr = d_vec
-                .as_mut_c_ptr(gpu_index)
+                .as_mut_c_ptr(0)
                 .add(offset * std::mem::size_of::<u64>());
             let size = ciphertext.d_blocks.0.d_vec.len * std::mem::size_of::<u64>();
             cuda_memcpy_async_gpu_to_gpu(
                 dest_ptr,
-                ciphertext.d_blocks.0.d_vec.as_c_ptr(gpu_index),
+                ciphertext.d_blocks.0.d_vec.as_c_ptr(0),
                 size as u64,
-                streams.ptr[gpu_index as usize],
-                streams.gpu_indexes[gpu_index as usize],
+                streams.ptr[0],
+                streams.gpu_indexes[0].0,
             );
 
             offset += ciphertext.d_blocks.0.d_vec.len;
