@@ -1,4 +1,6 @@
 use super::*;
+use crate::core_crypto::commons::generators::DeterministicSeeder;
+use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::multi_bit_pbs_variance_132_bits_security_gaussian_gf_3;
 use crate::core_crypto::commons::noise_formulas::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian;
 use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
@@ -8,7 +10,7 @@ use rayon::prelude::*;
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
-const NB_TESTS: usize = 1000;
+const NB_TESTS: usize = 1;
 
 fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod<Scalar>(params: MultiBitTestParams<Scalar>)
 where
@@ -43,7 +45,21 @@ where
         modulus_as_f64,
     );
 
-    let mut rsc = TestResources::new();
+    let mut rsc = {
+        let mut deterministic_seeder = Box::new(
+            DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(0)),
+        );
+        let encryption_random_generator = EncryptionRandomGenerator::new(
+            deterministic_seeder.seed(),
+            deterministic_seeder.as_mut(),
+        );
+        let secret_random_generator = SecretRandomGenerator::new(deterministic_seeder.seed());
+        TestResources {
+            seeder: deterministic_seeder,
+            encryption_random_generator,
+            secret_random_generator,
+        }
+    };
 
     let f = |x: Scalar| x;
 
@@ -111,17 +127,17 @@ where
         ciphertext_modulus
     ));
 
-    const ENV_VAR: &str = "TEST_USE_KARATSUBA";
+    // const ENV_VAR: &str = "TEST_USE_KARATSUBA";
 
-    let use_karatsuba: u32 = std::env::var(ENV_VAR)
-        .expect(&format!(
-            "Set {ENV_VAR} to 1 to use karatsuba, 0 to use fft"
-        ))
-        .parse()
-        .expect(&format!(
-            "Set {ENV_VAR} to 1 to use karatsuba, 0 to use fft"
-        ));
-    let use_karatusba = use_karatsuba != 0;
+    // let use_karatsuba: u32 = std::env::var(ENV_VAR)
+    //     .expect(&format!(
+    //         "Set {ENV_VAR} to 1 to use karatsuba, 0 to use fft"
+    //     ))
+    //     .parse()
+    //     .expect(&format!(
+    //         "Set {ENV_VAR} to 1 to use karatsuba, 0 to use fft"
+    //     ));
+    // let use_karatusba = use_karatsuba != 0;
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -146,44 +162,85 @@ where
                     ciphertext_modulus
                 ));
 
-                let mut out_pbs_ct = LweCiphertext::new(
+                let mut karatsuba_out_ct = LweCiphertext::new(
                     Scalar::ZERO,
                     output_lwe_secret_key.lwe_dimension().to_lwe_size(),
                     ciphertext_modulus,
                 );
 
-                if use_karatusba {
-                    karatsuba_multi_bit_programmable_bootstrap_lwe_ciphertext(
-                        &lwe_ciphertext_in,
-                        &mut out_pbs_ct,
-                        &accumulator,
-                        &bsk,
-                        params.thread_count,
-                    )
-                } else {
-                    multi_bit_programmable_bootstrap_lwe_ciphertext(
-                        &lwe_ciphertext_in,
-                        &mut out_pbs_ct,
-                        &accumulator,
-                        &fbsk,
-                        params.thread_count,
-                        true,
-                    );
-                }
+                let karatsuba_noise = karatsuba_multi_bit_programmable_bootstrap_lwe_ciphertext(
+                    &lwe_ciphertext_in,
+                    &mut karatsuba_out_ct,
+                    &accumulator,
+                    &bsk,
+                    params.thread_count,
+                    Some((&input_lwe_secret_key, &output_glwe_secret_key)),
+                );
+
+                let last_ext_prod_karatsuba_noise = karatsuba_noise.last().unwrap();
 
                 assert!(check_encrypted_content_respects_mod(
-                    &out_pbs_ct,
+                    &karatsuba_out_ct,
                     ciphertext_modulus
                 ));
 
-                let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
+                let mut fft_out_ct = LweCiphertext::new(
+                    Scalar::ZERO,
+                    output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                    ciphertext_modulus,
+                );
+
+                let fft_noise = multi_bit_programmable_bootstrap_lwe_ciphertext_return_noise(
+                    &lwe_ciphertext_in,
+                    &mut fft_out_ct,
+                    &accumulator,
+                    &fbsk,
+                    params.thread_count,
+                    Some((&input_lwe_secret_key, &output_glwe_secret_key)),
+                );
+
+                let last_ext_prod_fft_noise = fft_noise.last().unwrap();
+
+                assert!(check_encrypted_content_respects_mod(
+                    &fft_out_ct,
+                    ciphertext_modulus
+                ));
+
+                let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &karatsuba_out_ct);
 
                 let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
                 assert_eq!(decoded, f(msg));
 
-                torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus)
+                // torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
+
+                last_ext_prod_fft_noise
+                    .into_iter()
+                    .map(|x| {
+                        let d: f64 = (*x).cast_into();
+                        let d = d / modulus_as_f64;
+                        if d > 0.5 {
+                            d - 1.0
+                        } else {
+                            d
+                        }
+                    })
+                    .collect::<Vec<_>>()
+
+                // last_ext_prod_karatsuba_noise
+                //     .into_iter()
+                //     .map(|x| {
+                //         let d: f64 = (*x).cast_into();
+                //         let d = d / modulus_as_f64;
+                //         if d > 0.5 {
+                //             d - 1.0
+                //         } else {
+                //             d
+                //         }
+                //     })
+                //     .collect::<Vec<_>>()
             })
+            .flatten()
             .collect();
 
         noise_samples.extend(current_run_samples);

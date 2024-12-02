@@ -1,6 +1,8 @@
-use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
+use crate::core_crypto::algorithms::{
+    decrypt_glwe_ciphertext, extract_lwe_sample_from_glwe_ciphertext,
+};
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::*;
@@ -822,6 +824,303 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
     });
 }
 
+/// Deterministic version of [`multi_bit_blind_rotate_assign`].
+pub fn multi_bit_deterministic_blind_rotate_assign_return_noise<Scalar, OutputCont, KeyCont>(
+    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
+    accumulator: &mut GlweCiphertext<OutputCont>,
+    multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
+    thread_count: ThreadCount,
+    debug_material: Option<(&LweSecretKeyOwned<Scalar>, &GlweSecretKeyOwned<Scalar>)>,
+) -> Vec<Vec<Scalar>>
+where
+    Scalar: UnsignedTorus + Sync + CastInto<usize>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    KeyCont: Container<Element = c64> + Sync,
+{
+    assert_eq!(
+        switched_modulus_input.lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
+        switched_modulus_input.lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+    );
+
+    assert_eq!(
+        accumulator.glwe_size(),
+        multi_bit_bsk.glwe_size(),
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
+        FourierLweMultiBitBootstrapKey GlweSize {:?}.",
+        accumulator.glwe_size(),
+        multi_bit_bsk.glwe_size(),
+    );
+
+    assert_eq!(
+        accumulator.polynomial_size(),
+        multi_bit_bsk.polynomial_size(),
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
+        accumulator.polynomial_size(),
+        multi_bit_bsk.polynomial_size(),
+    );
+
+    assert!(
+        thread_count.0 != 0,
+        "Got thread_count == 0, this is not supported"
+    );
+
+    assert!(
+        accumulator
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "Multi bit PBS does not support non power of two ciphertext modulus"
+    );
+
+    // No way to chunk the result of ggsw_iter at the moment
+    let ggsw_vec: Vec<_> = multi_bit_bsk.ggsw_iter().collect();
+
+    let grouping_factor = multi_bit_bsk.grouping_factor();
+    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+
+    let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
+
+    assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
+    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
+
+    let mut noise_vec = vec![];
+
+    let mut clear_accumulator =
+        Polynomial::from_container(accumulator.get_body().as_ref().to_vec());
+
+    accumulator
+        .as_mut_polynomial_list()
+        .iter_mut()
+        .for_each(|mut poly| {
+            polynomial_wrapping_monic_monomial_div_assign(
+                &mut poly,
+                MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
+            );
+        });
+
+    // Apply the same computation on the clear polynomial
+    polynomial_wrapping_monic_monomial_div_assign(
+        &mut clear_accumulator,
+        MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
+    );
+
+    let fourier_multi_bit_ggsw_buffers: Vec<_> = (0..thread_count.0)
+        .map(|_| {
+            (
+                Mutex::new(false),
+                Condvar::new(),
+                Mutex::new(FourierGgswCiphertext::new(
+                    multi_bit_bsk.glwe_size(),
+                    multi_bit_bsk.polynomial_size(),
+                    multi_bit_bsk.decomposition_base_log(),
+                    multi_bit_bsk.decomposition_level_count(),
+                )),
+            )
+        })
+        .collect();
+    let fft = Fft::new(multi_bit_bsk.polynomial_size());
+    let fft = fft.as_view();
+
+    thread::scope(|s| {
+        let produce_multi_bit_fourier_ggsw = |thread_id| {
+            let mut fourier_a_monomial = FourierPolynomial::new(multi_bit_bsk.polynomial_size());
+
+            let dest_idx = thread_id;
+
+            #[allow(clippy::type_complexity)]
+            let (ready_for_consumer_lock, condvar, fourier_ggsw_buffer): &(
+                Mutex<bool>,
+                Condvar,
+                Mutex<FourierGgswCiphertext<ABox<[c64]>>>,
+            ) = &fourier_multi_bit_ggsw_buffers[dest_idx];
+
+            for work_index in (0..max_work_index).skip(thread_id).step_by(thread_count.0) {
+                let switched_degrees =
+                    switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
+
+                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
+                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
+
+                let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
+
+                // Wait while the buffer is not ready for processing and wait on the condvar
+                // to get notified when we can start processing again
+                while *ready_for_consumer {
+                    ready_for_consumer = condvar.wait(ready_for_consumer).unwrap();
+                }
+
+                let mut fourier_ggsw_buffer = fourier_ggsw_buffer.lock().unwrap();
+
+                prepare_multi_bit_ggsw_mem_optimized(
+                    &mut fourier_ggsw_buffer,
+                    ggsw_group,
+                    switched_degrees,
+                    &mut fourier_a_monomial,
+                    fft,
+                );
+
+                // Drop the lock before we wake other threads
+                drop(fourier_ggsw_buffer);
+
+                *ready_for_consumer = true;
+
+                // Wake threads waiting on the condvar
+                condvar.notify_all();
+            }
+        };
+
+        // false positive as the mapping function has side effects (thread spawning)
+        #[allow(clippy::needless_collect)]
+        let threads: Vec<_> = (0..thread_count.0)
+            .map(|idx| s.spawn(move || produce_multi_bit_fourier_ggsw(idx)))
+            .collect();
+
+        // We initialize ct0 for the successive external products
+        let ct0 = accumulator;
+        let mut ct1 = GlweCiphertext::new(
+            Scalar::ZERO,
+            ct0.glwe_size(),
+            ct0.polynomial_size(),
+            ct0.ciphertext_modulus(),
+        );
+        let ct1 = &mut ct1;
+
+        let mut buffers = ComputationBuffers::new();
+
+        buffers.resize(
+            add_external_product_assign_scratch::<Scalar>(
+                multi_bit_bsk.glwe_size(),
+                multi_bit_bsk.polynomial_size(),
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+
+        let mut src_idx = 1usize;
+
+        for (loop_idx, (ready_lock, condvar, multi_bit_fourier_ggsw)) in
+            fourier_multi_bit_ggsw_buffers
+                .iter()
+                .cycle()
+                .take(multi_bit_bsk.multi_bit_input_lwe_dimension().0)
+                .enumerate()
+        {
+            src_idx ^= 1;
+
+            let (src_ct, mut dst_ct) = if src_idx == 0 {
+                (ct0.as_view(), ct1.as_mut_view())
+            } else {
+                (ct1.as_view(), ct0.as_mut_view())
+            };
+
+            dst_ct.as_mut().fill(Scalar::ZERO);
+
+            let mut ready = ready_lock.lock().unwrap();
+
+            while !*ready {
+                ready = condvar.wait(ready).unwrap();
+            }
+
+            let multi_bit_fourier_ggsw = multi_bit_fourier_ggsw.lock().unwrap();
+
+            add_external_product_assign(
+                dst_ct.as_mut_view(),
+                multi_bit_fourier_ggsw.as_view(),
+                src_ct,
+                fft,
+                buffers.stack(),
+            );
+
+            *ready = false;
+
+            // Wake a single producer thread sleeping on the condvar (only one will get to work
+            // anyways)
+            condvar.notify_one();
+
+            if let Some((lwe_secret_key, glwe_secret_key)) = &debug_material {
+                // Now do the computation on the clear data to compute the noise
+                let mask_start_idx = loop_idx * grouping_factor.0;
+                let mask_stop_idx = mask_start_idx + grouping_factor.0;
+
+                let lwe_key_bits = &lwe_secret_key.as_ref()[mask_start_idx..mask_stop_idx];
+                let mod_switched_array: Vec<_> = switched_modulus_input
+                    .switched_modulus_input_mask_per_group(loop_idx)
+                    .collect();
+                let selector = {
+                    let mut selector = 0usize;
+                    for bit in lwe_key_bits.iter() {
+                        let bit: usize = (*bit).cast_into();
+                        selector <<= 1;
+                        selector |= bit;
+                    }
+                    if selector == 0 {
+                        None
+                    } else {
+                        Some(selector - 1)
+                    }
+                };
+                if let Some(selector) = selector {
+                    let mod_switched = mod_switched_array[selector];
+                    polynomial_wrapping_monic_monomial_mul_assign(
+                        &mut clear_accumulator,
+                        MonomialDegree(mod_switched),
+                    );
+                }
+
+                let mut decrypted =
+                    PlaintextList::new(Scalar::ZERO, PlaintextCount(dst_ct.polynomial_size().0));
+
+                decrypt_glwe_ciphertext(glwe_secret_key, &dst_ct, &mut decrypted);
+
+                // println!("decrypted={:?}", decrypted.as_ref());
+                // println!("clear_accumulator={:?}", clear_accumulator.as_ref());
+
+                let diff_to_clear: Vec<_> = decrypted
+                    .as_ref()
+                    .iter()
+                    .copied()
+                    .zip(clear_accumulator.as_ref().iter().copied())
+                    .map(|(dec, clear)| dec.wrapping_sub(clear))
+                    .collect();
+
+                // println!("diff_to_clear={:?}", &diff_to_clear);
+
+                // assert!(diff_to_clear.iter().copied().all(|x| x == Scalar::ZERO));
+
+                noise_vec.push(diff_to_clear);
+            }
+        }
+
+        if src_idx == 0 {
+            ct0.as_mut().copy_from_slice(ct1.as_ref());
+        }
+
+        let ciphertext_modulus = ct0.ciphertext_modulus();
+        if !ciphertext_modulus.is_native_modulus() {
+            // When we convert back from the fourier domain, integer values will contain up to 53
+            // MSBs with information. In our representation of power of 2 moduli < native modulus we
+            // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+            // round while keeping the data in the MSBs
+            let signed_decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
+                DecompositionLevelCount(1),
+            );
+            ct0.as_mut()
+                .iter_mut()
+                .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+        }
+
+        threads.into_iter().for_each(|t| t.join().unwrap());
+    });
+
+    noise_vec
+}
+
 /// Perform a programmable bootstrap with given an input [`LWE ciphertext`](`LweCiphertext`), a
 /// look-up table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE multi-bit bootstrap
 /// key`](`LweMultiBitBootstrapKey`) in the fourier domain. The result is written in the provided
@@ -1078,6 +1377,119 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
     );
 
     extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
+}
+
+pub fn multi_bit_programmable_bootstrap_lwe_ciphertext_return_noise<
+    Scalar,
+    InputCont,
+    OutputCont,
+    AccCont,
+    KeyCont,
+>(
+    input: &LweCiphertext<InputCont>,
+    output: &mut LweCiphertext<OutputCont>,
+    accumulator: &GlweCiphertext<AccCont>,
+    multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
+    thread_count: ThreadCount,
+    debug_material: Option<(&LweSecretKeyOwned<Scalar>, &GlweSecretKeyOwned<Scalar>)>,
+) -> Vec<Vec<Scalar>>
+where
+    // CastInto required for PBS modulus switch which returns a usize
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    AccCont: Container<Element = Scalar>,
+    KeyCont: Container<Element = c64> + Sync,
+{
+    assert_eq!(
+        input.lwe_size().to_lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
+        input.lwe_size().to_lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+    );
+
+    assert_eq!(
+        output.lwe_size().to_lwe_dimension(),
+        multi_bit_bsk.output_lwe_dimension(),
+        "Mismatched output LweDimension. LweCiphertext output LweDimension {:?}. \
+        FourierLweMultiBitBootstrapKey output LweDimension {:?}.",
+        output.lwe_size().to_lwe_dimension(),
+        multi_bit_bsk.output_lwe_dimension(),
+    );
+
+    assert_eq!(
+        accumulator.glwe_size(),
+        multi_bit_bsk.glwe_size(),
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
+        FourierLweMultiBitBootstrapKey GlweSize {:?}.",
+        accumulator.glwe_size(),
+        multi_bit_bsk.glwe_size(),
+    );
+
+    assert_eq!(
+        accumulator.polynomial_size(),
+        multi_bit_bsk.polynomial_size(),
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
+        accumulator.polynomial_size(),
+        multi_bit_bsk.polynomial_size(),
+    );
+
+    assert_eq!(
+        input.ciphertext_modulus(),
+        output.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
+        input.ciphertext_modulus(),
+        output.ciphertext_modulus(),
+    );
+
+    assert_eq!(
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+    );
+
+    assert!(
+        thread_count.0 != 0,
+        "Got thread_count == 0, this is not supported"
+    );
+
+    let mut local_accumulator = GlweCiphertext::new(
+        Scalar::ZERO,
+        accumulator.glwe_size(),
+        accumulator.polynomial_size(),
+        accumulator.ciphertext_modulus(),
+    );
+    local_accumulator
+        .as_mut()
+        .copy_from_slice(accumulator.as_ref());
+
+    let grouping_factor = multi_bit_bsk.grouping_factor();
+
+    let lut_poly_size = accumulator.polynomial_size();
+
+    let multi_bitmodulus_switched_ct = StandardMultiBitModulusSwitchedCt {
+        input: &input.as_view(),
+        grouping_factor,
+        log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
+    };
+
+    let noise_after_each_external_product =
+        multi_bit_deterministic_blind_rotate_assign_return_noise(
+            &multi_bitmodulus_switched_ct,
+            &mut local_accumulator,
+            multi_bit_bsk,
+            thread_count,
+            debug_material,
+        );
+
+    extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
+
+    noise_after_each_external_product
 }
 
 pub fn std_prepare_multi_bit_ggsw<Scalar, GgswBufferCont, TmpGgswBufferCont, GgswGroupCont>(
@@ -1805,7 +2217,9 @@ pub fn karatsuba_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
-) where
+    debug_material: Option<(&LweSecretKeyOwned<Scalar>, &GlweSecretKeyOwned<Scalar>)>,
+) -> Vec<Vec<Scalar>>
+where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -1869,6 +2283,11 @@ pub fn karatsuba_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
     assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
     let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
 
+    let mut noise_vec = vec![];
+
+    let mut clear_accumulator =
+        Polynomial::from_container(accumulator.get_body().as_ref().to_vec());
+
     accumulator
         .as_mut_polynomial_list()
         .iter_mut()
@@ -1878,6 +2297,12 @@ pub fn karatsuba_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
                 MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
             );
         });
+
+    // Apply the same computation on the clear polynomial
+    polynomial_wrapping_monic_monomial_div_assign(
+        &mut clear_accumulator,
+        MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
+    );
 
     let multi_bit_ggsw_buffers: Vec<_> = (0..thread_count.0)
         .map(|_| {
@@ -1999,10 +2424,11 @@ pub fn karatsuba_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
 
         let mut src_idx = 1usize;
 
-        for (ready_lock, condvar, multi_bit_ggsw) in multi_bit_ggsw_buffers
+        for (loop_idx, (ready_lock, condvar, multi_bit_ggsw)) in multi_bit_ggsw_buffers
             .iter()
             .cycle()
             .take(multi_bit_bsk.multi_bit_input_lwe_dimension().0)
+            .enumerate()
         {
             src_idx ^= 1;
 
@@ -2023,7 +2449,7 @@ pub fn karatsuba_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
             let multi_bit_ggsw = multi_bit_ggsw.lock().unwrap();
 
             karatsuba_add_external_product_assign(
-                dst_ct,
+                dst_ct.as_mut_view(),
                 multi_bit_ggsw.as_view(),
                 src_ct,
                 buffers.stack(),
@@ -2034,6 +2460,59 @@ pub fn karatsuba_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
             // Wake a single producer thread sleeping on the condvar (only one will get to work
             // anyways)
             condvar.notify_one();
+
+            if let Some((lwe_secret_key, glwe_secret_key)) = &debug_material {
+                // Now do the computation on the clear data to compute the noise
+                let mask_start_idx = loop_idx * grouping_factor.0;
+                let mask_stop_idx = mask_start_idx + grouping_factor.0;
+
+                let lwe_key_bits = &lwe_secret_key.as_ref()[mask_start_idx..mask_stop_idx];
+                let mod_switched_array: Vec<_> = switched_modulus_input
+                    .switched_modulus_input_mask_per_group(loop_idx)
+                    .collect();
+                let selector = {
+                    let mut selector = 0usize;
+                    for bit in lwe_key_bits.iter() {
+                        let bit: usize = (*bit).cast_into();
+                        selector <<= 1;
+                        selector |= bit;
+                    }
+                    if selector == 0 {
+                        None
+                    } else {
+                        Some(selector - 1)
+                    }
+                };
+                if let Some(selector) = selector {
+                    let mod_switched = mod_switched_array[selector];
+                    polynomial_wrapping_monic_monomial_mul_assign(
+                        &mut clear_accumulator,
+                        MonomialDegree(mod_switched),
+                    );
+                }
+
+                let mut decrypted =
+                    PlaintextList::new(Scalar::ZERO, PlaintextCount(dst_ct.polynomial_size().0));
+
+                decrypt_glwe_ciphertext(glwe_secret_key, &dst_ct, &mut decrypted);
+
+                // println!("decrypted={:?}", decrypted.as_ref());
+                // println!("clear_accumulator={:?}", clear_accumulator.as_ref());
+
+                let diff_to_clear: Vec<_> = decrypted
+                    .as_ref()
+                    .iter()
+                    .copied()
+                    .zip(clear_accumulator.as_ref().iter().copied())
+                    .map(|(dec, clear)| dec.wrapping_sub(clear))
+                    .collect();
+
+                // println!("diff_to_clear={:?}", &diff_to_clear);
+
+                // assert!(diff_to_clear.iter().copied().all(|x| x == Scalar::ZERO));
+
+                noise_vec.push(diff_to_clear);
+            }
         }
 
         if src_idx == 0 {
@@ -2057,6 +2536,8 @@ pub fn karatsuba_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
 
         threads.into_iter().for_each(|t| t.join().unwrap());
     });
+
+    noise_vec
 }
 
 pub fn karatsuba_multi_bit_programmable_bootstrap_lwe_ciphertext<
@@ -2071,7 +2552,9 @@ pub fn karatsuba_multi_bit_programmable_bootstrap_lwe_ciphertext<
     accumulator: &GlweCiphertext<AccCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
-) where
+    debug_material: Option<(&LweSecretKeyOwned<Scalar>, &GlweSecretKeyOwned<Scalar>)>,
+) -> Vec<Vec<Scalar>>
+where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync + Send,
     InputCont: Container<Element = Scalar> + Sync,
@@ -2156,12 +2639,15 @@ pub fn karatsuba_multi_bit_programmable_bootstrap_lwe_ciphertext<
         log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
     };
 
-    karatsuba_deterministic_blind_rotate_assign(
+    let noise_after_each_external_product = karatsuba_deterministic_blind_rotate_assign(
         &multi_bitmodulus_switched_ct,
         &mut local_accumulator,
         multi_bit_bsk,
         thread_count,
+        debug_material,
     );
 
     extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
+
+    noise_after_each_external_product
 }
