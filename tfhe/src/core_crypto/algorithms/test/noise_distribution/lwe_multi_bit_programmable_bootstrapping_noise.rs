@@ -4,7 +4,9 @@ use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::multi_bit_pbs_variance_132_bits_security_gaussian_gf_3;
 use crate::core_crypto::commons::noise_formulas::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian;
 use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
+use npyz::{DType, WriterBuilder};
 use rayon::prelude::*;
+use std::fs::OpenOptions;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
@@ -12,16 +14,14 @@ const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 const NB_TESTS: usize = 1;
 
-fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod<Scalar>(params: MultiBitTestParams<Scalar>)
-where
-    Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize>,
-{
+fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestParams<u64>) {
+    type Scalar = u64;
     let input_lwe_dimension = params.input_lwe_dimension;
     let lwe_noise_distribution = params.lwe_noise_distribution;
     let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
-    let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
+    let msg_modulus = Scalar::ONE << message_modulus_log.0;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
@@ -144,7 +144,7 @@ where
 
         let current_run_samples: Vec<_> = (0..NB_TESTS)
             .into_par_iter()
-            .map(|_| {
+            .map(|thread_id| {
                 let mut rsc = TestResources::new();
 
                 let plaintext = Plaintext(msg * delta);
@@ -177,6 +177,33 @@ where
                     Some((&input_lwe_secret_key, &output_glwe_secret_key)),
                 );
 
+                let filename = format!("./karatsuba_noise_thread_{thread_id}_input_msg_{msg}.npy");
+
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .open(&filename)
+                    .unwrap();
+
+                let mut writer = {
+                    npyz::WriteOptions::new()
+                        // 8 == number of bytes
+                        .dtype(DType::new_scalar("<u8".parse().unwrap()))
+                        .shape(&[
+                            karatsuba_noise.len() as u64,
+                            karatsuba_noise[0].len() as u64,
+                        ])
+                        .writer(&mut file)
+                        .begin_nd()
+                        .unwrap()
+                };
+
+                for row in karatsuba_noise.iter() {
+                    for col in row.iter() {
+                        writer.push(col).unwrap();
+                    }
+                }
+
                 let last_ext_prod_karatsuba_noise = karatsuba_noise.last().unwrap();
 
                 assert!(check_encrypted_content_respects_mod(
@@ -199,6 +226,30 @@ where
                     Some((&input_lwe_secret_key, &output_glwe_secret_key)),
                 );
 
+                let filename = format!("./fft_noise_thread_{thread_id}_input_msg_{msg}.npy");
+
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .open(&filename)
+                    .unwrap();
+
+                let mut writer = {
+                    npyz::WriteOptions::new()
+                        // 8 == number of bytes
+                        .dtype(DType::new_scalar("<u8".parse().unwrap()))
+                        .shape(&[fft_noise.len() as u64, fft_noise[0].len() as u64])
+                        .writer(&mut file)
+                        .begin_nd()
+                        .unwrap()
+                };
+
+                for row in fft_noise.iter() {
+                    for col in row.iter() {
+                        writer.push(col).unwrap();
+                    }
+                }
+
                 let last_ext_prod_fft_noise = fft_noise.last().unwrap();
 
                 assert!(check_encrypted_content_respects_mod(
@@ -213,6 +264,8 @@ where
                 assert_eq!(decoded, f(msg));
 
                 // torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
+
+                println!("{last_ext_prod_fft_noise:?}");
 
                 last_ext_prod_fft_noise
                     .into_iter()
@@ -285,6 +338,10 @@ where
     }
 }
 
-create_parametrized_test!(lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod {
-    NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN
-});
+#[test]
+fn test_lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod_noise_test_params_multi_bit_group_3_4_bits_native_u64_132_bits_gaussian(
+) {
+    lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(
+        NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN,
+    )
+}
