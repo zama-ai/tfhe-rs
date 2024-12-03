@@ -347,4 +347,6 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(bench)',
     'cfg(tarpaulin)',
     'cfg(tfhe_lints)',
+    # This is a bug/unwanted behavior from wasm_bindgen macro, for now warn instead of erroring
+    'cfg(wasm_bindgen_unstable_test_coverage)',
 ] }
