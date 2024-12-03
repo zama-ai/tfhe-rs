@@ -25,7 +25,7 @@ impl Gaussian<f64> {
 
     pub fn from_dispersion_parameter(dispersion: impl DispersionParameter, mean: f64) -> Self {
         Self {
-            std: dispersion.get_standard_dev(),
+            std: dispersion.get_standard_dev().0,
             mean,
         }
     }

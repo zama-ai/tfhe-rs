@@ -19,7 +19,7 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
 
-    let expected_variance = Variance(lwe_noise_distribution.gaussian_std_dev().get_variance());
+    let expected_variance = lwe_noise_distribution.gaussian_std_dev().get_variance();
 
     let mut rsc = TestResources::new();
 
@@ -93,7 +93,7 @@ fn lwe_compact_public_key_encryption_expected_variance(
     lwe_dimension: LweDimension,
 ) -> Variance {
     let input_variance = input_noise.get_variance();
-    Variance(input_variance * (lwe_dimension.to_lwe_size().0 as f64))
+    Variance(input_variance.0 * (lwe_dimension.to_lwe_size().0 as f64))
 }
 
 #[test]
@@ -104,7 +104,8 @@ fn test_variance_increase_cpk_formula() {
     );
 
     assert!(
-        (predicted_variance.get_standard_dev().log2() - 44.000704097196405f64).abs() < f64::EPSILON
+        (predicted_variance.get_standard_dev().0.log2() - 44.000704097196405f64).abs()
+            < f64::EPSILON
     );
 }
 
@@ -119,7 +120,7 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
 
-    let glwe_variance = Variance(glwe_noise_distribution.gaussian_std_dev().get_variance());
+    let glwe_variance = glwe_noise_distribution.gaussian_std_dev().get_variance();
 
     let expected_variance =
         lwe_compact_public_key_encryption_expected_variance(glwe_variance, lwe_dimension);
@@ -208,7 +209,7 @@ fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(
 
     assert!(matches!(noise, DynamicDistribution::Gaussian(_)));
 
-    let expected_variance = Variance(noise.gaussian_std_dev().get_variance());
+    let expected_variance = noise.gaussian_std_dev().get_variance();
 
     let num_outputs = 100_000;
 
