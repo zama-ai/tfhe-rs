@@ -489,11 +489,10 @@ fn test_random_from_distribution_custom_mod<Scalar, D>(
 
         let mut cumulative_sums = vec![0u64; distinct_values];
 
-        let mut curr_sum = bins[0];
-        cumulative_sums[0] = curr_sum;
+        let mut curr_sum = 0;
 
         // Compute the cumulative sums
-        for (bin_count, cum_sum) in bins.iter().zip(cumulative_sums.iter_mut()).skip(1) {
+        for (bin_count, cum_sum) in bins.iter().zip(cumulative_sums.iter_mut()) {
             curr_sum += bin_count;
             *cum_sum = curr_sum;
         }
