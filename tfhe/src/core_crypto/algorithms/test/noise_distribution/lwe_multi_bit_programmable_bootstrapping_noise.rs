@@ -188,7 +188,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                 let mut writer = {
                     npyz::WriteOptions::new()
                         // 8 == number of bytes
-                        .dtype(DType::new_scalar("<u8".parse().unwrap()))
+                        .dtype(DType::new_scalar("<i8".parse().unwrap()))
                         .shape(&[
                             karatsuba_noise.len() as u64,
                             karatsuba_noise[0].len() as u64,
@@ -199,8 +199,8 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                 };
 
                 for row in karatsuba_noise.iter() {
-                    for col in row.iter() {
-                        writer.push(col).unwrap();
+                    for col in row.iter().copied() {
+                        writer.push(&(col as i64)).unwrap();
                     }
                 }
 
@@ -237,7 +237,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                 let mut writer = {
                     npyz::WriteOptions::new()
                         // 8 == number of bytes
-                        .dtype(DType::new_scalar("<u8".parse().unwrap()))
+                        .dtype(DType::new_scalar("<i8".parse().unwrap()))
                         .shape(&[fft_noise.len() as u64, fft_noise[0].len() as u64])
                         .writer(&mut file)
                         .begin_nd()
@@ -245,8 +245,8 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                 };
 
                 for row in fft_noise.iter() {
-                    for col in row.iter() {
-                        writer.push(col).unwrap();
+                    for col in row.iter().copied() {
+                        writer.push(&(col as i64)).unwrap();
                     }
                 }
 
@@ -265,7 +265,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
 
                 // torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
 
-                println!("{last_ext_prod_fft_noise:?}");
+                // println!("{last_ext_prod_fft_noise:?}");
 
                 last_ext_prod_fft_noise
                     .into_iter()
