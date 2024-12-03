@@ -46,12 +46,62 @@ pub mod test_tools {
     use crate::core_crypto::commons::traits::*;
     use tfhe_csprng::seeders::Seed;
 
+    pub fn arithmetic_mean(samples: &[f64]) -> f64 {
+        samples.iter().copied().sum::<f64>() / samples.len() as f64
+    }
+
     pub fn variance(samples: &[f64]) -> Variance {
         let num_samples = samples.len();
-        let mean = samples.iter().sum::<f64>() / (num_samples as f64);
+        let mean = arithmetic_mean(samples);
         Variance(
             samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / ((num_samples - 1) as f64),
         )
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct VarianceConfidenceInterval {
+        lower_bound: Variance,
+        upper_bound: Variance,
+    }
+
+    impl VarianceConfidenceInterval {
+        pub fn variance_is_in_interval(&self, variance_to_check: Variance) -> bool {
+            self.lower_bound <= variance_to_check && self.upper_bound >= variance_to_check
+        }
+
+        pub fn lower_bound(&self) -> Variance {
+            self.lower_bound
+        }
+
+        pub fn upper_bound(&self) -> Variance {
+            self.upper_bound
+        }
+    }
+
+    pub fn variance_confidence_interval(
+        sample_count: f64,
+        measured_variance: Variance,
+        probability_to_be_in_the_interval: f64,
+    ) -> VarianceConfidenceInterval {
+        assert!(probability_to_be_in_the_interval >= 0.0);
+        assert!(probability_to_be_in_the_interval <= 1.0);
+        let alpha = 1.0 - probability_to_be_in_the_interval;
+        let degrees_of_freedom = sample_count - 1.0;
+        let chi2 = ChiSquared::new(degrees_of_freedom).unwrap();
+        let chi2_lower = chi2.inverse_cdf(alpha / 2.0);
+        let chi2_upper = chi2.inverse_cdf(1.0 - alpha / 2.0);
+
+        // Lower bound is divided by Chi_right^2 so by chi2_upper, upper bound divided by Chi_left^2
+        // so chi2_lower
+        let lower_bound = Variance(degrees_of_freedom * measured_variance.0 / chi2_upper);
+        let upper_bound = Variance(degrees_of_freedom * measured_variance.0 / chi2_lower);
+
+        assert!(lower_bound <= upper_bound);
+
+        VarianceConfidenceInterval {
+            lower_bound,
+            upper_bound,
+        }
     }
 
     pub fn new_random_generator() -> RandomGenerator<DefaultRandomGenerator> {
