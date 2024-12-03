@@ -93,11 +93,11 @@ pub mod test_tools {
     {
         for (x, y) in first.as_ref().iter().zip(second.as_ref().iter()) {
             println!("{:?}, {:?}", *x, *y);
-            println!("{}", dist.get_standard_dev());
+            println!("{:?}", dist.get_standard_dev());
             let distance: f64 = modular_distance(*x, *y).cast_into();
             let torus_distance = distance / 2_f64.powi(Element::BITS as i32);
             assert!(
-                torus_distance <= 5. * dist.get_standard_dev(),
+                torus_distance <= 5. * dist.get_standard_dev().0,
                 "{x} != {y} "
             );
         }

@@ -33,7 +33,7 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
         ciphertext_modulus.get_custom_modulus() as f64
     };
 
-    let encryption_variance = Variance(glwe_noise_distribution.gaussian_std_dev().get_variance());
+    let encryption_variance = glwe_noise_distribution.gaussian_std_dev().get_variance();
     let expected_variance = Variance(
         encryption_variance.0
             + keyswitch_additive_variance_132_bits_security_gaussian(
