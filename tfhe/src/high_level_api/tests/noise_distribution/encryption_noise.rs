@@ -6,7 +6,7 @@ use crate::shortint::parameters::ShortintParameterSet;
 use crate::*;
 
 #[test]
-fn test_encryption_noise_tuniform() {
+fn test_noise_check_encryption_noise_tuniform() {
     let params_as_shortint_parameter_set = ShortintParameterSet::new_pbs_param_set(
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
     );

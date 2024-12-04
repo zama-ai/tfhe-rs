@@ -32,7 +32,7 @@ pub mod test_tools {
         modular_distance, modular_distance_custom_mod, torus_modular_diff,
     };
     use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-    use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
+    use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev, Variance};
     use crate::core_crypto::commons::generators::{
         EncryptionRandomGenerator, SecretRandomGenerator,
     };
@@ -55,6 +55,47 @@ pub mod test_tools {
         let num_samples = samples.len();
 
         samples.iter().sum::<f64>() / (num_samples as f64)
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct MeanConfidenceInterval {
+        lower_bound: f64,
+        upper_bound: f64,
+    }
+
+    impl MeanConfidenceInterval {
+        pub fn mean_is_in_interval(&self, mean_to_check: f64) -> bool {
+            self.lower_bound <= mean_to_check && self.upper_bound >= mean_to_check
+        }
+
+        pub fn lower_bound(&self) -> f64 {
+            self.lower_bound
+        }
+
+        pub fn upper_bound(&self) -> f64 {
+            self.upper_bound
+        }
+    }
+
+    pub fn mean_confidence_interval(
+        sample_count: f64,
+        measured_mean: f64,
+        measured_std_dev: StandardDev,
+        probability_to_be_in_the_interval: f64,
+    ) -> MeanConfidenceInterval {
+        let standard_score = core::f64::consts::SQRT_2
+            * statrs::function::erf::erfc_inv(1.0 - probability_to_be_in_the_interval);
+        let interval_delta = standard_score * measured_std_dev.0 / f64::sqrt(sample_count);
+
+        let lower_bound = measured_mean - interval_delta;
+        let upper_bound = measured_mean + interval_delta;
+
+        assert!(lower_bound <= upper_bound);
+
+        MeanConfidenceInterval {
+            lower_bound,
+            upper_bound,
+        }
     }
 
     pub fn variance(samples: &[f64]) -> Variance {
@@ -209,29 +250,6 @@ pub mod test_tools {
             samples.len() <= 5000,
             "normality_test_f64 produces a relevant pvalue for less than 5000 samples"
         );
-
-        // From "A handy approximation for the error function and its inverse" by Sergei Winitzki
-        fn erf_inv(x: f64) -> f64 {
-            let sign = if x < 0.0 { -1.0 } else { 1.0 };
-            // 1 - x**2
-            let one_minus_x_2 = (1.0 - x) * (1.0 + x);
-            // ln(1 - x**2)
-            let log_term = f64::ln(one_minus_x_2);
-            let a = 0.147;
-            let term_1 = 2.0 / (std::f64::consts::PI * a) + 0.5 * log_term;
-            let term_2 = 1.0 / a * log_term;
-
-            sign * f64::sqrt(-term_1 + f64::sqrt(term_1 * term_1 - term_2))
-        }
-
-        // Normal law CDF
-        fn phi(x: f64) -> f64 {
-            0.5 * (1.0 + libm::erf(x / f64::sqrt(2.0)))
-        }
-
-        fn phi_inv(x: f64) -> f64 {
-            f64::sqrt(2.0) * erf_inv(2.0 * x - 1.0)
-        }
 
         let n = samples.len();
         let n_f64 = n as f64;
