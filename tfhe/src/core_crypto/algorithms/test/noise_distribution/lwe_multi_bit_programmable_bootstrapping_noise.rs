@@ -113,7 +113,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
         (bsk, fbsk)
     };
 
-    let accumulator = generate_programmable_bootstrap_glwe_lut(
+    let mut accumulator = generate_programmable_bootstrap_glwe_lut(
         polynomial_size,
         glwe_dimension.to_glwe_size(),
         msg_modulus.cast_into(),
@@ -121,6 +121,27 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
         delta,
         f,
     );
+
+    let reference_accumulator = accumulator.clone();
+
+    let ref_acc_plain = accumulator.get_body().as_ref().to_vec();
+
+    // noiseless GLWE encryption of LUT ... s.t. mask|body are random instead of zeros|plain-LUT
+    let zero_noise = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
+    encrypt_glwe_ciphertext_assign(
+        &output_glwe_secret_key,
+        &mut accumulator,
+        zero_noise,
+        &mut rsc.encryption_random_generator,
+    );
+
+    let mut sanity_plain = PlaintextList::new(0, PlaintextCount(accumulator.polynomial_size().0));
+
+    decrypt_glwe_ciphertext(&output_glwe_secret_key, &accumulator, &mut sanity_plain);
+
+    let dec_sanity = sanity_plain.as_ref().to_vec();
+
+    assert_eq!(ref_acc_plain, dec_sanity);
 
     assert!(check_encrypted_content_respects_mod(
         &accumulator,
@@ -174,7 +195,11 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                     &accumulator,
                     &bsk,
                     params.thread_count,
-                    Some((&input_lwe_secret_key, &output_glwe_secret_key)),
+                    Some((
+                        &input_lwe_secret_key,
+                        &output_glwe_secret_key,
+                        &reference_accumulator,
+                    )),
                 );
 
                 let filename = format!("./karatsuba_noise_thread_{thread_id}_input_msg_{msg}.npy");
@@ -223,7 +248,11 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                     &accumulator,
                     &fbsk,
                     params.thread_count,
-                    Some((&input_lwe_secret_key, &output_glwe_secret_key)),
+                    Some((
+                        &input_lwe_secret_key,
+                        &output_glwe_secret_key,
+                        &reference_accumulator,
+                    )),
                 );
 
                 let filename = format!("./fft_noise_thread_{thread_id}_input_msg_{msg}.npy");

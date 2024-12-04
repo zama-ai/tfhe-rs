@@ -830,7 +830,11 @@ pub fn multi_bit_deterministic_blind_rotate_assign_return_noise<Scalar, OutputCo
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
-    debug_material: Option<(&LweSecretKeyOwned<Scalar>, &GlweSecretKeyOwned<Scalar>)>,
+    debug_material: Option<(
+        &LweSecretKeyOwned<Scalar>,
+        &GlweSecretKeyOwned<Scalar>,
+        &GlweCiphertextOwned<Scalar>,
+    )>,
 ) -> Vec<Vec<Scalar>>
 where
     Scalar: UnsignedTorus + Sync + CastInto<usize>,
@@ -889,8 +893,9 @@ where
 
     let mut noise_vec = vec![];
 
-    let mut clear_accumulator =
-        Polynomial::from_container(accumulator.get_body().as_ref().to_vec());
+    let mut clear_accumulator = Polynomial::from_container(
+        debug_material.map_or(vec![], |x| x.2.get_body().as_ref().to_vec()),
+    );
 
     accumulator
         .as_mut_polynomial_list()
@@ -1042,7 +1047,7 @@ where
             // anyways)
             condvar.notify_one();
 
-            if let Some((lwe_secret_key, glwe_secret_key)) = &debug_material {
+            if let Some((lwe_secret_key, glwe_secret_key, _)) = &debug_material {
                 // Now do the computation on the clear data to compute the noise
                 let mask_start_idx = loop_idx * grouping_factor.0;
                 let mask_stop_idx = mask_start_idx + grouping_factor.0;
@@ -1391,7 +1396,11 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext_return_noise<
     accumulator: &GlweCiphertext<AccCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
-    debug_material: Option<(&LweSecretKeyOwned<Scalar>, &GlweSecretKeyOwned<Scalar>)>,
+    debug_material: Option<(
+        &LweSecretKeyOwned<Scalar>,
+        &GlweSecretKeyOwned<Scalar>,
+        &GlweCiphertextOwned<Scalar>,
+    )>,
 ) -> Vec<Vec<Scalar>>
 where
     // CastInto required for PBS modulus switch which returns a usize
@@ -2217,7 +2226,11 @@ pub fn karatsuba_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
-    debug_material: Option<(&LweSecretKeyOwned<Scalar>, &GlweSecretKeyOwned<Scalar>)>,
+    debug_material: Option<(
+        &LweSecretKeyOwned<Scalar>,
+        &GlweSecretKeyOwned<Scalar>,
+        &GlweCiphertextOwned<Scalar>,
+    )>,
 ) -> Vec<Vec<Scalar>>
 where
     // CastInto required for PBS modulus switch which returns a usize
@@ -2285,8 +2298,9 @@ where
 
     let mut noise_vec = vec![];
 
-    let mut clear_accumulator =
-        Polynomial::from_container(accumulator.get_body().as_ref().to_vec());
+    let mut clear_accumulator = Polynomial::from_container(
+        debug_material.map_or(vec![], |x| x.2.get_body().as_ref().to_vec()),
+    );
 
     accumulator
         .as_mut_polynomial_list()
@@ -2461,7 +2475,7 @@ where
             // anyways)
             condvar.notify_one();
 
-            if let Some((lwe_secret_key, glwe_secret_key)) = &debug_material {
+            if let Some((lwe_secret_key, glwe_secret_key, _)) = &debug_material {
                 // Now do the computation on the clear data to compute the noise
                 let mask_start_idx = loop_idx * grouping_factor.0;
                 let mask_stop_idx = mask_start_idx + grouping_factor.0;
@@ -2552,7 +2566,11 @@ pub fn karatsuba_multi_bit_programmable_bootstrap_lwe_ciphertext<
     accumulator: &GlweCiphertext<AccCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
-    debug_material: Option<(&LweSecretKeyOwned<Scalar>, &GlweSecretKeyOwned<Scalar>)>,
+    debug_material: Option<(
+        &LweSecretKeyOwned<Scalar>,
+        &GlweSecretKeyOwned<Scalar>,
+        &GlweCiphertextOwned<Scalar>,
+    )>,
 ) -> Vec<Vec<Scalar>>
 where
     // CastInto required for PBS modulus switch which returns a usize
