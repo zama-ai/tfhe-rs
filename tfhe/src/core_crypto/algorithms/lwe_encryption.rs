@@ -15,8 +15,6 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
-#[cfg(feature = "zk-pok")]
-use tfhe_zk_pok::proofs::pke::{commit, prove};
 
 /// Convenience function to share the core logic of the LWE encryption between all functions needing
 /// it.
@@ -1858,8 +1856,7 @@ where
     BodyDistribution: BoundedDistribution<Scalar::Signed>,
     KeyCont: Container<Element = Scalar>,
 {
-    let public_params = crs.public_params();
-    let exclusive_max = public_params.exclusive_max_noise();
+    let exclusive_max = crs.exclusive_max_noise();
     if Scalar::BITS < 64 && (1u64 << Scalar::BITS) >= exclusive_max {
         return Err(
             "The given random distribution would create random values out \
@@ -1893,28 +1890,23 @@ where
         return Err("Zero knowledge proof do not support moduli greater than 2**64".into());
     }
 
-    let expected_q = if Scalar::BITS == 64 {
-        0u64
-    } else {
-        164 << Scalar::BITS
-    };
-
-    if expected_q != public_params.q {
+    if ciphertext_modulus != crs.ciphertext_modulus() {
         return Err("Mismatched modulus between CRS and ciphertexts".into());
     }
 
-    if ciphertext_count.0 > public_params.k {
+    if ciphertext_count > crs.max_num_messages() {
         return Err(format!(
             "CRS allows at most {} ciphertexts to be proven at once, {} contained in the list",
-            public_params.k, ciphertext_count.0
+            crs.max_num_messages().0,
+            ciphertext_count.0
         )
         .into());
     }
 
-    if lwe_compact_public_key.lwe_dimension().0 > public_params.d {
+    if lwe_compact_public_key.lwe_dimension() > crs.lwe_dimension() {
         return Err(format!(
             "CRS allows a LweDimension of at most {}, current dimension: {}",
-            public_params.d,
+            crs.lwe_dimension().0,
             lwe_compact_public_key.lwe_dimension().0
         )
         .into());
@@ -1922,10 +1914,10 @@ where
 
     // 2**64 /delta == ((2**63) / delta) *2
     let plaintext_modulus = ((1u64 << (u64::BITS - 1) as usize) / u64::cast_from(delta)) * 2;
-    if plaintext_modulus != public_params.t {
+    if plaintext_modulus != crs.plaintext_modulus() {
         return Err(format!(
             "Mismatched plaintext modulus: CRS expects {}, requested modulus: {plaintext_modulus:?}",
-            public_params.t
+            crs.plaintext_modulus()
         ).into());
     }
 
@@ -2291,52 +2283,18 @@ where
         encryption_generator,
     );
 
-    let (c1, c2) = output.get_mask_and_body();
-
-    let (public_commit, private_commit) = commit(
-        lwe_compact_public_key
-            .get_mask()
-            .as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        lwe_compact_public_key
-            .get_body()
-            .as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        c1.as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        vec![i64::cast_from(*c2.data)],
-        binary_random_vector
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        mask_noise
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        vec![i64::cast_from(message.0)],
-        body_noise
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        crs.public_params(),
-        random_generator,
-    );
-
-    Ok(prove(
-        (crs.public_params(), &public_commit),
-        &private_commit,
+    Ok(crs.prove(
+        lwe_compact_public_key,
+        &vec![message.0],
+        &LweCompactCiphertextList::from_container(
+            output.as_ref(),
+            output.lwe_size(),
+            LweCiphertextCount(1),
+            output.ciphertext_modulus(),
+        ),
+        &binary_random_vector,
+        &mask_noise,
+        &body_noise,
         metadata,
         load,
         random_generator,
@@ -2807,61 +2765,13 @@ where
         encryption_generator,
     );
 
-    let (c1, c2) = output.get_mask_and_body_list();
-
-    let (public_commit, private_commit) = commit(
-        lwe_compact_public_key
-            .get_mask()
-            .as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        lwe_compact_public_key
-            .get_body()
-            .as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        c1.as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        c2.as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        binary_random_vector
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        mask_noise
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        messages
-            .as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        body_noise
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        crs.public_params(),
-        random_generator,
-    );
-
-    Ok(prove(
-        (crs.public_params(), &public_commit),
-        &private_commit,
+    Ok(crs.prove(
+        lwe_compact_public_key,
+        messages,
+        output,
+        &binary_random_vector,
+        &mask_noise,
+        &body_noise,
         metadata,
         load,
         random_generator,
@@ -3341,61 +3251,13 @@ where
         encryption_generator,
     );
 
-    let (c1, c2) = output.get_mask_and_body_list();
-
-    let (public_commit, private_commit) = commit(
-        lwe_compact_public_key
-            .get_mask()
-            .as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        lwe_compact_public_key
-            .get_body()
-            .as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        c1.as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        c2.as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        binary_random_vector
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        mask_noise
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        messages
-            .as_ref()
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        body_noise
-            .iter()
-            .copied()
-            .map(CastFrom::cast_from)
-            .collect::<Vec<_>>(),
-        crs.public_params(),
-        random_generator,
-    );
-
-    Ok(prove(
-        (crs.public_params(), &public_commit),
-        &private_commit,
+    Ok(crs.prove(
+        lwe_compact_public_key,
+        messages,
+        output,
+        &binary_random_vector,
+        &mask_noise,
+        &body_noise,
         metadata,
         load,
         random_generator,

@@ -21,7 +21,7 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
-use crate::zk::{CompactPkeCrs, ZkComputeLoad, ZkVerificationOutCome};
+use crate::zk::{CompactPkeCrs, CompactPkeZkScheme, ZkComputeLoad, ZkVerificationOutcome};
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -783,7 +783,7 @@ impl ProvenCompactCiphertextList {
         crs: &CompactPkeCrs,
         public_key: &CompactPublicKey,
         metadata: &[u8],
-    ) -> ZkVerificationOutCome {
+    ) -> ZkVerificationOutcome {
         self.ct_list.verify(crs, &public_key.key, metadata)
     }
 
@@ -1000,6 +1000,7 @@ pub struct IntegerProvenCompactCiphertextListConformanceParams {
     pub ciphertext_modulus: CiphertextModulus,
     pub expansion_kind: CompactCiphertextListExpansionKind,
     pub max_elements_per_compact_list: usize,
+    pub zk_scheme: CompactPkeZkScheme,
 }
 
 #[cfg(feature = "zk-pok")]
@@ -1021,7 +1022,8 @@ impl IntegerProvenCompactCiphertextListConformanceParams {
             carry_modulus: value.carry_modulus,
             ciphertext_modulus: value.ciphertext_modulus,
             expansion_kind: value.expansion_kind,
-            max_elements_per_compact_list: crs.max_num_messages(),
+            max_elements_per_compact_list: crs.max_num_messages().0,
+            zk_scheme: crs.scheme_version(),
         }
     }
 }
@@ -1044,6 +1046,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             max_lwe_count_per_compact_list: parameter_set.max_elements_per_compact_list,
             // packing by 2
             total_expected_lwe_count: total_expected_num_blocks.div_ceil(2),
+            zk_scheme: parameter_set.zk_scheme,
         };
 
         ct_list.is_conformant(&a)

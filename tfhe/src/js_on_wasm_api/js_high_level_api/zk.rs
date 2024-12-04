@@ -107,7 +107,7 @@ impl CompactPkeCrs {
         // If buffer is compressed it is automatically detected and uncompressed.
         catch_panic_result(|| {
             bincode::deserialize(buffer)
-                .map(crate::zk::CompactPkePublicParams::into)
+                .map(crate::zk::ZkCompactPkeV1PublicParams::into)
                 .map(CompactPkeCrs)
                 .map_err(into_js_error)
         })
@@ -122,7 +122,7 @@ impl CompactPkeCrs {
             crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
-                .map(crate::zk::CompactPkePublicParams::into)
+                .map(crate::zk::ZkCompactPkeV1PublicParams::into)
                 .map(CompactPkeCrs)
                 .map_err(into_js_error)
         })
