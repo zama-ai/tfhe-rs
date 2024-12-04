@@ -11,7 +11,7 @@ use syn::{Attribute, Expr, Lit, Meta, Path, Token};
 const VERSIONIZE_ATTR_NAME: &str = "versionize";
 
 /// Transparent mode can also be activated using `#[repr(transparent)]`
-const REPR_ATTR_NAME: &str = "repr";
+pub(crate) const REPR_ATTR_NAME: &str = "repr";
 
 /// Represent the parsed `#[versionize(...)]` attribute
 pub(crate) enum VersionizeAttribute {
@@ -167,16 +167,14 @@ impl VersionizeAttribute {
             .filter(|attr| attr.path().is_ident(VERSIONIZE_ATTR_NAME))
             .collect();
 
-        let repr_attributes: Vec<&Attribute> = attributes
-            .iter()
-            .filter(|attr| attr.path().is_ident(REPR_ATTR_NAME))
-            .collect();
+        // Check if transparent mode is enabled via repr(transparent). It can also be enabled with
+        // the versionize attribute.
+        let type_is_transparent = is_transparent(attributes)?;
 
         match version_attributes.as_slice() {
             [] => {
-                // transparent mode can also be enabled via `#[repr(transparent)]`
-                if let Some(attr) = repr_attributes.first() {
-                    Self::parse_from_attribute(attr)
+                if type_is_transparent {
+                    Ok(Self::Transparent)
                 } else {
                     Err(syn::Error::new(
                         Span::call_site(),
@@ -297,4 +295,27 @@ fn parse_path_ignore_quotes(value: &Expr) -> syn::Result<Path> {
             "Malformed `versionize` attribute",
         )),
     }
+}
+
+/// Check if the target type has the `#[repr(transparent)]` attribute in its attributes list
+pub(crate) fn is_transparent(attributes: &[Attribute]) -> syn::Result<bool> {
+    if let Some(attr) = attributes
+        .iter()
+        .find(|attr| attr.path().is_ident(REPR_ATTR_NAME))
+    {
+        let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
+
+        for meta in nested.iter() {
+            match meta {
+                Meta::Path(path) => {
+                    if path.is_ident("transparent") {
+                        return Ok(true);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    Ok(false)
 }
