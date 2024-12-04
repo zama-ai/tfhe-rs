@@ -306,13 +306,10 @@ pub(crate) fn is_transparent(attributes: &[Attribute]) -> syn::Result<bool> {
         let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
 
         for meta in nested.iter() {
-            match meta {
-                Meta::Path(path) => {
-                    if path.is_ident("transparent") {
-                        return Ok(true);
-                    }
+            if let Meta::Path(path) = meta {
+                if path.is_ident("transparent") {
+                    return Ok(true);
                 }
-                _ => {}
             }
         }
     }

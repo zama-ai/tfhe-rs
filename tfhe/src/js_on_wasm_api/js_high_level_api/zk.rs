@@ -1,5 +1,6 @@
 use wasm_bindgen::prelude::*;
 
+use crate::core_crypto::prelude::LweCiphertextCount;
 use crate::js_on_wasm_api::js_high_level_api::config::TfheConfig;
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic_result, into_js_error};
 use crate::js_on_wasm_api::shortint::ShortintParameters;
@@ -86,7 +87,7 @@ impl CompactPkeCrs {
         catch_panic_result(|| {
             crate::core_crypto::entities::CompactPkeCrs::from_shortint_params(
                 parameters.0,
-                max_num_message,
+                LweCiphertextCount(max_num_message),
             )
             .map(CompactPkeCrs)
             .map_err(into_js_error)
@@ -107,7 +108,7 @@ impl CompactPkeCrs {
         // If buffer is compressed it is automatically detected and uncompressed.
         catch_panic_result(|| {
             bincode::deserialize(buffer)
-                .map(crate::zk::CompactPkePublicParams::into)
+                .map(crate::zk::ZkCompactPkeV1PublicParams::into)
                 .map(CompactPkeCrs)
                 .map_err(into_js_error)
         })
@@ -122,7 +123,7 @@ impl CompactPkeCrs {
             crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
-                .map(crate::zk::CompactPkePublicParams::into)
+                .map(crate::zk::ZkCompactPkeV1PublicParams::into)
                 .map(CompactPkeCrs)
                 .map_err(into_js_error)
         })

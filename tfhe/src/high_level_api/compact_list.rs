@@ -218,7 +218,7 @@ mod zk {
             crs: &CompactPkeCrs,
             pk: &CompactPublicKey,
             metadata: &[u8],
-        ) -> crate::zk::ZkVerificationOutCome {
+        ) -> crate::zk::ZkVerificationOutcome {
             self.inner.verify(crs, &pk.key.key, metadata)
         }
 

@@ -1,3 +1,4 @@
+use crate::core_crypto::prelude::LweCiphertextCount;
 use crate::zk::CompactPkeCrs;
 use crate::{Config, Error};
 
@@ -24,7 +25,10 @@ impl CompactPkeCrs {
             * compact_encryption_parameters.message_modulus.0)
             .ilog2() as usize;
         let max_num_message = max_bit_size.div_ceil(carry_and_message_bit_capacity);
-        let crs = Self::from_shortint_params(compact_encryption_parameters, max_num_message)?;
+        let crs = Self::from_shortint_params(
+            compact_encryption_parameters,
+            LweCiphertextCount(max_num_message),
+        )?;
         Ok(crs)
     }
 }
