@@ -144,6 +144,9 @@ fn bench_server_key_binary_function_clean_inputs<F>(
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                bench_group
+                    .sample_size(10)
+                    .measurement_time(std::time::Duration::from_secs(30));
                 let elements = throughput_num_threads(num_block);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -292,6 +295,9 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                bench_group
+                    .sample_size(10)
+                    .measurement_time(std::time::Duration::from_secs(30));
                 let elements = throughput_num_threads(num_block);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -446,6 +452,9 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                bench_group
+                    .sample_size(10)
+                    .measurement_time(std::time::Duration::from_secs(30));
                 let elements = throughput_num_threads(num_block);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -559,6 +568,9 @@ fn if_then_else_parallelized(c: &mut Criterion) {
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                bench_group
+                    .sample_size(10)
+                    .measurement_time(std::time::Duration::from_secs(30));
                 let elements = throughput_num_threads(num_block);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -654,6 +666,9 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                     bench_id = format!(
                         "{bench_name}_{len}_ctxts::throughput::{param_name}::{bit_size}_bits"
                     );
+                    bench_group
+                        .sample_size(10)
+                        .measurement_time(std::time::Duration::from_secs(30));
                     let elements = throughput_num_threads(num_block);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1344,6 +1359,9 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    bench_group
+                        .sample_size(10)
+                        .measurement_time(std::time::Duration::from_secs(30));
                     let elements = throughput_num_threads(num_block);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1440,6 +1458,9 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    bench_group
+                        .sample_size(10)
+                        .measurement_time(std::time::Duration::from_secs(30));
                     let elements = throughput_num_threads(num_block);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1496,9 +1517,6 @@ mod cuda {
         G: Fn(&mut ThreadRng, usize) -> ScalarType,
     {
         let mut bench_group = c.benchmark_group(bench_name);
-        bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
         let streams = CudaStreams::new_multi_gpu();
@@ -1516,6 +1534,9 @@ mod cuda {
 
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
+                    bench_group
+                        .sample_size(15)
+                        .measurement_time(std::time::Duration::from_secs(30));
                     bench_id =
                         format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}"); // FIXME it makes no sense to duplicate `bit_size`
                     bench_group.bench_function(&bench_id, |b| {
@@ -1543,6 +1564,9 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    bench_group
+                        .sample_size(10)
+                        .measurement_time(std::time::Duration::from_secs(30));
                     bench_id = format!(
                         "{bench_name}::throughput::{param_name}::{bit_size}_bits_scalar_{bit_size}"
                     );
@@ -1644,6 +1668,9 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    bench_group
+                        .sample_size(10)
+                        .measurement_time(std::time::Duration::from_secs(30));
                     let elements = throughput_num_threads(num_block);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
