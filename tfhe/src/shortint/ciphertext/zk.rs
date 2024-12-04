@@ -1,7 +1,7 @@
 use super::Degree;
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
-use crate::core_crypto::prelude::LweCiphertextListParameters;
+use crate::core_crypto::prelude::{LweCiphertextCount, LweCiphertextListParameters};
 use crate::shortint::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
@@ -10,7 +10,10 @@ use crate::shortint::parameters::{
     MessageModulus, ShortintCompactCiphertextListCastingMode,
 };
 use crate::shortint::{Ciphertext, CompactPublicKey};
-use crate::zk::{CompactPkeCrs, CompactPkeProof, ZkMSBZeroPaddingBitCount, ZkVerificationOutCome};
+use crate::zk::{
+    CompactPkeCrs, CompactPkeProof, CompactPkeZkScheme, ZkMSBZeroPaddingBitCount,
+    ZkVerificationOutcome,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -19,7 +22,10 @@ impl CompactPkeCrs {
     /// Construct the CRS that corresponds to the given parameters
     ///
     /// max_num_message is how many message a single proof can prove
-    pub fn from_shortint_params<P, E>(params: P, max_num_message: usize) -> crate::Result<Self>
+    pub fn from_shortint_params<P, E>(
+        params: P,
+        max_num_message: LweCiphertextCount,
+    ) -> crate::Result<Self>
     where
         P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>,
         crate::Error: From<E>,
@@ -38,6 +44,42 @@ impl CompactPkeCrs {
         // Note that if we want to we can prove carry bits are 0 should we need it
         crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
             Self::new(
+                size,
+                max_num_message,
+                noise_distribution,
+                params.ciphertext_modulus,
+                plaintext_modulus,
+                ZkMSBZeroPaddingBitCount(1),
+                &mut engine.random_generator,
+            )
+        })
+    }
+
+    /// Construct the CRS for the legacy V1 zk scheme that corresponds to the given parameters
+    ///
+    /// max_num_message is how many message a single proof can prove
+    pub fn from_shortint_params_legacy_v1<P, E>(
+        params: P,
+        max_num_message: LweCiphertextCount,
+    ) -> crate::Result<Self>
+    where
+        P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>,
+        crate::Error: From<E>,
+    {
+        let params: CompactPublicKeyEncryptionParameters = params.try_into()?;
+        let (size, noise_distribution) = (
+            params.encryption_lwe_dimension,
+            params.encryption_noise_distribution,
+        );
+
+        let mut plaintext_modulus = params.message_modulus.0 * params.carry_modulus.0;
+        // Our plaintext modulus does not take into account the bit of padding
+        plaintext_modulus *= 2;
+
+        // 1 padding bit for the PBS
+        // Note that if we want to we can prove carry bits are 0 should we need it
+        crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
+            Self::new_legacy_v1(
                 size,
                 max_num_message,
                 noise_distribution,
@@ -166,7 +208,7 @@ impl ProvenCompactCiphertextList {
         crs: &CompactPkeCrs,
         public_key: &CompactPublicKey,
         metadata: &[u8],
-    ) -> ZkVerificationOutCome {
+    ) -> ZkVerificationOutcome {
         let all_valid = self.proved_lists.par_iter().all(|(ct_list, proof)| {
             verify_lwe_compact_ciphertext_list(
                 &ct_list.ct_list,
@@ -179,9 +221,9 @@ impl ProvenCompactCiphertextList {
         });
 
         if all_valid {
-            ZkVerificationOutCome::Valid
+            ZkVerificationOutcome::Valid
         } else {
-            ZkVerificationOutCome::Invalid
+            ZkVerificationOutcome::Invalid
         }
     }
 
@@ -203,6 +245,7 @@ pub struct ProvenCompactCiphertextListConformanceParams {
     pub expansion_kind: CompactCiphertextListExpansionKind,
     pub max_lwe_count_per_compact_list: usize,
     pub total_expected_lwe_count: usize,
+    pub zk_scheme: CompactPkeZkScheme,
 }
 
 impl ParameterSetConformant for ProvenCompactCiphertextList {
@@ -219,6 +262,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             message_modulus,
             carry_modulus,
             ciphertext_modulus,
+            zk_scheme,
         } = parameter_set;
 
         let max_elements_per_compact_list = *max_lwe_count_per_compact_list;
@@ -226,7 +270,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
         let mut remaining_len = *total_expected_lwe_count;
 
         for (compact_ct_list, proof) in proved_lists {
-            if !proof.is_conformant(&()) {
+            if !proof.is_conformant(zk_scheme) {
                 return false;
             }
 
@@ -272,6 +316,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 
 #[cfg(test)]
 mod tests {
+    use crate::core_crypto::prelude::LweCiphertextCount;
     use crate::shortint::parameters::{
         ShortintCompactCiphertextListCastingMode, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     };
@@ -283,7 +328,7 @@ mod tests {
     fn test_zk_ciphertext_encryption_ci_run_filter() {
         let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-        let crs = CompactPkeCrs::from_shortint_params(params, 4).unwrap();
+        let crs = CompactPkeCrs::from_shortint_params(params, LweCiphertextCount(4)).unwrap();
         let cks = ClientKey::new(params);
         let pk = CompactPublicKey::new(&cks);
 
@@ -330,7 +375,7 @@ mod tests {
     fn test_zk_compact_ciphertext_list_encryption_ci_run_filter() {
         let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-        let crs = CompactPkeCrs::from_shortint_params(params, 512).unwrap();
+        let crs = CompactPkeCrs::from_shortint_params(params, LweCiphertextCount(512)).unwrap();
         let cks = ClientKey::new(params);
         let pk = CompactPublicKey::new(&cks);
 

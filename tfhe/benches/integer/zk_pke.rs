@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
+use tfhe::core_crypto::prelude::LweCiphertextCount;
 use tfhe::integer::key_switching_key::KeySwitchingKey;
 use tfhe::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
@@ -64,8 +65,11 @@ fn pke_zk_proof(c: &mut Criterion) {
 
             let fhe_uint_count = bits / 64;
 
-            let crs =
-                CompactPkeCrs::from_shortint_params(param_pke, num_block * fhe_uint_count).unwrap();
+            let crs = CompactPkeCrs::from_shortint_params(
+                param_pke,
+                LweCiphertextCount(num_block * fhe_uint_count),
+            )
+            .unwrap();
 
             for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
                 let zk_load = match compute_load {
@@ -183,8 +187,11 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             let fhe_uint_count = bits / 64;
 
             println!("Generating CRS... ");
-            let crs =
-                CompactPkeCrs::from_shortint_params(param_pke, num_block * fhe_uint_count).unwrap();
+            let crs = CompactPkeCrs::from_shortint_params(
+                param_pke,
+                LweCiphertextCount(num_block * fhe_uint_count),
+            )
+            .unwrap();
 
             let shortint_params: PBSParameters = param_fhe.into();
 
