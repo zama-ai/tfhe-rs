@@ -62,8 +62,8 @@ pub enum ProofVersions<G: Curve> {
 }
 
 #[derive(VersionsDispatch)]
-#[allow(dead_code)]
-pub(crate) enum ComputeLoadProofFieldVersions<G: Curve> {
+pub(crate) enum ComputeLoadProofFieldsVersions<G: Curve> {
+    #[allow(dead_code)]
     V0(ComputeLoadProofFields<G>),
 }
 
@@ -132,11 +132,11 @@ where
 }
 
 #[derive(VersionsDispatch)]
-#[allow(dead_code)]
 pub(crate) enum CompressedComputeLoadProofFieldsVersions<G: Curve>
 where
     G::G1: Compressible,
     G::G2: Compressible,
 {
+    #[allow(dead_code)]
     V0(CompressedComputeLoadProofFields<G>),
 }
