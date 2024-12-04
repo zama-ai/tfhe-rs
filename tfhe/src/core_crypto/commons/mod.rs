@@ -131,6 +131,47 @@ pub mod test_tools {
         }
     }
 
+    #[derive(Debug, Clone, Copy)]
+    pub struct MeanConfidenceInterval {
+        lower_bound: f64,
+        upper_bound: f64,
+    }
+
+    impl MeanConfidenceInterval {
+        pub fn mean_is_in_interval(&self, mean_to_check: f64) -> bool {
+            self.lower_bound <= mean_to_check && self.upper_bound >= mean_to_check
+        }
+
+        pub fn lower_bound(&self) -> f64 {
+            self.lower_bound
+        }
+
+        pub fn upper_bound(&self) -> f64 {
+            self.upper_bound
+        }
+    }
+
+    pub fn mean_confidence_interval(
+        sample_count: f64,
+        measured_mean: f64,
+        measured_std_dev: StandardDev,
+        probability_to_be_in_the_interval: f64,
+    ) -> MeanConfidenceInterval {
+        let standard_score = core::f64::consts::SQRT_2
+            * statrs::function::erf::erfc_inv(1.0 - probability_to_be_in_the_interval);
+        let interval_delta = standard_score * measured_std_dev.0 / f64::sqrt(sample_count);
+
+        let lower_bound = measured_mean - interval_delta;
+        let upper_bound = measured_mean + interval_delta;
+
+        assert!(lower_bound <= upper_bound);
+
+        MeanConfidenceInterval {
+            lower_bound,
+            upper_bound,
+        }
+    }
+
     pub fn variance(samples: &[f64]) -> Variance {
         let sample_count = samples.len();
 
