@@ -28,6 +28,7 @@ pub fn pbs_variance_132_bits_security_gaussian(
 /// if the keys used are encrypted using secure noise given by the
 /// [`minimal_glwe_variance`](`super::secure_noise`)
 /// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
+#[allow(clippy::suspicious_operation_groupings)]
 pub fn pbs_variance_132_bits_security_gaussian_impl(
     input_lwe_dimension: f64,
     output_glwe_dimension: f64,
@@ -42,14 +43,13 @@ pub fn pbs_variance_132_bits_security_gaussian_impl(
             * decomposition_level_count
             * output_polynomial_size.powf(2.0)
             * (output_glwe_dimension + 1.0)
-            + (1_f64 / 3.0)
-                * decomposition_level_count
+            + decomposition_level_count
                 * output_polynomial_size
-                * ((-0.0497829131652661 * output_glwe_dimension * output_polynomial_size
-                    + 5.31469187675068)
-                    .exp2()
-                    + 16.0 * modulus.powf(-2.0))
-                * ((1_f64 / 4.0) * decomposition_base.powf(2.0) + 0.5)
+                * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
+                    + (-0.0497829131652661 * output_glwe_dimension * output_polynomial_size
+                        + 5.31469187675068)
+                        .exp2())
+                * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
                 * (output_glwe_dimension + 1.0)
             + (1_f64 / 12.0) * modulus.powf(-2.0)
             + (1_f64 / 2.0)
