@@ -2,7 +2,7 @@
 #![allow(non_snake_case)]
 
 use super::*;
-use crate::backward_compatibility::pke_v2::{CompressedProofVersions, ProofVersions};
+use crate::backward_compatibility::pke_v2::*;
 use crate::backward_compatibility::BoundVersions;
 use crate::curve_api::{CompressedG1, CompressedG2};
 use crate::four_squares::*;
@@ -29,7 +29,7 @@ fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
         serialize = "PublicParams<G>: Into<SerializablePKEv2PublicParams>"
     )
 )]
-#[versionize(convert = SerializablePKEv2PublicParams)]
+#[versionize(try_convert = SerializablePKEv2PublicParams)]
 pub struct PublicParams<G: Curve> {
     pub(crate) g_lists: GroupElements<G>,
     pub(crate) D: usize,
@@ -300,7 +300,8 @@ impl<G: Curve> Proof<G> {
 
 /// These fields can be pre-computed on the prover side in the faster Verifier scheme. If that's the
 /// case, they should be included in the proof.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(ComputeLoadProofFieldsVersions)]
 pub(crate) struct ComputeLoadProofFields<G: Curve> {
     pub(crate) C_hat_h3: G::G2,
     pub(crate) C_hat_w: G::G2,
@@ -332,11 +333,12 @@ where
     pub(crate) compute_load_proof_fields: Option<CompressedComputeLoadProofFields<G>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Versionize)]
 #[serde(bound(
     deserialize = "G: Curve, CompressedG1<G>: serde::Deserialize<'de>, CompressedG2<G>: serde::Deserialize<'de>",
     serialize = "G: Curve, CompressedG1<G>: serde::Serialize, CompressedG2<G>: serde::Serialize"
 ))]
+#[versionize(CompressedComputeLoadProofFieldsVersions)]
 pub(crate) struct CompressedComputeLoadProofFields<G: Curve>
 where
     G::G1: Compressible,
