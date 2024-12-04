@@ -48,9 +48,9 @@ enum MyStructVersions<T> {
 mod v0 {
     use tfhe_versionable::{Versionize, VersionsDispatch};
 
-    // This struct cannot change as it is not itself versioned. If you ever make a change that
-    // should impact the serialized layout of the data, you need to update all the types that use
-    // it.
+    // If you ever change the layout of this struct to make it "not transparent", you should create
+    // a MyStructWrapperVersions enum where the first versions are the same than the ones of
+    // MyStructVersions. See `transparent_then_not.rs` for a full example.
     #[derive(Versionize)]
     #[versionize(transparent)]
     pub(super) struct MyStructWrapper(pub(super) MyStruct);
