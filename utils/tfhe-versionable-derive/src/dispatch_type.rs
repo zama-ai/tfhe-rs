@@ -47,9 +47,13 @@ fn derive_input_to_enum(input: &DeriveInput) -> syn::Result<ItemEnum> {
 }
 
 impl AssociatedType for DispatchType {
-    const REF_BOUNDS: &'static [&'static str] = &[VERSION_TRAIT_NAME];
+    fn ref_bounds(&self) -> &'static [&'static str] {
+        &[VERSION_TRAIT_NAME]
+    }
 
-    const OWNED_BOUNDS: &'static [&'static str] = &[VERSION_TRAIT_NAME];
+    fn owned_bounds(&self) -> &'static [&'static str] {
+        &[VERSION_TRAIT_NAME]
+    }
 
     fn new_ref(orig_type: &DeriveInput) -> syn::Result<Self> {
         for lt in orig_type.generics.lifetimes() {
@@ -107,6 +111,10 @@ impl AssociatedType for DispatchType {
 
     fn kind(&self) -> &AssociatedTypeKind {
         &self.kind
+    }
+
+    fn is_transparent(&self) -> bool {
+        false
     }
 
     fn orig_type_generics(&self) -> &Generics {
