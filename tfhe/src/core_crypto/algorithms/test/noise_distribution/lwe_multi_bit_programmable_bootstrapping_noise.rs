@@ -12,7 +12,7 @@ use std::fs::OpenOptions;
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
-const NB_TESTS: usize = 1;
+const NB_TESTS: usize = 500;
 
 fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestParams<u64>) {
     type Scalar = u64;
@@ -47,7 +47,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
 
     let mut rsc = {
         let mut deterministic_seeder = Box::new(
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(0)),
+            DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(2)),
         );
         let encryption_random_generator = EncryptionRandomGenerator::new(
             deterministic_seeder.seed(),
@@ -69,16 +69,27 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
     let num_samples = NB_TESTS * <Scalar as CastInto<usize>>::cast_into(msg);
     let mut noise_samples = Vec::with_capacity(num_samples);
 
+    // generate pseudo-random secret
     let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
         input_lwe_dimension,
         &mut rsc.secret_random_generator,
     );
+    // shall not play any role
+    //~ // rewrite with fixed Hamming weight secret (n.b., with odd dimension, this is not exactly 1/2 !!)
+    //~ input_lwe_secret_key.as_mut().fill(0);
+    //~ input_lwe_secret_key.as_mut()[..input_lwe_dimension/2].fill(1);
 
+    // generate pseudo-random secret
     let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
         glwe_dimension,
         polynomial_size,
         &mut rsc.secret_random_generator,
     );
+    // shall not play any role either
+    //~ // rewrite with fixed Hamming weight secret (n.b., with odd dimension, this is not exactly 1/2 !!)
+    //~ let output_glwe_secret_key_len = output_glwe_secret_key.as_ref().len();
+    //~ output_glwe_secret_key.as_mut().fill(0);
+    //~ output_glwe_secret_key.as_mut()[..output_glwe_secret_key_len/2].fill(1);
 
     let output_lwe_secret_key = output_glwe_secret_key.as_lwe_secret_key();
 
@@ -161,7 +172,8 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
     // let use_karatusba = use_karatsuba != 0;
 
     while msg != Scalar::ZERO {
-        msg = msg.wrapping_sub(Scalar::ONE);
+        //~ msg = msg.wrapping_sub(Scalar::ONE);
+        msg = Scalar::ZERO;
 
         let current_run_samples: Vec<_> = (0..NB_TESTS)
             .into_par_iter()
@@ -216,7 +228,8 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                         .dtype(DType::new_scalar("<i8".parse().unwrap()))
                         .shape(&[
                             karatsuba_noise.len() as u64,
-                            karatsuba_noise[0].len() as u64,
+                            //~ karatsuba_noise[0].len() as u64,
+                            1u64,
                         ])
                         .writer(&mut file)
                         .begin_nd()
@@ -224,9 +237,10 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                 };
 
                 for row in karatsuba_noise.iter() {
-                    for col in row.iter().copied() {
-                        writer.push(&(col as i64)).unwrap();
-                    }
+                    //~ for col in row.iter().copied() {
+                        //~ writer.push(&(col as i64)).unwrap();
+                    //~ }
+                    writer.push(&(row[0] as i64)).unwrap();   // essentially SE
                 }
 
                 let last_ext_prod_karatsuba_noise = karatsuba_noise.last().unwrap();
@@ -267,16 +281,21 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                     npyz::WriteOptions::new()
                         // 8 == number of bytes
                         .dtype(DType::new_scalar("<i8".parse().unwrap()))
-                        .shape(&[fft_noise.len() as u64, fft_noise[0].len() as u64])
+                        .shape(&[
+                            fft_noise.len() as u64,
+                            //~ fft_noise[0].len() as u64
+                            1u64
+                        ])
                         .writer(&mut file)
                         .begin_nd()
                         .unwrap()
                 };
 
                 for row in fft_noise.iter() {
-                    for col in row.iter().copied() {
-                        writer.push(&(col as i64)).unwrap();
-                    }
+                    //~ for col in row.iter().copied() {
+                        //~ writer.push(&(col as i64)).unwrap();
+                    //~ }
+                    writer.push(&(row[0] as i64)).unwrap();   // essentially SE
                 }
 
                 let last_ext_prod_fft_noise = fft_noise.last().unwrap();
