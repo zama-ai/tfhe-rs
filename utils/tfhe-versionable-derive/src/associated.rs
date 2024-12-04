@@ -94,9 +94,9 @@ pub(crate) enum AssociatedTypeKind {
 /// [`VersionType`]: crate::dispatch_type::VersionType
 pub(crate) trait AssociatedType: Sized {
     /// Bounds that will be added on the fields of the ref type definition
-    const REF_BOUNDS: &'static [&'static str];
+    fn ref_bounds(&self) -> &'static [&'static str];
     /// Bounds that will be added on the fields of the owned type definition
-    const OWNED_BOUNDS: &'static [&'static str];
+    fn owned_bounds(&self) -> &'static [&'static str];
 
     /// This will create the alternative of the type that holds a reference to the underlying data
     fn new_ref(orig_type: &DeriveInput) -> syn::Result<Self>;
@@ -109,6 +109,10 @@ pub(crate) trait AssociatedType: Sized {
     /// Returns the kind of associated type, a ref or an owned type
     fn kind(&self) -> &AssociatedTypeKind;
 
+    /// Returns true if the type is transparent and trait implementation is actually deferred to the
+    /// inner type
+    fn is_transparent(&self) -> bool;
+
     /// Returns the generics found in the original type definition
     fn orig_type_generics(&self) -> &Generics;
 
@@ -119,9 +123,9 @@ pub(crate) trait AssociatedType: Sized {
             if let Some(lifetime) = opt_lifetime {
                 add_lifetime_param(&mut generics, lifetime);
             }
-            add_trait_where_clause(&mut generics, self.inner_types()?, Self::REF_BOUNDS)?;
+            add_trait_where_clause(&mut generics, self.inner_types()?, self.ref_bounds())?;
         } else {
-            add_trait_where_clause(&mut generics, self.inner_types()?, Self::OWNED_BOUNDS)?;
+            add_trait_where_clause(&mut generics, self.inner_types()?, self.owned_bounds())?;
         }
 
         Ok(generics)
@@ -254,14 +258,27 @@ impl<T: AssociatedType> AssociatingTrait<T> {
         )
         ]};
 
+        let owned_attributes = if self.owned_type.is_transparent() {
+            quote! {
+                #[derive(#serialize_trait, #deserialize_trait)]
+                #[repr(transparent)]
+                #[serde(bound = "")]
+                #ignored_lints
+            }
+        } else {
+            quote! {
+                #[derive(#serialize_trait, #deserialize_trait)]
+                #[serde(bound = "")]
+                #ignored_lints
+            }
+        };
+
         // Creates the type declaration. These types are the output of the versioning process, so
         // they should be serializable. Serde might try to add automatic bounds on the type generics
         // even if we don't need them, so we use `#[serde(bound = "")]` to disable this. The bounds
         // on the generated types should be sufficient.
         let owned_tokens = quote! {
-            #[derive(#serialize_trait, #deserialize_trait)]
-            #[serde(bound = "")]
-            #ignored_lints
+            #owned_attributes
             #owned_decla
 
             #(#owned_conversion)*
@@ -271,10 +288,23 @@ impl<T: AssociatedType> AssociatingTrait<T> {
 
         let ref_conversion = self.ref_type.generate_conversion()?;
 
+        let ref_attributes = if self.ref_type.is_transparent() {
+            quote! {
+                #[derive(#serialize_trait)]
+                #[repr(transparent)]
+                #[serde(bound = "")]
+                #ignored_lints
+            }
+        } else {
+            quote! {
+                #[derive(#serialize_trait)]
+                #[serde(bound = "")]
+                #ignored_lints
+            }
+        };
+
         let ref_tokens = quote! {
-            #[derive(#serialize_trait)]
-            #[serde(bound = "")]
-            #ignored_lints
+            #ref_attributes
             #ref_decla
 
             #(#ref_conversion)*
