@@ -399,9 +399,9 @@ pub mod integer_utils {
         #[cfg(feature = "gpu")]
         {
             // This value is for Nvidia H100 GPU
-            let streaming_multiprocessors = 144;
+            let streaming_multiprocessors = 132;
             let num_gpus = unsafe { cuda_get_number_of_gpus() };
-            ((streaming_multiprocessors * 16 * num_gpus) as f64 * block_multiplicator) as u64
+            ((streaming_multiprocessors * num_gpus) as f64 * block_multiplicator) as u64
         }
         #[cfg(not(feature = "gpu"))]
         {
