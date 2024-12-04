@@ -23,13 +23,6 @@ impl From<ZkComputeLoad> for crate::zk::ZkComputeLoad {
 pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs);
 impl_destroy_on_type!(CompactPkeCrs);
 
-// Because we use a repr(transparent) for the CompactPkeCrs, cbindgen will define CompactPkeCrs as
-// an alias for CompactPkePublicParams. We need to define this struct even if it will not actually
-// be used in the C api.
-#[allow(unused)]
-pub struct CompactPkePublicParams(pub(crate) crate::core_crypto::entities::CompactPkePublicParams);
-impl_destroy_on_type!(CompactPkePublicParams);
-
 /// Serializes the CRS
 ///
 /// If compress is true, the data will be compressed (less serialized bytes), however, this makes
@@ -144,7 +137,7 @@ pub unsafe extern "C" fn compact_pke_crs_deserialize_from_params(
 
         *result = std::ptr::null_mut();
 
-        let deserialized: crate::core_crypto::entities::CompactPkePublicParams =
+        let deserialized: crate::core_crypto::entities::ZkCompactPkeV1PublicParams =
             bincode::deserialize(buffer_view.as_slice()).unwrap();
         let crs = deserialized.into();
 
@@ -170,7 +163,7 @@ pub unsafe extern "C" fn compact_pke_crs_safe_deserialize_from_params(
 
         let buffer_view: &[u8] = buffer_view.as_slice();
 
-        let deserialized: crate::core_crypto::entities::CompactPkePublicParams =
+        let deserialized: crate::core_crypto::entities::ZkCompactPkeV1PublicParams =
             crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer_view)

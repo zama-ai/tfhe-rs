@@ -383,7 +383,7 @@ impl CompactPublicKey {
         // encryption
         let max_ciphertext_per_bin = self.key.lwe_dimension().0;
         // This is the maximum of lwe message a single proof can prove
-        let max_num_messages = crs.max_num_messages();
+        let max_num_messages = crs.max_num_messages().0;
         // One of the two is the limiting factor for how much we can pack messages
         let message_chunk_size = max_num_messages.min(max_ciphertext_per_bin);
 

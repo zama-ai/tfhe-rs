@@ -64,10 +64,10 @@ fn verify_proof(
 ) {
     println!("Verifying proof");
     match proven_ct.verify(crs, public_key, &METADATA) {
-        tfhe::zk::ZkVerificationOutCome::Valid => {
+        tfhe::zk::ZkVerificationOutcome::Valid => {
             println!("proof verification succeeded");
         }
-        tfhe::zk::ZkVerificationOutCome::Invalid => {
+        tfhe::zk::ZkVerificationOutcome::Invalid => {
             panic!("proof verification failed!!!")
         }
     }
