@@ -172,6 +172,52 @@ pub mod test_tools {
         }
     }
 
+    /// Return a MeanConfidenceInterval when you cannot evaluate the standard deviation of a random
+    /// variable
+    pub fn clopper_pearson_exact_confidence_interval(
+        sample_count: f64,
+        measured_fails: f64,
+        confidence_level: f64,
+    ) -> MeanConfidenceInterval {
+        // import scipy.stats as stats
+        // import math
+        //
+        // # Parameters
+        // n_tests = 10000  # Number of trials
+        // p_fail = 2**-5.5  # Theoretical probability of failure
+        // alpha = 0.01  # Significance level (1 - confidence level)
+        //
+        // # /!\ to be replaced by the experimental number of failures
+        // observed_failures = round(n_tests * p_fail)
+        //
+        // # Clopper-Pearson Exact Confidence Interval
+        // lower_bound = stats.beta.ppf(alpha / 2, observed_failures, n_tests - observed_failures +
+        // 1) upper_bound = stats.beta.ppf(1 - alpha / 2, observed_failures + 1, n_tests -
+        // observed_failures)
+        //
+        // print("Observed number of failures (k):", observed_failures)
+        // print(f"Confidence Interval ({(1-alpha)*100}%): [2^{round(math.log2(lower_bound),3)},
+        // 2^{round(math.log2(upper_bound),3)}]")
+
+        let alpha = 1.0 - confidence_level;
+        let beta_distribution_lower_bound =
+            statrs::distribution::Beta::new(measured_fails, sample_count - measured_fails + 1.0)
+                .unwrap();
+        let beta_distribution_upper_bound =
+            statrs::distribution::Beta::new(measured_fails + 1.0, sample_count - measured_fails)
+                .unwrap();
+
+        let lower_bound = beta_distribution_lower_bound.inverse_cdf(alpha / 2.0);
+        let upper_bound = beta_distribution_upper_bound.inverse_cdf(1.0 - alpha / 2.0);
+
+        assert!(lower_bound <= upper_bound);
+
+        MeanConfidenceInterval {
+            lower_bound,
+            upper_bound,
+        }
+    }
+
     pub fn variance(samples: &[f64]) -> Variance {
         let sample_count = samples.len();
 

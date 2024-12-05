@@ -11,10 +11,11 @@ use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::pbs
 use crate::core_crypto::commons::noise_formulas::modulus_switch::modulus_switch_additive_variance;
 use crate::core_crypto::commons::noise_formulas::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian;
 use crate::core_crypto::commons::test_tools::{
-    arithmetic_mean, mean_confidence_interval, torus_modular_diff, variance,
-    variance_confidence_interval,
+    arithmetic_mean, clopper_pearseaon_exact_confidence_interval, equivalent_pfail_gaussian_noise,
+    mean_confidence_interval, torus_modular_diff, variance, variance_confidence_interval,
 };
-use crate::core_crypto::entities::{LweCiphertext, Plaintext};
+use crate::core_crypto::commons::traits::Container;
+use crate::core_crypto::entities::{LweCiphertext, LweSecretKey, Plaintext};
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
@@ -220,7 +221,8 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
 
     // Normality check of heavily discretized gaussian does not seem to work
     // let normality_check = normality_test_f64(&noise_samples[..5000.min(noise_samples.len())],
-    // 0.05); assert!(normality_check.null_hypothesis_is_valid);
+    // 0.01); println!("{}", normality_check.p_value);
+    // assert!(normality_check.null_hypothesis_is_valid);
 }
 
 create_parameterized_test!(
@@ -229,13 +231,58 @@ create_parameterized_test!(
     }
 );
 
-fn classic_pbs_atomic_pattern_noise_helper(
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct NoiseSample {
+    pub value: f64,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum DecryptionAndNoiseResult {
+    DecryptionSucceeded { noise: NoiseSample },
+    DecryptionFailed,
+}
+
+impl DecryptionAndNoiseResult {
+    fn new<CtCont, KeyCont>(
+        ct: &LweCiphertext<CtCont>,
+        secret_key: &LweSecretKey<KeyCont>,
+        expected_msg: u64,
+        delta: u64,
+        cleartext_modulus: u64,
+    ) -> Self
+    where
+        CtCont: Container<Element = u64>,
+        KeyCont: Container<Element = u64>,
+    {
+        let decrypted_plaintext = decrypt_lwe_ciphertext(secret_key, ct).0;
+
+        let decoded_msg = round_decode(decrypted_plaintext, delta) % cleartext_modulus;
+
+        let expected_plaintext = expected_msg * delta;
+
+        let noise = torus_modular_diff(
+            expected_plaintext,
+            decrypted_plaintext,
+            ct.ciphertext_modulus(),
+        );
+
+        if decoded_msg == expected_msg {
+            Self::DecryptionSucceeded {
+                noise: NoiseSample { value: noise },
+            }
+        } else {
+            Self::DecryptionFailed
+        }
+    }
+}
+
+fn classic_pbs_atomic_pattern_inner_helper(
     params: ShortintParameterSet,
     single_cks: &ClientKey,
     single_sks: &ServerKey,
     msg: u64,
     scalar_for_multiplication: u8,
-) -> f64 {
+) -> DecryptionAndNoiseResult {
     assert!(params.pbs_only());
     assert!(
         matches!(params.encryption_key_choice(), EncryptionKeyChoice::Big),
@@ -350,16 +397,59 @@ fn classic_pbs_atomic_pattern_noise_helper(
         *dst = modulus_switch(*src, br_input_modulus_log) << shift_to_map_to_native;
     }
 
-    let decrypted = decrypt_lwe_ciphertext(&cks.small_lwe_secret_key(), &after_ms).0;
-
-    let decoded = round_decode(decrypted, delta) % cleartext_modulus;
-    assert_eq!(decoded, msg);
-
-    torus_modular_diff(
-        native_mod_plaintext.0,
-        decrypted,
-        after_ms.ciphertext_modulus(),
+    DecryptionAndNoiseResult::new(
+        &after_ms,
+        &cks.small_lwe_secret_key(),
+        msg,
+        delta,
+        cleartext_modulus,
     )
+}
+
+fn classic_pbs_atomic_pattern_noise_helper(
+    params: ShortintParameterSet,
+    single_cks: &ClientKey,
+    single_sks: &ServerKey,
+    msg: u64,
+    scalar_for_multiplication: u8,
+) -> NoiseSample {
+    let decryption_and_noise_result = classic_pbs_atomic_pattern_inner_helper(
+        params,
+        single_cks,
+        single_sks,
+        msg,
+        scalar_for_multiplication,
+    );
+
+    match decryption_and_noise_result {
+        DecryptionAndNoiseResult::DecryptionSucceeded { noise } => noise,
+        DecryptionAndNoiseResult::DecryptionFailed => {
+            panic!("Failed decryption, noise measurement will be wrong.")
+        }
+    }
+}
+
+/// Return 1 if the decryption failed, otherwise 0, allowing to sum the results of threads to get
+/// the failure rate.
+fn classic_pbs_atomic_pattern_pfail_helper(
+    params: ShortintParameterSet,
+    single_cks: &ClientKey,
+    single_sks: &ServerKey,
+    msg: u64,
+    scalar_for_multiplication: u8,
+) -> f64 {
+    let decryption_and_noise_result = classic_pbs_atomic_pattern_inner_helper(
+        params,
+        single_cks,
+        single_sks,
+        msg,
+        scalar_for_multiplication,
+    );
+
+    match decryption_and_noise_result {
+        DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
+        DecryptionAndNoiseResult::DecryptionFailed => 1.0,
+    }
 }
 
 fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParameters) {
@@ -464,6 +554,7 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
                     msg,
                     scalar_for_multiplication.try_into().unwrap(),
                 )
+                .value
             })
             .collect();
 
@@ -522,5 +613,114 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
 }
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_noise {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+});
+
+fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSParameters) {
+    assert_eq!(
+        params.carry_modulus.0, 4,
+        "This test is only for 2_2 parameters"
+    );
+    assert_eq!(
+        params.message_modulus.0, 4,
+        "This test is only for 2_2 parameters"
+    );
+
+    // Padding bit + carry and message
+    let original_precision_with_padding =
+        (2 * params.carry_modulus.0 * params.message_modulus.0).ilog2();
+    params.carry_modulus.0 = 1 << 4;
+
+    let new_precision_with_padding =
+        (2 * params.carry_modulus.0 * params.message_modulus.0).ilog2();
+
+    let original_pfail = 2.0f64.powf(params.log2_p_fail);
+
+    println!("original_pfail={original_pfail}");
+    println!("original_pfail_log2={}", params.log2_p_fail);
+
+    let expected_pfail = equivalent_pfail_gaussian_noise(
+        original_precision_with_padding,
+        original_pfail,
+        new_precision_with_padding,
+    );
+
+    params.log2_p_fail = expected_pfail.log2();
+
+    println!("expected_pfail={expected_pfail}");
+    println!("expected_pfail_log2={}", params.log2_p_fail);
+
+    let expected_fails = 200;
+
+    let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as u32;
+    let params: ShortintParameterSet = params.into();
+    assert!(
+        matches!(params.encryption_key_choice(), EncryptionKeyChoice::Big),
+        "This test only supports encryption under the big key for now."
+    );
+    assert!(
+        params
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "This test only supports encrytpion with power of 2 moduli for now."
+    );
+
+    let cleartext_modulus = params.message_modulus().0 * params.carry_modulus().0;
+    let scalar_for_multiplication = params.max_noise_level().get();
+
+    let cks = ClientKey::new(params);
+    let sks = ServerKey::new(&cks);
+
+    let measured_fails: f64 = (0..runs_for_expected_fails)
+        .into_par_iter()
+        .map(|_| {
+            let msg: u64 = rand::random::<u64>() % cleartext_modulus;
+
+            classic_pbs_atomic_pattern_pfail_helper(
+                params,
+                &cks,
+                &sks,
+                msg,
+                scalar_for_multiplication.try_into().unwrap(),
+            )
+        })
+        .sum();
+
+    let measured_pfail = measured_fails / (runs_for_expected_fails as f64);
+
+    println!("measured_fails={measured_fails}");
+    println!("expected_fails={expected_fails}");
+    println!("measured_pfail={measured_pfail}");
+    println!("expected_pfail={expected_pfail}");
+
+    let pfail_confidence_interval = clopper_pearseaon_exact_confidence_interval(
+        runs_for_expected_fails as f64,
+        measured_fails,
+        0.99,
+    );
+
+    println!(
+        "pfail_lower_bound={}",
+        pfail_confidence_interval.lower_bound()
+    );
+    println!(
+        "pfail_upper_bound={}",
+        pfail_confidence_interval.upper_bound()
+    );
+
+    if measured_pfail <= expected_pfail {
+        if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
+            println!(
+                "WARNING: measured pfail is smaller than expected pfail \
+            and out of the confidence interval\n\
+            the optimizer might be pessimistic when generating parameters."
+            );
+        }
+    } else {
+        assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+    }
+}
+
+create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_pfail {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
 });
