@@ -213,12 +213,6 @@ pub(crate) enum InnerCompressedCiphertextList {
     Cuda(crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList),
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub(crate) struct InnerCompressedCiphertextListVersionOwned(
-    <crate::integer::ciphertext::CompressedCiphertextList as VersionizeOwned>::VersionedOwned,
-);
-
 impl Versionize for InnerCompressedCiphertextList {
     type Versioned<'vers> =
         <crate::integer::ciphertext::CompressedCiphertextList as VersionizeOwned>::VersionedOwned;

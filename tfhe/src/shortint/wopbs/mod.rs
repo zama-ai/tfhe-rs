@@ -17,6 +17,7 @@ mod test;
 
 // Struct for WoPBS based on the private functional packing keyswitch.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub struct WopbsKey {
     //Key for the private functional keyswitch
     pub wopbs_server_key: ServerKey,
