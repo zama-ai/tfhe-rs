@@ -4,7 +4,7 @@ use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
 use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
@@ -323,14 +323,14 @@ impl NamedParam for CompressionParameters {
 impl NamedParam for CompactPublicKeyEncryptionParameters {
     fn name(&self) -> String {
         named_params_impl!(expose
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+            V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
         );
 
         named_params_impl!(
             {
                 *self;
                 Self
-            } == (PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+            } == (V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
         );
 
         format!(

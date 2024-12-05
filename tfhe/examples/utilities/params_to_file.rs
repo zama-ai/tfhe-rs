@@ -7,7 +7,7 @@ use tfhe::core_crypto::prelude::{DynamicDistribution, TUniform, UnsignedInteger}
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::classic::compact_pk::ALL_PARAMETER_VEC_COMPACT_PK;
 use tfhe::shortint::parameters::classic::gaussian::ALL_PARAMETER_VEC_GAUSSIAN;
-use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::multi_bit::gaussian::ALL_MULTI_BIT_PARAMETER_VEC;
 use tfhe::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, CompressionParameters, ShortintParameterSet,
@@ -285,7 +285,7 @@ fn main() {
 
     write_all_params_in_file(
         "shortint_cpke_parameters_lattice_estimator.sage",
-        &[PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64],
+        &[V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64],
         ParametersFormat::Lwe,
     );
 
