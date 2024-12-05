@@ -77,8 +77,8 @@ pub enum CompressedModulusSwitchedRadixCiphertextVersions {
 }
 
 #[derive(VersionsDispatch)]
-#[allow(dead_code)]
 pub(crate) enum CompressedModulusSwitchedRadixCiphertextGenericVersions {
+    #[allow(dead_code)]
     V0(CompressedModulusSwitchedRadixCiphertextGeneric),
 }
 
