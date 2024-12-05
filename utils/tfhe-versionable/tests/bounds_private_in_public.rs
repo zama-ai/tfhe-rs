@@ -30,8 +30,8 @@ mod mymod {
     struct Private<T>(T);
 
     #[derive(VersionsDispatch)]
-    #[allow(dead_code)]
     enum PrivateVersions<T> {
+        #[allow(dead_code)]
         V0(Private<T>),
     }
 }

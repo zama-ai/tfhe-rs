@@ -134,8 +134,8 @@ pub enum CompressedModulusSwitchedCiphertextVersions {
 }
 
 #[derive(VersionsDispatch)]
-#[allow(dead_code)]
 pub(crate) enum InternalCompressedModulusSwitchedCiphertextVersions {
+    #[allow(dead_code)]
     V0(InternalCompressedModulusSwitchedCiphertext),
 }
 

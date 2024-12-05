@@ -22,8 +22,8 @@ struct MyStructWrapper<T> {
     count: u64,
 }
 
-// We need to create a dispatch enum that has the same history as the inner type until the point
-// where the wrapper is not transparent anymore.
+// We need to create a dispatch enum that follows the version numbers of the inner type, until the
+// point where the wrapper is not transparent anymore.
 #[derive(VersionsDispatch)]
 #[allow(unused)]
 enum MyStructWrapperVersions<T> {
