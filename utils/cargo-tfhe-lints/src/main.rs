@@ -1,4 +1,7 @@
-use std::process::{exit, Command};
+use std::{
+    io::{Error, ErrorKind},
+    process::{exit, Command},
+};
 
 fn get_supported_rustc_version() -> &'static str {
     const TOOLCHAIN_FILE: &str = include_str!("../../cargo-tfhe-lints-inner/rust-toolchain.toml");
@@ -26,8 +29,17 @@ fn main() {
         .arg(toolchain.as_str())
         .arg("tfhe-lints-inner")
         .args(&cargo_args)
-        .spawn()
-        .and_then(|mut child| child.wait())
+        .status()
+        .and_then(|res| {
+            if !res.success() {
+                Err(Error::new(
+                    ErrorKind::Other,
+                    format!("Inner process failed with {res}"),
+                ))
+            } else {
+                Ok(())
+            }
+        })
     {
         eprintln!(
             "Command `cargo {toolchain} tfhe-lints-inner {}` failed: {err:?}",
