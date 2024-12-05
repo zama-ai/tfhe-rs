@@ -437,9 +437,9 @@ mod test {
         {
             let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-            let cpk_params = ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let cpk_params = ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
             let config = ConfigBuilder::with_custom_parameters(params)
                 .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
@@ -495,9 +495,9 @@ mod test {
         {
             let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-            let mut cpk_params = ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let mut cpk_params = ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
             let config = ConfigBuilder::with_custom_parameters(params)
                 .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
@@ -562,9 +562,9 @@ mod test {
         {
             let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-            let cpk_params = ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let cpk_params = ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
             let config = ConfigBuilder::with_custom_parameters(params)
                 .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
@@ -620,9 +620,9 @@ mod test {
         {
             let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-            let mut cpk_params = ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let mut cpk_params = ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
             let config = ConfigBuilder::with_custom_parameters(params)
                 .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));

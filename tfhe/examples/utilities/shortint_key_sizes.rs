@@ -7,8 +7,8 @@ use std::io::Write;
 use std::path::Path;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::KEY_CACHE;
-use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::{
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
@@ -222,7 +222,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
         &mut file,
     );
 
-    let param_pke = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param_pke = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     let param_pke_name = stringify!(PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     let compact_private_key = CompactPrivateKey::new(param_pke);
     let compressed_pk = CompressedCompactPublicKey::new(&compact_private_key);
@@ -266,7 +266,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
         &mut file,
     );
 
-    let param_casting = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param_casting = V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     let param_casting_name = stringify!(PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     let compressed_casting_key = CompressedKeySwitchingKey::new(
         (&compact_private_key, None),

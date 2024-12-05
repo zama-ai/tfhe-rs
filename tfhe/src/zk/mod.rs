@@ -710,12 +710,12 @@ impl Compressible for CompactPkeCrs {
 mod test {
     use super::*;
     use crate::safe_serialization::{safe_deserialize_conformant, safe_serialize};
-    use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::{CarryModulus, MessageModulus};
 
     #[test]
     fn test_crs_conformance() {
-        let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let params = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
         let mut bad_params = params;
         bad_params.carry_modulus = CarryModulus(8);
         bad_params.message_modulus = MessageModulus(8);
@@ -751,7 +751,7 @@ mod test {
 
     #[test]
     fn test_crs_serialization() {
-        let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let params = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
         let mut rng = rand::thread_rng();
 
