@@ -1,6 +1,6 @@
+#include "fast_packing_keyswitch.cuh"
 #include "keyswitch.cuh"
 #include "keyswitch.h"
-#include "fast_packing_keyswitch.cuh"
 #include <cstdint>
 #include <stdio.h>
 
@@ -62,30 +62,32 @@ void scratch_packing_keyswitch_lwe_list_to_glwe_64(
       glwe_dimension, polynomial_size, num_lwes, allocate_gpu_memory);
 }
 
-void dump_2d_64(const char* fname, uint64_t const* gpu_buf, int lines, int cols, int stride, cudaStream_t stream) {
-    FILE* fp_lwe = fopen(fname, "wt");
-    uint64_t* buf_host = (uint64_t* )malloc(lines * stride * sizeof(uint64_t));
+void dump_2d_64(const char *fname, uint64_t const *gpu_buf, int lines, int cols,
+                int stride, cudaStream_t stream) {
+  FILE *fp_lwe = fopen(fname, "wt");
+  uint64_t *buf_host = (uint64_t *)malloc(lines * stride * sizeof(uint64_t));
 
-    printf("Dump %d %d %d to %s\n", lines, cols, stride, fname);
-    cudaMemcpy(buf_host, gpu_buf, lines * stride * sizeof(uint64_t), cudaMemcpyDeviceToHost);
-    cudaStreamSynchronize(stream);
+  printf("Dump %d %d %d to %s\n", lines, cols, stride, fname);
+  cudaMemcpy(buf_host, gpu_buf, lines * stride * sizeof(uint64_t),
+             cudaMemcpyDeviceToHost);
+  cudaStreamSynchronize(stream);
 
-    for (int i = 0; i < lines; ++i) {
-      for (int j = 0; j < cols; ++j) { // 
-        uint64_t val = buf_host[i*stride + j];
-        fprintf(fp_lwe, "%llu,", val);
-      }
-      fprintf(fp_lwe, "\n");
+  for (int i = 0; i < lines; ++i) {
+    for (int j = 0; j < cols; ++j) { //
+      uint64_t val = buf_host[i * stride + j];
+      fprintf(fp_lwe, "%llu,", val);
     }
-    fclose(fp_lwe);
-    free(buf_host);
+    fprintf(fp_lwe, "\n");
+  }
+  fclose(fp_lwe);
+  free(buf_host);
 }
 
 /* Perform functional packing keyswitch on a batch of 64 bits input LWE
  * ciphertexts.
  */
 
-//#define KS_VAL_DBG 
+// #define KS_VAL_DBG
 
 void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     void *stream, uint32_t gpu_index, void *glwe_array_out,
@@ -94,18 +96,15 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     uint32_t output_polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_lwes) {
 
-  if (can_use_pks_fast_path(
-    input_lwe_dimension, num_lwes, output_polynomial_size, level_count, output_glwe_dimension
-  )) {
-#ifdef KS_VAL_DBG     
+  if (can_use_pks_fast_path(input_lwe_dimension, num_lwes,
+                            output_polynomial_size, level_count,
+                            output_glwe_dimension)) {
+#ifdef KS_VAL_DBG
     cudaStream_t s = static_cast<cudaStream_t>(stream);
 
-    dump_2d_64("/home/stoiana/lwe_mask.csv", 
-      static_cast<const uint64_t *>(lwe_array_in), 
-      num_lwes, 
-      input_lwe_dimension, 
-      input_lwe_dimension + 1, 
-      s);
+    dump_2d_64("/home/stoiana/lwe_mask.csv",
+               static_cast<const uint64_t *>(lwe_array_in), num_lwes,
+               input_lwe_dimension, input_lwe_dimension + 1, s);
 #endif
 
     host_fast_packing_keyswitch_lwe_list_to_glwe<uint64_t, ulonglong4>(
@@ -116,43 +115,28 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
         input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
         base_log, level_count, num_lwes);
 
-#ifdef KS_VAL_DBG     
-    dump_2d_64("/home/stoiana/decomp_lwe_mask.csv", 
-      (const uint64_t *)fp_ks_buffer, 
-      num_lwes, 
-      input_lwe_dimension, 
-      input_lwe_dimension, 
-      s);
+#ifdef KS_VAL_DBG
+    dump_2d_64("/home/stoiana/decomp_lwe_mask.csv",
+               (const uint64_t *)fp_ks_buffer, num_lwes, input_lwe_dimension,
+               input_lwe_dimension, s);
 
-    auto size_ks_glwe = output_polynomial_size * (output_glwe_dimension+1);
-    auto fp_ks_buffer_part2 = (uint64_t*)fp_ks_buffer + num_lwes * size_ks_glwe;
-    dump_2d_64("/home/stoiana/gemm.csv", 
-      static_cast<const uint64_t *>(fp_ks_buffer_part2), 
-      num_lwes, 
-      size_ks_glwe, 
-      size_ks_glwe, 
-      s);
+    auto size_ks_glwe = output_polynomial_size * (output_glwe_dimension + 1);
+    auto fp_ks_buffer_part2 =
+        (uint64_t *)fp_ks_buffer + num_lwes * size_ks_glwe;
+    dump_2d_64("/home/stoiana/gemm.csv",
+               static_cast<const uint64_t *>(fp_ks_buffer_part2), num_lwes,
+               size_ks_glwe, size_ks_glwe, s);
 
-    dump_2d_64("/home/stoiana/ksk.csv", 
-      static_cast<const uint64_t *>(fp_ksk_array), 
-      input_lwe_dimension, 
-      size_ks_glwe, 
-      size_ks_glwe, 
-      s);
+    dump_2d_64("/home/stoiana/ksk.csv",
+               static_cast<const uint64_t *>(fp_ksk_array), input_lwe_dimension,
+               size_ks_glwe, size_ks_glwe, s);
 
-    dump_2d_64("/home/stoiana/rotated_gpu.csv", 
-      (const uint64_t *)fp_ks_buffer, 
-      num_lwes, 
-      size_ks_glwe, 
-      size_ks_glwe, 
-      s);
+    dump_2d_64("/home/stoiana/rotated_gpu.csv", (const uint64_t *)fp_ks_buffer,
+               num_lwes, size_ks_glwe, size_ks_glwe, s);
 
-    dump_2d_64("/home/stoiana/glwe.csv", 
-      static_cast<const uint64_t *>(glwe_array_out), 
-      1, 
-      size_ks_glwe, 
-      size_ks_glwe, 
-      s);
+    dump_2d_64("/home/stoiana/glwe.csv",
+               static_cast<const uint64_t *>(glwe_array_out), 1, size_ks_glwe,
+               size_ks_glwe, s);
 #endif
 
   } else
@@ -163,7 +147,6 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
         static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
         input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
         base_log, level_count, num_lwes);
-
 }
 
 void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,

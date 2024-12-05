@@ -384,7 +384,8 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
     */
 
     //let mut f = BufWriter::new(File::create("/home/stoiana/rotated.csv").expect("cannot open"));
-    //let mut f_gemm = BufWriter::new(File::create("/home/stoiana/gemm_cpu.csv").expect("cannot open"));
+    //let mut f_gemm = BufWriter::new(File::create("/home/stoiana/gemm_cpu.csv").expect("cannot
+    // open"));
 
     // for each ciphertext, call mono_key_switch
     for (degree, input_ciphertext) in input_lwe_ciphertext.iter().enumerate() {
@@ -395,7 +396,7 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
         }
         writeln!(f);
         */
-        
+
         keyswitch_lwe_ciphertext_into_glwe_ciphertext(lwe_pksk, &input_ciphertext, &mut buffer);
 
         /*
