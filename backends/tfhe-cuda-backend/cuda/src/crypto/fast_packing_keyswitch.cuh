@@ -4,6 +4,7 @@
 #include "device.h"
 #include "gadget.cuh"
 #include "helper_multi_gpu.h"
+#include "keyswitch.cuh"
 #include "polynomial/functions.cuh"
 #include "polynomial/polynomial_math.cuh"
 #include "torus.cuh"
