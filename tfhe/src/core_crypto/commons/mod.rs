@@ -26,6 +26,7 @@ pub mod traits;
 #[cfg(test)]
 pub mod test_tools {
     use rand::Rng;
+    use statrs::distribution::{ChiSquared, ContinuousCDF, Normal};
 
     pub use crate::core_crypto::algorithms::misc::{
         modular_distance, modular_distance_custom_mod, torus_modular_diff,
@@ -120,6 +121,40 @@ pub mod test_tools {
         pub w_prime: f64,
         pub p_value: f64,
         pub null_hypothesis_is_valid: bool,
+    }
+
+    pub fn equivalent_pfail_gaussian_noise(
+        original_precision_with_padding: u32,
+        original_pfail: f64,
+        new_precision_with_padding: u32,
+    ) -> f64 {
+        let original_precision_with_padding_and_noise_gap =
+            original_precision_with_padding as f64 + 1.0;
+        let new_precision_with_padding_and_noise_gap = new_precision_with_padding as f64 + 1.0;
+
+        // p_fail is symmetric for gaussian noise, so we take the left tail of the gaussian and
+        // divide the wanted pfail by 2
+        let z_original_pfail =
+            core::f64::consts::SQRT_2 * statrs::function::erf::erfc_inv(original_pfail);
+        let z_new_pfail = z_original_pfail
+            / (2.0f64.powf(
+                new_precision_with_padding_and_noise_gap
+                    - original_precision_with_padding_and_noise_gap,
+            ));
+
+        1.0 - statrs::function::erf::erf(z_new_pfail / core::f64::consts::SQRT_2)
+    }
+
+    /// Normal law CDF
+    fn phi(x: f64) -> f64 {
+        let normal_law = Normal::new(0.0, 1.0).unwrap();
+        normal_law.cdf(x)
+    }
+
+    /// (Normal law CDF)^{-1}
+    fn phi_inv(x: f64) -> f64 {
+        let normal_law = Normal::new(0.0, 1.0).unwrap();
+        normal_law.inverse_cdf(x)
     }
 
     /// Based on Shapiro-Francia normality test
@@ -359,5 +394,13 @@ pub mod test_tools {
             let distance = torus_modular_diff(seven_eighth, one_eighth, q);
             assert_eq!(distance, -0.25);
         }
+    }
+
+    #[test]
+    fn test_equivalent_pfail() {
+        assert_eq!(
+            equivalent_pfail_gaussian_noise(5, 2.0f64.powi(-64), 7),
+            0.022089612797217772
+        );
     }
 }
