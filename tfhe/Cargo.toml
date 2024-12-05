@@ -169,6 +169,13 @@ harness = false
 required-features = ["internal-keycache"]
 
 [[bench]]
+name = "modulus_switch_noise_reduction"
+path = "benches/core_crypto/modulus_switch_noise_reduction.rs"
+harness = false
+required-features = ["shortint"]
+
+
+[[bench]]
 name = "pbs128-bench"
 path = "benches/core_crypto/pbs128_bench.rs"
 harness = false
