@@ -229,6 +229,139 @@ create_parameterized_test!(
     }
 );
 
+fn classic_pbs_atomic_pattern_noise_helper(
+    params: ShortintParameterSet,
+    single_cks: &ClientKey,
+    single_sks: &ServerKey,
+    msg: u64,
+    scalar_for_multiplication: u8,
+) -> f64 {
+    assert!(params.pbs_only());
+    assert!(
+        matches!(params.encryption_key_choice(), EncryptionKeyChoice::Big),
+        "This test only supports encryption under the big key for now."
+    );
+    assert!(
+        params
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "This test only supports encrytpion with power of 2 moduli for now."
+    );
+
+    let mut engine = ShortintEngine::new();
+    let thread_cks;
+    let thread_sks;
+    let (cks, sks) = if should_use_one_key_per_sample() {
+        thread_cks = engine.new_client_key(params);
+        thread_sks = engine.new_server_key(&thread_cks);
+
+        (&thread_cks, &thread_sks)
+    } else {
+        // If we don't want to use per thread keys (to go faster), we use those single keys for all
+        // threads
+        (single_cks, single_sks)
+    };
+
+    let identity_lut = sks.generate_lookup_table(|x| x);
+
+    let cleartext_modulus = params.message_modulus().0 * params.carry_modulus().0;
+    let br_input_modulus_log = params
+        .polynomial_size()
+        .to_blind_rotation_input_modulus_log();
+    let shift_to_map_to_native = u64::BITS - br_input_modulus_log.0 as u32;
+
+    let delta = (1u64 << 63) / cleartext_modulus;
+    let native_mod_plaintext = Plaintext(msg * delta);
+
+    // We want to encrypt the ciphertext under modulus 2N but then use the native
+    // modulus to simulate a noiseless mod switch as input
+    let input_pbs_lwe_ct = {
+        let ms_modulus = CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap();
+        let no_noise_dist = DynamicDistribution::new_gaussian(Variance(0.0));
+
+        let ms_delta = ms_modulus.get_custom_modulus() as u64 / (2 * cleartext_modulus);
+
+        let ms_plaintext = Plaintext(msg * ms_delta);
+
+        let simulated_mod_switch_ct = allocate_and_encrypt_new_lwe_ciphertext(
+            &cks.small_lwe_secret_key(),
+            ms_plaintext,
+            no_noise_dist,
+            ms_modulus,
+            &mut engine.encryption_generator,
+        );
+
+        let raw_data = simulated_mod_switch_ct.into_container();
+        // Now get the noiseless mod switched encryption under the proper modulus
+        // The power of 2 modulus are always encrypted in the MSBs, so this is fine
+        LweCiphertext::from_container(raw_data, params.ciphertext_modulus())
+    };
+
+    let mut after_pbs_shortint_ct = sks.unchecked_create_trivial_with_lwe_size(
+        0,
+        sks.bootstrapping_key.output_lwe_dimension().to_lwe_size(),
+    );
+
+    let (_, buffers) = engine.get_buffers(sks);
+
+    // Apply the PBS only
+    apply_programmable_bootstrap(
+        &sks.bootstrapping_key,
+        &input_pbs_lwe_ct,
+        &mut after_pbs_shortint_ct.ct,
+        &identity_lut.acc,
+        buffers,
+    );
+
+    // Remove the plaintext before the mul to avoid degree issues but sill increase the
+    // noise
+    lwe_ciphertext_plaintext_sub_assign(&mut after_pbs_shortint_ct.ct, native_mod_plaintext);
+
+    sks.unchecked_scalar_mul_assign(&mut after_pbs_shortint_ct, scalar_for_multiplication);
+
+    // Put the message back in after mul to have our msg in a noisy ct
+    sks.unchecked_scalar_add_assign(&mut after_pbs_shortint_ct, msg.try_into().unwrap());
+
+    let mut after_ks_lwe = LweCiphertext::new(
+        0u64,
+        sks.key_switching_key.output_lwe_size(),
+        sks.key_switching_key.ciphertext_modulus(),
+    );
+
+    keyswitch_lwe_ciphertext(
+        &sks.key_switching_key,
+        &after_pbs_shortint_ct.ct,
+        &mut after_ks_lwe,
+    );
+
+    let mut after_ms = LweCiphertext::new(
+        0u64,
+        after_ks_lwe.lwe_size(),
+        // This will be easier to manage when decrypting, we'll put the value in the
+        // MSB
+        params.ciphertext_modulus(),
+    );
+
+    for (dst, src) in after_ms
+        .as_mut()
+        .iter_mut()
+        .zip(after_ks_lwe.as_ref().iter())
+    {
+        *dst = modulus_switch(*src, br_input_modulus_log) << shift_to_map_to_native;
+    }
+
+    let decrypted = decrypt_lwe_ciphertext(&cks.small_lwe_secret_key(), &after_ms).0;
+
+    let decoded = round_decode(decrypted, delta) % cleartext_modulus;
+    assert_eq!(decoded, msg);
+
+    torus_modular_diff(
+        native_mod_plaintext.0,
+        decrypted,
+        after_ms.ciphertext_modulus(),
+    )
+}
+
 fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParameters) {
     let params: ShortintParameterSet = params.into();
     assert!(
@@ -309,7 +442,6 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
         .polynomial_size()
         .to_blind_rotation_input_modulus_log();
     let br_input_modulus = 1u64 << br_input_modulus_log.0;
-    let shift_to_map_to_native = u64::BITS - br_input_modulus_log.0 as u32;
 
     let ms_additive_var = modulus_switch_additive_variance(
         output_ks_lwe_dimension,
@@ -319,125 +451,18 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
 
     let expected_variance_after_ms = Variance(expected_variance_after_ks.0 + ms_additive_var.0);
 
-    let identity_lut = sks.generate_lookup_table(|x| x);
-
     let cleartext_modulus = params.message_modulus().0 * params.carry_modulus().0;
     let mut noise_samples = vec![];
     for msg in 0..cleartext_modulus {
         let current_noise_samples: Vec<_> = (0..1000)
             .into_par_iter()
             .map(|_| {
-                let mut engine = ShortintEngine::new();
-                let thread_cks;
-                let thread_sks;
-                let (cks, sks) = if should_use_one_key_per_sample() {
-                    thread_cks = engine.new_client_key(params);
-                    thread_sks = engine.new_server_key(&thread_cks);
-
-                    (&thread_cks, &thread_sks)
-                } else {
-                    (&cks, &sks)
-                };
-
-                let delta = (1u64 << 63) / cleartext_modulus;
-                let native_mod_plaintext = Plaintext(msg * delta);
-
-                // We want to encrypt the ciphertext under modulus 2N but then use the native
-                // modulus to simulate a noiseless mod switch as input
-                let input_pbs_lwe_ct = {
-                    let ms_modulus =
-                        CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap();
-                    let no_noise_dist = DynamicDistribution::new_gaussian(Variance(0.0));
-
-                    let ms_delta = ms_modulus.get_custom_modulus() as u64 / (2 * cleartext_modulus);
-
-                    let ms_plaintext = Plaintext(msg * ms_delta);
-
-                    let simulated_mod_switch_ct = allocate_and_encrypt_new_lwe_ciphertext(
-                        &cks.small_lwe_secret_key(),
-                        ms_plaintext,
-                        no_noise_dist,
-                        ms_modulus,
-                        &mut engine.encryption_generator,
-                    );
-
-                    let raw_data = simulated_mod_switch_ct.into_container();
-                    // Now get the noiseless mod switched encryption under the proper modulus
-                    // The power of 2 modulus are always encrypted in the MSBs, so this is fine
-                    LweCiphertext::from_container(raw_data, params.ciphertext_modulus())
-                };
-
-                let mut after_pbs_shortint_ct = sks.unchecked_create_trivial_with_lwe_size(
-                    0,
-                    sks.bootstrapping_key.output_lwe_dimension().to_lwe_size(),
-                );
-
-                let (_, buffers) = engine.get_buffers(sks);
-
-                // Apply the PBS only
-                apply_programmable_bootstrap(
-                    &sks.bootstrapping_key,
-                    &input_pbs_lwe_ct,
-                    &mut after_pbs_shortint_ct.ct,
-                    &identity_lut.acc,
-                    buffers,
-                );
-
-                // Remove the plaintext before the mul to avoid degree issues but sill increase the
-                // noise
-                lwe_ciphertext_plaintext_sub_assign(
-                    &mut after_pbs_shortint_ct.ct,
-                    native_mod_plaintext,
-                );
-
-                sks.unchecked_scalar_mul_assign(
-                    &mut after_pbs_shortint_ct,
+                classic_pbs_atomic_pattern_noise_helper(
+                    params,
+                    &cks,
+                    &sks,
+                    msg,
                     scalar_for_multiplication.try_into().unwrap(),
-                );
-
-                // Put the message back in after mul to have our msg in a noisy ct
-                sks.unchecked_scalar_add_assign(
-                    &mut after_pbs_shortint_ct,
-                    msg.try_into().unwrap(),
-                );
-
-                let mut after_ks_lwe = LweCiphertext::new(
-                    0u64,
-                    sks.key_switching_key.output_lwe_size(),
-                    sks.key_switching_key.ciphertext_modulus(),
-                );
-
-                keyswitch_lwe_ciphertext(
-                    &sks.key_switching_key,
-                    &after_pbs_shortint_ct.ct,
-                    &mut after_ks_lwe,
-                );
-
-                let mut after_ms = LweCiphertext::new(
-                    0u64,
-                    after_ks_lwe.lwe_size(),
-                    // This will be easier to manage when decrypting, we'll put the value in the
-                    // MSB
-                    params.ciphertext_modulus(),
-                );
-
-                for (dst, src) in after_ms
-                    .as_mut()
-                    .iter_mut()
-                    .zip(after_ks_lwe.as_ref().iter())
-                {
-                    *dst = modulus_switch(*src, br_input_modulus_log) << shift_to_map_to_native;
-                }
-
-                let decrypted = decrypt_lwe_ciphertext(&cks.small_lwe_secret_key(), &after_ms).0;
-
-                let decoded = round_decode(decrypted, delta) % cleartext_modulus;
-                assert_eq!(decoded, msg);
-
-                torus_modular_diff(
-                    native_mod_plaintext.0,
-                    decrypted,
-                    after_ms.ciphertext_modulus(),
                 )
             })
             .collect();
