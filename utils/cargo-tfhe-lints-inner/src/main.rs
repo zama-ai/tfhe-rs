@@ -27,6 +27,11 @@ fn main() {
         (tool_args.as_slice(), &[] as &[String])
     };
 
+    // The linter calls rustc without cargo, so these variables won't be set. Since we use them in
+    // our code, we need to set them to any value to avoid a compilation error.
+    std::env::set_var("CARGO_PKG_VERSION_MAJOR", "X");
+    std::env::set_var("CARGO_PKG_VERSION_MINOR", "Y");
+
     rustc_tools::cargo_integration(&cargo_args, |args| {
         let mut args = args.to_vec();
         args.extend(rustc_args.iter().skip(1).cloned());
