@@ -1022,7 +1022,8 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
-    let crs = CompactPkeCrs::new(
+    // Test zk scheme v1 and v2
+    let crs_v2 = CompactPkeCrs::new(
         lwe_dimension,
         1,
         glwe_noise_distribution,
@@ -1033,68 +1034,81 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     )
     .unwrap();
 
-    while msg != Scalar::ZERO {
-        msg = msg.wrapping_sub(Scalar::ONE);
-        for _ in 0..NB_TESTS {
-            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
-                lwe_dimension,
-                &mut rsc.secret_random_generator,
-            );
+    let crs_v1 = CompactPkeCrs::new_legacy_v1(
+        lwe_dimension,
+        1,
+        glwe_noise_distribution,
+        ciphertext_modulus,
+        msg_modulus * Scalar::TWO,
+        ZkMSBZeroPaddingBitCount(1),
+        &mut random_generator,
+    )
+    .unwrap();
 
-            let pk = allocate_and_generate_new_lwe_compact_public_key(
-                &lwe_sk,
-                glwe_noise_distribution,
-                ciphertext_modulus,
-                &mut rsc.encryption_random_generator,
-            );
+    for crs in [&crs_v2, &crs_v1] {
+        while msg != Scalar::ZERO {
+            msg = msg.wrapping_sub(Scalar::ONE);
+            for _ in 0..NB_TESTS {
+                let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
+                    lwe_dimension,
+                    &mut rsc.secret_random_generator,
+                );
 
-            let mut ct = LweCiphertext::new(
-                Scalar::ZERO,
-                lwe_dimension.to_lwe_size(),
-                ciphertext_modulus,
-            );
+                let pk = allocate_and_generate_new_lwe_compact_public_key(
+                    &lwe_sk,
+                    glwe_noise_distribution,
+                    ciphertext_modulus,
+                    &mut rsc.encryption_random_generator,
+                );
 
-            let proof = encrypt_and_prove_lwe_ciphertext_with_compact_public_key(
-                &pk,
-                &mut ct,
-                Cleartext(msg),
-                delta,
-                glwe_noise_distribution,
-                glwe_noise_distribution,
-                &mut rsc.secret_random_generator,
-                &mut rsc.encryption_random_generator,
-                &mut random_generator,
-                &crs,
-                &metadata,
-                ZkComputeLoad::Proof,
-            )
-            .unwrap();
+                let mut ct = LweCiphertext::new(
+                    Scalar::ZERO,
+                    lwe_dimension.to_lwe_size(),
+                    ciphertext_modulus,
+                );
 
-            assert!(check_encrypted_content_respects_mod(
-                &ct,
-                ciphertext_modulus,
-            ));
+                let proof = encrypt_and_prove_lwe_ciphertext_with_compact_public_key(
+                    &pk,
+                    &mut ct,
+                    Cleartext(msg),
+                    delta,
+                    glwe_noise_distribution,
+                    glwe_noise_distribution,
+                    &mut rsc.secret_random_generator,
+                    &mut rsc.encryption_random_generator,
+                    &mut random_generator,
+                    crs,
+                    &metadata,
+                    ZkComputeLoad::Proof,
+                )
+                .unwrap();
 
-            let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
+                assert!(check_encrypted_content_respects_mod(
+                    &ct,
+                    ciphertext_modulus,
+                ));
 
-            let decoded = round_decode(decrypted.0, delta) % msg_modulus;
+                let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
 
-            assert_eq!(msg, decoded);
+                let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
-            // Verify the proof
-            assert!(verify_lwe_ciphertext(&ct, &pk, &proof, &crs, &metadata).is_valid());
+                assert_eq!(msg, decoded);
 
-            // verify proof with invalid ciphertext
-            let index = random_generator.gen::<usize>() % ct.as_ref().len();
-            let value_to_add = random_generator.gen::<Scalar>();
-            ct.as_mut()[index] = ct.as_mut()[index].wrapping_add(value_to_add);
-            assert!(verify_lwe_ciphertext(&ct, &pk, &proof, &crs, &metadata).is_invalid());
+                // Verify the proof
+                assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, &metadata).is_valid());
+
+                // verify proof with invalid ciphertext
+                let index = random_generator.gen::<usize>() % ct.as_ref().len();
+                let value_to_add = random_generator.gen::<Scalar>();
+                ct.as_mut()[index] = ct.as_mut()[index].wrapping_add(value_to_add);
+                assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, &metadata).is_invalid());
+            }
+
+            // In coverage, we break after one while loop iteration, changing message values does
+            // not yield higher coverage
+            #[cfg(tarpaulin)]
+            break;
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
