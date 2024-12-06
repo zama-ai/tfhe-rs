@@ -70,12 +70,12 @@ where
     let min_executor = CpuFunctionExecutor::new(&ServerKey::min_parallelized);
 
     // Binary Ops Clear functions
-    let clear_add = |x, y| x + y;
-    let clear_sub = |x, y| x - y;
+    let clear_add = |x: u64, y: u64| x.wrapping_add(y);
+    let clear_sub = |x: u64, y: u64| x.wrapping_sub(y);
     let clear_bitwise_and = |x, y| x & y;
     let clear_bitwise_or = |x, y| x | y;
     let clear_bitwise_xor = |x, y| x ^ y;
-    let clear_mul = |x, y| x * y;
+    let clear_mul = |x: u64, y: u64| x.wrapping_mul(y);
     // Warning this rotate definition only works with 64-bit ciphertexts
     let clear_rotate_left = |x: u64, y: u64| x.rotate_left(y as u32);
     let clear_left_shift = |x, y| x << y;
@@ -537,12 +537,13 @@ pub(crate) fn random_op_sequence_test<P>(
         .iter()
         .map(|&m| cks.encrypt(m)) // Generate random u64 values
         .collect();
-    for _ in 0..NB_TESTS_LONG_RUN {
+    for fn_index in 0..NB_TESTS_LONG_RUN {
         let i = rng.gen_range(0..total_num_ops);
         let j = rng.gen_range(0..total_num_ops);
 
         if i < binary_ops.len() {
             let (binary_op_executor, clear_fn, fn_name) = &mut binary_ops[i];
+            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -579,11 +580,12 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration{fn_index}.",
             );
         } else if i < binary_ops.len() + unary_ops.len() {
             let index = i - binary_ops.len();
             let (unary_op_executor, clear_fn, fn_name) = &mut unary_ops[index];
+            println!("Execute {fn_name}");
 
             let input = if i % 2 == 0 {
                 &left_vec[i]
@@ -627,11 +629,12 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on unary op {fn_name} with clear input {clear_input}.",
+                "Invalid result on unary op {fn_name} with clear input {clear_input} at iteration{fn_index} at iteration{fn_index}.",
             );
         } else if i < binary_ops.len() + unary_ops.len() + scalar_binary_ops.len() {
             let index = i - binary_ops.len() - unary_ops.len();
             let (scalar_binary_op_executor, clear_fn, fn_name) = &mut scalar_binary_ops[index];
+            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -668,7 +671,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration{fn_index} at iteration{fn_index}.",
             );
         } else if i < binary_ops.len()
             + unary_ops.len()
@@ -677,6 +680,7 @@ pub(crate) fn random_op_sequence_test<P>(
         {
             let index = i - binary_ops.len() - unary_ops.len() - scalar_binary_ops.len();
             let (overflowing_op_executor, clear_fn, fn_name) = &mut overflowing_ops[index];
+            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -723,7 +727,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration{fn_index}.",
             );
             assert_eq!(
                 decrypted_overflow, expected_overflow,
@@ -742,6 +746,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 - overflowing_ops.len();
             let (scalar_overflowing_op_executor, clear_fn, fn_name) =
                 &mut scalar_overflowing_ops[index];
+            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -789,7 +794,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration{fn_index} at iteration{fn_index}.",
             );
             assert_eq!(
                 decrypted_overflow, expected_overflow,
@@ -809,6 +814,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 - overflowing_ops.len()
                 - scalar_overflowing_ops.len();
             let (comparison_op_executor, clear_fn, fn_name) = &mut comparison_ops[index];
+            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -830,7 +836,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration{fn_index} at iteration{fn_index}.",
             );
 
             let res_ct: RadixCiphertext = res.into_radix(1, &sks);
@@ -858,6 +864,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 - comparison_ops.len();
             let (scalar_comparison_op_executor, clear_fn, fn_name) =
                 &mut scalar_comparison_ops[index];
+            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -879,7 +886,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration{fn_index} at iteration{fn_index}.",
             );
             let res_ct: RadixCiphertext = res.into_radix(1, &sks);
             if i % 2 == 0 {
@@ -907,6 +914,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 - comparison_ops.len()
                 - scalar_comparison_ops.len();
             let (select_op_executor, clear_fn, fn_name) = &mut select_op[index];
+            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -937,7 +945,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} and {clear_bool}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} and {clear_bool} at iteration{fn_index} at iteration{fn_index}.",
             );
             if i % 2 == 0 {
                 left_vec[j] = res.clone();
@@ -966,6 +974,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 - scalar_comparison_ops.len()
                 - select_op.len();
             let (div_rem_op_executor, clear_fn, fn_name) = &mut div_rem_op[index];
+            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -1011,11 +1020,11 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res_q, expected_res_q,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration{fn_index} at iteration{fn_index}.",
             );
             assert_eq!(
                 decrypted_res_r, expected_res_r,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration{fn_index} at iteration{fn_index}.",
             );
             if i % 2 == 0 {
                 left_vec[j] = res_q.clone();
@@ -1046,6 +1055,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 - select_op.len()
                 - div_rem_op.len();
             let (scalar_div_rem_op_executor, clear_fn, fn_name) = &mut scalar_div_rem_op[index];
+            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -1093,11 +1103,11 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res_q, expected_res_q,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration{fn_index} at iteration{fn_index}.",
             );
             assert_eq!(
                 decrypted_res_r, expected_res_r,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration{fn_index} at iteration{fn_index}.",
             );
             if i % 2 == 0 {
                 left_vec[j] = res_r.clone();
@@ -1130,6 +1140,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 - div_rem_op.len()
                 - scalar_div_rem_op.len();
             let (log2_executor, clear_fn, fn_name) = &mut log2_ops[index];
+            println!("Execute {fn_name}");
 
             let input = if i % 2 == 0 {
                 &left_vec[i]
@@ -1170,7 +1181,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on op {fn_name} with clear input {clear_input}.",
+                "Invalid result on op {fn_name} with clear input {clear_input} at iteration{fn_index} at iteration{fn_index}.",
             );
             if i % 2 == 0 {
                 left_vec[j] = cast_res.clone();
