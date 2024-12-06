@@ -889,17 +889,9 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_slice(
-                lwe_size * block_range.start..lwe_size * block_range.end,
-                streams.gpu_indexes[0].0,
-            )
+            .as_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
             .unwrap();
-        let mut output_slice = output
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(.., streams.gpu_indexes[0].0)
-            .unwrap();
+        let mut output_slice = output.d_blocks.0.d_vec.as_mut_slice(.., 0).unwrap();
 
         let num_ct_blocks = block_range.len() as u32;
         match &self.bootstrapping_key {
@@ -1054,22 +1046,16 @@ impl CudaServerKey {
         let lwe_dimension = input.d_blocks.lwe_dimension();
         let lwe_size = lwe_dimension.to_lwe_size().0;
 
-        let input_slice = input
-            .d_blocks
-            .0
-            .d_vec
-            .as_slice(.., streams.gpu_indexes[0].0)
-            .unwrap();
+        let input_slice = input.d_blocks.0.d_vec.as_slice(.., 0).unwrap();
 
         // The accumulator has been rotated, we can now proceed with the various sample extractions
         let function_count = lut.function_count();
         let num_ct_blocks = input.d_blocks.lwe_ciphertext_count().0;
         let total_radixes_size = num_ct_blocks * lwe_size * function_count;
-        let mut output_radixes =
-            CudaVec::new(total_radixes_size, streams, streams.gpu_indexes[0].0);
+        let mut output_radixes = CudaVec::new(total_radixes_size, streams, 0);
 
         let mut output_slice = output_radixes
-            .as_mut_slice(0..total_radixes_size, streams.gpu_indexes[0].0)
+            .as_mut_slice(0..total_radixes_size, 0)
             .unwrap();
 
         match &self.bootstrapping_key {
@@ -1132,19 +1118,11 @@ impl CudaServerKey {
         for i in 0..function_count {
             let slice_size = num_ct_blocks * lwe_size;
             let mut ct = input.duplicate(streams);
-            let mut ct_slice = ct
-                .d_blocks
-                .0
-                .d_vec
-                .as_mut_slice(0..slice_size, streams.gpu_indexes[0].0)
-                .unwrap();
+            let mut ct_slice = ct.d_blocks.0.d_vec.as_mut_slice(0..slice_size, 0).unwrap();
 
             let slice_size = num_ct_blocks * lwe_size;
             let output_slice = output_radixes
-                .as_mut_slice(
-                    slice_size * i..slice_size * (i + 1),
-                    streams.gpu_indexes[0].0,
-                )
+                .as_mut_slice(slice_size * i..slice_size * (i + 1), 0)
                 .unwrap();
 
             ct_slice.copy_from_gpu_async(&output_slice, streams, 0);
@@ -1197,16 +1175,12 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_slice(lwe_size * (num_ct_blocks - 1).., streams.gpu_indexes[0].0)
+            .as_slice(lwe_size * (num_ct_blocks - 1).., 0)
             .unwrap();
         let mut output_slice = output_radix
-            .as_mut_slice(
-                lwe_size * num_ct_blocks..lwe_size * new_num_ct_blocks,
-                streams.gpu_indexes[0].0,
-            )
+            .as_mut_slice(lwe_size * num_ct_blocks..lwe_size * new_num_ct_blocks, 0)
             .unwrap();
-        let (padding_block, new_blocks) =
-            output_slice.split_at_mut(lwe_size, streams.gpu_indexes[0]);
+        let (padding_block, new_blocks) = output_slice.split_at_mut(lwe_size, 0);
         let mut padding_block = padding_block.unwrap();
         let mut new_blocks = new_blocks.unwrap();
 
@@ -1262,7 +1236,7 @@ impl CudaServerKey {
         }
         for i in 0..num_blocks - 1 {
             let mut output_block = new_blocks
-                .get_mut(lwe_size * i..lwe_size * (i + 1), streams.gpu_indexes[0])
+                .get_mut(lwe_size * i..lwe_size * (i + 1), 0)
                 .unwrap();
             output_block.copy_from_gpu_async(&padding_block, streams, 0);
         }
