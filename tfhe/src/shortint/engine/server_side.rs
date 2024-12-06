@@ -74,10 +74,10 @@ impl ShortintEngine {
         let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
             &cks.large_lwe_secret_key(),
             &cks.small_lwe_secret_key(),
-            cks.parameters.ks_base_log(),
-            cks.parameters.ks_level(),
-            cks.parameters.lwe_noise_distribution(),
-            cks.parameters.ciphertext_modulus(),
+            params.ks_base_log(),
+            params.ks_level(),
+            params.lwe_noise_distribution(),
+            params.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
 
@@ -85,12 +85,12 @@ impl ShortintEngine {
         ServerKey {
             key_switching_key,
             bootstrapping_key: bootstrapping_key_base,
-            message_modulus: cks.parameters.message_modulus(),
-            carry_modulus: cks.parameters.carry_modulus(),
+            message_modulus: params.message_modulus(),
+            carry_modulus: params.carry_modulus(),
             max_degree,
-            max_noise_level: cks.parameters.max_noise_level(),
-            ciphertext_modulus: cks.parameters.ciphertext_modulus(),
-            pbs_order: cks.parameters.encryption_key_choice().into(),
+            max_noise_level: params.max_noise_level(),
+            ciphertext_modulus: params.ciphertext_modulus(),
+            pbs_order: params.encryption_key_choice().into(),
         }
     }
 
@@ -296,7 +296,9 @@ impl ShortintEngine {
         cks: &ClientKey,
         max_degree: MaxDegree,
     ) -> CompressedServerKey {
-        let bootstrapping_key = match cks.parameters.pbs_parameters().unwrap() {
+        let params = &cks.parameters;
+
+        let bootstrapping_key = match params.pbs_parameters().unwrap() {
             crate::shortint::PBSParameters::PBS(pbs_params) => {
                 #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
                 let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
@@ -360,10 +362,10 @@ impl ShortintEngine {
         let key_switching_key = allocate_and_generate_new_seeded_lwe_keyswitch_key(
             &cks.large_lwe_secret_key(),
             &cks.small_lwe_secret_key(),
-            cks.parameters.ks_base_log(),
-            cks.parameters.ks_level(),
-            cks.parameters.lwe_noise_distribution(),
-            cks.parameters.ciphertext_modulus(),
+            params.ks_base_log(),
+            params.ks_level(),
+            params.lwe_noise_distribution(),
+            params.ciphertext_modulus(),
             &mut self.seeder,
         );
 
@@ -371,12 +373,12 @@ impl ShortintEngine {
         CompressedServerKey {
             key_switching_key,
             bootstrapping_key,
-            message_modulus: cks.parameters.message_modulus(),
-            carry_modulus: cks.parameters.carry_modulus(),
+            message_modulus: params.message_modulus(),
+            carry_modulus: params.carry_modulus(),
             max_degree,
-            max_noise_level: cks.parameters.max_noise_level(),
-            ciphertext_modulus: cks.parameters.ciphertext_modulus(),
-            pbs_order: cks.parameters.encryption_key_choice().into(),
+            max_noise_level: params.max_noise_level(),
+            ciphertext_modulus: params.ciphertext_modulus(),
+            pbs_order: params.encryption_key_choice().into(),
         }
     }
 }
