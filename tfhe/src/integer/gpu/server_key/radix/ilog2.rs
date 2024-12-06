@@ -40,8 +40,7 @@ impl CudaServerKey {
         let lwe_size = ct.as_ref().d_blocks.0.lwe_dimension.to_lwe_size().0;
 
         // Allocate the necessary amount of memory
-        let mut tmp_radix =
-            CudaVec::new_async(num_ct_blocks * lwe_size, streams, streams.gpu_indexes[0].0);
+        let mut tmp_radix = CudaVec::new_async(num_ct_blocks * lwe_size, streams, 0);
 
         let lut = match direction {
             Direction::Trailing => self.generate_lookup_table(|x| {
@@ -70,13 +69,9 @@ impl CudaServerKey {
             }),
         };
 
-        tmp_radix.copy_from_gpu_async(
-            &ct.as_ref().d_blocks.0.d_vec,
-            streams,
-            streams.gpu_indexes[0].0,
-        );
+        tmp_radix.copy_from_gpu_async(&ct.as_ref().d_blocks.0.d_vec, streams, 0);
         let mut output_slice = tmp_radix
-            .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
+            .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
             .unwrap();
 
         let input_slice = ct
@@ -84,7 +79,7 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
+            .as_slice(0..lwe_size * num_ct_blocks, 0)
             .unwrap();
 
         // Assign to each block its number of leading/trailing zeros/ones
@@ -175,7 +170,7 @@ impl CudaServerKey {
         );
 
         let mut generates_or_propagates = tmp_radix
-            .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
+            .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
             .unwrap();
 
         match &self.bootstrapping_key {
@@ -185,7 +180,7 @@ impl CudaServerKey {
                     &mut output_cts
                         .0
                         .d_vec
-                        .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
+                        .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
                         .unwrap(),
                     &mut generates_or_propagates,
                     sum_lut.acc.acc.as_ref(),
@@ -214,7 +209,7 @@ impl CudaServerKey {
                     &mut output_cts
                         .0
                         .d_vec
-                        .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0].0)
+                        .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
                         .unwrap(),
                     &mut generates_or_propagates,
                     sum_lut.acc.acc.as_ref(),
@@ -294,16 +289,13 @@ impl CudaServerKey {
                 .d_blocks
                 .0
                 .d_vec
-                .as_mut_slice(0..lwe_size, streams.gpu_indexes[0].0)
+                .as_mut_slice(0..lwe_size, 0)
                 .unwrap();
 
             let src_slice = leading_count_per_blocks
                 .0
                 .d_vec
-                .as_mut_slice(
-                    (i * lwe_size)..((i + 1) * lwe_size),
-                    streams.gpu_indexes[0].0,
-                )
+                .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
                 .unwrap();
             dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
             cts.push(new_item);
@@ -537,16 +529,13 @@ impl CudaServerKey {
                 .d_blocks
                 .0
                 .d_vec
-                .as_mut_slice(0..lwe_size, streams.gpu_indexes[0].0)
+                .as_mut_slice(0..lwe_size, 0)
                 .unwrap();
 
             let src_slice = leading_zeros_per_blocks
                 .0
                 .d_vec
-                .as_mut_slice(
-                    (i * lwe_size)..((i + 1) * lwe_size),
-                    streams.gpu_indexes[0].0,
-                )
+                .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
                 .unwrap();
             dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
             cts.push(new_item);
@@ -582,14 +571,14 @@ impl CudaServerKey {
         let mut message_blocks_slice = message_blocks
             .0
             .d_vec
-            .as_mut_slice(0..lwe_size * counter_num_blocks, streams.gpu_indexes[0].0)
+            .as_mut_slice(0..lwe_size * counter_num_blocks, 0)
             .unwrap();
         let result_slice = result
             .as_mut()
             .d_blocks
             .0
             .d_vec
-            .as_slice(0..lwe_size * counter_num_blocks, streams.gpu_indexes[0].0)
+            .as_slice(0..lwe_size * counter_num_blocks, 0)
             .unwrap();
 
         match &self.bootstrapping_key {
@@ -666,7 +655,7 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_mut_slice(0..lwe_size, streams.gpu_indexes[0].0)
+            .as_mut_slice(0..lwe_size, 0)
             .unwrap();
 
         let mut carry_blocks_last = carry_blocks
@@ -674,16 +663,16 @@ impl CudaServerKey {
             .d_vec
             .as_mut_slice(
                 lwe_size * (counter_num_blocks - 1)..lwe_size * counter_num_blocks,
-                streams.gpu_indexes[0].0,
+                0,
             )
             .unwrap();
 
-        carry_blocks_last.copy_from_gpu_async(&trivial_last_block_slice, streams, 0u32);
+        carry_blocks_last.copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
 
         let mut carry_blocks_slice = carry_blocks
             .0
             .d_vec
-            .as_mut_slice(0..lwe_size * counter_num_blocks, streams.gpu_indexes[0].0)
+            .as_mut_slice(0..lwe_size * counter_num_blocks, 0)
             .unwrap();
         unsafe {
             match &self.bootstrapping_key {
@@ -747,13 +736,13 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_mut_slice(0..counter_num_blocks * lwe_size, streams.gpu_indexes[0].0)
+            .as_mut_slice(0..counter_num_blocks * lwe_size, 0)
             .unwrap();
 
         let src_slice = message_blocks
             .0
             .d_vec
-            .as_mut_slice(0..(counter_num_blocks * lwe_size), streams.gpu_indexes[0].0)
+            .as_mut_slice(0..(counter_num_blocks * lwe_size), 0)
             .unwrap();
 
         dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
@@ -767,13 +756,13 @@ impl CudaServerKey {
             .d_blocks
             .0
             .d_vec
-            .as_mut_slice(0..counter_num_blocks * lwe_size, streams.gpu_indexes[0].0)
+            .as_mut_slice(0..counter_num_blocks * lwe_size, 0)
             .unwrap();
 
         let src_slice = carry_blocks
             .0
             .d_vec
-            .as_mut_slice(0..(counter_num_blocks * lwe_size), streams.gpu_indexes[0].0)
+            .as_mut_slice(0..(counter_num_blocks * lwe_size), 0)
             .unwrap();
 
         dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
