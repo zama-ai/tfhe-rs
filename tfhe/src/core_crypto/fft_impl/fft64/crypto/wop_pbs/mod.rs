@@ -15,7 +15,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 
 pub fn extract_bits_scratch<Scalar>(
@@ -68,7 +68,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
     delta_log: DeltaLog,
     number_of_bits_to_extract: ExtractedBitsCount,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) {
     debug_assert!(lwe_list_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
     debug_assert!(lwe_in.ciphertext_modulus() == ksk.ciphertext_modulus());
@@ -143,7 +143,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
     let lwe_size = glwe_dimension
         .to_equivalent_lwe_dimension(polynomial_size)
         .to_lwe_size();
-    let (lwe_out_pbs_buffer_data, mut stack) =
+    let (lwe_out_pbs_buffer_data, stack) =
         stack.make_aligned_with(lwe_size.0, align, |_| Scalar::ZERO);
     let mut lwe_out_pbs_buffer = LweCiphertext::from_container(
         &mut *lwe_out_pbs_buffer_data,
@@ -155,7 +155,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         // Block to keep the lwe_bit_left_shift_buffer_data alive only as long as needed
         {
             // Shift on padding bit
-            let (lwe_bit_left_shift_buffer_data, _) = stack.rb_mut().collect_aligned(
+            let (lwe_bit_left_shift_buffer_data, _) = stack.collect_aligned(
                 align,
                 lwe_in_buffer
                     .as_ref()
@@ -206,7 +206,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
             lwe_out_ks_buffer.as_view(),
             pbs_accumulator.as_view(),
             fft,
-            stack.rb_mut(),
+            stack,
         );
 
         // Add alpha where alpha = delta*2^{bit_idx-1} to end up with an encryption of 0 if the
@@ -244,7 +244,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     delta_log: DeltaLog,
     pfpksk_list: LwePrivateFunctionalPackingKeyswitchKeyList<&[Scalar]>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) {
     debug_assert!(lwe_in.ciphertext_modulus() == ggsw_out.ciphertext_modulus());
     debug_assert!(ggsw_out.ciphertext_modulus() == pfpksk_list.ciphertext_modulus());
@@ -306,7 +306,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     );
 
     // Output for every bootstrapping
-    let (lwe_out_bs_buffer_data, mut stack) = stack.make_aligned_with(
+    let (lwe_out_bs_buffer_data, stack) = stack.make_aligned_with(
         fourier_bsk_output_lwe_dimension.to_lwe_size().0,
         CACHELINE_ALIGN,
         |_| Scalar::ZERO,
@@ -324,7 +324,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
             base_log_cbs,
             delta_log,
             fft,
-            stack.rb_mut(),
+            stack,
         );
 
         for (pfpksk, mut glwe_out) in pfpksk_list
@@ -371,7 +371,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     base_log_cbs: DecompositionBaseLog,
     delta_log: DeltaLog,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) {
     debug_assert!(lwe_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
     debug_assert!(
@@ -467,7 +467,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
     lut_per_layer: PolynomialList<&[Scalar]>,
     ggsw_list: FourierGgswCiphertextListView<'_>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) {
     debug_assert!(lut_per_layer.polynomial_count().0 == 1 << ggsw_list.count());
 
@@ -510,7 +510,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
             ciphertext_modulus,
         );
 
-        let (t_fill, mut stack) = stack.make_with(nb_layer, |_| 0_usize);
+        let (t_fill, stack) = stack.make_with(nb_layer, |_| 0_usize);
 
         let mut lut_polynomial_iter = lut_per_layer.iter();
         loop {
@@ -537,7 +537,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
 
             for (j, ggsw) in ggsw_list.into_ggsw_iter().rev().enumerate() {
                 if t_fill[j] == 2 {
-                    let (diff_data, stack) = stack.rb_mut().collect_aligned(
+                    let (diff_data, stack) = stack.collect_aligned(
                         CACHELINE_ALIGN,
                         izip!(t1_j.as_ref(), t0_j.as_ref()).map(|(&a, &b)| a.wrapping_sub(b)),
                     );
@@ -648,7 +648,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
     level_cbs: DecompositionLevelCount,
     base_log_cbs: DecompositionBaseLog,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) {
     debug_assert!(stack.can_hold(
         circuit_bootstrap_boolean_vertical_packing_scratch::<Scalar>(
@@ -686,7 +686,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         CACHELINE_ALIGN,
         |_| c64::default(),
     );
-    let (ggsw_res_data, mut stack) = stack.make_aligned_with(
+    let (ggsw_res_data, stack) = stack.make_aligned_with(
         pfpksk_list.output_polynomial_size().0 * glwe_size.0 * glwe_size.0 * level_cbs.0,
         CACHELINE_ALIGN,
         |_| Scalar::ZERO,
@@ -717,10 +717,10 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
             DeltaLog(Scalar::BITS - 1),
             pfpksk_list.as_view(),
             fft,
-            stack.rb_mut(),
+            stack,
         );
 
-        ggsw.fill_with_forward_fourier(ggsw_res.as_view(), fft, stack.rb_mut());
+        ggsw.fill_with_forward_fourier(ggsw_res.as_view(), fft, stack);
     }
 
     // We deduce the number of luts in the vec_lut from the number of cipherxtexts in lwe_list_out
@@ -732,7 +732,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         big_lut_as_polynomial_list.chunks_exact(small_lut_size),
         lwe_list_out.iter_mut(),
     ) {
-        vertical_packing(lut, lwe_out, ggsw_list.as_view(), fft, stack.rb_mut());
+        vertical_packing(lut, lwe_out, ggsw_list.as_view(), fft, stack);
     }
 }
 
@@ -778,7 +778,7 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
     mut lwe_out: LweCiphertext<&mut [Scalar]>,
     ggsw_list: FourierGgswCiphertextListView<'_>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) {
     debug_assert!(
         lwe_out.ciphertext_modulus().is_native_modulus(),
@@ -815,26 +815,15 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
     // the last blind rotation.
     let (cmux_ggsw, br_ggsw) = ggsw_list.split_at(log_number_of_luts_for_cmux_tree);
 
-    let (cmux_tree_lut_res_data, mut stack) =
+    let (cmux_tree_lut_res_data, stack) =
         stack.make_aligned_with(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN, |_| {
             Scalar::ZERO
         });
     let mut cmux_tree_lut_res =
         GlweCiphertext::from_container(cmux_tree_lut_res_data, polynomial_size, ciphertext_modulus);
 
-    cmux_tree_memory_optimized(
-        cmux_tree_lut_res.as_mut_view(),
-        lut,
-        cmux_ggsw,
-        fft,
-        stack.rb_mut(),
-    );
-    blind_rotate_assign(
-        cmux_tree_lut_res.as_mut_view(),
-        br_ggsw,
-        fft,
-        stack.rb_mut(),
-    );
+    cmux_tree_memory_optimized(cmux_tree_lut_res.as_mut_view(), lut, cmux_ggsw, fft, stack);
+    blind_rotate_assign(cmux_tree_lut_res.as_mut_view(), br_ggsw, fft, stack);
 
     // sample extract of the RLWE of the Vertical packing
     extract_lwe_sample_from_glwe_ciphertext(&cmux_tree_lut_res, &mut lwe_out, MonomialDegree(0));
@@ -855,15 +844,14 @@ pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
     mut lut: GlweCiphertext<&mut [Scalar]>,
     ggsw_list: FourierGgswCiphertextListView<'_>,
     fft: FftView<'_>,
-    mut stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) {
     let mut monomial_degree = MonomialDegree(1);
 
     for ggsw in ggsw_list.into_ggsw_iter().rev() {
         let ct_0 = lut.as_mut_view();
-        let (ct1_data, stack) = stack
-            .rb_mut()
-            .collect_aligned(CACHELINE_ALIGN, ct_0.as_ref().iter().copied());
+        let (ct1_data, stack) =
+            stack.collect_aligned(CACHELINE_ALIGN, ct_0.as_ref().iter().copied());
         let mut ct_1 = GlweCiphertext::from_container(
             &mut *ct1_data,
             ct_0.polynomial_size(),

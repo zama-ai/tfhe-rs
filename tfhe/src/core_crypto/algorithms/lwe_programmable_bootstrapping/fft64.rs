@@ -233,7 +233,7 @@ pub fn blind_rotate_assign_mem_optimized<
     lut: &mut GlweCiphertext<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     InputScalar: UnsignedTorus + CastInto<usize>,
@@ -455,7 +455,7 @@ pub fn add_external_product_assign_mem_optimized<Scalar, OutputGlweCont, InputGl
     ggsw: &FourierGgswCiphertext<GgswCont>,
     glwe: &GlweCiphertext<InputGlweCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     OutputGlweCont: ContainerMut<Element = Scalar>,
@@ -746,7 +746,7 @@ pub fn cmux_assign_mem_optimized<Scalar, Cont0, Cont1, GgswCont>(
     ct1: &mut GlweCiphertext<Cont1>,
     ggsw: &FourierGgswCiphertext<GgswCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     Scalar: UnsignedTorus,
     Cont0: ContainerMut<Element = Scalar>,
@@ -1020,7 +1020,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
     accumulator: &GlweCiphertext<AccCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     InputScalar: UnsignedTorus + CastInto<usize>,
@@ -1091,7 +1091,7 @@ pub fn batch_programmable_bootstrap_lwe_ciphertext_mem_optimized<
     accumulator: &GlweCiphertextList<AccCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
     fft: FftView<'_>,
-    stack: PodStack<'_>,
+    stack: &mut PodStack,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     InputScalar: UnsignedTorus + CastInto<usize>,

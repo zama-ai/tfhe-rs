@@ -74,7 +74,7 @@ pub struct KeySwitchingKey {
     pub(crate) key: crate::shortint::KeySwitchingKey,
 }
 
-impl<'keys> From<KeySwitchingKeyBuildHelper<'keys>> for KeySwitchingKey {
+impl From<KeySwitchingKeyBuildHelper<'_>> for KeySwitchingKey {
     fn from(value: KeySwitchingKeyBuildHelper) -> Self {
         Self {
             key: value.build_helper.into(),
@@ -82,7 +82,7 @@ impl<'keys> From<KeySwitchingKeyBuildHelper<'keys>> for KeySwitchingKey {
     }
 }
 
-impl<'keys> From<KeySwitchingKeyBuildHelper<'keys>> for KeySwitchingKeyMaterial {
+impl From<KeySwitchingKeyBuildHelper<'_>> for KeySwitchingKeyMaterial {
     fn from(value: KeySwitchingKeyBuildHelper) -> Self {
         Self {
             material: value.build_helper.key_switching_key_material,
@@ -231,7 +231,7 @@ pub struct CompressedKeySwitchingKey {
     pub(crate) key: crate::shortint::CompressedKeySwitchingKey,
 }
 
-impl<'keys> From<CompressedKeySwitchingKeyBuildHelper<'keys>> for CompressedKeySwitchingKey {
+impl From<CompressedKeySwitchingKeyBuildHelper<'_>> for CompressedKeySwitchingKey {
     fn from(value: CompressedKeySwitchingKeyBuildHelper) -> Self {
         Self {
             key: value.build_helper.into(),
@@ -239,9 +239,7 @@ impl<'keys> From<CompressedKeySwitchingKeyBuildHelper<'keys>> for CompressedKeyS
     }
 }
 
-impl<'keys> From<CompressedKeySwitchingKeyBuildHelper<'keys>>
-    for CompressedKeySwitchingKeyMaterial
-{
+impl From<CompressedKeySwitchingKeyBuildHelper<'_>> for CompressedKeySwitchingKeyMaterial {
     fn from(value: CompressedKeySwitchingKeyBuildHelper) -> Self {
         Self {
             material: value.build_helper.key_switching_key_material,

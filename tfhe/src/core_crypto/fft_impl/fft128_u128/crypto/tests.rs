@@ -6,7 +6,7 @@ use crate::core_crypto::fft_impl::common::tests::{
 use crate::core_crypto::prelude::test::{TestResources, FFT128_U128_PARAMS};
 use crate::core_crypto::prelude::*;
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
+use dyn_stack::{GlobalPodBuffer, PodStack};
 
 #[test]
 fn test_split_external_product() {
@@ -177,7 +177,7 @@ fn test_split_pbs() {
         )
         .unwrap(),
     );
-    let mut stack = PodStack::new(&mut mem);
+    let stack = PodStack::new(&mut mem);
 
     for _ in 0..20 {
         for x in lwe_in.as_mut() {
@@ -203,7 +203,7 @@ fn test_split_pbs() {
             lwe_in: LweCiphertext<&[Scalar]>,
             accumulator: GlweCiphertext<&[Scalar]>,
             fft: Fft128View<'_>,
-            stack: PodStack<'_>,
+            stack: &mut PodStack,
         ) {
             let (local_accumulator_data, stack) =
                 stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
@@ -226,7 +226,7 @@ fn test_split_pbs() {
             lwe_in.as_view(),
             accumulator.as_view(),
             fft,
-            stack.rb_mut(),
+            stack,
         );
 
         let mut lwe_out_split = LweCiphertext::new(
@@ -236,13 +236,7 @@ fn test_split_pbs() {
                 .to_lwe_size(),
             ciphertext_modulus,
         );
-        fourier_bsk.bootstrap_u128(
-            &mut lwe_out_split,
-            &lwe_in,
-            &accumulator,
-            fft,
-            stack.rb_mut(),
-        );
+        fourier_bsk.bootstrap_u128(&mut lwe_out_split, &lwe_in, &accumulator, fft, stack);
 
         assert_eq!(lwe_out_split, lwe_out_non_split);
     }

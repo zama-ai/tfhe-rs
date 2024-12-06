@@ -7,7 +7,7 @@ pub(crate) enum MaybeCloned<'a, T> {
     Cloned(T),
 }
 
-impl<'a, T> MaybeCloned<'a, T> {
+impl<T> MaybeCloned<'_, T> {
     pub(crate) fn into_owned(self) -> T
     where
         T: ToOwned<Owned = T>,

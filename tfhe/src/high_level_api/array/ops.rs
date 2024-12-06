@@ -111,9 +111,8 @@ where
     }
 }
 
-impl<'a, 's, C1, Id> Not for &'a FheArrayBase<C1, Id>
+impl<C1, Id> Not for &FheArrayBase<C1, Id>
 where
-    'a: 's,
     Id: Default,
     C1: BackendDataContainer,
     C1::Backend: BitwiseArrayBackend,

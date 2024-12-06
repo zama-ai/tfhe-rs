@@ -1,3 +1,6 @@
+#![allow(unexpected_cfgs)]
+// This is a bug/unwanted behavior from ark-ff macro, for now warn instead of erroring
+
 use ark_ec::bls12::{Bls12, Bls12Config, TwistType};
 use ark_ff::fields::*;
 use ark_ff::MontFp;

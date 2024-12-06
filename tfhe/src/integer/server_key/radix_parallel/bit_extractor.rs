@@ -18,7 +18,7 @@ pub(crate) struct BitExtractor<'a> {
     buffer: VecDeque<Ciphertext>,
 }
 
-impl<'a> Iterator for BitExtractor<'a> {
+impl Iterator for BitExtractor<'_> {
     type Item = Ciphertext;
 
     fn next(&mut self) -> Option<Self::Item> {
