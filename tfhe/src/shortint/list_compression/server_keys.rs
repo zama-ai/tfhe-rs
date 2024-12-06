@@ -65,7 +65,7 @@ impl ClientKey {
                 params.packing_ks_base_log,
                 params.packing_ks_level,
                 params.packing_ks_key_noise_distribution,
-                self.parameters.ciphertext_modulus(),
+                params.ciphertext_modulus_after_packing_ks,
                 &mut engine.encryption_generator,
             )
         });
@@ -120,6 +120,7 @@ pub struct CompressionConformanceParameters {
     pub storage_log_modulus: CiphertextModulusLog,
     pub uncompressed_polynomial_size: PolynomialSize,
     pub uncompressed_glwe_dimension: GlweDimension,
+    pub ciphertext_modulus_after_packing_ks: CiphertextModulus<u64>,
     pub cipherext_modulus: CiphertextModulus<u64>,
 }
 
@@ -137,6 +138,8 @@ impl From<(PBSParameters, CompressionParameters)> for CompressionConformancePara
             uncompressed_polynomial_size: pbs_params.polynomial_size(),
             uncompressed_glwe_dimension: pbs_params.glwe_dimension(),
             cipherext_modulus: pbs_params.ciphertext_modulus(),
+            ciphertext_modulus_after_packing_ks: compression_params
+                .ciphertext_modulus_after_packing_ks,
         }
     }
 }
@@ -159,7 +162,7 @@ impl ParameterSetConformant for CompressionKey {
                 .to_equivalent_lwe_dimension(parameter_set.uncompressed_polynomial_size),
             output_glwe_size: parameter_set.packing_ks_glwe_dimension.to_glwe_size(),
             output_polynomial_size: parameter_set.packing_ks_polynomial_size,
-            ciphertext_modulus: parameter_set.cipherext_modulus,
+            ciphertext_modulus: parameter_set.ciphertext_modulus_after_packing_ks,
         };
 
         packing_key_switching_key.is_conformant(&params)
