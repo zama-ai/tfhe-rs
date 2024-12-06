@@ -25,7 +25,9 @@ impl CompressionKey {
         let lwe_pksk = &self.packing_key_switching_key;
 
         let polynomial_size = lwe_pksk.output_polynomial_size();
-        let ciphertext_modulus = lwe_pksk.ciphertext_modulus();
+
+        let out_ciphertext_modulus = lwe_pksk.ciphertext_modulus();
+
         let glwe_size = lwe_pksk.output_glwe_size();
         let lwe_size = lwe_pksk.input_key_lwe_dimension().to_lwe_size();
 
@@ -43,6 +45,7 @@ impl CompressionKey {
         let message_modulus = first_ct.message_modulus;
         let carry_modulus = first_ct.carry_modulus;
         let pbs_order = first_ct.pbs_order;
+        let in_ciphertext_modulus = first_ct.ct.ciphertext_modulus();
 
         assert!(
             message_modulus.0 <= carry_modulus.0,
@@ -86,6 +89,12 @@ impl CompressionKey {
                         "All ciphertexts do not have the same pbs order"
                     );
 
+                    assert_eq!(
+                        in_ciphertext_modulus,
+                        ct.ct.ciphertext_modulus(),
+                        "All ciphertexts do not have the same ciphertext modulus"
+                    );
+
                     let mut ct = ct.clone();
                     let max_noise_level =
                         MaxNoiseLevel::new((ct.noise_level() * message_modulus.0).get());
@@ -94,12 +103,12 @@ impl CompressionKey {
                     list.extend(ct.ct.as_ref());
                 }
 
-                let list = LweCiphertextList::from_container(list, lwe_size, ciphertext_modulus);
+                let list = LweCiphertextList::from_container(list, lwe_size, in_ciphertext_modulus);
 
                 let bodies_count = LweCiphertextCount(ct_list.len());
 
                 let mut out =
-                    GlweCiphertext::new(0, glwe_size, polynomial_size, ciphertext_modulus);
+                    GlweCiphertext::new(0, glwe_size, polynomial_size, out_ciphertext_modulus);
 
                 par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
                     lwe_pksk, &list, &mut out,
@@ -120,7 +129,7 @@ impl CompressionKey {
             pbs_order,
             lwe_per_glwe,
             count,
-            ciphertext_modulus,
+            ciphertext_modulus: out_ciphertext_modulus,
         }
     }
 }
