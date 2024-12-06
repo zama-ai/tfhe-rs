@@ -1,10 +1,12 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
+use crate::strings::client_key::ClientKey;
+use crate::strings::server_key::ServerKey;
 use std::sync::Arc;
 
 #[test]
@@ -20,11 +22,29 @@ where
     #[allow(clippy::type_complexity)]
     let ops: [(
         for<'a> fn(&'a str, &'a str) -> bool,
-        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> BooleanBlock,
+        fn(&IntegerServerKey, &FheString, GenericPatternRef<'_>) -> BooleanBlock,
     ); 3] = [
-        (|lhs, rhs| lhs.contains(rhs), ServerKey::contains),
-        (|lhs, rhs| lhs.starts_with(rhs), ServerKey::starts_with),
-        (|lhs, rhs| lhs.ends_with(rhs), ServerKey::ends_with),
+        (
+            |lhs, rhs| lhs.contains(rhs),
+            |sk, lhs, rhs| {
+                let sk = ServerKey::new(sk);
+                sk.contains(lhs, rhs)
+            },
+        ),
+        (
+            |lhs, rhs| lhs.starts_with(rhs),
+            |sk, lhs, rhs| {
+                let sk = ServerKey::new(sk);
+                sk.starts_with(lhs, rhs)
+            },
+        ),
+        (
+            |lhs, rhs| lhs.ends_with(rhs),
+            |sk, lhs, rhs| {
+                let sk = ServerKey::new(sk);
+                sk.ends_with(lhs, rhs)
+            },
+        ),
     ];
 
     let param = param.into();
@@ -49,6 +69,8 @@ pub(crate) fn string_contains_test_impl<P, T>(
 
     contains_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
+
     // trivial
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
@@ -64,7 +86,7 @@ pub(crate) fn string_contains_test_impl<P, T>(
                     for rhs in [enc_rhs, clear_rhs] {
                         let result = contains_executor.execute((&enc_lhs, rhs.as_ref()));
 
-                        assert_eq!(expected_result, cks.decrypt_bool(&result));
+                        assert_eq!(expected_result, cks.inner().decrypt_bool(&result));
                     }
                 }
             }
@@ -86,7 +108,7 @@ pub(crate) fn string_contains_test_impl<P, T>(
             for rhs in [enc_rhs, clear_rhs] {
                 let result = contains_executor.execute((&enc_lhs, rhs.as_ref()));
 
-                assert_eq!(expected_result, cks.decrypt_bool(&result));
+                assert_eq!(expected_result, cks.inner().decrypt_bool(&result));
             }
         }
     }

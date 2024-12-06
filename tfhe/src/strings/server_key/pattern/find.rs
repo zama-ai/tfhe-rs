@@ -1,14 +1,15 @@
 use super::contains_cases;
 use crate::integer::prelude::*;
-use crate::integer::{BooleanBlock, RadixCiphertext};
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey as IntegerServerKey};
 use crate::strings::char_iter::CharIter;
 use crate::strings::ciphertext::{FheAsciiChar, FheString, GenericPatternRef};
 use crate::strings::server_key::pattern::IsMatch;
 use crate::strings::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
 use rayon::prelude::*;
 use rayon::vec::IntoIter;
+use std::borrow::Borrow;
 
-impl ServerKey {
+impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     // Compare pat with str, with pat shifted right (in relation to str) the number of times given
     // by iter. Returns the first character index of the last match, or the first character index
     // of the first match if the range is reversed. If there's no match defaults to 0
@@ -18,8 +19,10 @@ impl ServerKey {
         par_iter: IntoIter<usize>,
         ignore_pat_pad: bool,
     ) -> (RadixCiphertext, BooleanBlock) {
-        let mut result = self.create_trivial_boolean_block(false);
-        let mut last_match_index = self.create_trivial_zero_radix(16);
+        let sk = self.inner();
+
+        let mut result = sk.create_trivial_boolean_block(false);
+        let mut last_match_index = sk.create_trivial_zero_radix(16);
         let (str, pat) = str_pat;
 
         let matched: Vec<_> = par_iter
@@ -37,15 +40,15 @@ impl ServerKey {
             .collect();
 
         for (i, is_matched) in matched {
-            let index = self.create_trivial_radix(i as u32, 16);
+            let index = sk.create_trivial_radix(i as u32, 16);
 
             rayon::join(
                 || {
                     last_match_index =
-                        self.if_then_else_parallelized(&is_matched, &index, &last_match_index)
+                        sk.if_then_else_parallelized(&is_matched, &index, &last_match_index)
                 },
                 // One of the possible values of the padded pat must match the str
-                || self.boolean_bitor_assign(&mut result, &is_matched),
+                || sk.boolean_bitor_assign(&mut result, &is_matched),
             );
         }
 
@@ -57,8 +60,10 @@ impl ServerKey {
         str_pat: (CharIter, &str),
         par_iter: IntoIter<usize>,
     ) -> (RadixCiphertext, BooleanBlock) {
-        let mut result = self.create_trivial_boolean_block(false);
-        let mut last_match_index = self.create_trivial_zero_radix(16);
+        let sk = self.inner();
+
+        let mut result = sk.create_trivial_boolean_block(false);
+        let mut last_match_index = sk.create_trivial_zero_radix(16);
         let (str, pat) = str_pat;
 
         let matched: Vec<_> = par_iter
@@ -70,15 +75,15 @@ impl ServerKey {
             .collect();
 
         for (i, is_matched) in matched {
-            let index = self.create_trivial_radix(i as u32, 16);
+            let index = sk.create_trivial_radix(i as u32, 16);
 
             rayon::join(
                 || {
                     last_match_index =
-                        self.if_then_else_parallelized(&is_matched, &index, &last_match_index)
+                        sk.if_then_else_parallelized(&is_matched, &index, &last_match_index)
                 },
                 // One of the possible values of the padded pat must match the str
-                || self.boolean_bitor_assign(&mut result, &is_matched),
+                || sk.boolean_bitor_assign(&mut result, &is_matched),
             );
         }
 
@@ -104,6 +109,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (haystack, needle) = ("hello world", "world");
     ///
     /// let enc_haystack = FheString::new(&ck, haystack, None);
@@ -111,8 +118,8 @@ impl ServerKey {
     ///
     /// let (index, found) = sk.find(&enc_haystack, enc_needle.as_ref());
     ///
-    /// let index = ck.decrypt_radix::<u32>(&index);
-    /// let found = ck.decrypt_bool(&found);
+    /// let index = ck.inner().decrypt_radix::<u32>(&index);
+    /// let found = ck.inner().decrypt_bool(&found);
     ///
     /// assert!(found);
     /// assert_eq!(index, 6); // "world" starts at index 6 in "hello world"
@@ -122,16 +129,18 @@ impl ServerKey {
         str: &FheString,
         pat: GenericPatternRef<'_>,
     ) -> (RadixCiphertext, BooleanBlock) {
+        let sk = self.inner();
+
         let trivial_or_enc_pat = match pat {
             GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
             GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
-        let zero = self.create_trivial_zero_radix(16);
+        let zero = sk.create_trivial_zero_radix(16);
         match self.length_checks(str, &trivial_or_enc_pat) {
             // bool is true if pattern is empty, in which the first match index is 0. If it's false
             // we default to 0 as well
-            IsMatch::Clear(bool) => return (zero, self.create_trivial_boolean_block(bool)),
+            IsMatch::Clear(bool) => return (zero, sk.create_trivial_boolean_block(bool)),
 
             // This variant is only returned in the empty string case so in any case index is 0
             IsMatch::Cipher(val) => return (zero, val),
@@ -178,6 +187,8 @@ impl ServerKey {
     ///
     /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
     /// let (haystack, needle) = ("hello world world", "world");
     ///
     /// let enc_haystack = FheString::new(&ck, haystack, None);
@@ -185,8 +196,8 @@ impl ServerKey {
     ///
     /// let (index, found) = sk.rfind(&enc_haystack, enc_needle.as_ref());
     ///
-    /// let index = ck.decrypt_radix::<u32>(&index);
-    /// let found = ck.decrypt_bool(&found);
+    /// let index = ck.inner().decrypt_radix::<u32>(&index);
+    /// let found = ck.inner().decrypt_bool(&found);
     ///
     /// assert!(found);
     /// assert_eq!(index, 12); // The last "world" starts at index 12 in "hello world world"
@@ -196,25 +207,27 @@ impl ServerKey {
         str: &FheString,
         pat: GenericPatternRef<'_>,
     ) -> (RadixCiphertext, BooleanBlock) {
+        let sk = self.inner();
+
         let trivial_or_enc_pat = match pat {
             GenericPatternRef::Clear(pat) => FheString::trivial(self, pat.str()),
             GenericPatternRef::Enc(pat) => pat.clone(),
         };
 
-        let zero = self.create_trivial_zero_radix(16);
+        let zero = sk.create_trivial_zero_radix(16);
         match self.length_checks(str, &trivial_or_enc_pat) {
             IsMatch::Clear(val) => {
                 // val = true if pattern is empty, in which the last match index = str.len()
                 let index = if val {
                     match self.len(str) {
                         FheStringLen::Padding(cipher_len) => cipher_len,
-                        FheStringLen::NoPadding(len) => self.create_trivial_radix(len as u32, 16),
+                        FheStringLen::NoPadding(len) => sk.create_trivial_radix(len as u32, 16),
                     }
                 } else {
                     zero
                 };
 
-                return (index, self.create_trivial_boolean_block(val));
+                return (index, sk.create_trivial_boolean_block(val));
             }
 
             // This variant is only returned in the empty string case so in any case index is 0
@@ -259,7 +272,7 @@ impl ServerKey {
                 if str.is_padded() && padded_pat_is_empty.is_some() {
                     let str_true_len = match self.len(str) {
                         FheStringLen::Padding(cipher_len) => cipher_len,
-                        FheStringLen::NoPadding(len) => self.create_trivial_radix(len as u32, 16),
+                        FheStringLen::NoPadding(len) => sk.create_trivial_radix(len as u32, 16),
                     };
 
                     Some((padded_pat_is_empty.unwrap(), str_true_len))
@@ -271,7 +284,7 @@ impl ServerKey {
 
         if let Some((pat_is_empty, str_true_len)) = option {
             last_match_index =
-                self.if_then_else_parallelized(&pat_is_empty, &str_true_len, &last_match_index);
+                sk.if_then_else_parallelized(&pat_is_empty, &str_true_len, &last_match_index);
         }
 
         (last_match_index, result)
