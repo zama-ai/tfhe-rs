@@ -103,7 +103,7 @@ impl ClientKey {
                 params.packing_ks_base_log,
                 params.packing_ks_level,
                 params.packing_ks_key_noise_distribution,
-                self.parameters.ciphertext_modulus(),
+                params.ciphertext_modulus_after_packing_ks,
                 &mut engine.seeder,
             )
         });
