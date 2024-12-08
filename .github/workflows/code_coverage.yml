@@ -83,7 +83,7 @@ jobs:
           make test_shortint_cov
 
       - name: Upload tfhe coverage to Codecov
-        uses: codecov/codecov-action@015f24e6818733317a2da2edd6290ab26238649a
+        uses: codecov/codecov-action@7f8b4b4bde536c465e797be725718b88c5d95e0e
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -97,7 +97,7 @@ jobs:
           make test_integer_cov
 
       - name: Upload tfhe coverage to Codecov
-        uses: codecov/codecov-action@015f24e6818733317a2da2edd6290ab26238649a
+        uses: codecov/codecov-action@7f8b4b4bde536c465e797be725718b88c5d95e0e
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
