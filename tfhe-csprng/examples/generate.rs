@@ -24,7 +24,7 @@ use tfhe_csprng::seeders::Seeder;
 #[cfg(all(
     not(target_os = "macos"),
     not(feature = "seeder_x86_64_rdseed"),
-    feature = "seeder_unix"
+    target_family = "unix"
 ))]
 use tfhe_csprng::seeders::UnixSeeder as ActivatedSeeder;
 
@@ -78,13 +78,13 @@ pub fn main() {
     #[cfg(all(
         not(target_os = "macos"),
         not(feature = "seeder_x86_64_rdseed"),
-        feature = "seeder_unix"
+        target_family = "unix"
     ))]
     let new_seeder = || ActivatedSeeder::new(0);
     #[cfg(not(all(
         not(target_os = "macos"),
         not(feature = "seeder_x86_64_rdseed"),
-        feature = "seeder_unix"
+        target_family = "unix"
     )))]
     let new_seeder = || ActivatedSeeder;
 
