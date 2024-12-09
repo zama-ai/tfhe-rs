@@ -91,6 +91,8 @@ if __name__ == "__main__":
         "boolean_parameters_lattice_estimator.sage",
         "shortint_classic_parameters_lattice_estimator.sage",
         "shortint_multi_bit_parameters_lattice_estimator.sage",
+        "shortint_cpke_parameters_lattice_estimator.sage",
+        "shortint_list_compression_parameters_lattice_estimator.sage",
     ):
         to_update, to_watch = check_security(params_filename)
         params_to_update.extend(to_update)
