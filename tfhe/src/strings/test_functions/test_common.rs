@@ -34,14 +34,14 @@ where
 }
 
 #[test]
-fn string_is_empty_test_parameterized() {
-    string_is_empty_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn is_empty_test_parameterized() {
+    is_empty_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 impl NotTuple for &FheString {}
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_is_empty_test<P>(param: P)
+fn is_empty_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -49,10 +49,10 @@ where
         let sk = ServerKey::new(sk);
         sk.is_empty(str)
     });
-    string_is_empty_test_impl(param, executor);
+    is_empty_test_impl(param, executor);
 }
 
-pub(crate) fn string_is_empty_test_impl<P, T>(param: P, mut is_empty_executor: T)
+pub(crate) fn is_empty_test_impl<P, T>(param: P, mut is_empty_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<&'a FheString, FheStringIsEmpty>,
@@ -104,12 +104,12 @@ where
 }
 
 #[test]
-fn string_len_test_parameterized() {
-    string_len_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn len_test_parameterized() {
+    len_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_len_test<P>(param: P)
+fn len_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -117,10 +117,10 @@ where
         let sk = ServerKey::new(sk);
         sk.len(str)
     });
-    string_len_test_impl(param, executor);
+    len_test_impl(param, executor);
 }
 
-pub(crate) fn string_len_test_impl<P, T>(param: P, mut len_executor: T)
+pub(crate) fn len_test_impl<P, T>(param: P, mut len_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<&'a FheString, FheStringLen>,
@@ -182,12 +182,12 @@ where
 }
 
 #[test]
-fn string_strip_test_parameterized() {
-    string_strip_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn strip_test_parameterized() {
+    strip_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_strip_test<P>(param: P)
+fn strip_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -219,11 +219,11 @@ where
                 encrypted_op(&sk, str, pat)
             };
         let executor = CpuFunctionExecutor::new(&encrypted_op_wrapper);
-        string_strip_test_impl(param, executor, clear_op);
+        strip_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_strip_test_impl<P, T>(
+pub(crate) fn strip_test_impl<P, T>(
     param: P,
     mut strip_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> Option<&'a str>,
@@ -292,12 +292,12 @@ pub(crate) fn string_strip_test_impl<P, T>(
 const TEST_CASES_COMP: [&str; 5] = ["", "a", "aa", "ab", "abc"];
 
 #[test]
-fn string_comp_test_parameterized() {
-    string_comp_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn comp_test_parameterized() {
+    comp_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_comp_test<P>(param: P)
+fn comp_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -323,11 +323,11 @@ where
                 encrypted_op(&sk, lhs, rhs)
             };
         let executor = CpuFunctionExecutor::new(&encrypted_op_wrapper);
-        string_comp_test_impl(param, executor, clear_op);
+        comp_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_comp_test_impl<P, T>(
+pub(crate) fn comp_test_impl<P, T>(
     param: P,
     mut comp_executor: T,
     clear_function: fn(&str, &str) -> bool,

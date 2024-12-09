@@ -20,12 +20,12 @@ const UP_LOW_CASE: [&str; 21] = [
 ];
 
 #[test]
-fn string_to_lower_upper_case_test_parameterized() {
-    string_to_lower_upper_case_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn to_lower_upper_case_test_parameterized() {
+    to_lower_upper_case_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_to_lower_upper_case_test<P>(param: P)
+fn to_lower_upper_case_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -54,11 +54,11 @@ where
 
     for (clear_op, encrypted_op) in ops {
         let executor = CpuFunctionExecutor::new(&encrypted_op);
-        string_to_lower_upper_case_test_impl(param, executor, clear_op);
+        to_lower_upper_case_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_to_lower_upper_case_test_impl<P, T>(
+pub(crate) fn to_lower_upper_case_test_impl<P, T>(
     param: P,
     mut to_lower_upper_case_executor: T,
     clear_function: for<'a> fn(&'a str) -> String,
@@ -103,12 +103,12 @@ pub(crate) fn string_to_lower_upper_case_test_impl<P, T>(
 }
 
 #[test]
-fn string_eq_ignore_case_test_parameterized() {
-    string_eq_ignore_case_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn eq_ignore_case_test_parameterized() {
+    eq_ignore_case_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_eq_ignore_case_test<P>(param: P)
+fn eq_ignore_case_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -120,10 +120,10 @@ where
 
             sk.eq_ignore_case(lhs, rhs)
         });
-    string_eq_ignore_case_test_impl(param, executor);
+    eq_ignore_case_test_impl(param, executor);
 }
 
-pub(crate) fn string_eq_ignore_case_test_impl<P, T>(param: P, mut eq_ignore_case_executor: T)
+pub(crate) fn eq_ignore_case_test_impl<P, T>(param: P, mut eq_ignore_case_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>), BooleanBlock>,

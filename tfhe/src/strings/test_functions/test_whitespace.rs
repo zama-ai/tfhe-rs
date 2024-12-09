@@ -13,12 +13,12 @@ use std::sync::Arc;
 const WHITESPACES: [&str; 5] = [" ", "\n", "\t", "\r", "\u{000C}"];
 
 #[test]
-fn string_trim_test_parameterized() {
-    string_trim_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn trim_test_parameterized() {
+    trim_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_trim_test<P>(param: P)
+fn trim_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -54,11 +54,11 @@ where
 
     for (clear_op, encrypted_op) in ops {
         let executor = CpuFunctionExecutor::new(&encrypted_op);
-        string_trim_test_impl(param, executor, clear_op);
+        trim_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_trim_test_impl<P, T>(
+pub(crate) fn trim_test_impl<P, T>(
     param: P,
     mut trim_executor: T,
     clear_function: for<'a> fn(&'a str) -> &'a str,
@@ -113,12 +113,12 @@ pub(crate) fn string_trim_test_impl<P, T>(
 }
 
 #[test]
-fn string_split_whitespace_test_parameterized() {
-    string_split_whitespace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn split_whitespace_test_parameterized() {
+    split_whitespace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_split_whitespace_test<P>(param: P)
+fn split_whitespace_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -131,10 +131,10 @@ where
 
     let executor = CpuFunctionExecutor::new(&fhe_func);
 
-    string_split_whitespace_test_impl(param, executor);
+    split_whitespace_test_impl(param, executor);
 }
 
-pub(crate) fn string_split_whitespace_test_impl<P, T>(param: P, mut split_whitespace_executor: T)
+pub(crate) fn split_whitespace_test_impl<P, T>(param: P, mut split_whitespace_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<
