@@ -1,8 +1,3 @@
-//use std::fmt::Debug;
-//use std::fs;
-//use std::fs::File;
-//use std::io::{BufWriter, Write};
-
 use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul_assign;
 use crate::core_crypto::algorithms::slice_algorithms::{
     slice_wrapping_add_assign, slice_wrapping_sub_scalar_mul_assign,
@@ -372,11 +367,9 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
         output_glwe_ciphertext.polynomial_size(),
         output_glwe_ciphertext.ciphertext_modulus(),
     );
-
     // for each ciphertext, call mono_key_switch
     for (degree, input_ciphertext) in input_lwe_ciphertext.iter().enumerate() {
         keyswitch_lwe_ciphertext_into_glwe_ciphertext(lwe_pksk, &input_ciphertext, &mut buffer);
-
         buffer
             .as_mut_polynomial_list()
             .iter_mut()
