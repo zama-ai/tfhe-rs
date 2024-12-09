@@ -70,22 +70,8 @@ production-ready library for all the advanced features of TFHE.
 ### Cargo.toml configuration
 To use the latest version of `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
-+ For x86_64-based machines running Unix-like OSes:
-
 ```toml
-tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64-unix"] }
-```
-
-+ For Apple Silicon or aarch64-based machines running Unix-like OSes:
-
-```toml
-tfhe = { version = "*", features = ["boolean", "shortint", "integer", "aarch64-unix"] }
-```
-
-+ For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
-
-```toml
-tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] }
+tfhe = { version = "*", features = ["boolean", "shortint", "integer"] }
 ```
 
 > [!Note]
