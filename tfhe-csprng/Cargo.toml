@@ -25,13 +25,7 @@ clap = "=4.4.4"
 
 [features]
 parallel = ["rayon"]
-generator_fallback = []
-
-x86_64 = ["parallel", "generator_fallback"]
-x86_64-unix = ["x86_64"]
-aarch64 = ["parallel", "generator_fallback"]
-aarch64-unix = ["aarch64"]
-software_prng = []
+software-prng = []
 
 [[bench]]
 name = "benchmark"
@@ -41,4 +35,3 @@ harness = false
 [[example]]
 name = "generate"
 path = "examples/generate.rs"
-required-features = ["generator_fallback"]

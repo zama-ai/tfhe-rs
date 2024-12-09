@@ -104,7 +104,6 @@ if [[ "${backend}" == "gpu" ]]; then
 fi
 
 CURR_DIR="$(dirname "$0")"
-ARCH_FEATURE="$("${CURR_DIR}/get_arch_feature.sh")"
 
 # TODO autodetect/have a finer CPU count depending on memory
 num_cpu_threads="$("${CURR_DIR}"/cpu_count.sh)"
@@ -155,7 +154,7 @@ cargo "${RUST_TOOLCHAIN}" nextest run \
     --cargo-profile "${cargo_profile}" \
     --package "${tfhe_package}" \
     --profile ci \
-    --features="${ARCH_FEATURE}",integer,internal-keycache,zk-pok,experimental,"${avx512_feature}","${gpu_feature}" \
+    --features=integer,internal-keycache,zk-pok,experimental,"${avx512_feature}","${gpu_feature}" \
     --test-threads "${test_threads}" \
     -E "$filter_expression"
 
@@ -163,7 +162,7 @@ if [[ -z ${multi_bit_argument} ]]; then
     cargo "${RUST_TOOLCHAIN}" test \
         --profile "${cargo_profile}" \
         --package "${tfhe_package}" \
-        --features="${ARCH_FEATURE}",integer,internal-keycache,experimental,"${avx512_feature}","${gpu_feature}" \
+        --features=integer,internal-keycache,experimental,"${avx512_feature}","${gpu_feature}" \
         --doc \
         -- --test-threads="${doctest_threads}" integer::"${gpu_feature}"
 fi
