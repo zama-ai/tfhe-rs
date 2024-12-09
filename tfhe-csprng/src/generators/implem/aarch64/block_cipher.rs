@@ -25,7 +25,8 @@ impl AesBlockCipher for ArmAesBlockCipher {
         if !(aes_detected && neon_detected) {
             panic!(
                 "The ArmAesBlockCipher requires both aes and neon aarch64 CPU features.\n\
-                aes feature available: {}\nneon feature available: {}\n.",
+                aes feature available: {}\nneon feature available: {}\n\
+                Please consider enabling the SoftwareRandomGenerator with the `software_prng` feature",
                 aes_detected, neon_detected
             )
         }
