@@ -1,6 +1,6 @@
-#[cfg(feature = "generator_x86_64_aesni")]
+#[cfg(target_arch = "x86_64")]
 mod aesni;
-#[cfg(feature = "generator_x86_64_aesni")]
+#[cfg(target_arch = "x86_64")]
 pub use aesni::*;
 
 #[cfg(feature = "generator_aarch64_aes")]
@@ -8,7 +8,7 @@ mod aarch64;
 #[cfg(feature = "generator_aarch64_aes")]
 pub use aarch64::*;
 
-#[cfg(feature = "generator_fallback")]
+#[cfg(feature = "software_prng")]
 mod soft;
-#[cfg(feature = "generator_fallback")]
+#[cfg(feature = "software_prng")]
 pub use soft::*;

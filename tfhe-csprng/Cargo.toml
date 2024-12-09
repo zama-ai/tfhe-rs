@@ -25,24 +25,19 @@ clap = "=4.4.4"
 
 [features]
 parallel = ["rayon"]
-generator_x86_64_aesni = []
 generator_fallback = []
 generator_aarch64_aes = []
 
-x86_64 = [
-    "parallel",
-    "generator_x86_64_aesni",
-    "generator_fallback",
-]
+x86_64 = ["parallel", "generator_fallback"]
 x86_64-unix = ["x86_64"]
 aarch64 = ["parallel", "generator_aarch64_aes", "generator_fallback"]
 aarch64-unix = ["aarch64"]
+software_prng = []
 
 [[bench]]
 name = "benchmark"
 path = "benches/benchmark.rs"
 harness = false
-required-features = ["generator_x86_64_aesni"]
 
 [[example]]
 name = "generate"
