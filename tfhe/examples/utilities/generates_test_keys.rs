@@ -15,7 +15,14 @@ use tfhe::shortint::parameters::coverage_parameters::{
 use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
 use tfhe::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 
-use tfhe::shortint::parameters::multi_bit::gaussian::ALL_MULTI_BIT_PARAMETER_VEC;
+use tfhe::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::{
+    PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+};
 use tfhe::shortint::parameters::{
     ClassicPBSParameters, PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
@@ -56,7 +63,16 @@ fn client_server_keys() {
     let multi_bit_only: bool = matches.get_flag("multi_bit_only");
     let coverage_only: bool = matches.get_flag("coverage_only");
     if multi_bit_only {
-        generate_pbs_multi_bit_keys(&ALL_MULTI_BIT_PARAMETER_VEC);
+        const MULTI_BIT_PARAMS: [MultiBitPBSParameters; 6] = [
+            PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        ];
+
+        generate_pbs_multi_bit_keys(&MULTI_BIT_PARAMS);
     } else if coverage_only {
         println!("Generating keys (ClientKey, ServerKey) for coverage");
 
