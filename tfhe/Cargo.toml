@@ -129,10 +129,6 @@ parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
 nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
 
-# Enable the aarch64 specific accelerated implementation of the random generator for the default
-# backend
-generator_aarch64_aes = ["tfhe-csprng/generator_aarch64_aes"]
-
 # Private features
 __profiling = []
 __long_run_tests = []
@@ -144,7 +140,7 @@ __long_run_tests = []
 x86_64 = []
 x86_64-unix = ["x86_64"]
 
-aarch64 = ["generator_aarch64_aes"]
+aarch64 = []
 aarch64-unix = ["aarch64"]
 
 # Cover several profiles as we cannot have a wildcard it seems
