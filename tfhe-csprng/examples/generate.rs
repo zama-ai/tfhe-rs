@@ -18,12 +18,16 @@ use std::io::prelude::*;
 use std::io::{stdout, StdoutLock};
 #[cfg(target_os = "macos")]
 use tfhe_csprng::seeders::AppleSecureEnclaveSeeder as ActivatedSeeder;
-#[cfg(all(not(target_os = "macos"), feature = "seeder_x86_64_rdseed"))]
+#[cfg(all(
+    not(target_os = "macos"),
+    target_arch = "x86_64",
+    target_feature = "rdseed"
+))]
 use tfhe_csprng::seeders::RdseedSeeder as ActivatedSeeder;
 use tfhe_csprng::seeders::Seeder;
 #[cfg(all(
     not(target_os = "macos"),
-    not(feature = "seeder_x86_64_rdseed"),
+    not(all(target_arch = "x86_64", target_feature = "rdseed")),
     target_family = "unix"
 ))]
 use tfhe_csprng::seeders::UnixSeeder as ActivatedSeeder;
@@ -77,16 +81,16 @@ pub fn main() {
     // Ugly hack to be able to use UnixSeeder
     #[cfg(all(
         not(target_os = "macos"),
-        not(feature = "seeder_x86_64_rdseed"),
+        not(all(target_arch = "x86_64", target_feature = "rdseed")),
         target_family = "unix"
     ))]
     let new_seeder = || ActivatedSeeder::new(0);
     #[cfg(not(all(
         not(target_os = "macos"),
-        not(feature = "seeder_x86_64_rdseed"),
+        not(all(target_arch = "x86_64", target_feature = "rdseed")),
         target_family = "unix"
     )))]
-    let new_seeder = || ActivatedSeeder;
+    let new_seeder = || ActivatedSeeder::new();
 
     let mut seeder = new_seeder();
     let seed = seeder.seed();
