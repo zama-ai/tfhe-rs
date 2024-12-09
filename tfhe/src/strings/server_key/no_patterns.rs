@@ -283,7 +283,7 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
             },
         );
 
-        self.string_eq(&lhs, rhs.as_ref())
+        self.eq(&lhs, rhs.as_ref())
     }
 
     /// Concatenates two encrypted strings and returns the result as a new encrypted string.
