@@ -84,9 +84,10 @@ impl<T: Unversionize + Serialize + for<'de> Deserialize<'de> + Default> Unversio
 // Since MyStructV0 is only composed of built-in types, it does not need recursive versioning and
 // can be used as its own "version type".
 #[derive(Serialize)]
-#[allow(dead_code)]
 enum MyStructVersionsDispatch<'vers, T: 'vers + Versionize> {
+    #[allow(dead_code)]
     V0(MyStructV0),
+    #[allow(dead_code)]
     V1(MyStructVersion<'vers, T>),
 }
 

@@ -25,7 +25,9 @@ pub struct CleartextCount(pub usize);
 pub struct CiphertextCount(pub usize);
 
 /// The number of ciphertexts in an lwe ciphertext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize, Versionize,
+)]
 #[versionize(LweCiphertextCountVersions)]
 pub struct LweCiphertextCount(pub usize);
 

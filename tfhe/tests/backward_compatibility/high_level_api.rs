@@ -5,8 +5,6 @@ use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt};
 use tfhe::shortint::PBSParameters;
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::CompactPkeCrs;
-#[cfg(feature = "zk-pok")]
-use tfhe::zk::CompactPkePublicParams;
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
@@ -150,11 +148,6 @@ pub fn test_zk_params(
     test: &ZkPkePublicParamsTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    // Since CompactPkeCrs is a repr(transparent) of a CompactPkePublicParams, both can be loaded
-    // from the same data, so we check this.
-    #[cfg(feature = "zk-pok")]
-    let _loaded_params: CompactPkePublicParams = load_and_unversionize(dir, test, format)?;
-
     #[cfg(feature = "zk-pok")]
     let _loaded_crs: CompactPkeCrs = load_and_unversionize(dir, test, format)?;
 
@@ -187,11 +180,10 @@ pub fn test_hl_heterogeneous_ciphertext_list(
         #[cfg(feature = "zk-pok")]
         {
             let crs_file = dir.join(&*zk_info.params_filename);
-            let public_params = CompactPkePublicParams::unversionize(
+            let crs = CompactPkeCrs::unversionize(
                 load_versioned_auxiliary(crs_file).map_err(|e| test.failure(e, format))?,
             )
             .map_err(|e| test.failure(e, format))?;
-            let crs = CompactPkeCrs::from(public_params);
 
             let pubkey_file = dir.join(&*zk_info.public_key_filename);
             let pubkey = CompactPublicKey::unversionize(
