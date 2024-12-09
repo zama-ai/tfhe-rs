@@ -8,7 +8,7 @@ use tfhe_csprng::seeders::{RdseedSeeder, Seeder};
 const N_GEN: usize = 1_000_000;
 
 fn parent_generate(c: &mut Criterion) {
-    let mut seeder = RdseedSeeder;
+    let mut seeder = RdseedSeeder::new();
     let mut generator = AesniRandomGenerator::new(seeder.seed());
     c.bench_function("parent_generate", |b| {
         b.iter(|| {
@@ -20,7 +20,7 @@ fn parent_generate(c: &mut Criterion) {
 }
 
 fn child_generate(c: &mut Criterion) {
-    let mut seeder = RdseedSeeder;
+    let mut seeder = RdseedSeeder::new();
     let mut generator = AesniRandomGenerator::new(seeder.seed());
     let mut generator = generator
         .try_fork(ChildrenCount(1), BytesPerChild(N_GEN * 10_000))
@@ -37,7 +37,7 @@ fn child_generate(c: &mut Criterion) {
 }
 
 fn fork(c: &mut Criterion) {
-    let mut seeder = RdseedSeeder;
+    let mut seeder = RdseedSeeder::new();
     let mut generator = AesniRandomGenerator::new(seeder.seed());
     c.bench_function("fork", |b| {
         b.iter(|| {

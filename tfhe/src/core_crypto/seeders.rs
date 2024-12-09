@@ -7,7 +7,7 @@
 pub use crate::core_crypto::commons::math::random::Seeder;
 #[cfg(all(target_os = "macos", not(feature = "__wasm_api")))]
 pub use tfhe_csprng::seeders::AppleSecureEnclaveSeeder;
-#[cfg(feature = "seeder_x86_64_rdseed")]
+#[cfg(all(target_arch = "x86_64", not(feature = "__wasm_api")))]
 pub use tfhe_csprng::seeders::RdseedSeeder;
 #[cfg(all(target_family = "unix", not(feature = "__wasm_api")))]
 pub use tfhe_csprng::seeders::UnixSeeder;
@@ -41,7 +41,7 @@ mod wasm_seeder {
 ///
 /// # Note
 ///
-/// With the `seeder_x86_64_rdseed` feature enabled on `x86_64` CPUs the rdseed seeder is
+/// When the `rdseed` CPU feature is detected on `x86_64` CPUs the rdseed seeder is
 /// prioritized.
 ///
 /// On macOS the next seeder to be prioritized uses Apple's [`Randomization
@@ -74,10 +74,10 @@ pub fn new_seeder() -> Box<dyn Seeder> {
 
     #[cfg(not(feature = "__wasm_api"))]
     {
-        #[cfg(feature = "seeder_x86_64_rdseed")]
+        #[cfg(target_arch = "x86_64")]
         {
             if RdseedSeeder::is_available() {
-                seeder = Some(Box::new(RdseedSeeder));
+                seeder = Some(Box::new(RdseedSeeder::new()));
             }
         }
 

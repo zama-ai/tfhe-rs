@@ -53,12 +53,7 @@ impl FeatureRequirement {
 
 // const vecs are not yet a thing so use a fixed size array (update the array size when adding
 // requirements)
-static FEATURE_REQUIREMENTS: [FeatureRequirement; 3] = [
-    FeatureRequirement {
-        feature_name: "seeder_x86_64_rdseed",
-        feature_req_target_arch: Some("x86_64"),
-        feature_req_target_family: None,
-    },
+static FEATURE_REQUIREMENTS: [FeatureRequirement; 2] = [
     FeatureRequirement {
         feature_name: "generator_x86_64_aesni",
         feature_req_target_arch: Some("x86_64"),
@@ -83,7 +78,6 @@ macro_rules! feature_cfg {
 // function that returns the HashMap we are interested in
 fn get_feature_enabled_status() -> HashMap<&'static str, bool> {
     HashMap::from([
-        feature_cfg!("seeder_x86_64_rdseed"),
         feature_cfg!("generator_x86_64_aesni"),
         feature_cfg!("generator_aarch64_aes"),
     ])

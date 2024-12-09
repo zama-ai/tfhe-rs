@@ -3,9 +3,9 @@ mod apple_secure_enclave_seeder;
 #[cfg(target_os = "macos")]
 pub use apple_secure_enclave_seeder::AppleSecureEnclaveSeeder;
 
-#[cfg(feature = "seeder_x86_64_rdseed")]
+#[cfg(target_arch = "x86_64")]
 mod rdseed;
-#[cfg(feature = "seeder_x86_64_rdseed")]
+#[cfg(target_arch = "x86_64")]
 pub use rdseed::RdseedSeeder;
 
 #[cfg(target_family = "unix")]
