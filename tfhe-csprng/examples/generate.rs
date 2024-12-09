@@ -80,6 +80,29 @@ fn bytes_generation(
     write_bytes(&mut buffer[0..remaining], generator, stdout).unwrap()
 }
 
+fn new_seeder() -> ActivatedSeeder {
+    #[cfg(target_os = "macos")]
+    {
+        ActivatedSeeder
+    }
+    #[cfg(all(
+        not(target_os = "macos"),
+        target_arch = "x86_64",
+        target_feature = "rdseed"
+    ))]
+    {
+        ActivatedSeeder::new()
+    }
+    #[cfg(all(
+        not(target_os = "macos"),
+        not(all(target_arch = "x86_64", target_feature = "rdseed")),
+        target_family = "unix"
+    ))]
+    {
+        ActivatedSeeder::new(0)
+    }
+}
+
 pub fn main() {
     let matches = Command::new(
         "Generate a stream of random numbers, specify no flags for infinite generation",
@@ -92,20 +115,6 @@ pub fn main() {
             .help("Total number of bytes that has to be generated"),
     )
     .get_matches();
-
-    // Ugly hack to be able to use UnixSeeder
-    #[cfg(all(
-        not(target_os = "macos"),
-        not(all(target_arch = "x86_64", target_feature = "rdseed")),
-        target_family = "unix"
-    ))]
-    let new_seeder = || ActivatedSeeder::new(0);
-    #[cfg(not(all(
-        not(target_os = "macos"),
-        not(all(target_arch = "x86_64", target_feature = "rdseed")),
-        target_family = "unix"
-    )))]
-    let new_seeder = || ActivatedSeeder::new();
 
     let mut seeder = new_seeder();
     let seed = seeder.seed();
