@@ -51,7 +51,8 @@ impl CudaLweMultiBitBootstrapKey {
                 decomp_level_count,
                 grouping_factor,
             )
-            .unwrap(),
+            .unwrap()
+                * 2,
             streams,
         );
         // Copy to the GPU

@@ -50,7 +50,15 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     uint64_t device_memory_size_per_block) {
 
   extern __shared__ int8_t sharedmem[];
+  __shared__ short coefs[params::degree * 3];
   int8_t *selected_memory;
+  for (int i = 0; i < params::opt; i++) {
+    coefs[threadIdx.x + i * (params::degree / params::opt)] = -1;
+    coefs[threadIdx.x + i * (params::degree / params::opt) + params::degree] =
+        1;
+    coefs[threadIdx.x + i * (params::degree / params::opt) +
+          2 * params::degree] = -1;
+  }
 
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
@@ -84,18 +92,18 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // ////////////////////////////////
     // Keygen guarantees the first term is a constant term of the polynomial, no
     // polynomial multiplication required
-    const Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+    const Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block2(
         bootstrapping_key, 0, rev_lwe_iteration, glwe_id, level_id,
         grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
-    const Torus *bsk_poly_ini = bsk_slice + poly_id * params::degree;
+    const Torus *bsk_poly_ini = bsk_slice + 2 * poly_id * params::degree;
 
     Torus reg_acc[params::opt];
 
     copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
         bsk_poly_ini, reg_acc);
 
-    int offset =
-        get_start_ith_ggsw_offset(polynomial_size, glwe_dimension, level_count);
+    int offset = 2 * get_start_ith_ggsw_offset(polynomial_size, glwe_dimension,
+                                               level_count);
 
     // Precalculate the monomial degrees and store them in shared memory
     uint32_t *monomial_degrees = (uint32_t *)selected_memory;
@@ -113,9 +121,13 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
       uint32_t monomial_degree = monomial_degrees[g];
 
       const Torus *bsk_poly = bsk_poly_ini + g * offset;
+      int full_cycles_count = monomial_degree / params::degree;
+      int remainder_degrees = monomial_degree % params::degree;
+      int jump = full_cycles_count * params::degree + params::degree -
+                 remainder_degrees;
       // Multiply by the bsk element
-      polynomial_product_accumulate_by_monomial_nosync<Torus, params>(
-          reg_acc, bsk_poly, monomial_degree);
+      polynomial_product_accumulate_by_monomial_nosync2<Torus, params>(
+          reg_acc, bsk_poly, &coefs[jump], monomial_degree);
     }
     synchronize_threads_in_block(); // needed because we are going to reuse the
                                     // shared memory for the fft

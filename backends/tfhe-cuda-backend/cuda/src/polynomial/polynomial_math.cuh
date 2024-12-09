@@ -112,21 +112,34 @@ __device__ void polynomial_product_accumulate_by_monomial_nosync(
   int full_cycles_count = monomial_degree / params::degree;
   int remainder_degrees = monomial_degree % params::degree;
 
-// Every thread has a fixed position to track instead of "chasing" the
-// position
+  // Every thread has a fixed position to track instead of "chasing" the
+  // position
+  const T *extended_poly = &poly[(-monomial_degree & (params::degree - 1))];
 #pragma unroll
   for (int i = 0; i < params::opt; i++) {
-    int pos =
-        (threadIdx.x + i * (params::degree / params::opt) - monomial_degree) &
-        (params::degree - 1);
-
-    T element = poly[pos];
+    T element = extended_poly[threadIdx.x + i * (params::degree / params::opt)];
     T x = SEL(element, -element, full_cycles_count % 2);
     x = SEL(-x, x,
             threadIdx.x + i * (params::degree / params::opt) >=
                 remainder_degrees);
-
     result[i] += x;
+  }
+}
+
+template <typename T, class params>
+__device__ void polynomial_product_accumulate_by_monomial_nosync2(
+    T *result, const T *__restrict__ poly, short *__restrict__ coefs,
+    uint32_t monomial_degree) {
+  // monomial_degree \in [0, 2 * params::degree)
+
+  // Every thread has a fixed position to track instead of "chasing" the
+  // position
+  const T *extended_poly = &poly[(-monomial_degree & (params::degree - 1))];
+#pragma unroll
+  for (int i = 0; i < params::opt; i++) {
+    result[i] +=
+        extended_poly[threadIdx.x + i * (params::degree / params::opt)] *
+        coefs[threadIdx.x + i * (params::degree / params::opt)];
   }
 }
 

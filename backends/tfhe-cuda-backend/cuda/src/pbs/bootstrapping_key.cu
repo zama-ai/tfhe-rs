@@ -31,8 +31,20 @@ void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
                                grouping_factor;
   size_t buffer_size = total_polynomials * polynomial_size * sizeof(uint64_t);
 
-  cuda_memcpy_async_to_gpu((uint64_t *)dest, (uint64_t *)src, buffer_size,
-                           static_cast<cudaStream_t>(stream), gpu_index);
+  // printf("Enters cuda convert multi-bit lwe line 34\n");
+  //  cuda_memcpy_async_to_gpu((uint64_t *)dest, (uint64_t *)src, buffer_size,
+  //                           static_cast<cudaStream_t>(stream), gpu_index);
+  for (int poly_idx = 0; poly_idx < total_polynomials; poly_idx++) {
+    size_t buffer_to_copy = polynomial_size * sizeof(uint64_t);
+    uint64_t *dest_ptr1 = (uint64_t *)dest + 2 * poly_idx * polynomial_size;
+    uint64_t *dest_ptr2 =
+        (uint64_t *)dest + 2 * poly_idx * polynomial_size + polynomial_size;
+    uint64_t *src_ptr = (uint64_t *)src + poly_idx * polynomial_size;
+    cuda_memcpy_async_to_gpu(dest_ptr1, src_ptr, buffer_to_copy,
+                             static_cast<cudaStream_t>(stream), gpu_index);
+    cuda_memcpy_async_to_gpu(dest_ptr2, src_ptr, buffer_to_copy,
+                             static_cast<cudaStream_t>(stream), gpu_index);
+  }
 }
 
 // We need these lines so the compiler knows how to specialize these functions

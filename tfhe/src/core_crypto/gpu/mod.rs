@@ -367,7 +367,7 @@ pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: Unsigned
 ) {
     let size = std::mem::size_of_val(src);
     for (gpu_index, &stream) in streams.ptr.iter().enumerate() {
-        assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
+        assert_eq!(dest.len() * std::mem::size_of::<T>(), size * 2);
         cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
             stream,
             streams.gpu_indexes[gpu_index].0,
