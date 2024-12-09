@@ -4,12 +4,12 @@
 use clap::{value_parser, Arg, Command};
 #[cfg(all(target_arch = "x86_64", target_feature = "aes"))]
 use tfhe_csprng::generators::AesniRandomGenerator as ActivatedRandomGenerator;
-#[cfg(feature = "generator_aarch64_aes")]
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use tfhe_csprng::generators::NeonAesRandomGenerator as ActivatedRandomGenerator;
 use tfhe_csprng::generators::RandomGenerator;
 #[cfg(all(
     not(all(target_arch = "x86_64", target_feature = "aes")),
-    not(feature = "generator_aarch64_aes"),
+    not(all(target_arch = "aarch64", target_feature = "neon")),
 ))]
 use tfhe_csprng::generators::SoftwareRandomGenerator as ActivatedRandomGenerator;
 
