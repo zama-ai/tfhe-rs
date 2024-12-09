@@ -141,7 +141,6 @@ generator_aarch64_aes = ["tfhe-csprng/generator_aarch64_aes"]
 __profiling = []
 __long_run_tests = []
 
-seeder_unix = ["tfhe-csprng/seeder_unix"]
 seeder_x86_64_rdseed = ["tfhe-csprng/seeder_x86_64_rdseed"]
 
 # These target_arch features enable a set of public features for tfhe if users want a known
@@ -149,10 +148,10 @@ seeder_x86_64_rdseed = ["tfhe-csprng/seeder_x86_64_rdseed"]
 # For a target_arch that does not yet have such a feature, one can still enable features manually or
 # create a feature for said target_arch to make its use simpler.
 x86_64 = ["generator_x86_64_aesni", "seeder_x86_64_rdseed"]
-x86_64-unix = ["x86_64", "seeder_unix"]
+x86_64-unix = ["x86_64"]
 
 aarch64 = ["generator_aarch64_aes"]
-aarch64-unix = ["aarch64", "seeder_unix"]
+aarch64-unix = ["aarch64"]
 
 # Cover several profiles as we cannot have a wildcard it seems
 [package.metadata.wasm-pack.profile.dev.wasm-bindgen]

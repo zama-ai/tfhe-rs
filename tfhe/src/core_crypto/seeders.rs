@@ -9,7 +9,7 @@ pub use crate::core_crypto::commons::math::random::Seeder;
 pub use tfhe_csprng::seeders::AppleSecureEnclaveSeeder;
 #[cfg(feature = "seeder_x86_64_rdseed")]
 pub use tfhe_csprng::seeders::RdseedSeeder;
-#[cfg(feature = "seeder_unix")]
+#[cfg(all(target_family = "unix", not(feature = "__wasm_api")))]
 pub use tfhe_csprng::seeders::UnixSeeder;
 
 #[cfg(feature = "__wasm_api")]
@@ -48,9 +48,8 @@ mod wasm_seeder {
 /// Service`](`https://developer.apple.com/documentation/security/randomization_services?language=objc`)
 /// calling [`SecRandomCopyBytes`](`https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc`).
 ///
-/// With the `seeder_unix` feature enabled on Unix platforms, `/dev/random` is used as a fallback
-/// and the quality of the generated seeds depends on the particular implementation of the platform
-/// your code is running on.
+/// On Unix platforms, `/dev/random` is used as a fallback and the quality of the generated seeds
+/// depends on the particular implementation of the platform your code is running on.
 ///
 /// For the wasm32 target the [`getrandom`](`https://docs.rs/getrandom/latest/getrandom/`)
 /// js random number generator is used as a source of
@@ -91,23 +90,14 @@ pub fn new_seeder() -> Box<dyn Seeder> {
             }
         }
 
-        #[cfg(feature = "seeder_unix")]
+        #[cfg(target_family = "unix")]
         {
             if seeder.is_none() && UnixSeeder::is_available() {
                 seeder = Some(Box::new(UnixSeeder::new(0)));
             }
         }
 
-        #[cfg(not(feature = "__c_api"))]
-        {
-            err_msg = "Unable to instantiate a seeder, make sure to enable a seeder feature \
-    like seeder_unix for example on unix platforms.";
-        }
-
-        #[cfg(feature = "__c_api")]
-        {
-            err_msg = "No compatible seeder for current machine found.";
-        }
+        err_msg = "No compatible seeder for current machine found.";
     }
 
     #[cfg(feature = "__wasm_api")]
