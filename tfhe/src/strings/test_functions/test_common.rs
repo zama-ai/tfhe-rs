@@ -306,12 +306,12 @@ where
         fn(&str, &str) -> bool,
         fn(&ServerKey<&IntegerServerKey>, &FheString, GenericPatternRef<'_>) -> BooleanBlock,
     ); 6] = [
-        (|lhs, rhs| lhs == rhs, |sk, lhs, rhs| sk.string_eq(lhs, rhs)),
-        (|lhs, rhs| lhs != rhs, |sk, lhs, rhs| sk.string_ne(lhs, rhs)),
-        (|lhs, rhs| lhs >= rhs, |sk, lhs, rhs| sk.string_ge(lhs, rhs)),
-        (|lhs, rhs| lhs <= rhs, |sk, lhs, rhs| sk.string_le(lhs, rhs)),
-        (|lhs, rhs| lhs > rhs, |sk, lhs, rhs| sk.string_gt(lhs, rhs)),
-        (|lhs, rhs| lhs < rhs, |sk, lhs, rhs| sk.string_lt(lhs, rhs)),
+        (|lhs, rhs| lhs == rhs, |sk, lhs, rhs| sk.eq(lhs, rhs)),
+        (|lhs, rhs| lhs != rhs, |sk, lhs, rhs| sk.ne(lhs, rhs)),
+        (|lhs, rhs| lhs >= rhs, |sk, lhs, rhs| sk.ge(lhs, rhs)),
+        (|lhs, rhs| lhs <= rhs, |sk, lhs, rhs| sk.le(lhs, rhs)),
+        (|lhs, rhs| lhs > rhs, |sk, lhs, rhs| sk.gt(lhs, rhs)),
+        (|lhs, rhs| lhs < rhs, |sk, lhs, rhs| sk.lt(lhs, rhs)),
     ];
 
     let param = param.into();

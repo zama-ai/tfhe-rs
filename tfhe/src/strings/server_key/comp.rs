@@ -4,7 +4,7 @@ use crate::strings::server_key::{FheStringIsEmpty, ServerKey};
 use std::borrow::Borrow;
 
 impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
-    fn string_eq_length_checks(&self, lhs: &FheString, rhs: &FheString) -> Option<BooleanBlock> {
+    fn eq_length_checks(&self, lhs: &FheString, rhs: &FheString) -> Option<BooleanBlock> {
         let sk = self.inner();
 
         // If lhs is empty, rhs must also be empty in order to be equal (the case where lhs is
@@ -64,19 +64,19 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
-    /// let result = sk.string_eq(&enc_s1, enc_s2.as_ref());
+    /// let result = sk.eq(&enc_s1, enc_s2.as_ref());
     /// let are_equal = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(are_equal);
     /// ```
-    pub fn string_eq(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+    pub fn eq(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
         let sk = self.inner();
 
         let early_return = match rhs {
             GenericPatternRef::Clear(rhs) => {
-                self.string_eq_length_checks(lhs, &FheString::trivial(self, rhs.str()))
+                self.eq_length_checks(lhs, &FheString::trivial(self, rhs.str()))
             }
-            GenericPatternRef::Enc(rhs) => self.string_eq_length_checks(lhs, rhs),
+            GenericPatternRef::Enc(rhs) => self.eq_length_checks(lhs, rhs),
         };
 
         if let Some(val) = early_return {
@@ -124,15 +124,15 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
-    /// let result = sk.string_ne(&enc_s1, enc_s2.as_ref());
+    /// let result = sk.ne(&enc_s1, enc_s2.as_ref());
     /// let are_not_equal = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(are_not_equal);
     /// ```
-    pub fn string_ne(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+    pub fn ne(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
         let sk = self.inner();
 
-        let eq = self.string_eq(lhs, rhs);
+        let eq = self.eq(lhs, rhs);
 
         sk.boolean_bitnot(&eq)
     }
@@ -157,12 +157,12 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
-    /// let result = sk.string_lt(&enc_s1, enc_s2.as_ref());
+    /// let result = sk.lt(&enc_s1, enc_s2.as_ref());
     /// let is_lt = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(is_lt); // "apple" is less than "banana"
     /// ```
-    pub fn string_lt(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+    pub fn lt(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
         let sk = self.inner();
 
         let mut lhs_uint = lhs.to_uint();
@@ -197,12 +197,12 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
-    /// let result = sk.string_gt(&enc_s1, enc_s2.as_ref());
+    /// let result = sk.gt(&enc_s1, enc_s2.as_ref());
     /// let is_gt = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(is_gt); // "banana" is greater than "apple"
     /// ```
-    pub fn string_gt(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+    pub fn gt(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
         let sk = self.inner();
 
         let mut lhs_uint = lhs.to_uint();
@@ -237,12 +237,12 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
-    /// let result = sk.string_le(&enc_s1, enc_s2.as_ref());
+    /// let result = sk.le(&enc_s1, enc_s2.as_ref());
     /// let is_le = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(is_le); // "apple" is less than or equal to "banana"
     /// ```
-    pub fn string_le(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+    pub fn le(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
         let sk = self.inner();
 
         let mut lhs_uint = lhs.to_uint();
@@ -276,12 +276,12 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     /// let enc_s1 = FheString::new(&ck, s1, None);
     /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
     ///
-    /// let result = sk.string_ge(&enc_s1, enc_s2.as_ref());
+    /// let result = sk.ge(&enc_s1, enc_s2.as_ref());
     /// let is_ge = ck.inner().decrypt_bool(&result);
     ///
     /// assert!(is_ge); // "banana" is greater than or equal to "apple"
     /// ```
-    pub fn string_ge(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+    pub fn ge(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
         let sk = self.inner();
 
         let mut lhs_uint = lhs.to_uint();
