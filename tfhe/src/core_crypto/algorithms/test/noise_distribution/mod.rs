@@ -32,9 +32,9 @@ pub const NOISE_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: ClassicTestPara
 #[allow(clippy::excessive_precision)]
 pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN:
     MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(321 * 3), // 321 after FFT hot fix; 319*3
+    input_lwe_dimension: LweDimension(295 * 3), // 295 after FFT better fix; 295*3
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        4.2566505386938744e-07,
+        1.4742441118914234e-06
     )),
     decomp_base_log: DecompositionBaseLog(22),
     decomp_level_count: DecompositionLevelCount(1),
