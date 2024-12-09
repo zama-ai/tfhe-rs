@@ -373,45 +373,9 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
         output_glwe_ciphertext.ciphertext_modulus(),
     );
 
-    /*/
-    let mut f = BufWriter::new(File::create("/home/stoiana/ksk.csv").expect("cannot open"));
-    for glwe_ksk in lwe_pksk.as_glwe_ciphertext_list().iter() {
-        for glwe_value in glwe_ksk.as_ref().iter() {
-            write!(f, "{:?},", glwe_value);
-        }
-        writeln!(f);
-    }
-    */
-
-    //let mut f = BufWriter::new(File::create("/home/stoiana/rotated.csv").expect("cannot open"));
-    //let mut f_gemm = BufWriter::new(File::create("/home/stoiana/gemm_cpu.csv").expect("cannot
-    // open"));
-
     // for each ciphertext, call mono_key_switch
     for (degree, input_ciphertext) in input_lwe_ciphertext.iter().enumerate() {
-        /*
-        let mut f = BufWriter::new(File::create("/home/stoiana/lwe.csv").expect("cannot open"));
-        for lwe_value in input_ciphertext.as_ref().iter() {
-            write!(f, "{:?},", lwe_value);
-        }
-        writeln!(f);
-        */
-
         keyswitch_lwe_ciphertext_into_glwe_ciphertext(lwe_pksk, &input_ciphertext, &mut buffer);
-
-        /*
-        for glwe_value in buffer.as_ref().iter() {
-            write!(f_gemm, "{:?},", glwe_value);
-        }
-        writeln!(f_gemm);
-        */
-        /*
-        let mut f = BufWriter::new(File::create("/home/stoiana/glwe_body.csv").expect("cannot open"));
-        for glwe_value in buffer.as_ref().iter() {
-            write!(f, "{:?},", glwe_value);
-        }
-        writeln!(f);
-        break;*/
 
         buffer
             .as_mut_polynomial_list()
@@ -419,13 +383,6 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
             .for_each(|mut poly| {
                 polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(degree));
             });
-
-        /*
-        for glwe_value in buffer.as_ref().iter() {
-            write!(f, "{:?},", glwe_value);
-        }
-        writeln!(f);
-        */
 
         slice_wrapping_add_assign(output_glwe_ciphertext.as_mut(), buffer.as_ref());
     }
