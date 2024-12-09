@@ -53,18 +53,11 @@ impl FeatureRequirement {
 
 // const vecs are not yet a thing so use a fixed size array (update the array size when adding
 // requirements)
-static FEATURE_REQUIREMENTS: [FeatureRequirement; 2] = [
-    FeatureRequirement {
-        feature_name: "generator_x86_64_aesni",
-        feature_req_target_arch: Some("x86_64"),
-        feature_req_target_family: None,
-    },
-    FeatureRequirement {
-        feature_name: "generator_aarch64_aes",
-        feature_req_target_arch: Some("aarch64"),
-        feature_req_target_family: None,
-    },
-];
+static FEATURE_REQUIREMENTS: [FeatureRequirement; 1] = [FeatureRequirement {
+    feature_name: "generator_aarch64_aes",
+    feature_req_target_arch: Some("aarch64"),
+    feature_req_target_family: None,
+}];
 
 // For a "feature_name" feature_cfg!("feature_name") expands to
 // ("feature_name", cfg!(feature = "feature_name"))
@@ -77,10 +70,7 @@ macro_rules! feature_cfg {
 // Static HashMap would require an additional crate (phf or lazy static e.g.), so we just write a
 // function that returns the HashMap we are interested in
 fn get_feature_enabled_status() -> HashMap<&'static str, bool> {
-    HashMap::from([
-        feature_cfg!("generator_x86_64_aesni"),
-        feature_cfg!("generator_aarch64_aes"),
-    ])
+    HashMap::from([feature_cfg!("generator_aarch64_aes")])
 }
 
 // See https://stackoverflow.com/a/43435335/18088947 for the inspiration of this code

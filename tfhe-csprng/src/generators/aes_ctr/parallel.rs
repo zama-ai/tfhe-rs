@@ -1,5 +1,5 @@
 use crate::generators::aes_ctr::{
-    AesBlockCipher, AesCtrGenerator, ChildrenClosure, State, TableIndex,
+    states::State, AesBlockCipher, AesCtrGenerator, ChildrenClosure, TableIndex,
 };
 use crate::generators::{BytesPerChild, ChildrenCount, ForkError};
 

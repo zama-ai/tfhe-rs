@@ -2,15 +2,22 @@
 //! the program stdout. It can also generate a fixed number of bytes by passing a value along the
 //! optional argument `--bytes_total`. For testing purpose.
 use clap::{value_parser, Arg, Command};
-#[cfg(feature = "generator_x86_64_aesni")]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "aes",
+    target_feature = "sse2"
+))]
 use tfhe_csprng::generators::AesniRandomGenerator as ActivatedRandomGenerator;
 #[cfg(feature = "generator_aarch64_aes")]
 use tfhe_csprng::generators::NeonAesRandomGenerator as ActivatedRandomGenerator;
 use tfhe_csprng::generators::RandomGenerator;
 #[cfg(all(
-    not(feature = "generator_x86_64_aesni"),
+    not(all(
+        target_arch = "x86_64",
+        target_feature = "aes",
+        target_feature = "sse2"
+    )),
     not(feature = "generator_aarch64_aes"),
-    feature = "generator_fallback"
 ))]
 use tfhe_csprng::generators::SoftwareRandomGenerator as ActivatedRandomGenerator;
 
