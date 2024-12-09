@@ -926,7 +926,7 @@ fn pke_encrypt_ks_to_small_inner_helper(
     )
 }
 
-fn pke_encrypt_ks_to_small_inner_helper_noise_helper(
+fn pke_encrypt_ks_to_small_noise_helper(
     cpke_params: CompactPublicKeyEncryptionParameters,
     ksk_params: ShortintKeySwitchingParameters,
     block_params: ShortintParameterSet,
@@ -954,6 +954,35 @@ fn pke_encrypt_ks_to_small_inner_helper_noise_helper(
         DecryptionAndNoiseResult::DecryptionFailed => {
             panic!("Failed decryption, noise measurement will be wrong.")
         }
+    }
+}
+
+fn pke_encrypt_ks_to_small_pfail_helper(
+    cpke_params: CompactPublicKeyEncryptionParameters,
+    ksk_params: ShortintKeySwitchingParameters,
+    block_params: ShortintParameterSet,
+    single_cpk: &CompactPublicKey,
+    single_ksk: &KeySwitchingKey,
+    single_cks: &ClientKey,
+    single_sks: &ServerKey,
+    msg: u64,
+    scalar_for_multiplication: u64,
+) -> f64 {
+    let decryption_and_noise_result = pke_encrypt_ks_to_small_inner_helper(
+        cpke_params,
+        ksk_params,
+        block_params,
+        single_cpk,
+        single_ksk,
+        single_cks,
+        single_sks,
+        msg,
+        scalar_for_multiplication,
+    );
+
+    match decryption_and_noise_result {
+        DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
+        DecryptionAndNoiseResult::DecryptionFailed => 1.0,
     }
 }
 
@@ -1030,6 +1059,8 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
     let compute_ks_output_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
     let compute_ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
     let compute_ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
+
+    let compute_pbs_input_lwe_dimension = sks.bootstrapping_key.input_lwe_dimension();
 
     // Only in the Big key case
     let scalar_for_multiplication = block_params.max_noise_level().get();
@@ -1122,7 +1153,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
     let br_input_modulus = 1u64 << br_input_modulus_log.0;
 
     let ms_additive_variance = modulus_switch_additive_variance(
-        pke_ks_output_lwe_dimension,
+        compute_pbs_input_lwe_dimension,
         modulus_as_f64,
         br_input_modulus as f64,
     );
@@ -1136,7 +1167,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
         let current_noise_samples: Vec<_> = (0..1000)
             .into_par_iter()
             .map(|_| {
-                pke_encrypt_ks_to_small_inner_helper_noise_helper(
+                pke_encrypt_ks_to_small_noise_helper(
                     cpke_params,
                     ksk_params,
                     block_params,
@@ -1227,6 +1258,157 @@ fn test_noise_check_shortint_pke_encrypt_ks_to_small_noise() {
 #[test]
 fn test_noise_check_shortint_pke_encrypt_ks_to_big_noise() {
     noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
+    mut cpke_params: CompactPublicKeyEncryptionParameters,
+    ksk_params: ShortintKeySwitchingParameters,
+    mut block_params: ClassicPBSParameters,
+) {
+    assert_eq!(
+        block_params.carry_modulus.0, 4,
+        "This test is only for 2_2 parameters"
+    );
+    assert_eq!(
+        block_params.message_modulus.0, 4,
+        "This test is only for 2_2 parameters"
+    );
+
+    // Padding bit + carry and message
+    let original_precision_with_padding =
+        (2 * block_params.carry_modulus.0 * block_params.message_modulus.0).ilog2();
+    block_params.carry_modulus.0 = 1 << 4;
+    cpke_params.carry_modulus = block_params.carry_modulus;
+
+    let new_precision_with_padding =
+        (2 * block_params.carry_modulus.0 * block_params.message_modulus.0).ilog2();
+
+    let original_pfail = 2.0f64.powf(block_params.log2_p_fail);
+
+    println!("original_pfail={original_pfail}");
+    println!("original_pfail_log2={}", block_params.log2_p_fail);
+
+    let expected_pfail = equivalent_pfail_gaussian_noise(
+        original_precision_with_padding,
+        original_pfail,
+        new_precision_with_padding,
+    );
+
+    block_params.log2_p_fail = expected_pfail.log2();
+
+    println!("expected_pfail={expected_pfail}");
+    println!("expected_pfail_log2={}", block_params.log2_p_fail);
+
+    let expected_fails = 200;
+
+    let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as u32;
+
+    // Disable the auto casting in the keyswitching key to be able to measure things ourselves
+    cpke_params.expansion_kind =
+        CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice.into());
+    // Remove mutability
+    let cpke_params = cpke_params;
+
+    let block_params: ShortintParameterSet = block_params.into();
+    assert!(
+        matches!(
+            block_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big
+        ),
+        "This test only supports encryption under the big key for now."
+    );
+    assert!(
+        block_params
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "This test only supports encrytpion with power of 2 moduli for now."
+    );
+
+    let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
+    let scalar_for_multiplication = block_params.max_noise_level().get();
+
+    let compact_encryption_secret_key = CompactPrivateKey::new(cpke_params);
+    let cpk = CompactPublicKey::new(&compact_encryption_secret_key);
+
+    let cks = ClientKey::new(block_params);
+    let sks = ServerKey::new(&cks);
+
+    let ksk = KeySwitchingKey::new(
+        (&compact_encryption_secret_key, None),
+        (&cks, &sks),
+        ksk_params,
+    );
+
+    let measured_fails: f64 = (0..runs_for_expected_fails)
+        .into_par_iter()
+        .map(|_| {
+            let msg: u64 = rand::random::<u64>() % cleartext_modulus;
+
+            pke_encrypt_ks_to_small_pfail_helper(
+                cpke_params,
+                ksk_params,
+                block_params,
+                &cpk,
+                &ksk,
+                &cks,
+                &sks,
+                msg,
+                scalar_for_multiplication.try_into().unwrap(),
+            )
+        })
+        .sum();
+
+    let measured_pfail = measured_fails / (runs_for_expected_fails as f64);
+
+    println!("measured_fails={measured_fails}");
+    println!("expected_fails={expected_fails}");
+    println!("measured_pfail={measured_pfail}");
+    println!("expected_pfail={expected_pfail}");
+
+    let pfail_confidence_interval = clopper_pearseaon_exact_confidence_interval(
+        runs_for_expected_fails as f64,
+        measured_fails,
+        0.99,
+    );
+
+    println!(
+        "pfail_lower_bound={}",
+        pfail_confidence_interval.lower_bound()
+    );
+    println!(
+        "pfail_upper_bound={}",
+        pfail_confidence_interval.upper_bound()
+    );
+
+    if measured_pfail <= expected_pfail {
+        if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
+            println!(
+                "WARNING: measured pfail is smaller than expected pfail \
+            and out of the confidence interval\n\
+            the optimizer might be pessimistic when generating parameters."
+            );
+        }
+    } else {
+        assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+    }
+}
+
+#[test]
+fn test_noise_check_shortint_pke_encrypt_ks_to_small_pfail() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+#[test]
+fn test_noise_check_shortint_pke_encrypt_ks_to_big_pfail() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
