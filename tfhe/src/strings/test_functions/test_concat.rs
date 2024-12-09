@@ -12,12 +12,12 @@ use std::sync::Arc;
 const TEST_CASES_CONCAT: [&str; 5] = ["", "a", "ab", "abc", "abcd"];
 
 #[test]
-fn string_concat_test_parameterized() {
-    string_concat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn concat_test_parameterized() {
+    concat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_concat_test<P>(param: P)
+fn concat_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -26,10 +26,10 @@ where
             let sk = ServerKey::new(sk);
             sk.concat(in1, in2)
         });
-    string_concat_test_impl(param, executor);
+    concat_test_impl(param, executor);
 }
 
-pub(crate) fn string_concat_test_impl<P, T>(param: P, mut concat_executor: T)
+pub(crate) fn concat_test_impl<P, T>(param: P, mut concat_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, &'a FheString), FheString>,
@@ -77,12 +77,12 @@ where
 }
 
 #[test]
-fn string_repeat_test_parameterized() {
-    string_repeat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn repeat_test_parameterized() {
+    repeat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_repeat_test<P>(param: P)
+fn repeat_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -91,10 +91,10 @@ where
             let sk = ServerKey::new(sk);
             sk.repeat(str, n)
         });
-    string_repeat_test_impl(param, executor);
+    repeat_test_impl(param, executor);
 }
 
-pub(crate) fn string_repeat_test_impl<P, T>(param: P, mut repeat_executor: T)
+pub(crate) fn repeat_test_impl<P, T>(param: P, mut repeat_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, &'a UIntArg), FheString>,

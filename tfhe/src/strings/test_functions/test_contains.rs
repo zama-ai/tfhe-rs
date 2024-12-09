@@ -10,12 +10,12 @@ use crate::strings::server_key::ServerKey;
 use std::sync::Arc;
 
 #[test]
-fn string_contains_test_parameterized() {
-    string_contains_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn contains_test_parameterized() {
+    contains_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_contains_test<P>(param: P)
+fn contains_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -51,11 +51,11 @@ where
 
     for (clear_op, encrypted_op) in ops {
         let executor = CpuFunctionExecutor::new(&encrypted_op);
-        string_contains_test_impl(param, executor, clear_op);
+        contains_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_contains_test_impl<P, T>(
+pub(crate) fn contains_test_impl<P, T>(
     param: P,
     mut contains_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> bool,
