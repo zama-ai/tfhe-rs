@@ -14,7 +14,7 @@ The crate also makes two seeders available, one needing the x86_64 instruction `
 
 To execute the benchmarks on an x86_64 platform:
 ```shell
-RUSTFLAGS="-Ctarget-cpu=native" cargo bench --features=generator_x86_64_aesni
+RUSTFLAGS="-Ctarget-cpu=native" cargo bench
 ```
 
 ## License

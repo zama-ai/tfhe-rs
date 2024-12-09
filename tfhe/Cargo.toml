@@ -129,10 +129,6 @@ parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
 nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
 
-# Enable the x86_64 specific accelerated implementation of the random generator for the default
-# backend
-generator_x86_64_aesni = ["tfhe-csprng/generator_x86_64_aesni"]
-
 # Enable the aarch64 specific accelerated implementation of the random generator for the default
 # backend
 generator_aarch64_aes = ["tfhe-csprng/generator_aarch64_aes"]
@@ -145,7 +141,7 @@ __long_run_tests = []
 # good/working configuration for tfhe.
 # For a target_arch that does not yet have such a feature, one can still enable features manually or
 # create a feature for said target_arch to make its use simpler.
-x86_64 = ["generator_x86_64_aesni"]
+x86_64 = []
 x86_64-unix = ["x86_64"]
 
 aarch64 = ["generator_aarch64_aes"]

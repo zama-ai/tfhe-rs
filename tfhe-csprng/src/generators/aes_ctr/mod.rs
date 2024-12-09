@@ -206,7 +206,6 @@ pub use index::*;
 
 /// A module containing structures to manage table indices and buffer pointers together properly.
 mod states;
-pub use states::*;
 
 /// A module containing an abstraction for aes block ciphers.
 mod block_cipher;
