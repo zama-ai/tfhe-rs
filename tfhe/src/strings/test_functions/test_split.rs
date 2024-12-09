@@ -37,12 +37,12 @@ const TEST_CASES_SPLIT: [(&str, &str); 21] = [
 ];
 
 #[test]
-fn string_split_once_test_parameterized() {
-    string_split_once_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn split_once_test_parameterized() {
+    split_once_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_split_once_test<P>(param: P)
+fn split_once_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -75,11 +75,11 @@ where
 
     for (clear_op, encrypted_op) in ops {
         let executor = CpuFunctionExecutor::new(&encrypted_op);
-        string_split_once_test_impl(param, executor, clear_op);
+        split_once_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_split_once_test_impl<P, T>(
+pub(crate) fn split_once_test_impl<P, T>(
     param: P,
     mut split_once_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> Option<(&'a str, &'a str)>,
@@ -157,12 +157,12 @@ pub(crate) fn string_split_once_test_impl<P, T>(
 }
 
 #[test]
-fn string_split_test_parameterized() {
-    string_split_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn split_test_parameterized() {
+    split_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_split_test<P>(param: P)
+fn split_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -216,11 +216,11 @@ where
 
     for (clear_op, encrypted_op) in ops {
         let executor = CpuFunctionExecutor::new(&encrypted_op);
-        string_split_test_impl(param, executor, clear_op);
+        split_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_split_test_impl<P, T>(
+pub(crate) fn split_test_impl<P, T>(
     param: P,
     mut split_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> Box<dyn Iterator<Item = &'a str> + 'a>,
@@ -305,12 +305,12 @@ pub(crate) fn string_split_test_impl<P, T>(
 }
 
 #[test]
-fn string_splitn_test_parameterized() {
-    string_splitn_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn splitn_test_parameterized() {
+    splitn_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_splitn_test<P>(param: P)
+fn splitn_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -344,11 +344,11 @@ where
 
     for (clear_op, encrypted_op) in ops {
         let executor = CpuFunctionExecutor::new(&encrypted_op);
-        string_splitn_test_impl(param, executor, clear_op);
+        splitn_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_splitn_test_impl<P, T>(
+pub(crate) fn splitn_test_impl<P, T>(
     param: P,
     mut splitn_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str, u16) -> Box<dyn Iterator<Item = &'a str> + 'a>,
