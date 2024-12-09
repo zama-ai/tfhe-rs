@@ -17,16 +17,9 @@ This guide explains how to update your existing program to leverage GPU accelera
 
 To use the **TFHE-rs** GPU backend in your project, add the following dependency in your `Cargo.toml`.
 
-If you are using an `x86` machine:
 
 ```toml
-tfhe = { version = "0.10.0", features = ["boolean", "shortint", "integer", "x86_64-unix", "gpu"] }
-```
-
-If you are using an `ARM` machine:
-
-```toml
-tfhe = { version = "0.10.0", features = ["boolean", "shortint", "integer", "aarch64-unix", "gpu"] }
+tfhe = { version = "0.10.0", features = ["boolean", "shortint", "integer", "gpu"] }
 ```
 
 {% hint style="success" %}
@@ -37,11 +30,11 @@ For optimal performance when using **TFHE-rs**, run your code in release mode wi
 
 **TFHE-rs** GPU backend is supported on Linux (x86, aarch64).
 
-| OS      | x86           | aarch64          |
-| ------- | ------------- | ---------------- |
-| Linux   | `x86_64-unix` | `aarch64-unix`\* |
-| macOS   | Unsupported   | Unsupported\*    |
-| Windows | Unsupported   | Unsupported      |
+| OS      | x86         | aarch64       |
+|---------|-------------|---------------|
+| Linux   | Supported   | Supported\*   |
+| macOS   | Unsupported | Unsupported\* |
+| Windows | Unsupported | Unsupported   |
 
 ## A first example
 
