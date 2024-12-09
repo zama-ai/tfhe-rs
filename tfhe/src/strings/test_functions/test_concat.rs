@@ -1,29 +1,35 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{FheString, UIntArg};
+use crate::strings::client_key::ClientKey;
+use crate::strings::server_key::ServerKey;
 use std::sync::Arc;
 
 const TEST_CASES_CONCAT: [&str; 5] = ["", "a", "ab", "abc", "abcd"];
 
 #[test]
-fn string_concat_test_parameterized() {
-    string_concat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn concat_test_parameterized() {
+    concat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_concat_test<P>(param: P)
+fn concat_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::concat);
-    string_concat_test_impl(param, executor);
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &IntegerServerKey, in1: &FheString, in2: &FheString| {
+            let sk = ServerKey::new(sk);
+            sk.concat(in1, in2)
+        });
+    concat_test_impl(param, executor);
 }
 
-pub(crate) fn string_concat_test_impl<P, T>(param: P, mut concat_executor: T)
+pub(crate) fn concat_test_impl<P, T>(param: P, mut concat_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, &'a FheString), FheString>,
@@ -34,6 +40,7 @@ where
 
     concat_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
     // trivial
     for str_pad in 0..2 {
         for rhs_pad in 0..2 {
@@ -70,20 +77,24 @@ where
 }
 
 #[test]
-fn string_repeat_test_parameterized() {
-    string_repeat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn repeat_test_parameterized() {
+    repeat_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_repeat_test<P>(param: P)
+fn repeat_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::repeat);
-    string_repeat_test_impl(param, executor);
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &IntegerServerKey, str: &FheString, n: &UIntArg| {
+            let sk = ServerKey::new(sk);
+            sk.repeat(str, n)
+        });
+    repeat_test_impl(param, executor);
 }
 
-pub(crate) fn string_repeat_test_impl<P, T>(param: P, mut repeat_executor: T)
+pub(crate) fn repeat_test_impl<P, T>(param: P, mut repeat_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, &'a UIntArg), FheString>,
@@ -94,6 +105,7 @@ where
 
     repeat_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
     // trivial
     for str_pad in 0..2 {
         for n in 0..3 {

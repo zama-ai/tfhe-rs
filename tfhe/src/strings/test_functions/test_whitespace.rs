@@ -1,45 +1,64 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::FheString;
-use crate::strings::server_key::{split_ascii_whitespace, FheStringIterator};
+use crate::strings::client_key::ClientKey;
+use crate::strings::server_key::{split_ascii_whitespace, FheStringIterator, ServerKey};
 use std::iter::once;
 use std::sync::Arc;
 
 const WHITESPACES: [&str; 5] = [" ", "\n", "\t", "\r", "\u{000C}"];
 
 #[test]
-fn string_trim_test_parameterized() {
-    string_trim_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn trim_test_parameterized() {
+    trim_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_trim_test<P>(param: P)
+fn trim_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
         for<'a> fn(&'a str) -> &'a str,
-        fn(&ServerKey, &FheString) -> FheString,
+        fn(&IntegerServerKey, &FheString) -> FheString,
     ); 3] = [
-        (|lhs| lhs.trim(), ServerKey::trim),
-        (|lhs| lhs.trim_start(), ServerKey::trim_start),
-        (|lhs| lhs.trim_end(), ServerKey::trim_end),
+        (
+            |lhs| lhs.trim(),
+            |sk: &IntegerServerKey, str: &FheString| {
+                let sk = ServerKey::new(sk);
+                sk.trim(str)
+            },
+        ),
+        (
+            |lhs| lhs.trim_start(),
+            |sk: &IntegerServerKey, str: &FheString| {
+                let sk = ServerKey::new(sk);
+                sk.trim_start(str)
+            },
+        ),
+        (
+            |lhs| lhs.trim_end(),
+            |sk: &IntegerServerKey, str: &FheString| {
+                let sk = ServerKey::new(sk);
+                sk.trim_end(str)
+            },
+        ),
     ];
 
     let param = param.into();
 
     for (clear_op, encrypted_op) in ops {
         let executor = CpuFunctionExecutor::new(&encrypted_op);
-        string_trim_test_impl(param, executor, clear_op);
+        trim_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_trim_test_impl<P, T>(
+pub(crate) fn trim_test_impl<P, T>(
     param: P,
     mut trim_executor: T,
     clear_function: for<'a> fn(&'a str) -> &'a str,
@@ -52,6 +71,8 @@ pub(crate) fn string_trim_test_impl<P, T>(
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     trim_executor.setup(&cks2, sks);
+
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -92,33 +113,43 @@ pub(crate) fn string_trim_test_impl<P, T>(
 }
 
 #[test]
-fn string_split_whitespace_test_parameterized() {
-    string_split_whitespace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn split_whitespace_test_parameterized() {
+    split_whitespace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_split_whitespace_test<P>(param: P)
+fn split_whitespace_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let fhe_func: fn(&ServerKey, &FheString) -> Box<dyn FheStringIterator> =
+    #[allow(clippy::type_complexity)]
+    let fhe_func: fn(
+        &IntegerServerKey,
+        &FheString,
+    ) -> Box<dyn for<'a> FheStringIterator<&'a IntegerServerKey>> =
         |_sk, str| Box::new(split_ascii_whitespace(str));
 
     let executor = CpuFunctionExecutor::new(&fhe_func);
 
-    string_split_whitespace_test_impl(param, executor);
+    split_whitespace_test_impl(param, executor);
 }
 
-pub(crate) fn string_split_whitespace_test_impl<P, T>(param: P, mut split_whitespace_executor: T)
+pub(crate) fn split_whitespace_test_impl<P, T>(param: P, mut split_whitespace_executor: T)
 where
     P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<&'a FheString, Box<dyn FheStringIterator>>,
+    T: for<'a> FunctionExecutor<
+        &'a FheString,
+        Box<dyn for<'b> FheStringIterator<&'b IntegerServerKey>>,
+    >,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     split_whitespace_executor.setup(&cks2, sks.clone());
+
+    let sks = ServerKey::new(&*sks);
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -153,7 +184,7 @@ where
                     let (split, is_some) = iterator.next(&sks);
 
                     let dec_split = cks.decrypt_ascii(&split);
-                    let dec_is_some = cks.decrypt_bool(&is_some);
+                    let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                     let dec = dec_is_some.then_some(dec_split);
 
@@ -182,7 +213,7 @@ where
                 let (split, is_some) = iterator.next(&sks);
 
                 let dec_split = cks.decrypt_ascii(&split);
-                let dec_is_some = cks.decrypt_bool(&is_some);
+                let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                 let dec = dec_is_some.then_some(dec_split);
 

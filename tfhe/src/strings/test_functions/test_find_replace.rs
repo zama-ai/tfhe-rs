@@ -1,12 +1,16 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{
+    BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey as IntegerServerKey,
+};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{
     ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
 };
+use crate::strings::client_key::ClientKey;
+use crate::strings::server_key::ServerKey;
 use std::sync::Arc;
 
 const TEST_CASES_FIND: [&str; 8] = ["", "a", "abc", "b", "ab", "dabc", "abce", "dabce"];
@@ -14,33 +18,45 @@ const TEST_CASES_FIND: [&str; 8] = ["", "a", "abc", "b", "ab", "dabc", "abce", "
 const PATTERN_FIND: [&str; 5] = ["", "a", "b", "ab", "abc"];
 
 #[test]
-fn string_find_test_parameterized() {
-    string_find_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn find_test_parameterized() {
+    find_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_find_test<P>(param: P)
+fn find_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
         for<'a> fn(&'a str, &'a str) -> Option<usize>,
-        fn(&ServerKey, &FheString, GenericPatternRef<'_>) -> (RadixCiphertext, BooleanBlock),
+        fn(&IntegerServerKey, &FheString, GenericPatternRef<'_>) -> (RadixCiphertext, BooleanBlock),
     ); 2] = [
-        (|lhs, rhs| lhs.find(rhs), ServerKey::find),
-        (|lhs, rhs| lhs.rfind(rhs), ServerKey::rfind),
+        (
+            |lhs, rhs| lhs.find(rhs),
+            |sk, str, pat| {
+                let sk = ServerKey::new(sk);
+                sk.find(str, pat)
+            },
+        ),
+        (
+            |lhs, rhs| lhs.rfind(rhs),
+            |sk, str, pat| {
+                let sk = ServerKey::new(sk);
+                sk.rfind(str, pat)
+            },
+        ),
     ];
 
     let param = param.into();
 
     for (clear_op, encrypted_op) in ops {
         let executor = CpuFunctionExecutor::new(&encrypted_op);
-        string_find_test_impl(param, executor, clear_op);
+        find_test_impl(param, executor, clear_op);
     }
 }
 
-pub(crate) fn string_find_test_impl<P, T>(
+pub(crate) fn find_test_impl<P, T>(
     param: P,
     mut find_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> Option<usize>,
@@ -57,6 +73,8 @@ pub(crate) fn string_find_test_impl<P, T>(
 
     find_executor.setup(&cks2, sks);
 
+    let cks = ClientKey::new(cks);
+
     // trivial
     for str_pad in 0..2 {
         for pat_pad in 0..2 {
@@ -72,8 +90,8 @@ pub(crate) fn string_find_test_impl<P, T>(
                     for rhs in [enc_rhs, clear_rhs] {
                         let (index, is_some) = find_executor.execute((&enc_lhs, rhs.as_ref()));
 
-                        let dec_index = cks.decrypt_radix::<u32>(&index);
-                        let dec_is_some = cks.decrypt_bool(&is_some);
+                        let dec_index = cks.inner().decrypt_radix::<u32>(&index);
+                        let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                         let dec = dec_is_some.then_some(dec_index as usize);
 
@@ -99,8 +117,8 @@ pub(crate) fn string_find_test_impl<P, T>(
             for rhs in [enc_rhs, clear_rhs] {
                 let (index, is_some) = find_executor.execute((&enc_lhs, rhs.as_ref()));
 
-                let dec_index = cks.decrypt_radix::<u32>(&index);
-                let dec_is_some = cks.decrypt_bool(&is_some);
+                let dec_index = cks.inner().decrypt_radix::<u32>(&index);
+                let dec_is_some = cks.inner().decrypt_bool(&is_some);
 
                 let dec = dec_is_some.then_some(dec_index as usize);
 
@@ -111,20 +129,27 @@ pub(crate) fn string_find_test_impl<P, T>(
 }
 
 #[test]
-fn string_replace_test_parameterized() {
-    string_replace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn replace_test_parameterized() {
+    replace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_replace_test<P>(param: P)
+fn replace_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::replace);
-    string_replace_test_impl(param, executor);
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &IntegerServerKey,
+                                   str: &FheString,
+                                   from: GenericPatternRef<'_>,
+                                   to: &FheString| {
+            let sk = ServerKey::new(sk);
+            sk.replace(str, from, to)
+        });
+    replace_test_impl(param, executor);
 }
 
-pub(crate) fn string_replace_test_impl<P, T>(param: P, mut replace_executor: T)
+pub(crate) fn replace_test_impl<P, T>(param: P, mut replace_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>, &'a FheString), FheString>,
@@ -134,6 +159,8 @@ where
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     replace_executor.setup(&cks2, sks);
+
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {
@@ -198,20 +225,28 @@ where
 }
 
 #[test]
-fn string_replacen_test_parameterized() {
-    string_replacen_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+fn replacen_test_parameterized() {
+    replacen_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn string_replacen_test<P>(param: P)
+fn replacen_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::replacen);
-    string_replacen_test_impl(param, executor);
+    let executor =
+        CpuFunctionExecutor::new(&|sk: &IntegerServerKey,
+                                   str: &FheString,
+                                   from: GenericPatternRef<'_>,
+                                   to: &FheString,
+                                   count: &UIntArg| {
+            let sk = ServerKey::new(sk);
+            sk.replacen(str, from, to, count)
+        });
+    replacen_test_impl(param, executor);
 }
 
-pub(crate) fn string_replacen_test_impl<P, T>(param: P, mut replacen_executor: T)
+pub(crate) fn replacen_test_impl<P, T>(param: P, mut replacen_executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<
@@ -229,6 +264,8 @@ where
     let cks2 = RadixClientKey::from((cks.clone(), 0));
 
     replacen_executor.setup(&cks2, sks);
+
+    let cks = ClientKey::new(cks);
 
     // trivial
     for str_pad in 0..2 {

@@ -1,5 +1,27 @@
-use crate::integer::{ClientKey, RadixCiphertext};
+use std::borrow::Borrow;
+
+use crate::integer::{ClientKey as IntegerClientKey, RadixCiphertext};
 use crate::strings::ciphertext::{num_ascii_blocks, FheAsciiChar, FheString};
+
+pub struct ClientKey<T>
+where
+    T: Borrow<IntegerClientKey>,
+{
+    inner: T,
+}
+
+impl<T> ClientKey<T>
+where
+    T: Borrow<IntegerClientKey>,
+{
+    pub fn new(inner: T) -> Self {
+        Self { inner }
+    }
+
+    pub fn inner(&self) -> &IntegerClientKey {
+        self.inner.borrow()
+    }
+}
 
 #[derive(Clone)]
 pub struct EncU16 {
@@ -17,9 +39,14 @@ impl EncU16 {
     }
 }
 
-impl ClientKey {
+impl<T> ClientKey<T>
+where
+    T: Borrow<IntegerClientKey>,
+{
     #[cfg(test)]
     pub fn trivial_encrypt_ascii(&self, str: &str, padding: Option<u32>) -> FheString {
+        let ck = self.inner.borrow();
+
         assert!(str.is_ascii() & !str.contains('\0'));
 
         let padded = padding.map_or(false, |p| p != 0);
@@ -29,14 +56,14 @@ impl ClientKey {
         let mut enc_string: Vec<_> = str
             .bytes()
             .map(|char| FheAsciiChar {
-                enc_char: self.create_trivial_radix(char, num_blocks),
+                enc_char: ck.create_trivial_radix(char, num_blocks),
             })
             .collect();
 
         // Optional padding
         if let Some(count) = padding {
             let null = (0..count).map(|_| FheAsciiChar {
-                enc_char: self.create_trivial_radix(0u8, num_blocks),
+                enc_char: ck.create_trivial_radix(0u8, num_blocks),
             });
 
             enc_string.extend(null);
@@ -53,6 +80,8 @@ impl ClientKey {
     /// This function will panic if the provided string is not ASCII or contains null characters
     /// "\0".
     pub fn encrypt_ascii(&self, str: &str, padding: Option<u32>) -> FheString {
+        let ck = self.inner.borrow();
+
         assert!(str.is_ascii() & !str.contains('\0'));
 
         let padded = padding.map_or(false, |p| p != 0);
@@ -62,14 +91,14 @@ impl ClientKey {
         let mut enc_string: Vec<_> = str
             .bytes()
             .map(|char| FheAsciiChar {
-                enc_char: self.encrypt_radix(char, num_blocks),
+                enc_char: ck.encrypt_radix(char, num_blocks),
             })
             .collect();
 
         // Optional padding
         if let Some(count) = padding {
             let null = (0..count).map(|_| FheAsciiChar {
-                enc_char: self.encrypt_radix(0u8, num_blocks),
+                enc_char: ck.encrypt_radix(0u8, num_blocks),
             });
 
             enc_string.extend(null);
@@ -79,12 +108,14 @@ impl ClientKey {
     }
 
     fn num_ascii_blocks(&self) -> usize {
+        let ck = self.inner.borrow();
+
         assert_eq!(
-            self.parameters().message_modulus().0,
-            self.parameters().carry_modulus().0
+            ck.parameters().message_modulus().0,
+            ck.parameters().carry_modulus().0
         );
 
-        num_ascii_blocks(self.parameters().message_modulus())
+        num_ascii_blocks(ck.parameters().message_modulus())
     }
 
     /// Decrypts a `FheString`, removes any padding and returns the ASCII string.
@@ -94,6 +125,8 @@ impl ClientKey {
     /// This function will panic if the decrypted string is not ASCII or the `FheString` padding
     /// flag doesn't match the actual string.
     pub fn decrypt_ascii(&self, enc_str: &FheString) -> String {
+        let ck = self.inner.borrow();
+
         let padded_flag = enc_str.is_padded();
         let mut prev_was_null = false;
 
@@ -101,7 +134,7 @@ impl ClientKey {
             .chars()
             .iter()
             .filter_map(|enc_char| {
-                let byte = self.decrypt_radix(enc_char.ciphertext());
+                let byte = ck.decrypt_radix(enc_char.ciphertext());
 
                 if byte == 0 {
                     prev_was_null = true;
@@ -133,12 +166,14 @@ impl ClientKey {
 
     #[cfg(test)]
     pub fn trivial_encrypt_u16(&self, val: u16, max: Option<u16>) -> EncU16 {
+        let ck = self.inner.borrow();
+
         if let Some(max_val) = max {
             assert!(val <= max_val, "val cannot be greater than max")
         }
 
         EncU16 {
-            cipher: self.create_trivial_radix(val, 8),
+            cipher: ck.create_trivial_radix(val, 8),
             max,
         }
     }
@@ -150,12 +185,14 @@ impl ClientKey {
     ///
     /// This function will panic if the u16 value exceeds the provided `max`.
     pub fn encrypt_u16(&self, val: u16, max: Option<u16>) -> EncU16 {
+        let ck = self.inner.borrow();
+
         if let Some(max_val) = max {
             assert!(val <= max_val, "val cannot be greater than max")
         }
 
         EncU16 {
-            cipher: self.encrypt_radix(val, 8),
+            cipher: ck.encrypt_radix(val, 8),
             max,
         }
     }
