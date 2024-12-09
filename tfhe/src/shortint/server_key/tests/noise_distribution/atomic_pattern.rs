@@ -11,7 +11,9 @@ use crate::core_crypto::commons::noise_formulas::lwe_keyswitch::{
     keyswitch_additive_variance_132_bits_security_gaussian,
     keyswitch_additive_variance_132_bits_security_tuniform,
 };
-use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::pbs_variance_132_bits_security_gaussian;
+use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::{
+    pbs_variance_132_bits_security_gaussian, pbs_variance_132_bits_security_tuniform,
+};
 use crate::core_crypto::commons::noise_formulas::modulus_switch::modulus_switch_additive_variance;
 use crate::core_crypto::commons::noise_formulas::secure_noise::{
     minimal_lwe_variance_for_132_bits_security_gaussian,
@@ -32,7 +34,10 @@ use crate::shortint::parameters::compact_public_key_only::{
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
     ShortintCompactCiphertextListCastingMode,
 };
-use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
+    PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+};
 use crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 use crate::shortint::parameters::{
     CiphertextModulus, ClassicPBSParameters, DynamicDistribution, EncryptionKeyChoice,
@@ -40,7 +45,9 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::server_key::apply_programmable_bootstrap;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
-use crate::shortint::{ClientKey, CompactPrivateKey, CompactPublicKey, KeySwitchingKey, ServerKey};
+use crate::shortint::{
+    Ciphertext, ClientKey, CompactPrivateKey, CompactPublicKey, KeySwitchingKey, ServerKey,
+};
 use rayon::prelude::*;
 
 fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
@@ -72,9 +79,7 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
     // Variance after encryption
     let encryption_variance = match encryption_noise {
         DynamicDistribution::Gaussian(gaussian) => gaussian.standard_dev().get_variance(),
-        DynamicDistribution::TUniform(_tuniform) => {
-            todo!("This test does not yet support TUniform noise distribution.")
-        }
+        DynamicDistribution::TUniform(tuniform) => tuniform.variance(modulus_as_f64),
     };
 
     let input_ks_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
@@ -102,9 +107,13 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
             ks_decomp_level_count,
             modulus_as_f64,
         ),
-        DynamicDistribution::TUniform(_) => {
-            todo!("There is no keyswitch noise formula for TUniform currently")
-        }
+        DynamicDistribution::TUniform(_) => keyswitch_additive_variance_132_bits_security_tuniform(
+            input_ks_lwe_dimension,
+            output_ks_lwe_dimension,
+            ks_decomp_base_log,
+            ks_decomp_level_count,
+            modulus_as_f64,
+        ),
     };
 
     let expected_variance_after_ks =
@@ -216,10 +225,20 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
     assert!(mean_ci.mean_is_in_interval(expected_mean));
     // We want to be smaller but secure or in the interval
     if measured_variance <= expected_variance_after_ms {
-        let noise_for_security = minimal_lwe_variance_for_132_bits_security_gaussian(
-            sks.bootstrapping_key.input_lwe_dimension(),
-            modulus_as_f64,
-        );
+        let noise_for_security = match params.lwe_noise_distribution() {
+            DynamicDistribution::Gaussian(_) => {
+                minimal_lwe_variance_for_132_bits_security_gaussian(
+                    sks.bootstrapping_key.input_lwe_dimension(),
+                    modulus_as_f64,
+                )
+            }
+            DynamicDistribution::TUniform(_) => {
+                minimal_lwe_variance_for_132_bits_security_tuniform(
+                    sks.bootstrapping_key.input_lwe_dimension(),
+                    modulus_as_f64,
+                )
+            }
+        };
 
         if !variance_ci.variance_is_in_interval(expected_variance_after_ms) {
             println!(
@@ -242,7 +261,8 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
 
 create_parameterized_test!(
     noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
     }
 );
 
@@ -518,9 +538,14 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
             pbs_decomp_level_count,
             modulus_as_f64,
         ),
-        DynamicDistribution::TUniform(_) => {
-            todo!("There is no pbs noise formula for TUniform currently")
-        }
+        DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform(
+            input_pbs_lwe_dimension,
+            output_glwe_dimension,
+            output_polynomial_size,
+            pbs_decomp_base_log,
+            pbs_decomp_level_count,
+            modulus_as_f64,
+        ),
     };
 
     let expected_variance_after_multiplication =
@@ -535,9 +560,13 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
             ks_decomp_level_count,
             modulus_as_f64,
         ),
-        DynamicDistribution::TUniform(_) => {
-            todo!("There is no keyswitch formula for TUniform currently")
-        }
+        DynamicDistribution::TUniform(_) => keyswitch_additive_variance_132_bits_security_tuniform(
+            input_ks_lwe_dimension,
+            output_ks_lwe_dimension,
+            ks_decomp_base_log,
+            ks_decomp_level_count,
+            modulus_as_f64,
+        ),
     };
 
     let expected_variance_after_ks =
@@ -604,10 +633,20 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
     assert!(mean_ci.mean_is_in_interval(expected_mean));
     // We want to be smaller but secure or in the interval
     if measured_variance <= expected_variance_after_ms {
-        let noise_for_security = minimal_lwe_variance_for_132_bits_security_gaussian(
-            sks.bootstrapping_key.input_lwe_dimension(),
-            modulus_as_f64,
-        );
+        let noise_for_security = match params.lwe_noise_distribution() {
+            DynamicDistribution::Gaussian(_) => {
+                minimal_lwe_variance_for_132_bits_security_gaussian(
+                    sks.bootstrapping_key.input_lwe_dimension(),
+                    modulus_as_f64,
+                )
+            }
+            DynamicDistribution::TUniform(_) => {
+                minimal_lwe_variance_for_132_bits_security_tuniform(
+                    sks.bootstrapping_key.input_lwe_dimension(),
+                    modulus_as_f64,
+                )
+            }
+        };
 
         if !variance_ci.variance_is_in_interval(expected_variance_after_ms) {
             println!(
@@ -628,7 +667,8 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
 }
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_noise {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 
 fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSParameters) {
@@ -737,7 +777,8 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSP
 }
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_pfail {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 
 fn pke_encrypt_ks_to_small_inner_helper(
@@ -749,11 +790,8 @@ fn pke_encrypt_ks_to_small_inner_helper(
     single_cks: &ClientKey,
     single_sks: &ServerKey,
     msg: u64,
+    scalar_for_multiplication: u64,
 ) -> DecryptionAndNoiseResult {
-    assert!(
-        matches!(ksk_params.destination_key, EncryptionKeyChoice::Small),
-        "This test only supports keyswitching to the small key"
-    );
     assert!(block_params.pbs_only());
     assert!(
         matches!(
@@ -775,7 +813,7 @@ fn pke_encrypt_ks_to_small_inner_helper(
     let thread_ksk;
     let thread_cks;
     let thread_sks;
-    let (cpk, ksk, cks, _sks) = if should_use_one_key_per_sample() {
+    let (cpk, ksk, cks, sks) = if should_use_one_key_per_sample() {
         thread_compact_encryption_secret_key = CompactPrivateKey::new(cpke_params);
         thread_cpk = CompactPublicKey::new(&thread_compact_encryption_secret_key);
         thread_cks = engine.new_client_key(block_params);
@@ -818,19 +856,64 @@ fn pke_encrypt_ks_to_small_inner_helper(
     // We don't call the ksk.cast function from shortint as it's doing too many automatic things
     keyswitch_lwe_ciphertext(core_ksk, &expanded_ct.ct, &mut keyswitched_lwe_ct);
 
+    let before_ms = {
+        match ksk_params.destination_key {
+            EncryptionKeyChoice::Big => {
+                let mut shortint_ct_after_pke_ks = Ciphertext::new(
+                    keyswitched_lwe_ct,
+                    expanded_ct.degree,
+                    expanded_ct.noise_level(),
+                    expanded_ct.message_modulus,
+                    expanded_ct.carry_modulus,
+                    expanded_ct.pbs_order,
+                );
+
+                // First remove the msg from the ciphertext to avoid a problem with the mul result
+                // overflowing
+                lwe_ciphertext_plaintext_sub_assign(
+                    &mut shortint_ct_after_pke_ks.ct,
+                    Plaintext(delta * msg),
+                );
+
+                sks.unchecked_scalar_mul_assign(
+                    &mut shortint_ct_after_pke_ks,
+                    scalar_for_multiplication.try_into().unwrap(),
+                );
+
+                // Put it back in
+                sks.unchecked_scalar_add_assign(
+                    &mut shortint_ct_after_pke_ks,
+                    msg.try_into().unwrap(),
+                );
+
+                let mut lwe_keyswitchted = LweCiphertext::new(
+                    0u64,
+                    sks.key_switching_key.output_lwe_size(),
+                    sks.key_switching_key.ciphertext_modulus(),
+                );
+
+                keyswitch_lwe_ciphertext(
+                    &sks.key_switching_key,
+                    &shortint_ct_after_pke_ks.ct,
+                    &mut lwe_keyswitchted,
+                );
+
+                // Return the result
+                lwe_keyswitchted
+            }
+            EncryptionKeyChoice::Small => keyswitched_lwe_ct,
+        }
+    };
+
     let mut after_ms = LweCiphertext::new(
         0u64,
-        keyswitched_lwe_ct.lwe_size(),
+        before_ms.lwe_size(),
         // This will be easier to manage when decrypting, we'll put the value in the
         // MSB
-        block_params.ciphertext_modulus(),
+        before_ms.ciphertext_modulus(),
     );
 
-    for (dst, src) in after_ms
-        .as_mut()
-        .iter_mut()
-        .zip(keyswitched_lwe_ct.as_ref().iter())
-    {
+    for (dst, src) in after_ms.as_mut().iter_mut().zip(before_ms.as_ref().iter()) {
         *dst = modulus_switch(*src, br_input_modulus_log) << shift_to_map_to_native;
     }
 
@@ -852,6 +935,7 @@ fn pke_encrypt_ks_to_small_inner_helper_noise_helper(
     single_cks: &ClientKey,
     single_sks: &ServerKey,
     msg: u64,
+    scalar_for_multiplication: u64,
 ) -> NoiseSample {
     let decryption_and_noise_result = pke_encrypt_ks_to_small_inner_helper(
         cpke_params,
@@ -862,6 +946,7 @@ fn pke_encrypt_ks_to_small_inner_helper_noise_helper(
         single_cks,
         single_sks,
         msg,
+        scalar_for_multiplication,
     );
 
     match decryption_and_noise_result {
@@ -872,16 +957,11 @@ fn pke_encrypt_ks_to_small_inner_helper_noise_helper(
     }
 }
 
-fn noise_check_shortint_pke_encrypt_ks_to_small_noise(
+fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
     mut cpke_params: CompactPublicKeyEncryptionParameters,
     ksk_params: ShortintKeySwitchingParameters,
     block_params: ClassicPBSParameters,
 ) {
-    assert!(
-        matches!(ksk_params.destination_key, EncryptionKeyChoice::Small),
-        "This test only supports keyswitching to the small key"
-    );
-
     // Disable the auto casting in the keyswitching key to be able to measure things ourselves
     cpke_params.expansion_kind =
         CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice.into());
@@ -946,6 +1026,14 @@ fn noise_check_shortint_pke_encrypt_ks_to_small_noise(
         .key_switching_key
         .decomposition_level_count();
 
+    let compute_ks_input_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
+    let compute_ks_output_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
+    let compute_ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
+    let compute_ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
+
+    // Only in the Big key case
+    let scalar_for_multiplication = block_params.max_noise_level().get();
+
     // Compute expected variance after getting out of the PKE and doing the keyswitch to the compute
     // parameters until the first blind rotation mod switch.
     //
@@ -964,7 +1052,6 @@ fn noise_check_shortint_pke_encrypt_ks_to_small_noise(
     let pke_ks_additive_variance = {
         let destination_encryption_noise_distribution = match ksk_params.destination_key {
             EncryptionKeyChoice::Big => block_params.glwe_noise_distribution(),
-
             EncryptionKeyChoice::Small => block_params.lwe_noise_distribution(),
         };
 
@@ -990,8 +1077,44 @@ fn noise_check_shortint_pke_encrypt_ks_to_small_noise(
         }
     };
 
-    let expected_variance_after_ks =
+    let expected_variance_after_pke_ks =
         Variance(expected_variance_after_cpke.0 + pke_ks_additive_variance.0);
+
+    let expected_variance_before_ms = {
+        match ksk_params.destination_key {
+            // In the case of the Big key we are allowed theoretically to do the AP
+            EncryptionKeyChoice::Big => {
+                let expected_variance_after_scalar_mul = scalar_multiplication_variance(
+                    expected_variance_after_pke_ks,
+                    scalar_for_multiplication,
+                );
+
+                let compute_ks_additive_variance = match block_params.lwe_noise_distribution() {
+                    DynamicDistribution::Gaussian(_) => {
+                        keyswitch_additive_variance_132_bits_security_gaussian(
+                            compute_ks_input_lwe_dimension,
+                            compute_ks_output_lwe_dimension,
+                            compute_ks_decomp_base_log,
+                            compute_ks_decomp_level_count,
+                            modulus_as_f64,
+                        )
+                    }
+                    DynamicDistribution::TUniform(_) => {
+                        keyswitch_additive_variance_132_bits_security_tuniform(
+                            compute_ks_input_lwe_dimension,
+                            compute_ks_output_lwe_dimension,
+                            compute_ks_decomp_base_log,
+                            compute_ks_decomp_level_count,
+                            modulus_as_f64,
+                        )
+                    }
+                };
+
+                Variance(expected_variance_after_scalar_mul.0 + compute_ks_additive_variance.0)
+            }
+            EncryptionKeyChoice::Small => expected_variance_after_pke_ks,
+        }
+    };
 
     let br_input_modulus_log = block_params
         .polynomial_size()
@@ -1005,7 +1128,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_small_noise(
     );
 
     let expected_variance_after_ms =
-        Variance(expected_variance_after_ks.0 + ms_additive_variance.0);
+        Variance(expected_variance_before_ms.0 + ms_additive_variance.0);
 
     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
     let mut noise_samples = vec![];
@@ -1022,6 +1145,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_small_noise(
                     &cks,
                     &sks,
                     msg,
+                    scalar_for_multiplication,
                 )
                 .value
             })
@@ -1058,10 +1182,20 @@ fn noise_check_shortint_pke_encrypt_ks_to_small_noise(
     assert!(mean_ci.mean_is_in_interval(expected_mean));
     // We want to be smaller but secure or in the interval
     if measured_variance <= expected_variance_after_ms {
-        let noise_for_security = minimal_lwe_variance_for_132_bits_security_tuniform(
-            sks.bootstrapping_key.input_lwe_dimension(),
-            modulus_as_f64,
-        );
+        let noise_for_security = match block_params.lwe_noise_distribution() {
+            DynamicDistribution::Gaussian(_) => {
+                minimal_lwe_variance_for_132_bits_security_gaussian(
+                    sks.bootstrapping_key.input_lwe_dimension(),
+                    modulus_as_f64,
+                )
+            }
+            DynamicDistribution::TUniform(_) => {
+                minimal_lwe_variance_for_132_bits_security_tuniform(
+                    sks.bootstrapping_key.input_lwe_dimension(),
+                    modulus_as_f64,
+                )
+            }
+        };
 
         if !variance_ci.variance_is_in_interval(expected_variance_after_ms) {
             println!(
@@ -1083,9 +1217,18 @@ fn noise_check_shortint_pke_encrypt_ks_to_small_noise(
 
 #[test]
 fn test_noise_check_shortint_pke_encrypt_ks_to_small_noise() {
-    noise_check_shortint_pke_encrypt_ks_to_small_noise(
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+#[test]
+fn test_noise_check_shortint_pke_encrypt_ks_to_big_noise() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
 }
