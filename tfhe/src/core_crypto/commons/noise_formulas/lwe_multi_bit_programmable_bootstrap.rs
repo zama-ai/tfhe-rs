@@ -65,10 +65,38 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_impl(
                         //~ * decomposition_base.powf(-2.0 * decomposition_level_count))
             //~ + (1_f64 / 24.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
 
-    // new w/ FFT & multi-bit fixes
+    //~ // new w/ tmp FFT & multi-bit fixes
+    //~ (1_f64 / 3.0)
+        //~ * input_lwe_dimension
+        //~ * (5.08473512556829
+            //~ * (2.0 * 0.0_f64.max(1.44269504088896_f64 * modulus.ln() - 53.0_f64)).exp2()
+            //~ * decomposition_base.powf(2.0)
+            //~ * decomposition_level_count
+            //~ * modulus.powf(-2.0)
+            //~ * output_glwe_dimension
+            //~ * output_polynomial_size.powf(2.0)
+            //~ * (output_glwe_dimension + 1.0)
+            //~ + 8.0
+                //~ * decomposition_level_count
+                //~ * output_polynomial_size
+                //~ * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
+                    //~ + (-0.0497829131652661 * output_glwe_dimension * output_polynomial_size
+                        //~ + 5.31469187675068)
+                        //~ .exp2())
+                //~ * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
+                //~ * (output_glwe_dimension + 1.0)
+            //~ + (1_f64 / 6.0) * modulus.powf(-2.0)
+            //~ + output_glwe_dimension
+                //~ * output_polynomial_size
+                //~ * (0.0208333333333333 * modulus.powf(-2.0)
+                    //~ + 0.0416666666666667
+                        //~ * decomposition_base.powf(-2.0 * decomposition_level_count))
+            //~ + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
+
+    // new w/ better FFT & multi-bit fixes
     (1_f64 / 3.0)
         * input_lwe_dimension
-        * (5.08473512556829
+        * (4.60080162297055
             * (2.0 * 0.0_f64.max(1.44269504088896_f64 * modulus.ln() - 53.0_f64)).exp2()
             * decomposition_base.powf(2.0)
             * decomposition_level_count
@@ -81,7 +109,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_impl(
                 * output_polynomial_size
                 * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
                     + (-0.0497829131652661 * output_glwe_dimension * output_polynomial_size
-                        + 5.31469187675068)
+                        + 7.31469187675068)
                         .exp2())
                 * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
                 * (output_glwe_dimension + 1.0)

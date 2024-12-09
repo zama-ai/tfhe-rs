@@ -214,7 +214,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                     )),
                 );
 
-                let filename = format!("./karatsuba_noise_thread_{thread_id}_input_msg_{msg}.npy");
+                let filename = format!("./samples-out/karatsuba_noise_thread_{thread_id}_input_msg_{msg}.npy");
 
                 let mut file = OpenOptions::new()
                     .create(true)
@@ -269,7 +269,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                     )),
                 );
 
-                let filename = format!("./fft_noise_thread_{thread_id}_input_msg_{msg}.npy");
+                let filename = format!("./samples-out/fft_noise_thread_{thread_id}_input_msg_{msg}.npy");
 
                 let mut file = OpenOptions::new()
                     .create(true)
