@@ -8,7 +8,5 @@ mod aarch64;
 #[cfg(target_arch = "aarch64")]
 pub use aarch64::*;
 
-#[cfg(feature = "software_prng")]
 mod soft;
-#[cfg(feature = "software_prng")]
 pub use soft::*;

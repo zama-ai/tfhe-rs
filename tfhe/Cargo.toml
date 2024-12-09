@@ -53,10 +53,7 @@ strum = { version = "0.26", features = ["derive"] }
 cbindgen = { version = "0.26.0", optional = true }
 
 [dependencies]
-tfhe-csprng = { version = "0.4.1", path = "../tfhe-csprng", features = [
-    "generator_fallback",
-    "parallel",
-] }
+tfhe-csprng = { version = "0.4.1", path = "../tfhe-csprng", features = ["parallel", "software-prng"] }
 serde = { workspace = true, features = ["default", "derive"] }
 rayon = { workspace = true }
 bincode = "1.3.3"
@@ -133,15 +130,7 @@ nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
 __profiling = []
 __long_run_tests = []
 
-# These target_arch features enable a set of public features for tfhe if users want a known
-# good/working configuration for tfhe.
-# For a target_arch that does not yet have such a feature, one can still enable features manually or
-# create a feature for said target_arch to make its use simpler.
-x86_64 = []
-x86_64-unix = ["x86_64"]
-
-aarch64 = []
-aarch64-unix = ["aarch64"]
+software-prng = []
 
 # Cover several profiles as we cannot have a wildcard it seems
 [package.metadata.wasm-pack.profile.dev.wasm-bindgen]
@@ -152,7 +141,7 @@ split-linked-modules = true
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
-features = ["x86_64-unix", "boolean", "shortint", "integer", "gpu", "zk-pok"]
+features = ["boolean", "shortint", "integer", "gpu", "zk-pok", "software-prng"]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 ###########
