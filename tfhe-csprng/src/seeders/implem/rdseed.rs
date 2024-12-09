@@ -4,7 +4,23 @@ use crate::seeders::{Seed, Seeder};
 ///
 /// The `rdseed` instruction allows to deliver seeds from a hardware source of entropy see
 /// <https://www.felixcloutier.com/x86/rdseed> .
-pub struct RdseedSeeder;
+pub struct RdseedSeeder(());
+
+impl RdseedSeeder {
+    pub fn new() -> Self {
+        if Self::is_available() {
+            Self(())
+        } else {
+            panic!("Tried to use RdSeedSeeder but rdseed instruction is not enabled on the current machine");
+        }
+    }
+}
+
+impl Default for RdseedSeeder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Seeder for RdseedSeeder {
     fn seed(&mut self) -> Seed {
@@ -46,6 +62,6 @@ mod test {
 
     #[test]
     fn check_bounded_sequence_difference() {
-        check_seeder_fixed_sequences_different(|_| RdseedSeeder);
+        check_seeder_fixed_sequences_different(|_| RdseedSeeder::new());
     }
 }

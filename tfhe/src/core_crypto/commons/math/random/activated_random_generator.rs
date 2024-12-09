@@ -1,19 +1,13 @@
-#[cfg(feature = "generator_x86_64_aesni")]
+#[cfg(all(target_arch = "x86_64", not(feature = "software_prng")))]
 use tfhe_csprng::generators::AesniRandomGenerator;
-#[cfg(feature = "generator_aarch64_aes")]
+#[cfg(all(target_arch = "aarch64", not(feature = "software_prng")))]
 use tfhe_csprng::generators::NeonAesRandomGenerator;
-#[cfg(all(
-    not(feature = "generator_x86_64_aesni"),
-    not(feature = "generator_aarch64_aes")
-))]
+#[cfg(feature = "software_prng")]
 use tfhe_csprng::generators::SoftwareRandomGenerator;
 
-#[cfg(feature = "generator_x86_64_aesni")]
+#[cfg(all(target_arch = "x86_64", not(feature = "software_prng")))]
 pub type ActivatedRandomGenerator = AesniRandomGenerator;
-#[cfg(feature = "generator_aarch64_aes")]
+#[cfg(all(target_arch = "aarch64", not(feature = "software_prng")))]
 pub type ActivatedRandomGenerator = NeonAesRandomGenerator;
-#[cfg(all(
-    not(feature = "generator_x86_64_aesni"),
-    not(feature = "generator_aarch64_aes")
-))]
+#[cfg(feature = "software_prng")]
 pub type ActivatedRandomGenerator = SoftwareRandomGenerator;
