@@ -31,13 +31,13 @@ impl ClientKey {
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
-        let post_packing_ks_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.packing_ks_glwe_dimension,
-                params.packing_ks_polynomial_size,
-                &mut engine.secret_generator,
-            )
-        });
+        let mut engine = ShortintEngine::new();
+
+        let post_packing_ks_key = allocate_and_generate_new_binary_glwe_secret_key(
+            params.packing_ks_glwe_dimension,
+            params.packing_ks_polynomial_size,
+            &mut engine.secret_generator,
+        );
 
         CompressionPrivateKeys {
             post_packing_ks_key,
