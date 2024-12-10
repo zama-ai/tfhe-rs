@@ -2,6 +2,7 @@
 name = "tfhe-trivium"
 version = "0.1.0"
 edition = "2021"
+license = "BSD-3-Clause-Clear"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
