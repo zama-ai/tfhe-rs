@@ -4,6 +4,7 @@ members = [
     "tfhe",
     "tfhe-fft",
     "tfhe-ntt",
+    "tfhe-safe-serialization",
     "tfhe-zk-pok",
     "tasks",
     "apps/trivium",
@@ -18,6 +19,7 @@ exclude = [
     "utils/cargo-tfhe-lints-inner",
     "utils/cargo-tfhe-lints"
 ]
+
 [workspace.dependencies]
 aligned-vec = { version = "0.5", default-features = false }
 bytemuck = "1.14.3"
@@ -26,6 +28,19 @@ num-complex = "0.4"
 pulp = { version = "0.18.22", default-features = false }
 serde = { version = "1.0", default-features = false }
 wasm-bindgen = ">=0.2.86,<0.2.94"
+
+[workspace.package]
+version = "0.11.0"
+license = "BSD-3-Clause-Clear"
+repository = "https://github.com/zama-ai/tfhe-rs"
+documentation = "https://docs.zama.ai/tfhe-rs"
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(bench)',
+    'cfg(tarpaulin)',
+    'cfg(tfhe_lints)',
+] }
 
 [profile.bench]
 lto = "fat"

@@ -1,6 +1,5 @@
 use crate::integer::I256;
 use crate::prelude::*;
-use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::{
     generate_keys, set_server_key, ClientKey, CompactCiphertextList, CompactPublicKey,
@@ -8,6 +7,7 @@ use crate::{
     FheInt32ConformanceParams, FheInt64, FheInt8, FheUint64, FheUint8,
 };
 use rand::prelude::*;
+use tfhe_safe_serialization::{DeserializationConfig, SerializationConfig};
 
 #[test]
 fn test_signed_integer_compressed() {

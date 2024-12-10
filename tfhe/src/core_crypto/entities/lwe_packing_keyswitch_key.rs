@@ -2,7 +2,6 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_packing_keyswitch_key::LwePackingKeyswitchKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -10,6 +9,7 @@ use crate::core_crypto::entities::glwe_ciphertext::glwe_ciphertext_size;
 use crate::core_crypto::entities::glwe_ciphertext_list::{
     GlweCiphertextListCreationMetadata, GlweCiphertextListMutView, GlweCiphertextListView,
 };
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A keyswitching key allowing to keyswitch [`an LWE ciphertext`](super::LweCiphertext) to
 /// [`a GLWE ciphertext`](super::GlweCiphertext) allowing to pack several LWE ciphertexts into a

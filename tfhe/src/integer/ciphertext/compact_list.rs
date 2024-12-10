@@ -1,5 +1,4 @@
 use super::{DataKind, Expandable};
-use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::prelude::Numeric;
 use crate::integer::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 #[cfg(feature = "zk-pok")]
@@ -22,6 +21,8 @@ use crate::shortint::parameters::{
 use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkeCrs, CompactPkeZkScheme, ZkComputeLoad, ZkVerificationOutcome};
+
+use tfhe_safe_serialization::conformance::{ListSizeConstraint, ParameterSetConformant};
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};

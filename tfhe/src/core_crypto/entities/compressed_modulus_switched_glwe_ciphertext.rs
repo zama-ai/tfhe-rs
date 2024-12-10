@@ -1,7 +1,7 @@
 use tfhe_versionable::Versionize;
 
 use self::packed_integers::PackedIntegers;
-use crate::conformance::ParameterSetConformant;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertextVersions;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;

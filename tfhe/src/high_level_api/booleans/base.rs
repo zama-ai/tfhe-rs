@@ -1,6 +1,5 @@
 use super::inner::InnerBoolean;
 use crate::backward_compatibility::booleans::FheBoolVersions;
-use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
@@ -13,7 +12,6 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::prelude::*;
 use crate::integer::BooleanBlock;
-use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::PBSParameters;
@@ -21,6 +19,8 @@ use crate::{Device, ServerKey, Tag};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
+use tfhe_safe_serialization::named::Named;
 use tfhe_versionable::Versionize;
 
 /// The FHE boolean data type.

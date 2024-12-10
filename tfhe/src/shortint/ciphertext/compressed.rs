@@ -2,11 +2,11 @@
 use super::super::parameters::CiphertextConformanceParams;
 use super::common::*;
 use super::standard::Ciphertext;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
 use crate::shortint::backward_compatibility::ciphertext::CompressedCiphertextVersions;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// A structure representing a compressed shortint ciphertext.

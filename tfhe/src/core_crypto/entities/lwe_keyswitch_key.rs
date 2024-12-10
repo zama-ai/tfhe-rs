@@ -2,11 +2,11 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_keyswitch_key::LweKeyswitchKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// An [`LWE keyswitch key`](`LweKeyswitchKey`).
 ///

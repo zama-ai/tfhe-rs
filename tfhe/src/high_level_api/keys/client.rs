@@ -7,11 +7,11 @@ use crate::high_level_api::backward_compatibility::keys::ClientKeyVersions;
 use crate::high_level_api::config::Config;
 use crate::high_level_api::keys::{CompactPrivateKey, IntegerClientKey};
 use crate::integer::compression_keys::CompressionPrivateKeys;
-use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
 use crate::Tag;
 use tfhe_csprng::seeders::Seed;
+use tfhe_safe_serialization::named::Named;
 use tfhe_versionable::Versionize;
 
 /// Key of the client

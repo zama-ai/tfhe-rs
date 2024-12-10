@@ -1,5 +1,4 @@
 use super::CompressionPrivateKeys;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::*;
 use crate::shortint::backward_compatibility::list_compression::{
     CompressionKeyVersions, DecompressionKeyVersions,
@@ -11,6 +10,7 @@ use crate::shortint::server_key::{PBSConformanceParameters, ShortintBootstrappin
 use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]

@@ -1,11 +1,11 @@
 use tfhe_versionable::Versionize;
 
 use self::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::*;
 use crate::shortint::backward_compatibility::ciphertext::CompressedCiphertextListVersions;
 use crate::shortint::parameters::CompressedCiphertextConformanceParams;
 use crate::shortint::{CarryModulus, MessageModulus};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedCiphertextListVersions)]

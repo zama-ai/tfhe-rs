@@ -1,6 +1,5 @@
 //! Module containing the definition of the [`LweMultiBitBootstrapKey`].
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::{
     FourierLweMultiBitBootstrapKeyVersions, LweMultiBitBootstrapKeyVersions,
 };
@@ -12,6 +11,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
 use aligned_vec::{avec, ABox};
 use tfhe_fft::c64;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]

@@ -4,7 +4,7 @@ use crate::js_on_wasm_api::js_high_level_api::config::TfheConfig;
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic_result, into_js_error};
 use crate::js_on_wasm_api::shortint::ShortintParameters;
 
-use crate::zk::Compressible;
+use crate::zk::{Compressible, ZkCompactPkeV1PublicParams};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[wasm_bindgen]
@@ -56,7 +56,7 @@ impl CompactPkeCrs {
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
-            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&self.0, &mut buffer)
                 .map_err(into_js_error)
         })?;
@@ -70,7 +70,7 @@ impl CompactPkeCrs {
         serialized_size_limit: u64,
     ) -> Result<CompactPkeCrs, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
                 .map(Self)
@@ -119,12 +119,13 @@ impl CompactPkeCrs {
         serialized_size_limit: u64,
     ) -> Result<CompactPkeCrs, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
-                .disable_conformance()
-                .deserialize_from(buffer)
-                .map(crate::zk::ZkCompactPkeV1PublicParams::into)
-                .map(CompactPkeCrs)
-                .map_err(into_js_error)
+            let public_params: ZkCompactPkeV1PublicParams =
+                tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
+                    .disable_conformance()
+                    .deserialize_from(buffer)
+                    .map_err(into_js_error)?;
+
+            Ok(CompactPkeCrs(public_params.into()))
         })
     }
 }

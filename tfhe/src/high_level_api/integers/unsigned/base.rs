@@ -2,7 +2,6 @@ use tfhe_versionable::Versionize;
 
 use super::inner::RadixCiphertext;
 use crate::backward_compatibility::integers::FheUintVersions;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{CastFrom, UnsignedInteger, UnsignedNumeric};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
@@ -14,12 +13,13 @@ use crate::high_level_api::{global_state, Device};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::server_key::MatchValues;
-use crate::named::Named;
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::PBSParameters;
 use crate::{FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
+use tfhe_safe_serialization::named::Named;
 
 #[derive(Debug)]
 pub enum GenericIntegerBlockError {

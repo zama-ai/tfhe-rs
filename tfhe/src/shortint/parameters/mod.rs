@@ -5,7 +5,6 @@
 //! homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter
 //! sets.
 
-use crate::conformance::ListSizeConstraint;
 pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
@@ -18,6 +17,7 @@ use crate::core_crypto::prelude::{
 };
 use crate::shortint::backward_compatibility::parameters::*;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialization::conformance::ListSizeConstraint;
 
 use tfhe_versionable::Versionize;
 

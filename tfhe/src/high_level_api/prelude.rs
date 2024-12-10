@@ -13,5 +13,5 @@ pub use crate::high_level_api::traits::{
     RotateLeftAssign, RotateRight, RotateRightAssign, Tagged,
 };
 
-pub use crate::conformance::ParameterSetConformant;
 pub use crate::core_crypto::prelude::{CastFrom, CastInto};
+pub use tfhe_safe_serialization::conformance::ParameterSetConformant;

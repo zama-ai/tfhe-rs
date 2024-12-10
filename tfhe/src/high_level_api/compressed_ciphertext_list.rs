@@ -15,10 +15,10 @@ use crate::integer::gpu::ciphertext::compressed_ciphertext_list::{
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
-use crate::named::Named;
 use crate::prelude::{CiphertextList, Tagged};
 use crate::shortint::Ciphertext;
 use crate::{FheBool, FheInt, FheUint, Tag};
+use tfhe_safe_serialization::named::Named;
 
 impl<Id: FheUintId> HlCompressible for FheUint<Id> {
     fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {

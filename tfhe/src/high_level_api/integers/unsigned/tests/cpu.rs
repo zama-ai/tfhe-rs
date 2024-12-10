@@ -1,8 +1,6 @@
-use crate::conformance::ListSizeConstraint;
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::integer::U256;
-use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -14,6 +12,8 @@ use crate::{
     FheUint256, FheUint32, FheUint32ConformanceParams,
 };
 use rand::prelude::*;
+use tfhe_safe_serialization::conformance::ListSizeConstraint;
+use tfhe_safe_serialization::{DeserializationConfig, SerializationConfig};
 
 fn setup_cpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
     let config = params

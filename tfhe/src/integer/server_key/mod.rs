@@ -9,7 +9,6 @@ pub(crate) mod radix;
 pub(crate) mod radix_parallel;
 
 use super::backward_compatibility::server_key::{CompressedServerKeyVersions, ServerKeyVersions};
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::client_key::ClientKey;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
@@ -20,6 +19,7 @@ pub use radix::scalar_mul::ScalarMultiplier;
 pub use radix::scalar_sub::TwosComplementNegation;
 pub use radix_parallel::{MatchValues, MiniUnsignedInteger, Reciprocable};
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// A structure containing the server public key.

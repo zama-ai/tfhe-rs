@@ -13,6 +13,7 @@ use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ec::AffineRepr;
 use ark_ff::{BigInt, Field, Fp, Fp2, Fp6, Fp6Config, FpConfig, QuadExtConfig, QuadExtField};
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialization::named::Named;
 use tfhe_versionable::Versionize;
 
 use crate::curve_api::{Curve, CurveGroupOps};
@@ -547,6 +548,16 @@ pub struct SerializablePKEv1PublicParams {
     pub(crate) hash_lmap: Vec<u8>,
     pub(crate) hash_z: Vec<u8>,
     pub(crate) hash_w: Vec<u8>,
+}
+
+// Those are kept for backward compatibility, in previous versions CompactPkePublicParams where
+// directly serialized
+impl Named for SerializablePKEv1PublicParams {
+    const NAME: &'static str = "zk::CompactPkePublicParams";
+}
+
+impl<G: Curve> Named for PKEv1PublicParams<G> {
+    const NAME: &'static str = SerializablePKEv1PublicParams::NAME;
 }
 
 impl<G: Curve> From<PKEv1PublicParams<G>> for SerializablePKEv1PublicParams

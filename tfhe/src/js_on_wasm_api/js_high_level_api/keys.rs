@@ -50,7 +50,7 @@ impl TfheClientKey {
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
-            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&self.0, &mut buffer)
                 .map_err(into_js_error)
         })?;
@@ -64,7 +64,7 @@ impl TfheClientKey {
         serialized_size_limit: u64,
     ) -> Result<TfheClientKey, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
                 .map(Self)
@@ -102,7 +102,7 @@ impl TfheCompressedServerKey {
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
-            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&self.0, &mut buffer)
                 .map_err(into_js_error)
         })?;
@@ -116,7 +116,7 @@ impl TfheCompressedServerKey {
         serialized_size_limit: u64,
     ) -> Result<TfheCompressedServerKey, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
                 .map(Self)
@@ -181,7 +181,7 @@ impl TfhePublicKey {
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
-            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&self.0, &mut buffer)
                 .map_err(into_js_error)
         })?;
@@ -195,7 +195,7 @@ impl TfhePublicKey {
         serialized_size_limit: u64,
     ) -> Result<TfhePublicKey, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
                 .map(Self)
@@ -237,7 +237,7 @@ impl TfheCompressedPublicKey {
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
-            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&self.0, &mut buffer)
                 .map_err(into_js_error)
         })?;
@@ -251,7 +251,7 @@ impl TfheCompressedPublicKey {
         serialized_size_limit: u64,
     ) -> Result<TfheCompressedPublicKey, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
                 .map(Self)
@@ -288,7 +288,7 @@ impl TfheCompactPublicKey {
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
-            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&self.0, &mut buffer)
                 .map_err(into_js_error)
         })?;
@@ -302,7 +302,7 @@ impl TfheCompactPublicKey {
         serialized_size_limit: u64,
     ) -> Result<TfheCompactPublicKey, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
                 .map(Self)
@@ -317,7 +317,7 @@ impl TfheCompactPublicKey {
         conformance_params: &ShortintCompactPublicKeyEncryptionParameters,
     ) -> Result<TfheCompactPublicKey, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .deserialize_from(buffer, &conformance_params.compact_pke_params)
                 .map(Self)
                 .map_err(into_js_error)
@@ -358,7 +358,7 @@ impl TfheCompressedCompactPublicKey {
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
-            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&self.0, &mut buffer)
                 .map_err(into_js_error)
         })?;
@@ -372,7 +372,7 @@ impl TfheCompressedCompactPublicKey {
         serialized_size_limit: u64,
     ) -> Result<TfheCompressedCompactPublicKey, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
                 .map(Self)
@@ -387,7 +387,7 @@ impl TfheCompressedCompactPublicKey {
         conformance_params: &ShortintCompactPublicKeyEncryptionParameters,
     ) -> Result<TfheCompressedCompactPublicKey, JsError> {
         catch_panic_result(|| {
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .deserialize_from(buffer, &conformance_params.compact_pke_params)
                 .map(Self)
                 .map_err(into_js_error)

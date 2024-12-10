@@ -9,7 +9,7 @@ use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::named::Named;
+use tfhe_safe_serialization::named::Named;
 
 /// A [`GLWE secret key`](`GlweSecretKey`)
 ///

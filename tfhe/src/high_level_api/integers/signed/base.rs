@@ -2,19 +2,19 @@ use tfhe_versionable::Versionize;
 
 use super::inner::RadixCiphertext;
 use crate::backward_compatibility::integers::FheIntVersions;
-use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheUint, FheUintId, IntegerId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::client_key::RecomposableSignedInteger;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
-use crate::named::Named;
 use crate::prelude::CastFrom;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::PBSParameters;
 use crate::{Device, FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
+use tfhe_safe_serialization::named::Named;
 
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;

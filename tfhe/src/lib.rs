@@ -134,12 +134,6 @@ pub use high_level_api::*;
 /// cbindgen:ignore
 pub mod keycache;
 
-pub mod safe_serialization;
-
-pub mod conformance;
-
-pub mod named;
-
 pub mod error;
 #[cfg(feature = "zk-pok")]
 pub mod zk;

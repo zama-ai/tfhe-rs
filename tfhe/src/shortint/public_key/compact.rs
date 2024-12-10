@@ -1,4 +1,3 @@
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_lwe_secret_key,
     allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
@@ -20,6 +19,7 @@ use crate::shortint::{CarryModulus, ClientKey, MessageModulus};
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// Private key from which a [`CompactPublicKey`] can be built.

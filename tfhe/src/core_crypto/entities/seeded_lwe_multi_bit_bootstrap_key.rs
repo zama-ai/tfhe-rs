@@ -1,6 +1,5 @@
 //! Module containing the definition of the SeededLweBootstrapKey.
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_multi_bit_bootstrap_key::SeededLweMultiBitBootstrapKeyVersions;
 use crate::core_crypto::commons::generators::{
@@ -12,6 +11,7 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// A [`seeded LWE multi bit bootstrap key`](`SeededLweMultiBitBootstrapKey`).

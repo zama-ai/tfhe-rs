@@ -1,6 +1,5 @@
 use super::super::math::fft::{Fft, FftView, FourierPolynomialList};
 use super::ggsw::*;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::backward_compatibility::fft_impl::FourierLweBootstrapKeyVersions;
@@ -22,6 +21,7 @@ use crate::core_crypto::prelude::{CiphertextCount, CiphertextModulus, ContainerM
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 use tfhe_fft::c64;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]

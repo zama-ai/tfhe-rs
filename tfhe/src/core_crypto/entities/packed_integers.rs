@@ -1,8 +1,8 @@
 use tfhe_versionable::Versionize;
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::packed_integers::PackedIntegersVersions;
 use crate::core_crypto::prelude::*;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(PackedIntegersVersions)]

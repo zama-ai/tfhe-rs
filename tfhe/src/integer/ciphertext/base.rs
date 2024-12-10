@@ -1,5 +1,4 @@
 use super::super::parameters::RadixCiphertextConformanceParams;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::integer::backward_compatibility::ciphertext::{
     BaseCrtCiphertextVersions, BaseRadixCiphertextVersions, BaseSignedRadixCiphertextVersions,
@@ -10,6 +9,7 @@ use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::Ciphertext;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// Structure containing a ciphertext in radix decomposition

@@ -1,5 +1,4 @@
 #![allow(clippy::excessive_precision)]
-use crate::conformance::ListSizeConstraint;
 use crate::integer::key_switching_key::KeySwitchingKeyView;
 use crate::integer::server_key::ServerKey;
 use crate::shortint::parameters::{
@@ -11,6 +10,7 @@ pub use crate::shortint::parameters::{
 };
 use crate::shortint::PBSParameters;
 pub use crate::shortint::{CiphertextModulus, ClassicPBSParameters, WopbsParameters};
+use tfhe_safe_serialization::conformance::ListSizeConstraint;
 
 #[derive(Clone, Copy)]
 pub enum IntegerCompactCiphertextListExpansionMode<'key> {

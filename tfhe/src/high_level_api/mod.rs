@@ -86,7 +86,6 @@ export_concrete_array_types!(
 );
 
 pub use crate::integer::parameters::CompactCiphertextListConformanceParams;
-pub use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 #[cfg(feature = "zk-pok")]
 pub use compact_list::ProvenCompactCiphertextList;
 pub use compact_list::{
@@ -95,6 +94,7 @@ pub use compact_list::{
 pub use compressed_ciphertext_list::{
     CompressedCiphertextList, CompressedCiphertextListBuilder, HlCompressible, HlExpandable,
 };
+pub use tfhe_safe_serialization::{DeserializationConfig, SerializationConfig};
 
 pub use tag::Tag;
 pub use traits::FheId;

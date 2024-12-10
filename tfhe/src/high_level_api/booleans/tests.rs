@@ -318,10 +318,10 @@ fn compressed_bool_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
 
 mod cpu {
     use super::*;
-    use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     use crate::FheBoolConformanceParams;
     use rand::random;
+    use tfhe_safe_serialization::{DeserializationConfig, SerializationConfig};
 
     fn setup_default() -> ClientKey {
         let config = ConfigBuilder::default().build();

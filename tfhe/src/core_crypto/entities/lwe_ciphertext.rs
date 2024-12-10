@@ -2,11 +2,11 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_ciphertext::LweCiphertextVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A convenience structure to easily manipulate the body of an [`LweCiphertext`].
 #[derive(Clone, Debug)]

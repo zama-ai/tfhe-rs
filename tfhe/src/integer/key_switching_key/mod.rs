@@ -3,13 +3,13 @@ use super::backward_compatibility::key_switching_key::{
     KeySwitchingKeyMaterialVersions, KeySwitchingKeyVersions,
 };
 use super::{ClientKey, CompressedServerKey, ServerKey};
-use crate::conformance::ParameterSetConformant;
 use crate::integer::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::integer::IntegerCiphertext;
 use crate::shortint::key_switching_key::KeySwitchingKeyConformanceParams;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[cfg(test)]

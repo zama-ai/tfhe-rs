@@ -3,7 +3,6 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::{
     expand_lwe_compact_ciphertext_list, par_expand_lwe_compact_ciphertext_list,
 };
@@ -12,6 +11,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
+use tfhe_safe_serialization::conformance::{ListSizeConstraint, ParameterSetConformant};
 
 /// A [`compact list of LWE ciphertexts`](`LweCompactCiphertextList`) obtained through encryption
 /// with a [`compact LWE public key`](`super::LweCompactPublicKey`).

@@ -29,7 +29,6 @@ pub(crate) use scalar_mul::unchecked_scalar_mul_assign;
 #[cfg(test)]
 pub(crate) mod tests;
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, GlweSize, LweBskGroupingFactor,
@@ -53,6 +52,7 @@ use ::tfhe_versionable::Versionize;
 use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 #[cfg(feature = "pbs-stats")]
 pub mod pbs_stats {

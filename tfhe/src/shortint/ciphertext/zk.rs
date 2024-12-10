@@ -1,5 +1,4 @@
 use super::Degree;
-use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::core_crypto::prelude::LweCiphertextListParameters;
 use crate::shortint::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
@@ -16,6 +15,7 @@ use crate::zk::{
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialization::conformance::{ListSizeConstraint, ParameterSetConformant};
 use tfhe_versionable::Versionize;
 
 impl CompactPkeCrs {

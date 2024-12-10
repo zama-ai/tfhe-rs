@@ -2,11 +2,11 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_compact_public_key::LweCompactPublicKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A [`compact public LWE encryption key`](`LweCompactPublicKey`).
 ///

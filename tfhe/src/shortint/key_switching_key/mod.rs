@@ -2,7 +2,6 @@
 //!
 //! - [KeySwitchingKey] allows switching the keys of a ciphertext, from a cleitn key to another.
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     keyswitch_lwe_ciphertext, KeyswitchKeyConformanceParams, LweKeyswitchKeyOwned,
     SeededLweKeyswitchKeyOwned,
@@ -18,6 +17,7 @@ use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, MaxNoiseLevel,
 use core::cmp::Ordering;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 use super::backward_compatibility::key_switching_key::{

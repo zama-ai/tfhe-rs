@@ -3,13 +3,13 @@
 use misc::check_encrypted_content_respects_mod;
 use tfhe_versionable::Versionize;
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_glwe_ciphertext::SeededGlweCiphertextVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A [`seeded GLWE ciphertext`](`SeededGlweCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]

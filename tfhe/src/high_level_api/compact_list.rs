@@ -3,7 +3,6 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::compact_list::CompactCiphertextListVersions;
 #[cfg(feature = "zk-pok")]
 use crate::backward_compatibility::compact_list::ProvenCompactCiphertextListVersions;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::prelude::Numeric;
 use crate::high_level_api::global_state;
@@ -14,9 +13,10 @@ use crate::integer::encryption::KnowsMessageModulus;
 use crate::integer::parameters::{
     CompactCiphertextListConformanceParams, IntegerCompactCiphertextListExpansionMode,
 };
-use crate::named::Named;
 use crate::prelude::CiphertextList;
 use crate::shortint::MessageModulus;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
+use tfhe_safe_serialization::named::Named;
 #[cfg(feature = "zk-pok")]
 pub use zk::ProvenCompactCiphertextList;
 
@@ -170,9 +170,9 @@ impl ParameterSetConformant for CompactCiphertextList {
 #[cfg(feature = "zk-pok")]
 mod zk {
     use super::*;
-    use crate::conformance::ParameterSetConformant;
     use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
     use crate::zk::CompactPkeCrs;
+    use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
     #[derive(Clone, Serialize, Deserialize, Versionize)]
     #[versionize(ProvenCompactCiphertextListVersions)]

@@ -1,7 +1,6 @@
 use super::{
     CompressionConformanceParameters, CompressionKey, CompressionPrivateKeys, DecompressionKey,
 };
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_seeded_lwe_packing_keyswitch_key,
@@ -19,6 +18,7 @@ use crate::shortint::server_key::{PBSConformanceParameters, ShortintBootstrappin
 use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]

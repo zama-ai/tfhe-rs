@@ -1,7 +1,6 @@
 //! Module with the definition of the Ciphertext.
 use super::super::parameters::CiphertextConformanceParams;
 use super::common::*;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{allocate_and_trivially_encrypt_new_lwe_ciphertext, LweSize};
 use crate::shortint::backward_compatibility::ciphertext::CiphertextVersions;
@@ -9,6 +8,7 @@ use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::CiphertextModulus;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
@@ -23,7 +23,7 @@ pub struct Ciphertext {
     pub pbs_order: PBSOrder,
 }
 
-impl crate::named::Named for Ciphertext {
+impl tfhe_safe_serialization::named::Named for Ciphertext {
     const NAME: &'static str = "shortint::Ciphertext";
 }
 

@@ -2,7 +2,6 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_bootstrap_key::SeededLweBootstrapKeyVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
@@ -10,6 +9,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A [`seeded LWE bootstrap key`](`SeededLweBootstrapKey`).
 ///

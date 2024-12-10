@@ -1,4 +1,3 @@
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::{ActivatedRandomGenerator, KeyswitchKeyConformanceParams};
 use crate::high_level_api::backward_compatibility::keys::*;
@@ -17,6 +16,7 @@ use crate::shortint::{EncryptionKeyChoice, MessageModulus, PBSParameters};
 use crate::{Config, Error};
 use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::Seed;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 // Clippy complained that fields end in _parameters, :roll_eyes:

@@ -1,6 +1,5 @@
 //! Module containing the definition of the SeededGgswCiphertextList.
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_ggsw_ciphertext_list::SeededGgswCiphertextListVersions;
 use crate::core_crypto::commons::generators::{
@@ -13,6 +12,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// A contiguous list containing

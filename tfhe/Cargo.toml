@@ -11,11 +11,11 @@ license = "BSD-3-Clause-Clear"
 description = "TFHE-rs is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE."
 build = "build.rs"
 exclude = [
-    "/docs/",
-    "/c_api_tests/",
-    "/CMakeLists.txt",
-    "/js_on_wasm_tests/",
-    "/web_wasm_parallel_tests/",
+	"/docs/",
+	"/c_api_tests/",
+	"/CMakeLists.txt",
+	"/js_on_wasm_tests/",
+	"/web_wasm_parallel_tests/",
 ]
 rust-version = "1.81"
 
@@ -47,7 +47,7 @@ hex = "0.4.3"
 # Used for backward compatibility test metadata
 ron = "0.8"
 tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-compat-data.git", branch = "v0.4", default-features = false, features = [
-    "load",
+	"load",
 ] }
 
 [build-dependencies]
@@ -55,16 +55,16 @@ cbindgen = { version = "0.26.0", optional = true }
 
 [dependencies]
 tfhe-csprng = { version = "0.4.1", path = "../tfhe-csprng", features = [
-    "generator_fallback",
-    "parallel",
+	"generator_fallback",
+	"parallel",
 ] }
 lazy_static = { version = "1.4.0", optional = true }
 serde = { workspace = true, features = ["default", "derive"] }
 rayon = { version = "1.5.0" }
 bincode = "1.3.3"
 tfhe-fft = { version = "0.6.0", path = "../tfhe-fft", features = [
-    "serde",
-    "fft128",
+	"serde",
+	"fft128",
 ] }
 tfhe-ntt = { version = "0.3.0", path = "../tfhe-ntt" }
 pulp = { workspace = true, features = ["default"] }
@@ -80,10 +80,11 @@ itertools = "0.11.0"
 rand_core = { version = "0.6.4", features = ["std"] }
 tfhe-zk-pok = { version = "0.3.1", path = "../tfhe-zk-pok", optional = true }
 tfhe-versionable = { version = "0.3.2", path = "../utils/tfhe-versionable" }
+tfhe-safe-serialization = { version = "0.11.0", path = "../tfhe-safe-serialization" }
 
 # wasm deps
 wasm-bindgen = { workspace = true, features = [
-    "serde-serialize",
+	"serde-serialize",
 ], optional = true }
 wasm-bindgen-rayon = { version = "1.0", optional = true }
 js-sys = { version = "0.3", optional = true }
@@ -117,12 +118,12 @@ shortint-c-api = ["shortint", "__c_api"]
 high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer", "__c_api"]
 
 __wasm_api = [
-    "dep:wasm-bindgen",
-    "dep:js-sys",
-    "dep:console_error_panic_hook",
-    "dep:serde-wasm-bindgen",
-    "dep:getrandom",
-    "getrandom/js",
+	"dep:wasm-bindgen",
+	"dep:js-sys",
+	"dep:console_error_panic_hook",
+	"dep:serde-wasm-bindgen",
+	"dep:getrandom",
+	"getrandom/js",
 ]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
@@ -337,9 +338,5 @@ required-features = ["integer", "internal-keycache"]
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(bench)',
-    'cfg(tarpaulin)',
-    'cfg(tfhe_lints)',
-] }
+[lints]
+workspace = true

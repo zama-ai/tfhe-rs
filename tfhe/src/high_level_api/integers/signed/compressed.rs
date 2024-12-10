@@ -3,7 +3,6 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::integers::{
     CompressedFheIntVersions, CompressedSignedRadixCiphertextVersions,
 };
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::high_level_api::integers::signed::base::FheIntConformanceParams;
@@ -15,9 +14,10 @@ use crate::integer::ciphertext::{
     CompressedSignedRadixCiphertext as IntegerCompressedSignedRadixCiphertext,
 };
 use crate::integer::parameters::RadixCiphertextConformanceParams;
-use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
 use crate::{ClientKey, Tag};
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
+use tfhe_safe_serialization::named::Named;
 
 /// Compressed [FheInt]
 ///
