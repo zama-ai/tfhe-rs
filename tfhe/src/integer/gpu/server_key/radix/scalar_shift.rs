@@ -99,6 +99,7 @@ impl CudaServerKey {
                 );
             }
         }
+        ct.as_mut().info = ct.as_ref().info.after_scalar_rotate();
     }
 
     /// Computes homomorphically a left shift by a scalar.
@@ -300,6 +301,7 @@ impl CudaServerKey {
                 }
             }
         }
+        ct.as_mut().info = ct.as_ref().info.after_scalar_rotate();
     }
 
     /// Computes homomorphically a right shift by a scalar.

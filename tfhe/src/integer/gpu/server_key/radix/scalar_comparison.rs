@@ -395,7 +395,7 @@ impl CudaServerKey {
                 );
             }
         }
-
+        result.as_mut().info = ct.as_ref().info.after_min_max();
         result
     }
 
