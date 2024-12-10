@@ -24,7 +24,9 @@ impl From<BooleanEncryptionKeyChoice>
 impl BooleanEncryptionKeyChoice {
     // From::from cannot be marked as const, so we have to have
     // our own function
-    const fn convert(rust_choice: crate::shortint::EncryptionKeyChoice) -> Self {
+    const fn convert(
+        rust_choice: crate::core_crypto::commons::parameters::EncryptionKeyChoice,
+    ) -> Self {
         match rust_choice {
             crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big => {
                 Self::BooleanEncryptionKeyChoiceBig
