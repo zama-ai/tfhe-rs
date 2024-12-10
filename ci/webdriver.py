@@ -72,7 +72,7 @@ parser.add_argument(
 parser.add_argument(
     "--index-path",
     dest="index_path",
-    default="tfhe/web_wasm_parallel_tests/index.html",
+    default="crates/tfhe/tests/web_wasm_parallel/index.html",
     help="Path to HTML index file containing all the tests/benchmarks",
 )
 parser.add_argument(
@@ -376,7 +376,7 @@ def dump_benchmark_results(results, browser_kind):
             key.replace("mean", "_".join((browser_kind.name, "mean"))): val
             for key, val in results.items()
         }
-        pathlib.Path("tfhe/wasm_benchmark_results.json").write_text(json.dumps(results))
+        pathlib.Path("crates/tfhe/wasm_benchmark_results.json").write_text(json.dumps(results))
 
 
 def start_web_server(

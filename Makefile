@@ -29,7 +29,7 @@ TFHE_SPEC:=tfhe
 # We are kind of hacking the cut here, the version cannot contain a quote '"'
 WASM_BINDGEN_VERSION:=$(shell grep '^wasm-bindgen[[:space:]]*=' Cargo.toml | cut -d '"' -f 2 | xargs)
 WEB_RUNNER_DIR=web-test-runner
-WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
+WEB_SERVER_DIR=tfhe/tests/web_wasm_parallel
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -244,7 +244,7 @@ fmt_js: check_nvm_installed
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C $(TFHE_SRC)/web_wasm_parallel_tests fmt
+	$(MAKE) -C $(TFHE_SRC)/tests/web_wasm_parallel fmt
 
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
@@ -273,7 +273,7 @@ check_fmt_js: check_nvm_installed
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C $(TFHE_SRC)/web_wasm_parallel_tests check_fmt
+	$(MAKE) -C $(TFHE_SRC)/tests/web_wasm_parallel check_fmt
 
 .PHONY: check_typos # Check for typos in codebase
 check_typos: install_typos_checker
