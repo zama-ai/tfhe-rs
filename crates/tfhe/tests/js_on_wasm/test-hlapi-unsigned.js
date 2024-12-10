@@ -17,7 +17,7 @@ const {
     FheUint256,
     ShortintParameters,
     ShortintParametersName
-} = require("../pkg/tfhe.js");
+} = require("../../pkg/tfhe.js");
 const {
     randomBytes,
 } = require('node:crypto');

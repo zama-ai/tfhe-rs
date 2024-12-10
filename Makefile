@@ -968,7 +968,7 @@ check_compile_tests_benches_gpu: install_rs_build_toolchain
 
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api: build_node_js_api
-	cd $(TFHE_SRC)/js_on_wasm_tests && npm install && npm run test
+	cd $(TFHE_SRC)/tests/js_on_wasm && npm install && npm run test
 
 .PHONY: test_nodejs_wasm_api_ci # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api_ci: build_node_js_api

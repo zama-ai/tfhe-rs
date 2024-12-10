@@ -13,8 +13,8 @@ build = "build.rs"
 exclude = [
 	"/docs/",
 	"/tests/c_api/",
+	"/tests/js_on_wasm/",
 	"/CMakeLists.txt",
-	"/js_on_wasm_tests/",
 	"/web_wasm_parallel_tests/",
 ]
 rust-version = "1.81"

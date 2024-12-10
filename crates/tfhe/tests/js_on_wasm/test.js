@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const test = require('node:test');
 const assert = require('node:assert').strict;
-const { Boolean, Shortint, BooleanParameterSet, ShortintParametersName, ShortintParameters } = require("../pkg");
+const { Boolean, Shortint, BooleanParameterSet, ShortintParametersName, ShortintParameters } = require("../../pkg");
 
 function genRandomBigIntWithBytes(byteCount) {
     return BigInt('0x' + crypto.randomBytes(byteCount).toString('hex'))
