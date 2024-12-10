@@ -94,25 +94,15 @@ jobs:
           - os: ubuntu-22.04
             cuda: "12.2"
             gcc: 11 
-    env:
-      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
-      CMAKE_VERSION: 3.29.6
     steps:
-      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y checkinstall zlib1g-dev libssl-dev libclang-dev
-          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
-          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
-          cd cmake-${{ env.CMAKE_VERSION }}
-          ./bootstrap
-          make -j"$(nproc)"
-          sudo make install
-
-
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup Hyperstack dependencies
+        uses: ./.github/actions/hyperstack_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
 
       - name: Set up home
         run: |
@@ -122,29 +112,6 @@ jobs:
         uses: dtolnay/rust-toolchain@315e265cd78dad1e1dcf3a5074f6d6c47029d5aa
         with:
           toolchain: stable
-
-      - name: Export CUDA variables
-        if: ${{ !cancelled() }}
-        run: |
-          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
-          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
-          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
-          echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc" >> "${GITHUB_ENV}"
-
-      # Specify the correct host compilers
-      - name: Export gcc and g++ variables
-        if: ${{ !cancelled() }}
-        run: |
-          {
-            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
-            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "HOME=/home/ubuntu";
-          } >> "${GITHUB_ENV}"
-
-      - name: Check device is detected
-        if: ${{ !cancelled() }}
-        run: nvidia-smi
 
       - name: Run unsigned integer tests
         run: |
