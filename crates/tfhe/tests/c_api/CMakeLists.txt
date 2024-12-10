@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.16)
 if(NOT CARGO_PROFILE)
     set(CARGO_PROFILE release)
 endif()
-set(TFHE_C_API_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../../target/${CARGO_PROFILE}")
+set(TFHE_C_API_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../target/${CARGO_PROFILE}")
 
 option(WITH_FEATURE_GPU "Enable if tfhe-rs C API was compiled with the 'gpu' feature activated" OFF)
 

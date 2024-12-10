@@ -253,7 +253,7 @@ fmt_gpu: install_rs_check_toolchain
 
 .PHONY: fmt_c_tests # Format c tests
 fmt_c_tests:
-	find $(TFHE_SRC)/c_api_tests/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format -style=file -i {} \;
+	find $(TFHE_SRC)/tests/c_api/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format -style=file -i {} \;
 
 .PHONY: check_fmt # Check rust code format
 check_fmt: install_rs_check_toolchain
@@ -261,7 +261,7 @@ check_fmt: install_rs_check_toolchain
 
 .PHONY: check_fmt_c_tests  # Check C tests format
 check_fmt_c_tests:
-	find $(TFHE_SRC)/c_api_tests/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format --dry-run --Werror -style=file {} \;
+	find $(TFHE_SRC)/tests/c_api/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format --dry-run --Werror -style=file {} \;
 
 .PHONY: check_fmt_gpu # Check rust and cuda code format
 check_fmt_gpu: install_rs_check_toolchain

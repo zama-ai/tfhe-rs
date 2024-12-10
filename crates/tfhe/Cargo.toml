@@ -12,7 +12,7 @@ description = "TFHE-rs is a fully homomorphic encryption (FHE) library that impl
 build = "build.rs"
 exclude = [
 	"/docs/",
-	"/c_api_tests/",
+	"/tests/c_api/",
 	"/CMakeLists.txt",
 	"/js_on_wasm_tests/",
 	"/web_wasm_parallel_tests/",
