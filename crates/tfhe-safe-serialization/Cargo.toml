@@ -14,7 +14,7 @@ rust-version = "1.72"
 bincode = "1.3.3"
 serde = { workspace = true, features = ["default", "derive"] }
 
-tfhe-versionable = { version = "0.3.2", path = "../utils/tfhe-versionable" }
+tfhe-versionable = { version = "0.3.2", path = "../tfhe-versionable" }
 
 [lints]
 workspace = true

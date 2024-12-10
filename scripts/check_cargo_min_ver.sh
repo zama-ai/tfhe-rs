@@ -3,7 +3,7 @@
 set -e
 
 CURR_DIR="$(dirname "$0")"
-REL_CARGO_TOML_PATH="${CURR_DIR}/../tfhe/Cargo.toml"
+REL_CARGO_TOML_PATH="${CURR_DIR}/../crates/tfhe/Cargo.toml"
 MIN_RUST_VERSION="$(grep rust-version "${REL_CARGO_TOML_PATH}" | cut -d '=' -f 2 | xargs)"
 
 function usage() {

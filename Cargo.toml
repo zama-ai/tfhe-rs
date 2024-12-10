@@ -1,21 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-    "tfhe",
-    "tfhe-fft",
-    "tfhe-ntt",
-    "tfhe-safe-serialization",
-    "tfhe-zk-pok",
+    "crates/*",
     "tasks",
     "apps/trivium",
-    "tfhe-csprng",
     "backends/tfhe-cuda-backend",
-    "utils/tfhe-versionable",
-    "utils/tfhe-versionable-derive",
 ]
 
 exclude = [
-    "tfhe/backward_compatibility_tests",
+    "crates/tfhe/backward_compatibility_tests",
     "utils/cargo-tfhe-lints-inner",
     "utils/cargo-tfhe-lints"
 ]

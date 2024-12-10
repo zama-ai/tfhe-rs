@@ -12,8 +12,8 @@ target/
 **/*.bin
 
 # Some of our bench outputs
-/tfhe/benchmarks_parameters
-/tfhe-zk-pok/benchmarks_parameters
+/crates/tfhe/benchmarks_parameters
+/crates/tfhe-zk-pok/benchmarks_parameters
 **/*.csv
 
 # dieharder run log
@@ -33,4 +33,4 @@ node_modules/
 package-lock.json
 
 # Dir used for backward compatibility test data
-tfhe/tfhe-backward-compat-data/
+crates/tfhe/tfhe-backward-compat-data/

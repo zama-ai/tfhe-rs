@@ -7,25 +7,25 @@ const DIR_TO_IGNORE: [&str; 3] = [
     ".git",
     "target",
     // If the data repo has been cloned, we ignore its README
-    "tfhe/tfhe-backward-compat-data",
+    "crates/tfhe/tfhe-backward-compat-data",
 ];
 
 const FILES_TO_IGNORE: [&str; 5] = [
     // This contains fragments of code that are unrelated to TFHE-rs
-    "tfhe/docs/tutorials/sha256_bool.md",
+    "crates/tfhe/docs/tutorials/sha256_bool.md",
     // TODO: This contains code that could be executed as a trivium docstring
     "apps/trivium/README.md",
     // TODO: should we test this ?
-    "utils/tfhe-versionable/README.md",
+    "crates/tfhe-versionable/README.md",
     // TODO: find a way to test the tfhe-fft readme
-    "tfhe-fft/README.md",
+    "crates/tfhe-fft/README.md",
     // TODO: find a way to test the tfhe-ntt readme
-    "tfhe-ntt/README.md",
+    "crates/tfhe-ntt/README.md",
 ];
 
 pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
     let curr_dir = std::env::current_dir()?;
-    let tfhe_src = curr_dir.join("tfhe/src");
+    let tfhe_src = curr_dir.join("crates/tfhe/src");
     let test_user_doc_file = tfhe_src.join("test_user_docs.rs");
 
     if !test_user_doc_file.exists() {

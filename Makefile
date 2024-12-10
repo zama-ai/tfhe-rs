@@ -5,9 +5,10 @@ CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
 TARGET_ARCH_FEATURE:=$(shell ./scripts/get_arch_feature.sh)
 CPU_COUNT=$(shell ./scripts/cpu_count.sh)
 RS_BUILD_TOOLCHAIN:=stable
+TFHE_SRC:=crates/tfhe
 CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
 CARGO_PROFILE?=release
-MIN_RUST_VERSION:=$(shell grep '^rust-version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
+MIN_RUST_VERSION:=$(shell grep '^rust-version[[:space:]]*=' $(TFHE_SRC)/Cargo.toml | cut -d '=' -f 2 | xargs)
 AVX512_SUPPORT?=OFF
 WASM_RUSTFLAGS:=
 BIG_TESTS_INSTANCE?=FALSE
@@ -243,7 +244,7 @@ fmt_js: check_nvm_installed
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C tfhe/web_wasm_parallel_tests fmt
+	$(MAKE) -C $(TFHE_SRC)/web_wasm_parallel_tests fmt
 
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
@@ -252,7 +253,7 @@ fmt_gpu: install_rs_check_toolchain
 
 .PHONY: fmt_c_tests # Format c tests
 fmt_c_tests:
-	find tfhe/c_api_tests/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format -style=file -i {} \;
+	find $(TFHE_SRC)/c_api_tests/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format -style=file -i {} \;
 
 .PHONY: check_fmt # Check rust code format
 check_fmt: install_rs_check_toolchain
@@ -260,7 +261,7 @@ check_fmt: install_rs_check_toolchain
 
 .PHONY: check_fmt_c_tests  # Check C tests format
 check_fmt_c_tests:
-	find tfhe/c_api_tests/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format --dry-run --Werror -style=file {} \;
+	find $(TFHE_SRC)/c_api_tests/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format --dry-run --Werror -style=file {} \;
 
 .PHONY: check_fmt_gpu # Check rust and cuda code format
 check_fmt_gpu: install_rs_check_toolchain
@@ -272,7 +273,7 @@ check_fmt_js: check_nvm_installed
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C tfhe/web_wasm_parallel_tests check_fmt
+	$(MAKE) -C $(TFHE_SRC)/web_wasm_parallel_tests check_fmt
 
 .PHONY: check_typos # Check for typos in codebase
 check_typos: install_typos_checker
@@ -442,7 +443,7 @@ check_rust_bindings_did_not_change:
 
 .PHONY: tfhe_lints # Run custom tfhe-rs lints
 tfhe_lints: install_tfhe_lints
-	cd tfhe && RUSTFLAGS="$(RUSTFLAGS)" cargo tfhe-lints \
+	cd $(TFHE_SRC) && RUSTFLAGS="$(RUSTFLAGS)" cargo tfhe-lints \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,zk-pok -- -D warnings
 
 .PHONY: build_core # Build core_crypto without experimental features
@@ -508,25 +509,25 @@ build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
 build_web_js_api: install_rs_build_toolchain install_wasm_pack
-	cd tfhe && \
+	cd $(TFHE_SRC) && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
 		wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok
 
 .PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
 build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
-	cd tfhe && \
+	cd $(TFHE_SRC) && \
 	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory,+mutable-globals" rustup run $(RS_CHECK_TOOLCHAIN) \
 		wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok \
 		-Z build-std=panic_abort,std && \
 	find pkg/snippets -type f -iname workerHelpers.worker.js -exec sed -i "s|from '..\/..\/..\/';|from '..\/..\/..\/tfhe.js';|" {} \;
-	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
+	jq '.files += ["snippets"]' $(TFHE_SRC)/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json $(TFHE_SRC)/pkg/package.json
 
 .PHONY: build_node_js_api # Build the js API targeting nodejs
 build_node_js_api: install_rs_build_toolchain install_wasm_pack
-	cd tfhe && \
+	cd $(TFHE_SRC) && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
 		wasm-pack build --release --target=nodejs \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok
@@ -877,7 +878,7 @@ test_zk_wasm_x86_compat_ci: check_nvm_installed
 
 .PHONY: test_zk_wasm_x86_compat # Check compatibility between wasm and x86_64 proofs
 test_zk_wasm_x86_compat: install_rs_build_toolchain build_node_js_api
-	cd tfhe/tests/zk_wasm_x86_test && npm install
+	cd $(TFHE_SRC)/tests/zk_wasm_x86_test && npm install
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe --test zk_wasm_x86_test --features=$(TARGET_ARCH_FEATURE),integer,zk-pok
 
@@ -891,11 +892,11 @@ test_versionable: install_rs_build_toolchain
 .PHONY: test_backward_compatibility_ci
 test_backward_compatibility_ci: install_rs_build_toolchain
 	TFHE_BACKWARD_COMPAT_DATA_DIR="$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).path=\"tfhe/$(BACKWARD_COMPAT_DATA_DIR)\"" \
+		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).path=\"$(TFHE_SRC)/$(BACKWARD_COMPAT_DATA_DIR)\"" \
 		--features=$(TARGET_ARCH_FEATURE),shortint,integer,zk-pok -p $(TFHE_SPEC) test_backward_compatibility -- --nocapture
 
 .PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
-test_backward_compatibility: tfhe/$(BACKWARD_COMPAT_DATA_DIR) test_backward_compatibility_ci
+test_backward_compatibility: $(TFHE_SRC)/$(BACKWARD_COMPAT_DATA_DIR) test_backward_compatibility_ci
 
 .PHONY: backward_compat_branch # Prints the required backward compatibility branch
 backward_compat_branch:
@@ -938,11 +939,11 @@ check_md_docs_are_tested:
 
 .PHONY: check_intra_md_links # Checks broken internal links in Markdown docs
 check_intra_md_links: install_mlc
-	mlc --offline --match-file-extension tfhe/docs
+	mlc --offline --match-file-extension $(TFHE_SRC)/docs
 
 .PHONY: check_md_links # Checks all broken links in Markdown docs
 check_md_links: install_mlc
-	mlc --match-file-extension tfhe/docs
+	mlc --match-file-extension $(TFHE_SRC)/docs
 
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests: install_rs_build_toolchain
@@ -967,7 +968,7 @@ check_compile_tests_benches_gpu: install_rs_build_toolchain
 
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api: build_node_js_api
-	cd tfhe/js_on_wasm_tests && npm install && npm run test
+	cd $(TFHE_SRC)/js_on_wasm_tests && npm install && npm run test
 
 .PHONY: test_nodejs_wasm_api_ci # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api_ci: build_node_js_api
@@ -1275,9 +1276,9 @@ write_params_to_file: install_rs_check_toolchain
 
 .PHONY: clone_backward_compat_data # Clone the data repo needed for backward compatibility tests
 clone_backward_compat_data:
-	./scripts/clone_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_URL) $(BACKWARD_COMPAT_DATA_BRANCH) tfhe/$(BACKWARD_COMPAT_DATA_DIR)
+	./scripts/clone_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_URL) $(BACKWARD_COMPAT_DATA_BRANCH) $(TFHE_SRC)/$(BACKWARD_COMPAT_DATA_DIR)
 
-tfhe/$(BACKWARD_COMPAT_DATA_DIR): clone_backward_compat_data
+$(TFHE_SRC)/$(BACKWARD_COMPAT_DATA_DIR): clone_backward_compat_data
 
 #
 # Real use case examples

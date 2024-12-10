@@ -46,7 +46,7 @@ done
 
 CURR_DIR="$(dirname "$0")"
 REPO_ROOT="${CURR_DIR}/.."
-TFHE_BUILD_DIR="${REPO_ROOT}/tfhe/build/"
+TFHE_BUILD_DIR="${REPO_ROOT}/crates/tfhe/build/"
 CPU_COUNT="$("${CURR_DIR}"/cpu_count.sh)"
 
 

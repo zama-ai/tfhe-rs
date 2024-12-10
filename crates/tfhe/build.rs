@@ -27,7 +27,7 @@ fn gen_c_api() {
             PathBuf::from(target)
         } else {
             PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join(format!("../target/{}", get_build_profile_name()))
+                .join(format!("../../target/{}", get_build_profile_name()))
         }
     }
 
