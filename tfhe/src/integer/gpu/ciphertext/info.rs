@@ -134,7 +134,7 @@ impl CudaRadixCiphertextInfo {
                 .blocks
                 .iter()
                 .map(|info| CudaBlockInfo {
-                    degree: info.degree,
+                    degree: Degree::new(info.message_modulus.0 - 1),
                     message_modulus: info.message_modulus,
                     carry_modulus: info.carry_modulus,
                     pbs_order: info.pbs_order,
@@ -167,11 +167,11 @@ impl CudaRadixCiphertextInfo {
                 .iter()
                 .zip(&other.blocks)
                 .map(|(left, _)| CudaBlockInfo {
-                    degree: left.degree,
+                    degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
-                    noise_level: left.noise_level,
+                    noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }
@@ -183,11 +183,87 @@ impl CudaRadixCiphertextInfo {
                 .iter()
                 .zip(&other.blocks)
                 .map(|(left, _)| CudaBlockInfo {
-                    degree: left.degree,
+                    degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
-                    noise_level: left.noise_level,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_if_then_else(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|b| CudaBlockInfo {
+                    degree: Degree::new(b.message_modulus.0 - 1),
+                    message_modulus: b.message_modulus,
+                    carry_modulus: b.carry_modulus,
+                    pbs_order: b.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_overflowing_scalar_add_sub(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|b| CudaBlockInfo {
+                    degree: Degree::new(b.message_modulus.0 - 1),
+                    message_modulus: b.message_modulus,
+                    carry_modulus: b.carry_modulus,
+                    pbs_order: b.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_rotate(&self, other: &Self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .zip(&other.blocks)
+                .map(|(left, _)| CudaBlockInfo {
+                    degree: Degree::new(left.message_modulus.0 - 1),
+                    message_modulus: left.message_modulus,
+                    carry_modulus: left.carry_modulus,
+                    pbs_order: left.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_scalar_rotate(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|left| CudaBlockInfo {
+                    degree: Degree::new(left.message_modulus.0 - 1),
+                    message_modulus: left.message_modulus,
+                    carry_modulus: left.carry_modulus,
+                    pbs_order: left.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_min_max(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|left| CudaBlockInfo {
+                    degree: Degree::new(left.message_modulus.0 - 1),
+                    message_modulus: left.message_modulus,
+                    carry_modulus: left.carry_modulus,
+                    pbs_order: left.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }
@@ -322,6 +398,21 @@ impl CudaRadixCiphertextInfo {
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
                     noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+    pub(crate) fn after_bitnot(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|b| CudaBlockInfo {
+                    degree: Degree::new(b.message_modulus.0 - 1),
+                    message_modulus: b.message_modulus,
+                    carry_modulus: b.carry_modulus,
+                    pbs_order: b.pbs_order,
+                    noise_level: b.noise_level,
                 })
                 .collect(),
         }

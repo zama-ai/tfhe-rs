@@ -1030,6 +1030,7 @@ impl CudaServerKey {
                 );
             }
         }
+        result.as_mut().info = ct_left.as_ref().info.after_min_max();
 
         result
     }
@@ -1129,7 +1130,7 @@ impl CudaServerKey {
                 );
             }
         }
-
+        result.as_mut().info = ct_left.as_ref().info.after_min_max();
         result
     }
 

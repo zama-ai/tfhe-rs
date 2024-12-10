@@ -79,6 +79,7 @@ impl CudaServerKey {
                 );
             }
         }
+        ct.as_mut().info = ct.as_ref().info.after_rotate(&shift.as_ref().info);
     }
 
     /// # Safety
@@ -196,6 +197,7 @@ impl CudaServerKey {
                 );
             }
         }
+        ct.as_mut().info = ct.as_ref().info.after_rotate(&shift.as_ref().info);
     }
 
     /// # Safety
