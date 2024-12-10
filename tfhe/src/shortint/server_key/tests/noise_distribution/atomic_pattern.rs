@@ -781,7 +781,7 @@ create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_pfail
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 
-fn pke_encrypt_ks_to_small_inner_helper(
+fn pke_encrypt_ks_to_compute_inner_helper(
     cpke_params: CompactPublicKeyEncryptionParameters,
     ksk_params: ShortintKeySwitchingParameters,
     block_params: ShortintParameterSet,
@@ -926,7 +926,7 @@ fn pke_encrypt_ks_to_small_inner_helper(
     )
 }
 
-fn pke_encrypt_ks_to_small_noise_helper(
+fn pke_encrypt_ks_to_compute_noise_helper(
     cpke_params: CompactPublicKeyEncryptionParameters,
     ksk_params: ShortintKeySwitchingParameters,
     block_params: ShortintParameterSet,
@@ -937,7 +937,7 @@ fn pke_encrypt_ks_to_small_noise_helper(
     msg: u64,
     scalar_for_multiplication: u64,
 ) -> NoiseSample {
-    let decryption_and_noise_result = pke_encrypt_ks_to_small_inner_helper(
+    let decryption_and_noise_result = pke_encrypt_ks_to_compute_inner_helper(
         cpke_params,
         ksk_params,
         block_params,
@@ -957,7 +957,7 @@ fn pke_encrypt_ks_to_small_noise_helper(
     }
 }
 
-fn pke_encrypt_ks_to_small_pfail_helper(
+fn pke_encrypt_ks_to_compute_pfail_helper(
     cpke_params: CompactPublicKeyEncryptionParameters,
     ksk_params: ShortintKeySwitchingParameters,
     block_params: ShortintParameterSet,
@@ -968,7 +968,7 @@ fn pke_encrypt_ks_to_small_pfail_helper(
     msg: u64,
     scalar_for_multiplication: u64,
 ) -> f64 {
-    let decryption_and_noise_result = pke_encrypt_ks_to_small_inner_helper(
+    let decryption_and_noise_result = pke_encrypt_ks_to_compute_inner_helper(
         cpke_params,
         ksk_params,
         block_params,
@@ -1167,7 +1167,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
         let current_noise_samples: Vec<_> = (0..1000)
             .into_par_iter()
             .map(|_| {
-                pke_encrypt_ks_to_small_noise_helper(
+                pke_encrypt_ks_to_compute_noise_helper(
                     cpke_params,
                     ksk_params,
                     block_params,
@@ -1348,7 +1348,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
         .map(|_| {
             let msg: u64 = rand::random::<u64>() % cleartext_modulus;
 
-            pke_encrypt_ks_to_small_pfail_helper(
+            pke_encrypt_ks_to_compute_pfail_helper(
                 cpke_params,
                 ksk_params,
                 block_params,
