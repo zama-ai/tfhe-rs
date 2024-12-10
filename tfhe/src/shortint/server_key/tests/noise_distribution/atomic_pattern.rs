@@ -721,6 +721,8 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSP
     let expected_fails = 200;
 
     let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as u32;
+    println!("runs_for_expected_fails={runs_for_expected_fails}");
+
     let params: ShortintParameterSet = params.into();
     assert!(
         matches!(params.encryption_key_choice(), EncryptionKeyChoice::Big),
@@ -761,31 +763,44 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSP
     println!("measured_pfail={measured_pfail}");
     println!("expected_pfail={expected_pfail}");
 
-    let pfail_confidence_interval = clopper_pearseaon_exact_confidence_interval(
-        runs_for_expected_fails as f64,
-        measured_fails,
-        0.99,
-    );
+    if measured_fails > 0.0 {
+        let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
+            runs_for_expected_fails as f64,
+            measured_fails,
+            0.99,
+        );
 
-    println!(
-        "pfail_lower_bound={}",
-        pfail_confidence_interval.lower_bound()
-    );
-    println!(
-        "pfail_upper_bound={}",
-        pfail_confidence_interval.upper_bound()
-    );
+        println!(
+            "pfail_lower_bound={}",
+            pfail_confidence_interval.lower_bound()
+        );
+        println!(
+            "pfail_upper_bound={}",
+            pfail_confidence_interval.upper_bound()
+        );
 
-    if measured_pfail <= expected_pfail {
-        if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
-            println!(
-                "WARNING: measured pfail is smaller than expected pfail \
-            and out of the confidence interval\n\
-            the optimizer might be pessimistic when generating parameters."
-            );
+        if measured_pfail <= expected_pfail {
+            if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
+                println!(
+                    "\n==========\n\
+                    WARNING: measured pfail is smaller than expected pfail \
+                    and out of the confidence interval\n\
+                    the optimizer might be pessimistic when generating parameters.\n\
+                    ==========\n"
+                );
+            }
+        } else {
+            assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
         }
     } else {
-        assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+        println!(
+            "\n==========\n\
+            WARNING: measured pfail is 0, it is either a bug or \
+            it is way smaller than the expected pfail\n\
+            the optimizer might be pessimistic when generating parameters, \
+            or some hypothesis does not hold.\n\
+            ==========\n"
+        );
     }
 }
 
@@ -1319,6 +1334,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
     let expected_fails = 200;
 
     let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as u32;
+    println!("runs_for_expected_fails={runs_for_expected_fails}");
 
     // Disable the auto casting in the keyswitching key to be able to measure things ourselves
     cpke_params.expansion_kind =
@@ -1382,31 +1398,44 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
     println!("measured_pfail={measured_pfail}");
     println!("expected_pfail={expected_pfail}");
 
-    let pfail_confidence_interval = clopper_pearseaon_exact_confidence_interval(
-        runs_for_expected_fails as f64,
-        measured_fails,
-        0.99,
-    );
+    if measured_fails > 0.0 {
+        let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
+            runs_for_expected_fails as f64,
+            measured_fails,
+            0.99,
+        );
 
-    println!(
-        "pfail_lower_bound={}",
-        pfail_confidence_interval.lower_bound()
-    );
-    println!(
-        "pfail_upper_bound={}",
-        pfail_confidence_interval.upper_bound()
-    );
+        println!(
+            "pfail_lower_bound={}",
+            pfail_confidence_interval.lower_bound()
+        );
+        println!(
+            "pfail_upper_bound={}",
+            pfail_confidence_interval.upper_bound()
+        );
 
-    if measured_pfail <= expected_pfail {
-        if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
-            println!(
-                "WARNING: measured pfail is smaller than expected pfail \
-            and out of the confidence interval\n\
-            the optimizer might be pessimistic when generating parameters."
-            );
+        if measured_pfail <= expected_pfail {
+            if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
+                println!(
+                    "\n==========\n\
+                    WARNING: measured pfail is smaller than expected pfail \
+                    and out of the confidence interval\n\
+                    the optimizer might be pessimistic when generating parameters.\n\
+                    ==========\n"
+                );
+            }
+        } else {
+            assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
         }
     } else {
-        assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+        println!(
+            "\n==========\n\
+            WARNING: measured pfail is 0, it is either a bug or \
+            it is way smaller than the expected pfail\n\
+            the optimizer might be pessimistic when generating parameters, \
+            or some hypothesis does not hold.\n\
+            ==========\n"
+        );
     }
 }
 
@@ -1491,7 +1520,10 @@ fn pbs_compress_inner_helper(
     let encryption_cleartext_modulus =
         block_params.message_modulus().0 * block_params.carry_modulus().0;
 
-    let compression_cleartext_modulus = block_params.message_modulus().0;
+    // We multiply by the message_modulus during compression, so the top bits corresponding to the
+    // modulus won't be usable during compression
+    let compression_cleartext_modulus =
+        encryption_cleartext_modulus / block_params.message_modulus().0;
     let compression_delta = (1u64 << 63) / compression_cleartext_modulus;
     let msg = msg % compression_cleartext_modulus;
 
@@ -1628,6 +1660,36 @@ fn pbs_compress_noise_helper(
             DecryptionAndNoiseResult::DecryptionFailed => {
                 panic!("Failed decryption, noise measurement will be wrong.")
             }
+        })
+        .collect()
+}
+
+fn pbs_compress_pfail_helper(
+    block_params: ShortintParameterSet,
+    compression_params: CompressionParameters,
+    single_cks: &ClientKey,
+    single_sks: &ServerKey,
+    single_compression_private_key: &CompressionPrivateKeys,
+    single_compression_key: &CompressionKey,
+    single_decompression_key: &DecompressionKey,
+    msg: u64,
+) -> Vec<f64> {
+    let decryption_and_noise_result = pbs_compress_inner_helper(
+        block_params,
+        compression_params,
+        single_cks,
+        single_sks,
+        single_compression_private_key,
+        single_compression_key,
+        single_decompression_key,
+        msg,
+    );
+
+    decryption_and_noise_result
+        .into_iter()
+        .map(|x| match x {
+            DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
+            DecryptionAndNoiseResult::DecryptionFailed => 1.0,
         })
         .collect()
 }
@@ -1866,6 +1928,155 @@ fn noise_check_shortint_pbs_compression_ap_noise(
 #[test]
 fn test_noise_check_shortint_pbs_compression_ap_noise_tuniform() {
     noise_check_shortint_pbs_compression_ap_noise(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+fn noise_check_shortint_pbs_compression_ap_pfail(
+    mut block_params: ClassicPBSParameters,
+    compression_params: CompressionParameters,
+) {
+    assert_eq!(
+        block_params.carry_modulus.0, 4,
+        "This test is only for 2_2 parameters"
+    );
+    assert_eq!(
+        block_params.message_modulus.0, 4,
+        "This test is only for 2_2 parameters"
+    );
+
+    // Padding bit + carry and message
+    let original_precision_with_padding =
+        (2 * block_params.carry_modulus.0 * block_params.message_modulus.0).ilog2();
+    block_params.carry_modulus.0 = 1 << 4;
+
+    let new_precision_with_padding =
+        (2 * block_params.carry_modulus.0 * block_params.message_modulus.0).ilog2();
+
+    let original_pfail = 2.0f64.powf(block_params.log2_p_fail);
+
+    println!("original_pfail={original_pfail}");
+    println!("original_pfail_log2={}", block_params.log2_p_fail);
+
+    let expected_pfail = equivalent_pfail_gaussian_noise(
+        original_precision_with_padding,
+        original_pfail,
+        new_precision_with_padding,
+    );
+
+    block_params.log2_p_fail = expected_pfail.log2();
+
+    println!("expected_pfail={expected_pfail}");
+    println!("expected_pfail_log2={}", block_params.log2_p_fail);
+
+    let expected_fails = 2000;
+    let samples_per_run = compression_params.lwe_per_glwe.0;
+
+    let runs_for_expected_fails =
+        (expected_fails as f64 / (expected_pfail * samples_per_run as f64)).round() as u32;
+
+    println!("runs_for_expected_fails={runs_for_expected_fails}");
+
+    let block_params: ShortintParameterSet = block_params.into();
+    assert!(
+        matches!(
+            block_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big
+        ),
+        "This test only supports encryption under the big key for now."
+    );
+    assert!(
+        block_params
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "This test only supports encrytpion with power of 2 moduli for now."
+    );
+
+    let encryption_cleartext_modulus =
+        block_params.message_modulus().0 * block_params.carry_modulus().0;
+    // We multiply by the message_modulus during compression, so the top bits corresponding to the
+    // modulus won't be usable during compression
+    let compression_cleartext_modulus =
+        encryption_cleartext_modulus / block_params.message_modulus().0;
+
+    let cks = ClientKey::new(block_params);
+    let sks = ServerKey::new(&cks);
+
+    let compression_private_key = cks.new_compression_private_key(compression_params);
+    let (compression_key, decompression_key) =
+        cks.new_compression_decompression_keys(&compression_private_key);
+
+    let measured_fails: Vec<_> = (0..runs_for_expected_fails)
+        .into_par_iter()
+        .map(|_| {
+            let msg: u64 = rand::random::<u64>() % compression_cleartext_modulus;
+
+            pbs_compress_pfail_helper(
+                block_params,
+                compression_params,
+                &cks,
+                &sks,
+                &compression_private_key,
+                &compression_key,
+                &decompression_key,
+                msg,
+            )
+        })
+        .collect();
+
+    let measured_fails: f64 = measured_fails.into_iter().flatten().sum();
+
+    let measured_pfail = measured_fails / (runs_for_expected_fails as f64);
+
+    println!("measured_fails={measured_fails}");
+    println!("expected_fails={expected_fails}");
+    println!("measured_pfail={measured_pfail}");
+    println!("expected_pfail={expected_pfail}");
+
+    if measured_fails > 0.0 {
+        let pfail_confidence_interval = clopper_pearseaon_exact_confidence_interval(
+            runs_for_expected_fails as f64,
+            measured_fails,
+            0.99,
+        );
+
+        println!(
+            "pfail_lower_bound={}",
+            pfail_confidence_interval.lower_bound()
+        );
+        println!(
+            "pfail_upper_bound={}",
+            pfail_confidence_interval.upper_bound()
+        );
+
+        if measured_pfail <= expected_pfail {
+            if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
+                println!(
+                    "\n==========\n\
+                    WARNING: measured pfail is smaller than expected pfail \
+                    and out of the confidence interval\n\
+                    the optimizer might be pessimistic when generating parameters.\n\
+                    ==========\n"
+                );
+            }
+        } else {
+            assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+        }
+    } else {
+        println!(
+            "\n==========\n\
+            WARNING: measured pfail is 0, it is either a bug or \
+            it is way smaller than the expected pfail\n\
+            the optimizer might be pessimistic when generating parameters.\n\
+            ==========\n"
+        );
+    }
+}
+
+#[test]
+fn test_noise_check_shortint_pbs_compression_ap_pfail_tuniform() {
+    noise_check_shortint_pbs_compression_ap_pfail(
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
