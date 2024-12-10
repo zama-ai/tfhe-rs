@@ -1,0 +1,53 @@
+name: Setup Cuda
+description: Setup Cuda on Hyperstack instance
+
+inputs:
+  cuda-version:
+    description: Version of Cuda to use
+    required: true
+  gcc-version:
+    description: Version of GCC to use
+    required: true
+  cmake-version:
+    description: Version of cmake to use
+    default: 3.29.6
+
+runs:
+  using: "composite"
+  steps:
+    # Mandatory on hyperstack since a bootable volume is not re-usable yet.
+    - name: Install dependencies
+      shell: bash
+      run: |
+        sudo apt update
+        sudo apt install -y checkinstall zlib1g-dev libssl-dev libclang-dev
+        wget https://github.com/Kitware/CMake/releases/download/v${{ inputs.cmake-version }}/cmake-${{ inputs.cmake-version }}.tar.gz
+        tar -zxvf cmake-${{ inputs.cmake-version }}.tar.gz
+        cd cmake-${{ inputs.cmake-version }}
+        ./bootstrap
+        make -j"$(nproc)"
+        sudo make install
+
+    - name: Export CUDA variables
+      shell: bash
+      run: |
+        CUDA_PATH=/usr/local/cuda-${{ inputs.cuda-version }}
+        echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
+        echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+        echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
+        echo "CUDACXX=/usr/local/cuda-${{ inputs.cuda-version }}/bin/nvcc" >> "${GITHUB_ENV}"
+
+    # Specify the correct host compilers
+    - name: Export gcc and g++ variables
+      shell: bash
+      run: |
+        {
+          echo "CC=/usr/bin/gcc-${{ inputs.gcc-version }}";
+          echo "CXX=/usr/bin/g++-${{ inputs.gcc-version }}";
+          echo "CUDAHOSTCXX=/usr/bin/g++-${{ inputs.gcc-version }}";
+          echo "HOME=/home/ubuntu";
+        } >> "${GITHUB_ENV}"
+
+    - name: Check device is detected
+      shell: bash
+      run: nvidia-smi
