@@ -198,7 +198,8 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
 
                 let decrypted = decrypt_lwe_ciphertext(&cks.small_lwe_secret_key(), &after_ms).0;
 
-                let decoded = round_decode(decrypted, delta) % cleartext_modulus;
+                // We apply the modulus on the cleartext + the padding bit
+                let decoded = round_decode(decrypted, delta) % (2 * cleartext_modulus);
                 assert_eq!(decoded, msg);
 
                 torus_modular_diff(expected_plaintext, decrypted, after_ms.ciphertext_modulus())
@@ -302,7 +303,8 @@ impl DecryptionAndNoiseResult {
     {
         let decrypted_plaintext = decrypt_lwe_ciphertext(secret_key, ct).0;
 
-        let decoded_msg = round_decode(decrypted_plaintext, delta) % cleartext_modulus;
+        // We apply the modulus on the cleartext + the padding bit
+        let decoded_msg = round_decode(decrypted_plaintext, delta) % (2 * cleartext_modulus);
 
         let expected_plaintext = expected_msg * delta;
 
