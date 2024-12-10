@@ -361,7 +361,7 @@ impl<T: Numeric> CudaVec<T> {
         self.ptr[index as usize].cast_const()
     }
 
-    pub(crate) fn as_slice<R>(&self, range: R, index: u32) -> Option<CudaSlice<T>>
+    pub(crate) fn as_slice<R>(&self, range: R, index: usize) -> Option<CudaSlice<T>>
     where
         R: std::ops::RangeBounds<usize>,
         T: Numeric,
@@ -374,19 +374,19 @@ impl<T: Numeric> CudaVec<T> {
         } else {
             // Shift ptr
             let shifted_ptr: *mut c_void =
-                self.ptr[index as usize].wrapping_byte_add(start * std::mem::size_of::<T>());
+                self.ptr[index].wrapping_byte_add(start * std::mem::size_of::<T>());
 
             // Compute the length
             let new_len = end - start + 1;
 
             // Create the slice
-            Some(unsafe { CudaSlice::new(shifted_ptr, new_len, GpuIndex(index)) })
+            Some(unsafe { CudaSlice::new(shifted_ptr, new_len, self.gpu_indexes[index]) })
         }
     }
 
     // clippy complains as we only manipulate pointers, but we want to keep rust semantics
     #[allow(clippy::needless_pass_by_ref_mut)]
-    pub(crate) fn as_mut_slice<R>(&mut self, range: R, index: u32) -> Option<CudaSliceMut<T>>
+    pub(crate) fn as_mut_slice<R>(&mut self, range: R, index: usize) -> Option<CudaSliceMut<T>>
     where
         R: std::ops::RangeBounds<usize>,
         T: Numeric,
@@ -399,13 +399,13 @@ impl<T: Numeric> CudaVec<T> {
         } else {
             // Shift ptr
             let shifted_ptr: *mut c_void =
-                self.ptr[index as usize].wrapping_byte_add(start * std::mem::size_of::<T>());
+                self.ptr[index].wrapping_byte_add(start * std::mem::size_of::<T>());
 
             // Compute the length
             let new_len = end - start + 1;
 
             // Create the slice
-            Some(unsafe { CudaSliceMut::new(shifted_ptr, new_len, GpuIndex(index)) })
+            Some(unsafe { CudaSliceMut::new(shifted_ptr, new_len, self.gpu_indexes[index]) })
         }
     }
 

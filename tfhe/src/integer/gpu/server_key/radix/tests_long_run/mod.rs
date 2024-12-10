@@ -6,10 +6,13 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::GpuContext;
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U256};
+use rand::Rng;
 use std::sync::Arc;
 use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
 
 pub(crate) mod test_erc20;
+pub(crate) mod test_random_op_sequence;
+
 pub(crate) struct GpuMultiDeviceFunctionExecutor<F> {
     pub(crate) context: Option<GpuContext>,
     pub(crate) func: F,
@@ -27,7 +30,8 @@ impl<F> GpuMultiDeviceFunctionExecutor<F> {
 impl<F> GpuMultiDeviceFunctionExecutor<F> {
     pub(crate) fn setup_from_keys(&mut self, cks: &RadixClientKey, _sks: &Arc<ServerKey>) {
         let num_gpus = unsafe { cuda_get_number_of_gpus() } as u32;
-        let streams = CudaStreams::new_single_gpu(GpuIndex(num_gpus - 1));
+        let gpu_index = GpuIndex(rand::thread_rng().gen_range(0..num_gpus));
+        let streams = CudaStreams::new_single_gpu(gpu_index);
 
         let sks = CudaServerKey::new(cks.as_ref(), &streams);
         streams.synchronize();
