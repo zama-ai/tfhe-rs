@@ -12,6 +12,7 @@ use crate::array::traits::{
 };
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::block_decomposition::{
     DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
 };
@@ -19,7 +20,7 @@ use crate::integer::server_key::radix_parallel::scalar_div_mod::SignedReciprocab
 use crate::integer::server_key::{Reciprocable, ScalarMultiplier};
 use crate::integer::{IntegerRadixCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
-use crate::{ClientKey, Error};
+use crate::{ClientKey, Error, FheInt, FheUint, Tag};
 use rayon::prelude::*;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
@@ -52,6 +53,48 @@ where
     where
         Self: 'a;
     type Owned = Vec<T>;
+}
+
+impl<Id: FheUintId> From<Vec<FheUint<Id>>> for CpuFheUintArray<Id> {
+    fn from(value: Vec<FheUint<Id>>) -> Self {
+        let vec: Vec<_> = value
+            .into_iter()
+            .map(|uint| uint.into_raw_parts().0)
+            .collect();
+        let shape = vec![vec.len()];
+        Self::new(vec, shape)
+    }
+}
+
+impl<Id: FheUintId> From<CpuFheUintArray<Id>> for Vec<FheUint<Id>> {
+    fn from(value: CpuFheUintArray<Id>) -> Self {
+        value
+            .into_container()
+            .into_iter()
+            .map(|radix| FheUint::new(radix, Tag::default(), ReRandomizationMetadata::default()))
+            .collect()
+    }
+}
+
+impl<Id: FheIntId> From<Vec<FheInt<Id>>> for CpuFheIntArray<Id> {
+    fn from(value: Vec<FheInt<Id>>) -> Self {
+        let vec: Vec<_> = value
+            .into_iter()
+            .map(|uint| uint.into_raw_parts().0)
+            .collect();
+        let shape = vec![vec.len()];
+        Self::new(vec, shape)
+    }
+}
+
+impl<Id: FheIntId> From<CpuFheIntArray<Id>> for Vec<FheInt<Id>> {
+    fn from(value: CpuFheIntArray<Id>) -> Self {
+        value
+            .into_container()
+            .into_iter()
+            .map(|radix| FheInt::new(radix, Tag::default(), ReRandomizationMetadata::default()))
+            .collect()
+    }
 }
 
 #[inline]
