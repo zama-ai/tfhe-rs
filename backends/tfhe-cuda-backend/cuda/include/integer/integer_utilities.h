@@ -3704,7 +3704,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     // both of them are equal but because they are used in two different
     // executions in parallel we need two different pbs_buffers.
     message_extract_lut_1 = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, params, 1, num_blocks, true);
+        streams, gpu_indexes, 1, params, 1, num_blocks, true);
     message_extract_lut_2 = new int_radix_lut<Torus>(
         streams, gpu_indexes, gpu_count, params, 1, num_blocks, true);
 
@@ -3825,7 +3825,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     uint32_t compute_overflow = 1;
     overflow_sub_mem = new int_borrow_prop_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, num_blocks, compute_overflow,
+        streams, gpu_indexes, 1, params, num_blocks, compute_overflow,
         true);
     uint32_t group_size = overflow_sub_mem->group_size;
     bool use_seq = overflow_sub_mem->prop_simu_group_carries_mem

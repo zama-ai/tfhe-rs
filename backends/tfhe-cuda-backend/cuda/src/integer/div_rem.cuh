@@ -438,7 +438,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
           streams, gpu_indexes, first_indexes, second_indexes, scalar_indexes,
           merged_interesting_remainder.len);
       host_integer_overflowing_sub<uint64_t>(
-          streams, gpu_indexes, gpu_count, new_remainder.data,
+          streams, gpu_indexes, 1, new_remainder.data,
           (uint64_t *)merged_interesting_remainder.data,
           interesting_divisor.data, subtraction_overflowed.data,
           (const Torus *)nullptr, mem_ptr->overflow_sub_mem, bsks, ksks,
@@ -482,7 +482,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
         [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
             uint32_t gpu_count) {
           integer_radix_apply_univariate_lookup_table_kb<Torus>(
-              streams, gpu_indexes, gpu_count,
+              streams, gpu_indexes, 1,
               cleaned_merged_interesting_remainder.data,
               cleaned_merged_interesting_remainder.data, bsks, ksks,
               cleaned_merged_interesting_remainder.len,
