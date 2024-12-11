@@ -73,6 +73,7 @@ fn main() {
         log2_p_fail: -71.625,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
+        modulus_switch_noise_reduction_params: None,
     };
 }
 ```
