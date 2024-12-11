@@ -140,6 +140,7 @@ where
             log2_p_fail: 1.0,
             ciphertext_modulus: wopbs_params.ciphertext_modulus,
             encryption_key_choice: wopbs_params.encryption_key_choice,
+            modulus_switch_noise_reduction_params: None,
         };
 
         crate::shortint::parameters::ShortintParameterSet::try_new_pbs_and_wopbs_param_set((
