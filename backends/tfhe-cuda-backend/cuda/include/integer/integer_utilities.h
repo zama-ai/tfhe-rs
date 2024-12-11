@@ -479,7 +479,6 @@ template <typename Torus> struct int_radix_lut {
         cuda_memcpy_async_gpu_to_gpu(dst_lut_indexes, src_lut_indexes,
                                      num_blocks * sizeof(Torus), streams[i],
                                      gpu_indexes[i]);
-        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
     }
   }
