@@ -174,8 +174,6 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
 
   // Optimization of packing keyswitch when packing many LWEs
 
-  printf("USING FAST PKS\n");
-
   cudaSetDevice(gpu_index);
   check_cuda_error(cudaGetLastError());
 

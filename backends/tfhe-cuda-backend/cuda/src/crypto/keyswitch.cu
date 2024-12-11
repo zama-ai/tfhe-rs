@@ -76,7 +76,8 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
   if (can_use_pks_fast_path(input_lwe_dimension, num_lwes,
                             output_polynomial_size, level_count,
                             output_glwe_dimension)) {
-
+    ::fprintf(stderr, "USING FAST PKS");
+    abort();
     host_fast_packing_keyswitch_lwe_list_to_glwe<uint64_t, ulonglong4>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<uint64_t *>(glwe_array_out),
@@ -85,7 +86,9 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
         input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
         base_log, level_count, num_lwes);
   } else
-    printf("USING CLASSICAL PKS\n");
+    ::fprintf(stderr, "USING CLASSICAL PKS");
+  abort();
+
   host_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(glwe_array_out),

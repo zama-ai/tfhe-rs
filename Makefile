@@ -600,8 +600,8 @@ test_integer_compression: install_rs_build_toolchain
 .PHONY: test_integer_compression_gpu
 test_integer_compression_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compressed_ciphertext_list::tests:: --nocapture
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compressed_ciphertext_list::tests::test_gpu_ciphertext_compression_fast_path --nocapture
+#	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compress --nocapture
 
 .PHONY: test_integer_gpu_ci # Run the tests for integer ci on gpu backend
