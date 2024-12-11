@@ -37,7 +37,7 @@ pub mod v0_10;
 pub mod v0_11;
 
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
-use super::server_key::PBSConformanceParameters;
+use super::server_key::{ModulusSwitchNoiseReductionParams, PBSConformanceParameters};
 pub use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 use crate::shortint::ciphertext::MaxDegree;
@@ -140,6 +140,7 @@ pub struct ClassicPBSParameters {
     pub log2_p_fail: f64,
     pub ciphertext_modulus: CiphertextModulus,
     pub encryption_key_choice: EncryptionKeyChoice,
+    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
 }
 
 impl ClassicPBSParameters {
@@ -167,6 +168,7 @@ impl ClassicPBSParameters {
         log2_p_fail: f64,
         ciphertext_modulus: CiphertextModulus,
         encryption_key_choice: EncryptionKeyChoice,
+        modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
     ) -> Self {
         Self {
             lwe_dimension,
@@ -184,6 +186,7 @@ impl ClassicPBSParameters {
             log2_p_fail,
             ciphertext_modulus,
             encryption_key_choice,
+            modulus_switch_noise_reduction_params,
         }
     }
 
