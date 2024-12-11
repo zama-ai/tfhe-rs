@@ -95,7 +95,7 @@ impl ShortintEngine {
     }
 
     pub fn new_bootstrapping_key<
-        InKeycont: Container<Element = u64>,
+        InKeycont: Container<Element = u64> + Sync,
         OutKeyCont: Container<Element = u64> + Sync,
     >(
         &mut self,
