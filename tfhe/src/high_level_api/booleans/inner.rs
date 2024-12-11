@@ -25,7 +25,7 @@ use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 pub(in crate::high_level_api) enum InnerBoolean {
     Cpu(BooleanBlock),
     #[cfg(feature = "gpu")]
-    Cuda(crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock),
+    Cuda(CudaBooleanBlock),
     #[cfg(feature = "hpu")]
     Hpu(HpuRadixCiphertext),
 }
@@ -220,7 +220,6 @@ impl InnerBoolean {
         &mut cuda_ct.0
     }
 
-    #[cfg(feature = "gpu")]
     pub(crate) fn into_cpu(self) -> BooleanBlock {
         match self {
             Self::Cpu(cpu_ct) => cpu_ct,
