@@ -54,10 +54,7 @@ tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-co
 cbindgen = { version = "0.26.0", optional = true }
 
 [dependencies]
-tfhe-csprng = { version = "0.4.1", path = "../tfhe-csprng", features = [
-    "generator_fallback",
-    "parallel",
-] }
+tfhe-csprng = { version = "0.4.1", path = "../tfhe-csprng", features = ["parallel", "software_prng"] }
 lazy_static = { version = "1.4.0", optional = true }
 serde = { workspace = true, features = ["default", "derive"] }
 rayon = { version = "1.5.0" }
@@ -132,34 +129,15 @@ parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
 nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
 
-# Enable the x86_64 specific accelerated implementation of the random generator for the default
-# backend
-generator_x86_64_aesni = ["tfhe-csprng/generator_x86_64_aesni"]
-
-# Enable the aarch64 specific accelerated implementation of the random generator for the default
-# backend
-generator_aarch64_aes = ["tfhe-csprng/generator_aarch64_aes"]
-
 # Private features
 __profiling = []
 __long_run_tests = []
 
-seeder_unix = ["tfhe-csprng/seeder_unix"]
-seeder_x86_64_rdseed = ["tfhe-csprng/seeder_x86_64_rdseed"]
-
-# These target_arch features enable a set of public features for tfhe if users want a known
-# good/working configuration for tfhe.
-# For a target_arch that does not yet have such a feature, one can still enable features manually or
-# create a feature for said target_arch to make its use simpler.
-x86_64 = ["generator_x86_64_aesni", "seeder_x86_64_rdseed"]
-x86_64-unix = ["x86_64", "seeder_unix"]
-
-aarch64 = ["generator_aarch64_aes"]
-aarch64-unix = ["aarch64", "seeder_unix"]
+software_prng = []
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
-features = ["x86_64-unix", "boolean", "shortint", "integer", "gpu", "zk-pok"]
+features = ["boolean", "shortint", "integer", "gpu", "zk-pok", "software_prng"]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 ###########
