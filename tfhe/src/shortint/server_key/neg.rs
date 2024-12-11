@@ -3,7 +3,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, PaddingBit, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically a negation of a ciphertext.
@@ -227,11 +227,8 @@ impl ServerKey {
         let mut z = ct.degree.get().div_ceil(msg_mod).max(1);
         z *= msg_mod;
 
-        // Value of the shift we multiply our messages by
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-
         //Scaling + 1 on the padding bit
-        let w = Plaintext(z * delta);
+        let w = self.encoding(PaddingBit::Yes).encode(Cleartext(z));
 
         // (0,Delta*z) - ct
         lwe_ciphertext_opposite_assign(&mut ct.ct);
