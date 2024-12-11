@@ -68,6 +68,25 @@ impl DynamicDistribution {
             },
         }
     }
+
+    pub const fn convert<T: UnsignedInteger>(value: RustDynamicDistribution<T>) -> Self {
+        match value {
+            RustDynamicDistribution::Gaussian(gaussian) => Self {
+                tag: DynamicDistributionTag::Gaussian as u64,
+                distribution: DynamicDistributionPayload {
+                    gaussian: Gaussian { std: gaussian.std },
+                },
+            },
+            RustDynamicDistribution::TUniform(t_uniform) => Self {
+                tag: DynamicDistributionTag::TUniform as u64,
+                distribution: DynamicDistributionPayload {
+                    t_uniform: TUniform {
+                        bound_log2: t_uniform.bound_log2(),
+                    },
+                },
+            },
+        }
+    }
 }
 
 impl<T: UnsignedInteger> TryFrom<DynamicDistribution> for RustDynamicDistribution<T> {
@@ -85,27 +104,6 @@ impl<T: UnsignedInteger> TryFrom<DynamicDistribution> for RustDynamicDistributio
             DynamicDistributionTag::TUniform => Ok(Self::try_new_t_uniform(unsafe {
                 value.distribution.t_uniform.bound_log2
             })?),
-        }
-    }
-}
-
-impl<T: UnsignedInteger> RustDynamicDistribution<T> {
-    pub const fn convert_to_c(&self) -> DynamicDistribution {
-        match self {
-            Self::Gaussian(gaussian) => DynamicDistribution {
-                tag: DynamicDistributionTag::Gaussian as u64,
-                distribution: DynamicDistributionPayload {
-                    gaussian: Gaussian { std: gaussian.std },
-                },
-            },
-            Self::TUniform(t_uniform) => DynamicDistribution {
-                tag: DynamicDistributionTag::TUniform as u64,
-                distribution: DynamicDistributionPayload {
-                    t_uniform: TUniform {
-                        bound_log2: t_uniform.bound_log2(),
-                    },
-                },
-            },
         }
     }
 }

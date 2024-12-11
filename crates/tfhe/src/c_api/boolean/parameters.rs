@@ -84,8 +84,12 @@ impl BooleanParameters {
             lwe_dimension: rust_params.lwe_dimension.0,
             glwe_dimension: rust_params.glwe_dimension.0,
             polynomial_size: rust_params.polynomial_size.0,
-            lwe_noise_distribution: rust_params.lwe_noise_distribution.convert_to_c(),
-            glwe_noise_distribution: rust_params.glwe_noise_distribution.convert_to_c(),
+            lwe_noise_distribution: DynamicDistribution::convert(
+                rust_params.lwe_noise_distribution,
+            ),
+            glwe_noise_distribution: DynamicDistribution::convert(
+                rust_params.glwe_noise_distribution,
+            ),
             pbs_base_log: rust_params.pbs_base_log.0,
             pbs_level: rust_params.pbs_level.0,
             ks_base_log: rust_params.ks_base_log.0,

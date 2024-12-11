@@ -1,3 +1,4 @@
+use crate::c_api::core_crypto::DynamicDistribution;
 pub use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::*;
@@ -28,8 +29,8 @@ pub struct ShortintPBSParameters {
     pub lwe_dimension: usize,
     pub glwe_dimension: usize,
     pub polynomial_size: usize,
-    pub lwe_noise_distribution: crate::c_api::core_crypto::DynamicDistribution,
-    pub glwe_noise_distribution: crate::c_api::core_crypto::DynamicDistribution,
+    pub lwe_noise_distribution: DynamicDistribution,
+    pub glwe_noise_distribution: DynamicDistribution,
     pub pbs_base_log: usize,
     pub pbs_level: usize,
     pub ks_base_log: usize,
@@ -103,8 +104,12 @@ impl ShortintPBSParameters {
             lwe_dimension: rust_params.lwe_dimension.0,
             glwe_dimension: rust_params.glwe_dimension.0,
             polynomial_size: rust_params.polynomial_size.0,
-            lwe_noise_distribution: rust_params.lwe_noise_distribution.convert_to_c(),
-            glwe_noise_distribution: rust_params.glwe_noise_distribution.convert_to_c(),
+            lwe_noise_distribution: DynamicDistribution::convert(
+                rust_params.lwe_noise_distribution,
+            ),
+            glwe_noise_distribution: DynamicDistribution::convert(
+                rust_params.glwe_noise_distribution,
+            ),
             pbs_base_log: rust_params.pbs_base_log.0,
             pbs_level: rust_params.pbs_level.0,
             ks_base_log: rust_params.ks_base_log.0,
@@ -167,7 +172,7 @@ impl ShortintCompactCiphertextListCastingParameters {
 #[derive(Copy, Clone)]
 pub struct ShortintCompactPublicKeyEncryptionParameters {
     pub encryption_lwe_dimension: usize,
-    pub encryption_noise_distribution: crate::c_api::core_crypto::DynamicDistribution,
+    pub encryption_noise_distribution: DynamicDistribution,
     pub message_modulus: u64,
     pub carry_modulus: u64,
     pub modulus_power_of_2_exponent: usize,
@@ -224,9 +229,9 @@ impl ShortintCompactPublicKeyEncryptionParameters {
         let casting_parameters = rust_params.1;
         Self {
             encryption_lwe_dimension: compact_pke_params.encryption_lwe_dimension.0,
-            encryption_noise_distribution: compact_pke_params
-                .encryption_noise_distribution
-                .convert_to_c(),
+            encryption_noise_distribution: crate::c_api::core_crypto::DynamicDistribution::convert(
+                compact_pke_params.encryption_noise_distribution,
+            ),
             message_modulus: compact_pke_params.message_modulus.0,
             carry_modulus: compact_pke_params.carry_modulus.0,
             modulus_power_of_2_exponent: convert_modulus(compact_pke_params.ciphertext_modulus),
