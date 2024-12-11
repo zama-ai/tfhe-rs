@@ -10,8 +10,8 @@ use tfhe::boolean::parameters::{
 };
 use tfhe::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use tfhe::core_crypto::prelude::*;
-use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
+use tfhe_core_crypto::keycache::NamedParam;
 
 const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 1] =
     [PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64];
@@ -836,7 +836,6 @@ mod cuda {
         cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
-    use tfhe::keycache::NamedParam;
     use tfhe::shortint::parameters::{
         PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
@@ -847,6 +846,7 @@ mod cuda {
         PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M64,
     };
     use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
+    use tfhe_core_crypto::keycache::NamedParam;
 
     const SHORTINT_CUDA_BENCH_PARAMS: [ClassicPBSParameters; 14] = [
         // TUniform

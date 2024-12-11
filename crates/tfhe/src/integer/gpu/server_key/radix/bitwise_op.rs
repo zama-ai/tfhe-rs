@@ -1,14 +1,14 @@
-use crate::core_crypto::gpu::algorithms::{
-    cuda_lwe_ciphertext_negate_assign, cuda_lwe_ciphertext_plaintext_add_assign,
-};
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     unchecked_bitop_integer_radix_kb_assign_async, BitOpType, CudaServerKey, PBSType,
 };
+use tfhe_core_crypto::gpu::algorithms::{
+    cuda_lwe_ciphertext_negate_assign, cuda_lwe_ciphertext_plaintext_add_assign,
+};
+use tfhe_core_crypto::gpu::vec::CudaVec;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::LweBskGroupingFactor;
 
 impl CudaServerKey {
     /// Computes homomorphically bitnot for an encrypted integer value.

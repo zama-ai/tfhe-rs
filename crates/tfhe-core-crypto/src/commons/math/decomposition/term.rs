@@ -1,7 +1,7 @@
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
-use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
-use crate::core_crypto::commons::parameters::DecompositionBaseLog;
+use crate::commons::ciphertext_modulus::CiphertextModulus;
+use crate::commons::math::decomposition::DecompositionLevel;
+use crate::commons::numeric::{Numeric, UnsignedInteger};
+use crate::commons::parameters::DecompositionBaseLog;
 use std::fmt::Debug;
 
 /// A member of the decomposition.

@@ -1,10 +1,10 @@
 //! Module with primitives pertaining to [`SeededLweMultiBitBootstrapKey`] decompression.
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::generators::MaskRandomGenerator;
-use crate::core_crypto::commons::math::random::Uniform;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::commons::generators::MaskRandomGenerator;
+use crate::commons::math::random::Uniform;
+use crate::commons::traits::*;
+use crate::entities::*;
 use rayon::prelude::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for

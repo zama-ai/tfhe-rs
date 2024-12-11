@@ -1,5 +1,5 @@
 use crate::c_api::core_crypto::DynamicDistribution;
-use crate::core_crypto::commons::parameters::{
+use tfhe_core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 
@@ -11,7 +11,7 @@ pub enum BooleanEncryptionKeyChoice {
 }
 
 impl From<BooleanEncryptionKeyChoice>
-    for crate::core_crypto::commons::parameters::EncryptionKeyChoice
+    for tfhe_core_crypto::commons::parameters::EncryptionKeyChoice
 {
     fn from(value: BooleanEncryptionKeyChoice) -> Self {
         match value {
@@ -25,13 +25,13 @@ impl BooleanEncryptionKeyChoice {
     // From::from cannot be marked as const, so we have to have
     // our own function
     const fn convert(
-        rust_choice: crate::core_crypto::commons::parameters::EncryptionKeyChoice,
+        rust_choice: tfhe_core_crypto::commons::parameters::EncryptionKeyChoice,
     ) -> Self {
         match rust_choice {
-            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big => {
+            tfhe_core_crypto::commons::parameters::EncryptionKeyChoice::Big => {
                 Self::BooleanEncryptionKeyChoiceBig
             }
-            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
+            tfhe_core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
                 Self::BooleanEncryptionKeyChoiceSmall
             }
         }

@@ -1,8 +1,8 @@
 use crate::boolean::parameters::*;
 use crate::boolean::{ClientKey, ServerKey};
-use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
 use lazy_static::*;
+use tfhe_core_crypto::keycache::utils::named_params_impl;
 
 named_params_impl!( BooleanParameters =>
     DEFAULT_PARAMETERS,

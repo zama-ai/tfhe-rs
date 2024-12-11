@@ -1,5 +1,4 @@
 use super::ServerKey;
-use crate::core_crypto::prelude::{lwe_ciphertext_sub_assign, Numeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
@@ -11,6 +10,7 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::{Ciphertext, MessageModulus};
 use rayon::prelude::*;
+use tfhe_core_crypto::prelude::{lwe_ciphertext_sub_assign, Numeric};
 
 impl ServerKey {
     /// Returns whether the clear scalar is outside of the

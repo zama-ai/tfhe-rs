@@ -5,18 +5,18 @@
 //! homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter
 //! sets.
 
-pub use crate::core_crypto::commons::dispersion::StandardDev;
-pub use crate::core_crypto::commons::parameters::{
+use crate::shortint::backward_compatibility::parameters::*;
+use serde::{Deserialize, Serialize};
+pub use tfhe_core_crypto::commons::dispersion::StandardDev;
+pub use tfhe_core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
-use crate::core_crypto::prelude::{
+use tfhe_core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use tfhe_core_crypto::prelude::{
     GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams, LweCiphertextCount,
     LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
 };
-use crate::shortint::backward_compatibility::parameters::*;
-use serde::{Deserialize, Serialize};
 use tfhe_safe_serialization::conformance::ListSizeConstraint;
 
 use tfhe_versionable::Versionize;
@@ -35,7 +35,6 @@ pub mod parameters_wopbs_only;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use super::server_key::PBSConformanceParameters;
 pub use super::PBSOrder;
-pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 use crate::shortint::ciphertext::MaxDegree;
 pub use crate::shortint::parameters::classic::compact_pk::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
@@ -57,6 +56,7 @@ pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use multi_bit::MultiBitPBSParameters;
 pub use parameters_wopbs::*;
+pub use tfhe_core_crypto::commons::parameters::EncryptionKeyChoice;
 
 /// The modulus of the message space. For a given plaintext $p$ we have the message $m$ defined as
 /// $m = p\bmod{MessageModulus}$ and so $0 <= m < MessageModulus$.

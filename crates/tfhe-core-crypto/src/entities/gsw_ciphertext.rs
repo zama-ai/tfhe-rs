@@ -2,9 +2,9 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::gsw_ciphertext::GswCiphertextVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
+use crate::backward_compatibility::entities::gsw_ciphertext::GswCiphertextVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
 
 // TODO actually implement primitives for the GswCiphertext.
 
@@ -21,7 +21,7 @@ use crate::core_crypto::commons::traits::*;
 /// A GSW ciphertext is an encryption of a plaintext.
 /// It is a vector of Lev ciphertexts.
 /// It is a specialization of
-/// [`GGSW ciphertexts`](`crate::core_crypto::entities::GgswCiphertext`).
+/// [`GGSW ciphertexts`](`crate::entities::GgswCiphertext`).
 ///
 /// We call $q$ the ciphertext modulus.
 ///
@@ -45,13 +45,12 @@ use crate::core_crypto::commons::traits::*;
 ///
 /// ## Secret Key
 /// A GSW ciphertext is encrypted under an
-/// [`LWE secret key`](`crate::core_crypto::entities::LweSecretKey`).
+/// [`LWE secret key`](`crate::entities::LweSecretKey`).
 ///
 /// ## GSW Encryption
 /// ###### inputs:
 /// - $\mathsf{pt}\in\mathbb{Z}\_q$: a plaintext
-/// - $\vec{s}\in\mathbb{Z}\_q^n$: an [`LWE secret
-///   key`](`crate::core_crypto::entities::LweSecretKey`)
+/// - $\vec{s}\in\mathbb{Z}\_q^n$: an [`LWE secret key`](`crate::entities::LweSecretKey`)
 /// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean of
 ///   $\mu$
 /// - $\ell$: number of levels desired
@@ -94,7 +93,7 @@ use crate::core_crypto::commons::traits::*;
 /// description helps understanding GSW ciphertext.
 ///
 /// An Lev ciphertext is an encryption of a plaintext.
-/// It is a vector of [`LWE ciphertexts`](`crate::core_crypto::entities::LweCiphertext`).
+/// It is a vector of [`LWE ciphertexts`](`crate::entities::LweCiphertext`).
 /// It is a specialization of GLev ciphertexts.
 ///
 /// We call $q$ the ciphertext modulus.
@@ -110,7 +109,7 @@ use crate::core_crypto::commons::traits::*;
 /// \frac{q}{\beta^{i+1}}$).
 ///
 /// This type of ciphertext contains redundancy ($\ell$
-/// [`LWE Ciphertext`](`crate::core_crypto::entities::LweCiphertext`),
+/// [`LWE Ciphertext`](`crate::entities::LweCiphertext`),
 /// each encrypting the same plaintext times a different scaling factor).
 ///
 /// ## Decomposition base
@@ -122,13 +121,12 @@ use crate::core_crypto::commons::traits::*;
 ///
 /// ## Secret Key
 /// A Lev ciphertext is encrypted under an
-/// [`LWE secret key`](`crate::core_crypto::entities::LweSecretKey`).
+/// [`LWE secret key`](`crate::entities::LweSecretKey`).
 ///
 /// ## Lev Encryption
 /// ###### inputs:
 /// - $\mathsf{pt}\in\mathbb{Z}\_q$: a plaintext
-/// - $\vec{s}\in\mathbb{Z}\_q^n$: an [`LWE secret
-///   key`](`crate::core_crypto::entities::LweSecretKey`)
+/// - $\vec{s}\in\mathbb{Z}\_q^n$: an [`LWE secret key`](`crate::entities::LweSecretKey`)
 /// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean of
 ///   $\mu$
 /// - $\ell$: number of levels desired
@@ -150,7 +148,7 @@ use crate::core_crypto::commons::traits::*;
 ///
 /// ## Lev Decryption
 /// Simply use the
-/// [`LWE decryption algorithm`](`crate::core_crypto::algorithms::decrypt_lwe_ciphertext`)
+/// [`LWE decryption algorithm`](`crate::algorithms::decrypt_lwe_ciphertext`)
 /// on one of the LWE ciphertexts contained in the Lev ciphertext.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(GswCiphertextVersions)]

@@ -1,8 +1,8 @@
 use super::utils::*;
 use crate::c_api::high_level_api::config::Config;
 use crate::c_api::utils::get_ref_checked;
-use crate::zk::Compressible;
 use std::ffi::c_int;
+use tfhe_core_crypto::zk::Compressible;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -11,7 +11,7 @@ pub enum ZkComputeLoad {
     ZkComputeLoadVerify,
 }
 
-impl From<ZkComputeLoad> for crate::zk::ZkComputeLoad {
+impl From<ZkComputeLoad> for tfhe_core_crypto::zk::ZkComputeLoad {
     fn from(value: ZkComputeLoad) -> Self {
         match value {
             ZkComputeLoad::ZkComputeLoadProof => Self::Proof,
@@ -20,7 +20,7 @@ impl From<ZkComputeLoad> for crate::zk::ZkComputeLoad {
     }
 }
 
-pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs);
+pub struct CompactPkeCrs(pub(crate) tfhe_core_crypto::entities::CompactPkeCrs);
 impl_destroy_on_type!(CompactPkeCrs);
 
 /// Serializes the CRS
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn compact_pke_crs_deserialize_from_params(
 
         *result = std::ptr::null_mut();
 
-        let deserialized: crate::core_crypto::entities::ZkCompactPkeV1PublicParams =
+        let deserialized: tfhe_core_crypto::entities::ZkCompactPkeV1PublicParams =
             bincode::deserialize(buffer_view.as_slice()).unwrap();
         let crs = deserialized.into();
 
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn compact_pke_crs_safe_deserialize_from_params(
 
         let buffer_view: &[u8] = buffer_view.as_slice();
 
-        let deserialized: crate::core_crypto::entities::ZkCompactPkeV1PublicParams =
+        let deserialized: tfhe_core_crypto::entities::ZkCompactPkeV1PublicParams =
             tfhe_safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer_view)
@@ -186,8 +186,8 @@ pub unsafe extern "C" fn compact_pke_crs_from_config(
     crate::c_api::utils::catch_panic(|| {
         let config = get_ref_checked(config).unwrap();
 
-        let crs = crate::core_crypto::entities::CompactPkeCrs::from_config(config.0, max_num_bits)
-            .unwrap();
+        let crs =
+            tfhe_core_crypto::entities::CompactPkeCrs::from_config(config.0, max_num_bits).unwrap();
 
         *out_result = Box::into_raw(Box::new(CompactPkeCrs(crs)));
     })

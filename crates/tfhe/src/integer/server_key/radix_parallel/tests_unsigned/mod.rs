@@ -25,7 +25,6 @@ pub(crate) mod test_vector_comparisons;
 pub(crate) mod test_vector_find;
 
 use super::tests_cases_unsigned::*;
-use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -36,6 +35,7 @@ use crate::shortint::parameters::*;
 use rand::prelude::ThreadRng;
 use rand::Rng;
 use std::sync::Arc;
+use tfhe_core_crypto::prelude::UnsignedInteger;
 
 #[cfg(not(tarpaulin))]
 pub(crate) const NB_CTXT: usize = 4;

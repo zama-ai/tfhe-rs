@@ -1,4 +1,3 @@
-use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::radix::{
@@ -7,6 +6,7 @@ use crate::integer::gpu::server_key::radix::{
 };
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::shortint::parameters::{Degree, NoiseLevel};
+use tfhe_core_crypto::gpu::CudaStreams;
 
 impl CudaServerKey {
     /// # Safety

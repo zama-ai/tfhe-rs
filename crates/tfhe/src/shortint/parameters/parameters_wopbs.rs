@@ -3,15 +3,15 @@
 pub use super::parameters_wopbs_message_carry::*;
 pub use super::parameters_wopbs_only::*;
 use super::WopbsParametersVersions;
-pub use crate::core_crypto::commons::dispersion::StandardDev;
-pub use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweDimension, PolynomialSize,
-};
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus,
 };
 use serde::{Deserialize, Serialize};
+pub use tfhe_core_crypto::commons::dispersion::StandardDev;
+pub use tfhe_core_crypto::commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
+    LweDimension, PolynomialSize,
+};
 use tfhe_versionable::Versionize;
 
 /// A structure defining the set of cryptographic parameters for homomorphic integer circuit

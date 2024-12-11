@@ -1,9 +1,9 @@
-use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::CudaServerKey;
+use tfhe_core_crypto::gpu::CudaStreams;
 
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{

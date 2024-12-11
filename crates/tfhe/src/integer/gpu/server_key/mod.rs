@@ -1,16 +1,16 @@
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
-use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
-use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{
-    allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
-    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned,
-    LweMultiBitBootstrapKeyOwned,
-};
 use crate::integer::ClientKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
+use tfhe_core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use tfhe_core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
+use tfhe_core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{
+    allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
+    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned,
+    LweMultiBitBootstrapKeyOwned,
+};
 
 mod radix;
 

@@ -2,9 +2,9 @@ pub mod params;
 pub(crate) use params::*;
 
 pub(crate) use super::misc::check_encrypted_content_respects_mod;
-pub(crate) use crate::core_crypto::algorithms::misc::divide_round;
-pub(crate) use crate::core_crypto::keycache::KeyCacheAccess;
-pub(crate) use crate::core_crypto::prelude::*;
+pub(crate) use crate::algorithms::misc::divide_round;
+pub(crate) use crate::keycache::core::KeyCacheAccess;
+pub(crate) use crate::prelude::*;
 pub(crate) use std::fmt::Debug;
 
 mod ggsw_encryption;
@@ -452,7 +452,7 @@ pub(crate) fn gen_keys_or_get_from_cache_if_enabled<
 ) -> K {
     #[cfg(feature = "internal-keycache")]
     {
-        crate::core_crypto::keycache::KEY_CACHE.get_key_with_closure(params, keygen_func)
+        crate::keycache::core::KEY_CACHE.get_key_with_closure(params, keygen_func)
     }
     #[cfg(not(feature = "internal-keycache"))]
     {

@@ -1,13 +1,13 @@
 //! Module containing primitives pertaining to the [`LWE programmable
-//! bootstrap`](`crate::core_crypto::entities::LweBootstrapKey#programmable-bootstrapping`) using
+//! bootstrap`](`crate::entities::LweBootstrapKey#programmable-bootstrapping`) using
 //! 128 bits FFT for polynomial multiplication.
 
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch as bootstrap_scratch_f128;
-use crate::core_crypto::fft_impl::fft128::math::fft::{Fft128, Fft128View};
+use crate::commons::computation_buffers::ComputationBuffers;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch as bootstrap_scratch_f128;
+use crate::fft_impl::fft128::math::fft::{Fft128, Fft128View};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
 /// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a

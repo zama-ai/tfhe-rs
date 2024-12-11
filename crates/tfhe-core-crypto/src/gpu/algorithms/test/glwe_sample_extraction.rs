@@ -1,9 +1,9 @@
 use super::*;
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::glwe_sample_extraction::cuda_extract_lwe_samples_from_glwe_ciphertext_list;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::GpuIndex;
-use crate::core_crypto::gpu::CudaStreams;
+use crate::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+use crate::gpu::glwe_sample_extraction::cuda_extract_lwe_samples_from_glwe_ciphertext_list;
+use crate::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::gpu::vec::GpuIndex;
+use crate::gpu::CudaStreams;
 use itertools::Itertools;
 
 #[cfg(not(tarpaulin))]

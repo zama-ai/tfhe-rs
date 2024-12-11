@@ -27,6 +27,7 @@ rand_distr = "0.4.3"
 lazy_static = { version = "1.4.0" }
 criterion = "0.5.1"
 doc-comment = "0.3.3"
+dyn-stack = { workspace = true, features = ["default"] }
 serde_json = "1.0.94"
 # clap has to be pinned as its minimum supported rust version
 # changes often between minor releases, which breaks our CI
@@ -35,8 +36,6 @@ clap = { version = "=4.4.4", features = ["derive"] }
 fs2 = { version = "0.4.3" }
 itertools = "0.11.0"
 statrs = "0.16"
-# For erf and normality test
-libm = "0.2.6"
 # Begin regex-engine deps
 test-case = "3.1.0"
 combine = "4.6.6"
@@ -54,6 +53,7 @@ tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-co
 cbindgen = { version = "0.26.0", optional = true }
 
 [dependencies]
+tfhe-core-crypto = { version = "0.11.0", path = "../tfhe-core-crypto" }
 tfhe-csprng = { version = "0.4.1", path = "../tfhe-csprng", features = [
 	"generator_fallback",
 	"parallel",
@@ -66,19 +66,13 @@ tfhe-fft = { version = "0.6.0", path = "../tfhe-fft", features = [
 	"serde",
 	"fft128",
 ] }
-tfhe-ntt = { version = "0.3.0", path = "../tfhe-ntt" }
-pulp = { workspace = true, features = ["default"] }
 tfhe-cuda-backend = { version = "0.6.0", path = "../../backends/tfhe-cuda-backend", optional = true }
 aligned-vec = { workspace = true, features = ["default", "serde"] }
-dyn-stack = { workspace = true, features = ["default"] }
 paste = "1.0.7"
-fs2 = { version = "0.4.3", optional = true }
 # Used for OPRF in shortint
 sha3 = { version = "0.10", optional = true }
 # While we wait for repeat_n in rust standard library
 itertools = "0.11.0"
-rand_core = { version = "0.6.4", features = ["std"] }
-tfhe-zk-pok = { version = "0.3.1", path = "../tfhe-zk-pok", optional = true }
 tfhe-versionable = { version = "0.3.2", path = "../tfhe-versionable" }
 tfhe-safe-serialization = { version = "0.11.0", path = "../tfhe-safe-serialization" }
 
@@ -90,7 +84,6 @@ wasm-bindgen-rayon = { version = "1.0", optional = true }
 js-sys = { version = "0.3", optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 serde-wasm-bindgen = { version = "0.6.0", optional = true }
-getrandom = { version = "0.2.8", optional = true }
 bytemuck = { workspace = true }
 
 [features]
@@ -98,19 +91,19 @@ boolean = []
 shortint = ["dep:sha3"]
 integer = ["shortint"]
 strings = ["integer"]
-internal-keycache = ["dep:lazy_static", "dep:fs2"]
-gpu = ["dep:tfhe-cuda-backend"]
-zk-pok = ["dep:tfhe-zk-pok"]
+internal-keycache = ["tfhe-core-crypto/internal-keycache", "dep:lazy_static"]
+gpu = ["dep:tfhe-cuda-backend", "tfhe-core-crypto/gpu"]
+zk-pok = ["tfhe-core-crypto/zk-pok"]
 
 pbs-stats = []
 noise-asserts = []
 
 # Experimental section
-experimental = []
-experimental-force_fft_algo_dif4 = []
+experimental = ["tfhe-core-crypto/experimental"]
+experimental-force_fft_algo_dif4 = ["tfhe-core-crypto/experimental-force_fft_algo_dif4"]
 # End experimental section
 
-__c_api = ["dep:cbindgen"]
+__c_api = ["tfhe-core-crypto/__c_api", "dep:cbindgen"]
 # For the semver trick to skip the build.rs
 __force_skip_cbindgen = []
 boolean-c-api = ["boolean", "__c_api"]
@@ -118,12 +111,11 @@ shortint-c-api = ["shortint", "__c_api"]
 high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer", "__c_api"]
 
 __wasm_api = [
+	"tfhe-core-crypto/__wasm_api",
 	"dep:wasm-bindgen",
 	"dep:js-sys",
 	"dep:console_error_panic_hook",
 	"dep:serde-wasm-bindgen",
-	"dep:getrandom",
-	"getrandom/js",
 ]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
@@ -131,22 +123,22 @@ integer-client-js-wasm-api = ["integer", "__wasm_api"]
 high-level-client-js-wasm-api = ["boolean", "shortint", "integer", "__wasm_api"]
 parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
-nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
+nightly-avx512 = ["tfhe-core-crypto/nightly-avx512", "tfhe-fft/nightly"]
 
 # Enable the x86_64 specific accelerated implementation of the random generator for the default
 # backend
-generator_x86_64_aesni = ["tfhe-csprng/generator_x86_64_aesni"]
+generator_x86_64_aesni = ["tfhe-core-crypto/generator_x86_64_aesni", "tfhe-csprng/generator_x86_64_aesni"]
 
 # Enable the aarch64 specific accelerated implementation of the random generator for the default
 # backend
-generator_aarch64_aes = ["tfhe-csprng/generator_aarch64_aes"]
+generator_aarch64_aes = ["tfhe-core-crypto/generator_aarch64_aes", "tfhe-csprng/generator_aarch64_aes"]
 
 # Private features
-__profiling = []
+__profiling = ["tfhe-core-crypto/__profiling"]
 __long_run_tests = []
 
-seeder_unix = ["tfhe-csprng/seeder_unix"]
-seeder_x86_64_rdseed = ["tfhe-csprng/seeder_x86_64_rdseed"]
+seeder_unix = ["tfhe-core-crypto/seeder_unix", "tfhe-csprng/seeder_unix"]
+seeder_x86_64_rdseed = ["tfhe-core-crypto/seeder_x86_64_rdseed", "tfhe-csprng/seeder_x86_64_rdseed"]
 
 # These target_arch features enable a set of public features for tfhe if users want a known
 # good/working configuration for tfhe.

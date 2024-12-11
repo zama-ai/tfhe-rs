@@ -1,12 +1,12 @@
-use crate::core_crypto::entities::{LweCiphertextList, LweCiphertextOwned};
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{CiphertextModulus, LweSize};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::BooleanBlock;
 use crate::shortint::Ciphertext;
+use tfhe_core_crypto::entities::{LweCiphertextList, LweCiphertextOwned};
+use tfhe_core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use tfhe_core_crypto::gpu::vec::CudaVec;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{CiphertextModulus, LweSize};
 
 /// Wrapper type used to signal that the inner value encrypts 0 or 1
 ///

@@ -20,12 +20,12 @@
 
 pub mod params;
 
-pub use crate::core_crypto::commons::dispersion::StandardDev;
-pub use crate::core_crypto::commons::parameters::{
+pub use params::*;
+pub use tfhe_core_crypto::commons::dispersion::StandardDev;
+pub use tfhe_core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice,
     GlweDimension, LweDimension, PolynomialSize,
 };
-pub use params::*;
 
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;

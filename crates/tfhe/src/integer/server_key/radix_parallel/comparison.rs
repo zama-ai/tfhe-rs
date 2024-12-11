@@ -1,10 +1,10 @@
 use super::ServerKey;
-use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::prelude::ServerKeyDefaultCMux;
 use crate::shortint::{Ciphertext, MessageModulus};
 use rayon::prelude::*;
+use tfhe_core_crypto::prelude::UnsignedInteger;
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum ComparisonKind {

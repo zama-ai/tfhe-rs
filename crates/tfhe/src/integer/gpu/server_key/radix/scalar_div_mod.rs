@@ -1,5 +1,3 @@
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
@@ -10,6 +8,8 @@ use crate::integer::server_key::radix_parallel::scalar_div_mod::{
 };
 use crate::integer::server_key::{MiniUnsignedInteger, Reciprocable, ScalarMultiplier};
 use crate::prelude::{CastFrom, CastInto};
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::Numeric;
 
 impl CudaServerKey {
     /// # Safety

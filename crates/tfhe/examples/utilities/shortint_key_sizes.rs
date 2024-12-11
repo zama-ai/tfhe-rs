@@ -5,7 +5,6 @@ use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -29,6 +28,7 @@ use tfhe::shortint::{
     ClassicPBSParameters, ClientKey, CompactPrivateKey, CompressedCompactPublicKey,
     CompressedKeySwitchingKey, CompressedServerKey, PBSParameters,
 };
+use tfhe_core_crypto::keycache::NamedParam;
 
 fn write_result(file: &mut File, name: &str, value: usize) {
     let line = format!("{name},{value}\n");

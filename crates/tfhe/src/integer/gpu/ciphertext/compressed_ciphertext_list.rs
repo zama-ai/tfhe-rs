@@ -1,11 +1,3 @@
-use crate::core_crypto::entities::packed_integers::PackedIntegers;
-use crate::core_crypto::entities::GlweCiphertextList;
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::{
-    glwe_ciphertext_size, CiphertextCount, ContiguousEntityContainer, LweCiphertextCount,
-};
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -19,6 +11,14 @@ use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedC
 use crate::shortint::PBSOrder;
 use itertools::Itertools;
 use serde::{Deserializer, Serializer};
+use tfhe_core_crypto::entities::packed_integers::PackedIntegers;
+use tfhe_core_crypto::entities::GlweCiphertextList;
+use tfhe_core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
+use tfhe_core_crypto::prelude::{
+    glwe_ciphertext_size, CiphertextCount, ContiguousEntityContainer, LweCiphertextCount,
+};
 
 pub trait CudaExpandable: Sized {
     fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self>;

@@ -2,16 +2,15 @@
 //! where the values and computations are always done on GPU
 use super::super::helpers::{create_sub_mut_slice_with_bound, create_sub_slice_with_bound};
 use super::super::traits::{ArithmeticArrayBackend, BitwiseArrayBackend, ClearBitwiseArrayBackend};
-use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::high_level_api::array::{
     ArrayBackend, FheArrayBase, FheBackendArray, FheBackendArraySlice, FheBackendArraySliceMut,
 };
+use tfhe_core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 
 use crate::array::stride::{ParStridedIter, ParStridedIterMut, StridedIter};
 use crate::array::traits::{
     BackendDataContainer, BackendDataContainerMut, ClearArithmeticArrayBackend, TensorSlice,
 };
-use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::global_state;
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
@@ -27,6 +26,7 @@ use crate::{ClientKey, Error};
 use rayon::prelude::*;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
+use tfhe_core_crypto::gpu::CudaStreams;
 
 pub struct GpuIntegerArrayBackend<T>(PhantomData<T>);
 

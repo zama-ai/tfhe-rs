@@ -6,8 +6,8 @@ use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanParameters;
-use crate::core_crypto::entities::*;
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::entities::*;
 use tfhe_versionable::Versionize;
 
 /// A structure containing a public key.
@@ -80,10 +80,10 @@ impl PublicKey {
         parameters: BooleanParameters,
     ) -> Self {
         let ciphertext_lwe_dimension = match parameters.encryption_key_choice {
-            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big => parameters
+            tfhe_core_crypto::commons::parameters::EncryptionKeyChoice::Big => parameters
                 .glwe_dimension
                 .to_equivalent_lwe_dimension(parameters.polynomial_size),
-            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
+            tfhe_core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
                 parameters.lwe_dimension
             }
         };

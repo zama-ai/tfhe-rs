@@ -2,13 +2,13 @@
 //! [`standard LWE bootstrap keys`](`LweBootstrapKey`) to various representations/numerical domains
 //! like the Fourier domain.
 
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::commons::computation_buffers::ComputationBuffers;
+use crate::commons::math::ntt::ntt64::Ntt64;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::fft_impl::fft128::math::fft::Fft128;
+use crate::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
+use crate::fft_impl::fft64::math::fft::{Fft, FftView};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
 use tfhe_fft::c64;
@@ -16,7 +16,7 @@ use tfhe_fft::c64;
 /// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the Fourier
 /// domain.
 ///
-/// See [`programmable_bootstrap_lwe_ciphertext`](`crate::core_crypto::algorithms::programmable_bootstrap_lwe_ciphertext`) for usage.
+/// See [`programmable_bootstrap_lwe_ciphertext`](`crate::algorithms::programmable_bootstrap_lwe_ciphertext`) for usage.
 pub fn convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, OutputCont>(
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut FourierLweBootstrapKey<OutputCont>,
@@ -159,7 +159,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(
 /// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the Fourier
 /// domain.
 ///
-/// See [`programmable_bootstrap_f128_lwe_ciphertext`](`crate::core_crypto::algorithms::programmable_bootstrap_f128_lwe_ciphertext`) for usage.
+/// See [`programmable_bootstrap_f128_lwe_ciphertext`](`crate::algorithms::programmable_bootstrap_f128_lwe_ciphertext`) for usage.
 pub fn convert_standard_lwe_bootstrap_key_to_fourier_128<Scalar, InputCont, OutputCont>(
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut Fourier128LweBootstrapKey<OutputCont>,
@@ -215,7 +215,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier_128<Scalar, InputCont, Outp
 /// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the NTT
 /// domain using a 64 bits NTT.
 ///
-/// See [`programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized`](`crate::core_crypto::algorithms::programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized`) for usage.
+/// See [`programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized`](`crate::algorithms::programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized`) for usage.
 pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut NttLweBootstrapKey<OutputCont>,

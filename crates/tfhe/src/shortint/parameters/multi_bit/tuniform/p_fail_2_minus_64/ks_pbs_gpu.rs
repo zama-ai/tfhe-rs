@@ -1,7 +1,7 @@
-use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::MaxNoiseLevel;
 use crate::shortint::parameters::multi_bit::MultiBitPBSParameters;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use tfhe_core_crypto::prelude::*;
 pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(882),

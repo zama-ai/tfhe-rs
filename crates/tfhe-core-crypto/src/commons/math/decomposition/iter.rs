@@ -1,9 +1,9 @@
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::math::decomposition::{
+use crate::commons::ciphertext_modulus::CiphertextModulus;
+use crate::commons::math::decomposition::{
     DecompositionLevel, DecompositionTerm, DecompositionTermNonNative, SignedDecomposerNonNative,
 };
-use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
+use crate::commons::numeric::UnsignedInteger;
+use crate::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
 use dyn_stack::{PodStack, ReborrowMut};
 
 /// An iterator that yields the terms of the signed decomposition of an integer.

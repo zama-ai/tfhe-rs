@@ -1,11 +1,11 @@
 pub use super::parameters_wopbs::WopbsParameters;
-pub use crate::core_crypto::commons::dispersion::StandardDev;
-pub use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweDimension, PolynomialSize,
-};
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus,
+};
+pub use tfhe_core_crypto::commons::dispersion::StandardDev;
+pub use tfhe_core_crypto::commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
+    LweDimension, PolynomialSize,
 };
 
 // These parameters have security between 123 and 128 bits

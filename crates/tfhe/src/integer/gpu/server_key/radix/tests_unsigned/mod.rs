@@ -18,13 +18,13 @@ pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
 pub(crate) mod test_sub;
 
-use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U256};
 use std::sync::Arc;
+use tfhe_core_crypto::gpu::CudaStreams;
 
 // Macro to generate tests for all parameter sets
 macro_rules! create_gpu_parameterized_test{

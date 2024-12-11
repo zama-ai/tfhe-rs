@@ -2,17 +2,17 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_ggsw_ciphertext::SeededGgswCiphertextVersions;
-use crate::core_crypto::commons::generators::{
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_ggsw_ciphertext::SeededGgswCiphertextVersions;
+use crate::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
-use crate::core_crypto::commons::math::random::{
+use crate::commons::math::random::{
     ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
 };
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// A [`seeded GGSW Ciphertext`](`SeededGgswCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
@@ -66,9 +66,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its
+    /// you need to use [`crate::algorithms::encrypt_constant_ggsw_ciphertext`] or its
     /// parallel counterpart
-    /// [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`] using
+    /// [`crate::algorithms::par_encrypt_constant_ggsw_ciphertext`] using
     /// this ciphertext as output.
     ///
     /// This docstring exhibits [`SeededGgswCiphertext`] primitives usage.
@@ -416,8 +416,8 @@ impl<Scalar: UnsignedInteger> SeededGgswCiphertextOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its parallel
-    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`]
+    /// [`crate::algorithms::encrypt_constant_ggsw_ciphertext`] or its parallel
+    /// counterpart [`crate::algorithms::par_encrypt_constant_ggsw_ciphertext`]
     /// using this ciphertext as output.
     ///
     /// See [`SeededGgswCiphertext::from_container`] for usage.

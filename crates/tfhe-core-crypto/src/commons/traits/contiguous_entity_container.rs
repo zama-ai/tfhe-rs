@@ -95,7 +95,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
     type EntityViewMetadata: Clone + Copy;
 
     /// Entity stored in the container that can be a complex type (like an
-    /// [`LweCiphertext`](crate::core_crypto::entities::LweCiphertext)) using a reference to a
+    /// [`LweCiphertext`](crate::entities::LweCiphertext)) using a reference to a
     /// container of [`Self::Element`] (e.g. u32/u64) to store its data.
     type EntityView<'this>: CreateFrom<&'this [Self::Element], Metadata = Self::EntityViewMetadata>
     where

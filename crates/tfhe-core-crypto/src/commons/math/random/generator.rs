@@ -1,12 +1,12 @@
-use crate::core_crypto::backward_compatibility::commons::math::random::{
+use crate::backward_compatibility::commons::math::random::{
     CompressionSeedVersioned, CompressionSeedVersionedOwned,
 };
-use crate::core_crypto::commons::math::random::{
+use crate::commons::math::random::{
     Distribution, Gaussian, RandomGenerable, Uniform, UniformBinary, UniformTernary,
 };
-use crate::core_crypto::commons::math::torus::{UnsignedInteger, UnsignedTorus};
-use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint};
-use crate::core_crypto::commons::parameters::CiphertextModulus;
+use crate::commons::math::torus::{UnsignedInteger, UnsignedTorus};
+use crate::commons::numeric::{CastInto, FloatingPoint};
+use crate::commons::parameters::CiphertextModulus;
 use rayon::prelude::*;
 use tfhe_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 

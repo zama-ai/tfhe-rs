@@ -1,16 +1,16 @@
-use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
-use crate::core_crypto::algorithms::polynomial_algorithms::*;
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::modulus_switch;
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
+use crate::algorithms::extract_lwe_sample_from_glwe_ciphertext;
+use crate::algorithms::polynomial_algorithms::*;
+use crate::algorithms::slice_algorithms::*;
+use crate::commons::computation_buffers::ComputationBuffers;
+use crate::commons::math::decomposition::SignedDecomposer;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::fft_impl::common::modulus_switch;
+use crate::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign, add_external_product_assign_scratch, update_with_fmadd_factor,
 };
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::fft_impl::fft64::math::fft::{Fft, FftView};
 use aligned_vec::ABox;
 use itertools::Itertools;
 use std::sync::atomic::{AtomicUsize, Ordering};

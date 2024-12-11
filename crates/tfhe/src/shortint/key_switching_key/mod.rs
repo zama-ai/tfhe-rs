@@ -2,10 +2,6 @@
 //!
 //! - [KeySwitchingKey] allows switching the keys of a ciphertext, from a cleitn key to another.
 
-use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, KeyswitchKeyConformanceParams, LweKeyswitchKeyOwned,
-    SeededLweKeyswitchKeyOwned,
-};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
@@ -17,6 +13,10 @@ use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, MaxNoiseLevel,
 use core::cmp::Ordering;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::prelude::{
+    keyswitch_lwe_ciphertext, KeyswitchKeyConformanceParams, LweKeyswitchKeyOwned,
+    SeededLweKeyswitchKeyOwned,
+};
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
@@ -235,12 +235,12 @@ impl KeySwitchingKey {
     /// Panics if the provided raw parts are not compatible with each other, i.e.:
     ///
     /// if the provided source [`ServerKey`] ciphertext
-    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) does not match the
-    /// input [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of the
+    /// [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) does not match the
+    /// input [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) of the
     /// [`LweKeyswitchKeyOwned`] in the provided [`KeySwitchingKeyMaterial`] or if the provided
     /// destination [`ServerKey`] ciphertext
-    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) does not match
-    /// the output [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of
+    /// [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) does not match
+    /// the output [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) of
     /// the [`LweKeyswitchKeyOwned`] in the provided [`KeySwitchingKeyMaterial`].
     pub fn from_raw_parts(
         key_switching_key_material: KeySwitchingKeyMaterial,
@@ -375,12 +375,12 @@ impl<'keys> KeySwitchingKeyView<'keys> {
     /// Panics if the provided raw parts are not compatible with each other, i.e.:
     ///
     /// if the provided source [`ServerKey`] ciphertext
-    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) does not match the
-    /// input [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of the
+    /// [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) does not match the
+    /// input [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) of the
     /// [`LweKeyswitchKeyOwned`] in the provided [`KeySwitchingKeyMaterial`] or if the provided
     /// destination [`ServerKey`] ciphertext
-    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) does not match
-    /// the output [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of
+    /// [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) does not match
+    /// the output [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) of
     /// the [`LweKeyswitchKeyOwned`] in the provided [`KeySwitchingKeyMaterial`].
     pub fn from_raw_parts(
         key_switching_key_material: KeySwitchingKeyMaterialView<'keys>,
@@ -930,12 +930,12 @@ impl CompressedKeySwitchingKey {
     /// Panics if the provided raw parts are not compatible with each other, i.e.:
     ///
     /// if the provided source [`CompressedServerKey`] ciphertext
-    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) does not match the
-    /// input [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of the
+    /// [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) does not match the
+    /// input [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) of the
     /// [`SeededLweKeyswitchKeyOwned`] in the provided [`CompressedKeySwitchingKeyMaterial`] or if
     /// the provided destination [`CompressedServerKey`] ciphertext
-    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) does not match
-    /// the output [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of
+    /// [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) does not match
+    /// the output [`LweDimension`](`tfhe_core_crypto::commons::parameters::LweDimension`) of
     /// the [`SeededLweKeyswitchKeyOwned`] in the provided [`CompressedKeySwitchingKeyMaterial`].
     pub fn from_raw_parts(
         key_switching_key_material: CompressedKeySwitchingKeyMaterial,

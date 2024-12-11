@@ -1,19 +1,19 @@
 //! Module containing primitives pertaining to [`LWE ciphertext encryption and
 //! decryption`](`LweCiphertext#lwe-encryption`).
 
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
-use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
+use crate::algorithms::slice_algorithms::*;
+use crate::algorithms::*;
+use crate::commons::ciphertext_modulus::CiphertextModulusKind;
+use crate::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
 #[cfg(feature = "zk-pok")]
-use crate::core_crypto::commons::math::random::BoundedDistribution;
-use crate::core_crypto::commons::math::random::{
+use crate::commons::math::random::BoundedDistribution;
+use crate::commons::math::random::{
     ActivatedRandomGenerator, Distribution, RandomGenerable, RandomGenerator, Uniform,
     UniformBinary,
 };
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use rayon::prelude::*;
 
 /// Convenience function to share the core logic of the LWE encryption between all functions needing
@@ -3266,9 +3266,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::core_crypto::commons::generators::DeterministicSeeder;
-    use crate::core_crypto::commons::test_tools;
-    use crate::core_crypto::prelude::*;
+    use crate::commons::generators::DeterministicSeeder;
+    use crate::commons::test_tools;
+    use crate::prelude::*;
 
     #[test]
     fn test_compact_public_key_encryption() {

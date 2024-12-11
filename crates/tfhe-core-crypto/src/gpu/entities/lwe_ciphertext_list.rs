@@ -1,6 +1,6 @@
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{CudaLweList, CudaStreams};
-use crate::core_crypto::prelude::{
+use crate::gpu::vec::CudaVec;
+use crate::gpu::{CudaLweList, CudaStreams};
+use crate::prelude::{
     CiphertextModulus, Container, LweCiphertext, LweCiphertextCount, LweCiphertextList,
     LweDimension, LweSize, UnsignedInteger,
 };

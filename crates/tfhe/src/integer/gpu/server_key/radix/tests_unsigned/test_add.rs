@@ -1,4 +1,3 @@
-use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
@@ -10,6 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::default_overflowing_add_test;
 use crate::shortint::parameters::*;
+use tfhe_core_crypto::gpu::CudaStreams;
 
 create_gpu_parameterized_test!(integer_unchecked_add);
 create_gpu_parameterized_test!(integer_unchecked_add_assign);

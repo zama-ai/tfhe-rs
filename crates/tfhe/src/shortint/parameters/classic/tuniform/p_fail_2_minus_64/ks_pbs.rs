@@ -1,6 +1,6 @@
-use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::MaxNoiseLevel;
 use crate::shortint::parameters::{CarryModulus, ClassicPBSParameters, MessageModulus};
+use tfhe_core_crypto::prelude::*;
 
 // security = 132 bits, p-fail = 2^-64.138, algorithmic cost ~ 113, 2-norm = 5
 pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =

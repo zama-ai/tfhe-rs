@@ -1,6 +1,6 @@
 use super::*;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::{cuda_lwe_ciphertext_add_assign, CudaStreams};
+use crate::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::gpu::{cuda_lwe_ciphertext_add_assign, CudaStreams};
 
 fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,

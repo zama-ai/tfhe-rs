@@ -1,5 +1,3 @@
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
@@ -7,6 +5,8 @@ use crate::integer::gpu::{unchecked_scalar_mul_integer_radix_kb_async, PBSType};
 use crate::integer::server_key::ScalarMultiplier;
 use crate::prelude::CastInto;
 use itertools::Itertools;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::LweBskGroupingFactor;
 
 impl CudaServerKey {
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.

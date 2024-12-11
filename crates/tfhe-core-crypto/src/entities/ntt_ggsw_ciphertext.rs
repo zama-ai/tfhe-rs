@@ -1,21 +1,19 @@
-use crate::core_crypto::backward_compatibility::entities::ntt_ggsw_ciphertext::NttGgswCiphertextVersions;
-use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
-use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::parameters::{
+use crate::backward_compatibility::entities::ntt_ggsw_ciphertext::NttGgswCiphertextVersions;
+use crate::commons::math::decomposition::DecompositionLevel;
+use crate::commons::numeric::UnsignedInteger;
+use crate::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
 };
-use crate::core_crypto::commons::traits::{Container, ContainerMut, Split};
-pub use crate::core_crypto::entities::ggsw_ciphertext::{
-    ggsw_ciphertext_size, ggsw_level_matrix_size,
-};
-pub use crate::core_crypto::entities::glwe_ciphertext::glwe_ciphertext_size;
+use crate::commons::traits::{Container, ContainerMut, Split};
+pub use crate::entities::ggsw_ciphertext::{ggsw_ciphertext_size, ggsw_level_matrix_size};
+pub use crate::entities::glwe_ciphertext::glwe_ciphertext_size;
 use aligned_vec::{avec, ABox};
 use tfhe_versionable::Versionize;
 
-/// A [`GGSW ciphertext in the Ntt domain`](`crate::core_crypto::entities::GgswCiphertext`).
+/// A [`GGSW ciphertext in the Ntt domain`](`crate::entities::GgswCiphertext`).
 ///
 /// See [`the formal definition of a GGSW
-/// ciphertext`](`crate::core_crypto::entities::GgswCiphertext#formal-definition`)
+/// ciphertext`](`crate::entities::GgswCiphertext#formal-definition`)
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(NttGgswCiphertextVersions)]
 pub struct NttGgswCiphertext<C: Container>
@@ -215,7 +213,7 @@ impl<Scalar: UnsignedInteger> NttGgswCiphertext<ABox<[Scalar]>> {
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to have useful data in the [`NttGgswCiphertext`] you will first need to
     /// convert it from a standard
-    /// [`GgswCiphertext`](`crate::core_crypto::entities::GgswCiphertext`).
+    /// [`GgswCiphertext`](`crate::entities::GgswCiphertext`).
     ///
     /// See [`NttGgswCiphertext::from_container`] for usage.
     pub fn new(

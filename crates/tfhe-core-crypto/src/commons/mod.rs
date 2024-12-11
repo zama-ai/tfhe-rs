@@ -27,22 +27,20 @@ pub mod traits;
 pub mod test_tools {
     use rand::Rng;
 
-    pub use crate::core_crypto::algorithms::misc::{
+    pub use crate::algorithms::misc::{
         modular_distance, modular_distance_custom_mod, torus_modular_diff,
     };
-    use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-    use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
-    use crate::core_crypto::commons::generators::{
-        EncryptionRandomGenerator, SecretRandomGenerator,
-    };
-    use crate::core_crypto::commons::math::random::{
+    use crate::commons::ciphertext_modulus::CiphertextModulus;
+    use crate::commons::dispersion::{DispersionParameter, Variance};
+    use crate::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
+    use crate::commons::math::random::{
         ActivatedRandomGenerator, RandomGenerable, RandomGenerator, Uniform,
     };
-    use crate::core_crypto::commons::parameters::{
+    use crate::commons::parameters::{
         CiphertextCount, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
         LweDimension, PlaintextCount, PolynomialSize,
     };
-    use crate::core_crypto::commons::traits::*;
+    use crate::commons::traits::*;
     use tfhe_csprng::seeders::Seed;
 
     pub fn variance(samples: &[f64]) -> Variance {

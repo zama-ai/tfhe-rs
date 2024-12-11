@@ -1,21 +1,21 @@
 //! Module containing primitives pertaining to the [`LWE programmable
-//! bootstrap`](`crate::core_crypto::entities::LweBootstrapKey#programmable-bootstrapping`) using 64
+//! bootstrap`](`crate::entities::LweBootstrapKey#programmable-bootstrapping`) using 64
 //! bits FFT for polynomial multiplication.
 
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
+use crate::commons::computation_buffers::ComputationBuffers;
+use crate::commons::math::decomposition::SignedDecomposer;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::fft_impl::fft64::crypto::bootstrap::{
     batch_bootstrap_scratch, blind_rotate_assign_scratch, bootstrap_scratch,
 };
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
+use crate::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign as impl_add_external_product_assign,
     add_external_product_assign_scratch as impl_add_external_product_assign_scratch, cmux,
     cmux_scratch,
 };
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::fft_impl::fft64::math::fft::{Fft, FftView};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 

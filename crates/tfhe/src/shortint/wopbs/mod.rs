@@ -7,7 +7,7 @@
 //! In the case where a padding bit is defined, keys are generated so that there a compatible for
 //! both uses.
 
-use crate::core_crypto::entities::*;
+use tfhe_core_crypto::entities::*;
 
 use crate::shortint::{ServerKey, WopbsParameters};
 use serde::{Deserialize, Serialize};
@@ -32,14 +32,14 @@ pub use experimental::*;
 
 #[cfg(feature = "experimental")]
 mod experimental {
-    use crate::core_crypto::algorithms::*;
-    use crate::core_crypto::commons::parameters::*;
-    use crate::core_crypto::commons::traits::*;
-    use crate::core_crypto::entities::*;
-    use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
     use crate::shortint::ciphertext::*;
     use crate::shortint::engine::ShortintEngine;
     use crate::shortint::server_key::ShortintBootstrappingKey;
+    use tfhe_core_crypto::algorithms::*;
+    use tfhe_core_crypto::commons::parameters::*;
+    use tfhe_core_crypto::commons::traits::*;
+    use tfhe_core_crypto::entities::*;
+    use tfhe_core_crypto::fft_impl::fft64::math::fft::Fft;
 
     use super::WopbsKey;
     use crate::shortint::{ClientKey, ServerKey, WopbsParameters};

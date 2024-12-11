@@ -2,13 +2,13 @@ pub mod boolean_value;
 pub mod compressed_ciphertext_list;
 pub mod info;
 
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::{IntegerCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
+use tfhe_core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use tfhe_core_crypto::gpu::vec::CudaVec;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
 
 pub trait CudaIntegerRadixCiphertext: Sized {
     const IS_SIGNED: bool;

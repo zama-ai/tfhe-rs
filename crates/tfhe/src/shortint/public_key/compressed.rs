@@ -1,5 +1,4 @@
 //! Module with the definition of the compressed PublicKey.
-use crate::core_crypto::entities::*;
 use crate::shortint::backward_compatibility::public_key::CompressedPublicKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, PBSOrder};
 use crate::shortint::engine::ShortintEngine;
@@ -7,6 +6,7 @@ use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
 use crate::shortint::ClientKey;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_core_crypto::entities::*;
 
 use tfhe_versionable::Versionize;
 

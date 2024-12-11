@@ -1,9 +1,9 @@
 use super::*;
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
-use crate::core_crypto::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams};
+use crate::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+use crate::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::gpu::vec::{CudaVec, GpuIndex};
+use crate::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams};
 use itertools::Itertools;
 
 fn lwe_encrypt_pbs_decrypt<

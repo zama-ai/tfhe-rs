@@ -7,12 +7,12 @@
 //! &nbsp;&nbsp;&nbsp;&nbsp; J. Cryptol 33, 34–91 (2020). \
 //! &nbsp;&nbsp;&nbsp;&nbsp; <https://doi.org/10.1007/s00145-019-09319-x>
 
-use crate::core_crypto::algorithms::polynomial_algorithms::*;
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::polynomial_algorithms::*;
+use crate::algorithms::slice_algorithms::*;
+use crate::commons::math::decomposition::SignedDecomposer;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use rayon::prelude::*;
 
 /// Apply a private functional keyswitch on an input [`LWE ciphertext`](`LweCiphertext`) and write

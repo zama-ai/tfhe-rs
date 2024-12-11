@@ -1,5 +1,3 @@
-use crate::core_crypto::gpu::vec::GpuIndex;
-use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_unsigned::GpuContext;
@@ -7,6 +5,8 @@ use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U256};
 use std::sync::Arc;
+use tfhe_core_crypto::gpu::vec::GpuIndex;
+use tfhe_core_crypto::gpu::CudaStreams;
 use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
 
 pub(crate) mod test_erc20;

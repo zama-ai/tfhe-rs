@@ -1,10 +1,4 @@
 use super::{CompressionKey, DecompressionKey};
-use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::{
-    extract_lwe_sample_from_glwe_ciphertext,
-    par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, CiphertextCount, GlweCiphertext,
-    LweCiphertext, LweCiphertextCount, LweCiphertextList, MonomialDegree,
-};
 use crate::shortint::ciphertext::CompressedCiphertextList;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;
@@ -14,6 +8,12 @@ use crate::shortint::server_key::{
 use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
+use tfhe_core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
+use tfhe_core_crypto::prelude::{
+    extract_lwe_sample_from_glwe_ciphertext,
+    par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, CiphertextCount, GlweCiphertext,
+    LweCiphertext, LweCiphertextCount, LweCiphertextList, MonomialDegree,
+};
 
 impl CompressionKey {
     pub fn compress_ciphertexts_into_list(

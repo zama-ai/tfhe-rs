@@ -1,13 +1,13 @@
 use super::super::math::fft::{wrapping_add, wrapping_sub, zeroing_shl, zeroing_shr, Fft128View};
-use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
-use crate::core_crypto::commons::traits::container::Split;
-use crate::core_crypto::commons::traits::contiguous_entity_container::{
+use crate::commons::math::decomposition::DecompositionLevel;
+use crate::commons::traits::container::Split;
+use crate::commons::traits::contiguous_entity_container::{
     ContiguousEntityContainer, ContiguousEntityContainerMut,
 };
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft128::crypto::ggsw::update_with_fmadd;
-use crate::core_crypto::prelude::{Container, ContainerMut, SignedDecomposer};
+use crate::commons::utils::izip;
+use crate::entities::*;
+use crate::fft_impl::fft128::crypto::ggsw::update_with_fmadd;
+use crate::prelude::{Container, ContainerMut, SignedDecomposer};
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut};
 

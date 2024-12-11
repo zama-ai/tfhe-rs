@@ -2,10 +2,10 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::lwe_ciphertext::LweCiphertextVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
+use crate::backward_compatibility::entities::lwe_ciphertext::LweCiphertextVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::prelude::misc::check_encrypted_content_respects_mod;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A convenience structure to easily manipulate the body of an [`LweCiphertext`].
@@ -486,7 +486,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
 /// An LWE ciphertext is an encryption of a plaintext.
 /// It is secure under the hardness assumption called Learning With Errors (LWE).
 /// It is a specialization of
-/// [`GLWE ciphertext`](`crate::core_crypto::entities::GlweCiphertext`).
+/// [`GLWE ciphertext`](`crate::entities::GlweCiphertext`).
 ///
 /// We indicate an LWE ciphertext of a plaintext $\mathsf{pt} \in\mathbb{Z}\_q$ as the following
 /// couple: $$\mathsf{ct} = \left( \vec{a} , b\right) \in \mathsf{LWE}^n\_{\vec{s}}( \mathsf{pt}
@@ -495,7 +495,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
 /// ## LWE dimension
 /// It corresponds to the number of element in the LWE secret key.
 /// In an LWE ciphertext, it is the length of the vector $\vec{a}$.
-/// At [`encryption`](`crate::core_crypto::algorithms::encrypt_lwe_ciphertext`) time, it is
+/// At [`encryption`](`crate::algorithms::encrypt_lwe_ciphertext`) time, it is
 /// the number of uniformly random integers generated.
 ///
 /// ## LWE Encryption
@@ -583,7 +583,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertext<C> {
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_lwe_ciphertext`] using this
+    /// you need to use [`crate::algorithms::encrypt_lwe_ciphertext`] using this
     /// ciphertext as output.
     ///
     /// This docstring exhibits [`LweCiphertext`] primitives usage.
@@ -787,7 +787,7 @@ impl<Scalar: UnsignedInteger> LweCiphertextOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_lwe_ciphertext`] using this ciphertext as
+    /// [`crate::algorithms::encrypt_lwe_ciphertext`] using this ciphertext as
     /// output.
     ///
     /// See [`LweCiphertext::from_container`] for usage.

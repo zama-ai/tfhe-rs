@@ -1,12 +1,12 @@
 //! Module containing primitives pertaining to the generation of
 //! [`standard LWE multi_bit bootstrap keys`](`LweMultiBitBootstrapKey`).
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::commons::generators::EncryptionRandomGenerator;
+use crate::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use rayon::prelude::*;
 
 /// ```rust

@@ -1,16 +1,16 @@
 //! Module containing primitives pertaining to the Wopbs (WithOut padding PBS).
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::{Distribution, Uniform};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::{
+use crate::algorithms::*;
+use crate::commons::generators::EncryptionRandomGenerator;
+use crate::commons::math::random::{Distribution, Uniform};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::fft_impl::fft64::crypto::wop_pbs::{
     circuit_bootstrap_boolean_vertical_packing, circuit_bootstrap_boolean_vertical_packing_scratch,
     extract_bits, extract_bits_scratch,
 };
-use crate::core_crypto::fft_impl::fft64::math::fft::FftView;
+use crate::fft_impl::fft64::math::fft::FftView;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
 use tfhe_fft::c64;

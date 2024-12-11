@@ -1,9 +1,9 @@
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::math::decomposition::{
+use crate::commons::ciphertext_modulus::CiphertextModulus;
+use crate::commons::math::decomposition::{
     SignedDecompositionIter, SignedDecompositionNonNativeIter, ValueSign,
 };
-use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
-use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
+use crate::commons::numeric::{CastInto, UnsignedInteger};
+use crate::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
 use std::marker::PhantomData;
 
 /// A structure which allows to decompose unsigned integers into a set of smaller terms.

@@ -1,7 +1,7 @@
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{CastFrom, CastInto, UnsignedInteger};
+use crate::commons::parameters::*;
+use crate::entities::*;
 use crate::keycache::NamedParam;
+use crate::prelude::{CastFrom, CastInto, UnsignedInteger};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

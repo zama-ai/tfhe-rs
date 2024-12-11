@@ -1,7 +1,6 @@
 use clap::{Arg, ArgAction, Command};
 use tfhe::boolean;
 use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS};
-use tfhe::keycache::NamedParam;
 #[cfg(feature = "experimental")]
 use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
 use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK};
@@ -14,6 +13,7 @@ use tfhe::shortint::parameters::coverage_parameters::{
 };
 use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
 use tfhe::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
+use tfhe_core_crypto::keycache::NamedParam;
 
 use tfhe::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::{
     PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,

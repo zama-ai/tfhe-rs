@@ -6,9 +6,9 @@
 use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::{BooleanParameters, DynamicDistribution, EncryptionKeyChoice};
-use crate::core_crypto::entities::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
+use tfhe_core_crypto::entities::*;
 use tfhe_versionable::Versionize;
 
 use super::backward_compatibility::client_key::ClientKeyVersions;

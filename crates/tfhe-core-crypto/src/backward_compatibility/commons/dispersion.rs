@@ -1,4 +1,4 @@
-use crate::core_crypto::commons::dispersion::StandardDev;
+use crate::commons::dispersion::StandardDev;
 use tfhe_versionable::VersionsDispatch;
 
 #[derive(VersionsDispatch)]

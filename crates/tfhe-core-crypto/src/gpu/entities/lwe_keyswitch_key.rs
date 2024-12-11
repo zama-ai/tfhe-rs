@@ -1,11 +1,11 @@
 //! Module containing the definition of the [`CudaLweKeyswitchKey`].
 
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{
+use crate::gpu::vec::CudaVec;
+use crate::gpu::{
     convert_lwe_keyswitch_key_async, CiphertextModulus, CudaStreams, DecompositionBaseLog,
     DecompositionLevelCount,
 };
-use crate::core_crypto::prelude::{
+use crate::prelude::{
     lwe_keyswitch_key_input_key_element_encrypted_size, LweKeyswitchKeyOwned, LweSize,
     UnsignedInteger,
 };

@@ -1,16 +1,14 @@
 //! Module containing primitives pertaining to [`LWE shrinking keyswitch keys
-//! generation`](`crate::core_crypto::entities::LweKeyswitchKey#key-switching-key`).
+//! generation`](`crate::entities::LweKeyswitchKey#key-switching-key`).
 
-use crate::core_crypto::algorithms::generate_lwe_keyswitch_key;
-use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::{Distribution, Uniform};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::LweSecretKey;
-use crate::core_crypto::experimental::commons::parameters::LweSecretKeySharedCoefCount;
-use crate::core_crypto::experimental::entities::{
-    LweShrinkingKeyswitchKey, LweShrinkingKeyswitchKeyOwned,
-};
+use crate::algorithms::generate_lwe_keyswitch_key;
+use crate::commons::generators::EncryptionRandomGenerator;
+use crate::commons::math::random::{Distribution, Uniform};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::LweSecretKey;
+use crate::experimental::commons::parameters::LweSecretKeySharedCoefCount;
+use crate::experimental::entities::{LweShrinkingKeyswitchKey, LweShrinkingKeyswitchKeyOwned};
 
 pub fn generate_lwe_shrinking_keyswitch_key<
     Scalar,
@@ -49,7 +47,7 @@ pub fn generate_lwe_shrinking_keyswitch_key<
 /// actual keyswitching key constructed from an input key [`LWE secret
 /// key`](`LweSecretKey`) from which the shared output key is derived.
 ///
-/// See [`crate::core_crypto::experimental::algorithms::shrinking_keyswitch_lwe_ciphertext`] for
+/// See [`crate::experimental::algorithms::shrinking_keyswitch_lwe_ciphertext`] for
 /// usage.
 #[allow(clippy::too_many_arguments)]
 pub fn allocate_and_generate_new_lwe_shrinking_keyswitch_key<

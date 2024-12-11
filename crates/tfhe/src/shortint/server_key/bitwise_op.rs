@@ -1,7 +1,7 @@
 use super::ServerKey;
-use crate::core_crypto::algorithms::lwe_ciphertext_opposite_assign;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::{CheckError, Ciphertext};
+use tfhe_core_crypto::algorithms::lwe_ciphertext_opposite_assign;
 
 impl ServerKey {
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.

@@ -8,10 +8,10 @@ use rand::prelude::*;
 use rand::thread_rng;
 use rayon::prelude::*;
 use std::ops::{Add, Mul, Sub};
-use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::*;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheBool, FheUint64};
+use tfhe_core_crypto::keycache::NamedParam;
 
 /// Transfer as written in the original FHEvm white-paper,
 /// it uses a comparison to check if the sender has enough,

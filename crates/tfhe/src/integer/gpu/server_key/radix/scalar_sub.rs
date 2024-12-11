@@ -1,5 +1,3 @@
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{Numeric, SignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext};
@@ -7,6 +5,8 @@ use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::integer::server_key::TwosComplementNegation;
 use crate::prelude::CastInto;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{Numeric, SignedNumeric};
 
 impl CudaServerKey {
     /// Computes homomorphically a subtraction between a ciphertext and a scalar.

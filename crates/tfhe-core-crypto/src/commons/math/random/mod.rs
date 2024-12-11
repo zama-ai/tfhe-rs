@@ -13,12 +13,12 @@
 //! implementations of this trait, for different distributions. Note, though, that instead of
 //! using the [`RandomGenerable`] methods, you should use the various methods exposed by
 //! [`RandomGenerator`] instead.
-use crate::core_crypto::backward_compatibility::commons::math::random::DynamicDistributionVersions;
-use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev, Variance};
-use crate::core_crypto::commons::numeric::{FloatingPoint, UnsignedInteger};
+use crate::backward_compatibility::commons::math::random::DynamicDistributionVersions;
+use crate::commons::dispersion::{DispersionParameter, StandardDev, Variance};
+use crate::commons::numeric::{FloatingPoint, UnsignedInteger};
 use std::ops::Bound;
 
-use crate::core_crypto::prelude::{CastInto, Numeric};
+use crate::prelude::{CastInto, Numeric};
 /// Convenience alias for the most efficient CSPRNG implementation available.
 pub use activated_random_generator::ActivatedRandomGenerator;
 pub use gaussian::*;
@@ -119,7 +119,7 @@ where
 /// A marker trait for types representing distributions.
 pub trait Distribution: seal::Sealed + Copy {}
 mod seal {
-    use crate::core_crypto::commons::numeric::{FloatingPoint, UnsignedInteger};
+    use crate::commons::numeric::{FloatingPoint, UnsignedInteger};
 
     pub trait Sealed {}
     impl Sealed for super::Uniform {}

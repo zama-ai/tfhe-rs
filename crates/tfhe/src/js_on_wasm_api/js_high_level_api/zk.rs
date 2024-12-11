@@ -4,7 +4,7 @@ use crate::js_on_wasm_api::js_high_level_api::config::TfheConfig;
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic_result, into_js_error};
 use crate::js_on_wasm_api::shortint::ShortintParameters;
 
-use crate::zk::{Compressible, ZkCompactPkeV1PublicParams};
+use tfhe_core_crypto::zk::{Compressible, ZkCompactPkeV1PublicParams};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[wasm_bindgen]
@@ -13,7 +13,7 @@ pub enum ZkComputeLoad {
     Verify,
 }
 
-impl From<ZkComputeLoad> for crate::zk::ZkComputeLoad {
+impl From<ZkComputeLoad> for tfhe_core_crypto::zk::ZkComputeLoad {
     fn from(value: ZkComputeLoad) -> Self {
         match value {
             ZkComputeLoad::Proof => Self::Proof,
@@ -23,7 +23,7 @@ impl From<ZkComputeLoad> for crate::zk::ZkComputeLoad {
 }
 
 #[wasm_bindgen]
-pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs);
+pub struct CompactPkeCrs(pub(crate) tfhe_core_crypto::entities::CompactPkeCrs);
 
 // "wasm bindgen is fragile and prefers the actual type vs. Self"
 #[allow(clippy::use_self)]
@@ -84,7 +84,7 @@ impl CompactPkeCrs {
         max_num_message: usize,
     ) -> Result<CompactPkeCrs, JsError> {
         catch_panic_result(|| {
-            crate::core_crypto::entities::CompactPkeCrs::from_shortint_params(
+            tfhe_core_crypto::entities::CompactPkeCrs::from_shortint_params(
                 parameters.0,
                 max_num_message,
             )
@@ -96,7 +96,7 @@ impl CompactPkeCrs {
     #[wasm_bindgen]
     pub fn from_config(config: &TfheConfig, max_num_bits: usize) -> Result<CompactPkeCrs, JsError> {
         catch_panic_result(|| {
-            crate::core_crypto::entities::CompactPkeCrs::from_config(config.0, max_num_bits)
+            tfhe_core_crypto::entities::CompactPkeCrs::from_config(config.0, max_num_bits)
                 .map(CompactPkeCrs)
                 .map_err(into_js_error)
         })
@@ -107,7 +107,7 @@ impl CompactPkeCrs {
         // If buffer is compressed it is automatically detected and uncompressed.
         catch_panic_result(|| {
             bincode::deserialize(buffer)
-                .map(crate::zk::ZkCompactPkeV1PublicParams::into)
+                .map(tfhe_core_crypto::zk::ZkCompactPkeV1PublicParams::into)
                 .map(CompactPkeCrs)
                 .map_err(into_js_error)
         })

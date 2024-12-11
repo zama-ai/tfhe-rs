@@ -1,7 +1,5 @@
-use crate::core_crypto::entities::{LweCompactCiphertextList, LweCompactPublicKey};
-use crate::core_crypto::prelude::{
-    CastFrom, Container, LweCiphertext, LweCiphertextCount, UnsignedInteger,
-};
+use crate::entities::{LweCompactCiphertextList, LweCompactPublicKey};
+use crate::prelude::{CastFrom, Container, LweCiphertext, LweCiphertextCount, UnsignedInteger};
 use crate::zk::{CompactPkeCrs, CompactPkeProof, ZkVerificationOutcome};
 
 /// Verifies with the given proof that a [`LweCompactCiphertextList`]

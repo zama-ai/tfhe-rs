@@ -1,8 +1,8 @@
 use crate::boolean::backward_compatibility::public_key::CompressedPublicKeyVersions;
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::prelude::{BooleanParameters, Ciphertext, ClientKey};
-use crate::core_crypto::prelude::SeededLwePublicKeyOwned;
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::prelude::SeededLwePublicKeyOwned;
 use tfhe_versionable::Versionize;
 
 /// A structure containing a compressed public key.
@@ -64,10 +64,10 @@ impl CompressedPublicKey {
         parameters: BooleanParameters,
     ) -> Self {
         let ciphertext_lwe_dimension = match parameters.encryption_key_choice {
-            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big => parameters
+            tfhe_core_crypto::commons::parameters::EncryptionKeyChoice::Big => parameters
                 .glwe_dimension
                 .to_equivalent_lwe_dimension(parameters.polynomial_size),
-            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
+            tfhe_core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
                 parameters.lwe_dimension
             }
         };

@@ -1,5 +1,4 @@
 //! Module with the definition of the PublicKey.
-use crate::core_crypto::entities::*;
 use crate::shortint::backward_compatibility::public_key::PublicKeyVersions;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
@@ -7,6 +6,7 @@ use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
 use crate::shortint::{ClientKey, CompressedPublicKey, PBSOrder};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_core_crypto::entities::*;
 use tfhe_versionable::Versionize;
 
 /// A structure containing a public key.

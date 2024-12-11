@@ -3,14 +3,14 @@ use crate::boolean::backward_compatibility::server_key::{
 };
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::{ClientKey, PLAINTEXT_TRUE};
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
-use crate::core_crypto::commons::parameters::{CiphertextModulus, PBSOrder};
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::algorithms::*;
+use tfhe_core_crypto::commons::computation_buffers::ComputationBuffers;
+use tfhe_core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
+use tfhe_core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
+use tfhe_core_crypto::commons::parameters::{CiphertextModulus, PBSOrder};
+use tfhe_core_crypto::entities::*;
+use tfhe_core_crypto::fft_impl::fft64::math::fft::Fft;
 use tfhe_versionable::Versionize;
 
 /// Memory used as buffer for the bootstrap

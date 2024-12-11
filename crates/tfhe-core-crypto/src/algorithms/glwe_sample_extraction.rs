@@ -2,10 +2,10 @@
 //! _sample extract_ in the literature. Allowing to extract a single
 //! [`LWE Ciphertext`](`LweCiphertext`) from a given [`GLWE ciphertext`](`GlweCiphertext`).
 
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::slice_algorithms::*;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use rayon::prelude::*;
 
 /// Extract the nth coefficient from the body of a [`GLWE Ciphertext`](`GlweCiphertext`) as an

@@ -1,11 +1,11 @@
 //! Module containing primitives pertaining to [`LWE ciphertext shrinking
-//! keyswitch`](`crate::core_crypto::entities::LweKeyswitchKey#lwe-keyswitch`).
+//! keyswitch`](`crate::entities::LweKeyswitchKey#lwe-keyswitch`).
 
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::LweCiphertext;
-use crate::core_crypto::experimental::entities::LweShrinkingKeyswitchKey;
+use crate::algorithms::slice_algorithms::*;
+use crate::commons::math::decomposition::SignedDecomposer;
+use crate::commons::traits::*;
+use crate::entities::LweCiphertext;
+use crate::experimental::entities::LweShrinkingKeyswitchKey;
 
 /// Keyswitch an LWE ciphertext under an LWE secret key S1 to an LWE ciphertext under an LWE secret
 /// key S2 where S1 is bigger than S2 and S2 takes all its coefficients from the start of S1.

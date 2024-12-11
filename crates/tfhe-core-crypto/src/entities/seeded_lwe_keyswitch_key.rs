@@ -1,11 +1,11 @@
 //! Module containing the definition of the [`SeededLweKeyswitchKey`].
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_lwe_keyswitch_key::SeededLweKeyswitchKeyVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_lwe_keyswitch_key::SeededLweKeyswitchKeyVersions;
+use crate::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
@@ -52,7 +52,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`SeededLweKeyswitchKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_seeded_lwe_keyswitch_key`] using this key as
+    /// [`crate::algorithms::generate_seeded_lwe_keyswitch_key`] using this key as
     /// output.
     ///
     /// This docstring exhibits [`SeededLweKeyswitchKey`] primitives usage.
@@ -336,7 +336,7 @@ impl<Scalar: UnsignedInteger> SeededLweKeyswitchKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate a [`SeededLweKeyswitchKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_seeded_lwe_keyswitch_key`] using this key as
+    /// [`crate::algorithms::generate_seeded_lwe_keyswitch_key`] using this key as
     /// output.
     ///
     /// See [`SeededLweKeyswitchKey::from_container`] for usage.

@@ -1,9 +1,9 @@
 //! Module containing the definition of the [`LweShrinkingKeyswitchKey`].
 
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::experimental::commons::parameters::{
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::experimental::commons::parameters::{
     LweSecretKeySharedCoefCount, LweSecretKeyUnsharedCoefCount,
 };
 
@@ -38,7 +38,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweShrinkingKeyswi
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an LWE
     /// shrinking keyswitch key you need to use
-    /// [`crate::core_crypto::experimental::algorithms::generate_lwe_shrinking_keyswitch_key`]
+    /// [`crate::experimental::algorithms::generate_lwe_shrinking_keyswitch_key`]
     /// using this key as output.
     ///
     /// This docstring exhibits [`LweShrinkingKeyswitchKey`] primitives usage.
@@ -272,7 +272,7 @@ impl<Scalar: UnsignedInteger> LweShrinkingKeyswitchKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate an LWE shrinking keysiwtch key you need to use
-    /// [`crate::core_crypto::experimental::algorithms::generate_lwe_shrinking_keyswitch_key`] using
+    /// [`crate::experimental::algorithms::generate_lwe_shrinking_keyswitch_key`] using
     /// this key as output.
     ///
     /// See [`LweShrinkingKeyswitchKey::from_container`] for usage.

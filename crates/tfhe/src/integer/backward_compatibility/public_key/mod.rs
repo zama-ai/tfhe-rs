@@ -1,9 +1,9 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::Container;
 use crate::integer::{
     CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
 };
+use tfhe_core_crypto::prelude::Container;
 
 #[derive(VersionsDispatch)]
 pub enum PublicKeyVersions {

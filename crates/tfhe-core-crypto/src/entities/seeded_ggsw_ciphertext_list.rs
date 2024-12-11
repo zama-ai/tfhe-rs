@@ -1,22 +1,22 @@
 //! Module containing the definition of the SeededGgswCiphertextList.
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_ggsw_ciphertext_list::SeededGgswCiphertextListVersions;
-use crate::core_crypto::commons::generators::{
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_ggsw_ciphertext_list::SeededGgswCiphertextListVersions;
+use crate::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
-use crate::core_crypto::commons::math::random::{
+use crate::commons::math::random::{
     ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
 };
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// A contiguous list containing
-/// [`seeded GGSW ciphertexts`](`crate::core_crypto::entities::SeededGgswCiphertext`).
+/// [`seeded GGSW ciphertexts`](`crate::entities::SeededGgswCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(SeededGgswCiphertextListVersions)]
 pub struct SeededGgswCiphertextList<C: Container>
@@ -51,9 +51,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data in
     /// the list you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_constant_seeded_ggsw_ciphertext`]
+    /// [`crate::algorithms::encrypt_constant_seeded_ggsw_ciphertext`]
     /// or its parallel counterpart
-    /// [`crate::core_crypto::algorithms::par_encrypt_constant_seeded_ggsw_ciphertext`] on the
+    /// [`crate::algorithms::par_encrypt_constant_seeded_ggsw_ciphertext`] on the
     /// individual ciphertexts in the list.
     ///
     /// This docstring exhibits [`SeededGgswCiphertextList`] primitives usage.
@@ -336,8 +336,8 @@ impl<Scalar: UnsignedInteger> SeededGgswCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data in the list you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_constant_seeded_ggsw_ciphertext`] or its parallel
-    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_constant_seeded_ggsw_ciphertext`]
+    /// [`crate::algorithms::encrypt_constant_seeded_ggsw_ciphertext`] or its parallel
+    /// counterpart [`crate::algorithms::par_encrypt_constant_seeded_ggsw_ciphertext`]
     /// on the individual ciphertexts in the list.
     ///
     /// See [`SeededGgswCiphertextList::from_container`] for usage.

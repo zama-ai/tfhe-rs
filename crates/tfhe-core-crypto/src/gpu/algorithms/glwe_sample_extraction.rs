@@ -1,8 +1,8 @@
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{extract_lwe_samples_from_glwe_ciphertext_list_async, CudaStreams};
-use crate::core_crypto::prelude::{MonomialDegree, UnsignedTorus};
+use crate::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+use crate::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::gpu::vec::CudaVec;
+use crate::gpu::{extract_lwe_samples_from_glwe_ciphertext_list_async, CudaStreams};
+use crate::prelude::{MonomialDegree, UnsignedTorus};
 use itertools::Itertools;
 
 /// # Safety

@@ -1,11 +1,11 @@
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
-use crate::core_crypto::prelude::{
-    Container, LweCompactPublicKeyOwned, SeededLweCompactPublicKeyOwned,
-};
 use crate::shortint::{
     CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PBSOrder,
     PublicKey, ShortintParameterSet,
+};
+use tfhe_core_crypto::prelude::{
+    Container, LweCompactPublicKeyOwned, SeededLweCompactPublicKeyOwned,
 };
 
 #[derive(VersionsDispatch)]

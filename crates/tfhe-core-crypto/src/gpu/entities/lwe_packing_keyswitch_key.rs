@@ -1,6 +1,6 @@
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{convert_lwe_keyswitch_key_async, CudaStreams};
-use crate::core_crypto::prelude::{
+use crate::gpu::vec::CudaVec;
+use crate::gpu::{convert_lwe_keyswitch_key_async, CudaStreams};
+use crate::prelude::{
     lwe_packing_keyswitch_key_input_key_element_encrypted_size, CiphertextModulus,
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension,
     LwePackingKeyswitchKeyOwned, PolynomialSize, UnsignedInteger,

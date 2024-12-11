@@ -2,7 +2,6 @@ use tfhe_versionable::Versionize;
 
 use super::inner::RadixCiphertext;
 use crate::backward_compatibility::integers::FheUintVersions;
-use crate::core_crypto::prelude::{CastFrom, UnsignedInteger, UnsignedNumeric};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
@@ -18,6 +17,7 @@ use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::PBSParameters;
 use crate::{FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
+use tfhe_core_crypto::prelude::{CastFrom, UnsignedInteger, UnsignedNumeric};
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_safe_serialization::named::Named;
 
@@ -1087,12 +1087,12 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::core_crypto::prelude::UnsignedInteger;
     use crate::prelude::*;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     use crate::shortint::{CiphertextModulus, PBSOrder};
     use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
     use rand::{thread_rng, Rng};
+    use tfhe_core_crypto::prelude::UnsignedInteger;
 
     type IndexedParameterAccessor<Ct, T> = dyn Fn(usize, &mut Ct) -> &mut T;
 

@@ -1,4 +1,3 @@
-use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::block_decomposition::{BlockDecomposer, Decomposable, DecomposableInto};
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext, ServerKey};
 use crate::prelude::CastInto;
@@ -8,6 +7,7 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::ops::Range;
+use tfhe_core_crypto::prelude::UnsignedInteger;
 
 /// MatchValues for the `match_value_parallelized` family of function
 ///

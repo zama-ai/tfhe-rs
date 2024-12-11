@@ -1,14 +1,14 @@
-use crate::core_crypto::backward_compatibility::entities::ntt_lwe_bootstrap_key::NttLweBootstrapKeyVersions;
-use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::parameters::{
+use crate::backward_compatibility::entities::ntt_lwe_bootstrap_key::NttLweBootstrapKeyVersions;
+use crate::commons::numeric::UnsignedInteger;
+use crate::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GgswCiphertextCount,
     GlweSize, LweDimension, PolynomialSize,
 };
-use crate::core_crypto::commons::traits::{Container, ContainerMut, Split};
-pub use crate::core_crypto::entities::ggsw_ciphertext_list::ggsw_ciphertext_list_size;
-use crate::core_crypto::entities::ntt_ggsw_ciphertext::NttGgswCiphertext;
-use crate::core_crypto::entities::ntt_ggsw_ciphertext_list::NttGgswCiphertextList;
-use crate::core_crypto::entities::polynomial_list::{PolynomialListMutView, PolynomialListView};
+use crate::commons::traits::{Container, ContainerMut, Split};
+pub use crate::entities::ggsw_ciphertext_list::ggsw_ciphertext_list_size;
+use crate::entities::ntt_ggsw_ciphertext::NttGgswCiphertext;
+use crate::entities::ntt_ggsw_ciphertext_list::NttGgswCiphertextList;
+use crate::entities::polynomial_list::{PolynomialListMutView, PolynomialListView};
 use aligned_vec::ABox;
 use tfhe_versionable::Versionize;
 
@@ -28,8 +28,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttLweBootstrapKey
     ///
     /// This function only wraps a container in the appropriate type. If you want to have useful
     /// data in the [`NttLweBootstrapKey`] you will first need to convert it from a standard
-    /// [`LweBootstrapKey`](`crate::core_crypto::entities::LweBootstrapKey`) by calling
-    /// [`convert_standard_lwe_bootstrap_key_to_ntt64`](crate::core_crypto::algorithms::convert_standard_lwe_bootstrap_key_to_ntt64).
+    /// [`LweBootstrapKey`](`crate::entities::LweBootstrapKey`) by calling
+    /// [`convert_standard_lwe_bootstrap_key_to_ntt64`](crate::algorithms::convert_standard_lwe_bootstrap_key_to_ntt64).
     ///
     /// This docstring exhibits [`NttLweBootstrapKey`] primitives usage.
     ///
@@ -127,7 +127,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttLweBootstrapKey
     }
 
     /// Return the [`LweDimension`] of the input
-    /// [`LweSecretKey`](`crate::core_crypto::entities::LweSecretKey`).
+    /// [`LweSecretKey`](`crate::entities::LweSecretKey`).
     ///
     /// See [`NttLweBootstrapKey::from_container`] for usage.
     pub fn input_lwe_dimension(&self) -> LweDimension {
@@ -163,7 +163,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttLweBootstrapKey
     }
 
     /// Return the [`LweDimension`] of the equivalent output
-    /// [`LweSecretKey`](`crate::core_crypto::entities::LweSecretKey`).
+    /// [`LweSecretKey`](`crate::entities::LweSecretKey`).
     ///
     /// See [`NttLweBootstrapKey::from_container`] for usage.
     pub fn output_lwe_dimension(&self) -> LweDimension {
@@ -196,7 +196,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttLweBootstrapKey
     }
 
     /// Interpret the [`NttLweBootstrapKey`] as a
-    /// [`PolynomialList`](`crate::core_crypto::entities::PolynomialList`).
+    /// [`PolynomialList`](`crate::entities::PolynomialList`).
     pub fn as_polynomial_list(&self) -> PolynomialListView<'_, Scalar> {
         self.ggsw_list.as_polynomial_list()
     }
@@ -229,8 +229,8 @@ impl<Scalar: UnsignedInteger> NttLweBootstrapKey<ABox<[Scalar]>> {
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to have useful data in the [`NttLweBootstrapKey`] you will first need to
     /// convert it from a standard
-    /// [`LweBootstrapKey`](`crate::core_crypto::entities::LweBootstrapKey`) by calling
-    /// [`convert_standard_lwe_bootstrap_key_to_ntt64`](crate::core_crypto::algorithms::convert_standard_lwe_bootstrap_key_to_ntt64).
+    /// [`LweBootstrapKey`](`crate::entities::LweBootstrapKey`) by calling
+    /// [`convert_standard_lwe_bootstrap_key_to_ntt64`](crate::algorithms::convert_standard_lwe_bootstrap_key_to_ntt64).
     ///
     ///
     /// See [`NttLweBootstrapKey::from_container`] for usage.

@@ -1,14 +1,14 @@
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::prelude::{
-    allocate_and_generate_new_binary_glwe_secret_key, GlweSecretKeyOwned,
-};
 use crate::shortint::backward_compatibility::list_compression::CompressionPrivateKeysVersions;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
 use std::fmt::Debug;
+use tfhe_core_crypto::prelude::{
+    allocate_and_generate_new_binary_glwe_secret_key, GlweSecretKeyOwned,
+};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressionPrivateKeysVersions)]

@@ -1,18 +1,18 @@
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
-use crate::core_crypto::commons::math::random::{Distribution, Uniform};
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::experimental::entities::*;
+use crate::algorithms::slice_algorithms::*;
+use crate::algorithms::*;
+use crate::commons::generators::EncryptionRandomGenerator;
+use crate::commons::math::decomposition::DecompositionLevel;
+use crate::commons::math::random::{Distribution, Uniform};
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::experimental::entities::*;
 
 /// Encrypt an input [`GLWE secret key`](`GlweSecretKey`) under an output [`GLWE secret
 /// key`](`GlweSecretKey`) in a [`pseudo GGSW ciphertext`](`PseudoGgswCiphertext`).
 ///
 /// # Example
 ///
-/// See [`crate::core_crypto::experimental::algorithms::glwe_fast_keyswitch::glwe_fast_keyswitch`]
+/// See [`crate::experimental::algorithms::glwe_fast_keyswitch::glwe_fast_keyswitch`]
 /// for usage.
 pub fn encrypt_pseudo_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
     glwe_secret_key_out: &GlweSecretKey<KeyCont>,

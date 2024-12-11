@@ -2,8 +2,8 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::plaintext::PlaintextVersions;
-use crate::core_crypto::commons::traits::*;
+use crate::backward_compatibility::entities::plaintext::PlaintextVersions;
+use crate::commons::traits::*;
 
 /// A plaintext (encoded) value.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]

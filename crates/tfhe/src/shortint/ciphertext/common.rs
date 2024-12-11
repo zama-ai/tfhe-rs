@@ -1,10 +1,10 @@
 use super::super::CheckError;
-pub use crate::core_crypto::commons::parameters::PBSOrder;
 use crate::shortint::backward_compatibility::ciphertext::*;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::fmt::Debug;
+pub use tfhe_core_crypto::commons::parameters::PBSOrder;
 use tfhe_versionable::Versionize;
 
 /// Error for when a non trivial ciphertext was used when a trivial was expected

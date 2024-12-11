@@ -1,19 +1,17 @@
 //! Module containing primitives pertaining to the FFT-based GLWE keyswitch.
 
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::experimental::entities::fourier_pseudo_ggsw_ciphertext::{
+use crate::commons::math::decomposition::SignedDecomposer;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::commons::utils::izip;
+use crate::entities::*;
+use crate::experimental::entities::fourier_pseudo_ggsw_ciphertext::{
     PseudoFourierGgswCiphertext, PseudoFourierGgswCiphertextView,
 };
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{collect_next_term, update_with_fmadd};
-use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
-use crate::core_crypto::fft_impl::fft64::math::fft::FftView;
-use crate::core_crypto::fft_impl::fft64::math::polynomial::{
-    FourierPolynomialMutView, FourierPolynomialView,
-};
+use crate::fft_impl::fft64::crypto::ggsw::{collect_next_term, update_with_fmadd};
+use crate::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
+use crate::fft_impl::fft64::math::fft::FftView;
+use crate::fft_impl::fft64::math::polynomial::{FourierPolynomialMutView, FourierPolynomialView};
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 use tfhe_fft::c64;

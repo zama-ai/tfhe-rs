@@ -3,17 +3,17 @@ pub mod client_key;
 pub mod list_compression;
 pub mod server_key;
 
-use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
-    LweDimension, Numeric, PolynomialSize, UnsignedInteger,
-};
 use crate::integer::{ClientKey, RadixClientKey};
 use crate::shortint::{CarryModulus, MessageModulus};
 pub use server_key::CudaServerKey;
 use std::cmp::min;
+use tfhe_core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
+use tfhe_core_crypto::gpu::vec::CudaVec;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
+    LweDimension, Numeric, PolynomialSize, UnsignedInteger,
+};
 
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use tfhe_cuda_backend::bindings::*;

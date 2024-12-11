@@ -1,6 +1,6 @@
-use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
-use crate::core_crypto::experimental::prelude::*;
-use crate::core_crypto::prelude::*;
+use crate::commons::math::random::{RandomGenerable, UniformBinary};
+use crate::experimental::prelude::*;
+use crate::prelude::*;
 
 pub fn allocate_and_generate_new_shared_glwe_secret_key_from_glwe_secret_key<Scalar, InCont>(
     in_large_glwe_key: &GlweSecretKey<InCont>,

@@ -1,7 +1,7 @@
 use super::*;
-use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::commons::math::random::CompressionSeed;
-use crate::core_crypto::commons::test_tools;
+use crate::commons::generators::DeterministicSeeder;
+use crate::commons::math::random::CompressionSeed;
+use crate::commons::test_tools;
 
 #[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;

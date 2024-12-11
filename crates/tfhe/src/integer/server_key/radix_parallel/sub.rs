@@ -419,7 +419,7 @@ impl ServerKey {
                     // '(-0 + 1) ==  +1' we add one, meaning that if the block receives a borrow,
                     // we would remove one from the block, which would be absorbed by the 1 we just
                     // added
-                    crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
+                    tfhe_core_crypto::algorithms::lwe_ciphertext_sub_assign(
                         &mut block.ct,
                         &simulator.ct,
                     );
@@ -451,7 +451,7 @@ impl ServerKey {
                 .for_each(|(i, block)| {
                     let grouping_index = i / grouping_size;
                     let borrow = &resolved_borrows[grouping_index];
-                    crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
+                    tfhe_core_crypto::algorithms::lwe_ciphertext_sub_assign(
                         &mut block.ct,
                         &borrow.ct,
                     );
@@ -640,10 +640,7 @@ impl ServerKey {
             // the correcting term to be used
             // -> This is ok as the value returned by unchecked_sub is in range
             // 1..(message_mod * 2)
-            crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
-                &mut lhs_block.ct,
-                &borrow.ct,
-            );
+            tfhe_core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs_block.ct, &borrow.ct);
             lhs_block.set_noise_level(
                 lhs_block.noise_level() + borrow.noise_level(),
                 self.key.max_noise_level,

@@ -3,8 +3,6 @@ use tfhe_versionable::Versionize;
 use super::ClientKey;
 use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKeyVersions};
 #[cfg(feature = "gpu")]
-use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
-#[cfg(feature = "gpu")]
 use crate::high_level_api::keys::inner::IntegerCudaServerKey;
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
 use crate::integer::compression_keys::{
@@ -15,6 +13,8 @@ use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
 use crate::Tag;
 use std::sync::Arc;
+#[cfg(feature = "gpu")]
+use tfhe_core_crypto::gpu::{synchronize_devices, CudaStreams};
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_safe_serialization::named::Named;
 

@@ -2,15 +2,15 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_glwe_ciphertext_list::SeededGlweCiphertextListVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_glwe_ciphertext_list::SeededGlweCiphertextListVersions;
+use crate::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// A seeded list containing
-/// [`GLWE ciphertexts`](`crate::core_crypto::entities::GlweCiphertext`).
+/// [`GLWE ciphertexts`](`crate::entities::GlweCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(SeededGlweCiphertextListVersions)]
 pub struct SeededGlweCiphertextList<C: Container>
@@ -42,7 +42,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_seeded_glwe_ciphertext_list`] or
+    /// you need to use [`crate::algorithms::encrypt_seeded_glwe_ciphertext_list`] or
     /// using this list as output.
     ///
     /// This docstring exhibits [`SeededGlweCiphertextList`] primitives usage.
@@ -240,7 +240,7 @@ impl<Scalar: UnsignedInteger> SeededGlweCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_seeded_glwe_ciphertext_list`] using this list as
+    /// [`crate::algorithms::encrypt_seeded_glwe_ciphertext_list`] using this list as
     /// output.
     ///
     /// See [`SeededGlweCiphertextList::from_container`] for usage.

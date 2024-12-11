@@ -1,0 +1,79 @@
+[package]
+name = "tfhe-core-crypto"
+version.workspace = true
+edition = "2021"
+license.workspace = true
+description = "Low level cryptographic primitives used in the TFHE-rs library."
+homepage = "https://zama.ai/"
+documentation.workspace = true
+repository.workspace = true
+keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
+rust-version = "1.73"
+
+[dependencies]
+serde = { workspace = true, features = ["default", "derive"] }
+pulp = { workspace = true, features = ["default"] }
+aligned-vec = { workspace = true, features = ["default", "serde"] }
+dyn-stack = { workspace = true, features = ["default"] }
+# While we wait for repeat_n in rust standard library
+itertools = "0.11.0"
+rand_core = { version = "0.6.4", features = ["std"] }
+rayon = { version = "1.5.0" }
+bytemuck = { workspace = true }
+paste = "1.0.7"
+bincode = "1.3.3"
+fs2 = { version = "0.4.3", optional = true }
+lazy_static = { version = "1.4.0", optional = true }
+
+tfhe-csprng = { version = "0.4.1", path = "../tfhe-csprng", features = [
+	"generator_fallback",
+	"parallel",
+] }
+tfhe-fft = { version = "0.6.0", path = "../tfhe-fft", features = [
+	"serde",
+	"fft128",
+] }
+tfhe-ntt = { version = "0.3.0", path = "../tfhe-ntt" }
+tfhe-cuda-backend = { version = "0.6.0", path = "../../backends/tfhe-cuda-backend", optional = true }
+tfhe-zk-pok = { version = "0.3.1", path = "../tfhe-zk-pok", optional = true }
+tfhe-versionable = { version = "0.3.2", path = "../tfhe-versionable" }
+tfhe-safe-serialization = { version = "0.11.0", path = "../tfhe-safe-serialization" }
+
+getrandom = { version = "0.2.8", optional = true }
+
+[dev-dependencies]
+rand = "0.8.5"
+# For erf and normality test
+libm = "0.2.6"
+rand_distr = "0.4.3"
+
+[lints]
+workspace = true
+
+[features]
+nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
+gpu = ["dep:tfhe-cuda-backend"]
+zk-pok = ["dep:tfhe-zk-pok"]
+
+internal-keycache = ["dep:lazy_static", "dep:fs2"]
+
+# Experimental section
+experimental = []
+experimental-force_fft_algo_dif4 = []
+
+# Private features
+__profiling = []
+
+__c_api = []
+__wasm_api = ["dep:getrandom", "getrandom/js"]
+
+# Enable the x86_64 specific accelerated implementation of the random generator for the default
+# backend
+generator_x86_64_aesni = ["tfhe-csprng/generator_x86_64_aesni"]
+
+# Enable the aarch64 specific accelerated implementation of the random generator for the default
+# backend
+generator_aarch64_aes = ["tfhe-csprng/generator_aarch64_aes"]
+
+seeder_unix = ["tfhe-csprng/seeder_unix"]
+seeder_x86_64_rdseed = ["tfhe-csprng/seeder_x86_64_rdseed"]

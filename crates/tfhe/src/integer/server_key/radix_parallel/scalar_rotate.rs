@@ -1,7 +1,7 @@
-use crate::core_crypto::prelude::CastFrom;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 use rayon::prelude::*;
+use tfhe_core_crypto::prelude::CastFrom;
 
 impl ServerKey {
     //======================================================================

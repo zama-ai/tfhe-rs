@@ -1,4 +1,3 @@
-use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
@@ -13,6 +12,7 @@ use rand::distributions::Standard;
 use rand::prelude::*;
 use std::ops::AddAssign;
 use std::sync::Arc;
+use tfhe_core_crypto::prelude::UnsignedNumeric;
 
 /// Function to test an "unchecked_scalar" comparator function.
 ///

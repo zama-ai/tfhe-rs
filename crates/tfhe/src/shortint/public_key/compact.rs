@@ -1,10 +1,3 @@
-use crate::core_crypto::prelude::{
-    allocate_and_generate_new_binary_lwe_secret_key,
-    allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
-    Container, LweCiphertextCount, LweCompactCiphertextListOwned,
-    LweCompactPublicKeyEncryptionParameters, LweCompactPublicKeyOwned, LweSecretKey, Plaintext,
-    PlaintextList, SeededLweCompactPublicKeyOwned,
-};
 use crate::shortint::backward_compatibility::public_key::{
     CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
 };
@@ -15,10 +8,17 @@ use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
 use crate::shortint::{CarryModulus, ClientKey, MessageModulus};
-#[cfg(feature = "zk-pok")]
-use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::prelude::{
+    allocate_and_generate_new_binary_lwe_secret_key,
+    allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
+    Container, LweCiphertextCount, LweCompactCiphertextListOwned,
+    LweCompactPublicKeyEncryptionParameters, LweCompactPublicKeyOwned, LweSecretKey, Plaintext,
+    PlaintextList, SeededLweCompactPublicKeyOwned,
+};
+#[cfg(feature = "zk-pok")]
+use tfhe_core_crypto::zk::{CompactPkeCrs, ZkComputeLoad};
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
@@ -325,7 +325,7 @@ impl CompactPublicKey {
         // No parallelism allowed
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         {
-            use crate::core_crypto::prelude::encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
+            use tfhe_core_crypto::prelude::encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
             ShortintEngine::with_thread_local_mut(|engine| {
                 encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
                     &self.key,
@@ -342,7 +342,7 @@ impl CompactPublicKey {
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         {
-            use crate::core_crypto::prelude::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
+            use tfhe_core_crypto::prelude::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
             ShortintEngine::with_thread_local_mut(|engine| {
                 par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
                     &self.key,
@@ -402,7 +402,7 @@ impl CompactPublicKey {
             // No parallelism allowed
             #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
             let proof = {
-                use crate::core_crypto::prelude::encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
+                use tfhe_core_crypto::prelude::encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
                 ShortintEngine::with_thread_local_mut(|engine| {
                     encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
                         &self.key,
@@ -424,7 +424,7 @@ impl CompactPublicKey {
             // Parallelism allowed  /
             #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
             let proof = {
-                use crate::core_crypto::prelude::par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
+                use tfhe_core_crypto::prelude::par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
                 ShortintEngine::with_thread_local_mut(|engine| {
                     par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
                         &self.key,

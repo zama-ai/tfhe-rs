@@ -1,15 +1,13 @@
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::parameters::{
+use crate::commons::math::torus::UnsignedTorus;
+use crate::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
 };
-use crate::core_crypto::commons::traits::{
-    Container, ContiguousEntityContainer, IntoContainerOwned, Split,
-};
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::experimental::entities::PseudoGgswCiphertext;
-use crate::core_crypto::fft_impl::fft64::math::decomposition::DecompositionLevel;
-use crate::core_crypto::fft_impl::fft64::math::fft::{FftView, FourierPolynomialList};
-use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomialMutView;
+use crate::commons::traits::{Container, ContiguousEntityContainer, IntoContainerOwned, Split};
+use crate::commons::utils::izip;
+use crate::experimental::entities::PseudoGgswCiphertext;
+use crate::fft_impl::fft64::math::decomposition::DecompositionLevel;
+use crate::fft_impl::fft64::math::fft::{FftView, FourierPolynomialList};
+use crate::fft_impl::fft64::math::polynomial::FourierPolynomialMutView;
 use aligned_vec::{avec, ABox};
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 use tfhe_fft::c64;

@@ -1,12 +1,12 @@
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     unchecked_scalar_bitop_integer_radix_kb_assign_async, BitOpType, CudaServerKey, PBSType,
 };
+use tfhe_core_crypto::gpu::vec::CudaVec;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::LweBskGroupingFactor;
 
 impl CudaServerKey {
     /// # Safety

@@ -1,10 +1,8 @@
 use super::super::super::{fft128, fft128_u128};
 use super::super::math::fft::Fft128View;
-use crate::core_crypto::fft_impl::common::tests::{
-    gen_keys_or_get_from_cache_if_enabled, generate_keys,
-};
-use crate::core_crypto::prelude::test::{TestResources, FFT128_U128_PARAMS};
-use crate::core_crypto::prelude::*;
+use crate::fft_impl::common::tests::{gen_keys_or_get_from_cache_if_enabled, generate_keys};
+use crate::prelude::test::{TestResources, FFT128_U128_PARAMS};
+use crate::prelude::*;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 

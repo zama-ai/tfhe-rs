@@ -1,9 +1,9 @@
 //! Module containing primitives pertaining to shared [`LweSecretKey`] generation.
 
-use crate::core_crypto::commons::numeric::Numeric;
-use crate::core_crypto::commons::parameters::LweDimension;
-use crate::core_crypto::commons::traits::{Container, ContainerMut};
-use crate::core_crypto::entities::{LweSecretKey, LweSecretKeyOwned};
+use crate::commons::numeric::Numeric;
+use crate::commons::parameters::LweDimension;
+use crate::commons::traits::{Container, ContainerMut};
+use crate::entities::{LweSecretKey, LweSecretKeyOwned};
 
 /// Fill an [`LWE secret key`](`LweSecretKey`) with coefficients from an already existing secret
 /// key.

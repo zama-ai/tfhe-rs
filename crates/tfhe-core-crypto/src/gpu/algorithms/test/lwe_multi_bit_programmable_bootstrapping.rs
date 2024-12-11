@@ -1,9 +1,9 @@
 use super::*;
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
-use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
-use crate::core_crypto::gpu::{cuda_multi_bit_programmable_bootstrap_lwe_ciphertext, CudaStreams};
+use crate::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+use crate::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
+use crate::gpu::vec::{CudaVec, GpuIndex};
+use crate::gpu::{cuda_multi_bit_programmable_bootstrap_lwe_ciphertext, CudaStreams};
 use itertools::Itertools;
 
 #[allow(clippy::too_many_arguments)]

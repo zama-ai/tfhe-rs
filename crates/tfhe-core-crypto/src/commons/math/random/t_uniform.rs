@@ -1,4 +1,4 @@
-use crate::core_crypto::backward_compatibility::commons::math::random::TUniformVersions;
+use crate::backward_compatibility::commons::math::random::TUniformVersions;
 
 use super::*;
 use serde::{Deserialize, Serialize};

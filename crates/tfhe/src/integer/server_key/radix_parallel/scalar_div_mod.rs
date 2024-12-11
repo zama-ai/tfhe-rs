@@ -10,13 +10,13 @@
 //! In this case, the constant is a clear value at runtime, however,
 //! due to the huge difference between clear computation and FHE computation
 //! it is absolutely worth to compute the approximation of the inverse.
-use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric, SignedNumeric, UnsignedInteger};
 use crate::integer::bigint::{StaticUnsignedBigInt, U1024, U2048, U4096};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::radix::scalar_mul::ScalarMultiplier;
 use crate::integer::{IntegerCiphertext, ServerKey, I256, I512, U256, U512};
 use std::ops::{Add, AddAssign, BitAnd, Div, Mul, Neg, Shl, Shr, Sub};
+use tfhe_core_crypto::prelude::{CastFrom, CastInto, Numeric, SignedNumeric, UnsignedInteger};
 
 #[inline(always)]
 pub(crate) fn is_even<T>(d: T) -> bool

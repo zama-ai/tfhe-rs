@@ -1,10 +1,8 @@
-use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, DynamicDistribution, LweDimension,
-};
 use crate::shortint::parameters::{
     CarryModulus, CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
     MessageModulus,
 };
+use tfhe_core_crypto::commons::parameters::{CiphertextModulus, DynamicDistribution, LweDimension};
 
 /// This parameter set should be used when doing zk proof of public key encryption
 pub const PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompactPublicKeyEncryptionParameters =

@@ -1,10 +1,10 @@
 //! Module with primitives pertaining to [`SeededLweCiphertext`] decompression.
 
-use crate::core_crypto::algorithms::slice_algorithms::slice_wrapping_scalar_mul_assign;
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
-use crate::core_crypto::commons::generators::MaskRandomGenerator;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::slice_algorithms::slice_wrapping_scalar_mul_assign;
+use crate::commons::ciphertext_modulus::CiphertextModulusKind;
+use crate::commons::generators::MaskRandomGenerator;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededLweCiphertext`] between all functions needing it.

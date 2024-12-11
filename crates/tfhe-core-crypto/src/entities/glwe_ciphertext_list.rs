@@ -2,13 +2,13 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::glwe_ciphertext_list::GlweCiphertextListVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::glwe_ciphertext_list::GlweCiphertextListVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// A contiguous list containing
-/// [`GLWE ciphertexts`](`crate::core_crypto::entities::GlweCiphertext`).
+/// [`GLWE ciphertexts`](`crate::entities::GlweCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(GlweCiphertextListVersions)]
 pub struct GlweCiphertextList<C: Container>
@@ -51,9 +51,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertextList
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data in
-    /// the list you need to use [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext_list`] or
+    /// the list you need to use [`crate::algorithms::encrypt_glwe_ciphertext_list`] or
     /// a variant working on a single ciphertext at a time
-    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] on the individual
+    /// [`crate::algorithms::encrypt_glwe_ciphertext`] on the individual
     /// ciphertexts in the list.
     ///
     /// This docstring exhibits [`GlweCiphertextList`] primitives usage.
@@ -203,8 +203,8 @@ impl<Scalar: UnsignedInteger> GlweCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data in the list you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext_list`] or a variant working on
-    /// a single ciphertext at a time [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] on
+    /// [`crate::algorithms::encrypt_glwe_ciphertext_list`] or a variant working on
+    /// a single ciphertext at a time [`crate::algorithms::encrypt_glwe_ciphertext`] on
     /// the individual ciphertexts in the list.
     ///
     /// See [`GlweCiphertextList::from_container`] for usage.
@@ -230,8 +230,8 @@ impl<Scalar: UnsignedInteger> GlweCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data in the list you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext_list`] or a variant working on
-    /// a single ciphertext at a time [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] on
+    /// [`crate::algorithms::encrypt_glwe_ciphertext_list`] or a variant working on
+    /// a single ciphertext at a time [`crate::algorithms::encrypt_glwe_ciphertext`] on
     /// the individual ciphertexts in the list.
     ///
     /// See [`GlweCiphertextList::from_container`] for usage.

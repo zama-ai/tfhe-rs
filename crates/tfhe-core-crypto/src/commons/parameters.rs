@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 pub use super::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::backward_compatibility::commons::parameters::*;
+use crate::backward_compatibility::commons::parameters::*;
 
 /// The number plaintexts in a plaintext list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
@@ -313,7 +313,7 @@ pub enum PBSOrder {
     BootstrapKeyswitch = 1,
 }
 
-pub use crate::core_crypto::commons::math::random::DynamicDistribution;
+pub use crate::commons::math::random::DynamicDistribution;
 
 /// A quantity representing a number of scalar used for mask samples generation.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

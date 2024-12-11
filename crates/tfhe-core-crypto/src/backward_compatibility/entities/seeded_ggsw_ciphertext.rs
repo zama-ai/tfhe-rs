@@ -1,7 +1,7 @@
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, SeededGgswCiphertext, UnsignedInteger};
+use crate::prelude::{Container, SeededGgswCiphertext, UnsignedInteger};
 
 impl<C: Container> Deprecable for SeededGgswCiphertext<C>
 where

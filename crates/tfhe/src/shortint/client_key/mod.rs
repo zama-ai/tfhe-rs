@@ -4,11 +4,6 @@ pub(crate) mod secret_encryption_key;
 use tfhe_versionable::Versionize;
 
 use super::PBSOrder;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{
-    allocate_and_generate_new_binary_glwe_secret_key,
-    allocate_and_generate_new_binary_lwe_secret_key, decrypt_lwe_ciphertext,
-};
 use crate::shortint::backward_compatibility::client_key::ClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
@@ -19,6 +14,11 @@ use crate::shortint::CarryModulus;
 use secret_encryption_key::SecretEncryptionKeyView;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
+use tfhe_core_crypto::entities::*;
+use tfhe_core_crypto::prelude::{
+    allocate_and_generate_new_binary_glwe_secret_key,
+    allocate_and_generate_new_binary_lwe_secret_key, decrypt_lwe_ciphertext,
+};
 
 /// A structure containing the client key, which must be kept secret.
 ///

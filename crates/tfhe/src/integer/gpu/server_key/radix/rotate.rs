@@ -1,11 +1,11 @@
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     unchecked_rotate_left_integer_radix_kb_assign_async,
     unchecked_rotate_right_integer_radix_kb_assign_async, CudaServerKey, PBSType,
 };
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::LweBskGroupingFactor;
 
 impl CudaServerKey {
     /// # Safety

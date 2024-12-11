@@ -1,4 +1,3 @@
-use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
@@ -7,6 +6,7 @@ use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::prelude::{CastInto, OverflowingAdd, OverflowingMul, OverflowingSub};
 use crate::{FheBool, FheUint};
+use tfhe_core_crypto::prelude::UnsignedNumeric;
 
 impl<Id> OverflowingAdd<Self> for &FheUint<Id>
 where

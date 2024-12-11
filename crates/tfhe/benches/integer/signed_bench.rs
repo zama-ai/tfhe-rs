@@ -12,7 +12,7 @@ use std::env;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
-use tfhe::keycache::NamedParam;
+use tfhe_core_crypto::keycache::NamedParam;
 
 fn gen_random_i256(rng: &mut ThreadRng) -> I256 {
     let clearlow = rng.gen::<u128>();

@@ -2,10 +2,10 @@
 //! where the values and computations are always done on CPU
 use super::super::helpers::{create_sub_mut_slice_with_bound, create_sub_slice_with_bound};
 use super::super::traits::{ArithmeticArrayBackend, BitwiseArrayBackend, ClearBitwiseArrayBackend};
-use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::high_level_api::array::{
     ArrayBackend, FheArrayBase, FheBackendArray, FheBackendArraySlice, FheBackendArraySliceMut,
 };
+use tfhe_core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 
 use crate::array::traits::{
     BackendDataContainer, BackendDataContainerMut, ClearArithmeticArrayBackend, TensorSlice,

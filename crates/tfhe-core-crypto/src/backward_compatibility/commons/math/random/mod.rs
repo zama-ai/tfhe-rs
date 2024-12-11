@@ -1,7 +1,7 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::commons::math::random::*;
-use crate::core_crypto::prelude::{FloatingPoint, UnsignedInteger};
+use crate::commons::math::random::*;
+use crate::prelude::{FloatingPoint, UnsignedInteger};
 
 #[derive(VersionsDispatch)]
 pub enum TUniformVersions<T: UnsignedInteger> {

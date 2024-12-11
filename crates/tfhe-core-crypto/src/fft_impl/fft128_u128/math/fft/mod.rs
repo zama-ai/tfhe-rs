@@ -1,5 +1,5 @@
-use crate::core_crypto::commons::utils::izip;
-pub use crate::core_crypto::fft_impl::fft128::math::fft::Fft128View;
+use crate::commons::utils::izip;
+pub use crate::fft_impl::fft128::math::fft::Fft128View;
 use dyn_stack::PodStack;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use pulp::{f64x4, u64x4, x86::V3};

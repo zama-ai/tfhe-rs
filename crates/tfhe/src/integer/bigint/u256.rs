@@ -1,4 +1,4 @@
-use crate::core_crypto::prelude::Numeric;
+use tfhe_core_crypto::prelude::Numeric;
 
 pub type U256 = super::static_unsigned::StaticUnsignedBigInt<4>;
 

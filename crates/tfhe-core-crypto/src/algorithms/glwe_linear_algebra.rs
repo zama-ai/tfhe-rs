@@ -1,9 +1,9 @@
 //! Module containing primitives pertaining to [`GLWE ciphertext`](`GlweCiphertext`) linear algebra,
 //! like addition, multiplication, etc.
 
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::slice_algorithms::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Add the right-hand side [`GLWE ciphertext`](`GlweCiphertext`) to the left-hand side [`GLWE
 /// ciphertext`](`GlweCiphertext`) updating it in-place.

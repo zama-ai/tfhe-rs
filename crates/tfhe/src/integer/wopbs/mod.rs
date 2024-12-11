@@ -18,12 +18,12 @@ pub use experimental::*;
 
 #[cfg(feature = "experimental")]
 mod experimental {
-    pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCount};
-    use crate::core_crypto::prelude::*;
     use crate::integer::client_key::utils::i_crt;
     use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, RadixCiphertext, ServerKey};
     use crate::shortint::ciphertext::{Degree, NoiseLevel};
     use crate::shortint::WopbsParameters;
+    pub use tfhe_core_crypto::commons::parameters::{CiphertextCount, PlaintextCount};
+    use tfhe_core_crypto::prelude::*;
 
     use crate::shortint::wopbs::WopbsLUTBase;
 

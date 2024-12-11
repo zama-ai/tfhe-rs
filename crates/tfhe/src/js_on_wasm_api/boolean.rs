@@ -1,7 +1,7 @@
-use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::commons::math::random::Seed;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use std::panic::set_hook;
+use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+use tfhe_core_crypto::commons::math::random::Seed;
+use tfhe_core_crypto::prelude::ActivatedRandomGenerator;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -35,7 +35,7 @@ pub enum BooleanParameterSet {
 
 #[wasm_bindgen]
 pub struct BooleanNoiseDistribution(
-    pub(crate) crate::core_crypto::commons::math::random::DynamicDistribution<u32>,
+    pub(crate) tfhe_core_crypto::commons::math::random::DynamicDistribution<u32>,
 );
 
 impl TryFrom<u32> for BooleanParameterSet {
@@ -62,7 +62,7 @@ pub enum BooleanEncryptionKeyChoice {
 }
 
 impl From<BooleanEncryptionKeyChoice>
-    for crate::core_crypto::commons::parameters::EncryptionKeyChoice
+    for tfhe_core_crypto::commons::parameters::EncryptionKeyChoice
 {
     fn from(value: BooleanEncryptionKeyChoice) -> Self {
         match value {
@@ -97,7 +97,7 @@ impl Boolean {
 
     #[wasm_bindgen]
     pub fn new_gaussian_from_std_dev(std_dev: f64) -> BooleanNoiseDistribution {
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::prelude::*;
         BooleanNoiseDistribution(DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
             std_dev,
         )))
@@ -105,7 +105,7 @@ impl Boolean {
 
     #[wasm_bindgen]
     pub fn try_new_t_uniform(bound_log2: u32) -> Result<BooleanNoiseDistribution, JsError> {
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::prelude::*;
         DynamicDistribution::try_new_t_uniform(bound_log2)
             .map(BooleanNoiseDistribution)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
@@ -126,7 +126,7 @@ impl Boolean {
         encryption_key_choice: BooleanEncryptionKeyChoice,
     ) -> BooleanParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::prelude::*;
         BooleanParameters(crate::boolean::parameters::BooleanParameters {
             lwe_dimension: LweDimension(lwe_dimension),
             glwe_dimension: GlweDimension(glwe_dimension),

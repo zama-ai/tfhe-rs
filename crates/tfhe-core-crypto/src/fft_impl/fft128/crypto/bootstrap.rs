@@ -1,22 +1,22 @@
 use super::super::math::fft::{Fft128, Fft128View};
 use super::ggsw::{cmux, cmux_scratch};
-use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
-use crate::core_crypto::algorithms::polynomial_algorithms::*;
-use crate::core_crypto::backward_compatibility::fft_impl::Fourier128LweBootstrapKeyVersions;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::CastInto;
-use crate::core_crypto::commons::parameters::{
+use crate::algorithms::extract_lwe_sample_from_glwe_ciphertext;
+use crate::algorithms::polynomial_algorithms::*;
+use crate::backward_compatibility::fft_impl::Fourier128LweBootstrapKeyVersions;
+use crate::commons::math::decomposition::SignedDecomposer;
+use crate::commons::math::torus::UnsignedTorus;
+use crate::commons::numeric::CastInto;
+use crate::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, MonomialDegree,
     PolynomialSize,
 };
-use crate::core_crypto::commons::traits::{
+use crate::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
 };
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
-use crate::core_crypto::prelude::ContainerMut;
+use crate::commons::utils::izip;
+use crate::entities::*;
+use crate::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
+use crate::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use core::any::TypeId;
 use core::mem::transmute;

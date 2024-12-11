@@ -1,12 +1,12 @@
 //! In this module, we store the hidden (to the end-user) internal state/keys that are needed to
 //! perform operations.
-#[cfg(feature = "gpu")]
-use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::errors::{UninitializedServerKey, UnwrapResultExt};
 use crate::high_level_api::keys::{InternalServerKey, ServerKey};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::CudaServerKey;
 use std::cell::RefCell;
+#[cfg(feature = "gpu")]
+use tfhe_core_crypto::gpu::CudaStreams;
 
 /// We store the internal keys as thread local, meaning each thread has its own set of keys.
 ///

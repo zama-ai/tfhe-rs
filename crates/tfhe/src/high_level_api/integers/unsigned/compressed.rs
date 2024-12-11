@@ -3,7 +3,6 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::integers::{
     CompressedFheUintVersions, CompressedRadixCiphertextVersions,
 };
-use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::high_level_api::integers::unsigned::base::{
     FheUint, FheUintConformanceParams, FheUintId,
@@ -17,6 +16,7 @@ use crate::integer::ciphertext::{
 };
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::Tag;
+use tfhe_core_crypto::prelude::UnsignedNumeric;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_safe_serialization::named::Named;
 
@@ -188,11 +188,11 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::core_crypto::prelude::UnsignedInteger;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::{CiphertextModulus, CompressedCiphertext};
     use crate::{generate_keys, set_server_key, CompressedFheUint8, ConfigBuilder};
     use rand::{thread_rng, Rng};
+    use tfhe_core_crypto::prelude::UnsignedInteger;
 
     impl<Id> CompressedFheUint<Id>
     where

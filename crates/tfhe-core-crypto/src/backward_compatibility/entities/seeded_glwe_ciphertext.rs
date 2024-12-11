@@ -1,6 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, SeededGlweCiphertext, UnsignedInteger};
+use crate::prelude::{Container, SeededGlweCiphertext, UnsignedInteger};
 
 #[derive(VersionsDispatch)]
 pub enum SeededGlweCiphertextVersions<C: Container>

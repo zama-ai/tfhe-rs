@@ -7,15 +7,15 @@ use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::boolean::engine::bootstrapping::{Bootstrapper, CompressedServerKey, ServerKey};
 use crate::boolean::parameters::{BooleanKeySwitchingParameters, BooleanParameters};
 use crate::boolean::{ClientKey, CompressedPublicKey, PublicKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::generators::{
+use std::cell::RefCell;
+use tfhe_core_crypto::algorithms::*;
+use tfhe_core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
 };
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::seeders::new_seeder;
-use std::cell::RefCell;
+use tfhe_core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
+use tfhe_core_crypto::commons::parameters::*;
+use tfhe_core_crypto::entities::*;
+use tfhe_core_crypto::seeders::new_seeder;
 
 pub mod bootstrapping;
 

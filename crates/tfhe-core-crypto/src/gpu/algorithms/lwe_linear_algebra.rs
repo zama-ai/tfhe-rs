@@ -1,13 +1,13 @@
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{
+use crate::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::gpu::vec::CudaVec;
+use crate::gpu::{
     add_lwe_ciphertext_vector_assign_async, add_lwe_ciphertext_vector_async,
     add_lwe_ciphertext_vector_plaintext_vector_assign_async,
     add_lwe_ciphertext_vector_plaintext_vector_async, mult_lwe_ciphertext_vector_cleartext_vector,
     mult_lwe_ciphertext_vector_cleartext_vector_assign_async,
     negate_lwe_ciphertext_vector_assign_async, negate_lwe_ciphertext_vector_async, CudaStreams,
 };
-use crate::core_crypto::prelude::UnsignedInteger;
+use crate::prelude::UnsignedInteger;
 
 /// # Safety
 ///

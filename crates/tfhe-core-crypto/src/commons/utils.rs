@@ -46,17 +46,17 @@ macro_rules! izip {
     ( $first:expr $(,)?) => {
         {
             #[allow(unused_imports)]
-            use $crate::core_crypto::commons::utils::ZipChecked;
+            use $crate::commons::utils::ZipChecked;
             ::core::iter::IntoIterator::into_iter($first)
         }
     };
     ( $first:expr, $($rest:expr),+ $(,)?) => {
         {
             #[allow(unused_imports)]
-            use $crate::core_crypto::commons::utils::ZipChecked;
+            use $crate::commons::utils::ZipChecked;
             ::core::iter::IntoIterator::into_iter($first)
                 $(.zip_checked($rest))*
-                .map($crate::core_crypto::commons::utils::izip!(@ __closure @ ($first, $($rest),*)))
+                .map($crate::commons::utils::izip!(@ __closure @ ($first, $($rest),*)))
         }
     };
 }

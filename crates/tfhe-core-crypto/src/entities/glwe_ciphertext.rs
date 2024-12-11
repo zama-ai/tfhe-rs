@@ -3,11 +3,11 @@
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::glwe_ciphertext::GlweCiphertextVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
+use crate::backward_compatibility::entities::glwe_ciphertext::GlweCiphertextVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::prelude::misc::check_encrypted_content_respects_mod;
 
 /// A convenience structure to easily manipulate the body of a [`GlweCiphertext`].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -258,7 +258,7 @@ pub fn glwe_ciphertext_encryption_noise_sample_count(
 ///
 /// A GLWE ciphertext is an encryption of a polynomial plaintext.
 /// It is secure under the hardness assumption called General Learning With Errors (GLWE). It is a
-/// generalization of both [`LWE ciphertexts`](`crate::core_crypto::entities::LweCiphertext`) and
+/// generalization of both [`LWE ciphertexts`](`crate::entities::LweCiphertext`) and
 /// RLWE ciphertexts. GLWE requires a cyclotomic ring. We use the notation $\mathcal{R}\_q$ for the
 /// following cyclotomic ring: $\mathbb{Z}\_q\[X\]/\left\langle X^N + 1\right\rangle$ where
 /// $N\in\mathbb{N}$ is a power of two.
@@ -336,7 +336,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertext<C> 
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] using this
+    /// you need to use [`crate::algorithms::encrypt_glwe_ciphertext`] using this
     /// ciphertext as output.
     ///
     /// This docstring exhibits [`GlweCiphertext`] primitives usage.
@@ -584,7 +584,7 @@ impl<Scalar: UnsignedInteger> GlweCiphertextOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] using this ciphertext as
+    /// [`crate::algorithms::encrypt_glwe_ciphertext`] using this ciphertext as
     /// output.
     ///
     ///

@@ -1,6 +1,3 @@
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::SignedNumeric;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -11,6 +8,9 @@ use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NoiseLevel;
+use tfhe_core_crypto::gpu::vec::CudaVec;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::SignedNumeric;
 
 impl CudaServerKey {
     /// Computes homomorphically an addition between a scalar and a ciphertext.

@@ -16,7 +16,7 @@
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::commons::dispersion::StandardDevVersions;
+use crate::backward_compatibility::commons::dispersion::StandardDevVersions;
 
 /// A trait for types representing distribution parameters, for a given unsigned integer type.
 //  Warning:

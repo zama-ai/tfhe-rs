@@ -1,4 +1,3 @@
-use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
@@ -9,6 +8,7 @@ use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
 use crate::{ClientKey, CompressedPublicKey, FheUint, PublicKey};
+use tfhe_core_crypto::prelude::UnsignedNumeric;
 
 impl<Id, ClearType> FheDecrypt<ClearType> for FheUint<Id>
 where

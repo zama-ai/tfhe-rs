@@ -1,14 +1,12 @@
 //! Module containing primitives pertaining to partial [`GlweSecretKey`] generation.
 
-use crate::core_crypto::commons::generators::SecretRandomGenerator;
-use crate::core_crypto::commons::math::random::{
-    ByteRandomGenerator, RandomGenerable, UniformBinary,
-};
-use crate::core_crypto::commons::numeric::Numeric;
-use crate::core_crypto::commons::parameters::{GlweDimension, PolynomialSize};
-use crate::core_crypto::commons::traits::ContainerMut;
-use crate::core_crypto::entities::{GlweSecretKey, GlweSecretKeyOwned};
-use crate::core_crypto::experimental::commons::parameters::PartialGlweSecretKeyRandomCoefCount;
+use crate::commons::generators::SecretRandomGenerator;
+use crate::commons::math::random::{ByteRandomGenerator, RandomGenerable, UniformBinary};
+use crate::commons::numeric::Numeric;
+use crate::commons::parameters::{GlweDimension, PolynomialSize};
+use crate::commons::traits::ContainerMut;
+use crate::entities::{GlweSecretKey, GlweSecretKeyOwned};
+use crate::experimental::commons::parameters::PartialGlweSecretKeyRandomCoefCount;
 
 /// Fill a [`GLWE secret key`](`GlweSecretKey`) with a predefined number of uniformly random binary
 /// coefficients which can be smaller than the input key element count.

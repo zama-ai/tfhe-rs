@@ -1,8 +1,8 @@
 use super::utils::*;
-use crate::core_crypto::commons::dispersion::StandardDev;
-use crate::core_crypto::commons::math::random::DynamicDistribution as RustDynamicDistribution;
-use crate::core_crypto::commons::numeric::UnsignedInteger;
 use std::os::raw::c_int;
+use tfhe_core_crypto::commons::dispersion::StandardDev;
+use tfhe_core_crypto::commons::math::random::DynamicDistribution as RustDynamicDistribution;
+use tfhe_core_crypto::commons::numeric::UnsignedInteger;
 
 // f64 will be aligned as a u64, use the same alignment
 #[repr(u64)]
@@ -128,8 +128,8 @@ pub unsafe extern "C" fn core_crypto_lwe_secret_key(
     seed_high_bytes: u64,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::commons::math::random::Seed;
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::commons::math::random::Seed;
+        use tfhe_core_crypto::prelude::*;
 
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed_high_bytes: u128 = seed_high_bytes.into();
@@ -158,9 +158,9 @@ pub unsafe extern "C" fn core_crypto_lwe_encrypt(
     seed_high_bytes: u64,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::commons::generators::DeterministicSeeder;
-        use crate::core_crypto::commons::math::random::Seed;
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+        use tfhe_core_crypto::commons::math::random::Seed;
+        use tfhe_core_crypto::prelude::*;
 
         let lwe_sk_slice = std::slice::from_raw_parts(lwe_sk_ptr, lwe_sk_dim);
         let lwe_sk = LweSecretKey::from_container(lwe_sk_slice);
@@ -207,9 +207,9 @@ pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
     seed_high_bytes: u64,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::commons::generators::DeterministicSeeder;
-        use crate::core_crypto::commons::math::random::Seed;
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+        use tfhe_core_crypto::commons::math::random::Seed;
+        use tfhe_core_crypto::prelude::*;
 
         let glwe_sk_slice = std::slice::from_raw_parts(glwe_sk_ptr, glwe_sk_dim * poly_size);
         let glwe_sk = GlweSecretKey::from_container(glwe_sk_slice, PolynomialSize(poly_size));
@@ -263,7 +263,7 @@ pub unsafe extern "C" fn core_crypto_lwe_decrypt(
     lwe_sk_dim: usize,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::prelude::*;
 
         let lwe_sk_slice = std::slice::from_raw_parts(lwe_sk_ptr, lwe_sk_dim);
         let lwe_sk = LweSecretKey::from_container(lwe_sk_slice);
@@ -286,7 +286,7 @@ pub unsafe extern "C" fn core_crypto_glwe_decrypt(
     glwe_poly_size: usize,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::prelude::*;
 
         let glwe_sk_slice = std::slice::from_raw_parts(glwe_sk_ptr, glwe_sk_dim * glwe_poly_size);
         let glwe_sk = GlweSecretKey::from_container(glwe_sk_slice, PolynomialSize(glwe_poly_size));
@@ -320,7 +320,7 @@ pub unsafe extern "C" fn core_crypto_lwe_multi_bit_bootstrapping_key_element_siz
     result: *mut usize,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::prelude::*;
 
         let result = get_mut_checked(result).unwrap();
 
@@ -358,9 +358,9 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_bootstrapping_key(
     seed_high_bytes: u64,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::commons::generators::DeterministicSeeder;
-        use crate::core_crypto::commons::math::random::Seed;
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+        use tfhe_core_crypto::commons::math::random::Seed;
+        use tfhe_core_crypto::prelude::*;
 
         let input_lwe_sk_slice = std::slice::from_raw_parts(input_lwe_sk_ptr, input_lwe_sk_dim);
         let input_lwe_sk = LweSecretKey::from_container(input_lwe_sk_slice);
@@ -442,9 +442,9 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_multi_bit_bootstrapping_ke
     seed_high_bytes: u64,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::commons::generators::DeterministicSeeder;
-        use crate::core_crypto::commons::math::random::Seed;
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+        use tfhe_core_crypto::commons::math::random::Seed;
+        use tfhe_core_crypto::prelude::*;
 
         let input_lwe_sk_slice = std::slice::from_raw_parts(input_lwe_sk_ptr, input_lwe_sk_dim);
         let input_lwe_sk = LweSecretKey::from_container(input_lwe_sk_slice);
@@ -528,9 +528,9 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_keyswitch_key(
     seed_high_bytes: u64,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::commons::generators::DeterministicSeeder;
-        use crate::core_crypto::commons::math::random::Seed;
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+        use tfhe_core_crypto::commons::math::random::Seed;
+        use tfhe_core_crypto::prelude::*;
 
         let input_lwe_sk_slice = std::slice::from_raw_parts(input_lwe_sk_ptr, input_lwe_sk_dim);
         let input_lwe_sk = LweSecretKey::from_container(input_lwe_sk_slice);
@@ -602,9 +602,9 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_private_functional_keyswit
     seed_high_bytes: u64,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::commons::generators::DeterministicSeeder;
-        use crate::core_crypto::commons::math::random::Seed;
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+        use tfhe_core_crypto::commons::math::random::Seed;
+        use tfhe_core_crypto::prelude::*;
 
         let input_lwe_sk_slice = std::slice::from_raw_parts(input_lwe_sk_ptr, input_lwe_sk_dim);
         let input_lwe_sk = LweSecretKey::from_container(input_lwe_sk_slice);

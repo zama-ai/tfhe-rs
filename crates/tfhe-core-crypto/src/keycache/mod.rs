@@ -3,6 +3,9 @@ pub use utils::{
     SharedKey as GenericSharedKey,
 };
 
+#[cfg(test)]
+pub(crate) mod core;
+
 pub mod utils {
     use fs2::FileExt;
     use serde::de::DeserializeOwned;

@@ -2,13 +2,13 @@
 //! [`standard pseudo GGSW ciphertexts`](`PseudoGgswCiphertext`) to various
 //! representations/numerical domains like the Fourier domain.
 
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::experimental::entities::fourier_pseudo_ggsw_ciphertext::{
+use crate::commons::computation_buffers::ComputationBuffers;
+use crate::commons::traits::*;
+use crate::experimental::entities::fourier_pseudo_ggsw_ciphertext::{
     fill_with_forward_fourier_scratch, PseudoFourierGgswCiphertext,
 };
-use crate::core_crypto::experimental::entities::pseudo_ggsw_ciphertext::PseudoGgswCiphertext;
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::experimental::entities::pseudo_ggsw_ciphertext::PseudoGgswCiphertext;
+use crate::fft_impl::fft64::math::fft::{Fft, FftView};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 

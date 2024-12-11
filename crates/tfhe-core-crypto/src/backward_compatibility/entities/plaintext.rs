@@ -1,6 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Numeric, Plaintext};
+use crate::prelude::{Numeric, Plaintext};
 
 #[derive(VersionsDispatch)]
 pub enum PlaintextVersions<T: Numeric> {

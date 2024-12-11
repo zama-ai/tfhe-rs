@@ -49,7 +49,7 @@ pub mod slice_algorithms;
 pub(crate) mod test;
 
 // No pub use for slice and polynomial algorithms which would not interest higher level users
-// They can still be used via `use crate::core_crypto::algorithms::slice_algorithms::*;`
+// They can still be used via `use crate::algorithms::slice_algorithms::*;`
 pub use ggsw_conversion::*;
 pub use ggsw_encryption::*;
 pub use glwe_encryption::*;

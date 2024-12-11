@@ -2,15 +2,15 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::lwe_ciphertext_list::LweCiphertextListVersions;
-use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
-use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::lwe_ciphertext_list::LweCiphertextListVersions;
+use crate::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::commons::math::random::{Distribution, RandomGenerable};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// A contiguous list containing
-/// [`LWE ciphertexts`](`crate::core_crypto::entities::LweCiphertext`).
+/// [`LWE ciphertexts`](`crate::entities::LweCiphertext`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(LweCiphertextListVersions)]
 pub struct LweCiphertextList<C: Container>
@@ -86,8 +86,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertextList<
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_lwe_ciphertext_list`] or its
-    /// parallel variant [`crate::core_crypto::algorithms::par_encrypt_lwe_ciphertext_list`] using
+    /// you need to use [`crate::algorithms::encrypt_lwe_ciphertext_list`] or its
+    /// parallel variant [`crate::algorithms::par_encrypt_lwe_ciphertext_list`] using
     /// this list as output.
     ///
     /// This docstring exhibits [`LweCiphertextList`] primitives usage.
@@ -239,8 +239,8 @@ impl<Scalar: UnsignedInteger> LweCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_lwe_ciphertext_list`] or its parallel variant
-    /// [`crate::core_crypto::algorithms::par_encrypt_lwe_ciphertext_list`] using this list as
+    /// [`crate::algorithms::encrypt_lwe_ciphertext_list`] or its parallel variant
+    /// [`crate::algorithms::par_encrypt_lwe_ciphertext_list`] using this list as
     /// output.
     ///
     /// See [`LweCiphertextList::from_container`] for usage.
@@ -264,8 +264,8 @@ impl<Scalar: UnsignedInteger> LweCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_lwe_ciphertext_list`] or its parallel variant
-    /// [`crate::core_crypto::algorithms::par_encrypt_lwe_ciphertext_list`] using this list as
+    /// [`crate::algorithms::encrypt_lwe_ciphertext_list`] or its parallel variant
+    /// [`crate::algorithms::par_encrypt_lwe_ciphertext_list`] using this list as
     /// output.
     ///
     /// See [`LweCiphertextList::from_container`] for usage.

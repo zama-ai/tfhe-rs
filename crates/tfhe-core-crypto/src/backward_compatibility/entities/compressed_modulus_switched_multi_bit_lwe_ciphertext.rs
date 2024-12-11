@@ -1,6 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{
+use crate::prelude::{
     CastFrom, CastInto, CompressedModulusSwitchedMultiBitLweCiphertext, UnsignedInteger,
 };
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
+use crate::commons::test_tools::{modular_distance, new_random_generator};
 use aligned_vec::avec;
 use dyn_stack::{GlobalPodBuffer, ReborrowMut};
 

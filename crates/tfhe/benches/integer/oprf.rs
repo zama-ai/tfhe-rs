@@ -6,7 +6,7 @@ use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::IntegerKeyKind;
-use tfhe::keycache::NamedParam;
+use tfhe_core_crypto::keycache::NamedParam;
 use tfhe_csprng::seeders::Seed;
 
 pub fn unsigned_oprf(c: &mut Criterion) {

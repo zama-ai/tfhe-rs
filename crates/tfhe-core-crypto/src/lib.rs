@@ -10,9 +10,13 @@
 //! This library is geared towards people who already know their way around FHE. It gives the user
 //! freedom of choice over a breadth of parameters, which can lead to less than 128 bits of security
 //! if chosen incorrectly
+
+#![allow(clippy::too_long_first_doc_paragraph)]
+
 pub mod algorithms;
 pub mod commons;
 pub mod entities;
+pub mod error;
 pub mod prelude;
 pub mod seeders;
 
@@ -20,7 +24,7 @@ pub mod fft_impl;
 
 #[cfg(feature = "gpu")]
 pub mod gpu;
-#[cfg(test)]
+#[cfg(any(test, doctest, feature = "internal-keycache"))]
 pub mod keycache;
 
 pub mod backward_compatibility;
@@ -28,3 +32,9 @@ pub mod backward_compatibility;
 // Experimental section
 #[cfg(feature = "experimental")]
 pub mod experimental;
+
+#[cfg(feature = "zk-pok")]
+pub mod zk;
+
+pub use error::{Error, ErrorKind};
+pub type Result<T> = std::result::Result<T, Error>;

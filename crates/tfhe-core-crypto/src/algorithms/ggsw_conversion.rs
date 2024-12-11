@@ -2,11 +2,11 @@
 //! [`standard GGSW ciphertexts`](`GgswCiphertext`) to various representations/numerical domains
 //! like the Fourier domain.
 
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::fill_with_forward_fourier_scratch;
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::commons::computation_buffers::ComputationBuffers;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::fft_impl::fft64::crypto::ggsw::fill_with_forward_fourier_scratch;
+use crate::fft_impl::fft64::math::fft::{Fft, FftView};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 
@@ -43,7 +43,7 @@ pub fn convert_standard_ggsw_ciphertext_to_fourier<Scalar, InputCont, OutputCont
 
 /// Memory optimized version of [`convert_standard_ggsw_ciphertext_to_fourier`].
 ///
-/// See [`cmux_assign_mem_optimized`](`crate::core_crypto::algorithms::cmux_assign_mem_optimized`)
+/// See [`cmux_assign_mem_optimized`](`crate::algorithms::cmux_assign_mem_optimized`)
 /// for usage.
 pub fn convert_standard_ggsw_ciphertext_to_fourier_mem_optimized<Scalar, InputCont, OutputCont>(
     input_ggsw: &GgswCiphertext<InputCont>,

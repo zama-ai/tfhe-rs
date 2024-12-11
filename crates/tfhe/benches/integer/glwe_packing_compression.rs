@@ -8,9 +8,9 @@ use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
 use tfhe::integer::{ClientKey, RadixCiphertext};
-use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe_core_crypto::keycache::NamedParam;
 
 fn cpu_glwe_packing(c: &mut Criterion) {
     let bench_name = "integer::packing_compression";

@@ -1,5 +1,5 @@
 use super::*;
-use crate::core_crypto::fft_impl::common::modulus_switch;
+use crate::fft_impl::common::modulus_switch;
 use itertools::Itertools;
 
 #[cfg(not(tarpaulin))]

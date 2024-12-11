@@ -2,13 +2,13 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_lwe_bootstrap_key::SeededLweBootstrapKeyVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_lwe_bootstrap_key::SeededLweBootstrapKeyVersions;
+use crate::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A [`seeded LWE bootstrap key`](`SeededLweBootstrapKey`).
@@ -54,8 +54,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweBootstrap
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an LWE
     /// bootstrap key you need to use
-    /// [`crate::core_crypto::algorithms::generate_seeded_lwe_bootstrap_key`] or its parallel
-    /// equivalent [`crate::core_crypto::algorithms::par_generate_seeded_lwe_bootstrap_key`]
+    /// [`crate::algorithms::generate_seeded_lwe_bootstrap_key`] or its parallel
+    /// equivalent [`crate::algorithms::par_generate_seeded_lwe_bootstrap_key`]
     /// using this key as output.
     ///
     /// This docstring exhibits [`SeededLweBootstrapKey`] primitives usage.
@@ -292,8 +292,8 @@ impl<Scalar: UnsignedInteger> SeededLweBootstrapKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate an LWE bootstrap key you need to use
-    /// [`crate::core_crypto::algorithms::generate_seeded_lwe_bootstrap_key`] or its parallel
-    /// equivalent [`crate::core_crypto::algorithms::par_generate_seeded_lwe_bootstrap_key`] using
+    /// [`crate::algorithms::generate_seeded_lwe_bootstrap_key`] or its parallel
+    /// equivalent [`crate::algorithms::par_generate_seeded_lwe_bootstrap_key`] using
     /// this key as output.
     ///
     /// See [`SeededLweBootstrapKey::from_container`] for usage.

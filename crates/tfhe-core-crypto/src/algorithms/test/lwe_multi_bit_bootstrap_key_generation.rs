@@ -1,17 +1,15 @@
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::dispersion::StandardDev;
-use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
-use crate::core_crypto::commons::math::random::{
-    ActivatedRandomGenerator, DynamicDistribution, Seed,
-};
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::parameters::{
+use crate::algorithms::*;
+use crate::commons::dispersion::StandardDev;
+use crate::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
+use crate::commons::math::random::{ActivatedRandomGenerator, DynamicDistribution, Seed};
+use crate::commons::math::torus::UnsignedTorus;
+use crate::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
     LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
-use crate::core_crypto::commons::test_tools::new_secret_random_generator;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::CastFrom;
+use crate::commons::test_tools::new_secret_random_generator;
+use crate::entities::*;
+use crate::prelude::CastFrom;
 
 #[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
@@ -24,24 +22,15 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
     ciphertext_modulus: CiphertextModulus<T>,
 ) {
     for _ in 0..NB_TESTS {
-        let mut lwe_dim =
-            LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
-        let glwe_dim =
-            GlweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
-        let poly_size =
-            PolynomialSize(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
-        let level = DecompositionLevelCount(
-            crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-        );
-        let base_log = DecompositionBaseLog(
-            crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-        );
-        let grouping_factor = LweBskGroupingFactor(
-            crate::core_crypto::commons::test_tools::random_usize_between(2..4),
-        );
-        let mask_seed = Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
-        let deterministic_seeder_seed =
-            Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
+        let mut lwe_dim = LweDimension(crate::commons::test_tools::random_usize_between(5..10));
+        let glwe_dim = GlweDimension(crate::commons::test_tools::random_usize_between(5..10));
+        let poly_size = PolynomialSize(crate::commons::test_tools::random_usize_between(5..10));
+        let level = DecompositionLevelCount(crate::commons::test_tools::random_usize_between(2..5));
+        let base_log = DecompositionBaseLog(crate::commons::test_tools::random_usize_between(2..5));
+        let grouping_factor =
+            LweBskGroupingFactor(crate::commons::test_tools::random_usize_between(2..4));
+        let mask_seed = Seed(crate::commons::test_tools::any_usize() as u128);
+        let deterministic_seeder_seed = Seed(crate::commons::test_tools::any_usize() as u128);
 
         let noise_distribution =
             DynamicDistribution::new_gaussian_from_std_dev(StandardDev::from_standard_dev(10.));

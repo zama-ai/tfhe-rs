@@ -1,9 +1,9 @@
-use crate::core_crypto::algorithms::misc::check_clear_content_respects_mod;
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable, TUniform, Uniform};
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
-use crate::core_crypto::commons::test_tools::*;
+use crate::algorithms::misc::check_clear_content_respects_mod;
+use crate::commons::ciphertext_modulus::CiphertextModulus;
+use crate::commons::math::random::{Distribution, RandomGenerable, TUniform, Uniform};
+use crate::commons::math::torus::UnsignedTorus;
+use crate::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
+use crate::commons::test_tools::*;
 
 fn test_normal_random_three_sigma<T: UnsignedTorus>() {
     //! test if the normal random generation with std_dev is below 3*std_dev (99.7%)

@@ -46,19 +46,19 @@ pub mod seeded_lwe_multi_bit_bootstrap_key;
 pub mod seeded_lwe_packing_keyswitch_key;
 pub mod seeded_lwe_public_key;
 
-pub use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::{
+pub use crate::fft_impl::fft128::crypto::bootstrap::{
     Fourier128LweBootstrapKey, Fourier128LweBootstrapKeyOwned,
 };
-pub use crate::core_crypto::fft_impl::fft128::crypto::ggsw::{
+pub use crate::fft_impl::fft128::crypto::ggsw::{
     Fourier128GgswCiphertext, Fourier128GgswLevelMatrix, Fourier128GgswLevelRow,
 };
-pub use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
+pub use crate::fft_impl::fft64::crypto::bootstrap::{
     FourierLweBootstrapKey, FourierLweBootstrapKeyOwned,
 };
-pub use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
+pub use crate::fft_impl::fft64::crypto::ggsw::{
     FourierGgswCiphertext, FourierGgswCiphertextList, FourierGgswLevelMatrix, FourierGgswLevelRow,
 };
-pub use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomial;
+pub use crate::fft_impl::fft64::math::polynomial::FourierPolynomial;
 #[cfg(feature = "zk-pok")]
 pub use crate::zk::*;
 pub use cleartext::*;

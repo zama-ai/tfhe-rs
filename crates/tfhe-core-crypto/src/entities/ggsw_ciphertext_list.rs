@@ -2,15 +2,15 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::ggsw_ciphertext_list::GgswCiphertextListVersions;
-use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
-use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::ggsw_ciphertext_list::GgswCiphertextListVersions;
+use crate::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::commons::math::random::{Distribution, RandomGenerable};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// A contiguous list containing
-/// [`GGSW ciphertexts`](`crate::core_crypto::entities::GgswCiphertext`).
+/// [`GGSW ciphertexts`](`crate::entities::GgswCiphertext`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(GgswCiphertextListVersions)]
 pub struct GgswCiphertextList<C: Container>
@@ -92,9 +92,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertextList
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data in
     /// the list you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its
+    /// [`crate::algorithms::encrypt_constant_ggsw_ciphertext`] or its
     /// parallel counterpart
-    /// [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`] on the
+    /// [`crate::algorithms::par_encrypt_constant_ggsw_ciphertext`] on the
     /// individual ciphertexts in the list.
     ///
     /// This docstring exhibits [`GgswCiphertextList`] primitives usage.
@@ -284,8 +284,8 @@ impl<Scalar: UnsignedInteger> GgswCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data in the list you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its parallel
-    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`] on
+    /// [`crate::algorithms::encrypt_constant_ggsw_ciphertext`] or its parallel
+    /// counterpart [`crate::algorithms::par_encrypt_constant_ggsw_ciphertext`] on
     /// the individual ciphertexts in the list.
     ///
     /// See [`GgswCiphertextList::from_container`] for usage.

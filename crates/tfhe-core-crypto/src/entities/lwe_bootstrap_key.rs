@@ -2,10 +2,10 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::lwe_bootstrap_key::LweBootstrapKeyVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::lwe_bootstrap_key::LweBootstrapKeyVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// An [`LWE bootstrap key`](`LweBootstrapKey`).
 ///
@@ -17,10 +17,10 @@ use crate::core_crypto::entities::*;
 ///
 /// ## Bootstrapping Key
 /// A bootstrapping key is a vector of
-/// [`GGSW ciphertexts`](`crate::core_crypto::entities::GgswCiphertext`). It encrypts the
-/// coefficients of the [`LWE secret key`](`crate::core_crypto::entities::LweSecretKey`)
+/// [`GGSW ciphertexts`](`crate::entities::GgswCiphertext`). It encrypts the
+/// coefficients of the [`LWE secret key`](`crate::entities::LweSecretKey`)
 /// $\vec{s}\_{\mathsf{in}}$ under the
-/// [GLWE secret key](`crate::core_crypto::entities::GlweSecretKey`)
+/// [GLWE secret key](`crate::entities::GlweSecretKey`)
 /// $\vec{S}\_{\mathsf{out}}$.
 ///
 /// $$\mathsf{BSK}\_{\vec{s}\_{\mathsf{in}}\rightarrow \vec{S}\_{\mathsf{out}}} = \left(
@@ -147,9 +147,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBootstrapKey<C>
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an LWE
-    /// bootstrap key you need to use [`crate::core_crypto::algorithms::generate_lwe_bootstrap_key`]
+    /// bootstrap key you need to use [`crate::algorithms::generate_lwe_bootstrap_key`]
     /// or its parallel equivalent
-    /// [`crate::core_crypto::algorithms::par_generate_lwe_bootstrap_key`] using this key as output.
+    /// [`crate::algorithms::par_generate_lwe_bootstrap_key`] using this key as output.
     ///
     /// This docstring exhibits [`LweBootstrapKey`] primitives usage.
     ///
@@ -306,8 +306,8 @@ impl<Scalar: UnsignedInteger> LweBootstrapKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate an LWE bootstrap key you need to use
-    /// [`crate::core_crypto::algorithms::generate_lwe_bootstrap_key`] or its parallel
-    /// equivalent [`crate::core_crypto::algorithms::par_generate_lwe_bootstrap_key`] using this
+    /// [`crate::algorithms::generate_lwe_bootstrap_key`] or its parallel
+    /// equivalent [`crate::algorithms::par_generate_lwe_bootstrap_key`] using this
     /// key as output.
     ///
     /// See [`LweBootstrapKey::from_container`] for usage.

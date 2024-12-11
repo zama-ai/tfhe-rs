@@ -1,11 +1,11 @@
 //! # WARNING: this module is experimental.
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::wopbs::{WopbsKey, WopbsKeyCreationError};
 use crate::shortint::{ClientKey, ServerKey, WopbsParameters};
+use tfhe_core_crypto::algorithms::*;
+use tfhe_core_crypto::entities::*;
 
 impl ShortintEngine {
     // Creates a key when ONLY a wopbs is used.

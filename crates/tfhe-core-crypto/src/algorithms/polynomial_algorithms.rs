@@ -1,9 +1,9 @@
 //! Module providing algorithms to perform computations on polynomials modulo $X^{N} + 1$.
 
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::parameters::MonomialDegree;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::slice_algorithms::*;
+use crate::commons::parameters::MonomialDegree;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Add a polynomial to the output polynomial.
 ///
@@ -1247,9 +1247,9 @@ fn induction_karatsuba_custom_mod<Scalar>(
 mod test {
     use rand::Rng;
 
-    use crate::core_crypto::algorithms::polynomial_algorithms::*;
-    use crate::core_crypto::commons::parameters::*;
-    use crate::core_crypto::commons::test_tools::*;
+    use crate::algorithms::polynomial_algorithms::*;
+    use crate::commons::parameters::*;
+    use crate::commons::test_tools::*;
 
     fn test_multiply_divide_unit_monomial<T: UnsignedTorus>() {
         //! tests if multiply_by_monomial and divide_by_monomial cancel each other

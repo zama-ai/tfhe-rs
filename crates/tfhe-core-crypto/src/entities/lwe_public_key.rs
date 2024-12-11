@@ -2,10 +2,10 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::lwe_public_key::LwePublicKeyVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::lwe_public_key::LwePublicKeyVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 // An LwePublicKey is literally an LweCiphertextList, so we wrap an LweCiphertextList and use
 // Deref to have access to all the primitives of the LweCiphertextList easily
@@ -55,7 +55,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LwePublicKey<C> {
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`LwePublicKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_lwe_public_key`] using this key as output.
+    /// [`crate::algorithms::generate_lwe_public_key`] using this key as output.
     ///
     /// This docstring exhibits [`LwePublicKey`] primitives usage.
     ///
@@ -150,7 +150,7 @@ impl<Scalar: UnsignedInteger> LwePublicKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate an [`LwePublicKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_lwe_public_key`] using this key as output.
+    /// [`crate::algorithms::generate_lwe_public_key`] using this key as output.
     ///
     /// See [`LwePublicKey::from_container`] for usage.
     pub fn new(

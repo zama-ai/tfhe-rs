@@ -1,8 +1,8 @@
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-use crate::core_crypto::gpu::{packing_keyswitch_list_async, CudaStreams};
-use crate::core_crypto::prelude::{CastInto, UnsignedTorus};
+use crate::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+use crate::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
+use crate::gpu::{packing_keyswitch_list_async, CudaStreams};
+use crate::prelude::{CastInto, UnsignedTorus};
 
 /// # Safety
 ///

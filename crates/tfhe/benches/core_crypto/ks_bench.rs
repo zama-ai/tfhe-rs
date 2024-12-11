@@ -6,7 +6,6 @@ use criterion::{black_box, criterion_main, Criterion};
 use serde::Serialize;
 use tfhe::boolean::prelude::*;
 use tfhe::core_crypto::prelude::*;
-use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::{
     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
@@ -31,6 +30,7 @@ use tfhe::shortint::parameters::{
 };
 use tfhe::shortint::prelude::*;
 use tfhe::shortint::{MultiBitPBSParameters, PBSParameters};
+use tfhe_core_crypto::keycache::NamedParam;
 
 #[cfg(not(feature = "gpu"))]
 const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 5] = [

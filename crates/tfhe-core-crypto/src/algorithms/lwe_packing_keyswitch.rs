@@ -1,13 +1,11 @@
-use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul_assign;
-use crate::core_crypto::algorithms::slice_algorithms::{
+use crate::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul_assign;
+use crate::algorithms::slice_algorithms::{
     slice_wrapping_add_assign, slice_wrapping_sub_scalar_mul_assign,
 };
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::{
-    GlweCiphertext, LweCiphertext, LweCiphertextList, LwePackingKeyswitchKey,
-};
+use crate::commons::math::decomposition::SignedDecomposer;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::{GlweCiphertext, LweCiphertext, LweCiphertextList, LwePackingKeyswitchKey};
 use rayon::prelude::*;
 
 /// Apply a keyswitch on an input [`LWE ciphertext`](`LweCiphertext`) and

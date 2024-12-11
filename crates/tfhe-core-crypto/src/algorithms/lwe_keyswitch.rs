@@ -1,16 +1,12 @@
 //! Module containing primitives pertaining to [`LWE ciphertext
 //! keyswitch`](`LweKeyswitchKey#lwe-keyswitch`).
 
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
-use crate::core_crypto::commons::math::decomposition::{
-    SignedDecomposer, SignedDecomposerNonNative,
-};
-use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, ThreadCount,
-};
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::slice_algorithms::*;
+use crate::commons::ciphertext_modulus::CiphertextModulusKind;
+use crate::commons::math::decomposition::{SignedDecomposer, SignedDecomposerNonNative};
+use crate::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount, ThreadCount};
+use crate::commons::traits::*;
+use crate::entities::*;
 use rayon::prelude::*;
 
 /// Keyswitch an [`LWE ciphertext`](`LweCiphertext`) encrypted under an
@@ -326,8 +322,8 @@ pub fn keyswitch_lwe_ciphertext_other_mod<Scalar, KSKCont, InputCont, OutputCont
 /// `input_bits` to a a smaller OutputScalar with `output_bits` and `output_bits` < `input_bits`.
 ///
 /// The product of the `lwe_keyswitch_key`'s
-/// [`DecompositionBaseLog`](`crate::core_crypto::commons::parameters::DecompositionBaseLog`) and
-/// [`DecompositionLevelCount`](`crate::core_crypto::commons::parameters::DecompositionLevelCount`)
+/// [`DecompositionBaseLog`](`crate::commons::parameters::DecompositionBaseLog`) and
+/// [`DecompositionLevelCount`](`crate::commons::parameters::DecompositionLevelCount`)
 /// needs to be smaller than `output_bits`.
 pub fn keyswitch_lwe_ciphertext_with_scalar_change<
     InputScalar,

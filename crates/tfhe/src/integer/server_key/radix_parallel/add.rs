@@ -1,9 +1,9 @@
-use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
+use tfhe_core_crypto::commons::numeric::UnsignedInteger;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub(crate) enum CarryPropagationAlgorithm {

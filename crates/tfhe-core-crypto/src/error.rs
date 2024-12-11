@@ -17,7 +17,7 @@ pub struct Error {
 }
 
 impl Error {
-    pub(crate) fn new(message: String) -> Self {
+    pub fn new(message: String) -> Self {
         Self::from(ErrorKind::Message(message))
     }
 

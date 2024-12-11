@@ -2,8 +2,8 @@
 //!
 //! This module implements the ciphertext structure containing an encryption of a Boolean message.
 
-use crate::core_crypto::entities::*;
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::entities::*;
 use tfhe_versionable::Versionize;
 
 use super::backward_compatibility::ciphertext::{CiphertextVersions, CompressedCiphertextVersions};

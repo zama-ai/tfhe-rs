@@ -1,7 +1,7 @@
-use crate::core_crypto::gpu::{negate_integer_radix_async, CudaStreams};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::radix_parallel::OutputFlag;
+use tfhe_core_crypto::gpu::{negate_integer_radix_async, CudaStreams};
 
 impl CudaServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.

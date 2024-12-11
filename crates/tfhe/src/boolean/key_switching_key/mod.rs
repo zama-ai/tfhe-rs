@@ -4,7 +4,7 @@ use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanKeySwitchingParameters;
 use crate::boolean::prelude::Ciphertext;
 use crate::boolean::ClientKey;
-use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweKeyswitchKeyOwned};
+use tfhe_core_crypto::prelude::{keyswitch_lwe_ciphertext, LweKeyswitchKeyOwned};
 
 use super::backward_compatibility::key_switching_key::KeySwitchingKeyVersions;
 

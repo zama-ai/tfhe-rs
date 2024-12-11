@@ -1,8 +1,8 @@
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::Container;
 use crate::shortint::server_key::*;
+use tfhe_core_crypto::prelude::Container;
 
 #[derive(VersionsDispatch)]
 pub enum SerializableShortintBootstrappingKeyVersions<C: Container<Element = tfhe_fft::c64>> {

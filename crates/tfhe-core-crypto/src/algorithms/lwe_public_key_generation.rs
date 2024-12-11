@@ -2,12 +2,12 @@
 //! generation`](`LwePublicKey#lwe-public-key`) and [`seeded LWE public key
 //! generation`](`SeededLwePublicKey#lwe-public-key`).
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::{CompressionSeed, Distribution, Uniform};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::commons::generators::EncryptionRandomGenerator;
+use crate::commons::math::random::{CompressionSeed, Distribution, Uniform};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Fill an [`LWE public key`](`LwePublicKey`) with an actual public key constructed from a private
 /// [`LWE secret key`](`LweSecretKey`).

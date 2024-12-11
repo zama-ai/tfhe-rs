@@ -5,8 +5,8 @@ use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
 use tfhe_fft::c64;
 
-use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
-use crate::core_crypto::prelude::{
+use crate::fft_impl::fft64::math::fft::FourierPolynomialList;
+use crate::prelude::{
     Container, Fourier128GgswCiphertext, Fourier128LweBootstrapKey, FourierGgswCiphertext,
     FourierLweBootstrapKey, IntoContainerOwned,
 };

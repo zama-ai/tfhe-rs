@@ -1,8 +1,8 @@
 //! Module providing algorithms to perform computations on raw slices.
 
-use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_add_mul_assign;
-use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::entities::Polynomial;
+use crate::algorithms::polynomial_algorithms::polynomial_wrapping_add_mul_assign;
+use crate::commons::numeric::UnsignedInteger;
+use crate::entities::Polynomial;
 
 /// Compute a dot product between two slices containing unsigned integers.
 ///

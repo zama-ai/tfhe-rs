@@ -16,7 +16,7 @@ pub struct LweSecretKeySharedCoefCount(pub usize);
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct LweSecretKeyUnsharedCoefCount(pub usize);
 
-impl crate::core_crypto::commons::parameters::LweDimension {
+impl crate::commons::parameters::LweDimension {
     #[track_caller]
     pub fn shared_coef_count_from(
         &self,

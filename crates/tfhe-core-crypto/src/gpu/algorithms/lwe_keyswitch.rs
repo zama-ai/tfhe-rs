@@ -1,8 +1,8 @@
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{keyswitch_async, CudaStreams};
-use crate::core_crypto::prelude::UnsignedInteger;
+use crate::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
+use crate::gpu::vec::CudaVec;
+use crate::gpu::{keyswitch_async, CudaStreams};
+use crate::prelude::UnsignedInteger;
 
 /// # Safety
 ///

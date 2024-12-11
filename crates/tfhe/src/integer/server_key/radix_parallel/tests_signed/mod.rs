@@ -22,7 +22,6 @@ pub(crate) mod test_shift;
 pub(crate) mod test_sub;
 pub(crate) mod test_vector_comparisons;
 
-use crate::core_crypto::prelude::SignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, MAX_NB_CTXT, NB_CTXT,
@@ -35,6 +34,7 @@ use crate::shortint::parameters::*;
 use itertools::{iproduct, izip};
 use rand::prelude::ThreadRng;
 use rand::Rng;
+use tfhe_core_crypto::prelude::SignedInteger;
 
 //================================================================================
 //     Encrypt/Decrypt Tests

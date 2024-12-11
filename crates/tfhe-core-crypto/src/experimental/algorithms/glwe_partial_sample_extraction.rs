@@ -2,9 +2,9 @@
 //! _sample extract_ in the literature. Allowing to extract a single
 //! [`LWE Ciphertext`](`LweCiphertext`) from a given [`GLWE ciphertext`](`GlweCiphertext`).
 
-use crate::core_crypto::commons::parameters::MonomialDegree;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::commons::parameters::MonomialDegree;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Extract the nth coefficient from the body of a [`GLWE Ciphertext`](`GlweCiphertext`) encrypted
 /// under a partial [`GLWE secret key`](`GlweSecretKey`). as an [`LWE ciphertext`](`LweCiphertext`).
@@ -156,14 +156,14 @@ pub fn partial_extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, Output
 }
 
 /// This operation does the opposite of
-/// [`extract_lwe_sample_from_glwe_ciphertext`](`crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext`)
+/// [`extract_lwe_sample_from_glwe_ciphertext`](`crate::algorithms::extract_lwe_sample_from_glwe_ciphertext`)
 /// and inserts the body of [`an LWE ciphertext`](`LweCiphertext`) in the first coefficient of
 /// [`a GLWE ciphertext`](`GlweCiphertext`) and fills the mask to have a valid GLWE ciphertext. The
 /// rest of the mask and body are filled with zeros.
 ///
 /// For an `input_lwe` encrypted under [`an LWE secret
-/// key`](`crate::core_crypto::entities::LweSecretKey`) that shares `phi` coefficients with [`an
-/// output GLWE secret key`](`crate::core_crypto::entities::GlweSecretKey`), it only requires on the
+/// key`](`crate::entities::LweSecretKey`) that shares `phi` coefficients with [`an
+/// output GLWE secret key`](`crate::entities::GlweSecretKey`), it only requires on the
 /// order of `phi` computations instead of `k * N` computations where `phi` is smaller than `k * N`
 /// (hence the partial name). The `output_glwe` can be decrypted with the output GLWE secret key
 /// which shares parts of its coefficients with the input LWE secret key.

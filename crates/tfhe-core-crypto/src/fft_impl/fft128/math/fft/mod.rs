@@ -1,7 +1,7 @@
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
-use crate::core_crypto::commons::parameters::PolynomialSize;
-use crate::core_crypto::commons::utils::izip;
+use crate::commons::math::torus::UnsignedTorus;
+use crate::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
+use crate::commons::parameters::PolynomialSize;
+use crate::commons::utils::izip;
 use core::any::TypeId;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use std::collections::hash_map::Entry;

@@ -1,16 +1,16 @@
 //! Module containing the definition of the SeededLweBootstrapKey.
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_lwe_multi_bit_bootstrap_key::SeededLweMultiBitBootstrapKeyVersions;
-use crate::core_crypto::commons::generators::{
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_lwe_multi_bit_bootstrap_key::SeededLweMultiBitBootstrapKeyVersions;
+use crate::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
-use crate::core_crypto::commons::math::random::{
+use crate::commons::math::random::{
     ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
 };
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
@@ -58,9 +58,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an LWE
     /// multi bit bootstrap key you need to use
-    /// [`crate::core_crypto::algorithms::generate_seeded_lwe_multi_bit_bootstrap_key`] or its
+    /// [`crate::algorithms::generate_seeded_lwe_multi_bit_bootstrap_key`] or its
     /// parallel equivalent
-    /// [`crate::core_crypto::algorithms::par_generate_seeded_lwe_multi_bit_bootstrap_key`] using
+    /// [`crate::algorithms::par_generate_seeded_lwe_multi_bit_bootstrap_key`] using
     /// this key as output.
     ///
     /// This docstring exhibits [`SeededLweMultiBitBootstrapKey`] primitives usage.
@@ -402,9 +402,9 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate an LWE bootstrap key you need to use
-    /// [`crate::core_crypto::algorithms::generate_seeded_lwe_multi_bit_bootstrap_key`] or its
+    /// [`crate::algorithms::generate_seeded_lwe_multi_bit_bootstrap_key`] or its
     /// parallel equivalent
-    /// [`crate::core_crypto::algorithms::par_generate_seeded_lwe_multi_bit_bootstrap_key`] using
+    /// [`crate::algorithms::par_generate_seeded_lwe_multi_bit_bootstrap_key`] using
     /// this key as output.
     ///
     /// See [`SeededLweMultiBitBootstrapKey::from_container`] for usage.

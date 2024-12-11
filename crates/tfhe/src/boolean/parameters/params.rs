@@ -1,5 +1,5 @@
 use crate::boolean::parameters::BooleanParameters;
-use crate::core_crypto::prelude::*;
+use tfhe_core_crypto::prelude::*;
 /// Default parameter set.
 ///
 /// This parameter set ensures 132-bits of security, and a probability of error is upper-bounded by

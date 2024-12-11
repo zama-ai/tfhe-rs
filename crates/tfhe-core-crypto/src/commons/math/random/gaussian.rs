@@ -1,6 +1,6 @@
 use super::*;
-use crate::core_crypto::backward_compatibility::commons::math::random::GaussianVersions;
-use crate::core_crypto::commons::math::torus::FromTorus;
+use crate::backward_compatibility::commons::math::random::GaussianVersions;
+use crate::commons::math::torus::FromTorus;
 
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;

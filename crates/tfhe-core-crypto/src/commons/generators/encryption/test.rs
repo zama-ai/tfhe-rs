@@ -1,15 +1,15 @@
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::dispersion::StandardDev;
-use crate::core_crypto::commons::math::random::Gaussian;
-use crate::core_crypto::commons::numeric::CastInto;
-use crate::core_crypto::commons::parameters::{
+use crate::algorithms::*;
+use crate::commons::dispersion::StandardDev;
+use crate::commons::math::random::Gaussian;
+use crate::commons::numeric::CastInto;
+use crate::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension,
     PolynomialSize,
 };
-use crate::core_crypto::commons::test_tools::{
+use crate::commons::test_tools::{
     new_encryption_random_generator, new_secret_random_generator, normality_test_f64,
 };
-use crate::core_crypto::commons::traits::UnsignedTorus;
+use crate::commons::traits::UnsignedTorus;
 
 #[test]
 fn test_gaussian_sampling_margin_factor_does_not_panic() {

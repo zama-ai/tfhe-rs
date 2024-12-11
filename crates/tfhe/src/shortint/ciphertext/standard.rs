@@ -1,13 +1,13 @@
 //! Module with the definition of the Ciphertext.
 use super::super::parameters::CiphertextConformanceParams;
 use super::common::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{allocate_and_trivially_encrypt_new_lwe_ciphertext, LweSize};
 use crate::shortint::backward_compatibility::ciphertext::CiphertextVersions;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::CiphertextModulus;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_core_crypto::entities::*;
+use tfhe_core_crypto::prelude::{allocate_and_trivially_encrypt_new_lwe_ciphertext, LweSize};
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 

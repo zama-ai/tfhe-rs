@@ -1,8 +1,8 @@
 use super::*;
-use crate::core_crypto::commons::generators::DeterministicSeeder;
+use crate::commons::generators::DeterministicSeeder;
 #[cfg(feature = "zk-pok")]
-use crate::core_crypto::commons::math::random::RandomGenerator;
-use crate::core_crypto::commons::test_tools;
+use crate::commons::math::random::RandomGenerator;
+use crate::commons::test_tools;
 #[cfg(feature = "zk-pok")]
 use rand::Rng;
 

@@ -1,8 +1,5 @@
-use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
-use crate::core_crypto::entities::{
-    LweCiphertextParameters, MsDecompressionType, MultiBitBootstrapKeyConformanceParams,
-};
-use crate::core_crypto::prelude::{DynamicDistribution, LweBskGroupingFactor};
+use serde::{Deserialize, Serialize};
+
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::{CiphertextConformanceParams, MultiBitPBSParametersVersions};
 use crate::shortint::prelude::*;
@@ -10,7 +7,11 @@ use crate::shortint::server_key::PBSConformanceParameters;
 use crate::shortint::{
     CarryModulus, CiphertextModulus, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus, PBSOrder,
 };
-use crate::Versionize;
+use tfhe_core_crypto::entities::{
+    LweCiphertextParameters, MsDecompressionType, MultiBitBootstrapKeyConformanceParams,
+};
+use tfhe_core_crypto::prelude::{DynamicDistribution, LweBskGroupingFactor};
+use tfhe_versionable::Versionize;
 
 pub mod gaussian;
 pub mod tuniform;

@@ -15,7 +15,7 @@ use std::env;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, U256};
-use tfhe::keycache::NamedParam;
+use tfhe_core_crypto::keycache::NamedParam;
 
 /// The type used to hold scalar values
 /// It must be as big as the largest bit size tested

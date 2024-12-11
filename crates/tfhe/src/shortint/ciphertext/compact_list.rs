@@ -2,8 +2,6 @@
 use super::super::parameters::CiphertextListConformanceParams;
 use super::common::*;
 use super::standard::Ciphertext;
-use crate::core_crypto::commons::traits::ContiguousEntityContainer;
-use crate::core_crypto::entities::*;
 use crate::shortint::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 pub use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
@@ -12,6 +10,8 @@ use crate::shortint::parameters::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_core_crypto::commons::traits::ContiguousEntityContainer;
+use tfhe_core_crypto::entities::*;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
@@ -76,14 +76,14 @@ impl CompactCiphertextList {
         // No parallelism allowed
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         {
-            use crate::core_crypto::prelude::expand_lwe_compact_ciphertext_list;
+            use tfhe_core_crypto::prelude::expand_lwe_compact_ciphertext_list;
             expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
         }
 
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         {
-            use crate::core_crypto::prelude::par_expand_lwe_compact_ciphertext_list;
+            use tfhe_core_crypto::prelude::par_expand_lwe_compact_ciphertext_list;
             par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
         }
 

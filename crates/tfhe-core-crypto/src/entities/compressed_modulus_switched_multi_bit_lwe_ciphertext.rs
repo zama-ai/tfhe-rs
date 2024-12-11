@@ -1,9 +1,9 @@
 use self::packed_integers::PackedIntegers;
-use tfhe_safe_serialization::conformance::ParameterSetConformant;
-use crate::core_crypto::backward_compatibility::entities::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertextVersions;
-use crate::core_crypto::fft_impl::common::modulus_switch;
-use crate::core_crypto::prelude::*;
+use crate::backward_compatibility::entities::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertextVersions;
+use crate::fft_impl::common::modulus_switch;
+use crate::prelude::*;
 use itertools::Itertools;
+use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// An object to store a ciphertext using less memory

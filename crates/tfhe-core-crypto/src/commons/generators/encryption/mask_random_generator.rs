@@ -1,12 +1,12 @@
 //! Module containing primitives pertaining to random mask generation in the context of encryption.
 
 use super::PER_SAMPLE_TARGET_FAILURE_PROBABILITY_LOG2;
-use crate::core_crypto::commons::math::random::{
+use crate::commons::math::random::{
     ByteRandomGenerator, Distribution, ParallelByteRandomGenerator, RandomGenerable,
     RandomGenerator, Seed, Uniform,
 };
-use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::parameters::{
+use crate::commons::numeric::UnsignedInteger;
+use crate::commons::parameters::{
     CiphertextModulus, EncryptionMaskByteCount, EncryptionMaskSampleCount,
 };
 use rayon::prelude::*;

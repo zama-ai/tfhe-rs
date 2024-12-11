@@ -4,7 +4,6 @@ use std::path::Path;
 use tfhe::boolean::parameters::{BooleanParameters, VEC_BOOLEAN_PARAM};
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
 use tfhe::core_crypto::prelude::{DynamicDistribution, TUniform, UnsignedInteger};
-use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::classic::compact_pk::ALL_PARAMETER_VEC_COMPACT_PK;
 use tfhe::shortint::parameters::classic::gaussian::ALL_PARAMETER_VEC_GAUSSIAN;
 use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -14,6 +13,7 @@ use tfhe::shortint::parameters::{
     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
+use tfhe_core_crypto::keycache::NamedParam;
 
 pub trait ParamDetails<T: UnsignedInteger> {
     fn lwe_dimension(&self) -> LweDimension;

@@ -1,5 +1,5 @@
-use crate::core_crypto::prelude::{CastFrom, Numeric, UnsignedNumeric};
 use std::ops::ShlAssign;
+use tfhe_core_crypto::prelude::{CastFrom, Numeric, UnsignedNumeric};
 
 const fn one_for_unsigned_u64_based_integer<const N: usize>() -> [u64; N] {
     let mut max = [0u64; N];

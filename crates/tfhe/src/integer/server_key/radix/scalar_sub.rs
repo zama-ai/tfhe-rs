@@ -1,8 +1,8 @@
-use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
+use tfhe_core_crypto::prelude::Numeric;
 
 pub trait TwosComplementNegation {
     fn twos_complement_negation(self) -> Self;

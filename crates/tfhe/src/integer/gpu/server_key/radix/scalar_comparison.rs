@@ -1,7 +1,3 @@
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
@@ -11,6 +7,10 @@ use crate::integer::gpu::{
     unchecked_scalar_comparison_integer_radix_kb_async, ComparisonType, PBSType,
 };
 use crate::shortint::ciphertext::Degree;
+use tfhe_core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use tfhe_core_crypto::gpu::vec::CudaVec;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
 
 impl CudaServerKey {
     /// Returns whether the clear scalar is outside of the

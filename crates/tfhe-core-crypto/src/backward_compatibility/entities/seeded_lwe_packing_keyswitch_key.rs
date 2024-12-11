@@ -1,7 +1,7 @@
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, SeededLwePackingKeyswitchKey, UnsignedInteger};
+use crate::prelude::{Container, SeededLwePackingKeyswitchKey, UnsignedInteger};
 
 impl<C: Container> Deprecable for SeededLwePackingKeyswitchKey<C>
 where

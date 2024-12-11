@@ -5,10 +5,10 @@ use crate::utilities::{write_to_json, OperatorType};
 use criterion::{criterion_group, Criterion};
 use rand::Rng;
 use std::env;
-use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{Ciphertext, CompressedServerKey, ServerKey};
+use tfhe_core_crypto::keycache::NamedParam;
 
 const SERVER_KEY_BENCH_PARAMS: [ClassicPBSParameters; 5] = [
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,

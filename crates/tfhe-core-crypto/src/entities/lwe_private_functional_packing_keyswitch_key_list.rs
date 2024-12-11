@@ -2,15 +2,15 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::lwe_private_functional_packing_keyswitch_key_list::LwePrivateFunctionalPackingKeyswitchKeyListVersions;
-use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
-use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::lwe_private_functional_packing_keyswitch_key_list::LwePrivateFunctionalPackingKeyswitchKeyListVersions;
+use crate::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::commons::math::random::{Distribution, RandomGenerable};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// A contiguous list containing [`LWE private functional packing keyswitch
-/// keys`](`crate::core_crypto::entities::LwePrivateFunctionalPackingKeyswitchKey`).
+/// keys`](`crate::entities::LwePrivateFunctionalPackingKeyswitchKey`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(LwePrivateFunctionalPackingKeyswitchKeyListVersions)]
 pub struct LwePrivateFunctionalPackingKeyswitchKeyList<C: Container>
@@ -51,14 +51,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate keys
     /// in the list you need to use
-    /// [`crate::core_crypto::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
+    /// [`crate::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
     /// the parallel variant
-    /// [`crate::core_crypto::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
+    /// [`crate::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
     /// on the individual keys in the list. Alternatively if you need to generate a list of keys for
-    /// use with the [`crate::core_crypto::algorithms::lwe_wopbs`] primitives you can use
-    /// [`crate::core_crypto::algorithms::generate_circuit_bootstrap_lwe_pfpksk_list`] or its
+    /// use with the [`crate::algorithms::lwe_wopbs`] primitives you can use
+    /// [`crate::algorithms::generate_circuit_bootstrap_lwe_pfpksk_list`] or its
     /// parallel variant
-    /// [`crate::core_crypto::algorithms::par_generate_circuit_bootstrap_lwe_pfpksk_list`].
+    /// [`crate::algorithms::par_generate_circuit_bootstrap_lwe_pfpksk_list`].
     ///
     /// This docstring exhibits [`LwePrivateFunctionalPackingKeyswitchKeyList`] primitives usage.
     ///
@@ -354,14 +354,14 @@ impl<Scalar: UnsignedInteger> LwePrivateFunctionalPackingKeyswitchKeyListOwned<S
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate keys in the list you need to use
-    /// [`crate::core_crypto::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
+    /// [`crate::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
     /// the parallel variant
-    /// [`crate::core_crypto::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
+    /// [`crate::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
     /// on the individual keys in the list. Alternatively if you need to generate a list of keys for
-    /// use with the [`crate::core_crypto::algorithms::lwe_wopbs`] primitives you can use
-    /// [`crate::core_crypto::algorithms::generate_circuit_bootstrap_lwe_pfpksk_list`] or its
+    /// use with the [`crate::algorithms::lwe_wopbs`] primitives you can use
+    /// [`crate::algorithms::generate_circuit_bootstrap_lwe_pfpksk_list`] or its
     /// parallel variant
-    /// [`crate::core_crypto::algorithms::par_generate_circuit_bootstrap_lwe_pfpksk_list`].
+    /// [`crate::algorithms::par_generate_circuit_bootstrap_lwe_pfpksk_list`].
     ///
     /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     #[allow(clippy::too_many_arguments)]

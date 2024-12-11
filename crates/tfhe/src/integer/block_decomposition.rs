@@ -1,8 +1,8 @@
-use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric};
 use crate::integer::bigint::static_signed::StaticSignedBigInt;
 use crate::integer::bigint::static_unsigned::StaticUnsignedBigInt;
 use core::ops::{AddAssign, BitAnd, ShlAssign, ShrAssign};
 use std::ops::{BitOrAssign, Shl, Sub};
+use tfhe_core_crypto::prelude::{CastFrom, CastInto, Numeric};
 
 // These work for signed number as rust uses 2-Complements
 // And Arithmetic shift for signed number (logical for unsigned)

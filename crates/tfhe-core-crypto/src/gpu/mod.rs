@@ -3,8 +3,8 @@ pub mod entities;
 pub mod slice;
 pub mod vec;
 
-use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
-use crate::core_crypto::prelude::{
+use crate::gpu::vec::{CudaVec, GpuIndex};
+use crate::prelude::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweCiphertextCount,
     GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, PolynomialSize,
     UnsignedInteger,

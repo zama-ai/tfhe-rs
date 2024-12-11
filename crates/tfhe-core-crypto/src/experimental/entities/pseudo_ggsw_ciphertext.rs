@@ -1,10 +1,10 @@
 //! Module containing the definition of the PseudoGgswCiphertext.
 
-use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
-use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::commons::math::random::{Distribution, RandomGenerable};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// A [`PseudoGgswCiphertext`] is similar to a [`GgswCiphertext`], the main difference resides in
 /// the fact that the level matrix is not square, having one less column of [`GlweCiphertext`].
@@ -190,9 +190,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its
+    /// you need to use [`crate::algorithms::encrypt_constant_ggsw_ciphertext`] or its
     /// parallel counterpart
-    /// [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`] using
+    /// [`crate::algorithms::par_encrypt_constant_ggsw_ciphertext`] using
     /// this ciphertext as output.
     ///
     /// This docstring exhibits [`PseudoGgswCiphertext`] primitives usage.
@@ -458,8 +458,8 @@ impl<Scalar: UnsignedInteger> PseudoGgswCiphertextOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its parallel
-    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`]
+    /// [`crate::algorithms::encrypt_constant_ggsw_ciphertext`] or its parallel
+    /// counterpart [`crate::algorithms::par_encrypt_constant_ggsw_ciphertext`]
     /// using this ciphertext as output.
     ///
     /// See [`PseudoGgswCiphertext::from_container`] for usage.

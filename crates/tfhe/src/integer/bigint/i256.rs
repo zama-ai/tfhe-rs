@@ -1,4 +1,4 @@
-use crate::core_crypto::prelude::Numeric;
+use tfhe_core_crypto::prelude::Numeric;
 
 pub type I256 = super::static_signed::StaticSignedBigInt<4>;
 
@@ -18,8 +18,8 @@ impl From<(u128, u128)> for I256 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core_crypto::prelude::CastFrom;
     use rand::Rng;
+    use tfhe_core_crypto::prelude::CastFrom;
 
     #[test]
     fn test_const() {

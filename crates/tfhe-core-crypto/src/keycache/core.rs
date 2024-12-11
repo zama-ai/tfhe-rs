@@ -1,4 +1,4 @@
-use crate::core_crypto::algorithms::test::{
+use crate::algorithms::test::{
     ClassicBootstrapKeys, ClassicTestParams, FftBootstrapKeys, FftTestParams, FftWopPbsKeys,
     FftWopPbsTestParams, MultiBitBootstrapKeys, MultiBitTestParams, PackingKeySwitchKeys,
     PackingKeySwitchTestParams,
@@ -184,7 +184,7 @@ lazy_static! {
 #[cfg(feature = "internal-keycache")]
 #[test]
 pub fn generate_keys() {
-    use crate::core_crypto::algorithms::test::{
+    use crate::algorithms::test::{
         lwe_multi_bit_programmable_bootstrapping, lwe_programmable_bootstrapping, TestResources,
         DUMMY_31_U32, DUMMY_NATIVE_U32, FFT128_U128_PARAMS, FFT_U128_PARAMS, FFT_U32_PARAMS,
         FFT_U64_PARAMS, FFT_WOPBS_N1024_PARAMS, FFT_WOPBS_N2048_PARAMS, FFT_WOPBS_N512_PARAMS,
@@ -192,8 +192,8 @@ pub fn generate_keys() {
         MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS, MULTI_BIT_2_2_3_PARAMS, TEST_PARAMS_3_BITS_63_U64,
         TEST_PARAMS_4_BITS_NATIVE_U64,
     };
-    use crate::core_crypto::fft_impl;
-    use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs;
+    use crate::fft_impl;
+    use crate::fft_impl::fft64::crypto::wop_pbs;
 
     fn generate_and_store<
         P: Debug + KeyCacheAccess<Keys = K> + serde::Serialize + serde::de::DeserializeOwned,

@@ -1,13 +1,13 @@
 use super::*;
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::algorithms::test::{FftWopPbsKeys, FftWopPbsTestParams};
-use crate::core_crypto::commons::dispersion::LogStandardDev;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::test_tools;
-use crate::core_crypto::fft_impl::common::tests::gen_keys_or_get_from_cache_if_enabled;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
-use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::core_crypto::prelude::test::{
+use crate::algorithms::slice_algorithms::*;
+use crate::algorithms::test::{FftWopPbsKeys, FftWopPbsTestParams};
+use crate::commons::dispersion::LogStandardDev;
+use crate::commons::math::decomposition::SignedDecomposer;
+use crate::commons::test_tools;
+use crate::fft_impl::common::tests::gen_keys_or_get_from_cache_if_enabled;
+use crate::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
+use crate::fft_impl::fft64::math::fft::Fft;
+use crate::prelude::test::{
     TestResources, FFT_WOPBS_N1024_PARAMS, FFT_WOPBS_N2048_PARAMS, FFT_WOPBS_N512_PARAMS,
     FFT_WOPBS_PARAMS,
 };

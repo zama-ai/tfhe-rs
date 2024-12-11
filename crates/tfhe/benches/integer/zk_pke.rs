@@ -11,7 +11,7 @@ use std::path::Path;
 use tfhe::integer::key_switching_key::KeySwitchingKey;
 use tfhe::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
-use tfhe::keycache::NamedParam;
+use tfhe_core_crypto::keycache::NamedParam;
 use tfhe::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;

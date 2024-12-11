@@ -1,9 +1,9 @@
 use super::CiphertextNoiseDegree;
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::{Ciphertext, MaxNoiseLevel, ServerKey};
+use tfhe_core_crypto::algorithms::*;
+use tfhe_core_crypto::entities::*;
 
 impl ServerKey {
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.

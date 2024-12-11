@@ -1,8 +1,8 @@
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{unchecked_signed_abs_radix_kb_assign_async, PBSType};
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::LweBskGroupingFactor;
 
 impl CudaServerKey {
     /// # Safety

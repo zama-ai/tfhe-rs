@@ -1,11 +1,11 @@
 use std::convert::Infallible;
 
-use crate::core_crypto::prelude::{
-    CompressedModulusSwitchedLweCiphertext, LweCompactCiphertextListOwned,
-};
 use crate::shortint::ciphertext::*;
 use crate::shortint::parameters::CompactCiphertextListExpansionKind;
 use crate::shortint::{CarryModulus, MessageModulus};
+use tfhe_core_crypto::prelude::{
+    CompressedModulusSwitchedLweCiphertext, LweCompactCiphertextListOwned,
+};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 #[derive(VersionsDispatch)]

@@ -1,7 +1,3 @@
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
@@ -12,6 +8,10 @@ use crate::integer::gpu::{
     reverse_blocks_inplace_async, PBSType,
 };
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
+use tfhe_core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use tfhe_core_crypto::gpu::vec::CudaVec;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
 
 impl CudaServerKey {
     /// This function takes a ciphertext in radix representation

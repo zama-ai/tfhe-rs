@@ -2,11 +2,9 @@ use std::convert::Infallible;
 
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
-use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
-use crate::core_crypto::prelude::packed_integers::PackedIntegers;
-use crate::core_crypto::prelude::{
-    CiphertextModulus, CiphertextModulusLog, LweDimension, UnsignedInteger,
-};
+use crate::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
+use crate::prelude::packed_integers::PackedIntegers;
+use crate::prelude::{CiphertextModulus, CiphertextModulusLog, LweDimension, UnsignedInteger};
 
 #[derive(Version)]
 pub struct CompressedModulusSwitchedLweCiphertextV0<Scalar: UnsignedInteger> {

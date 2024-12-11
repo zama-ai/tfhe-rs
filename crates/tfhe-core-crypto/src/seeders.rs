@@ -4,7 +4,7 @@
 //! obtain a seed. A random seed is useful to have compressed keys and is used as a prerequisite
 //! for cryptographically secure pseudo random number generators.
 
-pub use crate::core_crypto::commons::math::random::Seeder;
+pub use crate::commons::math::random::Seeder;
 #[cfg(all(target_os = "macos", not(feature = "__wasm_api")))]
 pub use tfhe_csprng::seeders::AppleSecureEnclaveSeeder;
 #[cfg(feature = "seeder_x86_64_rdseed")]
@@ -14,7 +14,7 @@ pub use tfhe_csprng::seeders::UnixSeeder;
 
 #[cfg(feature = "__wasm_api")]
 mod wasm_seeder {
-    use crate::core_crypto::commons::math::random::{Seed, Seeder};
+    use crate::commons::math::random::{Seed, Seeder};
     // This is used for web interfaces
     use getrandom::getrandom;
 

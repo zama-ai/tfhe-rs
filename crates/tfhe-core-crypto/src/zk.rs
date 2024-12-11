@@ -1,12 +1,10 @@
-pub mod backward_compatibility;
-
-use crate::core_crypto::commons::math::random::{
-    BoundedDistribution, ByteRandomGenerator, RandomGenerator,
-};
-use crate::core_crypto::prelude::*;
+use crate::commons::math::random::{BoundedDistribution, ByteRandomGenerator, RandomGenerator};
+use crate::prelude::*;
 #[cfg(feature = "shortint")]
 use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
-use backward_compatibility::*;
+
+use crate::backward_compatibility::zk::*;
+
 use rand_core::RngCore;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -675,82 +673,5 @@ impl Compressible for CompactPkeCrs {
                 Self::PkeV2(Compressible::uncompress(compressed_params)?)
             }
         })
-    }
-}
-
-#[cfg(all(test, feature = "shortint"))]
-mod test {
-    use super::*;
-    use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::{CarryModulus, MessageModulus};
-
-    use tfhe_safe_serialization::{safe_deserialize_conformant, safe_serialize};
-
-    #[test]
-    fn test_crs_conformance() {
-        let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let mut bad_params = params;
-        bad_params.carry_modulus = CarryModulus(8);
-        bad_params.message_modulus = MessageModulus(8);
-
-        let mut rng = rand::thread_rng();
-
-        let crs = CompactPkeCrs::new(
-            params.encryption_lwe_dimension,
-            4,
-            params.encryption_noise_distribution,
-            params.ciphertext_modulus,
-            params.message_modulus.0 * params.carry_modulus.0 * 2,
-            ZkMSBZeroPaddingBitCount(1),
-            &mut rng,
-        )
-        .unwrap();
-
-        let conformance_params = CompactPkeCrsConformanceParams::new(params, 4).unwrap();
-
-        assert!(crs.is_conformant(&conformance_params));
-
-        let conformance_params = CompactPkeCrsConformanceParams::new(bad_params, 4).unwrap();
-
-        assert!(!crs.is_conformant(&conformance_params));
-
-        let conformance_params = CompactPkeCrsConformanceParams::new(params, 2).unwrap();
-
-        assert!(!crs.is_conformant(&conformance_params));
-    }
-
-    #[test]
-    fn test_crs_serialization() {
-        let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
-        let mut rng = rand::thread_rng();
-
-        let crs = CompactPkeCrs::new(
-            params.encryption_lwe_dimension,
-            4,
-            params.encryption_noise_distribution,
-            params.ciphertext_modulus,
-            params.message_modulus.0 * params.carry_modulus.0 * 2,
-            ZkMSBZeroPaddingBitCount(1),
-            &mut rng,
-        )
-        .unwrap();
-
-        let conformance_params = CompactPkeCrsConformanceParams::new(params, 4).unwrap();
-
-        let mut serialized = Vec::new();
-        safe_serialize(&crs, &mut serialized, 1 << 30).unwrap();
-
-        let _crs_deser: CompactPkeCrs =
-            safe_deserialize_conformant(serialized.as_slice(), 1 << 30, &conformance_params)
-                .unwrap();
-
-        // Check with compression
-        let mut serialized = Vec::new();
-        safe_serialize(&crs.compress(), &mut serialized, 1 << 30).unwrap();
-
-        let _crs_deser: CompactPkeCrs =
-            safe_deserialize_conformant(serialized.as_slice(), 1 << 30, &conformance_params)
-                .unwrap();
     }
 }

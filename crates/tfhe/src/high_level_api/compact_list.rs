@@ -1,10 +1,9 @@
+use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 use crate::backward_compatibility::compact_list::CompactCiphertextListVersions;
 #[cfg(feature = "zk-pok")]
 use crate::backward_compatibility::compact_list::ProvenCompactCiphertextListVersions;
-use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
-use crate::core_crypto::prelude::Numeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
@@ -15,14 +14,15 @@ use crate::integer::parameters::{
 };
 use crate::prelude::CiphertextList;
 use crate::shortint::MessageModulus;
+use tfhe_core_crypto::prelude::Numeric;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_safe_serialization::named::Named;
 #[cfg(feature = "zk-pok")]
 pub use zk::ProvenCompactCiphertextList;
 
-#[cfg(feature = "zk-pok")]
-use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::{CompactPublicKey, Tag};
+#[cfg(feature = "zk-pok")]
+use tfhe_core_crypto::zk::{CompactPkeCrs, ZkComputeLoad};
 
 impl crate::FheTypes {
     pub(crate) fn from_data_kind(
@@ -171,7 +171,7 @@ impl ParameterSetConformant for CompactCiphertextList {
 mod zk {
     use super::*;
     use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
-    use crate::zk::CompactPkeCrs;
+    use tfhe_core_crypto::zk::CompactPkeCrs;
     use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
     #[derive(Clone, Serialize, Deserialize, Versionize)]
@@ -218,7 +218,7 @@ mod zk {
             crs: &CompactPkeCrs,
             pk: &CompactPublicKey,
             metadata: &[u8],
-        ) -> crate::zk::ZkVerificationOutcome {
+        ) -> tfhe_core_crypto::zk::ZkVerificationOutcome {
             self.inner.verify(crs, &pk.key.key, metadata)
         }
 
@@ -308,8 +308,8 @@ mod zk {
     mod test {
         use super::*;
         use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
-        use crate::zk::CompactPkeCrs;
         use rand::{thread_rng, Rng};
+        use tfhe_core_crypto::zk::CompactPkeCrs;
 
         #[test]
         fn conformance_zk_compact_ciphertext_list() {

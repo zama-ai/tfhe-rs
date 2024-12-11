@@ -1,6 +1,6 @@
 //! Miscellaneous algorithms.
 
-use crate::core_crypto::prelude::*;
+use crate::prelude::*;
 
 #[inline]
 pub fn divide_round<Scalar: UnsignedInteger>(numerator: Scalar, denominator: Scalar) -> Scalar {

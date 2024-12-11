@@ -1,15 +1,15 @@
 use super::super::math::fft::{wrapping_neg, Fft128View};
 use super::ggsw::cmux_split;
-use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::parameters::{
+use crate::algorithms::extract_lwe_sample_from_glwe_ciphertext;
+use crate::commons::math::decomposition::SignedDecomposer;
+use crate::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, MonomialDegree,
 };
-use crate::core_crypto::commons::traits::ContiguousEntityContainerMut;
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
-use crate::core_crypto::prelude::{Container, ContainerMut};
+use crate::commons::traits::ContiguousEntityContainerMut;
+use crate::commons::utils::izip;
+use crate::entities::*;
+use crate::fft_impl::common::pbs_modulus_switch;
+use crate::prelude::{Container, ContainerMut};
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut};
 

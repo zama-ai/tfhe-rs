@@ -2,19 +2,17 @@
 //! [`standard LWE multi_bit bootstrap keys`](`LweMultiBitBootstrapKey`) to various
 //! representations/numerical domains like the Fourier domain.
 
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::math::fft::{
-    par_convert_polynomials_list_to_fourier, Fft, FftView,
-};
+use crate::commons::computation_buffers::ComputationBuffers;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::fft_impl::fft64::math::fft::{par_convert_polynomials_list_to_fourier, Fft, FftView};
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 
 /// Convert an [`LWE multi_bit bootstrap key`](`LweMultiBitBootstrapKey`) with standard
 /// coefficients to the Fourier domain.
 ///
-/// See [`multi_bit_programmable_bootstrap_lwe_ciphertext`](`crate::core_crypto::algorithms::multi_bit_programmable_bootstrap_lwe_ciphertext`) for usage.
+/// See [`multi_bit_programmable_bootstrap_lwe_ciphertext`](`crate::algorithms::multi_bit_programmable_bootstrap_lwe_ciphertext`) for usage.
 pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier<Scalar, InputCont, OutputCont>(
     input_bsk: &LweMultiBitBootstrapKey<InputCont>,
     output_bsk: &mut FourierLweMultiBitBootstrapKey<OutputCont>,

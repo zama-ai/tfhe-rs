@@ -100,20 +100,17 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
     // Small sizes
     {
         for _ in 0..NB_TESTS {
-            let decomp_base_log = DecompositionBaseLog(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
-            let decomp_level_count = DecompositionLevelCount(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
+            let decomp_base_log =
+                DecompositionBaseLog(crate::commons::test_tools::random_usize_between(2..5));
+            let decomp_level_count =
+                DecompositionLevelCount(crate::commons::test_tools::random_usize_between(2..5));
             let input_key_lwe_dimension =
-                LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
+                LweDimension(crate::commons::test_tools::random_usize_between(5..10));
             let output_glwe_dimension =
-                GlweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
+                GlweDimension(crate::commons::test_tools::random_usize_between(5..10));
             let output_glwe_size = output_glwe_dimension.to_glwe_size();
-            let output_polynomial_size = PolynomialSize(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
+            let output_polynomial_size =
+                PolynomialSize(crate::commons::test_tools::random_usize_between(5..10));
             // ~ 2^-20
             let noise_distribution = DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
                 0.0000006791658447437413,
@@ -305,20 +302,17 @@ fn test_parallel_pfpks_lwe_list_equivalence<Scalar: UnsignedTorus + Send + Sync>
     // Small sizes
     {
         for _ in 0..NB_TESTS {
-            let decomp_base_log = DecompositionBaseLog(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
-            let decomp_level_count = DecompositionLevelCount(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
+            let decomp_base_log =
+                DecompositionBaseLog(crate::commons::test_tools::random_usize_between(2..5));
+            let decomp_level_count =
+                DecompositionLevelCount(crate::commons::test_tools::random_usize_between(2..5));
             let input_key_lwe_dimension =
-                LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
+                LweDimension(crate::commons::test_tools::random_usize_between(5..10));
             let output_glwe_dimension =
-                GlweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
+                GlweDimension(crate::commons::test_tools::random_usize_between(5..10));
             let output_glwe_size = output_glwe_dimension.to_glwe_size();
-            let output_polynomial_size = PolynomialSize(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
+            let output_polynomial_size =
+                PolynomialSize(crate::commons::test_tools::random_usize_between(5..10));
             // ~ 2^-20
             let noise_distribution = DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
                 0.0000006791658447437413,

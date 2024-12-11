@@ -2,12 +2,12 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::lwe_private_functional_packing_keyswitch_key::LwePrivateFunctionalPackingKeyswitchKeyVersions;
-use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
-use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::lwe_private_functional_packing_keyswitch_key::LwePrivateFunctionalPackingKeyswitchKeyVersions;
+use crate::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::commons::math::random::{Distribution, RandomGenerable};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// An [`LWE private functional packing keyswitch key`](`LwePrivateFunctionalPackingKeyswitchKey`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
@@ -131,9 +131,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`LwePrivateFunctionalPackingKeyswitchKey`] you need to use
-    /// [`crate::core_crypto::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
+    /// [`crate::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
     /// the parallel variant
-    /// [`crate::core_crypto::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
+    /// [`crate::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
     /// using this key as output.
     ///
     /// This docstring exhibits [`LwePrivateFunctionalPackingKeyswitchKey`] primitives usage.
@@ -396,9 +396,9 @@ impl<Scalar: UnsignedInteger> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scala
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate an [`LwePrivateFunctionalPackingKeyswitchKey`] you need to use
-    /// [`crate::core_crypto::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
+    /// [`crate::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
     /// the parallel variant
-    /// [`crate::core_crypto::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
+    /// [`crate::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
     /// using this key as output.
     ///
     /// See [`LwePrivateFunctionalPackingKeyswitchKey::from_container`] for usage.

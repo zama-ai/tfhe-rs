@@ -1,10 +1,10 @@
-use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntId;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::client_key::RecomposableSignedInteger;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
 use crate::{ClientKey, CompressedPublicKey, FheInt, PublicKey};
+use tfhe_core_crypto::prelude::SignedNumeric;
 
 impl<Id, ClearType> FheDecrypt<ClearType> for FheInt<Id>
 where

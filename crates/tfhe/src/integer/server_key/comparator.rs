@@ -182,7 +182,7 @@ impl<'a> Comparator<'a> {
         // We then add one and get 0 = 0|0000
 
         // Here we need the true lwe sub, not the one that comes from shortint.
-        crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs.ct, &rhs.ct);
+        tfhe_core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs.ct, &rhs.ct);
         lhs.set_noise_level(
             lhs.noise_level() + rhs.noise_level(),
             self.server_key.key.max_noise_level,

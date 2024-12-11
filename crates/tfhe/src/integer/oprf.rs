@@ -1,7 +1,7 @@
 use super::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
-use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+use tfhe_core_crypto::prelude::ActivatedRandomGenerator;
 
 pub use tfhe_csprng::seeders::{Seed, Seeder};
 

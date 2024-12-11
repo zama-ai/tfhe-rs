@@ -1,7 +1,7 @@
 use super::*;
-use crate::core_crypto::commons::noise_formulas::lwe_keyswitch::keyswitch_additive_variance_132_bits_security_gaussian;
-use crate::core_crypto::commons::noise_formulas::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian;
-use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
+use crate::commons::noise_formulas::lwe_keyswitch::keyswitch_additive_variance_132_bits_security_gaussian;
+use crate::commons::noise_formulas::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian;
+use crate::commons::test_tools::{torus_modular_diff, variance};
 use rayon::prelude::*;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)

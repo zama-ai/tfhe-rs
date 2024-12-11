@@ -2,10 +2,10 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::lwe_compact_public_key::LweCompactPublicKeyVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::lwe_compact_public_key::LweCompactPublicKeyVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A [`compact public LWE encryption key`](`LweCompactPublicKey`).
@@ -40,7 +40,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactPublicKe
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`LweCompactPublicKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_lwe_compact_public_key`] using this key as
+    /// [`crate::algorithms::generate_lwe_compact_public_key`] using this key as
     /// output.
     ///
     /// This docstring exhibits [`LweCompactPublicKey`] primitives usage.

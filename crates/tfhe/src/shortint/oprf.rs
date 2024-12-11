@@ -1,13 +1,13 @@
 use super::Ciphertext;
-use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, LweCiphertext, LweSize,
-    Plaintext,
-};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
 use crate::shortint::{PBSOrder, ServerKey};
+use tfhe_core_crypto::prelude::{
+    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, LweCiphertext, LweSize,
+    Plaintext,
+};
 use tfhe_csprng::seeders::Seed;
 
 pub fn sha3_hash(values: &mut [u64], seed: Seed) {
@@ -160,16 +160,16 @@ impl ServerKey {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use crate::core_crypto::commons::generators::DeterministicSeeder;
-    use crate::core_crypto::prelude::{
-        decrypt_lwe_ciphertext, ActivatedRandomGenerator, GlweSecretKey, LweSecretKey,
-    };
     use crate::shortint::engine::ShortintEngine;
     use crate::shortint::{ClientKey, ServerKey};
     use itertools::Itertools;
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
+    use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+    use tfhe_core_crypto::prelude::{
+        decrypt_lwe_ciphertext, ActivatedRandomGenerator, GlweSecretKey, LweSecretKey,
+    };
     use tfhe_csprng::seeders::Seed;
 
     fn square(a: f64) -> f64 {

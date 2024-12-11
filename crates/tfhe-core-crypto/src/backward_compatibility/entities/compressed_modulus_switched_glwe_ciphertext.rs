@@ -1,7 +1,7 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::UnsignedInteger;
+use crate::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
+use crate::prelude::UnsignedInteger;
 
 #[derive(VersionsDispatch)]
 pub enum CompressedModulusSwitchedGlweCiphertextVersions<Scalar: UnsignedInteger> {

@@ -84,11 +84,13 @@ pub mod c_api;
 /// cbindgen:ignore
 pub mod boolean;
 
-/// Welcome to the TFHE-rs [`core_crypto`](`crate::core_crypto`) module documentation!
+/// Welcome to the TFHE-rs [`core_crypto`](`tfhe_core_crypto`) module documentation!
 ///
 /// # Special module attributes
 /// cbindgen:ignore
-pub mod core_crypto;
+pub mod core_crypto {
+    pub use tfhe_core_crypto::*;
+}
 
 #[cfg(feature = "integer")]
 /// Welcome to the TFHE-rs [`integer`](`crate::integer`) module documentation!
@@ -132,13 +134,14 @@ pub use high_level_api::*;
 
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
 /// cbindgen:ignore
-pub mod keycache;
+mod keycache {
+    pub use tfhe_core_crypto::keycache::*;
+}
 
-pub mod error;
-#[cfg(feature = "zk-pok")]
-pub mod zk;
-
-pub use error::{Error, ErrorKind};
+pub mod error {
+    pub use tfhe_core_crypto::error::{Error, ErrorKind};
+}
+pub use crate::error::{Error, ErrorKind};
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub use tfhe_versionable::{Unversionize, Versionize};

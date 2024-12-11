@@ -1,11 +1,11 @@
 //! All the `ShortintEngine` method related to public side (encrypt / decrypt)
 use super::ShortintEngine;
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{Ciphertext, ClientKey, CompressedPublicKey, PublicKey};
+use tfhe_core_crypto::algorithms::*;
+use tfhe_core_crypto::commons::parameters::*;
+use tfhe_core_crypto::entities::*;
 
 // We have q = 2^64 so log2q = 64
 const LOG2_Q_64: usize = 64;

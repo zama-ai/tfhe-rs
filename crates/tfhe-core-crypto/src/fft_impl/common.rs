@@ -1,10 +1,10 @@
-use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::parameters::{
+use crate::commons::numeric::UnsignedInteger;
+use crate::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
 };
-use crate::core_crypto::commons::traits::Container;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{CastInto, CiphertextModulusLog, ContainerMut};
+use crate::commons::traits::Container;
+use crate::entities::*;
+use crate::prelude::{CastInto, CiphertextModulusLog, ContainerMut};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
 pub fn pbs_modulus_switch<Scalar: UnsignedInteger + CastInto<usize>>(
@@ -68,12 +68,12 @@ pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
 
 #[cfg(test)]
 pub mod tests {
-    pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
+    pub(crate) use crate::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
 
-    use crate::core_crypto::algorithms::test::{FftBootstrapKeys, FftTestParams, TestResources};
-    use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
-    use crate::core_crypto::keycache::KeyCacheAccess;
-    use crate::core_crypto::prelude::*;
+    use crate::algorithms::test::{FftBootstrapKeys, FftTestParams, TestResources};
+    use crate::fft_impl::common::FourierBootstrapKey;
+    use crate::keycache::core::KeyCacheAccess;
+    use crate::prelude::*;
     use dyn_stack::{GlobalPodBuffer, PodStack};
     use serde::de::DeserializeOwned;
     use serde::Serialize;

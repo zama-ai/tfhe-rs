@@ -1,8 +1,8 @@
+use serde::{Deserialize, Serialize};
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 use super::keys::InternalServerKey;
 use crate::backward_compatibility::compressed_ciphertext_list::CompressedCiphertextListVersions;
-use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::high_level_api::booleans::InnerBoolean;
 use crate::high_level_api::errors::UninitializedServerKey;
 #[cfg(feature = "gpu")]
@@ -393,7 +393,6 @@ impl CompressedCiphertextList {
 
 #[cfg(feature = "gpu")]
 pub mod gpu {
-    use crate::core_crypto::gpu::CudaStreams;
     use crate::high_level_api::integers::{FheIntId, FheUintId};
     use crate::integer::ciphertext::DataKind;
     use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -402,6 +401,7 @@ pub mod gpu {
     };
     use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
     use crate::{FheBool, FheInt, FheUint, Tag};
+    use tfhe_core_crypto::gpu::CudaStreams;
 
     impl<Id: FheUintId> CudaCompressible for FheUint<Id> {
         fn compress_into(

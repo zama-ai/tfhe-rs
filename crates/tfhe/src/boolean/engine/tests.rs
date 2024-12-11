@@ -1,9 +1,9 @@
 #[test]
 fn test_replacing_thread_local_engine() {
     use crate::boolean::engine::BooleanEngine;
-    use crate::core_crypto::commons::generators::DeterministicSeeder;
-    use crate::core_crypto::commons::math::random::Seed;
-    use crate::core_crypto::prelude::ActivatedRandomGenerator;
+    use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+    use tfhe_core_crypto::commons::math::random::Seed;
+    use tfhe_core_crypto::prelude::ActivatedRandomGenerator;
 
     let deterministic_seed = Seed(0);
 

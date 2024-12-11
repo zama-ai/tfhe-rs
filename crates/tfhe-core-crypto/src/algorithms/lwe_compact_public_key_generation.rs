@@ -1,13 +1,13 @@
 //! Module containing primitives pertaining to [`LWE compact public key
 //! generation`](`LweCompactPublicKey`).
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::{Distribution, Uniform};
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::algorithms::*;
+use crate::commons::ciphertext_modulus::CiphertextModulus;
+use crate::commons::generators::EncryptionRandomGenerator;
+use crate::commons::math::random::{Distribution, Uniform};
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::prelude::ActivatedRandomGenerator;
 use slice_algorithms::*;
 
 /// Fill an [`LWE compact public key`](`LweCompactPublicKey`) with an actual public key constructed

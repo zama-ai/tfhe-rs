@@ -1,11 +1,11 @@
 //! Module containing primitives pertaining to the generation of
 //! [`LWE secret keys`](`LweSecretKey`).
 
-use crate::core_crypto::commons::generators::SecretRandomGenerator;
-use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::commons::generators::SecretRandomGenerator;
+use crate::commons::math::random::{RandomGenerable, UniformBinary};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Allocate a new [`LWE secret key`](`LweSecretKey`) and fill it with uniformly random binary
 /// coefficients.

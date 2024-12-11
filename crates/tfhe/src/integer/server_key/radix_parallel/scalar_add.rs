@@ -1,8 +1,8 @@
-use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
+use tfhe_core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 
 use rayon::prelude::*;
 

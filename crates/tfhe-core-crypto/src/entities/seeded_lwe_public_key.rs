@@ -2,12 +2,12 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_lwe_public_key::SeededLwePublicKeyVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_lwe_public_key::SeededLwePublicKeyVersions;
+use crate::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 // A SeededLwePublicKey is literally a SeededLweCiphertextList, so we wrap an
 // SeededLweCiphertextList and use Deref to have access to all the primitives of the
@@ -61,7 +61,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePublicKey
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`SeededLwePublicKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_lwe_public_key`] using this key as output.
+    /// [`crate::algorithms::generate_lwe_public_key`] using this key as output.
     ///
     /// This docstring exhibits [`SeededLwePublicKey`] primitives usage.
     ///
@@ -251,7 +251,7 @@ impl<Scalar: UnsignedInteger> SeededLwePublicKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate a [`SeededLwePublicKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_lwe_public_key`] using this key as output.
+    /// [`crate::algorithms::generate_lwe_public_key`] using this key as output.
     ///
     /// See [`SeededLwePublicKey::from_container`] for usage.
     pub fn new(

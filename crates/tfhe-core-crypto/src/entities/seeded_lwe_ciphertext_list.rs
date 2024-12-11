@@ -2,20 +2,20 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_lwe_ciphertext_list::SeededLweCiphertextListVersions;
-use crate::core_crypto::commons::generators::{
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_lwe_ciphertext_list::SeededLweCiphertextListVersions;
+use crate::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
-use crate::core_crypto::commons::math::random::{
+use crate::commons::math::random::{
     ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
 };
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// A seeded list containing
-/// [`LWE ciphertexts`](`crate::core_crypto::entities::LweCiphertext`).
+/// [`LWE ciphertexts`](`crate::entities::LweCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(SeededLweCiphertextListVersions)]
 pub struct SeededLweCiphertextList<C: Container>
@@ -46,8 +46,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_seeded_lwe_ciphertext_list`] or
-    /// [`crate::core_crypto::algorithms::par_encrypt_seeded_lwe_ciphertext_list`] using
+    /// you need to use [`crate::algorithms::encrypt_seeded_lwe_ciphertext_list`] or
+    /// [`crate::algorithms::par_encrypt_seeded_lwe_ciphertext_list`] using
     /// this list as output.
     ///
     /// This docstring exhibits [`SeededLweCiphertextList`] primitives usage.
@@ -279,8 +279,8 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_seeded_lwe_ciphertext_list`] or
-    /// [`crate::core_crypto::algorithms::par_encrypt_seeded_lwe_ciphertext_list`]  using this list
+    /// [`crate::algorithms::encrypt_seeded_lwe_ciphertext_list`] or
+    /// [`crate::algorithms::par_encrypt_seeded_lwe_ciphertext_list`]  using this list
     /// as output.
     ///
     /// See [`SeededLweCiphertextList::from_container`] for usage.

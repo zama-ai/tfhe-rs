@@ -1,6 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, SeededLweCiphertextList, UnsignedInteger};
+use crate::prelude::{Container, SeededLweCiphertextList, UnsignedInteger};
 
 #[derive(VersionsDispatch)]
 pub enum SeededLweCiphertextListVersions<C: Container>

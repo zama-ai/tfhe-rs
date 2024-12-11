@@ -8,7 +8,6 @@ use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64_NAME,
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_NAME, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_NAME,
@@ -23,6 +22,7 @@ use tfhe::shortint::parameters::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 };
 use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
+use tfhe_core_crypto::keycache::NamedParam;
 
 const BENCHMARK_NAME_PREFIX: &str = "wasm::";
 

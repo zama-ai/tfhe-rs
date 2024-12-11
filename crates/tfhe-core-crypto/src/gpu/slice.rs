@@ -1,6 +1,6 @@
-use crate::core_crypto::gpu::vec::{range_bounds_to_start_end, GpuIndex};
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::Numeric;
+use crate::gpu::vec::{range_bounds_to_start_end, GpuIndex};
+use crate::gpu::CudaStreams;
+use crate::prelude::Numeric;
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use tfhe_cuda_backend::cuda_bind::{cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_async_to_cpu};

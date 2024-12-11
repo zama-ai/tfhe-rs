@@ -1,11 +1,4 @@
 use super::ShortintEngine;
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweBskGroupingFactor, LweDimension, PolynomialSize, ThreadCount,
-};
-use crate::core_crypto::commons::traits::Container;
-use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
@@ -13,6 +6,13 @@ use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBo
 use crate::shortint::{
     CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey,
 };
+use tfhe_core_crypto::algorithms::*;
+use tfhe_core_crypto::commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
+    LweBskGroupingFactor, LweDimension, PolynomialSize, ThreadCount,
+};
+use tfhe_core_crypto::commons::traits::Container;
+use tfhe_core_crypto::entities::*;
 
 impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {

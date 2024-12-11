@@ -6,10 +6,10 @@ pub use fft128::*;
 pub use fft64::*;
 pub use ntt64::*;
 
-use crate::core_crypto::algorithms::glwe_encryption::allocate_and_trivially_encrypt_new_glwe_ciphertext;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::glwe_encryption::allocate_and_trivially_encrypt_new_glwe_ciphertext;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Helper function to generate an accumulator for a PBS
 ///

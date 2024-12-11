@@ -1,8 +1,8 @@
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::prelude::CastFrom;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use itertools::izip;
 use std::ops::Rem;
+use tfhe_core_crypto::prelude::CastFrom;
 
 impl ServerKey {
     /// Shifts the blocks to the right.

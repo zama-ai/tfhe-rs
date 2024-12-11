@@ -2,11 +2,11 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::lwe_packing_keyswitch_key::LwePackingKeyswitchKeyVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::glwe_ciphertext::glwe_ciphertext_size;
-use crate::core_crypto::entities::glwe_ciphertext_list::{
+use crate::backward_compatibility::entities::lwe_packing_keyswitch_key::LwePackingKeyswitchKeyVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::glwe_ciphertext::glwe_ciphertext_size;
+use crate::entities::glwe_ciphertext_list::{
     GlweCiphertextListCreationMetadata, GlweCiphertextListMutView, GlweCiphertextListView,
 };
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
@@ -59,7 +59,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LwePackingKeyswitc
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`LwePackingKeyswitchKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_lwe_packing_keyswitch_key`] using this key as
+    /// [`crate::algorithms::generate_lwe_packing_keyswitch_key`] using this key as
     /// output.
     ///
     /// This docstring exhibits [`LwePackingKeyswitchKey`] primitives usage.
@@ -311,7 +311,7 @@ impl<Scalar: UnsignedInteger> LwePackingKeyswitchKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate an [`LwePackingKeyswitchKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_lwe_packing_keyswitch_key`] using this key as
+    /// [`crate::algorithms::generate_lwe_packing_keyswitch_key`] using this key as
     /// output.
     ///
     /// See [`LwePackingKeyswitchKey::from_container`] for usage.

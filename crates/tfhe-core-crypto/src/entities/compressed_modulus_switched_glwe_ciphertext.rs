@@ -1,10 +1,10 @@
 use tfhe_versionable::Versionize;
 
 use self::packed_integers::PackedIntegers;
+use crate::backward_compatibility::entities::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertextVersions;
+use crate::fft_impl::common::modulus_switch;
+use crate::prelude::*;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
-use crate::core_crypto::backward_compatibility::entities::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertextVersions;
-use crate::core_crypto::fft_impl::common::modulus_switch;
-use crate::core_crypto::prelude::*;
 
 /// An object to store a ciphertext using less memory
 /// The modulus of the ciphertext is decreased by rounding and the result is stored in a compact way
@@ -225,7 +225,7 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::core_crypto::prelude::test::TestResources;
+    use crate::prelude::test::TestResources;
 
     #[test]
     fn glwe_ms_compression_() {

@@ -1,6 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, PlaintextList};
+use crate::prelude::{Container, PlaintextList};
 
 #[derive(VersionsDispatch)]
 pub enum PlaintextListVersions<C: Container> {

@@ -1,6 +1,3 @@
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
@@ -9,6 +6,9 @@ use crate::integer::gpu::{
     unchecked_comparison_integer_radix_kb_async, ComparisonType, CudaServerKey, PBSType,
 };
 use crate::shortint::ciphertext::Degree;
+use tfhe_core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
 
 impl CudaServerKey {
     /// # Safety

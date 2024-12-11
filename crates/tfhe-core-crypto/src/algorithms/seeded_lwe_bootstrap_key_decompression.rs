@@ -1,9 +1,9 @@
 //! Module with primitives pertaining to [`SeededLweBootstrapKey`] decompression.
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::generators::MaskRandomGenerator;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::commons::generators::MaskRandomGenerator;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededLweBootstrapKey`] between all functions needing it.

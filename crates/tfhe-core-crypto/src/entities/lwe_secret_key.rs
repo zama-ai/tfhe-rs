@@ -2,12 +2,12 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::lwe_secret_key::LweSecretKeyVersions;
-use crate::core_crypto::commons::generators::SecretRandomGenerator;
-use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
-use crate::core_crypto::commons::parameters::LweDimension;
-use crate::core_crypto::commons::traits::*;
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::lwe_secret_key::LweSecretKeyVersions;
+use crate::commons::generators::SecretRandomGenerator;
+use crate::commons::math::random::{RandomGenerable, UniformBinary};
+use crate::commons::parameters::LweDimension;
+use crate::commons::traits::*;
 use tfhe_safe_serialization::named::Named;
 
 /// An [`LWE secret key`](`LweSecretKey`).
@@ -49,7 +49,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweSecretKey<C> {
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`LweSecretKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_binary_lwe_secret_key`] (or other generation
+    /// [`crate::algorithms::generate_binary_lwe_secret_key`] (or other generation
     /// functions working with different coefficient distributions) using this secret key as
     /// output.
     ///
@@ -130,7 +130,7 @@ where
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate an [`LweSecretKey`] you need to call
     /// [`generate_new_binary`](`Self::generate_new_binary`) or
-    /// [`crate::core_crypto::algorithms::generate_binary_lwe_secret_key`] (or other generation
+    /// [`crate::algorithms::generate_binary_lwe_secret_key`] (or other generation
     /// functions working with different coefficient distributions) using this secret key as
     /// output.
     ///

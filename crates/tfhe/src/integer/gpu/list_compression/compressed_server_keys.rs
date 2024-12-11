@@ -1,6 +1,3 @@
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{CiphertextModulus, GlweDimension, PolynomialSize};
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey,
 };
@@ -9,6 +6,9 @@ use crate::integer::gpu::list_compression::server_keys::{
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::shortint::{CarryModulus, MessageModulus};
+use tfhe_core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{CiphertextModulus, GlweDimension, PolynomialSize};
 
 impl CompressedDecompressionKey {
     pub fn decompress_to_cuda(

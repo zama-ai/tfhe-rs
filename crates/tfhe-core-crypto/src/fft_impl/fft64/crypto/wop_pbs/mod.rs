@@ -7,13 +7,13 @@ use super::ggsw::{
     fill_with_forward_fourier_scratch, FourierGgswCiphertextListMutView,
     FourierGgswCiphertextListView,
 };
-use crate::core_crypto::algorithms::polynomial_algorithms::*;
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::*;
+use crate::algorithms::polynomial_algorithms::*;
+use crate::algorithms::*;
+use crate::commons::math::decomposition::DecompositionLevel;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::commons::utils::izip;
+use crate::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 use tfhe_fft::c64;

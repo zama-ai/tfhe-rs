@@ -1,5 +1,5 @@
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
 use aligned_vec::{avec, ABox};
 use tfhe_fft::c64;
 

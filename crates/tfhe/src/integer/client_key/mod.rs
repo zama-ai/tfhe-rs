@@ -14,7 +14,6 @@ use super::ciphertext::{
     CompressedRadixCiphertext, CompressedSignedRadixCiphertext, RadixCiphertext,
     SignedRadixCiphertext,
 };
-use crate::core_crypto::prelude::{CastFrom, SignedNumeric, UnsignedNumeric};
 use crate::integer::bigint::static_signed::StaticSignedBigInt;
 use crate::integer::block_decomposition::BlockRecomposer;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
@@ -31,6 +30,7 @@ pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 use secret_encryption_key::SecretEncryptionKeyView;
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::prelude::{CastFrom, SignedNumeric, UnsignedNumeric};
 use tfhe_versionable::Versionize;
 
 pub trait RecomposableSignedInteger:

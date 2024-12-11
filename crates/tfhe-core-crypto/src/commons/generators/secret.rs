@@ -1,7 +1,7 @@
 //! Module containing primitives pertaining to random generation in the context of secret key
 //! generation.
 
-use crate::core_crypto::commons::math::random::{
+use crate::commons::math::random::{
     ByteRandomGenerator, RandomGenerable, RandomGenerator, Seed, UniformBinary,
 };
 

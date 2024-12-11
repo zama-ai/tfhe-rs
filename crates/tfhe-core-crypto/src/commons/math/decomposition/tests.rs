@@ -1,13 +1,11 @@
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::math::decomposition::{
-    SignedDecomposer, SignedDecomposerNonNative,
-};
-use crate::core_crypto::commons::math::random::{RandomGenerable, Uniform};
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::{Numeric, SignedInteger, UnsignedInteger};
-use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-use crate::core_crypto::commons::test_tools::any_uint;
-use crate::core_crypto::commons::traits::CastInto;
+use crate::commons::ciphertext_modulus::CiphertextModulus;
+use crate::commons::math::decomposition::{SignedDecomposer, SignedDecomposerNonNative};
+use crate::commons::math::random::{RandomGenerable, Uniform};
+use crate::commons::math::torus::UnsignedTorus;
+use crate::commons::numeric::{Numeric, SignedInteger, UnsignedInteger};
+use crate::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
+use crate::commons::test_tools::any_uint;
+use crate::commons::traits::CastInto;
 use std::fmt::Debug;
 
 pub const NB_TESTS: usize = 10_000_000;

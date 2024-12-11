@@ -3,12 +3,12 @@
 use misc::check_encrypted_content_respects_mod;
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_glwe_ciphertext::SeededGlweCiphertextVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_glwe_ciphertext::SeededGlweCiphertextVersions;
+use crate::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A [`seeded GLWE ciphertext`](`SeededGlweCiphertext`).
@@ -42,7 +42,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_seeded_glwe_ciphertext`] using
+    /// you need to use [`crate::algorithms::encrypt_seeded_glwe_ciphertext`] using
     /// this ciphertext as output.
     ///
     /// This docstring exhibits [`SeededGlweCiphertext`] primitives usage.
@@ -254,7 +254,7 @@ impl<Scalar: UnsignedInteger> SeededGlweCiphertextOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] using this ciphertext as
+    /// [`crate::algorithms::encrypt_glwe_ciphertext`] using this ciphertext as
     /// output.
     ///
     ///

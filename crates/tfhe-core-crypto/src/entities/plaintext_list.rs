@@ -2,12 +2,12 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::plaintext_list::PlaintextListVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::plaintext_list::PlaintextListVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
-/// A contiguous list containing [`plaintexts`](`crate::core_crypto::entities::Plaintext`).
+/// A contiguous list containing [`plaintexts`](`crate::entities::Plaintext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(PlaintextListVersions)]
 pub struct PlaintextList<C: Container> {

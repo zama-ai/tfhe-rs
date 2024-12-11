@@ -1,8 +1,8 @@
 use super::{CiphertextNoiseDegree, SmartCleaningOperation};
-use crate::core_crypto::algorithms::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::{Ciphertext, ServerKey};
+use tfhe_core_crypto::algorithms::*;
 
 impl ServerKey {
     /// Compute homomorphically a subtraction between two ciphertexts.

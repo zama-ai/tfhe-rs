@@ -1,6 +1,5 @@
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::backward_compatibility::public_key::PublicKeyVersions;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
@@ -11,6 +10,7 @@ use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::PublicKey as ShortintPublicKey;
+use tfhe_core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(PublicKeyVersions)]

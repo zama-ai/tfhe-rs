@@ -2,13 +2,13 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::glwe_secret_key::GlweSecretKeyVersions;
-use crate::core_crypto::commons::generators::SecretRandomGenerator;
-use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::glwe_secret_key::GlweSecretKeyVersions;
+use crate::commons::generators::SecretRandomGenerator;
+use crate::commons::math::random::{RandomGenerable, UniformBinary};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use tfhe_safe_serialization::named::Named;
 
 /// A [`GLWE secret key`](`GlweSecretKey`)
@@ -52,7 +52,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate a
     /// [`GlweSecretKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_binary_glwe_secret_key`] (or other generation
+    /// [`crate::algorithms::generate_binary_glwe_secret_key`] (or other generation
     /// functions working with different coefficient distributions) using this secret key as
     /// output.
     ///
@@ -169,7 +169,7 @@ where
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate a [`GlweSecretKey`] you need to call
     /// [`generate_new_binary`](`Self::generate_new_binary`) or
-    /// [`crate::core_crypto::algorithms::generate_binary_glwe_secret_key`] (or other generation
+    /// [`crate::algorithms::generate_binary_glwe_secret_key`] (or other generation
     /// functions working with different coefficient distributions) using this secret key as
     /// output.
     ///

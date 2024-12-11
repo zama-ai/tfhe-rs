@@ -3,15 +3,15 @@ use super::{
     extract_lwe_sample_from_glwe_ciphertext, multi_bit_deterministic_blind_rotate_assign,
     GlweCiphertext, ShortintBootstrappingKey,
 };
-use crate::core_crypto::commons::parameters::MonomialDegree;
-use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
-use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweCiphertext};
 use crate::shortint::ciphertext::{
     CompressedModulusSwitchedCiphertext, InternalCompressedModulusSwitchedCiphertext, NoiseLevel,
 };
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
 use crate::shortint::{Ciphertext, PBSOrder, ServerKey};
+use tfhe_core_crypto::commons::parameters::MonomialDegree;
+use tfhe_core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
+use tfhe_core_crypto::prelude::{keyswitch_lwe_ciphertext, LweCiphertext};
 
 impl ServerKey {
     /// Compresses a ciphertext to have a smaller serialization size

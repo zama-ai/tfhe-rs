@@ -2,9 +2,9 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::polynomial::PolynomialVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
+use crate::backward_compatibility::entities::polynomial::PolynomialVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
 use std::ops::{Index, IndexMut};
 
 /// A [`polynomial`](`Polynomial`).

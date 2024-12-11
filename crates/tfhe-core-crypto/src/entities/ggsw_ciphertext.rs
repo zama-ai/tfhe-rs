@@ -2,12 +2,12 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::ggsw_ciphertext::GgswCiphertextVersions;
-use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
-use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::ggsw_ciphertext::GgswCiphertextVersions;
+use crate::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::commons::math::random::{Distribution, RandomGenerable};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// A [`GGSW Ciphertext`](`GgswCiphertext`).
 ///
@@ -16,7 +16,7 @@ use crate::core_crypto::entities::*;
 /// # GGSW Ciphertext
 ///
 /// A GGSW ciphertext is an encryption of a polynomial plaintext.
-/// It is a vector of [`GLWE ciphertexts`](`crate::core_crypto::entities::GlweCiphertext`).
+/// It is a vector of [`GLWE ciphertexts`](`crate::entities::GlweCiphertext`).
 /// It is a generalization of both GSW ciphertexts and RGSW ciphertexts.
 ///
 /// We call $q$ the ciphertext modulus.
@@ -47,13 +47,13 @@ use crate::core_crypto::entities::*;
 ///
 /// ## Secret Key
 /// A GGSW ciphertext is encrypted under a
-/// [`GLWE secret key`](`crate::core_crypto::entities::GlweSecretKey`).
+/// [`GLWE secret key`](`crate::entities::GlweSecretKey`).
 ///
 /// ## GGSW Encryption
 /// ###### inputs:
 /// - $\mathsf{PT}\in\mathcal{R}\_q$: a polynomial plaintext
 /// - $\vec{S}=\left(S\_0, \cdots, S\_{k-1} \right) \in\mathcal{R}\_q^k$: a [`GLWE secret
-///   key`](`crate::core_crypto::entities::GlweSecretKey`)
+///   key`](`crate::entities::GlweSecretKey`)
 /// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean of
 ///   $\mu$
 /// - $\ell$: number of levels desired
@@ -115,7 +115,7 @@ use crate::core_crypto::entities::*;
 /// \frac{q}{\beta^{i+1}}$).
 ///
 /// This type of ciphertext contains redundancy ($\ell$
-/// [`GLWE ciphertext`](`crate::core_crypto::entities::GlweCiphertext`),
+/// [`GLWE ciphertext`](`crate::entities::GlweCiphertext`),
 /// each encrypting the same plaintext times a different scaling factor).
 ///
 /// ## Decomposition base
@@ -127,13 +127,12 @@ use crate::core_crypto::entities::*;
 ///
 /// ## Secret Key
 /// A GLev ciphertext is encrypted under a
-/// [`GLWE secret key`](`crate::core_crypto::entities::GlweSecretKey`).
+/// [`GLWE secret key`](`crate::entities::GlweSecretKey`).
 ///
 /// ## GLev Encryption
 /// ###### inputs:
 /// - $\mathsf{PT}\in \mathcal{R}\_q$: a polynomial plaintext
-/// - $\vec{S}\in  \mathcal{R}\_q^k$: a [`GLWE Secret
-///   Key`](`crate::core_crypto::entities::GlweSecretKey`)
+/// - $\vec{S}\in  \mathcal{R}\_q^k$: a [`GLWE Secret Key`](`crate::entities::GlweSecretKey`)
 /// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean of
 ///   $\mu$
 /// - $\ell$: number of levels desired
@@ -156,7 +155,7 @@ use crate::core_crypto::entities::*;
 /// ## GLev Decryption
 /// Simply use the
 /// [`GLWE decryption
-/// algorithm`](`crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext`)
+/// algorithm`](`crate::algorithms::glwe_encryption::decrypt_glwe_ciphertext`)
 /// on one of the GLWE ciphertexts contained in the GLev ciphertext.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(GgswCiphertextVersions)]
@@ -333,9 +332,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertext<C> 
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its
+    /// you need to use [`crate::algorithms::encrypt_constant_ggsw_ciphertext`] or its
     /// parallel counterpart
-    /// [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`] using
+    /// [`crate::algorithms::par_encrypt_constant_ggsw_ciphertext`] using
     /// this ciphertext as output.
     ///
     /// This docstring exhibits [`GgswCiphertext`] primitives usage.
@@ -574,8 +573,8 @@ impl<Scalar: UnsignedInteger> GgswCiphertextOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its parallel
-    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`]
+    /// [`crate::algorithms::encrypt_constant_ggsw_ciphertext`] or its parallel
+    /// counterpart [`crate::algorithms::par_encrypt_constant_ggsw_ciphertext`]
     /// using this ciphertext as output.
     ///
     /// See [`GgswCiphertext::from_container`] for usage.

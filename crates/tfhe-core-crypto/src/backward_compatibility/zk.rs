@@ -8,7 +8,7 @@ use tfhe_zk_pok::serialization::InvalidSerializedPublicParamsError;
 
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 
-use super::{CompactPkeCrs, CompactPkeProof, CompressedCompactPkeCrs};
+use crate::zk::{CompactPkeCrs, CompactPkeProof, CompressedCompactPkeCrs};
 
 pub type SerializableCompactPkePublicParams =
     tfhe_zk_pok::serialization::SerializablePKEv1PublicParams;

@@ -2,12 +2,12 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::decompress_seeded_lwe_compact_public_key;
-use crate::core_crypto::backward_compatibility::entities::seeded_lwe_compact_public_key::SeededLweCompactPublicKeyVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::decompress_seeded_lwe_compact_public_key;
+use crate::backward_compatibility::entities::seeded_lwe_compact_public_key::SeededLweCompactPublicKeyVersions;
+use crate::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// A [`seeded compact public LWE encryption key`](`SeededLweCompactPublicKey`).
@@ -42,7 +42,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`SeededLweCompactPublicKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_seeded_lwe_compact_public_key`] using this key as
+    /// [`crate::algorithms::generate_seeded_lwe_compact_public_key`] using this key as
     /// output.
     ///
     /// This docstring exhibits [`SeededLweCompactPublicKey`] primitives usage.

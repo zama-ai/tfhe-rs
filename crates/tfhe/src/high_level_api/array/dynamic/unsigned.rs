@@ -5,7 +5,6 @@ use crate::array::traits::{
     ArithmeticArrayBackend, ArrayBackend, BackendDataContainer, BackendDataContainerMut,
     BitwiseArrayBackend, TensorSlice,
 };
-use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::array::cpu::CpuIntegerArrayBackend;
 use crate::high_level_api::array::traits::ClearBitwiseArrayBackend;
 use crate::high_level_api::array::{
@@ -19,6 +18,7 @@ use crate::prelude::{FheDecrypt, FheTryEncrypt};
 use crate::{ClientKey, Device, Error};
 use std::borrow::{Borrow, Cow};
 use std::ops::RangeBounds;
+use tfhe_core_crypto::prelude::UnsignedNumeric;
 
 #[derive(Clone)]
 pub enum InnerUintArray {

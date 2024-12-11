@@ -1,7 +1,7 @@
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, LweBootstrapKey, UnsignedInteger};
+use crate::prelude::{Container, LweBootstrapKey, UnsignedInteger};
 
 impl<C: Container> Deprecable for LweBootstrapKey<C>
 where

@@ -1,9 +1,9 @@
 use super::{CheckError, CiphertextNoiseDegree, LookupTable, ServerKey};
-use crate::core_crypto::prelude::container::Container;
 use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
 use crate::shortint::server_key::add::unchecked_add_assign;
 use crate::shortint::{Ciphertext, MessageModulus};
 use std::cmp::Ordering;
+use tfhe_core_crypto::prelude::container::Container;
 
 #[must_use]
 pub struct BivariateLookupTable<C: Container<Element = u64>> {

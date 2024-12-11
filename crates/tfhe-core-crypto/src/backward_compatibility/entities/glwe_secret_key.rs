@@ -1,6 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, GlweSecretKey};
+use crate::prelude::{Container, GlweSecretKey};
 
 #[derive(VersionsDispatch)]
 pub enum GlweSecretKeyVersions<C: Container> {

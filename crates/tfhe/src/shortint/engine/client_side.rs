@@ -1,13 +1,13 @@
 //! All the `ShortintEngine` method related to client side (encrypt / decrypt)
 use super::ShortintEngine;
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
-use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{
     Ciphertext, ClientKey, CompressedCiphertext, PBSOrder, ShortintParameterSet,
 };
+use tfhe_core_crypto::algorithms::*;
+use tfhe_core_crypto::commons::math::random::{Distribution, RandomGenerable};
+use tfhe_core_crypto::entities::*;
 
 impl ShortintEngine {
     pub fn new_client_key(&mut self, parameters: ShortintParameterSet) -> ClientKey {
@@ -63,7 +63,7 @@ impl ShortintEngine {
     where
         NoiseDistribution: Distribution,
         u64: RandomGenerable<NoiseDistribution, CustomModulus = u64>,
-        KeyCont: crate::core_crypto::commons::traits::Container<Element = u64>,
+        KeyCont: tfhe_core_crypto::commons::traits::Container<Element = u64>,
     {
         //The delta is the one defined by the parameters
         let delta = (1_u64 << 63)

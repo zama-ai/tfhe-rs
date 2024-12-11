@@ -1,11 +1,11 @@
 //! Module containing the definition of the [`SeededLwePackingKeyswitchKey`].
 
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::backward_compatibility::entities::seeded_lwe_packing_keyswitch_key::SeededLwePackingKeyswitchKeyVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::*;
+use crate::backward_compatibility::entities::seeded_lwe_packing_keyswitch_key::SeededLwePackingKeyswitchKeyVersions;
+use crate::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
@@ -57,7 +57,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`SeededLwePackingKeyswitchKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_seeded_lwe_packing_keyswitch_key`] using this key
+    /// [`crate::algorithms::generate_seeded_lwe_packing_keyswitch_key`] using this key
     /// as output.
     ///
     /// This docstring exhibits [`SeededLwePackingKeyswitchKey`] primitives usage.
@@ -365,7 +365,7 @@ impl<Scalar: UnsignedInteger> SeededLwePackingKeyswitchKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate a [`SeededLwePackingKeyswitchKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_seeded_lwe_packing_keyswitch_key`] using this key
+    /// [`crate::algorithms::generate_seeded_lwe_packing_keyswitch_key`] using this key
     /// as output.
     ///
     /// See [`SeededLwePackingKeyswitchKey::from_container`] for usage.

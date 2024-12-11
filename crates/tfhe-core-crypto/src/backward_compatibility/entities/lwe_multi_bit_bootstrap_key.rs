@@ -2,7 +2,7 @@ use tfhe_fft::c64;
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{
+use crate::prelude::{
     Container, FourierLweMultiBitBootstrapKey, LweMultiBitBootstrapKey, UnsignedInteger,
 };
 

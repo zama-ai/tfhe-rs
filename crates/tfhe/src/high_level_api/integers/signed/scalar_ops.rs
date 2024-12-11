@@ -1,5 +1,3 @@
-#[cfg(feature = "gpu")]
-use crate::core_crypto::commons::numeric::CastFrom;
 use crate::high_level_api::errors::UnwrapResultExt;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
@@ -19,6 +17,8 @@ use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
+#[cfg(feature = "gpu")]
+use tfhe_core_crypto::commons::numeric::CastFrom;
 
 impl<Id, Clear> FheMax<Clear> for FheInt<Id>
 where

@@ -1,13 +1,13 @@
 use super::polynomial::{FourierPolynomialMutView, FourierPolynomialView};
-use crate::core_crypto::backward_compatibility::fft_impl::{
+use crate::backward_compatibility::fft_impl::{
     FourierPolynomialListVersioned, FourierPolynomialListVersionedOwned,
 };
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::CastInto;
-use crate::core_crypto::commons::parameters::{PolynomialCount, PolynomialSize};
-use crate::core_crypto::commons::traits::{Container, ContainerMut, IntoContainerOwned};
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::*;
+use crate::commons::math::torus::UnsignedTorus;
+use crate::commons::numeric::CastInto;
+use crate::commons::parameters::{PolynomialCount, PolynomialSize};
+use crate::commons::traits::{Container, ContainerMut, IntoContainerOwned};
+use crate::commons::utils::izip;
+use crate::entities::*;
 use aligned_vec::{avec, ABox};
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 use rayon::prelude::*;
@@ -621,7 +621,7 @@ impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> 
             polynomial_size: PolynomialSize,
             serializer: S,
         ) -> Result<S::Ok, S::Error> {
-            use crate::core_crypto::commons::traits::Split;
+            use crate::commons::traits::Split;
 
             #[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
             pub struct SingleFourierPolynomial<'a> {
@@ -684,7 +684,7 @@ impl<'de, C: IntoContainerOwned<Element = c64>> serde::Deserialize<'de>
                 self,
                 mut seq: A,
             ) -> Result<Self::Value, A::Error> {
-                use crate::core_crypto::commons::traits::Split;
+                use crate::commons::traits::Split;
 
                 let str = "sequence of two fields and Fourier polynomials";
 

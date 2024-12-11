@@ -1,4 +1,3 @@
-use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
@@ -11,6 +10,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_scalar_comp
 use crate::integer::U256;
 use crate::shortint::parameters::*;
 use rand::Rng;
+use tfhe_core_crypto::gpu::CudaStreams;
 /// This macro generates the tests for a given scalar comparison fn
 ///
 /// All our comparison function have 2 variants:

@@ -1,10 +1,10 @@
 //! Module containing primitives pertaining to [`LWE ciphertext`](`LweCiphertext`) linear algebra,
 //! like addition, multiplication, etc.
 
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::slice_algorithms::*;
+use crate::commons::ciphertext_modulus::CiphertextModulusKind;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Add the right-hand side [`LWE ciphertext`](`LweCiphertext`) to the left-hand side [`LWE
 /// ciphertext`](`LweCiphertext`) updating it in-place.

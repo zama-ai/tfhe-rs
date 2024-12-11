@@ -1,9 +1,9 @@
-use crate::core_crypto::prelude::{Numeric, SignedInteger};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
 use std::collections::BTreeMap;
+use tfhe_core_crypto::prelude::{Numeric, SignedInteger};
 
 pub trait ScalarMultiplier: Numeric {
     fn is_power_of_two(self) -> bool;

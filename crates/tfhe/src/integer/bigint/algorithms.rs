@@ -1,7 +1,7 @@
-use crate::core_crypto::prelude::{
+use std::ops::{Add, BitAnd, BitOrAssign, Neg, Not, Shl, ShlAssign, Shr, Sub, SubAssign};
+use tfhe_core_crypto::prelude::{
     CastFrom, Numeric, SignedNumeric, UnsignedInteger, UnsignedNumeric,
 };
-use std::ops::{Add, BitAnd, BitOrAssign, Neg, Not, Shl, ShlAssign, Shr, Sub, SubAssign};
 
 const BYTES_PER_U64: usize = std::mem::size_of::<u64>() / std::mem::size_of::<u8>();
 

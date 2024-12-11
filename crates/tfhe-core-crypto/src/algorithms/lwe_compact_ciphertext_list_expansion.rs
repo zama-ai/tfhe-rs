@@ -1,9 +1,9 @@
 //! Module with primitives pertaining to [`LweCompactCiphertextList`] expansion.
 
-use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul_assign;
-use crate::core_crypto::commons::parameters::MonomialDegree;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul_assign;
+use crate::commons::parameters::MonomialDegree;
+use crate::commons::traits::*;
+use crate::entities::*;
 use rayon::prelude::*;
 
 /// Expand an [`LweCompactCiphertextList`] into an [`LweCiphertextList`].

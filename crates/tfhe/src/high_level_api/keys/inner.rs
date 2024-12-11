@@ -1,5 +1,3 @@
-use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::{ActivatedRandomGenerator, KeyswitchKeyConformanceParams};
 use crate::high_level_api::backward_compatibility::keys::*;
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
@@ -15,6 +13,8 @@ use crate::shortint::parameters::{
 use crate::shortint::{EncryptionKeyChoice, MessageModulus, PBSParameters};
 use crate::{Config, Error};
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+use tfhe_core_crypto::prelude::{ActivatedRandomGenerator, KeyswitchKeyConformanceParams};
 use tfhe_csprng::seeders::Seed;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;

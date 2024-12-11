@@ -19,7 +19,6 @@ pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
 pub(crate) mod test_sub;
 
-use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::tests_unsigned::GpuFunctionExecutor;
@@ -29,6 +28,7 @@ use crate::integer::{
     BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 use std::sync::Arc;
+use tfhe_core_crypto::gpu::CudaStreams;
 
 /// For default/unchecked unary functions
 impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>

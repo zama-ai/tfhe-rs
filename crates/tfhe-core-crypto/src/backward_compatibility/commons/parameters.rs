@@ -1,6 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::commons::parameters::*;
+use crate::commons::parameters::*;
 
 #[derive(VersionsDispatch)]
 pub enum PlaintextCountVersions {

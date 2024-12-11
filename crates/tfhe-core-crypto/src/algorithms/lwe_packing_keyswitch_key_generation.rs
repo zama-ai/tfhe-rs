@@ -2,15 +2,15 @@
 //! generation`](`LwePackingKeyswitchKey`) and [`seeded LWE packing keyswitch keys
 //! generation`](`SeededLwePackingKeyswitchKey`).
 
-use crate::core_crypto::algorithms::{
+use crate::algorithms::{
     encrypt_glwe_ciphertext_list, encrypt_seeded_glwe_ciphertext_list_with_existing_generator,
 };
-use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::{
+use crate::commons::generators::EncryptionRandomGenerator;
+use crate::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
+use crate::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::{
     GlweSecretKey, LwePackingKeyswitchKey, LwePackingKeyswitchKeyOwned, LweSecretKey,
     PlaintextListOwned, SeededLwePackingKeyswitchKey, SeededLwePackingKeyswitchKeyOwned,
 };

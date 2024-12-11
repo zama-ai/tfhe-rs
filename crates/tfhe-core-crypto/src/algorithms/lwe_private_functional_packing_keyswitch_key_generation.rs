@@ -1,14 +1,14 @@
 //! Module containing primitives pertaining to [`LWE private functional packing keyswitch key
 //! generation`](`LwePrivateFunctionalPackingKeyswitchKey`).
 
-use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
-use crate::core_crypto::commons::math::random::{Distribution, Uniform};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::algorithms::slice_algorithms::*;
+use crate::algorithms::*;
+use crate::commons::generators::EncryptionRandomGenerator;
+use crate::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
+use crate::commons::math::random::{Distribution, Uniform};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use rayon::prelude::*;
 
 /// Fill an [`LWE private functional packing keyswitch
@@ -249,9 +249,9 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
 
 #[cfg(test)]
 mod test {
-    use crate::core_crypto::commons::generators::DeterministicSeeder;
-    use crate::core_crypto::commons::math::random::Seed;
-    use crate::core_crypto::prelude::*;
+    use crate::commons::generators::DeterministicSeeder;
+    use crate::commons::math::random::Seed;
+    use crate::prelude::*;
 
     const NB_TESTS: usize = 10;
 
@@ -261,19 +261,17 @@ mod test {
             // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield
             // correct computations
             let glwe_dimension =
-                GlweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
-            let polynomial_size = PolynomialSize(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
-            let pfpksk_level_count = DecompositionLevelCount(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
-            let pfpksk_base_log = DecompositionBaseLog(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
+                GlweDimension(crate::commons::test_tools::random_usize_between(5..10));
+            let polynomial_size =
+                PolynomialSize(crate::commons::test_tools::random_usize_between(5..10));
+            let pfpksk_level_count =
+                DecompositionLevelCount(crate::commons::test_tools::random_usize_between(2..5));
+            let pfpksk_base_log =
+                DecompositionBaseLog(crate::commons::test_tools::random_usize_between(2..5));
 
-            let common_encryption_seed =
-                Seed(crate::core_crypto::commons::test_tools::random_uint_between(0..u128::MAX));
+            let common_encryption_seed = Seed(crate::commons::test_tools::random_uint_between(
+                0..u128::MAX,
+            ));
 
             let var_small = Variance::from_variance(2f64.powf(-80.0));
             let gaussian_small = Gaussian::from_dispersion_parameter(var_small, 0.0);

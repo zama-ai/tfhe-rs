@@ -11,7 +11,7 @@
 
 use super::super::super::c64;
 use super::TwistiesView;
-use crate::core_crypto::commons::utils::izip;
+use crate::commons::utils::izip;
 #[cfg(target_arch = "x86")]
 use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -1021,9 +1021,7 @@ pub fn convert_add_backward_torus_u64(
 
 #[cfg(test)]
 mod tests {
-    use crate::core_crypto::fft_impl::fft64::math::fft::{
-        convert_add_backward_torus_scalar, Twisties,
-    };
+    use crate::fft_impl::fft64::math::fft::{convert_add_backward_torus_scalar, Twisties};
 
     use super::*;
 

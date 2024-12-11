@@ -1,6 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, LweCompactPublicKey, UnsignedInteger};
+use crate::prelude::{Container, LweCompactPublicKey, UnsignedInteger};
 
 #[derive(VersionsDispatch)]
 pub enum LweCompactPublicKeyVersions<C: Container>

@@ -46,10 +46,10 @@ macro_rules! export_concrete_array_types {
     };
 }
 
-pub use crate::core_crypto::commons::math::random::Seed;
 pub use crate::integer::server_key::MatchValues;
 pub use config::{Config, ConfigBuilder};
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
+pub use tfhe_core_crypto::commons::math::random::Seed;
 
 pub use integers::{CompressedFheInt, CompressedFheUint, FheInt, FheUint, IntegerId};
 #[cfg(feature = "gpu")]

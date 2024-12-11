@@ -1,7 +1,7 @@
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::{Container, NttGgswCiphertext, UnsignedInteger};
+use crate::prelude::{Container, NttGgswCiphertext, UnsignedInteger};
 
 impl<C: Container> Deprecable for NttGgswCiphertext<C>
 where

@@ -1,7 +1,7 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::packed_integers::PackedIntegers;
-use crate::core_crypto::prelude::UnsignedInteger;
+use crate::prelude::packed_integers::PackedIntegers;
+use crate::prelude::UnsignedInteger;
 
 #[derive(VersionsDispatch)]
 pub enum PackedIntegersVersions<Scalar: UnsignedInteger> {

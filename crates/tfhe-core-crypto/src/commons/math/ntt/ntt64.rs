@@ -1,6 +1,6 @@
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::prelude::*;
+use crate::commons::ciphertext_modulus::CiphertextModulusKind;
+use crate::commons::utils::izip;
+use crate::prelude::*;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};

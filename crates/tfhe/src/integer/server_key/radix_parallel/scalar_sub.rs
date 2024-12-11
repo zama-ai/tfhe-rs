@@ -1,10 +1,10 @@
-use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix::scalar_sub::TwosComplementNegation;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
+use tfhe_core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 
 impl ServerKey {
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
@@ -159,20 +159,20 @@ impl ServerKey {
         for (lhs_b, scalar_b) in lhs.blocks.iter_mut().zip(scalar_blocks.iter().copied()) {
             // Here we use core_crypto instead of shortint scalar_sub_assign
             // because we need a true subtraction, not an addition of the inverse
-            crate::core_crypto::algorithms::lwe_ciphertext_plaintext_sub_assign(
+            tfhe_core_crypto::algorithms::lwe_ciphertext_plaintext_sub_assign(
                 &mut lhs_b.ct,
-                crate::core_crypto::prelude::Plaintext(u64::from(scalar_b) * delta),
+                tfhe_core_crypto::prelude::Plaintext(u64::from(scalar_b) * delta),
             );
-            crate::core_crypto::algorithms::lwe_ciphertext_plaintext_add_assign(
+            tfhe_core_crypto::algorithms::lwe_ciphertext_plaintext_add_assign(
                 &mut lhs_b.ct,
-                crate::core_crypto::prelude::Plaintext(self.message_modulus().0 * delta),
+                tfhe_core_crypto::prelude::Plaintext(self.message_modulus().0 * delta),
             );
             lhs_b.degree = crate::shortint::ciphertext::Degree::new(
                 lhs_b.degree.get() + (self.message_modulus().0 - u64::from(scalar_b)),
             );
             // And here, it's because shortint sub_assign adds a correcting term,
             // which we do not want here
-            crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs_b.ct, &borrow.ct);
+            tfhe_core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs_b.ct, &borrow.ct);
             lhs_b.set_noise_level(
                 lhs_b.noise_level() + borrow.noise_level(),
                 self.key.max_noise_level,
@@ -299,7 +299,7 @@ impl ServerKey {
                     // we would remove one from the block, which would be absorbed by the 1 we just
                     // added
                     for block in chunk_of_two.iter_mut() {
-                        crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
+                        tfhe_core_crypto::algorithms::lwe_ciphertext_sub_assign(
                             &mut block.ct,
                             &simulator.ct,
                         );
@@ -332,7 +332,7 @@ impl ServerKey {
                     .for_each(|(i, block)| {
                         let grouping_index = i / (grouping_size * 2);
                         let borrow = &resolved_borrows[grouping_index];
-                        crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
+                        tfhe_core_crypto::algorithms::lwe_ciphertext_sub_assign(
                             &mut block.ct,
                             &borrow.ct,
                         );

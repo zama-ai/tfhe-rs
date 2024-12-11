@@ -1,4 +1,3 @@
-use crate::core_crypto::commons::traits::Container;
 use crate::integer::backward_compatibility::public_key::{
     CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
 };
@@ -12,6 +11,7 @@ use crate::shortint::{
     CompressedCompactPublicKey as ShortintCompressedCompactPublicKey,
 };
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::commons::traits::Container;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 

@@ -1,8 +1,6 @@
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{
-    convert_lwe_multi_bit_programmable_bootstrap_key_async, CudaStreams,
-};
-use crate::core_crypto::prelude::{
+use crate::gpu::vec::CudaVec;
+use crate::gpu::{convert_lwe_multi_bit_programmable_bootstrap_key_async, CudaStreams};
+use crate::prelude::{
     lwe_multi_bit_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
     GlweDimension, LweBskGroupingFactor, LweDimension, LweMultiBitBootstrapKey, PolynomialSize,
     UnsignedInteger,

@@ -1,9 +1,9 @@
-use crate::core_crypto::gpu::entities::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaLweBootstrapKey;
-use crate::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{programmable_bootstrap_async, CudaStreams};
-use crate::core_crypto::prelude::{CastInto, LweCiphertextCount, UnsignedTorus};
+use crate::gpu::entities::glwe_ciphertext_list::CudaGlweCiphertextList;
+use crate::gpu::entities::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::gpu::vec::CudaVec;
+use crate::gpu::{programmable_bootstrap_async, CudaStreams};
+use crate::prelude::{CastInto, LweCiphertextCount, UnsignedTorus};
 
 /// # Safety
 ///

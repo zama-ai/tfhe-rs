@@ -1,9 +1,3 @@
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{
-    allocate_and_generate_new_lwe_packing_keyswitch_key, par_generate_lwe_bootstrap_key,
-    LweBootstrapKey,
-};
 use crate::integer::compression_keys::{CompressionKey, CompressionPrivateKeys};
 use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey,
@@ -12,6 +6,12 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::RadixClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
+use tfhe_core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{
+    allocate_and_generate_new_lwe_packing_keyswitch_key, par_generate_lwe_bootstrap_key,
+    LweBootstrapKey,
+};
 
 impl RadixClientKey {
     pub fn new_cuda_compression_decompression_keys(

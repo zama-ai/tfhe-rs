@@ -2,10 +2,10 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::entities::lwe_keyswitch_key::LweKeyswitchKeyVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::backward_compatibility::entities::lwe_keyswitch_key::LweKeyswitchKeyVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
 /// An [`LWE keyswitch key`](`LweKeyswitchKey`).
@@ -15,11 +15,11 @@ use tfhe_safe_serialization::conformance::ParameterSetConformant;
 /// ## Key Switching Key
 ///
 /// A key switching key is a vector of Lev ciphertexts (described on the bottom of
-/// [`this page`](`crate::core_crypto::entities::GswCiphertext#lev-ciphertext`)).
+/// [`this page`](`crate::entities::GswCiphertext#lev-ciphertext`)).
 /// It encrypts the coefficient of
-/// the [`LWE secret key`](`crate::core_crypto::entities::LweSecretKey`)
+/// the [`LWE secret key`](`crate::entities::LweSecretKey`)
 /// $\vec{s}\_{\mathsf{in}}$ under the
-/// [`LWE secret key`](`crate::core_crypto::entities::LweSecretKey`)
+/// [`LWE secret key`](`crate::entities::LweSecretKey`)
 /// $\vec{s}\_{\mathsf{out}}$.
 ///
 /// $$\mathsf{KSK}\_{\vec{s}\_{\mathsf{in}}\rightarrow \vec{s}\_{\mathsf{out}}} = \left(
@@ -33,21 +33,21 @@ use tfhe_safe_serialization::conformance::ParameterSetConformant;
 /// ## LWE Keyswitch
 ///
 /// This homomorphic procedure transforms an input
-/// [`LWE ciphertext`](`crate::core_crypto::entities::LweCiphertext`)
+/// [`LWE ciphertext`](`crate::entities::LweCiphertext`)
 /// $\mathsf{ct}\_{\mathsf{in}} =
 /// \left( \vec{a}\_{\mathsf{in}} , b\_{\mathsf{in}}\right) \in \mathsf{LWE}^{n\_{\mathsf{in}}}\_
 /// {\vec{s}\_{\mathsf{in}}}( \mathsf{pt} ) \subseteq \mathbb{Z}\_q^{(n\_{\mathsf{in}}+1)}$ into an
-/// output [`LWE ciphertext`](`crate::core_crypto::entities::LweCiphertext`)
+/// output [`LWE ciphertext`](`crate::entities::LweCiphertext`)
 /// $\mathsf{ct}\_{\mathsf{out}} =
 /// \left( \vec{a}\_{\mathsf{out}} , b\_{\mathsf{out}}\right) \in
 /// \mathsf{LWE}^{n\_{\mathsf{out}}}\_{\vec{s}\_{\mathsf{out}}}( \mathsf{pt} )\subseteq
 /// \mathbb{Z}\_q^{(n\_{\mathsf{out}}+1)}$ where $n\_{\mathsf{in}} = |\vec{s}\_{\mathsf{in}}|$ and
 /// $n\_{\mathsf{out}} = |\vec{s}\_{\mathsf{out}}|$. It requires a
-/// [`key switching key`](`crate::core_crypto::entities::LweKeyswitchKey`).
+/// [`key switching key`](`crate::entities::LweKeyswitchKey`).
 /// The input ciphertext is encrypted under the
-/// [`LWE secret key`](`crate::core_crypto::entities::LweSecretKey`)
+/// [`LWE secret key`](`crate::entities::LweSecretKey`)
 /// $\vec{s}\_{\mathsf{in}}$ and the output ciphertext is
-/// encrypted under the [`LWE secret key`](`crate::core_crypto::entities::LweSecretKey`)
+/// encrypted under the [`LWE secret key`](`crate::entities::LweSecretKey`)
 /// $\vec{s}\_{\mathsf{out}}$.
 ///
 /// $$\mathsf{ct}\_{\mathsf{in}} \in \mathsf{LWE}^{n\_{\mathsf{in}}}\_{\vec{s}\_{\mathsf{in}}}(
@@ -63,12 +63,11 @@ use tfhe_safe_serialization::conformance::ParameterSetConformant;
 ///   ciphertext`](`LweCiphertext`) with $\vec{a}\_{\mathsf{in}}=\left(a\_0, \cdots
 ///   a\_{n\_{\mathsf{in}}-1}\right)$
 /// - $\mathsf{KSK}\_{\vec{s}\_{\mathsf{in}}\rightarrow \vec{s}\_{\mathsf{out}}}$: a [`key switching
-///   key`](`crate::core_crypto::entities::LweKeyswitchKey`)
+///   key`](`crate::entities::LweKeyswitchKey`)
 ///
 /// ###### outputs:
 /// - $\mathsf{ct}\_{\mathsf{out}} \in \mathsf{LWE}^{n\_{\mathsf{out}}}\_{\vec{s}\_{\mathsf{out}}}
-///   \left( \mathsf{pt} \right)$: an [`LWE
-///   ciphertext`](`crate::core_crypto::entities::LweCiphertext`)
+///   \left( \mathsf{pt} \right)$: an [`LWE ciphertext`](`crate::entities::LweCiphertext`)
 ///
 /// ###### algorithm:
 /// 1. set $\mathsf{ct}=\left( 0 , \cdots , 0 ,  b\_{\mathsf{in}} \right) \in
@@ -118,7 +117,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweKeyswitchKey<C>
     ///
     /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`LweKeyswitchKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_lwe_keyswitch_key`] using this key as output.
+    /// [`crate::algorithms::generate_lwe_keyswitch_key`] using this key as output.
     ///
     /// This docstring exhibits [`LweKeyswitchKey`] primitives usage.
     ///
@@ -324,7 +323,7 @@ impl<Scalar: UnsignedInteger> LweKeyswitchKeyOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to generate an [`LweKeyswitchKey`] you need to call
-    /// [`crate::core_crypto::algorithms::generate_lwe_keyswitch_key`] using this key as output.
+    /// [`crate::algorithms::generate_lwe_keyswitch_key`] using this key as output.
     ///
     /// See [`LweKeyswitchKey::from_container`] for usage.
     pub fn new(

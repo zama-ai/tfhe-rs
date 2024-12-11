@@ -2,9 +2,9 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::backward_compatibility::commons::ciphertext_modulus::SerializableCiphertextModulusVersions;
-use crate::core_crypto::commons::traits::UnsignedInteger;
-use crate::core_crypto::prelude::CastInto;
+use crate::backward_compatibility::commons::ciphertext_modulus::SerializableCiphertextModulusVersions;
+use crate::commons::traits::UnsignedInteger;
+use crate::prelude::CastInto;
 use core::num::NonZeroU128;
 use std::cmp::Ordering;
 use std::fmt::Display;
@@ -375,7 +375,7 @@ impl<Scalar: UnsignedInteger> std::fmt::Debug for CiphertextModulus<Scalar> {
 #[cfg(test)]
 mod tests {
     use super::CiphertextModulusCreationError;
-    use crate::core_crypto::prelude::CiphertextModulus;
+    use crate::prelude::CiphertextModulus;
 
     #[test]
     fn test_modulus_struct() {

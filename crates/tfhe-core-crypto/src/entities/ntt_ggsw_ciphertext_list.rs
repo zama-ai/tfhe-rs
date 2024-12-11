@@ -1,21 +1,19 @@
-use crate::core_crypto::backward_compatibility::entities::ntt_ggsw_ciphertext_list::NttGgswCiphertextListVersions;
-use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::parameters::{
+use crate::backward_compatibility::entities::ntt_ggsw_ciphertext_list::NttGgswCiphertextListVersions;
+use crate::commons::numeric::UnsignedInteger;
+use crate::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GgswCiphertextCount,
     GlweSize, PolynomialSize,
 };
-use crate::core_crypto::commons::traits::{Container, ContainerMut, Split};
-use crate::core_crypto::entities::ggsw_ciphertext::ggsw_ciphertext_size;
-pub use crate::core_crypto::entities::ggsw_ciphertext_list::ggsw_ciphertext_list_size;
-use crate::core_crypto::entities::ntt_ggsw_ciphertext::NttGgswCiphertext;
-use crate::core_crypto::entities::polynomial_list::{
-    PolynomialList, PolynomialListMutView, PolynomialListView,
-};
+use crate::commons::traits::{Container, ContainerMut, Split};
+use crate::entities::ggsw_ciphertext::ggsw_ciphertext_size;
+pub use crate::entities::ggsw_ciphertext_list::ggsw_ciphertext_list_size;
+use crate::entities::ntt_ggsw_ciphertext::NttGgswCiphertext;
+use crate::entities::polynomial_list::{PolynomialList, PolynomialListMutView, PolynomialListView};
 use aligned_vec::{avec, ABox};
 use tfhe_versionable::Versionize;
 
 /// A contiguous list containing
-/// [`GGSW ciphertexts in the NTT domain`](`crate::core_crypto::entities::NttGgswCiphertext`).
+/// [`GGSW ciphertexts in the NTT domain`](`crate::entities::NttGgswCiphertext`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(NttGgswCiphertextListVersions)]
 pub struct NttGgswCiphertextList<C: Container>
@@ -257,7 +255,7 @@ impl<Scalar: UnsignedInteger> NttGgswCiphertextListOwned<Scalar> {
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to have useful data in the [`NttGgswCiphertextList`] you will first need
     /// to convert it from a standard
-    /// [`GgswCiphertextList`](`crate::core_crypto::entities::GgswCiphertextList`).
+    /// [`GgswCiphertextList`](`crate::entities::GgswCiphertextList`).
     ///
     /// See [`NttGgswCiphertextList::from_container`] for usage.
     pub fn new(

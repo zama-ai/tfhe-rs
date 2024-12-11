@@ -1,20 +1,18 @@
 use super::super::math::fft::Fft128View;
-use crate::core_crypto::backward_compatibility::fft_impl::Fourier128GgswCiphertextVersions;
-use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::parameters::{
+use crate::backward_compatibility::fft_impl::Fourier128GgswCiphertextVersions;
+use crate::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
+use crate::commons::math::torus::UnsignedTorus;
+use crate::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
 };
-use crate::core_crypto::commons::traits::{
+use crate::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
 };
-use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::ggsw_ciphertext::{
-    fourier_ggsw_level_matrix_size, GgswCiphertext,
-};
-use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertext, GlweCiphertextView};
-use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
-use crate::core_crypto::prelude::ContainerMut;
+use crate::commons::utils::izip;
+use crate::entities::ggsw_ciphertext::{fourier_ggsw_level_matrix_size, GgswCiphertext};
+use crate::entities::glwe_ciphertext::{GlweCiphertext, GlweCiphertextView};
+use crate::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
+use crate::prelude::ContainerMut;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 use tfhe_fft::fft128::f128;

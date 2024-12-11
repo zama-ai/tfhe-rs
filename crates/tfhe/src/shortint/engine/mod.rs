@@ -5,21 +5,21 @@
 
 use super::parameters::LweDimension;
 use super::CiphertextModulus;
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::generators::{
-    DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
-};
-#[cfg(feature = "zk-pok")]
-use crate::core_crypto::commons::math::random::RandomGenerator;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
-use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{ContainerMut, GlweSize};
-use crate::core_crypto::seeders::new_seeder;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
 use crate::shortint::prelude::PolynomialSize;
 use crate::shortint::{CarryModulus, MessageModulus, ServerKey};
 use std::cell::RefCell;
 use std::fmt::Debug;
+use tfhe_core_crypto::commons::computation_buffers::ComputationBuffers;
+use tfhe_core_crypto::commons::generators::{
+    DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
+};
+#[cfg(feature = "zk-pok")]
+use tfhe_core_crypto::commons::math::random::RandomGenerator;
+use tfhe_core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
+use tfhe_core_crypto::entities::*;
+use tfhe_core_crypto::prelude::{ContainerMut, GlweSize};
+use tfhe_core_crypto::seeders::new_seeder;
 
 mod client_side;
 mod public_side;
@@ -240,7 +240,7 @@ where
 }
 
 /// Simple wrapper around [`std::error::Error`] to be able to
-/// forward all the possible `EngineError` type from [`core_crypto`](crate::core_crypto)
+/// forward all the possible `EngineError` type from [`core_crypto`](tfhe_core_crypto)
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct EngineError {
@@ -266,7 +266,7 @@ impl std::fmt::Display for EngineError {
 
 /// ShortintEngine
 ///
-/// This 'engine' holds the necessary engines from [`core_crypto`](crate::core_crypto)
+/// This 'engine' holds the necessary engines from [`core_crypto`](tfhe_core_crypto)
 /// as well as the buffers that we want to keep around to save processing time.
 ///
 /// This structs actually implements the logics into its methods.

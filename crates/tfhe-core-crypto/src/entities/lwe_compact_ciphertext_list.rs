@@ -3,14 +3,14 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::core_crypto::algorithms::{
+use crate::algorithms::{
     expand_lwe_compact_ciphertext_list, par_expand_lwe_compact_ciphertext_list,
 };
-use crate::core_crypto::backward_compatibility::entities::lwe_compact_ciphertext_list::LweCompactCiphertextListVersions;
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
+use crate::backward_compatibility::entities::lwe_compact_ciphertext_list::LweCompactCiphertextListVersions;
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
+use crate::prelude::misc::check_encrypted_content_respects_mod;
 use tfhe_safe_serialization::conformance::{ListSizeConstraint, ParameterSetConformant};
 
 /// A [`compact list of LWE ciphertexts`](`LweCompactCiphertextList`) obtained through encryption
@@ -73,10 +73,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCipherte
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
     /// you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_lwe_compact_ciphertext_list_with_compact_public_key`]
+    /// [`crate::algorithms::encrypt_lwe_compact_ciphertext_list_with_compact_public_key`]
     /// or its parallel variant
-    /// [`crate::core_crypto::algorithms::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key`] using this list as
-    /// output.
+    /// [`crate::algorithms::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key`] using
+    /// this list as output.
     ///
     /// This docstring exhibits [`LweCompactCiphertextList`] primitives usage.
     ///
@@ -372,9 +372,9 @@ impl<Scalar: UnsignedInteger> LweCompactCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_lwe_compact_ciphertext_list_with_compact_public_key`]
+    /// [`crate::algorithms::encrypt_lwe_compact_ciphertext_list_with_compact_public_key`]
     /// or its parallel variant
-    /// [`crate::core_crypto::algorithms::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key`]
+    /// [`crate::algorithms::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key`]
     /// using this list as output.
     ///
     /// See [`LweCompactCiphertextListOwned::from_container`] for usage.

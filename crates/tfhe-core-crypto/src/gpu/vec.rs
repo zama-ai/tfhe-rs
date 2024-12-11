@@ -1,6 +1,6 @@
-use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
-use crate::core_crypto::gpu::{synchronize_device, CudaStreams};
-use crate::core_crypto::prelude::Numeric;
+use crate::gpu::slice::{CudaSlice, CudaSliceMut};
+use crate::gpu::{synchronize_device, CudaStreams};
+use crate::prelude::Numeric;
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
 use std::marker::PhantomData;

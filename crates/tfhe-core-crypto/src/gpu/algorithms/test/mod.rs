@@ -1,4 +1,4 @@
-use crate::core_crypto::algorithms::test::*;
+use crate::algorithms::test::*;
 
 mod glwe_sample_extraction;
 mod lwe_keyswitch;
@@ -54,5 +54,5 @@ macro_rules! create_gpu_multi_bit_parameterized_test{
     };
 }
 
-use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
+use crate::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 use {create_gpu_multi_bit_parameterized_test, create_gpu_parameterized_test};

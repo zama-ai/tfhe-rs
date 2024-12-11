@@ -1,13 +1,13 @@
 #![allow(clippy::use_self)]
-use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::commons::math::random::Seed;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::js_on_wasm_api::js_high_level_api::into_js_error;
 use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::*;
 use std::panic::set_hook;
+use tfhe_core_crypto::commons::generators::DeterministicSeeder;
+use tfhe_core_crypto::commons::math::random::Seed;
+use tfhe_core_crypto::prelude::ActivatedRandomGenerator;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -207,7 +207,7 @@ impl From<ShortintPBSOrder> for crate::shortint::parameters::PBSOrder {
 
 #[wasm_bindgen]
 pub struct ShortintNoiseDistribution(
-    pub(crate) crate::core_crypto::commons::math::random::DynamicDistribution<u64>,
+    pub(crate) tfhe_core_crypto::commons::math::random::DynamicDistribution<u64>,
 );
 
 // TODO: use macros once we have more parameters using the same pattern as
@@ -389,7 +389,7 @@ expose_predefined_parameters! {
 impl Shortint {
     #[wasm_bindgen]
     pub fn new_gaussian_from_std_dev(std_dev: f64) -> ShortintNoiseDistribution {
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::prelude::*;
         ShortintNoiseDistribution(DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
             std_dev,
         )))
@@ -397,7 +397,7 @@ impl Shortint {
 
     #[wasm_bindgen]
     pub fn try_new_t_uniform(bound_log2: u32) -> Result<ShortintNoiseDistribution, JsError> {
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::prelude::*;
         DynamicDistribution::try_new_t_uniform(bound_log2)
             .map(ShortintNoiseDistribution)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
@@ -423,7 +423,7 @@ impl Shortint {
         encryption_key_choice: ShortintEncryptionKeyChoice,
     ) -> ShortintParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
-        use crate::core_crypto::prelude::*;
+        use tfhe_core_crypto::prelude::*;
         ShortintParameters(crate::shortint::ClassicPBSParameters {
             lwe_dimension: LweDimension(lwe_dimension),
             glwe_dimension: GlweDimension(glwe_dimension),

@@ -1,5 +1,5 @@
-use crate::core_crypto::entities::LweSecretKey;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use tfhe_core_crypto::entities::LweSecretKey;
 
 #[derive(Clone)]
 pub struct SecretEncryptionKeyView<'key> {

@@ -1,12 +1,3 @@
-use crate::core_crypto::gpu::entities::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{
-    CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount, LweCiphertextCount,
-    PolynomialSize,
-};
 use crate::integer::ciphertext::DataKind;
 use crate::integer::compression_keys::CompressionKey;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
@@ -19,6 +10,15 @@ use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::prelude::GlweDimension;
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
+use tfhe_core_crypto::gpu::entities::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
+use tfhe_core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+use tfhe_core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use tfhe_core_crypto::gpu::vec::CudaVec;
+use tfhe_core_crypto::gpu::CudaStreams;
+use tfhe_core_crypto::prelude::{
+    CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount, LweCiphertextCount,
+    PolynomialSize,
+};
 
 #[derive(Debug)]
 pub struct CudaCompressionKey {

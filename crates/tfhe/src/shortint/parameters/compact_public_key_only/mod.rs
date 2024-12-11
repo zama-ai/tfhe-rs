@@ -1,7 +1,6 @@
 pub mod p_fail_2_minus_64;
 
 use super::{CiphertextModulus, PBSOrder};
-use crate::core_crypto::commons::parameters::{DynamicDistribution, LweDimension};
 use crate::shortint::backward_compatibility::parameters::compact_public_key_only::{
     CompactCiphertextListExpansionKindVersions, CompactPublicKeyEncryptionParametersVersions,
 };
@@ -12,6 +11,7 @@ use crate::shortint::parameters::{
 use crate::shortint::KeySwitchingKeyView;
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::commons::parameters::{DynamicDistribution, LweDimension};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]

@@ -1,16 +1,16 @@
 //! Module containing primitives pertaining to [`GLWE ciphertext
 //! encryption`](`GlweCiphertext#glwe-encryption`).
 
-use crate::core_crypto::algorithms::polynomial_algorithms::*;
-use crate::core_crypto::algorithms::slice_algorithms::{
+use crate::algorithms::polynomial_algorithms::*;
+use crate::algorithms::slice_algorithms::{
     slice_wrapping_scalar_div_assign, slice_wrapping_scalar_mul_assign,
 };
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
-use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::commons::ciphertext_modulus::CiphertextModulusKind;
+use crate::commons::generators::EncryptionRandomGenerator;
+use crate::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
+use crate::commons::parameters::*;
+use crate::commons::traits::*;
+use crate::entities::*;
 
 /// Convenience function to share the core logic of the GLWE assign encryption between all functions
 /// needing it.

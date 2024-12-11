@@ -1,5 +1,5 @@
-use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
-use crate::core_crypto::commons::numeric::UnsignedInteger;
+use crate::commons::math::random::{Distribution, RandomGenerable};
+use crate::commons::numeric::UnsignedInteger;
 
 pub trait Encryptable<MaskDistribution: Distribution, NoiseDistribution: Distribution>:
     UnsignedInteger

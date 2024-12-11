@@ -1,6 +1,4 @@
 use super::Degree;
-use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
-use crate::core_crypto::prelude::LweCiphertextListParameters;
 use crate::shortint::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
@@ -9,12 +7,14 @@ use crate::shortint::parameters::{
     MessageModulus, ShortintCompactCiphertextListCastingMode,
 };
 use crate::shortint::{Ciphertext, CompactPublicKey};
-use crate::zk::{
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use tfhe_core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
+use tfhe_core_crypto::prelude::LweCiphertextListParameters;
+use tfhe_core_crypto::zk::{
     CompactPkeCrs, CompactPkeProof, CompactPkeZkScheme, ZkMSBZeroPaddingBitCount,
     ZkVerificationOutcome,
 };
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use tfhe_safe_serialization::conformance::{ListSizeConstraint, ParameterSetConformant};
 use tfhe_versionable::Versionize;
 
@@ -313,12 +313,85 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 
 #[cfg(test)]
 mod tests {
+    use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::{
         ShortintCompactCiphertextListCastingMode, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     };
-    use crate::shortint::{ClientKey, CompactPublicKey};
-    use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+    use crate::shortint::{CarryModulus, ClientKey, CompactPublicKey, MessageModulus};
+
     use rand::random;
+
+    use tfhe_core_crypto::zk::*;
+
+    use tfhe_safe_serialization::{safe_deserialize_conformant, safe_serialize};
+
+    #[test]
+    fn test_crs_conformance() {
+        let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let mut bad_params = params;
+        bad_params.carry_modulus = CarryModulus(8);
+        bad_params.message_modulus = MessageModulus(8);
+
+        let mut rng = rand::thread_rng();
+
+        let crs = CompactPkeCrs::new(
+            params.encryption_lwe_dimension,
+            4,
+            params.encryption_noise_distribution,
+            params.ciphertext_modulus,
+            params.message_modulus.0 * params.carry_modulus.0 * 2,
+            ZkMSBZeroPaddingBitCount(1),
+            &mut rng,
+        )
+        .unwrap();
+
+        let conformance_params = CompactPkeCrsConformanceParams::new(params, 4).unwrap();
+
+        assert!(crs.is_conformant(&conformance_params));
+
+        let conformance_params = CompactPkeCrsConformanceParams::new(bad_params, 4).unwrap();
+
+        assert!(!crs.is_conformant(&conformance_params));
+
+        let conformance_params = CompactPkeCrsConformanceParams::new(params, 2).unwrap();
+
+        assert!(!crs.is_conformant(&conformance_params));
+    }
+
+    #[test]
+    fn test_crs_serialization() {
+        let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let mut rng = rand::thread_rng();
+
+        let crs = CompactPkeCrs::new(
+            params.encryption_lwe_dimension,
+            4,
+            params.encryption_noise_distribution,
+            params.ciphertext_modulus,
+            params.message_modulus.0 * params.carry_modulus.0 * 2,
+            ZkMSBZeroPaddingBitCount(1),
+            &mut rng,
+        )
+        .unwrap();
+
+        let conformance_params = CompactPkeCrsConformanceParams::new(params, 4).unwrap();
+
+        let mut serialized = Vec::new();
+        safe_serialize(&crs, &mut serialized, 1 << 30).unwrap();
+
+        let _crs_deser: CompactPkeCrs =
+            safe_deserialize_conformant(serialized.as_slice(), 1 << 30, &conformance_params)
+                .unwrap();
+
+        // Check with compression
+        let mut serialized = Vec::new();
+        safe_serialize(&crs.compress(), &mut serialized, 1 << 30).unwrap();
+
+        let _crs_deser: CompactPkeCrs =
+            safe_deserialize_conformant(serialized.as_slice(), 1 << 30, &conformance_params)
+                .unwrap();
+    }
 
     #[test]
     fn test_zk_ciphertext_encryption_ci_run_filter() {

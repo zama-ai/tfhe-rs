@@ -756,7 +756,7 @@ fn lwe_encrypt_pbs_ntt64_decrypt_custom_mod(params: ClassicTestParams<u64>) {
         ciphertext_modulus
     ));
 
-    use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
+    use crate::commons::math::ntt::ntt64::Ntt64;
 
     let mut nbsk = NttLweBootstrapKeyOwned::new(
         0u64,
