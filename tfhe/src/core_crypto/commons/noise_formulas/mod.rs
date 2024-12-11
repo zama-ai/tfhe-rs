@@ -3,5 +3,6 @@ pub mod lwe_keyswitch;
 pub mod lwe_multi_bit_programmable_bootstrap;
 pub mod lwe_packing_keyswitch;
 pub mod lwe_programmable_bootstrap;
+pub mod lwe_programmable_bootstrap_128;
 pub mod modulus_switch;
 pub mod secure_noise;
