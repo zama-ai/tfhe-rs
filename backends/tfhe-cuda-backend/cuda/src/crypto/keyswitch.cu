@@ -42,7 +42,7 @@ void cuda_keyswitch_lwe_ciphertext_vector_64(
     void const *lwe_output_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *ksk, uint32_t lwe_dimension_in,
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples) {
+    uint32_t num_samples) { 
   host_keyswitch_lwe_ciphertext_vector<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_array_out),
@@ -76,8 +76,6 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
   if (can_use_pks_fast_path(input_lwe_dimension, num_lwes,
                             output_polynomial_size, level_count,
                             output_glwe_dimension)) {
-    ::fprintf(stderr, "USING FAST PKS");
-    abort();
     host_fast_packing_keyswitch_lwe_list_to_glwe<uint64_t, ulonglong4>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<uint64_t *>(glwe_array_out),
@@ -86,16 +84,13 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
         input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
         base_log, level_count, num_lwes);
   } else
-    ::fprintf(stderr, "USING CLASSICAL PKS");
-  abort();
-
-  host_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
-      static_cast<cudaStream_t>(stream), gpu_index,
-      static_cast<uint64_t *>(glwe_array_out),
-      static_cast<const uint64_t *>(lwe_array_in),
-      static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
-      input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
-      base_log, level_count, num_lwes);
+    host_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        static_cast<uint64_t *>(glwe_array_out),
+        static_cast<const uint64_t *>(lwe_array_in),
+        static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
+        input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
+        base_log, level_count, num_lwes);
 }
 
 void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,

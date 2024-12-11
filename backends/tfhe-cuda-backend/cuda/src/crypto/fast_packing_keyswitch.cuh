@@ -18,7 +18,7 @@
 const int BLOCK_SIZE_GEMM = 64;
 const int THREADS_GEMM = 8;
 
-__host__ bool can_use_pks_fast_path(uint32_t lwe_dimension_in, uint32_t num_lwe,
+__host__ inline bool can_use_pks_fast_path(uint32_t lwe_dimension_in, uint32_t num_lwe,
                                     uint32_t polynomial_size,
                                     uint32_t level_count,
                                     uint32_t glwe_dimension) {

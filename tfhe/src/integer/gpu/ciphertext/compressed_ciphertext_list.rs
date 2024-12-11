@@ -440,7 +440,6 @@ impl CudaCompressedCiphertextListBuilder {
         streams: &CudaStreams,
     ) -> CudaCompressedCiphertextList {
         let packed_list = comp_key.compress_ciphertexts_into_list(&self.ciphertexts, streams);
-
         CudaCompressedCiphertextList {
             packed_list,
             info: self.info.clone(),
@@ -772,7 +771,7 @@ mod tests {
 
         let streams = CudaStreams::new_multi_gpu();
 
-        let (radix_cks, sks) = gen_keys_radix_gpu(PARAM_CUSTOM_FAST_PATH, NUM_BLOCKS, &streams);
+        let (radix_cks, _sks) = gen_keys_radix_gpu(PARAM_CUSTOM_FAST_PATH, NUM_BLOCKS, &streams);
         let cks = radix_cks.as_ref();
 
         let private_compression_key = cks.new_compression_private_key(COMP_PARAM_CUSTOM_FAST_PATH);
