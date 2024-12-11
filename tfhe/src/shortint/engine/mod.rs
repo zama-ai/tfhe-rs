@@ -89,6 +89,33 @@ where
     C: ContainerMut<Element = u64>,
     F: Fn(u64) -> u64,
 {
+    fill_accumulator_with_encoding(
+        accumulator,
+        polynomial_size,
+        glwe_size,
+        message_modulus,
+        carry_modulus,
+        message_modulus,
+        carry_modulus,
+        f,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn fill_accumulator_with_encoding<F, C>(
+    accumulator: &mut GlweCiphertext<C>,
+    polynomial_size: PolynomialSize,
+    glwe_size: GlweSize,
+    input_message_modulus: MessageModulus,
+    input_carry_modulus: CarryModulus,
+    output_message_modulus: MessageModulus,
+    output_carry_modulus: CarryModulus,
+    f: F,
+) -> u64
+where
+    C: ContainerMut<Element = u64>,
+    F: Fn(u64) -> u64,
+{
     assert_eq!(accumulator.polynomial_size(), polynomial_size);
     assert_eq!(accumulator.glwe_size(), glwe_size);
 
@@ -97,13 +124,13 @@ where
     accumulator_view.get_mut_mask().as_mut().fill(0);
 
     // Modulus of the msg contained in the msg bits and operations buffer
-    let modulus_sup = (message_modulus.0 * carry_modulus.0) as usize;
+    let input_modulus_sup = (input_message_modulus.0 * input_carry_modulus.0) as usize;
 
     // N/(p/2) = size of each block
-    let box_size = polynomial_size.0 / modulus_sup;
+    let box_size = polynomial_size.0 / input_modulus_sup;
 
     // Value of the shift we multiply our messages by
-    let delta = (1_u64 << 63) / (message_modulus.0 * carry_modulus.0);
+    let output_delta = (1_u64 << 63) / (output_message_modulus.0 * output_carry_modulus.0);
 
     let mut body = accumulator_view.get_mut_body();
     let accumulator_u64 = body.as_mut();
@@ -111,11 +138,11 @@ where
     // Tracking the max value of the function to define the degree later
     let mut max_value = 0;
 
-    for i in 0..modulus_sup {
+    for i in 0..input_modulus_sup {
         let index = i * box_size;
         let f_eval = f(i as u64);
         max_value = max_value.max(f_eval);
-        accumulator_u64[index..index + box_size].fill(f_eval * delta);
+        accumulator_u64[index..index + box_size].fill(f_eval * output_delta);
     }
 
     let half_box_size = box_size / 2;
