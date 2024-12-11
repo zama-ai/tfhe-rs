@@ -24,9 +24,9 @@ use crate::core_crypto::commons::noise_formulas::secure_noise::{
     minimal_lwe_variance_for_132_bits_security_gaussian,
     minimal_lwe_variance_for_132_bits_security_tuniform,
 };
-use crate::core_crypto::commons::parameters::MonomialDegree;
+use crate::core_crypto::commons::parameters::{LweDimension, MonomialDegree};
 use crate::core_crypto::commons::test_tools::{
-    arithmetic_mean, clopper_pearseaon_exact_confidence_interval, equivalent_pfail_gaussian_noise,
+    arithmetic_mean, clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise,
     mean_confidence_interval, torus_modular_diff, variance, variance_confidence_interval,
 };
 use crate::core_crypto::commons::traits::Container;
@@ -51,8 +51,8 @@ use crate::shortint::parameters::list_compression::{
     CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 use crate::shortint::parameters::{
-    CiphertextModulus, ClassicPBSParameters, DynamicDistribution, EncryptionKeyChoice,
-    ShortintParameterSet,
+    CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution,
+    EncryptionKeyChoice, MessageModulus, ShortintParameterSet,
 };
 use crate::shortint::server_key::apply_programmable_bootstrap;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
@@ -877,20 +877,20 @@ fn pke_encrypt_ks_to_compute_inner_helper(
 
     let core_ksk = &ksk.key_switching_key_material.key_switching_key;
 
-    let mut keyswitched_lwe_ct = LweCiphertext::new(
+    let mut after_ks_lwe_ct = LweCiphertext::new(
         0u64,
         core_ksk.output_lwe_size(),
         core_ksk.ciphertext_modulus(),
     );
 
     // We don't call the ksk.cast function from shortint as it's doing too many automatic things
-    keyswitch_lwe_ciphertext(core_ksk, &expanded_ct.ct, &mut keyswitched_lwe_ct);
+    keyswitch_lwe_ciphertext(core_ksk, &expanded_ct.ct, &mut after_ks_lwe_ct);
 
     let before_ms = {
         match ksk_params.destination_key {
             EncryptionKeyChoice::Big => {
                 let mut shortint_ct_after_pke_ks = Ciphertext::new(
-                    keyswitched_lwe_ct,
+                    after_ks_lwe_ct,
                     expanded_ct.degree,
                     expanded_ct.noise_level(),
                     expanded_ct.message_modulus,
@@ -931,7 +931,7 @@ fn pke_encrypt_ks_to_compute_inner_helper(
                 // Return the result
                 lwe_keyswitchted
             }
-            EncryptionKeyChoice::Small => keyswitched_lwe_ct,
+            EncryptionKeyChoice::Small => after_ks_lwe_ct,
         }
     };
 
@@ -1459,7 +1459,16 @@ fn test_noise_check_shortint_pke_encrypt_ks_to_big_pfail() {
     )
 }
 
-fn pbs_compress_inner_helper(
+#[derive(Clone, Copy, Debug)]
+enum CompressionSpecialPfailCase {
+    NeedsSpecialCase {
+        decryption_adapted_message_modulus: MessageModulus,
+        decryption_adapted_carry_modulus: CarryModulus,
+    },
+    DoesNotNeedSpecialCase,
+}
+
+fn pbs_compress_and_classic_ap_inner_helper(
     block_params: ShortintParameterSet,
     compression_params: CompressionParameters,
     single_cks: &ClientKey,
@@ -1468,7 +1477,29 @@ fn pbs_compress_inner_helper(
     single_compression_key: &CompressionKey,
     single_decompression_key: &DecompressionKey,
     msg: u64,
-) -> Vec<DecryptionAndNoiseResult> {
+    scalar_for_multiplication: u64,
+    pfail_special_case: CompressionSpecialPfailCase,
+) -> (Vec<DecryptionAndNoiseResult>, Vec<DecryptionAndNoiseResult>) {
+    match pfail_special_case {
+        CompressionSpecialPfailCase::NeedsSpecialCase {
+            decryption_adapted_message_modulus,
+            decryption_adapted_carry_modulus,
+        } => {
+            let adapted_cleartext_modulus =
+                decryption_adapted_carry_modulus.0 * decryption_adapted_message_modulus.0;
+
+            let cleartext_modulus =
+                block_params.message_modulus().0 * block_params.carry_modulus().0;
+
+            assert!(
+                cleartext_modulus <= adapted_cleartext_modulus,
+                "This test only works if the adapted cleartext \
+                space is bigger than the original one."
+            );
+        }
+        CompressionSpecialPfailCase::DoesNotNeedSpecialCase => (),
+    };
+
     assert!(block_params.pbs_only());
     assert!(
         matches!(
@@ -1490,7 +1521,7 @@ fn pbs_compress_inner_helper(
     let thread_compression_private_key;
     let thread_compression_key;
     let thread_decompression_key;
-    let (cks, sks, compression_private_key, compression_key, _decompression_key) =
+    let (cks, sks, compression_private_key, compression_key, decompression_key) =
         if should_use_one_key_per_sample() {
             thread_cks = engine.new_client_key(block_params);
             thread_sks = engine.new_server_key(&thread_cks);
@@ -1521,6 +1552,7 @@ fn pbs_compress_inner_helper(
     // We can only store values under message_modulus with the current compression scheme.
     let encryption_cleartext_modulus =
         block_params.message_modulus().0 * block_params.carry_modulus().0;
+    let encryption_delta = (1u64 << 63) / encryption_cleartext_modulus;
 
     // We multiply by the message_modulus during compression, so the top bits corresponding to the
     // modulus won't be usable during compression
@@ -1533,6 +1565,7 @@ fn pbs_compress_inner_helper(
         .bootstrapping_key
         .polynomial_size()
         .to_blind_rotation_input_modulus_log();
+    let shift_to_map_to_native = u64::BITS - compute_br_input_modulus_log.0 as u32;
     let compute_br_input_modulus =
         CiphertextModulus::try_new_power_of_2(compute_br_input_modulus_log.0).unwrap();
     let no_noise_distribution = DynamicDistribution::new_gaussian(Variance(0.0));
@@ -1592,11 +1625,7 @@ fn pbs_compress_inner_helper(
         compressed_list.modulus_switched_glwe_ciphertext_list.len(),
         1
     );
-    let packed_glwe = compressed_list
-        .modulus_switched_glwe_ciphertext_list
-        .into_iter()
-        .next()
-        .unwrap();
+    let packed_glwe = compressed_list.modulus_switched_glwe_ciphertext_list[0].clone();
 
     let glwe = packed_glwe.extract();
 
@@ -1619,7 +1648,8 @@ fn pbs_compress_inner_helper(
         extract_lwe_sample_from_glwe_ciphertext(&glwe, output_lwe, MonomialDegree(index));
     }
 
-    lwes.into_iter()
+    let after_compression_result: Vec<_> = lwes
+        .into_iter()
         .map(|lwe| {
             DecryptionAndNoiseResult::new(
                 &lwe,
@@ -1631,42 +1661,76 @@ fn pbs_compress_inner_helper(
                 compression_cleartext_modulus,
             )
         })
-        .collect()
-}
+        .collect();
 
-fn pbs_compress_noise_helper(
-    block_params: ShortintParameterSet,
-    compression_params: CompressionParameters,
-    single_cks: &ClientKey,
-    single_sks: &ServerKey,
-    single_compression_private_key: &CompressionPrivateKeys,
-    single_compression_key: &CompressionKey,
-    single_decompression_key: &DecompressionKey,
-    msg: u64,
-) -> Vec<NoiseSample> {
-    let decryption_and_noise_result = pbs_compress_inner_helper(
-        block_params,
-        compression_params,
-        single_cks,
-        single_sks,
-        single_compression_private_key,
-        single_compression_key,
-        single_decompression_key,
-        msg,
-    );
+    let lwe_per_glwe = compressed_list.lwe_per_glwe.0;
+    let after_ap_lwe: Vec<_> = (0..lwe_per_glwe)
+        .into_par_iter()
+        .map(|index| {
+            let mut decompressed = decompression_key.unpack(&compressed_list, index).unwrap();
+            // Strictly remove the plaintext to avoid wrong results during the mul
+            lwe_ciphertext_plaintext_sub_assign(
+                &mut decompressed.ct,
+                Plaintext(msg * encryption_delta),
+            );
+            sks.unchecked_scalar_mul_assign(
+                &mut decompressed,
+                scalar_for_multiplication.try_into().unwrap(),
+            );
+            sks.unchecked_scalar_add_assign(&mut decompressed, msg.try_into().unwrap());
 
-    decryption_and_noise_result
-        .into_iter()
-        .map(|x| match x {
-            DecryptionAndNoiseResult::DecryptionSucceeded { noise } => noise,
-            DecryptionAndNoiseResult::DecryptionFailed => {
-                panic!("Failed decryption, noise measurement will be wrong.")
+            let mut after_ks_lwe = LweCiphertext::new(
+                0u64,
+                sks.key_switching_key.output_lwe_size(),
+                sks.key_switching_key.ciphertext_modulus(),
+            );
+
+            keyswitch_lwe_ciphertext(&sks.key_switching_key, &decompressed.ct, &mut after_ks_lwe);
+
+            for val in after_ks_lwe.as_mut() {
+                *val = modulus_switch(*val, compute_br_input_modulus_log) << shift_to_map_to_native;
             }
+
+            let after_ms_lwe = after_ks_lwe;
+            after_ms_lwe
         })
-        .collect()
+        .collect();
+
+    let (expected_msg, decryption_delta, decryption_cleartext_modulus) = match pfail_special_case {
+        CompressionSpecialPfailCase::NeedsSpecialCase {
+            decryption_adapted_message_modulus,
+            decryption_adapted_carry_modulus,
+        } => {
+            let adapted_cleartext_modulus =
+                decryption_adapted_message_modulus.0 * decryption_adapted_carry_modulus.0;
+            let adapted_delta = (1u64 << 63) / adapted_cleartext_modulus;
+            let delta_diff = encryption_delta / adapted_delta;
+            let expected_msg = msg * delta_diff;
+
+            (expected_msg, adapted_delta, adapted_cleartext_modulus)
+        }
+        CompressionSpecialPfailCase::DoesNotNeedSpecialCase => {
+            (msg, encryption_delta, encryption_cleartext_modulus)
+        }
+    };
+
+    let after_ap_result: Vec<_> = after_ap_lwe
+        .into_iter()
+        .map(|lwe| {
+            DecryptionAndNoiseResult::new(
+                &lwe,
+                &cks.small_lwe_secret_key(),
+                expected_msg,
+                decryption_delta,
+                decryption_cleartext_modulus,
+            )
+        })
+        .collect();
+
+    (after_compression_result, after_ap_result)
 }
 
-fn pbs_compress_pfail_helper(
+fn pbs_compress_and_classic_ap_noise_helper(
     block_params: ShortintParameterSet,
     compression_params: CompressionParameters,
     single_cks: &ClientKey,
@@ -1675,25 +1739,86 @@ fn pbs_compress_pfail_helper(
     single_compression_key: &CompressionKey,
     single_decompression_key: &DecompressionKey,
     msg: u64,
-) -> Vec<f64> {
-    let decryption_and_noise_result = pbs_compress_inner_helper(
-        block_params,
-        compression_params,
-        single_cks,
-        single_sks,
-        single_compression_private_key,
-        single_compression_key,
-        single_decompression_key,
-        msg,
-    );
+    scalar_for_multiplication: u64,
+) -> (Vec<NoiseSample>, Vec<NoiseSample>) {
+    let (decryption_and_noise_result_after_compression, decryption_and_noise_result_after_ap) =
+        pbs_compress_and_classic_ap_inner_helper(
+            block_params,
+            compression_params,
+            single_cks,
+            single_sks,
+            single_compression_private_key,
+            single_compression_key,
+            single_decompression_key,
+            msg,
+            scalar_for_multiplication,
+            CompressionSpecialPfailCase::DoesNotNeedSpecialCase,
+        );
 
-    decryption_and_noise_result
-        .into_iter()
-        .map(|x| match x {
-            DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
-            DecryptionAndNoiseResult::DecryptionFailed => 1.0,
-        })
-        .collect()
+    (
+        decryption_and_noise_result_after_compression
+            .into_iter()
+            .map(|x| match x {
+                DecryptionAndNoiseResult::DecryptionSucceeded { noise } => noise,
+                DecryptionAndNoiseResult::DecryptionFailed => {
+                    panic!("Failed decryption, noise measurement will be wrong.")
+                }
+            })
+            .collect(),
+        decryption_and_noise_result_after_ap
+            .into_iter()
+            .map(|x| match x {
+                DecryptionAndNoiseResult::DecryptionSucceeded { noise } => noise,
+                DecryptionAndNoiseResult::DecryptionFailed => {
+                    panic!("Failed decryption, noise measurement will be wrong.")
+                }
+            })
+            .collect(),
+    )
+}
+
+fn pbs_compress_and_classic_ap_pfail_helper(
+    block_params: ShortintParameterSet,
+    compression_params: CompressionParameters,
+    single_cks: &ClientKey,
+    single_sks: &ServerKey,
+    single_compression_private_key: &CompressionPrivateKeys,
+    single_compression_key: &CompressionKey,
+    single_decompression_key: &DecompressionKey,
+    msg: u64,
+    scalar_for_multiplication: u64,
+    pfail_special_case: CompressionSpecialPfailCase,
+) -> (Vec<f64>, Vec<f64>) {
+    let (decryption_and_noise_result_after_compression, decryption_and_noise_result_after_ap) =
+        pbs_compress_and_classic_ap_inner_helper(
+            block_params,
+            compression_params,
+            single_cks,
+            single_sks,
+            single_compression_private_key,
+            single_compression_key,
+            single_decompression_key,
+            msg,
+            scalar_for_multiplication,
+            pfail_special_case,
+        );
+
+    (
+        decryption_and_noise_result_after_compression
+            .into_iter()
+            .map(|x| match x {
+                DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
+                DecryptionAndNoiseResult::DecryptionFailed => 1.0,
+            })
+            .collect(),
+        decryption_and_noise_result_after_ap
+            .into_iter()
+            .map(|x| match x {
+                DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
+                DecryptionAndNoiseResult::DecryptionFailed => 1.0,
+            })
+            .collect(),
+    )
 }
 
 fn noise_check_shortint_pbs_compression_ap_noise(
@@ -1728,10 +1853,10 @@ fn noise_check_shortint_pbs_compression_ap_noise(
     let (compression_key, decompression_key) =
         cks.new_compression_decompression_keys(&compression_private_key);
 
-    // let compute_ks_input_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
-    // let compute_ks_output_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
-    // let compute_ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
-    // let compute_ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
+    let compute_ks_input_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
+    let compute_ks_output_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
+    let compute_ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
+    let compute_ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
 
     let compute_pbs_input_lwe_dimension = sks.bootstrapping_key.input_lwe_dimension();
     let compute_pbs_output_glwe_dimension = sks.bootstrapping_key.glwe_size().to_glwe_dimension();
@@ -1739,12 +1864,12 @@ fn noise_check_shortint_pbs_compression_ap_noise(
     let compute_pbs_decomp_base_log = sks.bootstrapping_key.decomposition_base_log();
     let compute_pbs_decomp_level_count = sks.bootstrapping_key.decomposition_level_count();
 
-    // let scalar_for_multiplication = block_params.max_noise_level().get();
+    let scalar_for_ap_multiplication = block_params.max_noise_level().get();
 
-    // let br_input_modulus_log = block_params
-    //     .polynomial_size()
-    //     .to_blind_rotation_input_modulus_log();
-    // let br_input_modulus = 1u64 << br_input_modulus_log.0;
+    let ap_br_input_modulus_log = block_params
+        .polynomial_size()
+        .to_blind_rotation_input_modulus_log();
+    let ap_br_input_modulus = 1u64 << ap_br_input_modulus_log.0;
 
     let expected_variance_after_compute_pbs = match block_params.glwe_noise_distribution() {
         DynamicDistribution::Gaussian(_) => pbs_variance_132_bits_security_gaussian(
@@ -1834,15 +1959,88 @@ fn noise_check_shortint_pbs_compression_ap_noise(
     let expected_variance_after_storage_modulus_switch =
         Variance(expected_variance_after_pks.0 + storage_modulus_switch_additive_variance.0);
 
+    let decompression_br_input_lwe_dimension =
+        decompression_key.blind_rotate_key.input_lwe_dimension();
+    let decompression_br_output_glwe_dimension = decompression_key
+        .blind_rotate_key
+        .glwe_size()
+        .to_glwe_dimension();
+    let decompression_br_output_polynomial_size =
+        decompression_key.blind_rotate_key.polynomial_size();
+    let decompression_br_base_log = decompression_key.blind_rotate_key.decomposition_base_log();
+    let decompression_br_level_count = decompression_key
+        .blind_rotate_key
+        .decomposition_level_count();
+
+    // Starting decompression, we RESET the noise with a PBS
+    // We return under the key of the compute AP so check the associated GLWE noise distribution
+    let expected_variance_after_decompression = match block_params.glwe_noise_distribution() {
+        DynamicDistribution::Gaussian(_) => pbs_variance_132_bits_security_gaussian(
+            decompression_br_input_lwe_dimension,
+            decompression_br_output_glwe_dimension,
+            decompression_br_output_polynomial_size,
+            decompression_br_base_log,
+            decompression_br_level_count,
+            modulus_as_f64,
+        ),
+        DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform(
+            decompression_br_input_lwe_dimension,
+            decompression_br_output_glwe_dimension,
+            decompression_br_output_polynomial_size,
+            decompression_br_base_log,
+            decompression_br_level_count,
+            modulus_as_f64,
+        ),
+    };
+
+    let expected_variance_after_ap_max_mul = scalar_multiplication_variance(
+        expected_variance_after_decompression,
+        scalar_for_ap_multiplication,
+    );
+
+    // Now keyswitch
+    let ap_ks_additive_variance = match block_params.lwe_noise_distribution() {
+        DynamicDistribution::Gaussian(_) => keyswitch_additive_variance_132_bits_security_gaussian(
+            compute_ks_input_lwe_dimension,
+            compute_ks_output_lwe_dimension,
+            compute_ks_decomp_base_log,
+            compute_ks_decomp_level_count,
+            modulus_as_f64,
+        ),
+        DynamicDistribution::TUniform(_) => keyswitch_additive_variance_132_bits_security_tuniform(
+            compute_ks_input_lwe_dimension,
+            compute_ks_output_lwe_dimension,
+            compute_ks_decomp_base_log,
+            compute_ks_decomp_level_count,
+            modulus_as_f64,
+        ),
+    };
+
+    let expected_variance_after_ap_ks =
+        Variance(expected_variance_after_ap_max_mul.0 + ap_ks_additive_variance.0);
+
+    let ap_ms_additive_variance = modulus_switch_additive_variance(
+        compute_ks_output_lwe_dimension,
+        modulus_as_f64,
+        ap_br_input_modulus as f64,
+    );
+
+    let expected_variance_after_ap_ms =
+        Variance(expected_variance_after_ap_ks.0 + ap_ms_additive_variance.0);
+
     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
-    let mut noise_samples = vec![];
-    // let number_of_runs = 1000usize.div_ceil(compression_key.lwe_per_glwe.0);
-    let number_of_runs = 1000;
+    let mut noise_samples_after_compression = vec![];
+    let mut noise_samples_after_ap = vec![];
+    let number_of_runs = 1000usize.div_ceil(compression_key.lwe_per_glwe.0);
+    // let number_of_runs = 1000;
     for msg in 0..cleartext_modulus {
-        let current_noise_samples: Vec<_> = (0..number_of_runs)
+        let (current_noise_samples_after_compression, current_noise_samples_after_ap): (
+            Vec<_>,
+            Vec<_>,
+        ) = (0..number_of_runs)
             .into_par_iter()
             .map(|_| {
-                pbs_compress_noise_helper(
+                pbs_compress_and_classic_ap_noise_helper(
                     block_params,
                     compression_params,
                     &cks,
@@ -1851,80 +2049,154 @@ fn noise_check_shortint_pbs_compression_ap_noise(
                     &compression_key,
                     &decompression_key,
                     msg,
+                    scalar_for_ap_multiplication,
                 )
             })
-            .collect();
+            .unzip();
 
-        noise_samples.extend(current_noise_samples.into_iter().flatten().map(|x| x.value));
+        noise_samples_after_compression.extend(
+            current_noise_samples_after_compression
+                .into_iter()
+                .flatten()
+                .map(|x| x.value),
+        );
+
+        noise_samples_after_ap.extend(
+            current_noise_samples_after_ap
+                .into_iter()
+                .flatten()
+                .map(|x| x.value),
+        );
     }
 
-    let measured_mean = arithmetic_mean(&noise_samples);
-    let measured_variance = variance(&noise_samples);
+    fn mean_and_variance_check(
+        noise_samples: &[f64],
+        suffix: &str,
+        expected_mean: f64,
+        expected_variance: Variance,
+        noise_distribution_used_for_encryption: DynamicDistribution<u64>,
+        decryption_key_lwe_dimension: LweDimension,
+        modulus_as_f64: f64,
+    ) -> bool {
+        let measured_mean = arithmetic_mean(&noise_samples);
+        let measured_variance = variance(&noise_samples);
 
-    let mean_ci = mean_confidence_interval(
-        noise_samples.len() as f64,
-        measured_mean,
-        measured_variance.get_standard_dev(),
-        0.99,
-    );
+        let mean_ci = mean_confidence_interval(
+            noise_samples.len() as f64,
+            measured_mean,
+            measured_variance.get_standard_dev(),
+            0.99,
+        );
 
-    let variance_ci =
-        variance_confidence_interval(noise_samples.len() as f64, measured_variance, 0.99);
+        let variance_ci =
+            variance_confidence_interval(noise_samples.len() as f64, measured_variance, 0.99);
 
-    let expected_mean = 0.0;
+        println!("measured_variance_{suffix}={measured_variance:?}");
+        println!("expected_variance_{suffix}={expected_variance:?}");
+        println!("variance_lower_bound={:?}", variance_ci.lower_bound());
+        println!("variance_upper_bound={:?}", variance_ci.upper_bound());
+        println!("measured_mean_{suffix}={measured_mean:?}");
+        println!("expected_mean_{suffix}={expected_mean:?}");
+        println!("mean_{suffix}_lower_bound={:?}", mean_ci.lower_bound());
+        println!("mean_{suffix}_upper_bound={:?}", mean_ci.upper_bound());
 
-    println!("measured_variance={measured_variance:?}");
-    println!("expected_variance_after_ms={expected_variance_after_storage_modulus_switch:?}");
-    println!("variance_lower_bound={:?}", variance_ci.lower_bound());
-    println!("variance_upper_bound={:?}", variance_ci.upper_bound());
-    println!("measured_mean={measured_mean:?}");
-    println!("expected_mean={expected_mean:?}");
-    println!("mean_lower_bound={:?}", mean_ci.lower_bound());
-    println!("mean_upper_bound={:?}", mean_ci.upper_bound());
+        // Expected mean is 0
+        let mean_is_in_interval = mean_ci.mean_is_in_interval(expected_mean);
 
-    // Expected mean is 0
-    assert!(mean_ci.mean_is_in_interval(expected_mean));
-    // We want to be smaller but secure or in the interval
-    if measured_variance <= expected_variance_after_storage_modulus_switch {
-        let noise_for_security = match block_params.lwe_noise_distribution() {
-            DynamicDistribution::Gaussian(_) => {
-                minimal_lwe_variance_for_132_bits_security_gaussian(
-                    compression_private_key
-                        .post_packing_ks_key
-                        .as_lwe_secret_key()
-                        .lwe_dimension(),
-                    modulus_as_f64,
-                )
-            }
-            DynamicDistribution::TUniform(_) => {
-                minimal_lwe_variance_for_132_bits_security_tuniform(
-                    compression_private_key
-                        .post_packing_ks_key
-                        .as_lwe_secret_key()
-                        .lwe_dimension(),
-                    modulus_as_f64,
-                )
-            }
-        };
-
-        if !variance_ci.variance_is_in_interval(expected_variance_after_storage_modulus_switch) {
+        if mean_is_in_interval {
             println!(
-                "\n==========\n\
-                Warning: noise formula might be over estimating the noise.\n\
-                ==========\n"
+                "PASS: measured_mean_{suffix} confidence interval \
+                contains the expected mean"
+            );
+        } else {
+            println!(
+                "FAIL: measured_mean_{suffix} confidence interval \
+                does not contain the expected mean"
             );
         }
 
-        assert!(measured_variance >= noise_for_security);
-    } else {
-        assert!(
-            variance_ci.variance_is_in_interval(expected_variance_after_storage_modulus_switch),
-        );
+        // We want to be smaller but secure or in the interval
+        let variance_is_ok = if measured_variance <= expected_variance {
+            let noise_for_security = match noise_distribution_used_for_encryption {
+                DynamicDistribution::Gaussian(_) => {
+                    minimal_lwe_variance_for_132_bits_security_gaussian(
+                        decryption_key_lwe_dimension,
+                        modulus_as_f64,
+                    )
+                }
+                DynamicDistribution::TUniform(_) => {
+                    minimal_lwe_variance_for_132_bits_security_tuniform(
+                        decryption_key_lwe_dimension,
+                        modulus_as_f64,
+                    )
+                }
+            };
+
+            println!(
+                "PASS: measured_variance_{suffix} is smaller than expected variance, \
+                but confidence interval does not contain the expected variance"
+            );
+
+            if !variance_ci.variance_is_in_interval(expected_variance) {
+                println!(
+                    "\n==========\n\
+                    Warning: noise formula might be over estimating the noise.\n\
+                    ==========\n"
+                );
+            }
+
+            measured_variance >= noise_for_security
+        } else {
+            let interval_ok = variance_ci.variance_is_in_interval(expected_variance);
+
+            if interval_ok {
+                println!(
+                    "PASS: measured_variance_{suffix} confidence interval \
+                    contains the expected variance"
+                );
+            } else {
+                println!(
+                    "FAIL: measured_variance_{suffix} confidence interval \
+                    does not contain the expected variance"
+                );
+            }
+
+            interval_ok
+        };
+
+        mean_is_in_interval && variance_is_ok
     }
+
+    println!();
+
+    let after_compression_is_ok = mean_and_variance_check(
+        &noise_samples_after_compression,
+        "after_compression",
+        0.0,
+        expected_variance_after_storage_modulus_switch,
+        compression_params.packing_ks_key_noise_distribution,
+        compression_private_key
+            .post_packing_ks_key
+            .as_lwe_secret_key()
+            .lwe_dimension(),
+        modulus_as_f64,
+    );
+
+    let after_ap_is_ok = mean_and_variance_check(
+        &noise_samples_after_ap,
+        "after_ap",
+        0.0,
+        expected_variance_after_ap_ms,
+        block_params.lwe_noise_distribution(),
+        cks.small_lwe_secret_key().lwe_dimension(),
+        modulus_as_f64,
+    );
 
     // Normality check of heavily discretized gaussian does not seem to work
     // let normality_check = normality_test_f64(&noise_samples[..5000.min(noise_samples.len())],
     // 0.05); assert!(normality_check.null_hypothesis_is_valid);
+
+    assert!(after_compression_is_ok && after_ap_is_ok);
 }
 
 #[test]
@@ -1936,7 +2208,7 @@ fn test_noise_check_shortint_pbs_compression_ap_noise_tuniform() {
 }
 
 fn noise_check_shortint_pbs_compression_ap_pfail(
-    mut block_params: ClassicPBSParameters,
+    block_params: ClassicPBSParameters,
     compression_params: CompressionParameters,
 ) {
     assert_eq!(
@@ -1951,34 +2223,42 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
     // Padding bit + carry and message
     let original_precision_with_padding =
         (2 * block_params.carry_modulus.0 * block_params.message_modulus.0).ilog2();
-    block_params.carry_modulus.0 = 1 << 4;
+
+    // We are going to check if the decryption works well under adapted moduli that will tweak the
+    // pfail.
+    let decryption_adapted_message_modulus = block_params.message_modulus;
+    let decryption_adapted_carry_modulus = CarryModulus(1 << 4);
 
     let new_precision_with_padding =
-        (2 * block_params.carry_modulus.0 * block_params.message_modulus.0).ilog2();
+        (2 * decryption_adapted_message_modulus.0 * decryption_adapted_carry_modulus.0).ilog2();
 
     let original_pfail = 2.0f64.powf(block_params.log2_p_fail);
 
     println!("original_pfail={original_pfail}");
     println!("original_pfail_log2={}", block_params.log2_p_fail);
 
-    let expected_pfail = equivalent_pfail_gaussian_noise(
+    let expected_pfail_after_ap = equivalent_pfail_gaussian_noise(
         original_precision_with_padding,
         original_pfail,
         new_precision_with_padding,
     );
 
-    block_params.log2_p_fail = expected_pfail.log2();
+    let expected_pfail_after_ap_log2 = expected_pfail_after_ap.log2();
 
-    println!("expected_pfail={expected_pfail}");
-    println!("expected_pfail_log2={}", block_params.log2_p_fail);
+    println!("expected_pfail_after_ap={expected_pfail_after_ap}");
+    println!("expected_pfail_after_ap_log2={expected_pfail_after_ap_log2}");
 
-    let expected_fails = 2000;
+    let expected_fails_after_ap = 200;
     let samples_per_run = compression_params.lwe_per_glwe.0;
 
-    let runs_for_expected_fails =
-        (expected_fails as f64 / (expected_pfail * samples_per_run as f64)).round() as u32;
+    let runs_for_expected_fails = (expected_fails_after_ap as f64
+        / (expected_pfail_after_ap * samples_per_run as f64))
+        .round() as usize;
+
+    let total_sample_count = runs_for_expected_fails * samples_per_run;
 
     println!("runs_for_expected_fails={runs_for_expected_fails}");
+    println!("total_sample_count={total_sample_count}");
 
     let block_params: ShortintParameterSet = block_params.into();
     assert!(
@@ -1995,6 +2275,8 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
         "This test only supports encrytpion with power of 2 moduli for now."
     );
 
+    let scalar_for_multiplication = block_params.max_noise_level().get();
+
     let encryption_cleartext_modulus =
         block_params.message_modulus().0 * block_params.carry_modulus().0;
     // We multiply by the message_modulus during compression, so the top bits corresponding to the
@@ -2009,12 +2291,13 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
     let (compression_key, decompression_key) =
         cks.new_compression_decompression_keys(&compression_private_key);
 
-    let measured_fails: Vec<_> = (0..runs_for_expected_fails)
+    let (_measured_fails_after_compression, measured_fails_after_ap): (Vec<_>, Vec<_>) = (0
+        ..runs_for_expected_fails)
         .into_par_iter()
         .map(|_| {
             let msg: u64 = rand::random::<u64>() % compression_cleartext_modulus;
 
-            pbs_compress_pfail_helper(
+            pbs_compress_and_classic_ap_pfail_helper(
                 block_params,
                 compression_params,
                 &cks,
@@ -2023,23 +2306,27 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
                 &compression_key,
                 &decompression_key,
                 msg,
+                scalar_for_multiplication,
+                CompressionSpecialPfailCase::NeedsSpecialCase {
+                    decryption_adapted_message_modulus,
+                    decryption_adapted_carry_modulus,
+                },
             )
         })
-        .collect();
+        .unzip();
 
-    let measured_fails: f64 = measured_fails.into_iter().flatten().sum();
+    let measured_fails_after_ap: f64 = measured_fails_after_ap.into_iter().flatten().sum();
+    let measured_pfail_after_ap = measured_fails_after_ap / (total_sample_count as f64);
 
-    let measured_pfail = measured_fails / (runs_for_expected_fails as f64);
+    println!("measured_fails_after_ap={measured_fails_after_ap}");
+    println!("measured_pfail_after_ap={measured_pfail_after_ap}");
+    println!("expected_fails_after_ap={expected_fails_after_ap}");
+    println!("expected_pfail_after_ap={expected_pfail_after_ap}");
 
-    println!("measured_fails={measured_fails}");
-    println!("expected_fails={expected_fails}");
-    println!("measured_pfail={measured_pfail}");
-    println!("expected_pfail={expected_pfail}");
-
-    if measured_fails > 0.0 {
-        let pfail_confidence_interval = clopper_pearseaon_exact_confidence_interval(
-            runs_for_expected_fails as f64,
-            measured_fails,
+    if measured_fails_after_ap > 0.0 {
+        let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
+            total_sample_count as f64,
+            measured_fails_after_ap,
             0.99,
         );
 
@@ -2052,8 +2339,8 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
             pfail_confidence_interval.upper_bound()
         );
 
-        if measured_pfail <= expected_pfail {
-            if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
+        if measured_pfail_after_ap <= expected_pfail_after_ap {
+            if !pfail_confidence_interval.mean_is_in_interval(expected_pfail_after_ap) {
                 println!(
                     "\n==========\n\
                     WARNING: measured pfail is smaller than expected pfail \
@@ -2063,7 +2350,7 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
                 );
             }
         } else {
-            assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+            assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail_after_ap));
         }
     } else {
         println!(
