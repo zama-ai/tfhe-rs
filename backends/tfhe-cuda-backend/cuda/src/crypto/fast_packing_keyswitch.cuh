@@ -18,10 +18,11 @@
 const int BLOCK_SIZE_GEMM = 64;
 const int THREADS_GEMM = 8;
 
-__host__ inline bool can_use_pks_fast_path(uint32_t lwe_dimension_in, uint32_t num_lwe,
-                                    uint32_t polynomial_size,
-                                    uint32_t level_count,
-                                    uint32_t glwe_dimension) {
+__host__ inline bool can_use_pks_fast_path(uint32_t lwe_dimension_in,
+                                           uint32_t num_lwe,
+                                           uint32_t polynomial_size,
+                                           uint32_t level_count,
+                                           uint32_t glwe_dimension) {
   return lwe_dimension_in % BLOCK_SIZE_GEMM == 0 &&
          num_lwe % BLOCK_SIZE_GEMM == 0 && level_count == 1 &&
          glwe_dimension == 1;
@@ -42,9 +43,8 @@ __global__ void decompose_vectorize(Torus const *lwe_in, Torus *lwe_out,
 
   Torus a_i = lwe_in[read_val_idx];
 
-  a_i = init_decomposer_state(a_i, base_log, level_count);
+  Torus state = init_decomposer_state(a_i, base_log, level_count);
 
-  Torus state = a_i >> (sizeof(Torus) * 8 - base_log * level_count);
   Torus mod_b_mask = (1ll << base_log) - 1ll;
   lwe_out[write_val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
 }
