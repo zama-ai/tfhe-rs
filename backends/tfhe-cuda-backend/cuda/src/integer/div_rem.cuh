@@ -286,7 +286,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
       uint32_t shifted_mask = full_message_mask >> shift_amount;
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, interesting_divisor.last_block(),
+          streams, gpu_indexes, 1, interesting_divisor.last_block(),
           interesting_divisor.last_block(), bsks, ksks, 1,
           mem_ptr->masking_luts_1[shifted_mask]);
     }; // trim_last_interesting_divisor_bits
@@ -315,7 +315,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
       shifted_mask = shifted_mask & full_message_mask;
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, divisor_ms_blocks.first_block(),
+          streams, gpu_indexes, 1, divisor_ms_blocks.first_block(),
           divisor_ms_blocks.first_block(), bsks, ksks, 1,
           mem_ptr->masking_luts_2[shifted_mask]);
     }; // trim_first_divisor_ms_bits
@@ -340,7 +340,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
                                     streams[0], gpu_indexes[0]);
 
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
-          streams, gpu_indexes, gpu_count, interesting_remainder1.data, 1,
+          streams, gpu_indexes, 1, interesting_remainder1.data, 1,
           mem_ptr->shift_mem_1, bsks, ksks, interesting_remainder1.len);
 
       tmp_radix.clone_from(interesting_remainder1, 0,
@@ -370,13 +370,13 @@ __host__ void host_unsigned_integer_div_rem_kb(
                                                  uint32_t const *gpu_indexes,
                                                  uint32_t gpu_count) {
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
-          streams, gpu_indexes, gpu_count, interesting_remainder2.data, 1,
+          streams, gpu_indexes, 1, interesting_remainder2.data, 1,
           mem_ptr->shift_mem_2, bsks, ksks, interesting_remainder2.len);
     }; // left_shift_interesting_remainder2
 
-    for (uint j = 0; j < gpu_count; j++) {
-      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
-    }
+    //for (uint j = 0; j < gpu_count; j++) {
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    //}
     // interesting_divisor
     trim_last_interesting_divisor_bits(mem_ptr->sub_streams_1, gpu_indexes,
                                        gpu_count);
@@ -389,12 +389,12 @@ __host__ void host_unsigned_integer_div_rem_kb(
     // interesting_remainder2
     left_shift_interesting_remainder2(mem_ptr->sub_streams_4, gpu_indexes,
                                       gpu_count);
-    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
-      cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem_ptr->sub_streams_4[j], gpu_indexes[j]);
-    }
+//    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
+      cuda_synchronize_stream(mem_ptr->sub_streams_1[0], gpu_indexes[0]);
+      cuda_synchronize_stream(mem_ptr->sub_streams_2[0], gpu_indexes[0]);
+      cuda_synchronize_stream(mem_ptr->sub_streams_3[0], gpu_indexes[0]);
+      cuda_synchronize_stream(mem_ptr->sub_streams_4[0], gpu_indexes[0]);
+//    }
 
     // if interesting_remainder1 != 0 -> interesting_remainder2 == 0
     // if interesting_remainder1 == 0 -> interesting_remainder2 != 0

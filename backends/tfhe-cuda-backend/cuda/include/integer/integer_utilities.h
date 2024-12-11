@@ -3685,9 +3685,9 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           [shifted_mask](Torus x) -> Torus { return x & shifted_mask; };
 
       masking_luts_1[i] = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, 1, true);
+          streams, gpu_indexes, 1, params, 1, 1, true);
       masking_luts_2[i] = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, num_blocks, true);
+          streams, gpu_indexes, 1, params, 1, num_blocks, true);
 
       int_radix_lut<Torus> *luts[2] = {masking_luts_1[i], masking_luts_2[i]};
 
@@ -3816,11 +3816,11 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     this->params = params;
     shift_mem_1 = new int_logical_scalar_shift_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
+        streams, gpu_indexes, 1, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
         params, 2 * num_blocks, true);
 
     shift_mem_2 = new int_logical_scalar_shift_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
+        streams, gpu_indexes, 1, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,
         params, 2 * num_blocks, true);
 
     uint32_t compute_overflow = 1;
