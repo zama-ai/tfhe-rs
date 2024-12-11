@@ -107,6 +107,7 @@ __host__ void are_all_comparisons_block_true(
 
     // Selects a LUT
     int_radix_lut<Torus> *lut;
+    auto broadcast_lut_should_be_called = false;
     if (are_all_block_true_buffer->op == COMPARISON_TYPE::NE) {
       // is_non_zero_lut_buffer LUT
       lut = mem_ptr->eq_buffer->is_non_zero_lut;
@@ -129,7 +130,8 @@ __host__ void are_all_comparisons_block_true(
             polynomial_size, message_modulus, carry_modulus,
             is_equal_to_num_blocks_lut_f);
 
-        new_lut->broadcast_lut(streams, gpu_indexes, 0);
+        // new_lut->broadcast_lut_should_be_called(streams, gpu_indexes, 0);
+        broadcast_lut_should_be_called = true;
 
         (*is_equal_to_num_blocks_map)[chunk_length] = new_lut;
         lut = new_lut;
@@ -140,13 +142,18 @@ __host__ void are_all_comparisons_block_true(
     if (remaining_blocks == 1) {
       // In the last iteration we copy the output to the final address
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, lwe_array_out, accumulator, bsks,
-          ksks, 1, lut);
+          streams, gpu_indexes, 1, lwe_array_out, accumulator, bsks, ksks, 1,
+          lut);
       return;
     } else {
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, tmp_out, accumulator, bsks, ksks,
-          num_chunks, lut);
+      if (broadcast_lut_should_be_called)
+        integer_radix_apply_univariate_lookup_table_kb<Torus>(
+            streams, gpu_indexes, 1, tmp_out, accumulator, bsks, ksks,
+            num_chunks, lut);
+      else
+        integer_radix_apply_univariate_lookup_table_kb<Torus>(
+            streams, gpu_indexes, gpu_count, tmp_out, accumulator, bsks, ksks,
+            num_chunks, lut);
     }
   }
 }
@@ -451,12 +458,10 @@ __host__ void tree_sign_reduction(
   generate_device_accumulator<Torus>(
       streams[0], gpu_indexes[0], last_lut->get_lut(0, 0), glwe_dimension,
       polynomial_size, message_modulus, carry_modulus, f);
-  last_lut->broadcast_lut(streams, gpu_indexes, 0);
 
   // Last leaf
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, y, bsks, ksks, 1,
-      last_lut);
+      streams, gpu_indexes, 1, lwe_array_out, y, bsks, ksks, 1, last_lut);
 }
 
 template <typename Torus>
