@@ -43,16 +43,17 @@ use crate::core_crypto::prelude::ComputationBuffers;
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
-    fill_accumulator, fill_accumulator_no_encoding, fill_many_lut_accumulator, ShortintEngine,
+    fill_accumulator, fill_accumulator_no_encoding, fill_accumulator_with_encoding,
+    fill_many_lut_accumulator, ShortintEngine,
 };
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
 use crate::shortint::{EncryptionKeyChoice, PBSOrder};
-use ::tfhe_versionable::Versionize;
 use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
+use tfhe_versionable::Versionize;
 
 #[cfg(feature = "pbs-stats")]
 pub mod pbs_stats {
@@ -1554,6 +1555,53 @@ where
         glwe_size,
         message_modulus,
         carry_modulus,
+        f,
+    );
+
+    LookupTableOwned {
+        acc,
+        degree: Degree::new(max_value),
+    }
+}
+
+/// Caller needs to ensure that the operation applied is coherent from an encoding perspective.
+///
+/// For example:
+///
+/// Input encoding has 2 bits and output encoding has 4 bits, applying the identity lut would map
+/// the following:
+///
+/// 0|00|xx -> 0|00|00
+/// 0|01|xx -> 0|00|01
+/// 0|10|xx -> 0|00|10
+/// 0|11|xx -> 0|00|11
+///
+/// The reason is the identity function is computed in the input space but the scaling is done in
+/// the output space, as there are more bits in the output space, the delta is smaller hence the
+/// apparent "division" happening.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn generate_lookup_table_with_encoding<F>(
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    ciphertext_modulus: CiphertextModulus,
+    input_message_modulus: MessageModulus,
+    input_carry_modulus: CarryModulus,
+    output_message_modulus: MessageModulus,
+    output_carry_modulus: CarryModulus,
+    f: F,
+) -> LookupTableOwned
+where
+    F: Fn(u64) -> u64,
+{
+    let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, ciphertext_modulus);
+    let max_value = fill_accumulator_with_encoding(
+        &mut acc,
+        polynomial_size,
+        glwe_size,
+        input_message_modulus,
+        input_carry_modulus,
+        output_message_modulus,
+        output_carry_modulus,
         f,
     );
 
