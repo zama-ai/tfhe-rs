@@ -139,7 +139,7 @@ mod keycache {
 }
 
 pub mod error {
-    pub use tfhe_core_crypto::error::{Error, ErrorKind};
+    pub use tfhe_core_crypto::error::*;
 }
 pub use crate::error::{Error, ErrorKind};
 pub type Result<T> = std::result::Result<T, Error>;

@@ -42,22 +42,21 @@ impl<T: UnsignedInteger> ParameterSetConformant for SeededLweCiphertext<T> {
 
 // These accessors are used to create invalid objects and test the conformance functions
 // But these functions should not be used in other contexts, hence the `#[cfg(test)]`
-#[cfg(test)]
-#[allow(dead_code)]
+#[cfg(any(test, feature = "__test_core_getters"))]
 impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
-    pub(crate) fn get_mut_lwe_size(&mut self) -> &mut LweSize {
+    pub fn get_mut_lwe_size(&mut self) -> &mut LweSize {
         &mut self.lwe_size
     }
 
-    pub(crate) fn get_mut_compressed_seed(&mut self) -> &mut CompressionSeed {
+    pub fn get_mut_compressed_seed(&mut self) -> &mut CompressionSeed {
         &mut self.compression_seed
     }
 
-    pub(crate) fn get_mut_ciphertext_modulus(&mut self) -> &mut CiphertextModulus<Scalar> {
+    pub fn get_mut_ciphertext_modulus(&mut self) -> &mut CiphertextModulus<Scalar> {
         &mut self.ciphertext_modulus
     }
 
-    pub(crate) fn get_mut_data(&mut self) -> &mut Scalar {
+    pub fn get_mut_data(&mut self) -> &mut Scalar {
         &mut self.data
     }
 }

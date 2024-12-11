@@ -553,13 +553,12 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphert
 
 // This accessor is used to create invalid objects and test the conformance functions
 // But these functions should not be used in other contexts, hence the `#[cfg(test)]`
-#[cfg(test)]
-#[allow(dead_code)]
+#[cfg(any(test, feature = "__test_core_getters"))]
 impl<C: Container> LweCiphertext<C>
 where
     C::Element: UnsignedInteger,
 {
-    pub(crate) fn get_mut_ciphertext_modulus(&mut self) -> &mut CiphertextModulus<C::Element> {
+    pub fn get_mut_ciphertext_modulus(&mut self) -> &mut CiphertextModulus<C::Element> {
         &mut self.ciphertext_modulus
     }
 }

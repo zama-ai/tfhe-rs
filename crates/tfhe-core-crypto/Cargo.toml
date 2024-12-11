@@ -67,6 +67,9 @@ __profiling = []
 __c_api = []
 __wasm_api = ["dep:getrandom", "getrandom/js"]
 
+# Make some internal mut getters pub for testing purpose
+__test_core_getters = []
+
 # Enable the x86_64 specific accelerated implementation of the random generator for the default
 # backend
 generator_x86_64_aesni = ["tfhe-csprng/generator_x86_64_aesni"]
