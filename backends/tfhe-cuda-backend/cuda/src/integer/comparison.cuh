@@ -85,16 +85,19 @@ __host__ void are_all_comparisons_block_true(
 
   while (remaining_blocks > 0) {
     // Split in max_value chunks
-    uint32_t chunk_length = std::min(max_value, remaining_blocks);
-    int num_chunks = remaining_blocks / chunk_length;
+    int num_chunks = (remaining_blocks + max_value - 1) / max_value;
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
     auto input_blocks = tmp_out;
     auto accumulator = are_all_block_true_buffer->tmp_block_accumulated;
-    auto is_equal_to_num_blocks_map =
-        &are_all_block_true_buffer->is_equal_to_lut_map;
+    auto is_max_value_lut = are_all_block_true_buffer->is_max_value;
+    uint32_t chunk_lengths[num_chunks];
+    auto begin_remaining_blocks = remaining_blocks;
     for (int i = 0; i < num_chunks; i++) {
+      uint32_t chunk_length =
+          std::min(max_value, begin_remaining_blocks - i * max_value);
+      chunk_lengths[i] = chunk_length;
       accumulate_all_blocks<Torus>(streams[0], gpu_indexes[0], accumulator,
                                    input_blocks, big_lwe_dimension,
                                    chunk_length);
@@ -111,29 +114,31 @@ __host__ void are_all_comparisons_block_true(
       // is_non_zero_lut_buffer LUT
       lut = mem_ptr->eq_buffer->is_non_zero_lut;
     } else {
-      if ((*is_equal_to_num_blocks_map).find(chunk_length) !=
-          (*is_equal_to_num_blocks_map).end()) {
-        // The LUT is already computed
-        lut = (*is_equal_to_num_blocks_map)[chunk_length];
-      } else {
+      if (chunk_lengths[num_chunks - 1] != max_value) {
         // LUT needs to be computed
-        auto new_lut =
-            new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
-                                     max_value, num_radix_blocks, true);
-
+        uint32_t chunk_length = chunk_lengths[num_chunks - 1];
         auto is_equal_to_num_blocks_lut_f = [chunk_length](Torus x) -> Torus {
           return x == chunk_length;
         };
         generate_device_accumulator<Torus>(
-            streams[0], gpu_indexes[0], new_lut->get_lut(0, 0), glwe_dimension,
-            polynomial_size, message_modulus, carry_modulus,
+            streams[0], gpu_indexes[0], is_max_value_lut->get_lut(0, 1),
+            glwe_dimension, polynomial_size, message_modulus, carry_modulus,
             is_equal_to_num_blocks_lut_f);
 
-        new_lut->broadcast_lut(streams, gpu_indexes, 0);
-
-        (*is_equal_to_num_blocks_map)[chunk_length] = new_lut;
-        lut = new_lut;
+        Torus *h_lut_indexes = (Torus *)malloc(num_chunks * sizeof(Torus));
+        for (int index = 0; index < num_chunks; index++) {
+          if (index == num_chunks - 1) {
+            h_lut_indexes[index] = 1;
+          } else {
+            h_lut_indexes[index] = 0;
+          }
+        }
+        cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
+                                 h_lut_indexes, num_chunks * sizeof(Torus),
+                                 streams[0], gpu_indexes[0]);
+        is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
       }
+      lut = is_max_value_lut;
     }
 
     // Applies the LUT
