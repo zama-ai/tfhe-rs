@@ -3834,7 +3834,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
                                     group_size, use_seq);
 
     comparison_buffer = new int_comparison_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, COMPARISON_TYPE::NE, params,
+        streams, gpu_indexes, 1, COMPARISON_TYPE::NE, params,
         num_blocks, false, true);
 
     init_lookup_tables(streams, gpu_indexes, gpu_count, num_blocks);

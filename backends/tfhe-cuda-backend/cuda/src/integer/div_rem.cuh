@@ -460,7 +460,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
         // But we are in the special case where scalar == 0
         // So we can skip some stuff
         host_compare_with_zero_equality<Torus>(
-            streams, gpu_indexes, gpu_count, tmp_1.data, trivial_blocks.data,
+            streams, gpu_indexes, 1, tmp_1.data, trivial_blocks.data,
             mem_ptr->comparison_buffer, bsks, ksks, trivial_blocks.len,
             mem_ptr->comparison_buffer->eq_buffer->is_non_zero_lut);
 
@@ -468,7 +468,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
             ceil_div(trivial_blocks.len, message_modulus * carry_modulus - 1);
 
         is_at_least_one_comparisons_block_true<Torus>(
-            streams, gpu_indexes, gpu_count,
+            streams, gpu_indexes, 1,
             at_least_one_upper_block_is_non_zero.data, tmp_1.data,
             mem_ptr->comparison_buffer, bsks, ksks, tmp_1.len);
       }

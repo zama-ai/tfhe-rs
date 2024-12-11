@@ -130,7 +130,7 @@ __host__ void are_all_comparisons_block_true(
             polynomial_size, message_modulus, carry_modulus,
             is_equal_to_num_blocks_lut_f);
 
-        // new_lut->broadcast_lut_should_be_called(streams, gpu_indexes, 0);
+        // new_lut->broadcast_lut(streams, gpu_indexes, 0);
         broadcast_lut_should_be_called = true;
 
         (*is_equal_to_num_blocks_map)[chunk_length] = new_lut;
