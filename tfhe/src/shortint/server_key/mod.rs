@@ -7,6 +7,7 @@ mod bitwise_op;
 mod bivariate_pbs;
 mod comp_op;
 mod div_mod;
+mod modulus_switch_noise_reduction;
 mod modulus_switched_compression;
 mod mul;
 mod neg;
@@ -24,6 +25,7 @@ pub use bivariate_pbs::{
     BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,
 };
 pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
+pub use modulus_switch_noise_reduction::*;
 pub(crate) use scalar_mul::unchecked_scalar_mul_assign;
 
 #[cfg(test)]
