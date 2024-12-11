@@ -4,7 +4,7 @@
 //! These types have 0 overhead compared to the type being wrapped.
 
 use serde::{Deserialize, Serialize};
-use tfhe_versionable::{NotVersioned, Versionize};
+use tfhe_versionable::Versionize;
 
 pub use super::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::backward_compatibility::commons::parameters::*;
@@ -381,8 +381,10 @@ impl std::ops::Mul<EncryptionNoiseSampleCount> for usize {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct EncryptionNoiseByteCount(pub usize);
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, NotVersioned)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(RSigmaFactorVersions)]
 pub struct RSigmaFactor(pub f64);
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, NotVersioned)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(NoiseEstimationMeasureBoundVersions)]
 pub struct NoiseEstimationMeasureBound(pub f64);
