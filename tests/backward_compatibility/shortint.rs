@@ -46,6 +46,7 @@ pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
                 _ => panic!("Invalid encryption key choice"),
             }
         },
+        modulus_switch_noise_reduction_params: None,
     }
 }
 
