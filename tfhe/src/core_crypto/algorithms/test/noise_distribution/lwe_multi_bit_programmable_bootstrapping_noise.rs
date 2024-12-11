@@ -12,7 +12,7 @@ use std::fs::OpenOptions;
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
-const NB_TESTS: usize = 500;
+const NB_TESTS: usize = 2000;
 
 fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestParams<u64>) {
     type Scalar = u64;
@@ -47,7 +47,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
 
     let mut rsc = {
         let mut deterministic_seeder = Box::new(
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(2)),
+            DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(42)),
         );
         let encryption_random_generator = EncryptionRandomGenerator::new(
             deterministic_seeder.seed(),
@@ -214,7 +214,8 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                     )),
                 );
 
-                let filename = format!("./samples-out/karatsuba_noise_thread_{thread_id}_input_msg_{msg}.npy");
+                //TODO un-hard-code distro
+                let filename = format!("./samples-out/kara-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
 
                 let mut file = OpenOptions::new()
                     .create(true)
@@ -269,7 +270,8 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                     )),
                 );
 
-                let filename = format!("./samples-out/fft_noise_thread_{thread_id}_input_msg_{msg}.npy");
+                //TODO un-hard-code distro
+                let filename = format!("./samples-out/fft-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
 
                 let mut file = OpenOptions::new()
                     .create(true)
@@ -389,7 +391,36 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
 #[test]
 fn test_lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod_noise_test_params_multi_bit_group_3_4_bits_native_u64_132_bits_gaussian(
 ) {
-    lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(
-        NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN,
-    )
+    //~ for gf in [2,3,4] { //TODO add Vanilla BlindRot
+    let gf = 3;
+    for logbase in (5..=30).step_by(5) {
+    //~ for logbase in (22..=22).step_by(5) {
+    for level in 1..=3 {
+    //~ for level in 1..=1 {
+        if logbase * level < 20 || logbase * level > 30 {continue;}
+        for k in 1..=1 {
+        //TODO replace with noise gen by .../core_crypto/commons/noise_formulas/.../secure_noise.rs
+        //~ for (logN,glwe_noise_std) in [9,10,11,12].iter().zip([0.0009193616884853071,1.339775301998614e-07,2.845267479601915e-15,2.168404344971009e-19].iter()) { // Gaussian noises
+        for (logN,glwe_noise_std) in [11].iter().zip([2.845267479601915e-15].iter()) { // Gaussian noises
+            let params: MultiBitTestParams<u64> = MultiBitTestParams {
+                input_lwe_dimension: LweDimension(100 * 3),
+                lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+                    1.4742441118914234e-06 // this shall play no role, right..?
+                )),
+                decomp_base_log: DecompositionBaseLog(logbase),
+                decomp_level_count: DecompositionLevelCount(level),
+                glwe_dimension: GlweDimension(k),
+                polynomial_size: PolynomialSize(1 << logN),
+                glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(glwe_noise_std.clone())),
+                message_modulus_log: MessageModulusLog(4),
+                ciphertext_modulus: CiphertextModulus::new_native(),
+                grouping_factor: LweBskGroupingFactor(gf),
+                thread_count: ThreadCount(12),
+            };
+            lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params); //TODO impl for other gf's
+        }
+        }
+    }
+    }
+    //~ }
 }
