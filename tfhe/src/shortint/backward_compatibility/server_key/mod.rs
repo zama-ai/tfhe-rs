@@ -1,8 +1,9 @@
-use tfhe_versionable::deprecation::{Deprecable, Deprecated};
-use tfhe_versionable::VersionsDispatch;
+pub mod modulus_switch_noise_reduction;
 
 use crate::core_crypto::prelude::Container;
 use crate::shortint::server_key::*;
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
+use tfhe_versionable::VersionsDispatch;
 
 #[derive(VersionsDispatch)]
 pub enum SerializableShortintBootstrappingKeyVersions<C: Container<Element = tfhe_fft::c64>> {
