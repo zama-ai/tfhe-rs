@@ -64,6 +64,7 @@ impl TryFrom<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
             max_noise_level: MaxNoiseLevel::new(c_params.max_noise_level),
             log2_p_fail: c_params.log2_p_fail,
             encryption_key_choice: c_params.encryption_key_choice.into(),
+            modulus_switch_noise_reduction_params: None,
         })
     }
 }
