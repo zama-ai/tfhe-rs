@@ -3063,7 +3063,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   // This map store LUTs that checks the equality between some input and values
   // of interest in are_all_block_true(), as with max_value (the maximum message
   // value).
-  std::unordered_map<int, int_radix_lut<Torus> *> is_equal_to_lut_map;
+  int_radix_lut<Torus> *is_max_value;
 
   int_are_all_block_true_buffer(cudaStream_t const *streams,
                                 uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -3084,16 +3084,26 @@ template <typename Torus> struct int_are_all_block_true_buffer {
       tmp_out = (Torus *)cuda_malloc_async((params.big_lwe_dimension + 1) *
                                                num_radix_blocks * sizeof(Torus),
                                            streams[0], gpu_indexes[0]);
+      is_max_value =
+          new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
+                                   num_radix_blocks, allocate_gpu_memory);
+      auto is_max_value_f = [max_value](Torus x) -> Torus {
+        return x == max_value;
+      };
+
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], is_max_value->get_lut(0, 0),
+          params.glwe_dimension, params.polynomial_size, params.message_modulus,
+          params.carry_modulus, is_max_value_f);
+
+      is_max_value->broadcast_lut(streams, gpu_indexes, 0);
     }
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    for (auto &lut : is_equal_to_lut_map) {
-      lut.second->release(streams, gpu_indexes, gpu_count);
-      delete (lut.second);
-    }
-    is_equal_to_lut_map.clear();
+    is_max_value->release(streams, gpu_indexes, gpu_count);
+    delete (is_max_value);
 
     cuda_drop_async(tmp_block_accumulated, streams[0], gpu_indexes[0]);
     cuda_drop_async(tmp_out, streams[0], gpu_indexes[0]);
