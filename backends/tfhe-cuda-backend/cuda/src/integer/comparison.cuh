@@ -187,14 +187,18 @@ __host__ void is_at_least_one_comparisons_block_true(
   uint32_t remaining_blocks = num_radix_blocks;
   while (remaining_blocks > 0) {
     // Split in max_value chunks
-    uint32_t chunk_length = std::min(max_value, remaining_blocks);
-    int num_chunks = remaining_blocks / chunk_length;
+    int num_chunks = (remaining_blocks + max_value - 1) / max_value;
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
     auto input_blocks = mem_ptr->tmp_lwe_array_out;
     auto accumulator = buffer->tmp_block_accumulated;
+    uint32_t chunk_lengths[num_chunks];
+    auto begin_remaining_blocks = remaining_blocks;
     for (int i = 0; i < num_chunks; i++) {
+      uint32_t chunk_length =
+          std::min(max_value, begin_remaining_blocks - i * max_value);
+      chunk_lengths[i] = chunk_length;
       accumulate_all_blocks<Torus>(streams[0], gpu_indexes[0], accumulator,
                                    input_blocks, big_lwe_dimension,
                                    chunk_length);
