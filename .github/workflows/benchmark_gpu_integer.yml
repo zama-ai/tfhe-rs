@@ -15,6 +15,7 @@ on:
           - "4-h100 (n3-H100x4)"
           - "multi-h100 (n3-H100x8)"
           - "multi-h100-nvlink (n3-H100x8-NVLink)"
+          - "multi-h100-sxm5 (n3-H100x8-SXM5)"
           - "multi-a100-nvlink (n3-A100x8-NVLink)"
       command:
         description: "Benchmark command to run"
