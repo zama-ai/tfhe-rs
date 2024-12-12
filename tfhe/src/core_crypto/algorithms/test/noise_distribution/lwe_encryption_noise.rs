@@ -205,6 +205,28 @@ pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64: HpuTestParams = HpuTestParams {
     ntt_modulus: 18446744069414584321,
 };
 
+pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: HpuTestParams = HpuTestParams {
+    lwe_dimension: LweDimension(841),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(3.1496674685772435e-06),
+    glwe_modular_std_dev: StandardDev(2.845267479601915e-15),
+    pbs_base_log: DecompositionBaseLog(22),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(5),
+    ks_base_log: DecompositionBaseLog(3),
+    pfks_level: DecompositionLevelCount(0),
+    pfks_base_log: DecompositionBaseLog(0),
+    pfks_modular_std_dev: StandardDev(0.0),
+    cbs_level: DecompositionLevelCount(0),
+    cbs_base_log: DecompositionBaseLog(0),
+    message_modulus_log: CiphertextModulusLog(4),
+    ct_width: 64,
+    ksk_width: 64,
+    norm2: 5,
+    ntt_modulus: 18446744069414584321,
+};
+
 pub fn get_modulo_value<T: UnsignedInteger>(modulus: &CiphertextModulus<T>) -> u128 {
     let mod_val: u128 = match modulus.is_native_modulus() {
         true => {
@@ -409,8 +431,6 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         ciphertext_modulus
     ));
 
-    drop(bsk);
-
     while msg != 0 {
         msg = msg.wrapping_sub(1);
         for i in 0..NB_HPU_TESTS {
@@ -442,6 +462,29 @@ fn hpu_noise_distribution(params: HpuTestParams) {
 
             let torus_diff = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
             noise_samples[0].push(torus_diff);
+
+            // re-generate BSK
+            par_generate_lwe_bootstrap_key(
+                &lwe_sk,
+                &glwe_sk,
+                &mut bsk,
+                DynamicDistribution::new_gaussian_from_std_dev(glwe_modular_std_dev),
+                &mut rsc.encryption_random_generator,
+            );
+            nbsk = NttLweBootstrapKeyOwned::<u64>::new(
+                0,
+                bsk.input_lwe_dimension(),
+                bsk.glwe_size(),
+                bsk.polynomial_size(),
+                bsk.decomposition_base_log(),
+                bsk.decomposition_level_count(),
+                ntt_modulus,
+            );
+            par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk);
+            assert!(check_encrypted_content_respects_mod(
+                &*bsk,
+                ciphertext_modulus
+            ));
 
             for j in 0..NB_PBS {
                 // b = b - (Delta * msg) to have an encryption of 0
@@ -551,6 +594,11 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         after_ks_variance.0,
         after_pbs_variance.0
     );
+    // variance after *norm2 must be around (exp_pbs_variance)*(norm2**2)
+    // variance after KS must be around (exp_pbs_variance)*(norm2**2)+exp_add_ks_variance
+    // variance after PBS must be around (exp_pbs_variance)
+    let expexted_bynorm2_variance = Variance(exp_pbs_variance.0 * (norm2 as f64).powf(2.0));
+    let expexted_after_ks_variance = Variance(expexted_bynorm2_variance.0 + exp_add_ks_variance.0);
 
     let mut wtr = csv::Writer::from_writer(io::stdout());
     let _ = wtr.write_record(&[
@@ -559,9 +607,9 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         "encrypt",
         "post *norm2",
         "post KS",
-        "post KS Delta",
+        "theo KS",
         "post PBS",
-        "post PBS Delta",
+        "theo PBS",
     ]);
     let _ = wtr.write_record(&[
         "variances",
@@ -569,13 +617,9 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         encryption_variance.0.to_string().as_str(),
         bynorm2_variance.0.to_string().as_str(),
         after_ks_variance.0.to_string().as_str(),
-        (after_ks_variance.0 - bynorm2_variance.0)
-            .to_string()
-            .as_str(),
+        expexted_after_ks_variance.0.to_string().as_str(),
         after_pbs_variance.0.to_string().as_str(),
-        (bynorm2_variance.0 - after_pbs_variance.0)
-            .to_string()
-            .as_str(),
+        exp_pbs_variance.0.to_string().as_str(),
     ]);
     let _ = wtr.write_record(&[
         "std_dev",
@@ -609,22 +653,25 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         (after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
-        (after_ks_variance.get_log_standard_dev().0 - bynorm2_variance.get_log_standard_dev().0)
+        (expexted_after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
         (after_pbs_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
-        (bynorm2_variance.get_log_standard_dev().0 - after_pbs_variance.get_log_standard_dev().0)
+        (exp_pbs_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
     ]);
 
-    // variance after *norm2 must be around (exp_pbs_variance)*(norm2**2)
-    // variance after KS must be around (exp_pbs_variance)*(norm2**2)+exp_add_ks_variance
-    // variance after PBS must be around (exp_pbs_variance)
-    let expexted_bynorm2_variance = Variance(after_pbs_variance.0 * (norm2 as f64).powf(2.0));
-    let expexted_after_ks_variance = Variance(expexted_bynorm2_variance.0 + exp_add_ks_variance.0);
+    let var_pbs_abs_diff = (exp_pbs_variance.0 - after_pbs_variance.0).abs();
+    let pbs_tolerance_thres = RELATIVE_TOLERANCE * exp_pbs_variance.0;
+
+    let var_ksk_abs_diff = (expexted_after_ks_variance.0 - after_ks_variance.0).abs();
+    let ks_tolerance_thres = RELATIVE_TOLERANCE * expexted_after_ks_variance.0;
+
+    let var_bynorm2_abs_diff = (expexted_bynorm2_variance.0 - bynorm2_variance.0).abs();
+    let bynorm2_tolerance_thres = RELATIVE_TOLERANCE * expexted_bynorm2_variance.0;
 
     let after_pbs_errbit = after_pbs_variance.get_log_standard_dev();
     let after_pbs_exp_errbit = exp_pbs_variance.get_log_standard_dev();
@@ -642,14 +689,14 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         expected variance: {exp_pbs_variance:?} - log2(std_dev): {after_pbs_exp_errbit:?}"
     );
     assert!(
-        0.0 < bynorm2_errbit_diff && bynorm2_errbit_diff < 1.0,
-        "Absolute difference for after *norm2 in incorrect: {bynorm2_errbit_diff} > 1 bit or < 0, \
+        var_bynorm2_abs_diff < bynorm2_tolerance_thres,
+        "Absolute difference for after *norm2 in incorrect: {var_bynorm2_abs_diff} >= {bynorm2_tolerance_thres} \
         got variance: {bynorm2_variance:?} - log2(str_dev): {bynorm2_errbit:?}, \
         expected variance: {expexted_bynorm2_variance:?} - log2(std_dev): {bynorm2_exp_errbit:?}"
     );
     assert!(
-        0.0 < after_ks_errbit_diff && after_ks_errbit_diff < 1.0,
-        "Absolute difference for after KS is incorrect: {after_ks_errbit_diff} > 1 bit or < 0, \
+        (var_ksk_abs_diff < ks_tolerance_thres) || (after_ks_errbit < after_ks_exp_errbit && (after_ks_exp_errbit.0 - after_ks_errbit.0 < 1f64)),
+        "Absolute difference for after KS is incorrect: {var_ksk_abs_diff} >= {ks_tolerance_thres} or more than 1 bit away \
         got variance: {after_ks_variance:?} - log2(str_dev): {after_ks_errbit:?}, \
         expected variance: {expexted_after_ks_variance:?} - log2(std_dev): {after_ks_exp_errbit:?}"
     );
@@ -660,6 +707,7 @@ create_parameterized_test!(hpu_noise_distribution {
     HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21,
     HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21,
     HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132,
+    HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN,
 });
 
 fn lwe_compact_public_key_encryption_expected_variance(
