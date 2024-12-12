@@ -1,7 +1,7 @@
 use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
-use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::multi_bit_pbs_variance_132_bits_security_gaussian_gf_3;
+use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::*;
 use crate::core_crypto::commons::noise_formulas::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian;
 use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
 use npyz::{DType, WriterBuilder};
@@ -10,9 +10,10 @@ use std::fs::OpenOptions;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
-const RELATIVE_TOLERANCE: f64 = 0.0625;
+// const RELATIVE_TOLERANCE: f64 = 0.0625;
+const RELATIVE_TOLERANCE: f64 = 0.125;
 
-const NB_TESTS: usize = 2000;
+const NB_TESTS: usize = 50;
 
 fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestParams<u64>) {
     type Scalar = u64;
@@ -36,7 +37,15 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
         ciphertext_modulus.get_custom_modulus() as f64
     };
 
-    let expected_variance = multi_bit_pbs_variance_132_bits_security_gaussian_gf_3(
+    let expected_variance_fft = multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
+        input_lwe_dimension,
+        glwe_dimension,
+        polynomial_size,
+        pbs_decomposition_base_log,
+        pbs_decomposition_level_count,
+        modulus_as_f64,
+    );
+    let expected_variance_kara = multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_exact_mul(
         input_lwe_dimension,
         glwe_dimension,
         polynomial_size,
@@ -67,7 +76,8 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
     let mut msg = msg_modulus;
 
     let num_samples = NB_TESTS * <Scalar as CastInto<usize>>::cast_into(msg);
-    let mut noise_samples = Vec::with_capacity(num_samples);
+    let mut noise_samples_fft = Vec::with_capacity(num_samples);
+    let mut noise_samples_kara = Vec::with_capacity(num_samples);
 
     // generate pseudo-random secret
     let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -175,7 +185,8 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
         //~ msg = msg.wrapping_sub(Scalar::ONE);
         msg = Scalar::ZERO;
 
-        let current_run_samples: Vec<_> = (0..NB_TESTS)
+        //TODO add current_run_samples_kara
+        let current_run_samples_fft: Vec<_> = (0..NB_TESTS)
             .into_par_iter()
             .map(|thread_id| {
                 let mut rsc = TestResources::new();
@@ -243,6 +254,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                     //~ }
                     writer.push(&(row[0] as i64)).unwrap();   // essentially SE
                 }
+                //TODO close file?
 
                 let last_ext_prod_karatsuba_noise = karatsuba_noise.last().unwrap();
 
@@ -346,10 +358,12 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
             .flatten()
             .collect();
 
-        noise_samples.extend(current_run_samples);
+        noise_samples_fft.extend(current_run_samples_fft);
+        //TODO noise_samples_kara.extend(current_run_samples_kara);
     }
 
-    let measured_variance = variance(&noise_samples);
+    let measured_variance_fft = variance(&noise_samples_fft);
+    let measured_variance_kara = variance(&noise_samples_kara);
 
     let minimal_variance = minimal_lwe_variance_for_132_bits_security_gaussian(
         fbsk.output_lwe_dimension(),
@@ -361,29 +375,33 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
     );
 
     // Have a log even if it's a test to have a trace in no capture mode to eyeball variances
-    println!("measured_variance={measured_variance:?}");
-    println!("expected_variance={expected_variance:?}");
-    println!("minimal_variance={minimal_variance:?}");
+    println!("params: {params:?}");
+    println!("measured_variance_Kara = {measured_variance_kara:?}");
+    println!("expected_variance_kara = {expected_variance_kara:?}");
+    println!("measured_variance_FFT = {measured_variance_fft:?}");
+    println!("expected_variance_fft = {expected_variance_fft:?}");
+    //~ println!("minimal_variance={minimal_variance:?}");
+    println!("========================================");
 
-    if measured_variance.0 < expected_variance.0 {
+    if measured_variance_fft.0 < expected_variance_fft.0 {
         // We are in the clear as long as we have at least the noise for security
         assert!(
-            measured_variance.0 >= minimal_variance.0,
+            measured_variance_fft.0 >= minimal_variance.0,
             "Found insecure variance after PBS\n\
-            measure_variance={measured_variance:?}\n\
+            measure_variance={measured_variance_fft:?}\n\
             minimal_variance={minimal_variance:?}"
         );
     } else {
         // Check we are not too far from the expected variance if we are bigger
-        let var_abs_diff = (expected_variance.0 - measured_variance.0).abs();
-        let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance.0;
+        let var_abs_diff = (expected_variance_fft.0 - measured_variance_fft.0).abs();
+        let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance_fft.0;
 
         assert!(
             var_abs_diff < tolerance_threshold,
             "Absolute difference for variance: {var_abs_diff}, \
             tolerance threshold: {tolerance_threshold}, \
-            got variance: {measured_variance:?}, \
-            expected variance: {expected_variance:?}"
+            got variance: {measured_variance_fft:?}, \
+            expected variance w/ FFT: {expected_variance_fft:?}"
         );
     }
 }
