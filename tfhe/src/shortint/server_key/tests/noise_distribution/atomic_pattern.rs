@@ -1474,7 +1474,7 @@ fn test_noise_check_shortint_pke_encrypt_ks_to_big_pfail() {
 
 #[derive(Clone, Copy, Debug)]
 enum CompressionSpecialPfailCase {
-    NeedsSpecialCase {
+    AfterAP {
         decryption_adapted_message_modulus: MessageModulus,
         decryption_adapted_carry_modulus: CarryModulus,
     },
@@ -1494,7 +1494,7 @@ fn pbs_compress_and_classic_ap_inner_helper(
     pfail_special_case: CompressionSpecialPfailCase,
 ) -> (Vec<DecryptionAndNoiseResult>, Vec<DecryptionAndNoiseResult>) {
     match pfail_special_case {
-        CompressionSpecialPfailCase::NeedsSpecialCase {
+        CompressionSpecialPfailCase::AfterAP {
             decryption_adapted_message_modulus,
             decryption_adapted_carry_modulus,
         } => {
@@ -1710,7 +1710,7 @@ fn pbs_compress_and_classic_ap_inner_helper(
         .collect();
 
     let (expected_msg, decryption_delta, decryption_cleartext_modulus) = match pfail_special_case {
-        CompressionSpecialPfailCase::NeedsSpecialCase {
+        CompressionSpecialPfailCase::AfterAP {
             decryption_adapted_message_modulus,
             decryption_adapted_carry_modulus,
         } => {
@@ -2222,7 +2222,7 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
                 &decompression_key,
                 msg,
                 scalar_for_multiplication,
-                CompressionSpecialPfailCase::NeedsSpecialCase {
+                CompressionSpecialPfailCase::AfterAP {
                     decryption_adapted_message_modulus,
                     decryption_adapted_carry_modulus,
                 },
@@ -2279,8 +2279,169 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
 }
 
 #[test]
-fn test_noise_check_shortint_pbs_compression_ap_pfail_tuniform() {
+fn test_noise_check_shortint_pbs_compression_ap_after_ap_pfail_tuniform() {
     noise_check_shortint_pbs_compression_ap_pfail(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail(
+    mut block_params: ClassicPBSParameters,
+    compression_params: CompressionParameters,
+) {
+    assert_eq!(
+        block_params.carry_modulus.0, 4,
+        "This test is only for 2_2 parameters"
+    );
+    assert_eq!(
+        block_params.message_modulus.0, 4,
+        "This test is only for 2_2 parameters"
+    );
+
+    let original_message_modulus = block_params.message_modulus;
+    let original_carry_modulus = block_params.carry_modulus;
+
+    let encryption_cleartext_modulus = original_message_modulus.0 * original_carry_modulus.0;
+    // We multiply by message modulus before compression
+    let original_compression_cleartext_modulus =
+        encryption_cleartext_modulus / original_message_modulus.0;
+
+    // We are going to simulate 6 bits to measure the pfail of compression
+    // To avoid a multiplication we set the message modulus to 1 and put everything in the carry
+    // modulus
+    block_params.message_modulus = MessageModulus(1);
+    block_params.carry_modulus = CarryModulus(1 << 6);
+
+    let block_params = block_params;
+
+    let modified_encryption_modulus = block_params.message_modulus.0 * block_params.carry_modulus.0;
+
+    let samples_per_run = compression_params.lwe_per_glwe.0;
+
+    let run_count = 500;
+    let total_sample_count = run_count * samples_per_run;
+
+    println!("run_count={run_count}");
+    println!("total_sample_count={total_sample_count}");
+
+    let block_params: ShortintParameterSet = block_params.into();
+    assert!(
+        matches!(
+            block_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big
+        ),
+        "This test only supports encryption under the big key for now."
+    );
+    assert!(
+        block_params
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "This test only supports encrytpion with power of 2 moduli for now."
+    );
+
+    let scalar_for_multiplication = block_params.max_noise_level().get();
+
+    let cks = ClientKey::new(block_params);
+    let sks = ServerKey::new(&cks);
+
+    let compression_private_key = cks.new_compression_private_key(compression_params);
+    let (compression_key, decompression_key) =
+        cks.new_compression_decompression_keys(&compression_private_key);
+
+    let (measured_fails_after_ms_storage, _measured_fails_after_ap): (Vec<_>, Vec<_>) = (0
+        ..run_count)
+        .into_par_iter()
+        .map(|_| {
+            let msg: u64 = rand::random::<u64>() % modified_encryption_modulus;
+
+            pbs_compress_and_classic_ap_pfail_helper(
+                block_params,
+                compression_params,
+                &cks,
+                &sks,
+                &compression_private_key,
+                &compression_key,
+                &decompression_key,
+                msg,
+                scalar_for_multiplication,
+                CompressionSpecialPfailCase::DoesNotNeedSpecialCase,
+            )
+        })
+        .unzip();
+
+    let measured_fails_after_ms_storage: f64 =
+        measured_fails_after_ms_storage.into_iter().flatten().sum();
+    let measured_pfail_after_ms_storage =
+        measured_fails_after_ms_storage / (total_sample_count as f64);
+
+    let measured_pfail_after_ms_storage_log2 = measured_pfail_after_ms_storage.log2();
+
+    println!("measured_fails_after_ms_storage={measured_fails_after_ms_storage}");
+    println!("measured_pfail_after_ms_storage={measured_pfail_after_ms_storage}");
+    println!("measured_pfail_after_ms_storage_log2={measured_pfail_after_ms_storage_log2}");
+
+    let precision_used_during_compression =
+        1 + (block_params.message_modulus().0 * block_params.carry_modulus().0).ilog2();
+
+    // We want to estimate the pfail under the original modulus with the one under the modified
+    // precision_used_during_compression
+    let equivalent_pfail_ms_storage = equivalent_pfail_gaussian_noise(
+        precision_used_during_compression,
+        measured_pfail_after_ms_storage,
+        1 + original_compression_cleartext_modulus.ilog2(),
+    );
+
+    let equivalent_pfail_ms_storage_log2 = equivalent_pfail_ms_storage.log2();
+
+    println!("equivalent_pfail_ms_storage={equivalent_pfail_ms_storage}");
+    println!("equivalent_pfail_ms_storage_log2={equivalent_pfail_ms_storage_log2}");
+
+    assert!(equivalent_pfail_ms_storage <= 2.0f64.powi(-64));
+
+    // if measured_fails_after_ms_storage > 0.0 {
+    //     let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
+    //         total_sample_count as f64,
+    //         measured_fails_after_ms_storage,
+    //         0.99,
+    //     );
+
+    //     println!(
+    //         "pfail_lower_bound={}",
+    //         pfail_confidence_interval.lower_bound()
+    //     );
+    //     println!(
+    //         "pfail_upper_bound={}",
+    //         pfail_confidence_interval.upper_bound()
+    //     );
+
+    //     if measured_pfail_after_ms_storage <= expected_pfail_after_ms_storage {
+    //         if !pfail_confidence_interval.mean_is_in_interval(expected_pfail_after_ms_storage) {
+    //             println!(
+    //                 "\n==========\n\
+    //                 WARNING: measured pfail is smaller than expected pfail \
+    //                 and out of the confidence interval\n\
+    //                 the optimizer might be pessimistic when generating parameters.\n\
+    //                 ==========\n"
+    //             );
+    //         }
+    //     } else {
+    //         assert!(pfail_confidence_interval.
+    // mean_is_in_interval(expected_pfail_after_ms_storage));     }
+    // } else {
+    //     println!(
+    //         "\n==========\n\
+    //         WARNING: measured pfail is 0, it is either a bug or \
+    //         it is way smaller than the expected pfail\n\
+    //         the optimizer might be pessimistic when generating parameters.\n\
+    //         ==========\n"
+    //     );
+    // }
+}
+
+#[test]
+fn test_noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_tuniform() {
+    noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail(
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
