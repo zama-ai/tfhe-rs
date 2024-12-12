@@ -265,17 +265,15 @@ pub mod test_tools {
             original_precision_with_padding as f64 + 1.0;
         let new_precision_with_padding_and_noise_gap = new_precision_with_padding as f64 + 1.0;
 
-        // p_fail is symmetric for gaussian noise, so we take the left tail of the gaussian and
-        // divide the wanted pfail by 2
         let z_original_pfail =
             core::f64::consts::SQRT_2 * statrs::function::erf::erfc_inv(original_pfail);
-        let z_new_pfail = z_original_pfail
-            / (2.0f64.powf(
-                new_precision_with_padding_and_noise_gap
-                    - original_precision_with_padding_and_noise_gap,
-            ));
 
-        1.0 - statrs::function::erf::erf(z_new_pfail / core::f64::consts::SQRT_2)
+        let precision_diff = new_precision_with_padding_and_noise_gap
+            - original_precision_with_padding_and_noise_gap;
+
+        let z_new_pfail = z_original_pfail / 2.0f64.powf(precision_diff);
+
+        statrs::function::erf::erfc(z_new_pfail / core::f64::consts::SQRT_2)
     }
 
     /// Normal law CDF
