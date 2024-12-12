@@ -2398,18 +2398,33 @@ struct PBS128Parameters {
     glwe_noise_distribution: DynamicDistribution<u128>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
+    // There was a doubt on the mantissa size, several experiments were conducted
+    mantissa_size: f64,
     ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
+// Mantissa 106
 // hat_N, hat_k, hat_l_bs, hat_b_bs
 // 2048,      2,        3, 4294967296
+// hat_b_bs_log2 = 32
+
+// Mantissa 100
+// hat_N, hat_k, hat_l_bs, hat_b_bs
+// 2048,      2,        3, 67108864
+// hat_b_bs_log2 = 26
+
+// Mantissa 104
+// hat_N, hat_k, hat_l_bs, hat_b_bs
+// 2048,      2,        3, 536870912
+// hat_b_bs_log2 = 29
 const PBS128_PARAMS: PBS128Parameters = PBS128Parameters {
     input_lwe_dimension: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.lwe_dimension,
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_t_uniform(31),
-    decomp_base_log: DecompositionBaseLog(32),
+    decomp_base_log: DecompositionBaseLog(29),
     decomp_level_count: DecompositionLevelCount(3),
+    mantissa_size: 104f64,
     // 2^128
     ciphertext_modulus: CoreCiphertextModulus::new_native(),
 };
@@ -2954,6 +2969,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
             pbs_128_key.polynomial_size(),
             pbs_128_key.decomposition_base_log(),
             pbs_128_key.decomposition_level_count(),
+            pbs128_params.mantissa_size,
             pbs128_output_modulus_as_f64,
         ),
         DynamicDistribution::TUniform(_) => pbs_128_variance_132_bits_security_tuniform(
@@ -2962,6 +2978,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
             pbs_128_key.polynomial_size(),
             pbs_128_key.decomposition_base_log(),
             pbs_128_key.decomposition_level_count(),
+            pbs128_params.mantissa_size,
             pbs128_output_modulus_as_f64,
         ),
     };
