@@ -2954,14 +2954,11 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
 template <typename Torus> struct int_cmux_buffer {
   int_radix_lut<Torus> *predicate_lut;
-  int_radix_lut<Torus> *inverted_predicate_lut;
   int_radix_lut<Torus> *message_extract_lut;
 
-  Torus *tmp_true_ct;
-  Torus *tmp_false_ct;
-
-  int_zero_out_if_buffer<Torus> *zero_if_true_buffer;
-  int_zero_out_if_buffer<Torus> *zero_if_false_buffer;
+  Torus *buffer_in;
+  Torus *buffer_out;
+  Torus *condition_array;
 
   int_radix_params params;
 
@@ -2977,17 +2974,12 @@ template <typename Torus> struct int_cmux_buffer {
       Torus big_size =
           (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
 
-      tmp_true_ct =
-          (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
-      tmp_false_ct =
-          (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
-
-      zero_if_true_buffer = new int_zero_out_if_buffer<Torus>(
-          streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-          allocate_gpu_memory);
-      zero_if_false_buffer = new int_zero_out_if_buffer<Torus>(
-          streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-          allocate_gpu_memory);
+      buffer_in =
+          (Torus *)cuda_malloc_async(2 * big_size, streams[0], gpu_indexes[0]);
+      buffer_out =
+          (Torus *)cuda_malloc_async(2 * big_size, streams[0], gpu_indexes[0]);
+      condition_array =
+          (Torus *)cuda_malloc_async(2 * big_size, streams[0], gpu_indexes[0]);
 
       auto lut_f = [predicate_lut_f](Torus block, Torus condition) -> Torus {
         return predicate_lut_f(condition) ? 0 : block;
@@ -3001,12 +2993,8 @@ template <typename Torus> struct int_cmux_buffer {
       };
 
       predicate_lut =
-          new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                   num_radix_blocks, allocate_gpu_memory);
-
-      inverted_predicate_lut =
-          new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                   num_radix_blocks, allocate_gpu_memory);
+          new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
+                                   2 * num_radix_blocks, allocate_gpu_memory);
 
       message_extract_lut =
           new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
@@ -3015,21 +3003,33 @@ template <typename Torus> struct int_cmux_buffer {
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0], predicate_lut->get_lut(0, 0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, lut_f);
+          params.carry_modulus, inverted_lut_f);
 
       generate_device_accumulator_bivariate<Torus>(
-          streams[0], gpu_indexes[0], inverted_predicate_lut->get_lut(0, 0),
+          streams[0], gpu_indexes[0], predicate_lut->get_lut(0, 1),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, inverted_lut_f);
+          params.carry_modulus, lut_f);
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], message_extract_lut->get_lut(0, 0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, message_extract_lut_f);
+      Torus *h_lut_indexes =
+          (Torus *)malloc(2 * num_radix_blocks * sizeof(Torus));
+      for (int index = 0; index < 2 * num_radix_blocks; index++) {
+        if (index < num_radix_blocks) {
+          h_lut_indexes[index] = 0;
+        } else {
+          h_lut_indexes[index] = 1;
+        }
+      }
+      cuda_memcpy_async_to_gpu(
+          predicate_lut->get_lut_indexes(0, 0), h_lut_indexes,
+          2 * num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
 
       predicate_lut->broadcast_lut(streams, gpu_indexes, 0);
-      inverted_predicate_lut->broadcast_lut(streams, gpu_indexes, 0);
       message_extract_lut->broadcast_lut(streams, gpu_indexes, 0);
+      free(h_lut_indexes);
     }
   }
 
@@ -3037,18 +3037,12 @@ template <typename Torus> struct int_cmux_buffer {
                uint32_t gpu_count) {
     predicate_lut->release(streams, gpu_indexes, gpu_count);
     delete predicate_lut;
-    inverted_predicate_lut->release(streams, gpu_indexes, gpu_count);
-    delete inverted_predicate_lut;
     message_extract_lut->release(streams, gpu_indexes, gpu_count);
     delete message_extract_lut;
 
-    zero_if_true_buffer->release(streams, gpu_indexes, gpu_count);
-    delete zero_if_true_buffer;
-    zero_if_false_buffer->release(streams, gpu_indexes, gpu_count);
-    delete zero_if_false_buffer;
-
-    cuda_drop_async(tmp_true_ct, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_false_ct, streams[0], gpu_indexes[0]);
+    cuda_drop_async(buffer_in, streams[0], gpu_indexes[0]);
+    cuda_drop_async(buffer_out, streams[0], gpu_indexes[0]);
+    cuda_drop_async(condition_array, streams[0], gpu_indexes[0]);
   }
 };
 
