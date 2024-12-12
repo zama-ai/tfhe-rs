@@ -20,9 +20,11 @@ use tfhe_safe_serialization::named::Named;
 #[cfg(feature = "zk-pok")]
 pub use zk::ProvenCompactCiphertextList;
 
+#[cfg(feature = "zk-pok")]
+use crate::shortint::ciphertext::CompactPkeCrs;
 use crate::{CompactPublicKey, Tag};
 #[cfg(feature = "zk-pok")]
-use tfhe_core_crypto::zk::{CompactPkeCrs, ZkComputeLoad};
+use tfhe_core_crypto::zk::ZkComputeLoad;
 
 impl crate::FheTypes {
     pub(crate) fn from_data_kind(
@@ -171,7 +173,7 @@ impl ParameterSetConformant for CompactCiphertextList {
 mod zk {
     use super::*;
     use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
-    use tfhe_core_crypto::zk::CompactPkeCrs;
+    use crate::shortint::ciphertext::CompactPkeCrs;
     use tfhe_safe_serialization::conformance::ParameterSetConformant;
 
     #[derive(Clone, Serialize, Deserialize, Versionize)]
@@ -308,8 +310,8 @@ mod zk {
     mod test {
         use super::*;
         use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
+        use crate::shortint::ciphertext::CompactPkeCrs;
         use rand::{thread_rng, Rng};
-        use tfhe_core_crypto::zk::CompactPkeCrs;
 
         #[test]
         fn conformance_zk_compact_ciphertext_list() {

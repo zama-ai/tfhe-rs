@@ -23,7 +23,7 @@ impl From<ZkComputeLoad> for tfhe_core_crypto::zk::ZkComputeLoad {
 }
 
 #[wasm_bindgen]
-pub struct CompactPkeCrs(pub(crate) tfhe_core_crypto::entities::CompactPkeCrs);
+pub struct CompactPkeCrs(pub(crate) crate::shortint::ciphertext::CompactPkeCrs);
 
 // "wasm bindgen is fragile and prefers the actual type vs. Self"
 #[allow(clippy::use_self)]
@@ -84,7 +84,7 @@ impl CompactPkeCrs {
         max_num_message: usize,
     ) -> Result<CompactPkeCrs, JsError> {
         catch_panic_result(|| {
-            tfhe_core_crypto::entities::CompactPkeCrs::from_shortint_params(
+            crate::shortint::ciphertext::CompactPkeCrs::from_shortint_params(
                 parameters.0,
                 max_num_message,
             )
@@ -96,7 +96,7 @@ impl CompactPkeCrs {
     #[wasm_bindgen]
     pub fn from_config(config: &TfheConfig, max_num_bits: usize) -> Result<CompactPkeCrs, JsError> {
         catch_panic_result(|| {
-            tfhe_core_crypto::entities::CompactPkeCrs::from_config(config.0, max_num_bits)
+            crate::shortint::ciphertext::CompactPkeCrs::from_config(config.0, max_num_bits)
                 .map(CompactPkeCrs)
                 .map_err(into_js_error)
         })
@@ -107,7 +107,10 @@ impl CompactPkeCrs {
         // If buffer is compressed it is automatically detected and uncompressed.
         catch_panic_result(|| {
             bincode::deserialize(buffer)
-                .map(tfhe_core_crypto::zk::ZkCompactPkeV1PublicParams::into)
+                .map(|value: ZkCompactPkeV1PublicParams| {
+                    tfhe_core_crypto::zk::CompactPkeCrs::from(value)
+                })
+                .map(crate::shortint::ciphertext::CompactPkeCrs::from)
                 .map(CompactPkeCrs)
                 .map_err(into_js_error)
         })
@@ -125,7 +128,11 @@ impl CompactPkeCrs {
                     .deserialize_from(buffer)
                     .map_err(into_js_error)?;
 
-            Ok(CompactPkeCrs(public_params.into()))
+            Ok(CompactPkeCrs(
+                crate::shortint::ciphertext::CompactPkeCrs::from(
+                    tfhe_core_crypto::zk::CompactPkeCrs::from(public_params),
+                ),
+            ))
         })
     }
 }

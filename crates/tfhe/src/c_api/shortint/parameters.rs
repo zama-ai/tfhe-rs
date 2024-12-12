@@ -1,4 +1,3 @@
-use crate::c_api::core_crypto::DynamicDistribution;
 pub use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::*;
@@ -29,8 +28,8 @@ pub struct ShortintPBSParameters {
     pub lwe_dimension: usize,
     pub glwe_dimension: usize,
     pub polynomial_size: usize,
-    pub lwe_noise_distribution: DynamicDistribution,
-    pub glwe_noise_distribution: DynamicDistribution,
+    pub lwe_noise_distribution: crate::c_api::core_crypto::DynamicDistribution,
+    pub glwe_noise_distribution: crate::c_api::core_crypto::DynamicDistribution,
     pub pbs_base_log: usize,
     pub pbs_level: usize,
     pub ks_base_log: usize,
@@ -104,10 +103,10 @@ impl ShortintPBSParameters {
             lwe_dimension: rust_params.lwe_dimension.0,
             glwe_dimension: rust_params.glwe_dimension.0,
             polynomial_size: rust_params.polynomial_size.0,
-            lwe_noise_distribution: DynamicDistribution::convert(
+            lwe_noise_distribution: crate::c_api::core_crypto::DynamicDistribution::convert(
                 rust_params.lwe_noise_distribution,
             ),
-            glwe_noise_distribution: DynamicDistribution::convert(
+            glwe_noise_distribution: crate::c_api::core_crypto::DynamicDistribution::convert(
                 rust_params.glwe_noise_distribution,
             ),
             pbs_base_log: rust_params.pbs_base_log.0,
@@ -172,7 +171,7 @@ impl ShortintCompactCiphertextListCastingParameters {
 #[derive(Copy, Clone)]
 pub struct ShortintCompactPublicKeyEncryptionParameters {
     pub encryption_lwe_dimension: usize,
-    pub encryption_noise_distribution: DynamicDistribution,
+    pub encryption_noise_distribution: crate::c_api::core_crypto::DynamicDistribution,
     pub message_modulus: u64,
     pub carry_modulus: u64,
     pub modulus_power_of_2_exponent: usize,

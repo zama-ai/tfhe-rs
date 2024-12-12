@@ -1,7 +1,5 @@
 use crate::commons::math::random::{BoundedDistribution, ByteRandomGenerator, RandomGenerator};
 use crate::prelude::*;
-#[cfg(feature = "shortint")]
-use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
 
 use crate::backward_compatibility::zk::*;
 
@@ -65,41 +63,23 @@ pub struct CompactPkeCrsConformanceParams {
     msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
 }
 
-#[cfg(feature = "shortint")]
 impl CompactPkeCrsConformanceParams {
-    pub fn new<E, P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>>(
-        value: P,
+    pub fn new(
+        lwe_dim: LweDimension,
         max_num_message: usize,
-    ) -> Result<Self, crate::Error>
-    where
-        E: Into<crate::Error>,
-    {
-        let params: CompactPublicKeyEncryptionParameters =
-            value.try_into().map_err(|e| e.into())?;
-
-        let mut plaintext_modulus = params.message_modulus.0 * params.carry_modulus.0;
-        // Add 1 bit of modulus for the padding bit
-        plaintext_modulus *= 2;
-
-        let (lwe_dim, max_num_message, noise_bound, ciphertext_modulus, plaintext_modulus) =
-            CompactPkeCrs::prepare_crs_parameters(
-                params.encryption_lwe_dimension,
-                max_num_message,
-                params.encryption_noise_distribution,
-                params.ciphertext_modulus,
-                plaintext_modulus,
-                CompactPkeZkScheme::V2,
-            )?;
-
-        Ok(Self {
+        noise_bound: u64,
+        ciphertext_modulus: u64,
+        plaintext_modulus: u64,
+        msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
+    ) -> Self {
+        Self {
             lwe_dim,
             max_num_message,
             noise_bound,
             ciphertext_modulus,
             plaintext_modulus,
-            // CRS created from shortint params have 1 MSB 0bit
-            msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount(1),
-        })
+            msbs_zero_padding_bit_count,
+        }
     }
 }
 

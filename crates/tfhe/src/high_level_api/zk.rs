@@ -1,5 +1,5 @@
+use crate::shortint::ciphertext::CompactPkeCrs;
 use crate::{Config, Error};
-use tfhe_core_crypto::zk::CompactPkeCrs;
 
 impl CompactPkeCrs {
     /// Create a new `CompactPkeCrs` from a `Config` object.

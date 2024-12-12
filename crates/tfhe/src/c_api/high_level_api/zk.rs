@@ -20,7 +20,7 @@ impl From<ZkComputeLoad> for tfhe_core_crypto::zk::ZkComputeLoad {
     }
 }
 
-pub struct CompactPkeCrs(pub(crate) tfhe_core_crypto::entities::CompactPkeCrs);
+pub struct CompactPkeCrs(pub(crate) crate::shortint::ciphertext::CompactPkeCrs);
 impl_destroy_on_type!(CompactPkeCrs);
 
 /// Serializes the CRS
@@ -139,7 +139,8 @@ pub unsafe extern "C" fn compact_pke_crs_deserialize_from_params(
 
         let deserialized: tfhe_core_crypto::entities::ZkCompactPkeV1PublicParams =
             bincode::deserialize(buffer_view.as_slice()).unwrap();
-        let crs = deserialized.into();
+        let crs = tfhe_core_crypto::zk::CompactPkeCrs::from(deserialized);
+        let crs = crate::shortint::ciphertext::CompactPkeCrs::from(crs);
 
         let heap_allocated_object = Box::new(CompactPkeCrs(crs));
 
@@ -168,7 +169,9 @@ pub unsafe extern "C" fn compact_pke_crs_safe_deserialize_from_params(
                 .disable_conformance()
                 .deserialize_from(buffer_view)
                 .unwrap();
-        let crs = deserialized.into();
+
+        let crs = tfhe_core_crypto::zk::CompactPkeCrs::from(deserialized);
+        let crs = crate::shortint::ciphertext::CompactPkeCrs::from(crs);
 
         let heap_allocated_object = Box::new(CompactPkeCrs(crs));
 
@@ -186,8 +189,8 @@ pub unsafe extern "C" fn compact_pke_crs_from_config(
     crate::c_api::utils::catch_panic(|| {
         let config = get_ref_checked(config).unwrap();
 
-        let crs =
-            tfhe_core_crypto::entities::CompactPkeCrs::from_config(config.0, max_num_bits).unwrap();
+        let crs = crate::shortint::ciphertext::CompactPkeCrs::from_config(config.0, max_num_bits)
+            .unwrap();
 
         *out_result = Box::into_raw(Box::new(CompactPkeCrs(crs)));
     })

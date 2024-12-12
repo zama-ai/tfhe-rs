@@ -1,9 +1,9 @@
 use crate::shortint::backward_compatibility::public_key::{
     CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
 };
-#[cfg(feature = "zk-pok")]
-use crate::shortint::ciphertext::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::{CompactCiphertextList, Degree};
+#[cfg(feature = "zk-pok")]
+use crate::shortint::ciphertext::{CompactPkeCrs, ProvenCompactCiphertextList};
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
@@ -18,7 +18,7 @@ use tfhe_core_crypto::prelude::{
     PlaintextList, SeededLweCompactPublicKeyOwned,
 };
 #[cfg(feature = "zk-pok")]
-use tfhe_core_crypto::zk::{CompactPkeCrs, ZkComputeLoad};
+use tfhe_core_crypto::zk::ZkComputeLoad;
 use tfhe_safe_serialization::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
@@ -414,7 +414,7 @@ impl CompactPublicKey {
                         &mut engine.secret_generator,
                         &mut engine.encryption_generator,
                         &mut engine.random_generator,
-                        crs,
+                        &crs.0,
                         metadata,
                         load,
                     )
@@ -436,7 +436,7 @@ impl CompactPublicKey {
                         &mut engine.secret_generator,
                         &mut engine.encryption_generator,
                         &mut engine.random_generator,
-                        crs,
+                        &crs.0,
                         metadata,
                         load,
                     )

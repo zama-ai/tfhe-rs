@@ -2,9 +2,9 @@ use super::shortint::load_params;
 use crate::{load_and_unversionize, TestedModule};
 use std::path::Path;
 use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt};
-use tfhe::shortint::PBSParameters;
 #[cfg(feature = "zk-pok")]
-use tfhe::zk::CompactPkeCrs;
+use tfhe::shortint::ciphertext::CompactPkeCrs;
+use tfhe::shortint::PBSParameters;
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,

@@ -10,10 +10,10 @@
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use tfhe::shortint::ciphertext::CompactPkeCrs;
 use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::zk::CompactPkeCrs;
 use tfhe::{ClientKey, CompactPublicKey, ConfigBuilder, ProvenCompactCiphertextList};
 use tfhe_safe_serialization::{safe_deserialize, safe_serialize};
 
@@ -64,10 +64,10 @@ fn verify_proof(
 ) {
     println!("Verifying proof");
     match proven_ct.verify(crs, public_key, &METADATA) {
-        tfhe::zk::ZkVerificationOutcome::Valid => {
+        tfhe_core_crypto::zk::ZkVerificationOutcome::Valid => {
             println!("proof verification succeeded");
         }
-        tfhe::zk::ZkVerificationOutcome::Invalid => {
+        tfhe_core_crypto::zk::ZkVerificationOutcome::Invalid => {
             panic!("proof verification failed!!!")
         }
     }

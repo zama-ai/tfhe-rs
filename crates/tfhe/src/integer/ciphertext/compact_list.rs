@@ -8,6 +8,8 @@ use crate::integer::parameters::CompactCiphertextListConformanceParams;
 pub use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::{CompactPublicKey, ServerKey};
 #[cfg(feature = "zk-pok")]
+use crate::shortint::ciphertext::CompactPkeCrs;
+#[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
 use crate::shortint::parameters::{
     CastingFunctionsOwned, CiphertextConformanceParams, ShortintCompactCiphertextListCastingMode,
@@ -20,9 +22,7 @@ use crate::shortint::parameters::{
 use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 use tfhe_core_crypto::prelude::Numeric;
 #[cfg(feature = "zk-pok")]
-use tfhe_core_crypto::zk::{
-    CompactPkeCrs, CompactPkeZkScheme, ZkComputeLoad, ZkVerificationOutcome,
-};
+use tfhe_core_crypto::zk::{CompactPkeZkScheme, ZkComputeLoad, ZkVerificationOutcome};
 
 use tfhe_safe_serialization::conformance::{ListSizeConstraint, ParameterSetConformant};
 
@@ -1074,11 +1074,12 @@ mod tests {
     use crate::integer::{
         BooleanBlock, ClientKey, CompactPrivateKey, CompactPublicKey, RadixCiphertext, ServerKey,
     };
+    use crate::shortint::ciphertext::CompactPkeCrs;
     use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use rand::random;
-    use tfhe_core_crypto::zk::{CompactPkeCrs, ZkComputeLoad};
+    use tfhe_core_crypto::zk::ZkComputeLoad;
 
     #[test]
     fn test_zk_compact_ciphertext_list_encryption_ci_run_filter() {

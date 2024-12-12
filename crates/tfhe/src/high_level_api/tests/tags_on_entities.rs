@@ -38,7 +38,8 @@ fn test_tag_propagation_zk_pok() {
     let config =
         ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64).build();
     let crs =
-        tfhe_core_crypto::zk::CompactPkeCrs::from_config(config, (2 * 32) + (2 * 64) + 2).unwrap();
+        crate::shortint::ciphertext::CompactPkeCrs::from_config(config, (2 * 32) + (2 * 64) + 2)
+            .unwrap();
 
     let metadata = [b'h', b'l', b'a', b'p', b'i'];
 

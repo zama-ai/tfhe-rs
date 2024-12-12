@@ -10,13 +10,42 @@ use crate::shortint::{Ciphertext, CompactPublicKey};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
-use tfhe_core_crypto::prelude::LweCiphertextListParameters;
+use tfhe_core_crypto::prelude::{LweCiphertextCount, LweCiphertextListParameters};
 use tfhe_core_crypto::zk::{
-    CompactPkeCrs, CompactPkeProof, CompactPkeZkScheme, ZkMSBZeroPaddingBitCount,
+    CompactPkeProof, CompactPkeZkScheme, Compressible, ZkMSBZeroPaddingBitCount,
     ZkVerificationOutcome,
 };
 use tfhe_safe_serialization::conformance::{ListSizeConstraint, ParameterSetConformant};
+use tfhe_safe_serialization::named::Named;
 use tfhe_versionable::Versionize;
+
+#[derive(Serialize, Deserialize, Versionize)]
+#[repr(transparent)]
+pub struct CompactPkeCrs(pub(crate) tfhe_core_crypto::zk::CompactPkeCrs);
+
+impl From<tfhe_core_crypto::zk::CompactPkeCrs> for CompactPkeCrs {
+    fn from(value: tfhe_core_crypto::zk::CompactPkeCrs) -> Self {
+        Self(value)
+    }
+}
+
+impl Named for CompactPkeCrs {
+    const NAME: &'static str = "zk::CompactPkeCrs";
+}
+
+impl Compressible for CompactPkeCrs {
+    type Compressed = <tfhe_core_crypto::zk::CompactPkeCrs as Compressible>::Compressed;
+
+    type UncompressError = <tfhe_core_crypto::zk::CompactPkeCrs as Compressible>::UncompressError;
+
+    fn compress(&self) -> Self::Compressed {
+        self.0.compress()
+    }
+
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+        tfhe_core_crypto::zk::CompactPkeCrs::uncompress(compressed).map(Self)
+    }
+}
 
 impl CompactPkeCrs {
     /// Construct the CRS that corresponds to the given parameters
@@ -40,7 +69,7 @@ impl CompactPkeCrs {
         // 1 padding bit for the PBS
         // Note that if we want to we can prove carry bits are 0 should we need it
         crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
-            Self::new(
+            tfhe_core_crypto::zk::CompactPkeCrs::new(
                 size,
                 max_num_message,
                 noise_distribution,
@@ -49,6 +78,7 @@ impl CompactPkeCrs {
                 ZkMSBZeroPaddingBitCount(1),
                 &mut engine.random_generator,
             )
+            .map(Self)
         })
     }
 
@@ -76,7 +106,7 @@ impl CompactPkeCrs {
         // 1 padding bit for the PBS
         // Note that if we want to we can prove carry bits are 0 should we need it
         crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
-            Self::new_legacy_v1(
+            tfhe_core_crypto::zk::CompactPkeCrs::new_legacy_v1(
                 size,
                 max_num_message,
                 noise_distribution,
@@ -85,7 +115,65 @@ impl CompactPkeCrs {
                 ZkMSBZeroPaddingBitCount(1),
                 &mut engine.random_generator,
             )
+            .map(Self)
         })
+    }
+
+    pub fn max_num_messages(&self) -> LweCiphertextCount {
+        self.0.max_num_messages()
+    }
+
+    pub fn scheme_version(&self) -> CompactPkeZkScheme {
+        self.0.scheme_version()
+    }
+}
+
+pub struct CompactPkeCrsConformanceParams(tfhe_core_crypto::zk::CompactPkeCrsConformanceParams);
+
+impl ParameterSetConformant for CompactPkeCrs {
+    type ParameterSet = CompactPkeCrsConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        self.0.is_conformant(&parameter_set.0)
+    }
+}
+
+impl CompactPkeCrsConformanceParams {
+    pub fn new<E, P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>>(
+        value: P,
+        max_num_message: usize,
+    ) -> Result<Self, crate::Error>
+    where
+        E: Into<crate::Error>,
+    {
+        let params: CompactPublicKeyEncryptionParameters =
+            value.try_into().map_err(|e| e.into())?;
+
+        let mut plaintext_modulus = params.message_modulus.0 * params.carry_modulus.0;
+        // Add 1 bit of modulus for the padding bit
+        plaintext_modulus *= 2;
+
+        let (lwe_dim, max_num_message, noise_bound, ciphertext_modulus, plaintext_modulus) =
+            tfhe_core_crypto::zk::CompactPkeCrs::prepare_crs_parameters(
+                params.encryption_lwe_dimension,
+                max_num_message,
+                params.encryption_noise_distribution,
+                params.ciphertext_modulus,
+                plaintext_modulus,
+                CompactPkeZkScheme::V2,
+            )?;
+
+        Ok(Self(
+            tfhe_core_crypto::zk::CompactPkeCrsConformanceParams::new(
+                lwe_dim,
+                max_num_message,
+                noise_bound,
+                ciphertext_modulus,
+                plaintext_modulus,
+                // CRS created from shortint params have 1 MSB 0bit
+                ZkMSBZeroPaddingBitCount(1),
+            ),
+        ))
     }
 }
 
@@ -118,7 +206,7 @@ impl ProvenCompactCiphertextList {
                 &ct_list.ct_list,
                 &public_key.key,
                 proof,
-                crs,
+                &crs.0,
                 metadata,
             )
             .is_invalid()
@@ -211,7 +299,7 @@ impl ProvenCompactCiphertextList {
                 &ct_list.ct_list,
                 &public_key.key,
                 proof,
-                crs,
+                &crs.0,
                 metadata,
             )
             .is_valid()
@@ -321,7 +409,8 @@ mod tests {
 
     use rand::random;
 
-    use tfhe_core_crypto::zk::*;
+    use super::*;
+    use tfhe_core_crypto::zk::ZkComputeLoad;
 
     use tfhe_safe_serialization::{safe_deserialize_conformant, safe_serialize};
 
@@ -332,18 +421,7 @@ mod tests {
         bad_params.carry_modulus = CarryModulus(8);
         bad_params.message_modulus = MessageModulus(8);
 
-        let mut rng = rand::thread_rng();
-
-        let crs = CompactPkeCrs::new(
-            params.encryption_lwe_dimension,
-            4,
-            params.encryption_noise_distribution,
-            params.ciphertext_modulus,
-            params.message_modulus.0 * params.carry_modulus.0 * 2,
-            ZkMSBZeroPaddingBitCount(1),
-            &mut rng,
-        )
-        .unwrap();
+        let crs = CompactPkeCrs::from_shortint_params(params, 4).unwrap();
 
         let conformance_params = CompactPkeCrsConformanceParams::new(params, 4).unwrap();
 
@@ -362,18 +440,7 @@ mod tests {
     fn test_crs_serialization() {
         let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-        let mut rng = rand::thread_rng();
-
-        let crs = CompactPkeCrs::new(
-            params.encryption_lwe_dimension,
-            4,
-            params.encryption_noise_distribution,
-            params.ciphertext_modulus,
-            params.message_modulus.0 * params.carry_modulus.0 * 2,
-            ZkMSBZeroPaddingBitCount(1),
-            &mut rng,
-        )
-        .unwrap();
+        let crs = CompactPkeCrs::from_shortint_params(params, 4).unwrap();
 
         let conformance_params = CompactPkeCrsConformanceParams::new(params, 4).unwrap();
 
