@@ -23,9 +23,11 @@ __host__ inline bool can_use_pks_fast_path(uint32_t lwe_dimension_in,
                                            uint32_t polynomial_size,
                                            uint32_t level_count,
                                            uint32_t glwe_dimension) {
-  return lwe_dimension_in % BLOCK_SIZE_GEMM == 0 &&
-         num_lwe % BLOCK_SIZE_GEMM == 0 && level_count == 1 &&
+  return level_count == 1 &&
          glwe_dimension == 1;
+
+         ///lwe_dimension_in % BLOCK_SIZE_GEMM == 0 &&
+         //num_lwe % BLOCK_SIZE_GEMM == 0 &&
 }
 
 template <typename Torus, typename TorusVec>
@@ -88,12 +90,29 @@ __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
   const uint innerRowA = threadIdx.x / BK;
   const uint innerColB = threadIdx.x % BN;
   const uint innerRowB = threadIdx.x / BN;
-
+  
   // allocate thread-local cache for results in registerfile
   Torus threadResults[TM] = {0};
 
   // For each thread, loop over block tiles
   for (uint bkIdx = 0; bkIdx < K; bkIdx += BK) {
+
+    // if it's the last block, check out of bounds
+    auto last_block_A_rows = M - (M / BK) * BK;
+    auto last_block_inner = N - (N / BK) * BK;
+    auto last_block_B_cols = K - (K / BK) * BK;
+
+    if (
+      bkIdx == ((K / BK) * BK) && 
+      (
+        innerColA >= last_block_inner || 
+        innerRowA >= last_block_A_rows || 
+        innerColB >= last_block_B_cols || 
+        innerRowB >= last_block_inner
+      )
+    )
+      continue;
+
     // Populate the tile caches in shared memory
     As[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
     Bs[innerRowB * BN + innerColB] = B[innerRowB * N + innerColB];
@@ -118,6 +137,11 @@ __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
 
   // write out the results
   for (uint resIdx = 0; resIdx < TM; ++resIdx) {
+    if (threadRow * TM + resIdx >= K)
+      continue;    
+    if (threadCol >= N)
+      continue;
+
     C[(threadRow * TM + resIdx) * N + threadCol] = threadResults[resIdx];
   }
 }
