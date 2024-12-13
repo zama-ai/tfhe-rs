@@ -78,6 +78,7 @@ use super::backward_compatibility::server_key::{
     SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
 };
 use super::ciphertext::unchecked_create_trivial_with_lwe_size;
+use super::parameters::ModulusSwitchNoiseReductionParams;
 use super::PBSParameters;
 
 /// Error returned when the carry buffer is full.
@@ -1661,7 +1662,17 @@ pub struct PBSConformanceParameters {
     pub base_log: DecompositionBaseLog,
     pub level: DecompositionLevelCount,
     pub ciphertext_modulus: CiphertextModulus,
-    pub multi_bit: Option<LweBskGroupingFactor>,
+    pub pbs_type: PbsTypeConformanceParameters,
+}
+
+#[derive(Copy, Clone)]
+pub enum PbsTypeConformanceParameters {
+    Classic {
+        modulus_switch_noise_reduction: Option<ModulusSwitchNoiseReductionParams>,
+    },
+    MultiBit {
+        lwe_bsk_grouping_factor: LweBskGroupingFactor,
+    },
 }
 
 impl From<&PBSParameters> for PBSConformanceParameters {
@@ -1673,10 +1684,17 @@ impl From<&PBSParameters> for PBSConformanceParameters {
             base_log: value.pbs_base_log(),
             level: value.pbs_level(),
             ciphertext_modulus: value.ciphertext_modulus(),
-            multi_bit: match value {
-                PBSParameters::PBS { .. } => None,
+            pbs_type: match value {
+                PBSParameters::PBS(classic_pbsparameters) => {
+                    PbsTypeConformanceParameters::Classic {
+                        modulus_switch_noise_reduction: classic_pbsparameters
+                            .modulus_switch_noise_reduction_params,
+                    }
+                }
                 PBSParameters::MultiBitPBS(multi_bit_pbs_parameters) => {
-                    Some(multi_bit_pbs_parameters.grouping_factor)
+                    PbsTypeConformanceParameters::MultiBit {
+                        lwe_bsk_grouping_factor: multi_bit_pbs_parameters.grouping_factor,
+                    }
                 }
             },
         }
@@ -1687,17 +1705,28 @@ impl ParameterSetConformant for ShortintBootstrappingKey {
     type ParameterSet = PBSConformanceParameters;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, parameter_set.multi_bit) {
+        match (self, &parameter_set.pbs_type) {
             (
                 Self::Classic {
                     bsk,
-                    modulus_switch_noise_reduction_key: _,
+                    modulus_switch_noise_reduction_key,
                 },
-                None,
+                PbsTypeConformanceParameters::Classic { .. },
             ) => {
+                let modulus_switch_noise_reduction_key_conformant = match (
+                    modulus_switch_noise_reduction_key,
+                    ModulusSwitchNoiseReductionKeyConformanceParameters::try_from(parameter_set),
+                ) {
+                    (None, Err(())) => true,
+                    (Some(modulus_switch_noise_reduction_key), Ok(param)) => {
+                        modulus_switch_noise_reduction_key.is_conformant(&param)
+                    }
+                    _ => false,
+                };
+
                 let param: BootstrapKeyConformanceParams = parameter_set.into();
 
-                bsk.is_conformant(&param)
+                bsk.is_conformant(&param) && modulus_switch_noise_reduction_key_conformant
             }
             (
                 Self::MultiBit {
@@ -1705,7 +1734,7 @@ impl ParameterSetConformant for ShortintBootstrappingKey {
                     thread_count: _,
                     deterministic_execution: _,
                 },
-                Some(_grouping_factor),
+                PbsTypeConformanceParameters::MultiBit { .. },
             ) => {
                 let param: MultiBitBootstrapKeyConformanceParams =
                     parameter_set.try_into().unwrap();
