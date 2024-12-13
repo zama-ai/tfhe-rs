@@ -25,7 +25,7 @@ use crate::core_crypto::prelude::*;
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
-/// let mut secret_generator = SecretRandomGenerator::<ActivatedRandomGenerator>::new(Seed(0));
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(Seed(0));
 ///
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key::<u64, _>(
 ///     glwe_size.to_glwe_dimension(),
@@ -37,7 +37,7 @@ use crate::core_crypto::prelude::*;
 /// let seeder = seeder.as_mut();
 ///
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// let inputs = [1 << 57, 1 << 58];
 ///

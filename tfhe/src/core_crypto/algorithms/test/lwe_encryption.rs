@@ -27,8 +27,7 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
 
     let main_seed = seeder.seed();
 
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for _ in 0..NB_TESTS {
         // Create the LweSecretKey
@@ -48,8 +47,8 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
-        let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             deterministic_seeder.seed(),
             &mut deterministic_seeder,
         );
@@ -69,8 +68,8 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
-        let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             deterministic_seeder.seed(),
             &mut deterministic_seeder,
         );
@@ -85,7 +84,7 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
         assert_eq!(par_lwe_list, ser_lwe_list);
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
         // Create a new LweCiphertextList
         let mut par_seeded_lwe_list = SeededLweCiphertextList::new(
             Scalar::ZERO,
@@ -104,7 +103,7 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
+            DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
 
         let mut ser_seeded_lwe_list = SeededLweCiphertextList::new(
             Scalar::ZERO,
@@ -871,9 +870,8 @@ fn test_u128_encryption() {
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     const MSG_BITS: u32 = 4;
 
@@ -1016,7 +1014,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     let metadata = [b'c', b'o', b'r', b'e'];
 
     let mut rsc = TestResources::new();
-    let mut random_generator = RandomGenerator::<ActivatedRandomGenerator>::new(rsc.seeder.seed());
+    let mut random_generator = RandomGenerator::<DefaultRandomGenerator>::new(rsc.seeder.seed());
 
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
@@ -1160,14 +1158,13 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
             .collect::<Vec<_>>();
 
         let par_lwe_ct_list = {
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+            let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
             let mut random_generator =
-                RandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+                RandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
             let mut secret_random_generator =
-                SecretRandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+                SecretRandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
             let mut encryption_random_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+                EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
                     deterministic_seeder.seed(),
                     &mut deterministic_seeder,
                 );
@@ -1252,14 +1249,13 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
         };
 
         let ser_lwe_ct_list = {
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+            let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
             let mut random_generator =
-                RandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+                RandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
             let mut secret_random_generator =
-                SecretRandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+                SecretRandomGenerator::<DefaultRandomGenerator>::new(deterministic_seeder.seed());
             let mut encryption_random_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+                EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
                     deterministic_seeder.seed(),
                     &mut deterministic_seeder,
                 );

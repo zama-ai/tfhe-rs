@@ -123,6 +123,10 @@ mod aes_ctr;
 mod implem;
 pub use implem::*;
 
+pub mod default;
+/// Convenience alias for the most efficient CSPRNG implementation available.
+pub use default::DefaultRandomGenerator;
+
 #[cfg(test)]
 #[allow(unused)] // to please clippy when tests are not activated
 pub mod generator_generic_test {

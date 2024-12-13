@@ -7,7 +7,7 @@ use crate::core_crypto::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
 use crate::core_crypto::commons::math::random::{
-    ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
+    CompressionSeed, DefaultRandomGenerator, Distribution, RandomGenerable,
 };
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -272,7 +272,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
             self.grouping_factor(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,
             &self,
         );
@@ -297,7 +297,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
             self.grouping_factor(),
             self.ciphertext_modulus(),
         );
-        par_decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+        par_decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,
             &self,
         );

@@ -9,7 +9,7 @@ use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{
     DecompositionLevel, DecompositionTerm, DecompositionTermNonNative, SignedDecomposer,
 };
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, PlaintextCount};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -66,9 +66,8 @@ pub fn ggsw_encryption_multiplicative_factor<Scalar: UnsignedInteger>(
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -200,9 +199,8 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -465,8 +463,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -538,7 +535,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<
         glwe_secret_key.glwe_dimension()
     );
 
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );
@@ -649,8 +646,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -717,7 +713,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext<
         glwe_secret_key.glwe_dimension()
     );
 
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );
@@ -825,9 +821,8 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(

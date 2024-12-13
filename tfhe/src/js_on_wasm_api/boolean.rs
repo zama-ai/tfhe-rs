@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::core_crypto::prelude::DefaultRandomGenerator;
 use std::panic::set_hook;
 use wasm_bindgen::prelude::*;
 
@@ -152,7 +152,7 @@ impl Boolean {
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
 
-        let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(seed));
+        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
         let key = crate::boolean::engine::BooleanEngine::new_from_seeder(&mut seeder)
             .create_client_key(parameters.0);
         BooleanClientKey(key)

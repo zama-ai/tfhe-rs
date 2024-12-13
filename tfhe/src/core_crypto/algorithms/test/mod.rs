@@ -28,8 +28,8 @@ mod noise_distribution;
 
 pub struct TestResources {
     pub seeder: Box<dyn Seeder>,
-    pub encryption_random_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
-    pub secret_random_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
+    pub encryption_random_generator: EncryptionRandomGenerator<DefaultRandomGenerator>,
+    pub secret_random_generator: SecretRandomGenerator<DefaultRandomGenerator>,
 }
 
 impl TestResources {

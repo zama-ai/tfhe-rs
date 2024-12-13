@@ -1,6 +1,6 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::{ActivatedRandomGenerator, KeyswitchKeyConformanceParams};
+use crate::core_crypto::prelude::{DefaultRandomGenerator, KeyswitchKeyConformanceParams};
 use crate::high_level_api::backward_compatibility::keys::*;
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
@@ -99,7 +99,7 @@ impl IntegerClientKey {
             (config.block_parameters.message_modulus().0) == 2 || config.block_parameters.message_modulus().0 == 4,
             "This API only supports parameters for which the MessageModulus is 2 or 4 (1 or 2 bits per block)",
         );
-        let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
         let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
             .new_client_key(config.block_parameters.into());
 

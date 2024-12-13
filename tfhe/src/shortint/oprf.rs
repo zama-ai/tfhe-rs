@@ -162,7 +162,7 @@ impl ServerKey {
 pub(crate) mod test {
     use crate::core_crypto::commons::generators::DeterministicSeeder;
     use crate::core_crypto::prelude::{
-        decrypt_lwe_ciphertext, ActivatedRandomGenerator, GlweSecretKey, LweSecretKey,
+        decrypt_lwe_ciphertext, DefaultRandomGenerator, GlweSecretKey, LweSecretKey,
     };
     use crate::shortint::engine::ShortintEngine;
     use crate::shortint::{ClientKey, ServerKey};
@@ -199,8 +199,7 @@ pub(crate) mod test {
             parameters: parameters.into(),
         };
 
-        let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(0));
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(0));
 
         let mut engine = ShortintEngine::new_from_seeder(&mut deterministic_seeder);
 
