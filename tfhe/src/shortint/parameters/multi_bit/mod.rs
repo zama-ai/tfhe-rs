@@ -192,7 +192,14 @@ impl TryFrom<&PBSConformanceParameters> for MultiBitBootstrapKeyConformanceParam
             input_lwe_dimension: value.in_lwe_dimension,
             output_glwe_size: value.out_glwe_dimension.to_glwe_size(),
             polynomial_size: value.out_polynomial_size,
-            grouping_factor: value.multi_bit.ok_or(())?,
+            grouping_factor: match value.pbs_type {
+                crate::shortint::server_key::PbsTypeConformanceParameters::Classic { .. } => {
+                    return Err(());
+                }
+                crate::shortint::server_key::PbsTypeConformanceParameters::MultiBit {
+                    lwe_bsk_grouping_factor,
+                } => lwe_bsk_grouping_factor,
+            },
             ciphertext_modulus: value.ciphertext_modulus,
         })
     }
