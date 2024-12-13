@@ -22,6 +22,9 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
   case GE:
   case LT:
   case LE:
+    if (lwe_ciphertext_count % 2 != 0)
+      PANIC("Cuda error (scalar comparisons): the number of radix blocks has "
+            "to be even.")
     host_integer_radix_scalar_difference_check_kb<uint64_t>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(lwe_array_out),
@@ -32,6 +35,9 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
     break;
   case MAX:
   case MIN:
+    if (lwe_ciphertext_count % 2 != 0)
+      PANIC("Cuda error (scalar max/min): the number of radix blocks has to be "
+            "even.")
     host_integer_radix_scalar_maxmin_kb<uint64_t>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(lwe_array_out),

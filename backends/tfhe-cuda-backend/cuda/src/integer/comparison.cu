@@ -58,6 +58,9 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
   case GE:
   case LT:
   case LE:
+    if (num_radix_blocks % 2 != 0)
+      PANIC("Cuda error (comparisons): the number of radix blocks has to be "
+            "even.")
     host_integer_radix_difference_check_kb<uint64_t>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(lwe_array_out),
@@ -68,6 +71,8 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
     break;
   case MAX:
   case MIN:
+    if (num_radix_blocks % 2 != 0)
+      PANIC("Cuda error (max/min): the number of radix blocks has to be even.")
     host_integer_radix_maxmin_kb<uint64_t>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(lwe_array_out),
