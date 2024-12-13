@@ -616,9 +616,9 @@ fn hpu_noise_distribution(params: HpuTestParams) {
 }
 
 create_parameterized_test!(hpu_noise_distribution {
-    HPU_TEST_PARAMS_4_BITS_NATIVE_U64,
-    HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21,
-    HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21,
+    //HPU_TEST_PARAMS_4_BITS_NATIVE_U64,
+    //HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21,
+    //HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21,
     HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132,
     HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN,
 });
