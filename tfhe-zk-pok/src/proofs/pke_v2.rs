@@ -498,6 +498,12 @@ pub fn compute_crs_params(
     msbs_zero_padding_bit_count: u64,
     bound_type: Bound,
 ) -> (usize, usize, u128, usize) {
+    assert!(
+        k <= d,
+        "Invalid parameters for zk_pok, the maximum number of messages k should be smaller \
+than the lwe dimension d. Please pick a smaller k: k = {k}, d = {d}"
+    );
+
     let mut B_bound_squared = {
         (match bound_type {
             // GHL factor is 9.75, 9.75**2 = 95.0625
@@ -527,7 +533,7 @@ Please select a smaller B, d and/or k"
     // safely used for this
     assert!(
         m_bound <= 64,
-        "Invalid parameters for zk_pok, w e only support 64 bits integer. \
+        "Invalid parameters for zk_pok, we only support 64 bits integer. \
 The computed m parameter is {m_bound} > 64. Please select a smaller B, d and/or k"
     );
 

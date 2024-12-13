@@ -153,6 +153,7 @@ fn assert_pke_proof_preconditions(
     big_d: usize,
     big_d_max: usize,
 ) {
+    assert!(k_max <= d);
     assert_eq!(c1.len(), d);
     assert_eq!(e1.len(), d);
 
