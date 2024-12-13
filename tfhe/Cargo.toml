@@ -104,7 +104,7 @@ experimental-force_fft_algo_dif4 = []
 # End experimental section
 
 __c_api = ["dep:cbindgen"]
-# For the semver trick to skip the build.rs
+# Can be used in some situations to reduce build time with GPU
 __force_skip_cbindgen = []
 boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
