@@ -2510,20 +2510,23 @@ fn mean_and_variance_check<Scalar: UnsignedInteger>(
             }
         };
 
-        println!(
-            "PASS: measured_variance_{suffix} is smaller than expected variance, \
-            but confidence interval does not contain the expected variance"
-        );
+        let variance_is_secure = measured_variance >= noise_for_security;
 
-        if !variance_ci.variance_is_in_interval(expected_variance) {
-            println!(
-                "\n==========\n\
-                Warning: noise formula might be over estimating the noise.\n\
-                ==========\n"
-            );
+        if variance_is_secure {
+            println!("PASS: measured_variance_{suffix} is smaller than expected variance.");
+
+            if !variance_ci.variance_is_in_interval(expected_variance) {
+                println!(
+                    "\n==========\n\
+                    Warning: noise formula might be over estimating the noise.\n\
+                    ==========\n"
+                );
+            }
+        } else {
+            println!("FAIL:measured_variance_{suffix} is NOT secure.")
         }
 
-        measured_variance >= noise_for_security
+        variance_is_secure
     } else {
         let interval_ok = variance_ci.variance_is_in_interval(expected_variance);
 
