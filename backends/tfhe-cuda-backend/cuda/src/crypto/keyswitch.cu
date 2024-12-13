@@ -55,10 +55,10 @@ void cuda_keyswitch_lwe_ciphertext_vector_64(
 
 void scratch_packing_keyswitch_lwe_list_to_glwe_64(
     void *stream, uint32_t gpu_index, int8_t **fp_ks_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t num_lwes,
-    bool allocate_gpu_memory) {
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t num_lwes, bool allocate_gpu_memory) {
   scratch_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
-      static_cast<cudaStream_t>(stream), gpu_index, fp_ks_buffer,
+      static_cast<cudaStream_t>(stream), gpu_index, fp_ks_buffer, lwe_dimension,
       glwe_dimension, polynomial_size, num_lwes, allocate_gpu_memory);
 }
 

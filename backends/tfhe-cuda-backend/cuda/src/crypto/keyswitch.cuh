@@ -158,16 +158,20 @@ void execute_keyswitch_async(cudaStream_t const *streams,
 template <typename Torus>
 __host__ void scratch_packing_keyswitch_lwe_list_to_glwe(
     cudaStream_t stream, uint32_t gpu_index, int8_t **fp_ks_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t num_lwes,
-    bool allocate_gpu_memory) {
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t num_lwes, bool allocate_gpu_memory) {
   cudaSetDevice(gpu_index);
 
   int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
 
-  if (allocate_gpu_memory)
+  int memory_unit =
+      glwe_accumulator_size; // > lwe_dimension ? glwe_accumulator_size :
+                             // lwe_dimension;
+
+  if (allocate_gpu_memory) {
     *fp_ks_buffer = (int8_t *)cuda_malloc_async(
-        2 * num_lwes * glwe_accumulator_size * sizeof(Torus), stream,
-        gpu_index);
+        2 * num_lwes * memory_unit * sizeof(Torus), stream, gpu_index);
+  }
 }
 
 // public functional packing keyswitch for a single LWE ciphertext

@@ -38,6 +38,7 @@ template <typename Torus> struct int_compression {
 
       scratch_packing_keyswitch_lwe_list_to_glwe_64(
           streams[0], gpu_indexes[0], &fp_ks_buffer,
+          compression_params.small_lwe_dimension,
           compression_params.glwe_dimension, compression_params.polynomial_size,
           num_radix_blocks, true);
     }

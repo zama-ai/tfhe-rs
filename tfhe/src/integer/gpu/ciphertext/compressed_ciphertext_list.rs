@@ -730,29 +730,6 @@ mod tests {
 
     #[test]
     fn test_gpu_ciphertext_compression_fast_path() {
-        // these parameters are insecure
-        const PARAM_CUSTOM_FAST_PATH: ClassicPBSParameters = ClassicPBSParameters {
-            lwe_dimension: LweDimension(2048),
-            glwe_dimension: GlweDimension(1),
-            polynomial_size: PolynomialSize(2048),
-            lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-                0.0,
-            )),
-            glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-                0.0,
-            )),
-            pbs_base_log: DecompositionBaseLog(22),
-            pbs_level: DecompositionLevelCount(1),
-            ks_base_log: DecompositionBaseLog(3),
-            ks_level: DecompositionLevelCount(1),
-            message_modulus: MessageModulus(4),
-            carry_modulus: CarryModulus(4),
-            max_noise_level: MaxNoiseLevel::new(5),
-            log2_p_fail: -64.138,
-            ciphertext_modulus: CiphertextModulus::new_native(),
-            encryption_key_choice: EncryptionKeyChoice::Big,
-        };
-
         const COMP_PARAM_CUSTOM_FAST_PATH: CompressionParameters = CompressionParameters {
             br_level: DecompositionLevelCount(1),
             br_base_log: DecompositionBaseLog(23),
@@ -771,7 +748,11 @@ mod tests {
 
         let streams = CudaStreams::new_multi_gpu();
 
-        let (radix_cks, _sks) = gen_keys_radix_gpu(PARAM_CUSTOM_FAST_PATH, NUM_BLOCKS, &streams);
+        let (radix_cks, _sks) = gen_keys_radix_gpu(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            NUM_BLOCKS,
+            &streams,
+        );
         let cks = radix_cks.as_ref();
 
         let private_compression_key = cks.new_compression_private_key(COMP_PARAM_CUSTOM_FAST_PATH);
