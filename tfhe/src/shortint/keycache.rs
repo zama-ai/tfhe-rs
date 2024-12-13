@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
 use crate::shortint::parameters::classic::compact_pk::*;
@@ -12,7 +14,6 @@ use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
-use lazy_static::*;
 use serde::{Deserialize, Serialize};
 
 named_params_impl!( ShortintParameterSet =>
@@ -559,12 +560,10 @@ impl KeycacheKeySwitchingKey {
     }
 }
 
-lazy_static! {
-    pub static ref KEY_CACHE: Keycache = Keycache::default();
-    pub static ref KEY_CACHE_KSK: KeycacheKeySwitchingKey = KeycacheKeySwitchingKey::default();
-}
+pub static KEY_CACHE: LazyLock<Keycache> = LazyLock::new(Keycache::default);
+pub static KEY_CACHE_KSK: LazyLock<KeycacheKeySwitchingKey> =
+    LazyLock::new(KeycacheKeySwitchingKey::default);
 
 #[cfg(feature = "experimental")]
-lazy_static! {
-    pub static ref KEY_CACHE_WOPBS: wopbs::KeycacheWopbsV0 = wopbs::KeycacheWopbsV0::default();
-}
+pub static KEY_CACHE_WOPBS: LazyLock<wopbs::KeycacheWopbsV0> =
+    LazyLock::new(wopbs::KeycacheWopbsV0::default);
