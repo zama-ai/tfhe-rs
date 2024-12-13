@@ -7,13 +7,15 @@ use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
 use npyz::{DType, WriterBuilder};
 use rayon::prelude::*;
 use std::fs::OpenOptions;
+use std::io::Write;
+use std::fs::File;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
 // const RELATIVE_TOLERANCE: f64 = 0.0625;
 const RELATIVE_TOLERANCE: f64 = 0.125;
 
-const NB_TESTS: usize = 50;
+const NB_TESTS: usize = 2000;
 
 fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestParams<u64>) {
     type Scalar = u64;
@@ -53,6 +55,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
         pbs_decomposition_level_count,
         modulus_as_f64,
     );
+    //TODO add an assert that expected_variance_fft < ... the value that is checked below, times ~0.8
 
     let mut rsc = {
         let mut deterministic_seeder = Box::new(
@@ -185,8 +188,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
         //~ msg = msg.wrapping_sub(Scalar::ONE);
         msg = Scalar::ZERO;
 
-        //TODO add current_run_samples_kara
-        let current_run_samples_fft: Vec<_> = (0..NB_TESTS)
+        let current_run_samples_kara_fft: Vec<_> = (0..NB_TESTS)
             .into_par_iter()
             .map(|thread_id| {
                 let mut rsc = TestResources::new();
@@ -226,12 +228,12 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                 );
 
                 //TODO un-hard-code distro
-                let filename = format!("./samples-out/kara-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
+                let filename_kara = format!("./samples-out/kara-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
 
                 let mut file = OpenOptions::new()
                     .create(true)
                     .write(true)
-                    .open(&filename)
+                    .open(&filename_kara)
                     .unwrap();
 
                 let mut writer = {
@@ -283,12 +285,12 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                 );
 
                 //TODO un-hard-code distro
-                let filename = format!("./samples-out/fft-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
+                let filename_fft = format!("./samples-out/fft-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
 
                 let mut file = OpenOptions::new()
                     .create(true)
                     .write(true)
-                    .open(&filename)
+                    .open(&filename_fft)
                     .unwrap();
 
                 let mut writer = {
@@ -329,37 +331,39 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
 
                 // println!("{last_ext_prod_fft_noise:?}");
 
-                last_ext_prod_fft_noise
-                    .into_iter()
-                    .map(|x| {
-                        let d: f64 = (*x).cast_into();
-                        let d = d / modulus_as_f64;
-                        if d > 0.5 {
-                            d - 1.0
-                        } else {
-                            d
-                        }
-                    })
-                    .collect::<Vec<_>>()
-
-                // last_ext_prod_karatsuba_noise
-                //     .into_iter()
-                //     .map(|x| {
-                //         let d: f64 = (*x).cast_into();
-                //         let d = d / modulus_as_f64;
-                //         if d > 0.5 {
-                //             d - 1.0
-                //         } else {
-                //             d
-                //         }
-                //     })
-                //     .collect::<Vec<_>>()
+                // output a tuple with (Kara-noises, FFT-noises)
+                (
+                    last_ext_prod_karatsuba_noise
+                        .into_iter()
+                        .map(|x| {
+                            let d: f64 = (*x).cast_into();
+                            let d = d / modulus_as_f64;
+                            if d > 0.5 {
+                                d - 1.0
+                            } else {
+                                d
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                    last_ext_prod_fft_noise
+                        .into_iter()
+                        .map(|x| {
+                            let d: f64 = (*x).cast_into();
+                            let d = d / modulus_as_f64;
+                            if d > 0.5 {
+                                d - 1.0
+                            } else {
+                                d
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                )
             })
             .flatten()
             .collect();
 
-        noise_samples_fft.extend(current_run_samples_fft);
-        //TODO noise_samples_kara.extend(current_run_samples_kara);
+        noise_samples_kara.extend(current_run_samples_kara_fft.clone().into_iter().map(|s|{s.0}));
+        noise_samples_fft.extend(current_run_samples_kara_fft.into_iter().map(|s|{s.1}));
     }
 
     let measured_variance_fft = variance(&noise_samples_fft);
@@ -374,14 +378,27 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
         },
     );
 
-    // Have a log even if it's a test to have a trace in no capture mode to eyeball variances
-    println!("params: {params:?}");
-    println!("measured_variance_Kara = {measured_variance_kara:?}");
-    println!("expected_variance_kara = {expected_variance_kara:?}");
-    println!("measured_variance_FFT = {measured_variance_fft:?}");
-    println!("expected_variance_fft = {expected_variance_fft:?}");
-    //~ println!("minimal_variance={minimal_variance:?}");
-    println!("========================================");
+    // output predicted noises to JSON
+    let filename_exp_var = format!("./samples-out/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.json", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
+    let mut file_exp_var = File::create(&filename_exp_var).unwrap();
+
+    file_exp_var.write_all(
+        format!(r#"{{
+    "input_lwe_dimension": {},
+    "measured_variance_kara": {},
+    "expected_variance_kara": {},
+    "measured_variance_fft": {},
+    "expected_variance_fft": {}
+}}"#,
+            input_lwe_dimension.0,
+            measured_variance_kara.0,
+            expected_variance_kara.0,
+            measured_variance_fft.0,
+            expected_variance_fft.0,
+        ).as_bytes()
+    ).unwrap();
+
+    println!("Finished parameters {params:?}");
 
     if measured_variance_fft.0 < expected_variance_fft.0 {
         // We are in the clear as long as we have at least the noise for security
@@ -409,6 +426,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
 #[test]
 fn test_lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod_noise_test_params_multi_bit_group_3_4_bits_native_u64_132_bits_gaussian(
 ) {
+    println!("Acquiring {NB_TESTS} samples ...");
     //~ for gf in [2,3,4] { //TODO add Vanilla BlindRot
     let gf = 3;
     for logbase in (5..=30).step_by(5) {
