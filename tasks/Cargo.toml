@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 clap = "=4.4.4"
-lazy_static = "1.4"
 log = "0.4"
 simplelog = "0.12"
 walkdir = "2.5.0"
