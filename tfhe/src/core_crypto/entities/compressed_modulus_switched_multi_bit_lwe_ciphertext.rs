@@ -421,7 +421,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetCo
             && packed_mask.is_conformant(&lwe_dim)
             && packed_diffs
                 .as_ref()
-                .map_or(true, |packed_diffs| packed_diffs.is_conformant(&lwe_dim))
+                .is_none_or(|packed_diffs| packed_diffs.is_conformant(&lwe_dim))
             && *lwe_dimension == lwe_ct_parameters.lwe_dim
             && lwe_ct_parameters.ct_modulus.is_power_of_two()
             && match lwe_ct_parameters.ms_decompression_method {

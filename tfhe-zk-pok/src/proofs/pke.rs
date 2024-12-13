@@ -223,8 +223,7 @@ impl<G: Curve> Proof<G> {
         c_hat.validate_projective()
             && c_y.validate_projective()
             && pi.validate_projective()
-            && compute_load_proof_fields.as_ref().map_or(
-                true,
+            && compute_load_proof_fields.as_ref().is_none_or(
                 |&ComputeLoadProofFields {
                      c_hat_t,
                      c_h,
