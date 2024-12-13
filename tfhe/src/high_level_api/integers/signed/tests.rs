@@ -549,7 +549,7 @@ fn test_trivial_fhe_int256_small() {
 fn test_compact_public_key_big() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-            crate::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+            crate::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
         )
         .build();
     let (client_key, _) = generate_keys(config);
@@ -569,7 +569,7 @@ fn test_compact_public_key_big() {
 fn test_compact_public_key_small() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-            crate::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+            crate::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
         )
         .build();
     let (client_key, _) = generate_keys(config);
