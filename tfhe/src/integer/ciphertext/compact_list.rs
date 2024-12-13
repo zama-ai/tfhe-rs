@@ -113,11 +113,12 @@ fn unpack_and_sanitize_message_and_carries(
 
 /// This function sanitizes boolean blocks to make sure they encrypt a 0 or a 1
 fn sanitize_boolean_blocks(
-    packed_blocks: Vec<Ciphertext>,
+    expanded_blocks: Vec<Ciphertext>,
     sks: &ServerKey,
     infos: &[DataKind],
 ) -> Vec<Ciphertext> {
     let message_modulus = sks.message_modulus().0;
+    let msg_extract = sks.key.generate_lookup_table(|x: u64| x % message_modulus);
     let msg_extract_bool = sks.key.generate_lookup_table(|x: u64| {
         let tmp = x % message_modulus;
         if tmp == 0 {
@@ -138,7 +139,7 @@ fn sanitize_boolean_blocks(
             let acc = if matches!(data_kind, DataKind::Boolean) {
                 Some(&msg_extract_bool)
             } else {
-                None
+                Some(&msg_extract)
             };
 
             functions[overall_block_idx] = acc;
@@ -146,7 +147,7 @@ fn sanitize_boolean_blocks(
         }
     }
 
-    packed_blocks
+    expanded_blocks
         .into_par_iter()
         .zip(functions.into_par_iter())
         .map(|(mut block, sanitize_acc)| {
@@ -479,7 +480,10 @@ impl IntegerUnpackingToShortintCastingModeHelper {
         }
     }
 
-    pub fn generate_function(&self, infos: &[DataKind]) -> CastingFunctionsOwned {
+    pub fn generate_unpack_and_sanitize_functions(
+        &self,
+        infos: &[DataKind],
+    ) -> CastingFunctionsOwned {
         let block_count: usize = infos.iter().map(|x| x.num_blocks()).sum();
         let packed_block_count = block_count.div_ceil(2);
         let mut functions = vec![Some(Vec::with_capacity(2)); packed_block_count];
@@ -510,6 +514,30 @@ impl IntegerUnpackingToShortintCastingModeHelper {
                 }
 
                 overall_block_idx += 1;
+            }
+        }
+
+        functions
+    }
+
+    pub fn generate_sanitize_without_unpacking_functions(
+        &self,
+        infos: &[DataKind],
+    ) -> CastingFunctionsOwned {
+        let total_block_count: usize = infos.iter().map(|x| x.num_blocks()).sum();
+        let mut functions = Vec::with_capacity(total_block_count);
+
+        for data_kind in infos {
+            let block_count = data_kind.num_blocks();
+            for _ in 0..block_count {
+                let sanitize_function: &(dyn Fn(u64) -> u64 + Sync) =
+                    if matches!(data_kind, DataKind::Boolean) {
+                        self.msg_extract_bool.as_ref()
+                    } else {
+                        self.msg_extract.as_ref()
+                    };
+
+                functions.push(Some(vec![sanitize_function]));
             }
         }
 
@@ -681,23 +709,21 @@ impl CompactCiphertextList {
             IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
                 key_switching_key_view,
             ) => {
-                let function_helper;
-                let functions;
+                let dest_sks = &key_switching_key_view.key.dest_server_key;
+                let function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
+                    dest_sks.message_modulus,
+                    dest_sks.carry_modulus,
+                );
                 let functions = if is_packed {
-                    let dest_sks = &key_switching_key_view.key.dest_server_key;
-                    function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
-                        dest_sks.message_modulus,
-                        dest_sks.carry_modulus,
-                    );
-                    functions = function_helper.generate_function(&self.info);
-                    Some(functions.as_slice())
+                    function_helper.generate_unpack_and_sanitize_functions(&self.info)
                 } else {
-                    None
+                    function_helper.generate_sanitize_without_unpacking_functions(&self.info)
                 };
+
                 self.ct_list
                     .expand(ShortintCompactCiphertextListCastingMode::CastIfNecessary {
                         casting_key: key_switching_key_view.key,
-                        functions,
+                        functions: Some(functions.as_slice()),
                     })?
             }
             IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => {
@@ -811,18 +837,15 @@ impl ProvenCompactCiphertextList {
             IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
                 key_switching_key_view,
             ) => {
-                let function_helper;
-                let functions;
+                let dest_sks = &key_switching_key_view.key.dest_server_key;
+                let function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
+                    dest_sks.message_modulus,
+                    dest_sks.carry_modulus,
+                );
                 let functions = if is_packed {
-                    let dest_sks = &key_switching_key_view.key.dest_server_key;
-                    function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
-                        dest_sks.message_modulus,
-                        dest_sks.carry_modulus,
-                    );
-                    functions = function_helper.generate_function(&self.info);
-                    Some(functions.as_slice())
+                    function_helper.generate_unpack_and_sanitize_functions(&self.info)
                 } else {
-                    None
+                    function_helper.generate_sanitize_without_unpacking_functions(&self.info)
                 };
                 self.ct_list.verify_and_expand(
                     crs,
@@ -830,7 +853,7 @@ impl ProvenCompactCiphertextList {
                     metadata,
                     ShortintCompactCiphertextListCastingMode::CastIfNecessary {
                         casting_key: key_switching_key_view.key,
-                        functions,
+                        functions: Some(functions.as_slice()),
                     },
                 )?
             }
@@ -902,23 +925,20 @@ impl ProvenCompactCiphertextList {
             IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
                 key_switching_key_view,
             ) => {
-                let function_helper;
-                let functions;
+                let dest_sks = &key_switching_key_view.key.dest_server_key;
+                let function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
+                    dest_sks.message_modulus,
+                    dest_sks.carry_modulus,
+                );
                 let functions = if is_packed {
-                    let dest_sks = &key_switching_key_view.key.dest_server_key;
-                    function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
-                        dest_sks.message_modulus,
-                        dest_sks.carry_modulus,
-                    );
-                    functions = function_helper.generate_function(&self.info);
-                    Some(functions.as_slice())
+                    function_helper.generate_unpack_and_sanitize_functions(&self.info)
                 } else {
-                    None
+                    function_helper.generate_sanitize_without_unpacking_functions(&self.info)
                 };
                 self.ct_list.expand_without_verification(
                     ShortintCompactCiphertextListCastingMode::CastIfNecessary {
                         casting_key: key_switching_key_view.key,
-                        functions,
+                        functions: Some(functions.as_slice()),
                     },
                 )?
             }
