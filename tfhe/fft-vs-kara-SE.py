@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 
 IN_FILE_FMT = "samples-out/%s-id=%d-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.npy"
-OUT_FILE_FMT = "graphs/%s-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.png"
+OUT_FILE_FMT = "graphs/%s-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s-nsamples=%d.png"
 EXP_VAR_FILE_FMT = "samples-out/expected-variances-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.json"
 CT_MOD = 2.0**64
 
@@ -16,7 +16,7 @@ FIG_W = 2400
 FIG_H = 1200
 DPI = 96
 
-NB_TESTS_MAX = 2000
+NB_TESTS_MAX = 2501
 
 data_len = len(np.load(IN_FILE_FMT % ("fft", 0, 3, 20, 1, 1, 2048, "GAUSSIAN")))
 
@@ -24,12 +24,13 @@ fft_noises = {}
 kara_noises = {}
 
 for gf in range(3,3+1):
-    for logbase in [5*i for i in range(1,6+1)]:
-        for level in range(1,3+1):
-            if logbase * level < 20 or logbase * level > 30:
+    # ~ for logbase in [3*i for i in range(3,10+1)]:
+    for logbase in range(3,30+1):
+        for level in range(1,4+1):
+            if logbase * level < 15 or logbase * level > 30:
                 continue
-            for k in range(1,1+1):
-                for logN in range(11,11+1):
+            for k in range(1,2+1):
+                for logN in range(9,11+1):
 
                     # Convert dictionary to tuple (sorted to make it deterministic)
                     params = tuple(sorted({
@@ -41,6 +42,8 @@ for gf in range(3,3+1):
                     }.items()))
 
                     # load predicted noise
+                    if not osp.isfile(EXP_VAR_FILE_FMT % (gf, logbase, level, k, 1<<logN, "GAUSSIAN")):
+                        continue
                     with open(EXP_VAR_FILE_FMT % (gf, logbase, level, k, 1<<logN, "GAUSSIAN")) as file_exp_var:
                         exp_vars = json.load(file_exp_var)
                     y_dimension = exp_vars["input_lwe_dimension"] / gf
@@ -55,7 +58,8 @@ for gf in range(3,3+1):
 
                     for thread_id in range(0,NB_TESTS_MAX):
                         if not osp.isfile(IN_FILE_FMT % ("fft", thread_id, gf, logbase, level, k, 1<<logN, "GAUSSIAN")):
-                            continue
+                            total_samples = thread_id
+                            break
                         fi = np.load(IN_FILE_FMT % ("fft", thread_id, gf, logbase, level, k, 1<<logN, "GAUSSIAN")) / CT_MOD
                         ki = np.load(IN_FILE_FMT % ("kara", thread_id, gf, logbase, level, k, 1<<logN, "GAUSSIAN")) / CT_MOD
                         fft_noises[params] = np.column_stack([fft_noises[params],fi])
@@ -100,7 +104,7 @@ for gf in range(3,3+1):
                         fmt ='o',
                     )
                     plt.title(f"FFT mean & std-dev {params}")
-                    plt.savefig(OUT_FILE_FMT % ("stddev-mean-fft", gf, logbase, level, k, 1<<logN, "GAUSSIAN")) # , format="pdf", bbox_inches="tight"
+                    plt.savefig(OUT_FILE_FMT % ("stddev-mean-fft", gf, logbase, level, k, 1<<logN, "GAUSSIAN", total_samples)) # , format="pdf", bbox_inches="tight"
                     # plt.show()
                     plt.close()
 
@@ -118,7 +122,7 @@ for gf in range(3,3+1):
                         fmt ='o', color='tab:orange',
                     )
                     plt.title(f"Karatsuba mean & std-dev {params}")
-                    plt.savefig(OUT_FILE_FMT % ("stddev-mean-kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN")) # , format="pdf", bbox_inches="tight"
+                    plt.savefig(OUT_FILE_FMT % ("stddev-mean-kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN", total_samples)) # , format="pdf", bbox_inches="tight"
                     # plt.show()
                     plt.close()
 
@@ -155,7 +159,7 @@ for gf in range(3,3+1):
                     plt.plot(x_vals, k_vars, '.', label='Karatsuba', color='tab:orange')
                     plt.plot([0,y_dimension], [0.0,expected_variance_kara], '.', label='exp Kara', color='tab:orange', linestyle='dotted', marker=',')
                     plt.plot([0,y_dimension], [0.0,kara_avg_slope_2nd_half*y_dimension], '.', label='avg. slope Kara', color='tab:orange', linestyle='dashed', marker=',')
-                    plt.savefig(OUT_FILE_FMT % ("variances-FFT-Kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN")) # , format="pdf", bbox_inches="tight"
+                    plt.savefig(OUT_FILE_FMT % ("variances-FFT-Kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN", total_samples)) # , format="pdf", bbox_inches="tight"
                     # plt.show()
                     plt.close()
 
@@ -168,7 +172,7 @@ for gf in range(3,3+1):
                     plt.plot(x_vals[0:4], k_vars[0:4], marker='o', label='meas Karatsuba', color='tab:orange')
                     plt.plot([0,4], [0.0,expected_variance_kara/y_dimension*4], '.', label='exp Kara', color='tab:orange', linestyle='dotted', marker=',')
                     plt.ylim(bottom=0) # after plotting the data: https://stackoverflow.com/a/11745291/1869446
-                    plt.savefig(OUT_FILE_FMT % ("variances-start-FFT-Kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN")) # , format="pdf", bbox_inches="tight"
+                    plt.savefig(OUT_FILE_FMT % ("variances-start-FFT-Kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN", total_samples)) # , format="pdf", bbox_inches="tight"
                     # plt.show()
                     plt.close()
 
@@ -180,7 +184,7 @@ for gf in range(3,3+1):
                     # ~ plt.tight_layout() ; plt.grid() # ; plt.ylim(-.2e-9,5.0e-10) ; plt.gca().yaxis.set_major_locator(MultipleLocator(.5e-10))
                     # ~ plt.title(f"Growth of diff: FFT - Kara {params}")
                     # ~ plt.plot(x_vals, diff_vars_growth, '.', label='Growth')
-                    # ~ plt.savefig(OUT_FILE_FMT % ("growth-FFT-Kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN")) # , format="pdf", bbox_inches="tight"
+                    # ~ plt.savefig(OUT_FILE_FMT % ("growth-FFT-Kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN", total_samples)) # , format="pdf", bbox_inches="tight"
                     # ~ # plt.show()
                     # ~ plt.close()
 
@@ -195,7 +199,7 @@ for gf in range(3,3+1):
                     plt.plot([0,y_dimension], [expected_variance_kara/y_dimension,expected_variance_kara/y_dimension], '.', label='exp Kara', color='tab:orange', linestyle='dotted', marker=',')
                     plt.plot([0,y_dimension], [kara_avg_slope_2nd_half,kara_avg_slope_2nd_half], '.', label='avg. slope Kara', color='tab:orange', linestyle='dashed', marker=',')
                     plt.ylim(bottom=0)
-                    plt.savefig(OUT_FILE_FMT % ("variances-per-step-FFT-Kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN")) # , format="pdf", bbox_inches="tight"
+                    plt.savefig(OUT_FILE_FMT % ("variances-per-step-FFT-Kara", gf, logbase, level, k, 1<<logN, "GAUSSIAN", total_samples)) # , format="pdf", bbox_inches="tight"
                     # plt.show()
                     plt.close()
 
