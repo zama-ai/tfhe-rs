@@ -1,3 +1,4 @@
+use super::{PBSConformanceParameters, PbsTypeConformanceParameters};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
@@ -21,6 +22,24 @@ pub struct ModulusSwitchNoiseReductionParams {
 pub struct ModulusSwitchNoiseReductionKeyConformanceParameters {
     pub modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
     pub lwe_dimension: LweDimension,
+}
+
+impl TryFrom<&PBSConformanceParameters> for ModulusSwitchNoiseReductionKeyConformanceParameters {
+    type Error = ();
+
+    fn try_from(value: &PBSConformanceParameters) -> Result<Self, ()> {
+        match &value.pbs_type {
+            PbsTypeConformanceParameters::Classic {
+                modulus_switch_noise_reduction,
+            } => modulus_switch_noise_reduction.map_or(Err(()), |modulus_switch_noise_reduction| {
+                Ok(Self {
+                    modulus_switch_noise_reduction_params: modulus_switch_noise_reduction,
+                    lwe_dimension: value.in_lwe_dimension,
+                })
+            }),
+            PbsTypeConformanceParameters::MultiBit { .. } => Err(()),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, NotVersioned)]
