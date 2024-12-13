@@ -14,11 +14,7 @@ pub const PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS: ShortintKeySwitchingParamete
 // another set of keys. The ciphertext will be under the small key and a PBS with the destination
 // keys will be applied to finish the keyswitch.
 pub const PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ShortintKeySwitchingParameters =
-    ShortintKeySwitchingParameters {
-        ks_level: DecompositionLevelCount(5),
-        ks_base_log: DecompositionBaseLog(3),
-        destination_key: EncryptionKeyChoice::Small,
-    };
+    PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
 // Parameters to keyswitch from input PKE 2_2 TUniform parameters to 2_2 KS_PBS compute parameters
 // arriving under the small key, requires a PBS to get to the big key
