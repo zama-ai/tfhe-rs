@@ -298,6 +298,10 @@ impl CompactPkeCrs {
         Scalar: UnsignedInteger + CastInto<u64> + Debug,
         NoiseDistribution: BoundedDistribution<Scalar::Signed>,
     {
+        if max_num_cleartext.0 > lwe_dim.0 {
+            return Err("Maximum number of cleartexts is greater than the lwe dimension".into());
+        }
+
         let noise_bound = match zk_scheme {
             CompactPkeZkScheme::V1 => Self::compute_bound_v1(noise_distribution)?,
             CompactPkeZkScheme::V2 => Self::compute_bound_v2(noise_distribution)?,
