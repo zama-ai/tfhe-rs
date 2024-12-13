@@ -11,7 +11,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
 };
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::seeders::new_seeder;
@@ -56,14 +56,14 @@ thread_local! {
 
 pub struct BooleanEngine {
     /// A structure containing a single CSPRNG to generate secret key coefficients.
-    secret_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
+    secret_generator: SecretRandomGenerator<DefaultRandomGenerator>,
     /// A structure containing two CSPRNGs to generate material for encryption like public masks
     /// and secret errors.
     ///
     /// The [`EncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
-    encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    encryption_generator: EncryptionRandomGenerator<DefaultRandomGenerator>,
     bootstrapper: Bootstrapper,
 }
 
@@ -366,14 +366,14 @@ impl BooleanEngine {
     /// use tfhe::boolean::engine::BooleanEngine;
     /// use tfhe::core_crypto::commons::generators::DeterministicSeeder;
     /// use tfhe::core_crypto::commons::math::random::Seed;
-    /// use tfhe::core_crypto::prelude::ActivatedRandomGenerator;
+    /// use tfhe::core_crypto::prelude::DefaultRandomGenerator;
     ///
     /// // WARNING: Using a deterministic seed is not recommended
     /// // as it renders the random generation insecure
     ///
     /// let deterministic_seed = Seed(0);
     ///
-    /// let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seed);
+    /// let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seed);
     /// let boolean_engine = BooleanEngine::new_from_seeder(&mut seeder);
     /// BooleanEngine::replace_thread_local(boolean_engine);
     ///
@@ -394,7 +394,7 @@ impl BooleanEngine {
 
     pub fn new_from_seeder(root_seeder: &mut dyn Seeder) -> Self {
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(root_seeder.seed());
+            DeterministicSeeder::<DefaultRandomGenerator>::new(root_seeder.seed());
 
         // Note that the operands are evaluated from left to right for Rust Struct expressions
         // See: https://doc.rust-lang.org/stable/reference/expressions.html?highlight=left#evaluation-order-of-operands

@@ -4,7 +4,7 @@
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -35,9 +35,8 @@ use rayon::prelude::*;
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let input_lwe_secret_key =
@@ -208,9 +207,8 @@ where
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let input_lwe_secret_key =
@@ -403,7 +401,7 @@ pub fn generate_seeded_lwe_bootstrap_key<
         output.polynomial_size()
     );
 
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );
@@ -526,7 +524,7 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
         output.polynomial_size()
     );
 
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );

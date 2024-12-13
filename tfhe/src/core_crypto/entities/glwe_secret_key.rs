@@ -206,8 +206,7 @@ where
     /// // Create the PRNG
     /// let mut seeder = new_seeder();
     /// let seeder = seeder.as_mut();
-    /// let mut secret_generator =
-    ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    /// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
     ///
     /// let glwe_secret_key: GlweSecretKeyOwned<u64> = GlweSecretKey::generate_new_binary(
     ///     glwe_size.to_glwe_dimension(),

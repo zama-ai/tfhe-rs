@@ -26,8 +26,7 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
     let seeder = seeder.as_mut();
     let mask_seed = seeder.seed();
     let deterministic_seeder_seed = seeder.seed();
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for _ in 0..NB_TESTS {
         // Create the LweSecretKey
@@ -52,8 +51,8 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed);
-        let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+            DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed);
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             mask_seed,
             &mut deterministic_seeder,
         );
@@ -83,7 +82,7 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
         );
 
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed);
+            DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed);
 
         generate_seeded_lwe_packing_keyswitch_key(
             &input_lwe_secret_key,

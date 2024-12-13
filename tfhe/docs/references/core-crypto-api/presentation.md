@@ -25,9 +25,9 @@ let ciphertext_modulus = CiphertextModulus::new_native();
 let mut seeder = new_seeder();
 let seeder = seeder.as_mut();
 let mut encryption_generator =
-    EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 let mut secret_generator =
-    SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
 // Create the LweSecretKey
 let lwe_secret_key =

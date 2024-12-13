@@ -2,32 +2,7 @@
 //! the program stdout. It can also generate a fixed number of bytes by passing a value along the
 //! optional argument `--bytes_total`. For testing purpose.
 use clap::{value_parser, Arg, Command};
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "aes",
-    target_feature = "sse2"
-))]
-use tfhe_csprng::generators::AesniRandomGenerator as ActivatedRandomGenerator;
-#[cfg(all(
-    target_arch = "aarch64",
-    target_feature = "aes",
-    target_feature = "neon"
-))]
-use tfhe_csprng::generators::NeonAesRandomGenerator as ActivatedRandomGenerator;
-use tfhe_csprng::generators::RandomGenerator;
-#[cfg(all(
-    not(all(
-        target_arch = "x86_64",
-        target_feature = "aes",
-        target_feature = "sse2"
-    )),
-    not(all(
-        target_arch = "aarch64",
-        target_feature = "aes",
-        target_feature = "neon"
-    )),
-))]
-use tfhe_csprng::generators::SoftwareRandomGenerator as ActivatedRandomGenerator;
+use tfhe_csprng::generators::{DefaultRandomGenerator, RandomGenerator};
 
 use std::io::prelude::*;
 use std::io::{stdout, StdoutLock};
@@ -49,7 +24,7 @@ use tfhe_csprng::seeders::UnixSeeder as ActivatedSeeder;
 
 fn write_bytes(
     buffer: &mut [u8],
-    generator: &mut ActivatedRandomGenerator,
+    generator: &mut DefaultRandomGenerator,
     stdout: &mut StdoutLock<'_>,
 ) -> std::io::Result<()> {
     buffer.iter_mut().zip(generator).for_each(|(b, g)| *b = g);
@@ -58,7 +33,7 @@ fn write_bytes(
 
 fn infinite_bytes_generation(
     buffer: &mut [u8],
-    generator: &mut ActivatedRandomGenerator,
+    generator: &mut DefaultRandomGenerator,
     stdout: &mut StdoutLock<'_>,
 ) {
     while write_bytes(buffer, generator, stdout).is_ok() {}
@@ -67,7 +42,7 @@ fn infinite_bytes_generation(
 fn bytes_generation(
     bytes_total: usize,
     buffer: &mut [u8],
-    generator: &mut ActivatedRandomGenerator,
+    generator: &mut DefaultRandomGenerator,
     stdout: &mut StdoutLock<'_>,
 ) {
     let quotient = bytes_total / buffer.len();
@@ -120,7 +95,7 @@ pub fn main() {
     let seed = seeder.seed();
     // Don't print on std out
     eprintln!("seed={seed:?}");
-    let mut generator = ActivatedRandomGenerator::new(seed);
+    let mut generator = DefaultRandomGenerator::new(seed);
     let stdout = stdout();
     let mut buffer = [0u8; 16];
 

@@ -55,13 +55,12 @@ use tfhe_fft::c64;
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///
@@ -343,9 +342,8 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -579,9 +577,8 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -824,13 +821,12 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///

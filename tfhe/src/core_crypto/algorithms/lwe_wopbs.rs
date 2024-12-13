@@ -437,9 +437,8 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
 ///     glwe_dimension,

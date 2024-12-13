@@ -19,11 +19,10 @@ use crate::core_crypto::commons::numeric::{FloatingPoint, UnsignedInteger};
 use std::ops::Bound;
 
 use crate::core_crypto::prelude::{CastInto, Numeric};
-/// Convenience alias for the most efficient CSPRNG implementation available.
-pub use activated_random_generator::ActivatedRandomGenerator;
 pub use gaussian::*;
 pub use generator::*;
 pub use t_uniform::*;
+pub use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_versionable::Versionize;
 pub use uniform::*;
 pub use uniform_binary::*;
@@ -32,7 +31,6 @@ pub use uniform_ternary::*;
 #[cfg(test)]
 mod tests;
 
-mod activated_random_generator;
 mod gaussian;
 mod generator;
 mod t_uniform;

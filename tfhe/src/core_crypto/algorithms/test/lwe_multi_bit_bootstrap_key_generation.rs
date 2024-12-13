@@ -2,7 +2,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::StandardDev;
 use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
 use crate::core_crypto::commons::math::random::{
-    ActivatedRandomGenerator, DynamicDistribution, Seed,
+    DefaultRandomGenerator, DynamicDistribution, Seed,
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
@@ -70,9 +70,9 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
             ciphertext_modulus,
         );
 
-        let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             mask_seed,
-            &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed),
+            &mut DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed),
         );
 
         par_generate_lwe_multi_bit_bootstrap_key(
@@ -94,9 +94,9 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
             ciphertext_modulus,
         );
 
-        let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             mask_seed,
-            &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed),
+            &mut DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed),
         );
 
         generate_lwe_multi_bit_bootstrap_key(
@@ -126,7 +126,7 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
             &glwe_sk,
             &mut sequential_seeded_multi_bit_bsk,
             noise_distribution,
-            &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed),
+            &mut DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed),
         );
 
         let mut parallel_seeded_multi_bit_bsk = SeededLweMultiBitBootstrapKey::new(
@@ -146,7 +146,7 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
             &glwe_sk,
             &mut parallel_seeded_multi_bit_bsk,
             noise_distribution,
-            &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed),
+            &mut DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed),
         );
 
         assert_eq!(

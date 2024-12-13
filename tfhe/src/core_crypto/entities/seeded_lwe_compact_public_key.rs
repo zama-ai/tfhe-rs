@@ -5,7 +5,7 @@ use tfhe_versionable::Versionize;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::decompress_seeded_lwe_compact_public_key;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_compact_public_key::SeededLweCompactPublicKeyVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -179,7 +179,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
             self.lwe_dimension(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_lwe_compact_public_key::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_lwe_compact_public_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_cpk,
             &self,
         );

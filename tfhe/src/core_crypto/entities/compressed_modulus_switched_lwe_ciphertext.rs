@@ -20,7 +20,7 @@ use crate::core_crypto::prelude::*;
 ///
 /// let log_modulus = 12;
 ///
-/// let mut secret_generator = SecretRandomGenerator::<ActivatedRandomGenerator>::new(Seed(0));
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(Seed(0));
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key::<u64, _>(
@@ -33,7 +33,7 @@ use crate::core_crypto::prelude::*;
 /// let seeder = seeder.as_mut();
 ///
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// // Unsecure parameters, do not use them
 /// let lwe = allocate_and_encrypt_new_lwe_ciphertext(

@@ -3,7 +3,7 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_keyswitch_key::SeededLweKeyswitchKeyVersions;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -251,7 +251,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
             self.output_key_lwe_dimension(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_lwe_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ksk,
             &self,
         );
@@ -272,7 +272,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
             self.output_key_lwe_dimension(),
             self.ciphertext_modulus(),
         );
-        par_decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
+        par_decompress_seeded_lwe_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ksk,
             &self,
         );
