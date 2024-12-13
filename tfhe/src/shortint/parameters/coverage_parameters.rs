@@ -104,7 +104,7 @@ pub const COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBS
         deterministic_execution: false,
     };
 
-pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters =
+pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(1),
         glwe_dimension: GlweDimension(1),
@@ -127,7 +127,7 @@ pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParamete
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
 
-pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters =
+pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(1),
         glwe_dimension: GlweDimension(1),

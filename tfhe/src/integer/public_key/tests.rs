@@ -39,10 +39,10 @@ create_parameterized_test!(
 create_parameterized_test!(
     big_radix_encrypt_decrypt_compact_128_bits_list {
         coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
         },
         no_coverage => {
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
         }
     }
 );
@@ -50,10 +50,10 @@ create_parameterized_test!(
 create_parameterized_test!(
     small_radix_encrypt_decrypt_compact_128_bits_list {
         coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
         },
         no_coverage => {
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
         }
     }
 );

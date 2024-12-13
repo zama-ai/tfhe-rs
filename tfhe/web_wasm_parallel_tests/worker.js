@@ -160,27 +160,27 @@ async function compactPublicKeyBench32BitOnConfig(config) {
 
 async function compactPublicKeyBench32BitBig() {
   const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
   );
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
     .build();
   return append_param_name(
     await compactPublicKeyBench32BitOnConfig(config),
-    "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS",
+    "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64",
   );
 }
 
 async function compactPublicKeyBench32BitSmall() {
   const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
   );
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
     .build();
   return append_param_name(
     await compactPublicKeyBench32BitOnConfig(config),
-    "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS",
+    "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64",
   );
 }
 
@@ -476,7 +476,7 @@ async function compactPublicKeyZeroKnowledgeTest() {
 
 async function compressedCompactPublicKeyTest256BitBig() {
   const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
   );
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
@@ -486,7 +486,7 @@ async function compressedCompactPublicKeyTest256BitBig() {
 
 async function compressedCompactPublicKeyTest256BitSmall() {
   const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
   );
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
@@ -557,27 +557,27 @@ async function compactPublicKeyBench256BitOnConfig(config) {
 
 async function compactPublicKeyBench256BitBig() {
   const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
   );
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
     .build();
   return append_param_name(
     await compactPublicKeyBench256BitOnConfig(config),
-    "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS",
+    "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64",
   );
 }
 
 async function compactPublicKeyBench256BitSmall() {
   const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
   );
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
     .build();
   return append_param_name(
     await compactPublicKeyBench256BitOnConfig(config),
-    "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS",
+    "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64",
   );
 }
 

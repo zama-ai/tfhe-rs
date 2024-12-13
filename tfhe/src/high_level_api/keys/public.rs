@@ -275,7 +275,8 @@ impl ParameterSetConformant for CompressedCompactPublicKey {
 mod test {
     use crate::conformance::ParameterSetConformant;
     use crate::shortint::parameters::{
-        CompactPublicKeyEncryptionParameters, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+        CompactPublicKeyEncryptionParameters,
+        PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
     };
     use crate::{
         generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, ConfigBuilder,
@@ -283,7 +284,7 @@ mod test {
 
     #[test]
     fn conformance_compact_public_key() {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
 
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
@@ -319,7 +320,7 @@ mod test {
 
     #[test]
     fn conformance_compressed_compact_public_key() {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
 
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
