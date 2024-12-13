@@ -289,8 +289,7 @@ impl<G: Curve> Proof<G> {
             && C_hat_t.validate_projective()
             && pi.validate_projective()
             && pi_kzg.validate_projective()
-            && compute_load_proof_fields.as_ref().map_or(
-                true,
+            && compute_load_proof_fields.as_ref().is_none_or(
                 |&ComputeLoadProofFields { C_hat_h3, C_hat_w }| {
                     C_hat_h3.validate_projective() && C_hat_w.validate_projective()
                 },
