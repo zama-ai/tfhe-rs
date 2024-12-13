@@ -1,6 +1,10 @@
 //! Module with the definition of the CompressedServerKey.
 
-use super::{CompressedModulusSwitchNoiseReductionKey, MaxDegree, PBSConformanceParameters};
+use super::{
+    CompressedModulusSwitchNoiseReductionKey, MaxDegree,
+    ModulusSwitchNoiseReductionKeyConformanceParameters, PBSConformanceParameters,
+    PbsTypeConformanceParameters,
+};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
@@ -396,24 +400,35 @@ impl ParameterSetConformant for ShortintCompressedBootstrappingKey {
     type ParameterSet = PBSConformanceParameters;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, parameter_set.multi_bit) {
+        match (self, parameter_set.pbs_type) {
             (
                 Self::Classic {
                     bsk,
-                    modulus_switch_noise_reduction_key: _,
+                    modulus_switch_noise_reduction_key,
                 },
-                None,
+                PbsTypeConformanceParameters::Classic { .. },
             ) => {
+                let modulus_switch_noise_reduction_key_conformant = match (
+                    modulus_switch_noise_reduction_key,
+                    ModulusSwitchNoiseReductionKeyConformanceParameters::try_from(parameter_set),
+                ) {
+                    (None, Err(())) => true,
+                    (Some(modulus_switch_noise_reduction_key), Ok(param)) => {
+                        modulus_switch_noise_reduction_key.is_conformant(&param)
+                    }
+                    _ => false,
+                };
+
                 let param: BootstrapKeyConformanceParams = parameter_set.into();
 
-                bsk.is_conformant(&param)
+                bsk.is_conformant(&param) && modulus_switch_noise_reduction_key_conformant
             }
             (
                 Self::MultiBit {
                     seeded_bsk,
                     deterministic_execution: _,
                 },
-                Some(_grouping_factor),
+                PbsTypeConformanceParameters::MultiBit { .. },
             ) => {
                 let param: MultiBitBootstrapKeyConformanceParams =
                     parameter_set.try_into().unwrap();
