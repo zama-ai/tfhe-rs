@@ -7,7 +7,9 @@ use crate::shortint::backward_compatibility::list_compression::{
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CompressionParameters, PolynomialSize};
-use crate::shortint::server_key::{PBSConformanceParameters, ShortintBootstrappingKey};
+use crate::shortint::server_key::{
+    PBSConformanceParameters, PbsTypeConformanceParameters, ShortintBootstrappingKey,
+};
 use crate::shortint::{EncryptionKeyChoice, PBSParameters};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -189,7 +191,9 @@ impl From<&CompressionConformanceParameters> for PBSConformanceParameters {
             base_log: value.br_base_log,
             level: value.br_level,
             ciphertext_modulus: value.cipherext_modulus,
-            multi_bit: None,
+            pbs_type: PbsTypeConformanceParameters::Classic {
+                modulus_switch_noise_reduction: None,
+            },
         }
     }
 }
