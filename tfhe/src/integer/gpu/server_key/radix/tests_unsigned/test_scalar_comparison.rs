@@ -251,4 +251,8 @@ define_gpu_scalar_comparison_test_functions!(le, U256);
 define_gpu_scalar_comparison_test_functions!(gt, U256);
 define_gpu_scalar_comparison_test_functions!(ge, U256);
 
-create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge);
+create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+});

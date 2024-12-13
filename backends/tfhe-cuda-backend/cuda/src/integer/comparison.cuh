@@ -490,8 +490,9 @@ __host__ void host_integer_radix_difference_check_kb(
   if (carry_modulus >= message_modulus) {
     // Packing is possible
     // Pack inputs
-    Torus *packed_left = diff_buffer->tmp_packed_left;
-    Torus *packed_right = diff_buffer->tmp_packed_right;
+    Torus *packed_left = diff_buffer->tmp_packed;
+    Torus *packed_right =
+        diff_buffer->tmp_packed + num_radix_blocks / 2 * big_lwe_size;
     // In case the ciphertext is signed, the sign block and the one before it
     // are handled separately
     if (mem_ptr->is_signed) {
@@ -510,10 +511,7 @@ __host__ void host_integer_radix_difference_check_kb(
     auto identity_lut = mem_ptr->identity_lut;
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, packed_left, packed_left, bsks, ksks,
-        packed_num_radix_blocks, identity_lut);
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, packed_right, packed_right, bsks, ksks,
-        packed_num_radix_blocks, identity_lut);
+        2 * packed_num_radix_blocks, identity_lut);
 
     lhs = packed_left;
     rhs = packed_right;
@@ -542,11 +540,13 @@ __host__ void host_integer_radix_difference_check_kb(
 
       // Compare the last block before the sign block separately
       auto identity_lut = mem_ptr->identity_lut;
+      Torus *packed_left = diff_buffer->tmp_packed;
+      Torus *packed_right =
+          diff_buffer->tmp_packed + num_radix_blocks / 2 * big_lwe_size;
       Torus *last_left_block_before_sign_block =
-          diff_buffer->tmp_packed_left + packed_num_radix_blocks * big_lwe_size;
+          packed_left + packed_num_radix_blocks * big_lwe_size;
       Torus *last_right_block_before_sign_block =
-          diff_buffer->tmp_packed_right +
-          packed_num_radix_blocks * big_lwe_size;
+          packed_right + packed_num_radix_blocks * big_lwe_size;
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, last_left_block_before_sign_block,
           lwe_array_left + (num_radix_blocks - 2) * big_lwe_size, bsks, ksks, 1,

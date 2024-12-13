@@ -141,8 +141,9 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 
     //////////////
     // lsb
-    Torus *lhs = diff_buffer->tmp_packed_left;
-    Torus *rhs = diff_buffer->tmp_packed_right;
+    Torus *lhs = diff_buffer->tmp_packed;
+    Torus *rhs =
+        diff_buffer->tmp_packed + total_num_radix_blocks / 2 * big_lwe_size;
 
     pack_blocks<Torus>(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
                        big_lwe_dimension, num_lsb_radix_blocks,
@@ -210,8 +211,9 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     uint32_t num_lsb_radix_blocks = total_num_radix_blocks;
     uint32_t num_scalar_blocks = total_num_scalar_blocks;
 
-    Torus *lhs = diff_buffer->tmp_packed_left;
-    Torus *rhs = diff_buffer->tmp_packed_right;
+    Torus *lhs = diff_buffer->tmp_packed;
+    Torus *rhs =
+        diff_buffer->tmp_packed + total_num_radix_blocks / 2 * big_lwe_size;
 
     pack_blocks<Torus>(streams[0], gpu_indexes[0], lhs, lwe_array_in,
                        big_lwe_dimension, num_lsb_radix_blocks,
@@ -358,8 +360,9 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
     //////////////
     // lsb
-    Torus *lhs = diff_buffer->tmp_packed_left;
-    Torus *rhs = diff_buffer->tmp_packed_right;
+    Torus *lhs = diff_buffer->tmp_packed;
+    Torus *rhs =
+        diff_buffer->tmp_packed + total_num_radix_blocks / 2 * big_lwe_size;
 
     pack_blocks<Torus>(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
                        big_lwe_dimension, num_lsb_radix_blocks,
@@ -458,8 +461,9 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     auto lwe_array_ct_out = mem_ptr->tmp_lwe_array_out;
     auto lwe_array_sign_out =
         lwe_array_ct_out + (num_lsb_radix_blocks / 2) * big_lwe_size;
-    Torus *lhs = diff_buffer->tmp_packed_left;
-    Torus *rhs = diff_buffer->tmp_packed_right;
+    Torus *lhs = diff_buffer->tmp_packed;
+    Torus *rhs =
+        diff_buffer->tmp_packed + total_num_radix_blocks / 2 * big_lwe_size;
 
     pack_blocks<Torus>(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
                        big_lwe_dimension, num_lsb_radix_blocks - 1,
