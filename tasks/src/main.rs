@@ -1,5 +1,4 @@
 use clap::{Arg, Command};
-use lazy_static::lazy_static;
 use log::LevelFilter;
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
 use std::sync::atomic::AtomicBool;
@@ -12,9 +11,8 @@ mod utils;
 // -------------------------------------------------------------------------------------------------
 // CONSTANTS
 // -------------------------------------------------------------------------------------------------
-lazy_static! {
-    static ref DRY_RUN: AtomicBool = AtomicBool::new(false);
-}
+
+static DRY_RUN: AtomicBool = AtomicBool::new(false);
 
 // -------------------------------------------------------------------------------------------------
 // MAIN

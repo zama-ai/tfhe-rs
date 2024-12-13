@@ -213,16 +213,15 @@ fn build_branches(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::LazyLock;
+
     use crate::engine::has_match;
     use test_case::test_case;
 
     use crate::ciphertext::{encrypt_str, gen_keys, StringCiphertext};
-    use lazy_static::lazy_static;
     use tfhe::integer::{RadixClientKey, ServerKey};
 
-    lazy_static! {
-        pub static ref KEYS: (RadixClientKey, ServerKey) = gen_keys();
-    }
+    pub static KEYS: LazyLock<(RadixClientKey, ServerKey)> = LazyLock::new(|| gen_keys());
 
     #[test_case("ab", "/ab/", 1)]
     #[test_case("b", "/ab/", 0)]

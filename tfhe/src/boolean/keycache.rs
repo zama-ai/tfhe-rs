@@ -1,8 +1,9 @@
+use std::sync::LazyLock;
+
 use crate::boolean::parameters::*;
 use crate::boolean::{ClientKey, ServerKey};
 use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
-use lazy_static::*;
 
 named_params_impl!( BooleanParameters =>
     DEFAULT_PARAMETERS,
@@ -59,6 +60,4 @@ impl Keycache {
     }
 }
 
-lazy_static! {
-    pub static ref KEY_CACHE: Keycache = Keycache::default();
-}
+pub static KEY_CACHE: LazyLock<Keycache> = LazyLock::new(Keycache::default);
