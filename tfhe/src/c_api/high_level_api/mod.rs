@@ -22,36 +22,36 @@ mod zk;
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub enum FheTypes {
-    Type_FheBool,
-    Type_FheUint2,
-    Type_FheUint4,
-    Type_FheUint6,
-    Type_FheUint8,
-    Type_FheUint10,
-    Type_FheUint12,
-    Type_FheUint14,
-    Type_FheUint16,
-    Type_FheUint32,
-    Type_FheUint64,
-    Type_FheUint128,
-    Type_FheUint160,
-    Type_FheUint256,
-    Type_FheUint512,
-    Type_FheUint1024,
-    Type_FheUint2048,
-    Type_FheInt2,
-    Type_FheInt4,
-    Type_FheInt6,
-    Type_FheInt8,
-    Type_FheInt10,
-    Type_FheInt12,
-    Type_FheInt14,
-    Type_FheInt16,
-    Type_FheInt32,
-    Type_FheInt64,
-    Type_FheInt128,
-    Type_FheInt160,
-    Type_FheInt256,
+    Type_FheBool = 0,
+    Type_FheUint4 = 1,
+    Type_FheUint8 = 2,
+    Type_FheUint16 = 3,
+    Type_FheUint32 = 4,
+    Type_FheUint64 = 5,
+    Type_FheUint128 = 6,
+    Type_FheUint160 = 7,
+    Type_FheUint256 = 8,
+    Type_FheUint512 = 9,
+    Type_FheUint1024 = 10,
+    Type_FheUint2048 = 11,
+    Type_FheUint2 = 12,
+    Type_FheUint6 = 13,
+    Type_FheUint10 = 14,
+    Type_FheUint12 = 15,
+    Type_FheUint14 = 16,
+    Type_FheInt2 = 17,
+    Type_FheInt4 = 18,
+    Type_FheInt6 = 19,
+    Type_FheInt8 = 20,
+    Type_FheInt10 = 21,
+    Type_FheInt12 = 22,
+    Type_FheInt14 = 23,
+    Type_FheInt16 = 24,
+    Type_FheInt32 = 25,
+    Type_FheInt64 = 26,
+    Type_FheInt128 = 27,
+    Type_FheInt160 = 28,
+    Type_FheInt256 = 29,
 }
 
 impl From<crate::FheTypes> for FheTypes {
@@ -88,5 +88,16 @@ impl From<crate::FheTypes> for FheTypes {
             crate::FheTypes::Int160 => Self::Type_FheInt160,
             crate::FheTypes::Int256 => Self::Type_FheInt256,
         }
+    }
+}
+
+#[test]
+fn fhe_types_enum_to_int_compatible() {
+    use strum::IntoEnumIterator;
+
+    for rust_value in crate::FheTypes::iter() {
+        let c_value = FheTypes::from(rust_value);
+
+        assert_eq!(rust_value as i32, c_value as i32)
     }
 }
