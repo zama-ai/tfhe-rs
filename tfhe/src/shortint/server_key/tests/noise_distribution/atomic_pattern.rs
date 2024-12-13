@@ -656,64 +656,84 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
         noise_samples_after_ms.extend(current_noise_samples_after_ms.into_iter().map(|x| x.value));
     }
 
-    let measured_mean_after_ms = arithmetic_mean(&noise_samples_after_ms);
-    let measured_variance_after_ms = variance(&noise_samples_after_ms);
+    // let measured_mean_after_ms = arithmetic_mean(&noise_samples_after_ms);
+    // let measured_variance_after_ms = variance(&noise_samples_after_ms);
 
-    let mean_ci = mean_confidence_interval(
-        noise_samples_after_ms.len() as f64,
-        measured_mean_after_ms,
-        measured_variance_after_ms.get_standard_dev(),
-        0.99,
+    // let mean_ci = mean_confidence_interval(
+    //     noise_samples_after_ms.len() as f64,
+    //     measured_mean_after_ms,
+    //     measured_variance_after_ms.get_standard_dev(),
+    //     0.99,
+    // );
+
+    // let variance_ci = variance_confidence_interval(
+    //     noise_samples_after_ms.len() as f64,
+    //     measured_variance_after_ms,
+    //     0.99,
+    // );
+
+    // let expected_mean_after_ms = 0.0;
+
+    // println!("measured_variance_after_ms={measured_variance_after_ms:?}");
+    // println!("expected_variance_after_ms={expected_variance_after_ms:?}");
+    // println!("variance_lower_bound={:?}", variance_ci.lower_bound());
+    // println!("variance_upper_bound={:?}", variance_ci.upper_bound());
+    // println!("measured_mean_after_ms={measured_mean_after_ms:?}");
+    // println!("expected_mean_after_ms={expected_mean_after_ms:?}");
+    // println!("mean_lower_bound={:?}", mean_ci.lower_bound());
+    // println!("mean_upper_bound={:?}", mean_ci.upper_bound());
+
+    // // Expected mean is 0
+    // assert!(mean_ci.mean_is_in_interval(expected_mean_after_ms));
+    // // We want to be smaller but secure or in the interval
+    // if measured_variance_after_ms <= expected_variance_after_ms {
+    //     let noise_for_security = match params.lwe_noise_distribution() {
+    //         DynamicDistribution::Gaussian(_) => {
+    //             minimal_lwe_variance_for_132_bits_security_gaussian(
+    //                 sks.bootstrapping_key.input_lwe_dimension(),
+    //                 modulus_as_f64,
+    //             )
+    //         }
+    //         DynamicDistribution::TUniform(_) => {
+    //             minimal_lwe_variance_for_132_bits_security_tuniform(
+    //                 sks.bootstrapping_key.input_lwe_dimension(),
+    //                 modulus_as_f64,
+    //             )
+    //         }
+    //     };
+
+    //     if !variance_ci.variance_is_in_interval(expected_variance_after_ms) {
+    //         println!(
+    //             "\n==========\n\
+    //             Warning: noise formula might be over estimating the noise.\n\
+    //             ==========\n"
+    //         );
+    //     }
+
+    //     assert!(measured_variance_after_ms >= noise_for_security);
+    // } else {
+    //     assert!(variance_ci.variance_is_in_interval(expected_variance_after_ms));
+    // }
+
+    let after_ks_ok = mean_and_variance_check(
+        &noise_samples_after_ks,
+        "after_ks",
+        0.0,
+        expected_variance_after_ks,
+        params.lwe_noise_distribution(),
+        cks.small_lwe_secret_key().lwe_dimension(),
+        modulus_as_f64,
     );
 
-    let variance_ci = variance_confidence_interval(
-        noise_samples_after_ms.len() as f64,
-        measured_variance_after_ms,
-        0.99,
+    let after_ms_ok = mean_and_variance_check(
+        &noise_samples_after_ms,
+        "after_ms",
+        0.0,
+        expected_variance_after_ms,
+        params.lwe_noise_distribution(),
+        cks.small_lwe_secret_key().lwe_dimension(),
+        modulus_as_f64,
     );
-
-    let expected_mean_after_ms = 0.0;
-
-    println!("measured_variance_after_ms={measured_variance_after_ms:?}");
-    println!("expected_variance_after_ms={expected_variance_after_ms:?}");
-    println!("variance_lower_bound={:?}", variance_ci.lower_bound());
-    println!("variance_upper_bound={:?}", variance_ci.upper_bound());
-    println!("measured_mean_after_ms={measured_mean_after_ms:?}");
-    println!("expected_mean_after_ms={expected_mean_after_ms:?}");
-    println!("mean_lower_bound={:?}", mean_ci.lower_bound());
-    println!("mean_upper_bound={:?}", mean_ci.upper_bound());
-
-    // Expected mean is 0
-    assert!(mean_ci.mean_is_in_interval(expected_mean_after_ms));
-    // We want to be smaller but secure or in the interval
-    if measured_variance_after_ms <= expected_variance_after_ms {
-        let noise_for_security = match params.lwe_noise_distribution() {
-            DynamicDistribution::Gaussian(_) => {
-                minimal_lwe_variance_for_132_bits_security_gaussian(
-                    sks.bootstrapping_key.input_lwe_dimension(),
-                    modulus_as_f64,
-                )
-            }
-            DynamicDistribution::TUniform(_) => {
-                minimal_lwe_variance_for_132_bits_security_tuniform(
-                    sks.bootstrapping_key.input_lwe_dimension(),
-                    modulus_as_f64,
-                )
-            }
-        };
-
-        if !variance_ci.variance_is_in_interval(expected_variance_after_ms) {
-            println!(
-                "\n==========\n\
-                Warning: noise formula might be over estimating the noise.\n\
-                ==========\n"
-            );
-        }
-
-        assert!(measured_variance_after_ms >= noise_for_security);
-    } else {
-        assert!(variance_ci.variance_is_in_interval(expected_variance_after_ms));
-    }
 
     let normality_check = normality_test_f64(
         &noise_samples_after_ks[..5000.min(noise_samples_after_ks.len())],
@@ -723,8 +743,10 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
     if normality_check.null_hypothesis_is_valid {
         println!("Normality check after KS is OK\n");
     } else {
-        panic!("Normality check after KS failed");
+        println!("Normality check after KS failed\n");
     }
+
+    assert!(after_ks_ok && after_ms_ok && normality_check.null_hypothesis_is_valid);
 
     // Normality check of heavily discretized gaussian does not seem to work
     // let normality_check = normality_test_f64(&noise_samples[..5000.min(noise_samples.len())],
