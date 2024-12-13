@@ -1,6 +1,6 @@
 use super::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::core_crypto::prelude::DefaultRandomGenerator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 pub use tfhe_csprng::seeders::{Seed, Seeder};
@@ -41,7 +41,7 @@ impl ServerKey {
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
-        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
         let seeds: Vec<Seed> = (0..num_blocks)
             .map(|_| deterministic_seeder.seed())
@@ -120,7 +120,7 @@ impl ServerKey {
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
-        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
         let seeds: Vec<Seed> = (0..num_blocks)
             .map(|_| deterministic_seeder.seed())
@@ -187,7 +187,7 @@ impl ServerKey {
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
-        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
         let seeds: Vec<Seed> = (0..num_blocks)
             .map(|_| deterministic_seeder.seed())
@@ -253,7 +253,7 @@ impl ServerKey {
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
-        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
         let seeds: Vec<Seed> = (0..num_blocks)
             .map(|_| deterministic_seeder.seed())

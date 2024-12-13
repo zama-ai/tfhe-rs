@@ -11,7 +11,7 @@ use crate::core_crypto::commons::generators::{
 };
 #[cfg(feature = "zk-pok")]
 use crate::core_crypto::commons::math::random::RandomGenerator;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{ContainerMut, GlweSize};
 use crate::core_crypto::seeders::new_seeder;
@@ -299,19 +299,19 @@ impl std::fmt::Display for EngineError {
 /// This structs actually implements the logics into its methods.
 pub struct ShortintEngine {
     /// A structure containing a single CSPRNG to generate secret key coefficients.
-    pub(crate) secret_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
+    pub(crate) secret_generator: SecretRandomGenerator<DefaultRandomGenerator>,
     /// A structure containing two CSPRNGs to generate material for encryption like public masks
     /// and secret errors.
     ///
     /// The [`EncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
-    pub(crate) encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    pub(crate) encryption_generator: EncryptionRandomGenerator<DefaultRandomGenerator>,
     /// A seeder that can be called to generate 128 bits seeds, useful to create new
     /// [`EncryptionRandomGenerator`] to encrypt seeded types.
-    pub(crate) seeder: DeterministicSeeder<ActivatedRandomGenerator>,
+    pub(crate) seeder: DeterministicSeeder<DefaultRandomGenerator>,
     #[cfg(feature = "zk-pok")]
-    pub(crate) random_generator: RandomGenerator<ActivatedRandomGenerator>,
+    pub(crate) random_generator: RandomGenerator<DefaultRandomGenerator>,
     pub(crate) computation_buffers: ComputationBuffers,
     ciphertext_buffers: Memory,
 }
@@ -345,7 +345,7 @@ impl ShortintEngine {
 
     pub fn new_from_seeder(root_seeder: &mut dyn Seeder) -> Self {
         let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(root_seeder.seed());
+            DeterministicSeeder::<DefaultRandomGenerator>::new(root_seeder.seed());
 
         // Note that the operands are evaluated from left to right for Rust Struct expressions
         // See: https://doc.rust-lang.org/stable/reference/expressions.html?highlight=left#evaluation-order-of-operands

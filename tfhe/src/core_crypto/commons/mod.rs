@@ -36,7 +36,7 @@ pub mod test_tools {
         EncryptionRandomGenerator, SecretRandomGenerator,
     };
     use crate::core_crypto::commons::math::random::{
-        ActivatedRandomGenerator, RandomGenerable, RandomGenerator, Uniform,
+        DefaultRandomGenerator, RandomGenerable, RandomGenerator, Uniform,
     };
     use crate::core_crypto::commons::parameters::{
         CiphertextCount, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
@@ -53,16 +53,15 @@ pub mod test_tools {
         )
     }
 
-    pub fn new_random_generator() -> RandomGenerator<ActivatedRandomGenerator> {
+    pub fn new_random_generator() -> RandomGenerator<DefaultRandomGenerator> {
         RandomGenerator::new(random_seed())
     }
 
-    pub fn new_secret_random_generator() -> SecretRandomGenerator<ActivatedRandomGenerator> {
+    pub fn new_secret_random_generator() -> SecretRandomGenerator<DefaultRandomGenerator> {
         SecretRandomGenerator::new(random_seed())
     }
 
-    pub fn new_encryption_random_generator() -> EncryptionRandomGenerator<ActivatedRandomGenerator>
-    {
+    pub fn new_encryption_random_generator() -> EncryptionRandomGenerator<DefaultRandomGenerator> {
         EncryptionRandomGenerator::new(random_seed(), &mut UnsafeRandSeeder)
     }
 

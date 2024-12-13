@@ -6,7 +6,7 @@ use crate::boolean::{ClientKey, PLAINTEXT_TRUE};
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder};
 use crate::core_crypto::commons::parameters::{CiphertextModulus, PBSOrder};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
@@ -214,7 +214,7 @@ impl CompressedServerKey {
                     compressed_key_switching_key.output_key_lwe_dimension(),
                     compressed_key_switching_key.ciphertext_modulus(),
                 );
-                par_decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
+                par_decompress_seeded_lwe_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
                     &mut decompressed_key_switching_key,
                     compressed_key_switching_key,
                 );
@@ -230,7 +230,7 @@ impl CompressedServerKey {
                     compressed_bootstrapping_key.input_lwe_dimension(),
                     compressed_bootstrapping_key.ciphertext_modulus(),
                 );
-                par_decompress_seeded_lwe_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+                par_decompress_seeded_lwe_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
                     &mut decompressed_bootstrapping_key,
                     compressed_bootstrapping_key,
                 );
@@ -331,9 +331,9 @@ pub(crate) struct Bootstrapper {
     /// The [`EncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
-    pub(crate) encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    pub(crate) encryption_generator: EncryptionRandomGenerator<DefaultRandomGenerator>,
     pub(crate) computation_buffers: ComputationBuffers,
-    pub(crate) seeder: DeterministicSeeder<ActivatedRandomGenerator>,
+    pub(crate) seeder: DeterministicSeeder<DefaultRandomGenerator>,
 }
 
 impl Bootstrapper {

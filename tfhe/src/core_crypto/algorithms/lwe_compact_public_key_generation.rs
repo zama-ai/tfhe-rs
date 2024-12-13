@@ -7,7 +7,7 @@ use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::{Distribution, Uniform};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::core_crypto::prelude::DefaultRandomGenerator;
 use slice_algorithms::*;
 
 /// Fill an [`LWE compact public key`](`LweCompactPublicKey`) with an actual public key constructed
@@ -124,7 +124,7 @@ pub fn generate_seeded_lwe_compact_public_key<
         output.lwe_dimension()
     );
 
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );

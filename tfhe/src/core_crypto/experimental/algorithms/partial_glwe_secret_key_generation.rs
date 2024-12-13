@@ -51,8 +51,7 @@ pub fn generate_partial_binary_glwe_secret_key<Scalar, KeyCont, Gen>(
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// let mut glwe_secret_key: GlweSecretKeyOwned<u64> =
 ///     allocate_and_generate_new_partial_binary_glwe_secret_key(

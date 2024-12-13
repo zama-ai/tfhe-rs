@@ -8,7 +8,7 @@ use crate::core_crypto::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
 use crate::core_crypto::commons::math::random::{
-    ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
+    CompressionSeed, DefaultRandomGenerator, Distribution, RandomGenerable,
 };
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -280,7 +280,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             self.decomposition_level_count(),
             self.ciphertext_modulus(),
         );
-        decompress_seeded_ggsw_ciphertext::<_, _, _, ActivatedRandomGenerator>(
+        decompress_seeded_ggsw_ciphertext::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ct,
             &self,
         );
@@ -301,7 +301,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             self.decomposition_level_count(),
             self.ciphertext_modulus(),
         );
-        par_decompress_seeded_ggsw_ciphertext::<_, _, _, ActivatedRandomGenerator>(
+        par_decompress_seeded_ggsw_ciphertext::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ct,
             &self,
         );

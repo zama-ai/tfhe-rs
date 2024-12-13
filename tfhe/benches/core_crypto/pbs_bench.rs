@@ -139,9 +139,8 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params) in parameters.iter() {
         // Create the LweSecretKey
@@ -248,9 +247,8 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params) in parameters.iter() {
         // Create the LweSecretKey
@@ -371,9 +369,8 @@ fn multi_bit_pbs<
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params, grouping_factor) in parameters.iter() {
         // Create the LweSecretKey
@@ -465,9 +462,8 @@ fn multi_bit_deterministic_pbs<
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params, grouping_factor) in parameters.iter() {
         // Create the LweSecretKey
@@ -554,9 +550,8 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     let custom_ciphertext_modulus =
         tfhe::core_crypto::prelude::CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
@@ -709,9 +704,8 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params) in parameters.iter() {
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -895,9 +889,9 @@ mod cuda {
         let mut seeder = new_seeder();
         let seeder = seeder.as_mut();
         let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
         let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
         let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
@@ -1016,9 +1010,9 @@ mod cuda {
         let mut seeder = new_seeder();
         let seeder = seeder.as_mut();
         let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
         let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
         let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
@@ -1138,9 +1132,9 @@ mod cuda {
         let mut seeder = new_seeder();
         let seeder = seeder.as_mut();
         let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
         let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
         let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
@@ -1278,9 +1272,9 @@ mod cuda {
         let mut seeder = new_seeder();
         let seeder = seeder.as_mut();
         let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
         let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+            SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
         let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));

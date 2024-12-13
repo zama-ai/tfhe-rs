@@ -1,7 +1,7 @@
 #![allow(clippy::use_self)]
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
-use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::core_crypto::prelude::DefaultRandomGenerator;
 use crate::js_on_wasm_api::js_high_level_api::into_js_error;
 use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -457,7 +457,7 @@ impl Shortint {
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
 
-        let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(seed));
+        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
         ShortintClientKey(
             crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
                 .new_client_key(parameters.0.into()),

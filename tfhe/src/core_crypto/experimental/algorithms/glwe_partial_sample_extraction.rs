@@ -35,9 +35,8 @@ use crate::core_crypto::entities::*;
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_partial_binary_glwe_secret_key(
@@ -187,9 +186,8 @@ pub fn partial_extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, Output
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the GlweSecretKey
 /// let glwe_secret_key = allocate_and_generate_new_partial_binary_glwe_secret_key(
