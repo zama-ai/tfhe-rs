@@ -4,7 +4,6 @@ use crate::integer::{ClientKey, IntegerKeyKind, ServerKey};
 use crate::shortint::PBSParameters;
 #[cfg(feature = "experimental")]
 use crate::shortint::WopbsParameters;
-use lazy_static::lazy_static;
 
 #[derive(Default)]
 pub struct IntegerKeyCache;
@@ -68,10 +67,6 @@ impl WopbsKeyCache {
     }
 }
 
-lazy_static! {
-    pub static ref KEY_CACHE: IntegerKeyCache = IntegerKeyCache;
-}
+pub static KEY_CACHE: IntegerKeyCache = IntegerKeyCache;
 #[cfg(feature = "experimental")]
-lazy_static! {
-    pub static ref KEY_CACHE_WOPBS: WopbsKeyCache = WopbsKeyCache;
-}
+pub static KEY_CACHE_WOPBS: WopbsKeyCache = WopbsKeyCache;
