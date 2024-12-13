@@ -7,7 +7,7 @@ This document describes the C bindings to the **TFHE-rs** high-level primitives 
 You can build **TFHE-rs** C API using the following command:
 
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=high-level-c-api -p tfhe && make symlink_c_libs_without_fingerprint
+RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=high-level-c-api -p tfhe
 ```
 
 Locate files in the right path:
