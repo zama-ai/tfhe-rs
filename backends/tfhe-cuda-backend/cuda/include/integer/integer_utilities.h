@@ -3279,8 +3279,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
   int_radix_params params;
   COMPARISON_TYPE op;
 
-  Torus *tmp_packed_left;
-  Torus *tmp_packed_right;
+  Torus *tmp_packed;
 
   std::function<Torus(Torus)> operator_f;
 
@@ -3317,11 +3316,8 @@ template <typename Torus> struct int_comparison_diff_buffer {
 
       Torus big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
 
-      tmp_packed_left = (Torus *)cuda_malloc_async(
-          big_size * (num_radix_blocks / 2), streams[0], gpu_indexes[0]);
-
-      tmp_packed_right = (Torus *)cuda_malloc_async(
-          big_size * (num_radix_blocks / 2), streams[0], gpu_indexes[0]);
+      tmp_packed = (Torus *)cuda_malloc_async(big_size * num_radix_blocks,
+                                              streams[0], gpu_indexes[0]);
 
       tree_buffer = new int_tree_sign_reduction_buffer<Torus>(
           streams, gpu_indexes, gpu_count, operator_f, params, num_radix_blocks,
@@ -3344,8 +3340,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
     reduce_signs_lut->release(streams, gpu_indexes, gpu_count);
     delete reduce_signs_lut;
 
-    cuda_drop_async(tmp_packed_left, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_packed_right, streams[0], gpu_indexes[0]);
+    cuda_drop_async(tmp_packed, streams[0], gpu_indexes[0]);
     cuda_drop_async(tmp_signs_a, streams[0], gpu_indexes[0]);
     cuda_drop_async(tmp_signs_b, streams[0], gpu_indexes[0]);
   }
