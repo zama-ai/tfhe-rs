@@ -3,7 +3,7 @@ fn test_replacing_thread_local_engine() {
     use crate::boolean::engine::BooleanEngine;
     use crate::core_crypto::commons::generators::DeterministicSeeder;
     use crate::core_crypto::commons::math::random::Seed;
-    use crate::core_crypto::prelude::ActivatedRandomGenerator;
+    use crate::core_crypto::prelude::DefaultRandomGenerator;
 
     let deterministic_seed = Seed(0);
 
@@ -11,7 +11,7 @@ fn test_replacing_thread_local_engine() {
     // then generate a client key, and then encrypt
     // a boolean value and serialize it to compare
     // it with other ciphertext
-    let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seed);
+    let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seed);
     let boolean_engine = BooleanEngine::new_from_seeder(&mut seeder);
     BooleanEngine::replace_thread_local(boolean_engine);
 
@@ -41,7 +41,7 @@ fn test_replacing_thread_local_engine() {
     // So we expect the encrypted value to be the same
     // compared with the one from the main thread
     let third_thread_data = std::thread::spawn(move || {
-        let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seed);
+        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seed);
         let boolean_engine = BooleanEngine::new_from_seeder(&mut seeder);
         BooleanEngine::replace_thread_local(boolean_engine);
         let (cks, _) = crate::boolean::gen_keys();

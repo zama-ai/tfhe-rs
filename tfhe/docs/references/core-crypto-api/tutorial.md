@@ -42,12 +42,12 @@ pub fn main() {
 
     // Create a generator which uses a CSPRNG to generate secret keys
     let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
     // noise
     let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 
     println!("Generating keys...");
 

@@ -49,13 +49,12 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///

@@ -1,6 +1,5 @@
-use crate::generators::aes_ctr::{
-    states::State, AesBlockCipher, AesCtrGenerator, ChildrenClosure, TableIndex,
-};
+use crate::generators::aes_ctr::states::State;
+use crate::generators::aes_ctr::{AesBlockCipher, AesCtrGenerator, ChildrenClosure, TableIndex};
 use crate::generators::{BytesPerChild, ChildrenCount, ForkError};
 
 /// A type alias for the parallel children iterator type.

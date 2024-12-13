@@ -8,8 +8,7 @@ use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretR
 #[cfg(feature = "zk-pok")]
 use crate::core_crypto::commons::math::random::BoundedDistribution;
 use crate::core_crypto::commons::math::random::{
-    ActivatedRandomGenerator, Distribution, RandomGenerable, RandomGenerator, Uniform,
-    UniformBinary,
+    DefaultRandomGenerator, Distribution, RandomGenerable, RandomGenerator, Uniform, UniformBinary,
 };
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -202,9 +201,8 @@ pub fn fill_lwe_mask_and_body_for_encryption_other_mod<
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -294,9 +292,8 @@ pub fn encrypt_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Ge
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -382,8 +379,7 @@ where
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the plaintext
 /// let msg = 3u64;
@@ -456,8 +452,7 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the plaintext
 /// let msg = 3u64;
@@ -636,9 +631,8 @@ where
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -747,9 +741,8 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, NoiseDistribution, KeyCont, OutputCon
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -901,9 +894,8 @@ pub fn decrypt_lwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -1018,8 +1010,7 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -1117,8 +1108,7 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -1234,7 +1224,7 @@ pub fn encrypt_lwe_ciphertext_iterator_with_seeded_public_key<Scalar, KeyCont, O
     );
 
     let mut random_generator =
-        RandomGenerator::<ActivatedRandomGenerator>::new(lwe_public_key.compression_seed().seed);
+        RandomGenerator::<DefaultRandomGenerator>::new(lwe_public_key.compression_seed().seed);
 
     // Add the public encryption of zeros to get the zero encryption
     for public_encryption_of_zero_body in lwe_public_key.iter() {
@@ -1345,8 +1335,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -1420,7 +1409,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list<
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );
@@ -1514,8 +1503,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -1589,7 +1577,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list<
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
-    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );
@@ -1658,8 +1646,7 @@ pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -1714,7 +1701,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, NoiseSe
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
-    let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+    let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         output.compression_seed().seed,
         noise_seeder,
     );
@@ -1750,8 +1737,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, NoiseSe
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -2039,9 +2025,8 @@ where
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -2156,10 +2141,9 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-/// let mut random_generator = RandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+/// let mut random_generator = RandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -2502,9 +2486,8 @@ where
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -2645,10 +2628,9 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-/// let mut random_generator = RandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+/// let mut random_generator = RandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// let crs = CompactPkeCrs::new(
 ///     lwe_dimension,
@@ -3032,9 +3014,8 @@ where
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let lwe_secret_key =
@@ -3179,10 +3160,9 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-/// let mut random_generator = RandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+/// let mut random_generator = RandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// let crs = CompactPkeCrs::new(
 ///     lwe_dimension,
@@ -3501,13 +3481,13 @@ mod test {
 
             let par_lwe_ct_list = {
                 let mut deterministic_seeder =
-                    DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+                    DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
                 let mut secret_random_generator =
-                    SecretRandomGenerator::<ActivatedRandomGenerator>::new(
+                    SecretRandomGenerator::<DefaultRandomGenerator>::new(
                         deterministic_seeder.seed(),
                     );
                 let mut encryption_random_generator =
-                    EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+                    EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
                         deterministic_seeder.seed(),
                         &mut deterministic_seeder,
                     );
@@ -3568,13 +3548,13 @@ mod test {
 
             let ser_lwe_ct_list = {
                 let mut deterministic_seeder =
-                    DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+                    DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
                 let mut secret_random_generator =
-                    SecretRandomGenerator::<ActivatedRandomGenerator>::new(
+                    SecretRandomGenerator::<DefaultRandomGenerator>::new(
                         deterministic_seeder.seed(),
                     );
                 let mut encryption_random_generator =
-                    EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+                    EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
                         deterministic_seeder.seed(),
                         &mut deterministic_seeder,
                     );

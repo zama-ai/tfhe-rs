@@ -174,13 +174,12 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<GgswBufferCont, GgswGroupCont, Fouri
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///
@@ -852,13 +851,12 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
 /// let seeder = boxed_seeder.as_mut();
 ///
 /// // Create a generator which uses a CSPRNG to generate secret keys
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
 /// // noise
 /// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 ///
 /// println!("Generating keys...");
 ///
