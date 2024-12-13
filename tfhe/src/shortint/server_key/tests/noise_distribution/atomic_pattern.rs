@@ -2289,8 +2289,9 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
         })
         .unzip();
 
+    let sample_count = measured_fails_after_ap.len();
     let measured_fails_after_ap: f64 = measured_fails_after_ap.into_iter().flatten().sum();
-    let measured_pfail_after_ap = measured_fails_after_ap / (total_sample_count as f64);
+    let measured_pfail_after_ap = measured_fails_after_ap / (sample_count as f64);
 
     println!("measured_fails_after_ap={measured_fails_after_ap}");
     println!("measured_pfail_after_ap={measured_pfail_after_ap}");
@@ -2429,10 +2430,10 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail(
         })
         .unzip();
 
+    let sample_count = measured_fails_after_ms_storage.len();
     let measured_fails_after_ms_storage: f64 =
         measured_fails_after_ms_storage.into_iter().flatten().sum();
-    let measured_pfail_after_ms_storage =
-        measured_fails_after_ms_storage / (total_sample_count as f64);
+    let measured_pfail_after_ms_storage = measured_fails_after_ms_storage / (sample_count as f64);
 
     let measured_pfail_after_ms_storage_log2 = measured_pfail_after_ms_storage.log2();
 
@@ -3434,7 +3435,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
 
     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
     let (measured_fails_before_pbs_128, _measured_fails_after_pbs_128): (Vec<_>, Vec<_>) = (0
-        ..1000)
+        ..runs_for_expected_fails)
         .into_par_iter()
         .map(|_| {
             let msg: u64 = rand::random::<u64>() % cleartext_modulus;
@@ -3454,8 +3455,9 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         })
         .unzip();
 
+    let sample_count = measured_fails_before_pbs_128.len();
     let measured_fails_before_pbs_128: f64 = measured_fails_before_pbs_128.into_iter().sum();
-    let measured_pfail_before_pbs_128 = measured_fails_before_pbs_128 / (total_sample_count as f64);
+    let measured_pfail_before_pbs_128 = measured_fails_before_pbs_128 / (sample_count as f64);
 
     println!("measured_fails_before_pbs_128={measured_fails_before_pbs_128}");
     println!("measured_pfail_before_pbs_128={measured_pfail_before_pbs_128}");
