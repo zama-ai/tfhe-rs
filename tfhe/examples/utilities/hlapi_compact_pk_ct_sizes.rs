@@ -10,7 +10,8 @@ use tfhe::integer::U256;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::classic::compact_pk::{
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
 };
 use tfhe::shortint::PBSParameters;
 use tfhe::{
@@ -39,7 +40,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     let operator = OperatorType::Atomic;
 
     {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
             .build();
@@ -97,7 +98,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     }
 
     {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
             .build();
@@ -156,7 +157,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
     // 256 bits
     {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
             .build();
@@ -204,7 +205,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     }
 
     {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
             .build();
