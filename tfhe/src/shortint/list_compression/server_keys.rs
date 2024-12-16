@@ -80,9 +80,9 @@ impl ClientKey {
             storage_log_modulus: private_compression_key.params.storage_log_modulus,
         };
 
-        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
-            ShortintBootstrappingKey::Classic(
-                engine.new_classic_bootstrapping_key(
+        let blind_rotate_key =
+            ShortintEngine::with_thread_local_mut(|engine| ShortintBootstrappingKey::Classic {
+                bsk: engine.new_classic_bootstrapping_key(
                     &private_compression_key
                         .post_packing_ks_key
                         .as_lwe_secret_key(),
@@ -92,8 +92,8 @@ impl ClientKey {
                     private_compression_key.params.br_level,
                     self.parameters.ciphertext_modulus(),
                 ),
-            )
-        });
+                modulus_switch_noise_reduction_key: None,
+            });
 
         let glwe_decompression_key = DecompressionKey {
             blind_rotate_key,

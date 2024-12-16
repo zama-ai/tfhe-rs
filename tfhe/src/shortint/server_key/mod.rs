@@ -138,7 +138,10 @@ impl std::error::Error for CheckError {}
 #[derive(Clone, Debug, PartialEq, Versionize)]
 #[versionize(convert = "SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>")]
 pub enum ShortintBootstrappingKey {
-    Classic(FourierLweBootstrapKeyOwned),
+    Classic {
+        bsk: FourierLweBootstrapKeyOwned,
+        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+    },
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKeyOwned,
         thread_count: ThreadCount,
@@ -150,7 +153,10 @@ pub enum ShortintBootstrappingKey {
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
 #[versionize(SerializableShortintBootstrappingKeyVersions)]
 pub enum SerializableShortintBootstrappingKey<C: Container<Element = tfhe_fft::c64>> {
-    Classic(FourierLweBootstrapKey<C>),
+    Classic {
+        bsk: FourierLweBootstrapKey<C>,
+        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+    },
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKey<C>,
         deterministic_execution: bool,
@@ -163,7 +169,7 @@ impl<C: Container<Element = tfhe_fft::c64>> SerializableShortintBootstrappingKey
     /// [`Classic`]: SerializableShortintBootstrappingKey::Classic
     #[must_use]
     pub fn is_classic(&self) -> bool {
-        matches!(self, Self::Classic(..))
+        matches!(self, Self::Classic { .. })
     }
 }
 
@@ -172,7 +178,13 @@ impl<'a> From<&'a ShortintBootstrappingKey>
 {
     fn from(value: &'a ShortintBootstrappingKey) -> Self {
         match value {
-            ShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk.as_view()),
+            ShortintBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => Self::Classic {
+                bsk: bsk.as_view(),
+                modulus_switch_noise_reduction_key: modulus_switch_noise_reduction_key.clone(),
+            },
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk: bsk,
                 deterministic_execution,
@@ -190,7 +202,13 @@ impl From<ShortintBootstrappingKey>
 {
     fn from(value: ShortintBootstrappingKey) -> Self {
         match value {
-            ShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk),
+            ShortintBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            },
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
@@ -217,7 +235,13 @@ impl From<SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>>
 {
     fn from(value: SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>) -> Self {
         match value {
-            SerializableShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk),
+            SerializableShortintBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            },
             SerializableShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
@@ -255,7 +279,7 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
 impl ShortintBootstrappingKey {
     pub fn input_lwe_dimension(&self) -> LweDimension {
         match self {
-            Self::Classic(inner) => inner.input_lwe_dimension(),
+            Self::Classic { bsk, .. } => bsk.input_lwe_dimension(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.input_lwe_dimension(),
@@ -264,7 +288,7 @@ impl ShortintBootstrappingKey {
 
     pub fn polynomial_size(&self) -> PolynomialSize {
         match self {
-            Self::Classic(inner) => inner.polynomial_size(),
+            Self::Classic { bsk, .. } => bsk.polynomial_size(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.polynomial_size(),
@@ -273,7 +297,7 @@ impl ShortintBootstrappingKey {
 
     pub fn glwe_size(&self) -> GlweSize {
         match self {
-            Self::Classic(inner) => inner.glwe_size(),
+            Self::Classic { bsk, .. } => bsk.glwe_size(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.glwe_size(),
@@ -282,7 +306,7 @@ impl ShortintBootstrappingKey {
 
     pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
         match self {
-            Self::Classic(inner) => inner.decomposition_base_log(),
+            Self::Classic { bsk, .. } => bsk.decomposition_base_log(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.decomposition_base_log(),
@@ -291,7 +315,7 @@ impl ShortintBootstrappingKey {
 
     pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
         match self {
-            Self::Classic(inner) => inner.decomposition_level_count(),
+            Self::Classic { bsk, .. } => bsk.decomposition_level_count(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.decomposition_level_count(),
@@ -300,7 +324,7 @@ impl ShortintBootstrappingKey {
 
     pub fn output_lwe_dimension(&self) -> LweDimension {
         match self {
-            Self::Classic(inner) => inner.output_lwe_dimension(),
+            Self::Classic { bsk, .. } => bsk.output_lwe_dimension(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.output_lwe_dimension(),
@@ -309,7 +333,7 @@ impl ShortintBootstrappingKey {
 
     pub fn bootstrapping_key_size_elements(&self) -> usize {
         match self {
-            Self::Classic(bsk) => bsk.as_view().data().len(),
+            Self::Classic { bsk, .. } => bsk.as_view().data().len(),
             Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => bsk.as_view().data().len(),
@@ -318,7 +342,7 @@ impl ShortintBootstrappingKey {
 
     pub fn bootstrapping_key_size_bytes(&self) -> usize {
         match self {
-            Self::Classic(bsk) => std::mem::size_of_val(bsk.as_view().data()),
+            Self::Classic { bsk, .. } => std::mem::size_of_val(bsk.as_view().data()),
             Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => std::mem::size_of_val(bsk.as_view().data()),
@@ -331,7 +355,7 @@ impl ShortintBootstrappingKey {
     /// Note: the classic PBS algorithm is always deterministic.
     pub fn deterministic_pbs_execution(&self) -> bool {
         match self {
-            Self::Classic(_) => true,
+            Self::Classic { .. } => true,
             Self::MultiBit {
                 deterministic_execution,
                 ..
@@ -346,7 +370,7 @@ impl ShortintBootstrappingKey {
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         match self {
             // Classic PBS is already deterministic no matter what
-            Self::Classic(_) => (),
+            Self::Classic { .. } => (),
             Self::MultiBit {
                 deterministic_execution,
                 ..
@@ -362,7 +386,7 @@ impl ShortintBootstrappingKey {
     /// Has not effects for other keys.
     pub fn recompute_thread_count(&mut self) {
         match self {
-            Self::Classic(_) => (),
+            Self::Classic { .. } => (),
             Self::MultiBit {
                 fourier_bsk,
                 thread_count,
@@ -569,7 +593,7 @@ impl ServerKey {
         let lwe_dim = self.ciphertext_lwe_dimension();
 
         let ms_decompression_method = match &self.bootstrapping_key {
-            ShortintBootstrappingKey::Classic(_) => MsDecompressionType::ClassicPbs,
+            ShortintBootstrappingKey::Classic { .. } => MsDecompressionType::ClassicPbs,
             ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
                 MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
             }
@@ -1502,7 +1526,9 @@ pub(crate) fn apply_blind_rotate<Scalar, InputCont, OutputCont>(
     let _ = PBS_COUNT.fetch_add(1, Ordering::Relaxed);
 
     match bootstrapping_key {
-        ShortintBootstrappingKey::Classic(fourier_bsk) => {
+        ShortintBootstrappingKey::Classic {
+            bsk: fourier_bsk, ..
+        } => {
             let fft = Fft::new(fourier_bsk.polynomial_size());
             let fft = fft.as_view();
             buffers.resize(
@@ -1647,7 +1673,7 @@ impl From<&PBSParameters> for PBSConformanceParameters {
             level: value.pbs_level(),
             ciphertext_modulus: value.ciphertext_modulus(),
             multi_bit: match value {
-                PBSParameters::PBS(_) => None,
+                PBSParameters::PBS { .. } => None,
                 PBSParameters::MultiBitPBS(multi_bit_pbs_parameters) => {
                     Some(multi_bit_pbs_parameters.grouping_factor)
                 }
@@ -1661,10 +1687,16 @@ impl ParameterSetConformant for ShortintBootstrappingKey {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         match (self, parameter_set.multi_bit) {
-            (Self::Classic(a), None) => {
+            (
+                Self::Classic {
+                    bsk,
+                    modulus_switch_noise_reduction_key: _,
+                },
+                None,
+            ) => {
                 let param: BootstrapKeyConformanceParams = parameter_set.into();
 
-                a.is_conformant(&param)
+                bsk.is_conformant(&param)
             }
             (
                 Self::MultiBit {

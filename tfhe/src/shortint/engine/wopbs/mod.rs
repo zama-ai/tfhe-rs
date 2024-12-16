@@ -144,7 +144,10 @@ impl ShortintEngine {
 
         let wopbs_server_key = ServerKey {
             key_switching_key: ksk_wopbs_large_to_wopbs_small,
-            bootstrapping_key: ShortintBootstrappingKey::Classic(small_bsk),
+            bootstrapping_key: ShortintBootstrappingKey::Classic {
+                bsk: small_bsk,
+                modulus_switch_noise_reduction_key: None,
+            },
             message_modulus: parameters.message_modulus,
             carry_modulus: parameters.carry_modulus,
             max_degree: MaxDegree::from_msg_carry_modulus(
