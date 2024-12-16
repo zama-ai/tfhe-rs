@@ -16,8 +16,7 @@ members = [
 
 exclude = [
     "tests/backward_compatibility_tests",
-    "utils/cargo-tfhe-lints-inner",
-    "utils/cargo-tfhe-lints"
+    "utils/tfhe-lints",
 ]
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }
@@ -47,3 +46,8 @@ inherits = "dev"
 opt-level = 3
 lto = "off"
 debug-assertions = false
+
+[workspace.metadata.dylint]
+libraries = [
+    { path = "utils/tfhe-lints" }
+]

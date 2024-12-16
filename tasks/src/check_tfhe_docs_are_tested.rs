@@ -10,7 +10,7 @@ const DIR_TO_IGNORE: [&str; 3] = [
     "tests/tfhe-backward-compat-data",
 ];
 
-const FILES_TO_IGNORE: [&str; 5] = [
+const FILES_TO_IGNORE: [&str; 6] = [
     // This contains fragments of code that are unrelated to TFHE-rs
     "tfhe/docs/tutorials/sha256_bool.md",
     // TODO: This contains code that could be executed as a trivium docstring
@@ -21,6 +21,7 @@ const FILES_TO_IGNORE: [&str; 5] = [
     "tfhe-fft/README.md",
     // TODO: find a way to test the tfhe-ntt readme
     "tfhe-ntt/README.md",
+    "utils/tfhe-lints/README.md",
 ];
 
 pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {

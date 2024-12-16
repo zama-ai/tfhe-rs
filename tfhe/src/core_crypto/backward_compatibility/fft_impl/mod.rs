@@ -12,7 +12,6 @@ use crate::core_crypto::prelude::{
 };
 
 #[derive(Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum FourierPolynomialListVersioned<'vers> {
     V0(FourierPolynomialList<&'vers [c64]>),
 }
@@ -31,7 +30,6 @@ impl<'vers, C: Container<Element = c64>> From<&'vers FourierPolynomialList<C>>
 
 // Here we do not derive "VersionsDispatch" so that we can implement a non recursive Versionize
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum FourierPolynomialListVersionedOwned {
     V0(FourierPolynomialList<ABox<[c64]>>),
 }

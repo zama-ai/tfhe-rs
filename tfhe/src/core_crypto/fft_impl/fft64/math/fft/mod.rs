@@ -623,12 +623,12 @@ impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> 
         ) -> Result<S::Ok, S::Error> {
             use crate::core_crypto::commons::traits::Split;
 
-            #[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
             pub struct SingleFourierPolynomial<'a> {
                 fft: FftView<'a>,
                 buf: &'a [c64],
             }
 
+            #[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
             impl serde::Serialize for SingleFourierPolynomial<'_> {
                 fn serialize<S: serde::Serializer>(
                     &self,

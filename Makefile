@@ -151,10 +151,9 @@ install_tarpaulin: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-tarpaulin --locked || \
 	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
 
-.PHONY: install_tfhe_lints # Install custom tfhe-rs lints
-install_tfhe_lints:
-	(cd utils/cargo-tfhe-lints-inner && cargo install --path .) && \
-	cd utils/cargo-tfhe-lints && cargo install --path .
+.PHONY: install_cargo_dylint # Install custom tfhe-rs lints
+install_cargo_dylint:
+	cargo install cargo-dylint dylint-link
 
 .PHONY: install_typos_checker # Install typos checker
 install_typos_checker: install_rs_build_toolchain
@@ -418,10 +417,15 @@ clippy_versionable: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-versionable -- --no-deps -D warnings
 
+.PHONY: clippy_tfhe_lints # Run clippy lints on tfhe-lints
+clippy_tfhe_lints: install_cargo_dylint # the toolchain is selected with toolchain.toml
+	cd utils/tfhe-lints && \
+	cargo clippy --all-targets -- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
-clippy_versionable
+clippy_versionable clippy_tfhe_lints
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
@@ -441,9 +445,9 @@ check_rust_bindings_did_not_change:
 
 
 .PHONY: tfhe_lints # Run custom tfhe-rs lints
-tfhe_lints: install_tfhe_lints
-	cd tfhe && RUSTFLAGS="$(RUSTFLAGS)" cargo tfhe-lints \
-		--features=boolean,shortint,integer,zk-pok -- -D warnings
+tfhe_lints: install_cargo_dylint
+	RUSTFLAGS="$(RUSTFLAGS)" cargo dylint --all -p tfhe --no-deps -- \
+		--features=boolean,shortint,integer,strings,zk-pok
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
@@ -889,6 +893,11 @@ test_versionable: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--all-targets -p tfhe-versionable
 
+.PHONY: test_tfhe_lints # Run test on tfhe-lints
+test_tfhe_lints: install_cargo_dylint
+	cd utils/tfhe-lints && \
+	cargo test
+
 # The backward compat data repo holds historical binary data but also rust code to generate and load them.
 # Here we use the "patch" functionality of Cargo to make sure the repo used for the data is the same as the one used for the code.
 .PHONY: test_backward_compatibility_ci
@@ -1305,9 +1314,7 @@ sha256_bool: install_rs_check_toolchain
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
 pcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_tested check_intra_md_links \
-clippy_all check_compile_tests
-# TFHE lints deactivated as it's incompatible with 1.83 - temporary
-# tfhe_lints
+clippy_all check_compile_tests test_tfhe_lints tfhe_lints
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu check_rust_bindings_did_not_change
@@ -1317,7 +1324,7 @@ fpcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_t
 check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
-conformance: fmt fmt_js
+conformance: fix_newline fmt fmt_js
 
 #=============================== FFT Section ==================================
 .PHONY: doc_fft # Build rust doc for tfhe-fft

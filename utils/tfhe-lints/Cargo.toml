@@ -1,0 +1,25 @@
+[package]
+name = "tfhe-lints"
+version = "0.1.0"
+description = "Project specific lints for TFHE-rs"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "ff4a26d442bead94a4c96fb1de967374bc4fbd8e" }
+dylint_linting = "3.2.1"
+
+[dev-dependencies]
+dylint_testing = "3.2.1"
+serde = { version = "1.0", features = ["derive"] }
+tfhe-versionable = "0.4.0"
+
+[package.metadata.rust-analyzer]
+rustc_private = true
+
+[[example]]
+name = "ui" 
+path = "ui/main.rs" 

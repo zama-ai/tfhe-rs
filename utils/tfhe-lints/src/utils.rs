@@ -4,8 +4,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::{Ty, TyKind};
 use rustc_span::Symbol;
 
-const TOOL_NAME: &str = "tfhe_lints";
-
 /// Converts an array of str into a Vec of [`Symbol`]
 pub fn symbols_list_from_str(list: &[&str]) -> Vec<Symbol> {
     list.iter().map(|s| Symbol::intern(s)).collect()
@@ -21,13 +19,8 @@ pub fn is_allowed_lint(cx: &LateContext<'_>, target: DefId, lint_name: &str) -> 
         let mut trees = tokens.trees();
 
         if let Some(TokenTree::Token(tool_token, _)) = trees.next() {
-            if tool_token.is_ident_named(Symbol::intern(TOOL_NAME)) {
-                trees.next();
-                if let Some(TokenTree::Token(tool_token, _)) = trees.next() {
-                    if tool_token.is_ident_named(Symbol::intern(lint_name)) {
-                        return true;
-                    }
-                }
+            if tool_token.is_ident_named(Symbol::intern(lint_name)) {
+                return true;
             }
         }
     }

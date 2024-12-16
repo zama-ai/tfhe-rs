@@ -1,0 +1,17 @@
+warning: Type MyStruct implements `Serialize` but does not implement `Versionize`
+  --> $DIR/main.rs:4:1
+   |
+LL | struct MyStruct {
+   | ^^^^^^^^^^^^^^^
+   |
+   = note: Add `#[derive(Versionize)]` for this type or silence this warning using `#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]`
+note: `Serialize` derived here
+  --> $DIR/main.rs:3:10
+   |
+LL | #[derive(Serialize)]
+   |          ^^^^^^^^^
+   = note: `#[warn(serialize_without_versionize)]` on by default
+   = note: this warning originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: 1 warning emitted
+

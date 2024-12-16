@@ -3,16 +3,9 @@ use std::sync::{Arc, OnceLock};
 use rustc_hir::def_id::DefId;
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
-use rustc_session::{declare_tool_lint, impl_lint_pass};
 use rustc_span::sym;
 
 use crate::utils::{get_def_id_from_ty, is_allowed_lint, symbols_list_from_str};
-
-declare_tool_lint! {
-    pub tfhe_lints::SERIALIZE_WITHOUT_VERSIONIZE,
-    Warn,
-    "warns if `Serialize` is implemented without `Versionize`"
-}
 
 #[derive(Default)]
 pub struct SerializeWithoutVersionizeInner {
@@ -42,13 +35,30 @@ impl SerializeWithoutVersionizeInner {
 #[derive(Default, Clone)]
 pub struct SerializeWithoutVersionize(pub Arc<SerializeWithoutVersionizeInner>);
 
-impl SerializeWithoutVersionize {
-    pub fn new() -> Self {
-        Self::default()
-    }
+dylint_linting::impl_late_lint! {
+    /// ### What it does
+    /// For every type that implements `Serialize`, checks that it also implement `Versionize`
+    ///
+    /// ### Why is this bad?
+    /// If a type is serializable but does not implement Versionize, it is likely that the
+    /// implementation has been forgotten.
+    ///
+    /// ### Example
+    /// ```rust
+    /// #[derive(Serialize)]
+    /// pub struct MyStruct {}
+    /// ```
+    /// Use instead:
+    /// ```rust
+    /// #[derive(Serialize, Versionize)]
+    /// #[versionize(MyStructVersions)]
+    /// pub struct MyStruct {}
+    /// ```
+    pub SERIALIZE_WITHOUT_VERSIONIZE,
+    Warn,
+    "Detects types that implement Serialize without implementing Versionize",
+    SerializeWithoutVersionize::default()
 }
-
-impl_lint_pass!(SerializeWithoutVersionize => [SERIALIZE_WITHOUT_VERSIONIZE]);
 
 impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
@@ -74,14 +84,12 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
                 }
 
                 // Check if the implemented trait is `Serialize`
-                if let Some(versionize_trait) = self.0.versionize_trait(cx) {
-                    if let Some(def_id) = trait_ref.trait_def_id() {
-                        if cx.match_def_path(
-                            def_id,
-                            symbols_list_from_str(&SERIALIZE_TRAIT).as_slice(),
-                        ) {
-                            // Try to find an implementation of versionize for this type
-                            let mut found_impl = false;
+                if let Some(def_id) = trait_ref.trait_def_id() {
+                    if cx.match_def_path(def_id, symbols_list_from_str(&SERIALIZE_TRAIT).as_slice())
+                    {
+                        // Try to find an implementation of versionize for this type
+                        let mut found_impl = false;
+                        if let Some(versionize_trait) = self.0.versionize_trait(cx) {
                             cx.tcx
                                 .for_each_relevant_impl(versionize_trait, ty, |impl_id| {
                                     if !found_impl {
@@ -95,24 +103,29 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
                                         }
                                     }
                                 });
+                        }
 
-                            if !found_impl {
-                                // Emit a warning
-                                cx.span_lint(
-                                    SERIALIZE_WITHOUT_VERSIONIZE,
-                                    cx.tcx.def_span(type_def_id),
-                                    |diag| {
-                                        diag.primary_message("Type {ty} implements `Serialize` but does not implement `Versionize`");
-                                        diag.note("Add `#[derive(Versionize)] for this type or silence this warning using \
-`#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]``");
-                                        diag.span_note(item.span, "`Serialize` derived here");
-                                    },
-                                );
-                            }
+                        if !found_impl {
+                            // Emit a warning
+                            cx.span_lint(
+                                SERIALIZE_WITHOUT_VERSIONIZE,
+                                cx.tcx.def_span(type_def_id),
+                                |diag| {
+                                    diag.primary_message(format!("Type {ty} implements `Serialize` but does not implement `Versionize`"));
+                                    diag.note("Add `#[derive(Versionize)]` for this type or silence this warning using \
+                                               `#[cfg_attr(dylint_lib = \"tfhe_lints\", allow(serialize_without_versionize))]`");
+                                    diag.span_note(item.span, "`Serialize` derived here");
+                                },
+                            );
                         }
                     }
                 }
             }
         }
     }
+}
+
+#[test]
+fn ui() {
+    dylint_testing::ui_test_example(env!("CARGO_PKG_NAME"), "ui");
 }
