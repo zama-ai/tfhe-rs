@@ -70,7 +70,10 @@ impl CompressedDecompressionKey {
         par_convert_standard_lwe_bootstrap_key_to_fourier(&blind_rotate_key, &mut fourier_bsk);
 
         DecompressionKey {
-            blind_rotate_key: ShortintBootstrappingKey::Classic(fourier_bsk),
+            blind_rotate_key: ShortintBootstrappingKey::Classic {
+                bsk: fourier_bsk,
+                modulus_switch_noise_reduction_key: None,
+            },
             lwe_per_glwe: self.lwe_per_glwe,
         }
     }
