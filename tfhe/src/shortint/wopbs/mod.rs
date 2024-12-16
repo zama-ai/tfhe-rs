@@ -687,7 +687,10 @@ mod experimental {
                 let stack = engine.computation_buffers.stack();
 
                 match bsk {
-                    ShortintBootstrappingKey::Classic(bsk) => {
+                    ShortintBootstrappingKey::Classic {
+                        bsk,
+                        modulus_switch_noise_reduction_key: _,
+                    } => {
                         extract_bits_from_lwe_ciphertext_mem_optimized(
                             &ciphertext.ct,
                             output,
@@ -757,7 +760,10 @@ mod experimental {
                 );
 
                 let ct_out = match &self.pbs_server_key.bootstrapping_key {
-                    ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                    ShortintBootstrappingKey::Classic {
+                        bsk: fourier_bsk,
+                        modulus_switch_noise_reduction_key: _,
+                    } => {
                         let out_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
                         let mut ct_out =
                             LweCiphertextOwned::new(0, out_lwe_size, self.param.ciphertext_modulus);
@@ -882,7 +888,7 @@ mod experimental {
                 let stack = engine.computation_buffers.stack();
 
                 match &sks.bootstrapping_key {
-                    ShortintBootstrappingKey::Classic(bsk) => {
+                    ShortintBootstrappingKey::Classic{bsk, modulus_switch_noise_reduction_key:_ } => {
                         circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(
                             extracted_bits,
                             &mut output_cbs_vp_ct,
