@@ -209,7 +209,7 @@ impl CudaServerKey {
         let key_switching_key =
             CudaLweKeyswitchKey::from_lwe_keyswitch_key(&h_key_switching_key, streams);
         let bootstrapping_key = match bootstrapping_key {
-            crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic(h_bootstrap_key) => {
+            crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic{ bsk: h_bootstrap_key, modulus_switch_noise_reduction_key: _ } => {
                 let standard_bootstrapping_key =
                     h_bootstrap_key.par_decompress_into_lwe_bootstrap_key();
 
