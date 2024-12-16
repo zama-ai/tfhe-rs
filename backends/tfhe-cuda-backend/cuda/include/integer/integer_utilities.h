@@ -3079,7 +3079,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
                                            streams[0], gpu_indexes[0]);
       is_max_value =
           new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
-                                   num_radix_blocks, allocate_gpu_memory);
+                                   max_chunks, allocate_gpu_memory);
       auto is_max_value_f = [max_value](Torus x) -> Torus {
         return x == max_value;
       };
