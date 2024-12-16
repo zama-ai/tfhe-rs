@@ -126,7 +126,7 @@ jobs:
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
-          name: ${{ github.sha }}_erc20
+          name: ${{ github.sha }}_erc20_${{ inputs.profile }}
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
