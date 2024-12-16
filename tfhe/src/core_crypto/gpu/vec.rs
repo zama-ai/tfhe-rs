@@ -449,7 +449,7 @@ impl<T: Numeric> Drop for CudaVec<T> {
             .zip(self.gpu_indexes.iter().copied())
         {
             // Synchronizes the device to be sure no stream is still using this pointer
-            synchronize_device(gpu_index.0);
+            //synchronize_device(gpu_index.0);
             unsafe { cuda_drop(ptr, gpu_index.0) };
         }
     }
