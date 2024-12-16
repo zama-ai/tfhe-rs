@@ -128,7 +128,6 @@ nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
 
 # Private features
 __profiling = []
-__long_run_tests = []
 
 software-prng = ["tfhe-csprng/software-prng"]
 
