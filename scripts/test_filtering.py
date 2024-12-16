@@ -27,6 +27,12 @@ parser.add_argument(
     help="Run only a small subset of test suite",
 )
 parser.add_argument(
+    "--long-tests",
+    dest="long_tests",
+    action="store_true",
+    help="Run only the long tests suite",
+)
+parser.add_argument(
     "--nightly-tests",
     dest="nightly_tests",
     action="store_true",
@@ -80,6 +86,7 @@ EXCLUDED_INTEGER_TESTS = [
     "/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]_ks_pbs_gaussian_2m64$/",
     "/.*test_integer_smart_mul_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
     "/.*test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
+    "/.*::tests_long_run::.*/",
 ]
 
 # skip default_div, default_rem which are covered by default_div_rem
@@ -94,55 +101,61 @@ EXCLUDED_BIG_PARAMETERS = [
     "/.*_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
 ]
 
-
 def filter_integer_tests(input_args):
     (multi_bit_filter, group_filter) = (
         ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
     )
     backend_filter = ""
-    if input_args.backend == "gpu":
-        backend_filter = "gpu::"
-        if multi_bit_filter:
-            # For now, GPU only has specific parameters set for multi-bit
-            multi_bit_filter = "_gpu_multi_bit"
+    if not input_args.long_tests:
+        if input_args.backend == "gpu":
+            backend_filter = "gpu::"
+            if multi_bit_filter:
+                # For now, GPU only has specific parameters set for multi-bit
+                multi_bit_filter = "_gpu_multi_bit"
 
-    filter_expression = [f"test(/^integer::{backend_filter}.*/)"]
+        filter_expression = [f"test(/^integer::{backend_filter}.*/)"]
 
-    if input_args.multi_bit:
-        filter_expression.append("test(~_multi_bit)")
-    else:
-        filter_expression.append("not test(~_multi_bit)")
+        if input_args.multi_bit:
+            filter_expression.append("test(~_multi_bit)")
+        else:
+            filter_expression.append("not test(~_multi_bit)")
 
-    if input_args.signed_only:
-        filter_expression.append("test(~_signed)")
-    if input_args.unsigned_only:
-        filter_expression.append("not test(~_signed)")
+        if input_args.signed_only:
+            filter_expression.append("test(~_signed)")
+        if input_args.unsigned_only:
+            filter_expression.append("not test(~_signed)")
 
-    if input_args.no_big_params:
-        for pattern in EXCLUDED_BIG_PARAMETERS:
+        if input_args.no_big_params:
+            for pattern in EXCLUDED_BIG_PARAMETERS:
+                filter_expression.append(f"not test({pattern})")
+
+        if input_args.fast_tests and input_args.nightly_tests:
+            filter_expression.append(
+                f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_[2-3]_carry_[2-3]_.*/)"
+            )
+        elif input_args.fast_tests:
+            # Test only fast default operations with only one set of parameters
+            filter_expression.append(
+                f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_2_carry_2_.*/)"
+            )
+        elif input_args.nightly_tests:
+            # Test only fast default operations with only one set of parameters
+            # This subset would run slower than fast_tests hence the use of nightly_tests
+            filter_expression.append(
+                f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_3_carry_3_.*/)"
+            )
+        excluded_tests = (
+            EXCLUDED_INTEGER_FAST_TESTS if input_args.fast_tests else EXCLUDED_INTEGER_TESTS
+        )
+        for pattern in excluded_tests:
             filter_expression.append(f"not test({pattern})")
 
-    if input_args.fast_tests and input_args.nightly_tests:
-        filter_expression.append(
-            f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_[2-3]_carry_[2-3]_.*/)"
-        )
-    elif input_args.fast_tests:
-        # Test only fast default operations with only one set of parameters
-        filter_expression.append(
-            f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_2_carry_2_.*/)"
-        )
-    elif input_args.nightly_tests:
-        # Test only fast default operations with only one set of parameters
-        # This subset would run slower than fast_tests hence the use of nightly_tests
-        filter_expression.append(
-            f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_3_carry_3_.*/)"
-        )
+    else:
+        if input_args.backend == "gpu":
+            filter_expression = [f"test(/^integer::gpu::server_key::radix::tests_long_run.*/)"]
+        elif input_args.backend == "cpu":
+            filter_expression = [f"test(/^integer::server_key::radix_parallel::tests_long_run.*/)"]
 
-    excluded_tests = (
-        EXCLUDED_INTEGER_FAST_TESTS if input_args.fast_tests else EXCLUDED_INTEGER_TESTS
-    )
-    for pattern in excluded_tests:
-        filter_expression.append(f"not test({pattern})")
 
     return " and ".join(filter_expression)
 

@@ -15,8 +15,8 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   schedule:
-    # Weekly tests will be triggered each Friday at 1a.m.
-    - cron: '0 1 * * FRI'
+    # Weekly tests will be triggered each Friday at 9p.m.
+    - cron: "0 21 * * 5"
 
 jobs:
   setup-instance:
@@ -45,6 +45,7 @@ jobs:
       group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 4320 # 72 hours
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
