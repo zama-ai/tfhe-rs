@@ -9,7 +9,6 @@ use std::convert::Infallible;
 
 // Manual impl
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub(crate) enum InnerBooleanVersionedOwned {
     V0(InnerBooleanVersionOwned),
 }

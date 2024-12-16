@@ -157,7 +157,7 @@ impl AsRef<crate::integer::ServerKey> for ServerKey {
 // in multi-threading scenarios.
 #[derive(serde::Serialize)]
 // We directly versionize the `ServerKey` without having to use this intermediate type.
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
+#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
 struct SerializableServerKey<'a> {
     pub(crate) integer_key: &'a IntegerServerKey,
     pub(crate) tag: &'a Tag,

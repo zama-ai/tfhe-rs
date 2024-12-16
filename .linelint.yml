@@ -1,11 +1,15 @@
 ignore:
   - .git
   - target
+  - tfhe/build
+  - venv
+  - web-test-runner
   - tfhe/benchmarks_parameters
   - tfhe/web_wasm_parallel_tests/node_modules
   - tfhe/web_wasm_parallel_tests/dist
   - keys
   - coverage
+  - utils/tfhe-lints/ui/main.stderr
 
 rules:
   # checks if file ends in a newline character

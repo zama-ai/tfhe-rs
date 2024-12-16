@@ -19,7 +19,6 @@ pub enum DynamicDistributionVersions<T: UnsignedInteger> {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum CompressionSeedVersioned<'vers> {
     V0(&'vers CompressionSeed),
 }
@@ -31,7 +30,6 @@ impl<'vers> From<&'vers CompressionSeed> for CompressionSeedVersioned<'vers> {
 }
 
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum CompressionSeedVersionedOwned {
     V0(CompressionSeed),
 }

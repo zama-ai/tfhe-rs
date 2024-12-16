@@ -1,5 +1,9 @@
 //! Serialization utilities with some safety checks
 
+// Types in this file should never be versioned because they are a wrapper around the versioning
+// process
+#![cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
+
 use std::borrow::Cow;
 use std::fmt::Display;
 
@@ -29,8 +33,6 @@ const CRATE_VERSION: &str = concat!(
 
 /// Tells if this serialized object is versioned or not
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-// This type should not be versioned because it is part of a wrapper of versioned messages.
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 enum SerializationVersioningMode {
     /// Serialize with type versioning for backward compatibility
     Versioned {
@@ -70,8 +72,6 @@ impl SerializationVersioningMode {
 /// Header with global metadata about the serialized object. This help checking that we are not
 /// deserializing data that we can't handle.
 #[derive(Serialize, Deserialize)]
-// This type should not be versioned because it is part of a wrapper of versioned messages.
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 struct SerializationHeader {
     header_version: Cow<'static, str>,
     versioning_mode: SerializationVersioningMode,

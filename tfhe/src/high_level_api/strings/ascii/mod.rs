@@ -77,11 +77,11 @@ impl<'de> serde::Deserialize<'de> for AsciiDevice {
 
 // Only CPU data are serialized so we only versionize the CPU type.
 #[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
+#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
 pub(crate) struct AsciiDeviceVersionOwned(<FheString as VersionizeOwned>::VersionedOwned);
 
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
+#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
 pub(crate) enum AsciiDeviceVersionedOwned {
     V0(AsciiDeviceVersionOwned),
 }

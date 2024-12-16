@@ -316,7 +316,7 @@ crate-type = ["lib", "staticlib", "cdylib"]
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(tarpaulin)',
-    'cfg(tfhe_lints)',
+    'cfg(dylint_lib, values(any()))',
     # This is a bug/unwanted behavior from wasm_bindgen macro, for now warn instead of erroring
     'cfg(wasm_bindgen_unstable_test_coverage)',
 ] }
