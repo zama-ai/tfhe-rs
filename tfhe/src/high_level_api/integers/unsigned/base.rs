@@ -779,9 +779,22 @@ where
                 }
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support match_value yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let (result, matched) =
+                    cuda_key
+                        .key
+                        .key
+                        .match_value(&self.ciphertext.on_gpu(), matches, streams);
+                let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
+                if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
+                    Ok((
+                        FheUint::new(result, cuda_key.tag.clone()),
+                        FheBool::new(matched, cuda_key.tag.clone()),
+                    ))
+                } else {
+                    Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
+                }
+            }),
         })
     }
 
@@ -844,9 +857,20 @@ where
                 }
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support match_value_or yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key.key.key.match_value_or(
+                    &self.ciphertext.on_gpu(),
+                    matches,
+                    or_value,
+                    streams,
+                );
+                let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
+                if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
+                    Ok(FheUint::new(result, cuda_key.tag.clone()))
+                } else {
+                    Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
+                }
+            }),
         })
     }
 

@@ -50,6 +50,10 @@ impl<Clear> MatchValues<Clear> {
         let matches = range.map(|input| (input, func(input))).collect();
         Self(matches)
     }
+    // Public method to access the private field
+    pub fn get_values(&self) -> &Vec<(Clear, Clear)> {
+        &self.0
+    }
 }
 
 impl ServerKey {

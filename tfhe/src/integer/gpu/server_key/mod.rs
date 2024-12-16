@@ -7,11 +7,11 @@ use crate::core_crypto::prelude::{
     par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned,
     LweMultiBitBootstrapKeyOwned,
 };
+use crate::integer::gpu::UnsignedInteger;
 use crate::integer::ClientKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
-
 mod radix;
 
 pub enum CudaBootstrappingKey {
@@ -243,5 +243,28 @@ impl CudaServerKey {
             ciphertext_modulus,
             pbs_order,
         }
+    }
+
+    #[allow(clippy::unused_self)]
+    pub(crate) fn num_bits_to_represent_unsigned_value<Clear>(&self, clear: Clear) -> usize
+    where
+        Clear: UnsignedInteger,
+    {
+        if clear == Clear::MAX {
+            Clear::BITS
+        } else {
+            (clear + Clear::ONE).ceil_ilog2() as usize
+        }
+    }
+
+    /// Returns how many blocks a radix ciphertext should have to
+    /// be able to represent the given unsigned integer
+    pub(crate) fn num_blocks_to_represent_unsigned_value<Clear>(&self, clear: Clear) -> usize
+    where
+        Clear: UnsignedInteger,
+    {
+        let num_bits_to_represent_output_value = self.num_bits_to_represent_unsigned_value(clear);
+        let num_bits_in_message = self.message_modulus.0.ilog2();
+        num_bits_to_represent_output_value.div_ceil(num_bits_in_message as usize)
     }
 }

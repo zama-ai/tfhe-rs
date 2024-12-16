@@ -50,7 +50,22 @@ pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::unchecked_sub_test;
 #[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sum::default_sum_ciphertexts_vec_test;
+#[cfg(feature = "gpu")]
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_vector_find::{
+    default_contains_clear_test_case, default_contains_test_case,
+    default_first_index_in_clears_test_case, default_first_index_of_clear_test_case,
+    default_first_index_of_test_case, default_index_in_clears_test_case,
+    default_index_of_clear_test_case, default_index_of_test_case, default_is_in_clears_test_case,
+    default_match_value_or_test_case, default_match_value_test_case,
+    unchecked_contains_clear_test_case, unchecked_contains_test_case,
+    unchecked_first_index_in_clears_test_case, unchecked_first_index_of_clear_test_case,
+    unchecked_first_index_of_test_case, unchecked_index_in_clears_test_case,
+    unchecked_index_of_clear_test_case, unchecked_index_of_test_case,
+    unchecked_is_in_clears_test_case, unchecked_match_value_or_test_case,
+    unchecked_match_value_test_case,
+};
 use crate::shortint::server_key::CiphertextNoiseDegree;
+
 //=============================================================================
 // Unchecked Tests
 //=============================================================================

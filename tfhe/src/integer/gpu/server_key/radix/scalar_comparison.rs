@@ -8,6 +8,8 @@ use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
+    unchecked_are_all_comparisons_block_true_integer_radix_kb_async,
+    unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_async,
     unchecked_scalar_comparison_integer_radix_kb_async, ComparisonType, PBSType,
 };
 use crate::shortint::ciphertext::Degree;
@@ -397,6 +399,160 @@ impl CudaServerKey {
         }
         result.as_mut().info = ct.as_ref().info.after_min_max();
         result
+    }
+
+    pub fn unchecked_are_all_comparisons_block_true<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+
+        let ct_res: T = self.create_trivial_radix(0, 1, streams);
+        let mut boolean_res = CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    unchecked_are_all_comparisons_block_true_integer_radix_kb_async(
+                        streams,
+                        &mut boolean_res.as_mut().ciphertext.d_blocks.0.d_vec,
+                        &ct.as_ref().d_blocks.0.d_vec,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    unchecked_are_all_comparisons_block_true_integer_radix_kb_async(
+                        streams,
+                        &mut boolean_res.as_mut().ciphertext.d_blocks.0.d_vec,
+                        &ct.as_ref().d_blocks.0.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                    );
+                }
+            }
+        }
+        boolean_res.as_mut().ciphertext.info = boolean_res
+            .as_ref()
+            .ciphertext
+            .info
+            .after_block_comparisons();
+        streams.synchronize();
+        boolean_res
+    }
+
+    pub fn unchecked_is_at_least_one_comparisons_block_true<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+
+        let ct_res: T = self.create_trivial_radix(0, 1, streams);
+        let mut boolean_res = CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_async(
+                        streams,
+                        &mut boolean_res.as_mut().ciphertext.d_blocks.0.d_vec,
+                        &ct.as_ref().d_blocks.0.d_vec,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_async(
+                        streams,
+                        &mut boolean_res.as_mut().ciphertext.d_blocks.0.d_vec,
+                        &ct.as_ref().d_blocks.0.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                    );
+                }
+            }
+        }
+        boolean_res.as_mut().ciphertext.info = boolean_res
+            .as_ref()
+            .ciphertext
+            .info
+            .after_block_comparisons();
+        streams.synchronize();
+        boolean_res
     }
 
     /// # Safety
