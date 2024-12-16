@@ -137,6 +137,8 @@ __host__ void are_all_comparisons_block_true(
                                  h_lut_indexes, num_chunks * sizeof(Torus),
                                  streams[0], gpu_indexes[0]);
         is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
+        cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+        free(h_lut_indexes);
       }
       lut = is_max_value_lut;
     }
