@@ -10,6 +10,9 @@ function usage() {
     echo "--multi-bit               Run multi-bit tests only: default off"
     echo "--unsigned-only           Run only unsigned integer tests, by default both signed and unsigned tests are run"
     echo "--signed-only             Run only signed integer tests, by default both signed and unsigned tests are run"
+    echo "--nightly-tests           Run integer tests configured for nightly runs (3_3 params)"
+    echo "--fast-tests              Run integer set but skip a subset of longer tests"
+    echo "--long-tests              Run only long run integer tests"
     echo "--cargo-profile           The cargo profile used to build tests"
     echo "--backend                 Backend to use with tfhe-rs"
     echo "--avx512-support          Set to ON to enable avx512"
@@ -21,6 +24,7 @@ RUST_TOOLCHAIN="+stable"
 multi_bit_argument=
 sign_argument=
 fast_tests_argument=
+long_tests_argument=
 nightly_tests_argument=
 no_big_params_argument=
 cargo_profile="release"
@@ -91,6 +95,10 @@ if [[ "${FAST_TESTS}" == TRUE ]]; then
     fast_tests_argument=--fast-tests
 fi
 
+if [[ "${LONG_TESTS}" == TRUE ]]; then
+    long_tests_argument=--long-tests
+fi
+
 if [[ "${NIGHTLY_TESTS}" == TRUE ]]; then
     nightly_tests_argument=--nightly-tests
 fi
@@ -137,17 +145,23 @@ if [[ "${backend}" == "gpu" ]]; then
     fi
 fi
 
-filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument} ${nightly_tests_argument} ${multi_bit_argument} ${sign_argument} ${no_big_params_argument})
+filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument} ${long_tests_argument} ${nightly_tests_argument} ${multi_bit_argument} ${sign_argument} ${no_big_params_argument})
 
 if [[ "${FAST_TESTS}" == "TRUE" ]]; then
     echo "Running 'fast' test set"
-else
+elif [[ "${LONG_TESTS}" == "FALSE" ]]; then
     echo "Running 'slow' test set"
+fi
+
+if [[ "${LONG_TESTS}" == "TRUE" ]]; then
+    echo "Running 'long run' test set"
 fi
 
 if [[ "${NIGHTLY_TESTS}" == "TRUE" ]]; then
     echo "Running 'nightly' test set"
 fi
+
+echo "${filter_expression}"
 
 cargo "${RUST_TOOLCHAIN}" nextest run \
     --tests \
@@ -158,7 +172,7 @@ cargo "${RUST_TOOLCHAIN}" nextest run \
     --test-threads "${test_threads}" \
     -E "$filter_expression"
 
-if [[ -z ${multi_bit_argument} ]]; then
+if [[ -z ${multi_bit_argument} && -z ${long_tests_argument} ]]; then
     cargo "${RUST_TOOLCHAIN}" test \
         --profile "${cargo_profile}" \
         --package "${tfhe_package}" \

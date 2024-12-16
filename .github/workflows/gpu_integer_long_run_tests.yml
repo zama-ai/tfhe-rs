@@ -1,4 +1,4 @@
-name: AWS Long Run Tests on GPU
+name: Long Run Tests on GPU
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,8 +15,8 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   schedule:
-    # Weekly tests will be triggered each Friday at 1a.m.
-    - cron: '0 1 * * FRI'
+    # Weekly tests will be triggered each Friday at 9p.m.
+    - cron: "0 21 * * 5"
 
 jobs:
   setup-instance:
@@ -36,10 +36,10 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: hyperstack
-          profile: 2-h100
+          profile: multi-gpu-test
 
   cuda-tests:
-    name: Long run GPU H100 tests
+    name: Long run GPU tests
     needs: [ setup-instance ]
     concurrency:
       group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}
@@ -53,6 +53,7 @@ jobs:
           - os: ubuntu-22.04
             cuda: "12.2"
             gcc: 11 
+    timeout-minutes: 4320 # 72 hours
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -87,7 +88,7 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ needs.cuda-tests.result }}
-          SLACK_MESSAGE: "Integer GPU H100 long run tests finished with status: ${{ needs.cuda-tests.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Integer GPU long run tests finished with status: ${{ needs.cuda-tests.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (gpu-tests)
