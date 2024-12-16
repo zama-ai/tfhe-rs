@@ -97,6 +97,7 @@ impl CudaServerKey {
                 );
             }
         }
+        ct.as_mut().info = ct.as_ref().info.after_scalar_rotate();
     }
 
     pub fn unchecked_scalar_rotate_left<Scalar, T>(
@@ -204,6 +205,7 @@ impl CudaServerKey {
                 );
             }
         }
+        ct.as_mut().info = ct.as_ref().info.after_scalar_rotate();
     }
 
     pub fn unchecked_scalar_rotate_right<Scalar, T>(

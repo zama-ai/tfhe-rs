@@ -79,6 +79,7 @@ impl CudaServerKey {
                 );
             }
         }
+        result.as_mut().info = true_ct.as_ref().info.after_if_then_else();
 
         result
     }

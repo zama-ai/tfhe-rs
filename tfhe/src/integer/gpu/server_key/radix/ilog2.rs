@@ -775,7 +775,9 @@ impl CudaServerKey {
 
         let result = self.sum_ciphertexts_async(ciphertexts, streams).unwrap();
 
-        self.cast_to_unsigned_async(result, counter_num_blocks, streams)
+        let mut result_cast = self.cast_to_unsigned_async(result, counter_num_blocks, streams);
+        result_cast.as_mut().info = ct.as_ref().info.after_ilog2();
+        result_cast
     }
 
     /// Returns the number of trailing zeros in the binary representation of `ct`
