@@ -1,5 +1,6 @@
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::math::random::CompressionSeed;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweBskGroupingFactor, LweDimension, PolynomialSize, ThreadCount,
@@ -9,10 +10,14 @@ use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
-use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
+use crate::shortint::server_key::{
+    CompressedModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKey,
+    ShortintBootstrappingKey, ShortintCompressedBootstrappingKey,
+};
 use crate::shortint::{
     CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey,
 };
+use tfhe_csprng::seeders::Seeder;
 
 impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {
@@ -105,14 +110,30 @@ impl ShortintEngine {
     ) -> ShortintBootstrappingKey {
         match pbs_params_base {
             PBSParameters::PBS(pbs_params) => {
-                ShortintBootstrappingKey::Classic(self.new_classic_bootstrapping_key(
+                let bsk = self.new_classic_bootstrapping_key(
                     in_key,
                     out_key,
                     pbs_params.glwe_noise_distribution,
                     pbs_params.pbs_base_log,
                     pbs_params.pbs_level,
                     pbs_params.ciphertext_modulus,
-                ))
+                );
+                let modulus_switch_noise_reduction_key = pbs_params
+                    .modulus_switch_noise_reduction_params
+                    .map(|modulus_switch_noise_reduction_params| {
+                        ModulusSwitchNoiseReductionKey::new(
+                            modulus_switch_noise_reduction_params,
+                            in_key,
+                            &mut self.encryption_generator,
+                            pbs_params.ciphertext_modulus,
+                            pbs_params.lwe_noise_distribution,
+                        )
+                    });
+
+                ShortintBootstrappingKey::Classic {
+                    bsk,
+                    modulus_switch_noise_reduction_key,
+                }
             }
             PBSParameters::MultiBitPBS(pbs_params) => {
                 let fourier_bsk = self.new_multibit_bootstrapping_key(
@@ -322,7 +343,25 @@ impl ShortintEngine {
                     &mut self.seeder,
                 );
 
-                ShortintCompressedBootstrappingKey::Classic(bootstrapping_key)
+                let modulus_switch_noise_reduction_key = pbs_params
+                    .modulus_switch_noise_reduction_params
+                    .map(|modulus_switch_noise_reduction_params| {
+                        CompressedModulusSwitchNoiseReductionKey::new(
+                            modulus_switch_noise_reduction_params,
+                            &cks.small_lwe_secret_key(),
+                            &mut self.encryption_generator,
+                            pbs_params.ciphertext_modulus,
+                            pbs_params.lwe_noise_distribution,
+                            CompressionSeed {
+                                seed: self.seeder.seed(),
+                            },
+                        )
+                    });
+
+                ShortintCompressedBootstrappingKey::Classic {
+                    bsk: bootstrapping_key,
+                    modulus_switch_noise_reduction_key,
+                }
             }
             crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
                 #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
