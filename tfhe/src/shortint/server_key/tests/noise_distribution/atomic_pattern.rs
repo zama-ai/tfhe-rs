@@ -52,14 +52,20 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
 use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
+    V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+    V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+};
 use crate::shortint::parameters::compact_public_key_only::{
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
     ShortintCompactCiphertextListCastingMode,
 };
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
     V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
     V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
 };
 use crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 use crate::shortint::parameters::list_compression::{
@@ -1359,10 +1365,28 @@ fn test_noise_check_shortint_pke_encrypt_ks_to_small_noise() {
 }
 
 #[test]
+fn test_noise_check_shortint_pke_encrypt_ks_to_small_noise_zkv1() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
+        V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+#[test]
 fn test_noise_check_shortint_pke_encrypt_ks_to_big_noise() {
     noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
         V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+#[test]
+fn test_noise_check_shortint_pke_encrypt_ks_to_big_noise_zkv1() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
+        V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
 }
@@ -1524,10 +1548,28 @@ fn test_noise_check_shortint_pke_encrypt_ks_to_small_pfail() {
 }
 
 #[test]
+fn test_noise_check_shortint_pke_encrypt_ks_to_small_pfail_zkv1() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
+        V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+#[test]
 fn test_noise_check_shortint_pke_encrypt_ks_to_big_pfail() {
     noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
         V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+#[test]
+fn test_noise_check_shortint_pke_encrypt_ks_to_big_pfail_zkv1() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
+        V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
 }
