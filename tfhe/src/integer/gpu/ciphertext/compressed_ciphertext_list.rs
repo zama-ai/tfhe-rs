@@ -730,17 +730,21 @@ mod tests {
 
     #[test]
     fn test_gpu_ciphertext_compression_fast_path() {
+        /// Implement a test only for the storage of ciphertexts
+        /// using a custom parameter set which is supported by a fast-path
+        /// packing keyswitch (only for level_count==1)
+
         const COMP_PARAM_CUSTOM_FAST_PATH: CompressionParameters = CompressionParameters {
             br_level: DecompositionLevelCount(1),
-            br_base_log: DecompositionBaseLog(23),
+            br_base_log: DecompositionBaseLog(21),
             packing_ks_level: DecompositionLevelCount(1),
-            packing_ks_base_log: DecompositionBaseLog(21),
+            packing_ks_base_log: DecompositionBaseLog(19),
             packing_ks_polynomial_size: PolynomialSize(2048),
             packing_ks_glwe_dimension: GlweDimension(1),
             lwe_per_glwe: LweCiphertextCount(2048),
-            storage_log_modulus: CiphertextModulusLog(19),
+            storage_log_modulus: CiphertextModulusLog(55),
             packing_ks_key_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(
-                StandardDev(0.0),
+                StandardDev(2.845267479601915e-15),
             ),
         };
 
@@ -748,7 +752,7 @@ mod tests {
 
         let streams = CudaStreams::new_multi_gpu();
 
-        let (radix_cks, _sks) = gen_keys_radix_gpu(
+        let (radix_cks, sks) = gen_keys_radix_gpu(
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             NUM_BLOCKS,
             &streams,
@@ -787,7 +791,8 @@ mod tests {
                         let ct = radix_cks.encrypt(message);
                         let d_ct =
                             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
-                        builder.push(d_ct, &streams);
+                        let d_and_ct = sks.bitand(&d_ct, &d_ct, &streams);
+                        builder.push(d_and_ct, &streams);
                         messages.push(MessageType::Unsigned(message));
                     }
                     1 => {
@@ -797,7 +802,8 @@ mod tests {
                         let ct = radix_cks.encrypt_signed(message);
                         let d_ct =
                             CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
-                        builder.push(d_ct, &streams);
+                        let d_and_ct = sks.bitand(&d_ct, &d_ct, &streams);
+                        builder.push(d_and_ct, &streams);
                         messages.push(MessageType::Signed(message));
                     }
                     _ => {

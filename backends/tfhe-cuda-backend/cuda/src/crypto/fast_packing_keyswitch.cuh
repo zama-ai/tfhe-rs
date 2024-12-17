@@ -27,11 +27,8 @@ __host__ inline bool can_use_pks_fast_path(uint32_t lwe_dimension_in,
                                            uint32_t polynomial_size,
                                            uint32_t level_count,
                                            uint32_t glwe_dimension) {
-  return level_count == 1; // &&
-  //         glwe_dimension == 1;
-
-  /// lwe_dimension_in % BLOCK_SIZE_GEMM == 0 &&
-  // num_lwe % BLOCK_SIZE_GEMM == 0 &&
+  // TODO: Generalize to level_count > 1 by transposing the KSK
+  return level_count == 1;
 }
 
 template <typename Torus, typename TorusVec>
@@ -252,20 +249,26 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_lwes) {
 
-  printf("FAST PATH PKS\n");
   // Optimization of packing keyswitch when packing many LWEs
+
+  if (level_count > 1) {
+    PANIC("Fast path PKS only supports level_count==1");
+  }
 
   cudaSetDevice(gpu_index);
   check_cuda_error(cudaGetLastError());
 
   int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
-  int memory_unit =
-      glwe_accumulator_size; // > lwe_dimension_in ? glwe_accumulator_size :
-                             // lwe_dimension_in;
 
-  if (lwe_dimension_in > glwe_accumulator_size) {
-    printf("PKS with lwe_dimension_in > glwe_accumulator_size\n");
-  }
+  // The fast path of PKS uses the scratch buffer (d_mem) differently than the
+  // old path: it needs to store the decomposed masks in the first half of this
+  // buffer and the keyswitched GLWEs in the second half of the buffer. Thus the
+  // scratch buffer for the fast path must determine the half-size of the
+  // scratch buffer as the max between the size of the GLWE and the size of the
+  // LWE-mask
+  int memory_unit = glwe_accumulator_size > lwe_dimension_in
+                        ? glwe_accumulator_size
+                        : lwe_dimension_in;
 
   // ping pong the buffer between successive calls
   // split the buffer in two parts of this size
@@ -298,9 +301,7 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
                  CEIL_DIV(num_lwes, BLOCK_SIZE_GEMM));
   dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
 
-  printf("GEMM BLOCKS (%d, %d)\n", grid_gemm.x, grid_gemm.y);
-
-  auto stride_KSK_buffer = level_count * glwe_accumulator_size;
+  auto stride_KSK_buffer = glwe_accumulator_size;
 
   uint32_t sharedMemSize = BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
   tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
@@ -308,17 +309,21 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
       stride_KSK_buffer, d_mem_1);
   check_cuda_error(cudaGetLastError());
 
-  for (int li = 1; li < level_count; ++li) {
-    decompose_vectorize_step_inplace<Torus, TorusVec>
-        <<<grid_decomp, threads_decomp, 0, stream>>>(
-            d_mem_0, lwe_dimension_in, num_lwes, base_log, level_count);
-    check_cuda_error(cudaGetLastError());
+  /*
+    TODO: transpose key to generalize to level_count > 1
 
-    tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
-        num_lwes, glwe_accumulator_size, lwe_dimension_in, d_mem_0,
-        fp_ksk_array + li * glwe_accumulator_size, stride_KSK_buffer, d_mem_1);
-    check_cuda_error(cudaGetLastError());
-  }
+    for (int li = 1; li < level_count; ++li) {
+      decompose_vectorize_step_inplace<Torus, TorusVec>
+          <<<grid_decomp, threads_decomp, 0, stream>>>(
+              d_mem_0, lwe_dimension_in, num_lwes, base_log, level_count);
+      check_cuda_error(cudaGetLastError());
+
+      tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize,
+    stream>>>( num_lwes, glwe_accumulator_size, lwe_dimension_in, d_mem_0,
+          fp_ksk_array + li * ksk_block_size, stride_KSK_buffer, d_mem_1);
+      check_cuda_error(cudaGetLastError());
+    }
+  */
 
   // should we include the mask in the rotation ??
   dim3 grid_rotate(CEIL_DIV(num_lwes, BLOCK_SIZE_DECOMP),
