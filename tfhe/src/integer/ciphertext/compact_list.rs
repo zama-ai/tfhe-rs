@@ -1073,8 +1073,14 @@ mod tests {
         BooleanBlock, ClientKey, CompactPrivateKey, CompactPublicKey, RadixCiphertext, ServerKey,
     };
     use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
+        V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+    };
+    use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
+        V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+    };
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
     use rand::random;
 
@@ -1094,6 +1100,73 @@ mod tests {
             .unwrap();
 
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(512)).unwrap();
+        let cks = ClientKey::new(fhe_params);
+        let sk = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        let msgs = (0..512)
+            .map(|_| random::<u64>() % modulus)
+            .collect::<Vec<_>>();
+
+        let proven_ct = CompactCiphertextList::builder(&pk)
+            .extend_with_num_blocks(msgs.iter().copied(), num_blocks)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        let expander = proven_ct
+            .verify_and_expand(
+                &crs,
+                &pk,
+                &metadata,
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            )
+            .unwrap();
+
+        for (idx, msg) in msgs.iter().copied().enumerate() {
+            let expanded = expander.get::<RadixCiphertext>(idx).unwrap().unwrap();
+            let decrypted = cks.decrypt_radix::<u64>(&expanded);
+            assert_eq!(msg, decrypted);
+        }
+
+        let unverified_expander = proven_ct
+            .expand_without_verification(
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            )
+            .unwrap();
+
+        for (idx, msg) in msgs.iter().copied().enumerate() {
+            let expanded = unverified_expander
+                .get::<RadixCiphertext>(idx)
+                .unwrap()
+                .unwrap();
+            let decrypted = cks.decrypt_radix::<u64>(&expanded);
+            assert_eq!(msg, decrypted);
+        }
+    }
+
+    /// Test a compact list encryption proven with the v1 zk scheme
+    #[test]
+    fn test_zkv1_compact_ciphertext_list_encryption_ci_run_filter() {
+        let pke_params = V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1;
+        let ksk_params =
+            V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1;
+
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+
+        let num_blocks = 4usize;
+        let modulus = pke_params
+            .message_modulus
+            .0
+            .checked_pow(num_blocks as u32)
+            .unwrap();
+
+        let crs =
+            CompactPkeCrs::from_shortint_params_legacy_v1(pke_params, LweCiphertextCount(512))
+                .unwrap();
         let cks = ClientKey::new(fhe_params);
         let sk = ServerKey::new_radix_server_key(&cks);
         let compact_private_key = CompactPrivateKey::new(pke_params);
