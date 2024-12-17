@@ -228,11 +228,11 @@ fn noise_check_compact_public_key_encryption_noise_tuniform(
 #[test]
 fn test_noise_check_compact_public_key_encryption_noise_tuniform() {
     let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    let mut cpk_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let mut cpk_params = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     // Hack to avoid server key needs and get the ciphertext directly
     cpk_params.expansion_kind =
         CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice.into());
-    let ksk_params = PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let ksk_params = V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
     let modulus_as_f64 = if cpk_params.ciphertext_modulus.is_native_modulus() {
         2.0f64.powi(u64::BITS as i32)
