@@ -488,8 +488,6 @@ mod tests {
     use rand::Rng;
 
     use crate::core_crypto::prelude::*;
-    use crate::shortint::ciphertext::MaxNoiseLevel;
-    use crate::shortint::parameters::{CarryModulus, ClassicPBSParameters, MessageModulus};
 
     use crate::core_crypto::prelude::{CiphertextModulusLog, LweCiphertextCount};
     use crate::shortint::parameters::list_compression::CompressionParameters;
@@ -733,7 +731,6 @@ mod tests {
         /// Implement a test only for the storage of ciphertexts
         /// using a custom parameter set which is supported by a fast-path
         /// packing keyswitch (only for level_count==1)
-
         const COMP_PARAM_CUSTOM_FAST_PATH: CompressionParameters = CompressionParameters {
             br_level: DecompositionLevelCount(1),
             br_base_log: DecompositionBaseLog(21),
