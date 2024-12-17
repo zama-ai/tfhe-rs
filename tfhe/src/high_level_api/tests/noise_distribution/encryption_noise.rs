@@ -1,3 +1,14 @@
+use shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
+    V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+    V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+};
+use shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
+    V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+    V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+};
+use shortint::parameters::{CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters};
+use shortint::ClassicPBSParameters;
+
 use crate::core_crypto::algorithms::lwe_encryption::decrypt_lwe_ciphertext;
 use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::commons::math::random::DynamicDistribution;
@@ -106,20 +117,47 @@ fn test_noise_check_secret_key_encryption_noise_tuniform() {
 
 #[test]
 fn test_noise_check_compact_public_key_encryption_noise_tuniform() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    let mut cpk_params = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    // Hack to avoid server key needs and get the ciphertext directly
-    cpk_params.expansion_kind =
-        CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice.into());
-    let ksk_params = V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    noise_check_compact_public_key_encryption_noise_tuniform(
+        V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
 
-    let modulus_as_f64 = if cpk_params.ciphertext_modulus.is_native_modulus() {
+#[test]
+fn test_noise_check_compact_public_key_encryption_noise_tuniform_zkv1_small() {
+    noise_check_compact_public_key_encryption_noise_tuniform(
+        V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+#[test]
+fn test_noise_check_compact_public_key_encryption_noise_tuniform_zkv1_big() {
+    noise_check_compact_public_key_encryption_noise_tuniform(
+        V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+fn noise_check_compact_public_key_encryption_noise_tuniform(
+    mut cpke_params: CompactPublicKeyEncryptionParameters,
+    ksk_params: ShortintKeySwitchingParameters,
+    block_params: ClassicPBSParameters,
+) {
+    // Hack to avoid server key needs and get the ciphertext directly
+    cpke_params.expansion_kind =
+        CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice.into());
+
+    let modulus_as_f64 = if cpke_params.ciphertext_modulus.is_native_modulus() {
         2.0f64.powi(u64::BITS as i32)
     } else {
-        cpk_params.ciphertext_modulus.get_custom_modulus() as f64
+        cpke_params.ciphertext_modulus.get_custom_modulus() as f64
     };
 
-    let encryption_noise = cpk_params.encryption_noise_distribution;
+    let encryption_noise = cpke_params.encryption_noise_distribution;
     let encryption_variance = match encryption_noise {
         DynamicDistribution::Gaussian(_gaussian) => {
             panic!("This test is written for TUniform, wrong parameter set used")
@@ -129,11 +167,11 @@ fn test_noise_check_compact_public_key_encryption_noise_tuniform() {
 
     let expected_variance = lwe_compact_public_key_encryption_expected_variance(
         encryption_variance,
-        cpk_params.encryption_lwe_dimension,
+        cpke_params.encryption_lwe_dimension,
     );
 
     let config = ConfigBuilder::with_custom_parameters(block_params)
-        .use_dedicated_compact_public_key_parameters((cpk_params, ksk_params))
+        .use_dedicated_compact_public_key_parameters((cpke_params, ksk_params))
         .build();
 
     const NB_TEST: usize = 16000;
@@ -145,7 +183,7 @@ fn test_noise_check_compact_public_key_encryption_noise_tuniform() {
 
         let mut builder = CompactCiphertextList::builder(&cpk);
         builder
-            .push_with_num_bits(0u32, cpk_params.message_modulus.0.ilog2() as usize)
+            .push_with_num_bits(0u32, cpke_params.message_modulus.0.ilog2() as usize)
             .unwrap();
         let list = builder.build();
         let expanded = list.expand().unwrap();
