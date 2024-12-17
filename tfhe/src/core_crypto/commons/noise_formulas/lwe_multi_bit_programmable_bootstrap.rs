@@ -122,7 +122,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_impl(
             * output_glwe_dimension
             * output_polynomial_size.powf(2.0)
             * (output_glwe_dimension + 1.0)
-            + 8.0
+            + 2.0
                 * decomposition_level_count
                 * output_polynomial_size
                 * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
@@ -151,7 +151,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_impl_exact_mul(
     // new w/ exact mul (Karatsuba) & multi-bit fixes
     (1_f64 / 3.0)
         * input_lwe_dimension
-        * (8.0
+        * (2.0
                 * decomposition_level_count
                 * output_polynomial_size
                 * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()

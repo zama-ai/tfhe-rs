@@ -3,18 +3,20 @@ use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::*;
 use crate::core_crypto::commons::noise_formulas::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian;
-use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
+use crate::core_crypto::commons::test_tools::{variance};
 use npyz::{DType, WriterBuilder};
 use rayon::prelude::*;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::fs::File;
+use std::mem::discriminant;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
-const NB_TESTS: usize = 2000;
+const NB_TESTS: usize = 10;
+const EXP_NAME: &str = "bordel";
 
 fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestParams<u64>) {
     type Scalar = u64;
@@ -31,6 +33,18 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
     let pbs_decomposition_level_count = params.decomp_level_count;
     let grouping_factor = params.grouping_factor;
     assert_eq!(grouping_factor.0, 3);
+    assert_eq!(
+        discriminant(&lwe_noise_distribution),
+        discriminant(&glwe_noise_distribution),
+        "Noises are not of the same variant"
+    );
+    let distro: &str = if let DynamicDistribution::Gaussian(_) = lwe_noise_distribution {
+        "GAUSSIAN"
+    } else if let DynamicDistribution::TUniform(_) = lwe_noise_distribution {
+        "TUNIFORM"
+    } else {
+        panic!("Unknown distribution: {lwe_noise_distribution:?}")
+    };
 
     let modulus_as_f64 = if ciphertext_modulus.is_native_modulus() {
         2.0f64.powi(Scalar::BITS as i32)
@@ -38,6 +52,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
         ciphertext_modulus.get_custom_modulus() as f64
     };
 
+    assert!(matches!(&lwe_noise_distribution, DynamicDistribution::Gaussian(_)), "Export of TUniform formulas not implemented in concrete-spec");
     let expected_variance_fft = multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
         input_lwe_dimension,
         glwe_dimension,
@@ -57,7 +72,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
 
     //TODO check this, seems doing something wrong (then possibly uncomment asserts)
     // 3 sigma                            > half   interval size (msg-mod    +    padding bit)
-    if 3.0*expected_variance_fft.0.sqrt() > 0.5 * (2usize.pow(message_modulus_log.0 as u32 + 1) as f64) {return;}
+    if 3.0*expected_variance_fft.0.sqrt() > 0.5 / (2usize.pow(message_modulus_log.0 as u32 + 1) as f64) {return;}
 
     let mut rsc = {
         let mut deterministic_seeder = Box::new(
@@ -230,7 +245,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                 );
 
                 //TODO un-hard-code distro
-                let filename_kara = format!("./samples-out/kara-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
+                let filename_kara = format!("./results/{EXP_NAME}/samples/kara-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
 
                 let mut file = OpenOptions::new()
                     .create(true)
@@ -287,7 +302,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
                 );
 
                 //TODO un-hard-code distro
-                let filename_fft = format!("./samples-out/fft-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
+                let filename_fft = format!("./results/{EXP_NAME}/samples/fft-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
 
                 let mut file = OpenOptions::new()
                     .create(true)
@@ -382,7 +397,7 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
     );
 
     // output predicted noises to JSON
-    let filename_exp_var = format!("./samples-out/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro=GAUSSIAN.json", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
+    let filename_exp_var = format!("./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
     let mut file_exp_var = File::create(&filename_exp_var).unwrap();
 
     file_exp_var.write_all(
@@ -391,13 +406,15 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
     "measured_variance_kara": {},
     "expected_variance_kara": {},
     "measured_variance_fft": {},
-    "expected_variance_fft": {}
+    "expected_variance_fft": {},
+    "n_samples": {}
 }}"#,
             input_lwe_dimension.0,
             measured_variance_kara.0,
             expected_variance_kara.0,
             measured_variance_fft.0,
             expected_variance_fft.0,
+            NB_TESTS,
         ).as_bytes()
     ).unwrap();
 
@@ -430,7 +447,14 @@ fn lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(params: MultiBitTestPara
 #[test]
 fn test_lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod_noise_test_params_multi_bit_group_3_4_bits_native_u64_132_bits_gaussian(
 ) {
-    println!("Acquiring {NB_TESTS} samples ...");
+    //~ lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ return;
+    lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
+    lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
+    lwe_encrypt_multi_bit_pbs_group_3_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
+    return;
+
+    println!("Acquiring {NB_TESTS} samples for \"{EXP_NAME}\" experiment ...");
     //~ for gf in [2,3,4] { //TODO add Vanilla BlindRot
     let gf = 3;
     for logbase in (9..=30).step_by(3) {

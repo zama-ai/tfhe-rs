@@ -7,9 +7,10 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 
-IN_FILE_FMT = "samples-out/%s-id=%d-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.npy"
-OUT_FILE_FMT = "graphs/%s-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s-nsamples=%d.png"
-EXP_VAR_FILE_FMT = "samples-out/expected-variances-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.json"
+EXP_NAME = "bordel" # wide-search-2000   gpu-gauss
+IN_FILE_FMT = "results/" + EXP_NAME + "/samples/%s-id=%d-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.npy"
+OUT_FILE_FMT = "results/" + EXP_NAME + "/graphs/%s-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s-nsamples=%d.png"
+EXP_VAR_FILE_FMT = "results/" + EXP_NAME + "/expected-variances-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.json"
 CT_MOD = 2.0**64
 
 FIG_W = 2400
@@ -17,8 +18,6 @@ FIG_H = 1200
 DPI = 96
 
 NB_TESTS_MAX = 2501
-
-data_len = len(np.load(IN_FILE_FMT % ("fft", 0, 3, 20, 1, 1, 2048, "GAUSSIAN")))
 
 fft_noises = {}
 kara_noises = {}
@@ -29,8 +28,8 @@ for gf in range(3,3+1):
         for level in range(1,4+1):
             if logbase * level < 15 or logbase * level > 30:
                 continue
-            for k in range(1,2+1):
-                for logN in range(9,11+1):
+            for k in range(1,3+1):
+                for logN in range(9,13+1):
 
                     # Convert dictionary to tuple (sorted to make it deterministic)
                     params = tuple(sorted({
@@ -53,6 +52,7 @@ for gf in range(3,3+1):
                     expected_variance_fft  = exp_vars["expected_variance_fft"]
 
                     # load noise measurements into a single array
+                    data_len = len(np.load(IN_FILE_FMT % ("fft", 0, gf, logbase, level, k, 1<<logN, "GAUSSIAN")))
                     fft_noises[params] = [np.array([]) for _ in range(0,data_len)]
                     kara_noises[params] = [np.array([]) for _ in range(0,data_len)]
 
@@ -211,7 +211,7 @@ for gf in range(3,3+1):
                     print("Kara linear fit:", wk[0])
                     print("Kara avg  slope:", kara_avg_slope_2nd_half)
                     print("FFT  linear fit:", wf[0])
-                    print("FFT  avg  slope:", fft_avg_slope_2nd_half, "TODO: skip first X values")
+                    print("FFT  avg  slope:", fft_avg_slope_2nd_half)
                     print("FFT-only diff of fits:      ", (wf - wk)[0])
                     print("FFT-only diff of avg slopes:", fft_avg_slope_2nd_half - kara_avg_slope_2nd_half)
                     # ~ print("----")
