@@ -35,6 +35,24 @@ pub const V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M6
     destination_key: EncryptionKeyChoice::Big,
 };
 
+// Parameters to keyswitch from input PKE 2_2 TUniform parameters to 2_2 KS_PBS compute parameters
+// arriving under the small key, requires a PBS to get to the big key
+pub const V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1:
+    ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
+    ks_level: DecompositionLevelCount(5),
+    ks_base_log: DecompositionBaseLog(3),
+    destination_key: EncryptionKeyChoice::Small,
+};
+
+// Parameters to keyswitch from input PKE 2_2 TUniform parameters to 2_2 KS_PBS compute parameters
+// arriving under the big key, requires a PBS to get to the big key
+pub const V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1:
+    ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
+    ks_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(23),
+    destination_key: EncryptionKeyChoice::Big,
+};
+
 // These are the same parameters as they where defined in TFHE-rs 0.10 and before
 pub const V0_10_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64:
     ShortintKeySwitchingParameters =
