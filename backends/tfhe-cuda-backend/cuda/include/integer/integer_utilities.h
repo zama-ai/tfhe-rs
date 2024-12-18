@@ -1539,10 +1539,12 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     cuda_memset_async(grouping_pgns, 0, num_groups * big_lwe_size_bytes,
                       streams[0], gpu_indexes[0]);
 
-    prepared_blocks = (Torus *)cuda_malloc_async(
-        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(prepared_blocks, 0, num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
+    prepared_blocks =
+        (Torus *)cuda_malloc_async((num_radix_blocks + 1) * big_lwe_size_bytes,
+                                   streams[0], gpu_indexes[0]);
+    cuda_memset_async(prepared_blocks, 0,
+                      (num_radix_blocks + 1) * big_lwe_size_bytes, streams[0],
+                      gpu_indexes[0]);
 
     resolved_carries = (Torus *)cuda_malloc_async(
         (num_groups + 1) * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
@@ -1772,7 +1774,6 @@ template <typename Torus> struct int_sc_prop_memory {
   uint32_t num_many_lut;
   uint32_t lut_stride;
 
-  uint32_t group_size;
   uint32_t num_groups;
   Torus *output_flag;
   Torus *last_lhs;
@@ -1780,8 +1781,6 @@ template <typename Torus> struct int_sc_prop_memory {
   int_radix_lut<Torus> *lut_message_extract;
 
   int_radix_lut<Torus> *lut_overflow_flag_prep;
-  int_radix_lut<Torus> *lut_overflow_flag_last;
-  int_radix_lut<Torus> *lut_carry_flag_last;
 
   int_shifted_blocks_and_states_memory<Torus> *shifted_blocks_state_mem;
   int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
@@ -1791,8 +1790,6 @@ template <typename Torus> struct int_sc_prop_memory {
   uint32_t requested_flag;
 
   uint32_t active_gpu_count;
-  cudaStream_t *sub_streams_1;
-  cudaStream_t *sub_streams_2;
 
   cudaEvent_t *incoming_events1;
   cudaEvent_t *incoming_events2;
@@ -1817,7 +1814,6 @@ template <typename Torus> struct int_sc_prop_memory {
     uint32_t block_modulus = message_modulus * carry_modulus;
     uint32_t num_bits_in_block = std::log2(block_modulus);
     uint32_t grouping_size = num_bits_in_block;
-    group_size = grouping_size;
     num_groups = (num_radix_blocks + grouping_size - 1) / grouping_size;
 
     num_many_lut = 2; // many luts apply 2 luts
@@ -1834,8 +1830,8 @@ template <typename Torus> struct int_sc_prop_memory {
 
     //  Step 3 elements
     lut_message_extract =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                 num_radix_blocks, allocate_gpu_memory);
+        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
+                                 num_radix_blocks + 1, allocate_gpu_memory);
     // lut for the first block in the first grouping
     auto f_message_extract = [message_modulus](Torus block) -> Torus {
       return (block >> 1) % message_modulus;
@@ -1851,8 +1847,9 @@ template <typename Torus> struct int_sc_prop_memory {
 
     // This store a single block that with be used to store the overflow or
     // carry results
-    output_flag = (Torus *)cuda_malloc_async(big_lwe_size_bytes, streams[0],
-                                             gpu_indexes[0]);
+    output_flag =
+        (Torus *)cuda_malloc_async(big_lwe_size_bytes * (num_radix_blocks + 1),
+                                   streams[0], gpu_indexes[0]);
     cuda_memset_async(output_flag, 0, big_lwe_size_bytes, streams[0],
                       gpu_indexes[0]);
 
@@ -1911,9 +1908,6 @@ template <typename Torus> struct int_sc_prop_memory {
     // It seems that this lut could be apply together with the other one but for
     // now we won't do it
     if (requested_flag == outputFlag::FLAG_OVERFLOW) { // Overflow case
-      lut_overflow_flag_last = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
-
       auto f_overflow_last = [num_radix_blocks,
                               requested_flag_in](Torus block) -> Torus {
         uint32_t position = (num_radix_blocks == 1 &&
@@ -1929,39 +1923,57 @@ template <typename Torus> struct int_sc_prop_memory {
           return does_overflow_if_carry_is_0;
         }
       };
-      auto overflow_flag_last = lut_overflow_flag_last->get_lut(0, 0);
+      auto overflow_flag_last = lut_message_extract->get_lut(0, 1);
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], overflow_flag_last, glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_overflow_last);
 
-      lut_overflow_flag_last->broadcast_lut(streams, gpu_indexes, 0);
+      Torus *h_lut_indexes =
+          (Torus *)malloc((num_radix_blocks + 1) * sizeof(Torus));
+      for (int index = 0; index < num_radix_blocks + 1; index++) {
+        if (index < num_radix_blocks) {
+          h_lut_indexes[index] = 0;
+        } else {
+          h_lut_indexes[index] = 1;
+        }
+      }
+      cuda_memcpy_async_to_gpu(
+          lut_message_extract->get_lut_indexes(0, 0), h_lut_indexes,
+          (num_radix_blocks + 1) * sizeof(Torus), streams[0], gpu_indexes[0]);
+
+      lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
+      free(h_lut_indexes);
     }
     if (requested_flag == outputFlag::FLAG_CARRY) { // Carry case
-      lut_carry_flag_last = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
 
       auto f_carry_last = [](Torus block) -> Torus {
         return ((block >> 2) & 1);
       };
-      auto carry_flag_last = lut_carry_flag_last->get_lut(0, 0);
+      auto carry_flag_last = lut_message_extract->get_lut(0, 1);
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], carry_flag_last, glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_carry_last);
 
-      lut_carry_flag_last->broadcast_lut(streams, gpu_indexes, 0);
+      Torus *h_lut_indexes =
+          (Torus *)malloc((num_radix_blocks + 1) * sizeof(Torus));
+      for (int index = 0; index < num_radix_blocks + 1; index++) {
+        if (index < num_radix_blocks) {
+          h_lut_indexes[index] = 0;
+        } else {
+          h_lut_indexes[index] = 1;
+        }
+      }
+      cuda_memcpy_async_to_gpu(
+          lut_message_extract->get_lut_indexes(0, 0), h_lut_indexes,
+          (num_radix_blocks + 1) * sizeof(Torus), streams[0], gpu_indexes[0]);
+
+      lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
+      free(h_lut_indexes);
     }
 
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-    sub_streams_1 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    sub_streams_2 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    for (uint j = 0; j < active_gpu_count; j++) {
-      sub_streams_1[j] = cuda_create_stream(gpu_indexes[j]);
-      sub_streams_2[j] = cuda_create_stream(gpu_indexes[j]);
-    }
 
     incoming_events1 =
         (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
@@ -1997,24 +2009,10 @@ template <typename Torus> struct int_sc_prop_memory {
 
     if (requested_flag == outputFlag::FLAG_OVERFLOW) { // In case of overflow
       lut_overflow_flag_prep->release(streams, gpu_indexes, gpu_count);
-      lut_overflow_flag_last->release(streams, gpu_indexes, gpu_count);
       delete lut_overflow_flag_prep;
-      delete lut_overflow_flag_last;
       cuda_drop_async(last_lhs, streams[0], gpu_indexes[0]);
       cuda_drop_async(last_rhs, streams[0], gpu_indexes[0]);
     }
-    if (requested_flag == outputFlag::FLAG_CARRY) { // In case of carry
-      lut_carry_flag_last->release(streams, gpu_indexes, gpu_count);
-      delete lut_carry_flag_last;
-    }
-
-    // release sub streams
-    for (uint i = 0; i < active_gpu_count; i++) {
-      cuda_destroy_stream(sub_streams_1[i], gpu_indexes[i]);
-      cuda_destroy_stream(sub_streams_2[i], gpu_indexes[i]);
-    }
-    free(sub_streams_1);
-    free(sub_streams_2);
 
     // release events
     for (uint j = 0; j < active_gpu_count; j++) {
