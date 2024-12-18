@@ -36,7 +36,7 @@ __host__ void scratch_cuda_integer_radix_scalar_mul_kb(
 
   *mem_ptr =
       new int_scalar_mul_buffer<T>(streams, gpu_indexes, gpu_count, params,
-                                   num_radix_blocks, allocate_gpu_memory);
+                                   num_radix_blocks, allocate_gpu_memory, true);
 }
 
 template <typename T, class params>
@@ -94,9 +94,11 @@ __host__ void host_integer_scalar_mul_radix(
   }
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
-  cuda_drop_async(preshifted_buffer, streams[0], gpu_indexes[0]);
-  mem->logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
-  delete (mem->logical_scalar_shift_buffer);
+  if (mem->anticipated_buffers_drop) {
+    cuda_drop_async(preshifted_buffer, streams[0], gpu_indexes[0]);
+    mem->logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
+    delete (mem->logical_scalar_shift_buffer);
+  }
 
   if (j == 0) {
     // lwe array = 0
