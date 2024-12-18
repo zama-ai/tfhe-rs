@@ -200,33 +200,3 @@ fn test_decompose_recompose_non_native_solinas_u64() {
 fn test_decompose_recompose_non_native_edge_mod_round_up_u64() {
     test_decompose_recompose_non_native::<u64>(CiphertextModulus::try_new((1 << 48) + 1).unwrap());
 }
-
-#[test]
-fn test_single_level_decompose_balanced() {
-    let decomposer = SignedDecomposer::new(DecompositionBaseLog(12), DecompositionLevelCount(1));
-
-    assert_eq!(
-        decomposer.level_count().0,
-        1,
-        "This test is only valid if the decomposition level count is 1"
-    );
-    use rand::prelude::*;
-    let mut rng = rand::thread_rng();
-    let mut mean = 0f64;
-    // Still runs fast, about 1 billion runs which is exactly representable in float
-    let runs = 1usize << 30;
-    for _ in 0..runs {
-        let val: u64 = rng.gen();
-        let decomp = decomposer.decompose(val).next().unwrap();
-        let value: i64 = decomp.value() as i64;
-        mean += value as f64;
-    }
-    mean /= runs as f64;
-
-    // To print with --nocapture to check in the terminal
-    println!("mean={mean}");
-
-    // This bound is not very tight or good, but as an unbalanced decomposition has a mean of about
-    // 0.5 this will do
-    assert!(mean.abs() < 0.2);
-}
