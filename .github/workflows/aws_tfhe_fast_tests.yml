@@ -20,8 +20,17 @@ on:
   pull_request_target:
 
 jobs:
+  check-user-permission:
+    if: github.event_name == 'pull_request_target'
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   should-run:
     runs-on: ubuntu-latest
+    needs: check-user-permission
+    if: github.event_name != 'pull_request_target' ||
+      needs.check-user-permission.result == 'success'
     permissions:
       pull-requests: write
     outputs:
