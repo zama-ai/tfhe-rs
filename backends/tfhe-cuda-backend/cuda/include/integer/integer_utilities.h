@@ -4273,12 +4273,15 @@ template <typename Torus> struct int_scalar_mul_buffer {
   Torus *preshifted_buffer;
   Torus *all_shifted_buffer;
   int_sc_prop_memory<Torus> *sc_prop_mem;
+  bool anticipated_buffers_drop;
 
   int_scalar_mul_buffer(cudaStream_t const *streams,
                         uint32_t const *gpu_indexes, uint32_t gpu_count,
                         int_radix_params params, uint32_t num_radix_blocks,
-                        bool allocate_gpu_memory) {
+                        bool allocate_gpu_memory,
+                        bool anticipated_buffer_drop) {
     this->params = params;
+    this->anticipated_buffers_drop = anticipated_buffer_drop;
 
     if (allocate_gpu_memory) {
       uint32_t msg_bits = (uint32_t)std::log2(params.message_modulus);
@@ -4326,6 +4329,11 @@ template <typename Torus> struct int_scalar_mul_buffer {
     delete sum_ciphertexts_vec_mem;
     delete sc_prop_mem;
     cuda_drop_async(all_shifted_buffer, streams[0], gpu_indexes[0]);
+    if (!anticipated_buffers_drop) {
+      cuda_drop_async(preshifted_buffer, streams[0], gpu_indexes[0]);
+      logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
+      delete (logical_scalar_shift_buffer);
+    }
   }
 };
 
