@@ -44,7 +44,7 @@ pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_GAUSSIA
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0009193616884853071,
+        1.9524392655548086e-11,
     )),
     message_modulus_log: MessageModulusLog(2),
     ciphertext_modulus: CiphertextModulus::new_native(),

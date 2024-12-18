@@ -7,7 +7,8 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 
-EXP_NAME = "bordel" # wide-search-2000   gpu-gauss
+EXP_NAME = "wide-search-2000" # wide-search-2000   gpu-gauss
+
 IN_FILE_FMT = "results/" + EXP_NAME + "/samples/%s-id=%d-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.npy"
 OUT_FILE_FMT = "results/" + EXP_NAME + "/graphs/%s-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s-nsamples=%d.png"
 EXP_VAR_FILE_FMT = "results/" + EXP_NAME + "/expected-variances-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.json"
@@ -150,9 +151,14 @@ for gf in range(3,3+1):
                     kara_avg_slope_2nd_half = np.mean(np.array(k_vars[len(k_vars)//2:])/x_vals[len(k_vars)//2:])
                     fft_avg_slope_2nd_half  = np.mean(np.array(f_vars[len(f_vars)//2:])/x_vals[len(f_vars)//2:])
 
+                    # calc the value of a
+                    bits_lost = 11 # (a + c*logN**2)
+                    fft_var_without_a = 1.0 * level*(k+1) * (1<<logbase)**2 * 2**(2*bits_lost) * k * (1<<logN)**2 / (CT_MOD**2)
+                    fft_a = (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / fft_var_without_a
+
                     plt.figure(figsize=(FIG_W/DPI, FIG_H/DPI), dpi=DPI)
                     plt.tight_layout() ; plt.grid() # ; plt.ylim(-.2e-9,5.0e-9) ; plt.gca().yaxis.set_major_locator(MultipleLocator(.5e-9))
-                    plt.title(f"FFT vs. Kara var's {params}")
+                    plt.title(f"FFT vs. Kara var's {params}. FFT-only slope: {fft_avg_slope_2nd_half - kara_avg_slope_2nd_half}, FFT-only terms: {fft_var_without_a}, FFT-only 'a': {fft_a}")
                     plt.plot(x_vals, f_vars, '.', label='meas FFT', color='tab:blue')
                     plt.plot([0,y_dimension], [0.0,expected_variance_fft], '.', label='exp FFT', color='tab:blue', linestyle='dotted', marker=',')
                     plt.plot([0,y_dimension], [0.0,fft_avg_slope_2nd_half*y_dimension], '.', label='avg. slope FFT', color='tab:blue', linestyle='dashed', marker=',')
@@ -212,11 +218,13 @@ for gf in range(3,3+1):
                     print("Kara avg  slope:", kara_avg_slope_2nd_half)
                     print("FFT  linear fit:", wf[0])
                     print("FFT  avg  slope:", fft_avg_slope_2nd_half)
-                    print("FFT-only diff of fits:      ", (wf - wk)[0])
-                    print("FFT-only diff of avg slopes:", fft_avg_slope_2nd_half - kara_avg_slope_2nd_half)
+                    print("FFT-only as diff of linear fits:", (wf - wk)[0])
+                    print("FFT-only as diff of  avg slopes:", fft_avg_slope_2nd_half - kara_avg_slope_2nd_half)
                     # ~ print("----")
                     # ~ print("Kara first:", k_vars[0])
                     # ~ print("FFT  first:", f_vars[0])
+                    print("----")
+                    print("Value of a:", fft_a)
                     print("----")
                     print("FFT excess 0..1:", diff_vars_growth[0])
                     # ~ print("FFT excess 0..1 from plain diff (close to prev?):", fk_vars[0])
