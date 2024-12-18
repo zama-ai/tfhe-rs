@@ -427,11 +427,14 @@ impl CudaServerKey {
                 );
             }
         };
-        ciphertext
-            .info
-            .blocks
-            .iter_mut()
-            .for_each(|b| b.degree = Degree::new(b.message_modulus.0 - 1));
+        ciphertext.info.blocks.iter_mut().for_each(|b| {
+            b.degree = Degree::new(b.message_modulus.0 - 1);
+            b.noise_level = if b.noise_level == NoiseLevel::ZERO {
+                NoiseLevel::ZERO
+            } else {
+                NoiseLevel::NOMINAL
+            };
+        });
     }
 
     /// Prepend trivial zero LSB blocks to an existing [`CudaUnsignedRadixCiphertext`] or
