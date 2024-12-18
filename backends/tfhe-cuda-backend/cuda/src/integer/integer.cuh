@@ -1624,13 +1624,12 @@ void host_propagate_single_carry(cudaStream_t const *streams,
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
-  auto message_modulus = params.message_modulus;
-  auto carry_modulus = params.carry_modulus;
   uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
   auto big_lwe_dimension = big_lwe_size - 1; // For host addition
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
+  auto output_flag = mem->output_flag + big_lwe_size * num_radix_blocks;
   if (requested_flag == outputFlag::FLAG_OVERFLOW)
     PANIC("Cuda error: single carry propagation is not supported for overflow, "
           "try using add_and_propagate_single_carry");
@@ -1647,7 +1646,7 @@ void host_propagate_single_carry(cudaStream_t const *streams,
 
   if (requested_flag == outputFlag::FLAG_CARRY) {
     cuda_memcpy_async_gpu_to_gpu(
-        mem->output_flag, block_states + (num_radix_blocks - 1) * big_lwe_size,
+        output_flag, block_states + (num_radix_blocks - 1) * big_lwe_size,
         big_lwe_size_bytes, streams[0], gpu_indexes[0]);
   }
   // Step 2
@@ -1667,45 +1666,40 @@ void host_propagate_single_carry(cudaStream_t const *streams,
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], mem->output_flag,
-                         mem->output_flag,
+    host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
                          mem->prop_simu_group_carries_mem->simulators +
                              (num_radix_blocks - 1) * big_lwe_size,
                          big_lwe_dimension, 1);
   }
 
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-
-  // Step 3
-  //  Add carries and cleanup OutputFlag::None
   host_radix_sum_in_groups<Torus>(
-      mem->sub_streams_1[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
+      streams[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
       mem->prop_simu_group_carries_mem->resolved_carries, num_radix_blocks,
       big_lwe_size, group_size);
-
-  auto message_extract = mem->lut_message_extract;
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      mem->sub_streams_1, gpu_indexes, gpu_count, lwe_array, prepared_blocks,
-      bsks, ksks, num_radix_blocks, message_extract);
-
   if (requested_flag == outputFlag::FLAG_CARRY) {
-    host_addition<Torus>(mem->sub_streams_2[0], gpu_indexes[0],
-                         mem->output_flag, mem->output_flag,
+    host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
                          mem->prop_simu_group_carries_mem->resolved_carries +
                              (mem->num_groups - 1) * big_lwe_size,
                          big_lwe_dimension, 1);
 
+    cuda_memcpy_async_gpu_to_gpu(
+        prepared_blocks + num_radix_blocks * big_lwe_size, output_flag,
+        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        mem->sub_streams_2, gpu_indexes, gpu_count, mem->output_flag,
-        mem->output_flag, bsks, ksks, 1, mem->lut_carry_flag_last);
+        streams, gpu_indexes, gpu_count, mem->output_flag, prepared_blocks,
+        bsks, ksks, num_radix_blocks + 1, mem->lut_message_extract);
 
-    cuda_memcpy_async_gpu_to_gpu(carry_out, mem->output_flag,
-                                 big_lwe_size_bytes, mem->sub_streams_2[0],
-                                 gpu_indexes[0]);
-  }
-  for (int j = 0; j < mem->active_gpu_count; j++) {
-    cuda_synchronize_stream(mem->sub_streams_1[j], gpu_indexes[j]);
-    cuda_synchronize_stream(mem->sub_streams_2[j], gpu_indexes[j]);
+    cuda_memcpy_async_gpu_to_gpu(lwe_array, mem->output_flag,
+                                 big_lwe_size_bytes * num_radix_blocks,
+                                 streams[0], gpu_indexes[0]);
+    cuda_memcpy_async_gpu_to_gpu(
+        carry_out, mem->output_flag + num_radix_blocks * big_lwe_size,
+        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+  } else {
+    auto message_extract = mem->lut_message_extract;
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks, bsks, ksks,
+        num_radix_blocks, message_extract);
   }
 }
 
@@ -1721,13 +1715,12 @@ void host_add_and_propagate_single_carry(
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
-  auto message_modulus = params.message_modulus;
-  auto carry_modulus = params.carry_modulus;
   uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
   auto big_lwe_dimension = big_lwe_size - 1; // For host addition
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
+  auto output_flag = mem->output_flag + big_lwe_size * num_radix_blocks;
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW) {
     cuda_memcpy_async_gpu_to_gpu(
@@ -1754,12 +1747,12 @@ void host_add_and_propagate_single_carry(
   if (requested_flag == outputFlag::FLAG_OVERFLOW) {
     auto lut_overflow_prep = mem->lut_overflow_flag_prep;
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, mem->output_flag, mem->last_lhs,
+        streams, gpu_indexes, gpu_count, output_flag, mem->last_lhs,
         mem->last_rhs, bsks, ksks, 1, lut_overflow_prep,
         lut_overflow_prep->params.message_modulus);
   } else if (requested_flag == outputFlag::FLAG_CARRY) {
     cuda_memcpy_async_gpu_to_gpu(
-        mem->output_flag, block_states + (num_radix_blocks - 1) * big_lwe_size,
+        output_flag, block_states + (num_radix_blocks - 1) * big_lwe_size,
         big_lwe_size_bytes, streams[0], gpu_indexes[0]);
   }
 
@@ -1780,58 +1773,50 @@ void host_add_and_propagate_single_carry(
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], mem->output_flag,
-                         mem->output_flag,
+    host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
                          mem->prop_simu_group_carries_mem->simulators +
                              (num_radix_blocks - 1) * big_lwe_size,
                          big_lwe_dimension, 1);
   }
 
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   // Step 3
   //  Add carries and cleanup OutputFlag::None
   host_radix_sum_in_groups<Torus>(
-      mem->sub_streams_1[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
+      streams[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
       mem->prop_simu_group_carries_mem->resolved_carries, num_radix_blocks,
       big_lwe_size, group_size);
-
-  auto message_extract = mem->lut_message_extract;
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      mem->sub_streams_1, gpu_indexes, gpu_count, lhs_array, prepared_blocks,
-      bsks, ksks, num_radix_blocks, message_extract);
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
     if (num_radix_blocks == 1 && requested_flag == outputFlag::FLAG_OVERFLOW &&
         uses_carry == 1) {
-      host_addition<Torus>(mem->sub_streams_2[0], gpu_indexes[0],
-                           mem->output_flag, mem->output_flag, input_carries,
-                           big_lwe_dimension, 1);
+      host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
+                           input_carries, big_lwe_dimension, 1);
 
     } else {
 
-      host_addition<Torus>(mem->sub_streams_2[0], gpu_indexes[0],
-                           mem->output_flag, mem->output_flag,
+      host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
                            mem->prop_simu_group_carries_mem->resolved_carries +
                                (mem->num_groups - 1) * big_lwe_size,
                            big_lwe_dimension, 1);
     }
-    if (requested_flag == outputFlag::FLAG_OVERFLOW) {
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          mem->sub_streams_2, gpu_indexes, gpu_count, mem->output_flag,
-          mem->output_flag, bsks, ksks, 1, mem->lut_overflow_flag_last);
-    } else {
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          mem->sub_streams_2, gpu_indexes, gpu_count, mem->output_flag,
-          mem->output_flag, bsks, ksks, 1, mem->lut_carry_flag_last);
-    }
-    cuda_memcpy_async_gpu_to_gpu(carry_out, mem->output_flag,
-                                 big_lwe_size_bytes, mem->sub_streams_2[0],
-                                 gpu_indexes[0]);
-  }
-  for (int j = 0; j < mem->active_gpu_count; j++) {
-    cuda_synchronize_stream(mem->sub_streams_1[j], gpu_indexes[j]);
-    cuda_synchronize_stream(mem->sub_streams_2[j], gpu_indexes[j]);
+    cuda_memcpy_async_gpu_to_gpu(
+        prepared_blocks + num_radix_blocks * big_lwe_size, output_flag,
+        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, mem->output_flag, prepared_blocks,
+        bsks, ksks, num_radix_blocks + 1, mem->lut_message_extract);
+
+    cuda_memcpy_async_gpu_to_gpu(lhs_array, mem->output_flag,
+                                 big_lwe_size_bytes * num_radix_blocks,
+                                 streams[0], gpu_indexes[0]);
+    cuda_memcpy_async_gpu_to_gpu(
+        carry_out, mem->output_flag + num_radix_blocks * big_lwe_size,
+        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+  } else {
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, lhs_array, prepared_blocks, bsks, ksks,
+        num_radix_blocks, mem->lut_message_extract);
   }
 }
 
