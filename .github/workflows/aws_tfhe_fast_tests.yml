@@ -24,7 +24,7 @@ jobs:
     if: github.event_name == 'pull_request_target'
     uses: ./.github/workflows/check_triggering_actor.yml
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   should-run:
     runs-on: ubuntu-latest
