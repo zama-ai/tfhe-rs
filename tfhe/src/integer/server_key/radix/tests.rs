@@ -57,9 +57,9 @@ create_parameterized_test!(
         no_coverage => {
             // Skip the 1_1 params for the smart add 128 bits which proved to be the slowest test in our test
             // suite
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
         }
     }
 );
@@ -101,11 +101,11 @@ create_parameterized_test!(
             COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
         },
         no_coverage => {
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64, // Test case where carry_modulus > message_modulus
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64, // Test case where carry_modulus > message_modulus
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
         }
     }
 );
@@ -126,8 +126,8 @@ create_parameterized_test!(integer_unchecked_min {
     },
     no_coverage => {
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     }
 });
 
@@ -666,7 +666,7 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
 
     let mut rng = rand::thread_rng();
 
-    let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    let param = V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 
     let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
