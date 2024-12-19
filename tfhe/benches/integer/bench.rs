@@ -143,15 +143,25 @@ fn bench_server_key_binary_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let clear_0 = gen_random_u256(&mut rng);
+                let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+                let clear_1 = gen_random_u256(&mut rng);
+                let mut ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                reset_pbs_count();
+                binary_op(&sks, &mut ct_0, &mut ct_1);
+                let pbs_count = get_pbs_count();
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
                     let mut cts_0 = (0..elements)
                         .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
                         .collect::<Vec<_>>();
@@ -294,15 +304,23 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let clear_0 = gen_random_u256(&mut rng);
+                let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+                reset_pbs_count();
+                unary_fn(&sks, &mut ct_0);
+                let pbs_count = get_pbs_count();
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
                     let mut cts_0 = (0..elements)
                         .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
                         .collect::<Vec<_>>();
@@ -451,15 +469,24 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 });
             }
             BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let clear_0 = gen_random_u256(&mut rng);
+                let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+                let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+
+                reset_pbs_count();
+                binary_op(&sks, &mut ct_0, clear_1);
+                let pbs_count = get_pbs_count();
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
                     let mut cts_0 = (0..elements)
                         .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
                         .collect::<Vec<_>>();
@@ -567,15 +594,28 @@ fn if_then_else_parallelized(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let clear_0 = gen_random_u256(&mut rng);
+                let true_ct = cks.encrypt_radix(clear_0, num_block);
+
+                let clear_1 = gen_random_u256(&mut rng);
+                let false_ct = cks.encrypt_radix(clear_1, num_block);
+
+                let condition = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+
+                reset_pbs_count();
+                sks.if_then_else_parallelized(&condition, &true_ct, &false_ct);
+                let pbs_count = get_pbs_count();
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
                     let cts_cond = (0..elements)
                         .map(|_| sks.create_trivial_boolean_block(rng.gen_bool(0.5)))
                         .collect::<Vec<_>>();
@@ -663,20 +703,34 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                    // Execute the operation once to know its cost.
+                    let nb_ctxt = bit_size.div_ceil(param.message_modulus().0.ilog2() as usize);
+                    let cks = RadixClientKey::from((cks, nb_ctxt));
+
+                    let clears = (0..len)
+                        .map(|_| gen_random_u256(&mut rng) & max_for_bit_size)
+                        .collect::<Vec<_>>();
+                    let ctxts = clears
+                        .iter()
+                        .copied()
+                        .map(|clear| cks.encrypt(clear))
+                        .collect::<Vec<_>>();
+
+                    reset_pbs_count();
+                    sks.sum_ciphertexts_parallelized(&ctxts);
+                    let pbs_count = get_pbs_count();
+
                     bench_id = format!(
                         "{bench_name}_{len}_ctxts::throughput::{param_name}::{bit_size}_bits"
                     );
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-                        let nb_ctxt = bit_size.div_ceil(param.message_modulus().0.ilog2() as usize);
-                        let cks = RadixClientKey::from((cks, nb_ctxt));
-
                         let cts = (0..elements)
                             .map(|_| {
                                 let clears = (0..len)
@@ -1358,17 +1412,24 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &streams);
+
+                    let ct = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                    let mut d_ctxt =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+
+                    reset_pbs_count();
+                    unary_op(&gpu_sks, &mut d_ctxt, &streams);
+                    let pbs_count = get_pbs_count();
+
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                        let gpu_sks = CudaServerKey::new(&cks, &streams);
-
                         let mut cts_0 = (0..elements)
                             .map(|_| {
                                 let ct_0 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
@@ -1457,17 +1518,28 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &streams);
+
+                    // Execute the operation once to know its cost.
+                    let ct_0 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                    let ct_1 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                    let mut d_ctxt_1 =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &streams);
+                    let mut d_ctxt_2 =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &streams);
+
+                    reset_pbs_count();
+                    binary_op(&gpu_sks, &mut d_ctxt_1, &mut d_ctxt_2, &streams);
+                    let pbs_count = get_pbs_count();
+
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                        let gpu_sks = CudaServerKey::new(&cks, &streams);
-
                         let mut cts_0 = (0..elements)
                             .map(|_| {
                                 let ct_0 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
@@ -1564,19 +1636,28 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &streams);
+
+                    // Execute the operation once to know its cost.
+                    let ct_1 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                    let mut d_ctxt_1 =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &streams);
+                    let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+
+                    reset_pbs_count();
+                    binary_op(&gpu_sks, &mut d_ctxt_1, clear_1, &streams);
+                    let pbs_count = get_pbs_count();
+
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
                     bench_id = format!(
                         "{bench_name}::throughput::{param_name}::{bit_size}_bits_scalar_{bit_size}"
                     );
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                        let gpu_sks = CudaServerKey::new(&cks, &streams);
-
                         let mut cts_0 = (0..elements)
                             .map(|_| {
                                 let ct_0 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
@@ -1667,11 +1748,29 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                    let clear_cond = rng.gen::<bool>();
+                    let ct_then = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                    let ct_else = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                    let ct_cond = cks.encrypt_bool(clear_cond);
+
+                    let d_ct_cond = CudaBooleanBlock::from_boolean_block(&ct_cond, &stream);
+                    let d_ct_then =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_then, &stream);
+                    let d_ct_else =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_else, &stream);
+
+                    reset_pbs_count();
+                    gpu_sks.if_then_else(&d_ct_cond, &d_ct_then, &d_ct_else, &stream);
+                    let pbs_count = get_pbs_count();
+
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -2516,6 +2615,7 @@ use cuda::{
     cuda_cast_ops, default_cuda_dedup_ops, default_cuda_ops, default_scalar_cuda_ops,
     unchecked_cuda_ops, unchecked_scalar_cuda_ops,
 };
+use tfhe::{get_pbs_count, reset_pbs_count};
 
 criterion_group!(
     smart_ops,
@@ -2617,6 +2717,7 @@ criterion_group!(
 
 criterion_group!(
     default_dedup_ops,
+    bitand_parallelized,
     add_parallelized,
     mul_parallelized,
     div_rem_parallelized,

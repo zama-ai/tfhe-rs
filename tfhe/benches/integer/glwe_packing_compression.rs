@@ -77,9 +77,19 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
+                // Execute the operation once to know its cost.
+                let ct = cks.encrypt_radix(0_u32, num_blocks);
+                let mut builder = CompressedCiphertextListBuilder::new();
+                builder.push(ct);
+                let compressed = builder.build(&compression_key);
+
+                reset_pbs_count();
+                let _: RadixCiphertext = compressed.get(0, &decompression_key).unwrap().unwrap();
+                let pbs_count = get_pbs_count();
+
                 let num_block =
                     (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 // FIXME thread usage seemed to be somewhat more "efficient".
                 //  For example, with bit_size = 2, my laptop is only using around 2/3 of the
                 // available threads  Thread usage increases with bit_size = 8 but
@@ -185,27 +195,26 @@ mod cuda {
             let bench_id_pack;
             let bench_id_unpack;
 
+            // Generate private compression key
+            let cks = ClientKey::new(param);
+            let private_compression_key = cks.new_compression_private_key(comp_param);
+
+            // Generate and convert compression keys
+            let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
+            let (compressed_compression_key, compressed_decompression_key) =
+                radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
+            let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&stream);
+            let cuda_decompression_key = compressed_decompression_key.decompress_to_cuda(
+                radix_cks.parameters().glwe_dimension(),
+                radix_cks.parameters().polynomial_size(),
+                radix_cks.parameters().message_modulus(),
+                radix_cks.parameters().carry_modulus(),
+                radix_cks.parameters().ciphertext_modulus(),
+                &stream,
+            );
+
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
-                    // Generate private compression key
-                    let cks = ClientKey::new(param);
-                    let private_compression_key = cks.new_compression_private_key(comp_param);
-
-                    // Generate and convert compression keys
-                    let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
-                    let (compressed_compression_key, compressed_decompression_key) = radix_cks
-                        .new_compressed_compression_decompression_keys(&private_compression_key);
-                    let cuda_compression_key =
-                        compressed_compression_key.decompress_to_cuda(&stream);
-                    let cuda_decompression_key = compressed_decompression_key.decompress_to_cuda(
-                        radix_cks.parameters().glwe_dimension(),
-                        radix_cks.parameters().polynomial_size(),
-                        radix_cks.parameters().message_modulus(),
-                        radix_cks.parameters().carry_modulus(),
-                        radix_cks.parameters().ciphertext_modulus(),
-                        &stream,
-                    );
-
                     // Encrypt
                     let ct = cks.encrypt_radix(0_u32, num_blocks);
                     let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &stream);
@@ -239,27 +248,24 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    // Execute the operation once to know its cost.
+                    let ct = cks.encrypt_radix(0_u32, num_blocks);
+                    let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &stream);
+                    let mut builder = CudaCompressedCiphertextListBuilder::new();
+                    builder.push(d_ct, &stream);
+                    let compressed = builder.build(&cuda_compression_key, &stream);
+
+                    reset_pbs_count();
+                    let _: CudaUnsignedRadixCiphertext = compressed
+                        .get(0, &cuda_decompression_key, &stream)
+                        .unwrap()
+                        .unwrap();
+                    let pbs_count = get_pbs_count();
+
                     let num_block = (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0))
                         .ceil() as usize;
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
-
-                    let cks = ClientKey::new(param);
-                    let private_compression_key = cks.new_compression_private_key(comp_param);
-
-                    let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
-                    let (compressed_compression_key, compressed_decompression_key) = radix_cks
-                        .new_compressed_compression_decompression_keys(&private_compression_key);
-                    let cuda_compression_key =
-                        compressed_compression_key.decompress_to_cuda(&stream);
-                    let cuda_decompression_key = compressed_decompression_key.decompress_to_cuda(
-                        radix_cks.parameters().glwe_dimension(),
-                        radix_cks.parameters().polynomial_size(),
-                        radix_cks.parameters().message_modulus(),
-                        radix_cks.parameters().carry_modulus(),
-                        radix_cks.parameters().ciphertext_modulus(),
-                        &stream,
-                    );
 
                     // Encrypt
                     let ct = cks.encrypt_radix(0_u32, num_blocks);
@@ -344,6 +350,7 @@ criterion_group!(cpu_glwe_packing2, cpu_glwe_packing);
 
 #[cfg(feature = "gpu")]
 use cuda::gpu_glwe_packing2;
+use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn main() {
     BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
