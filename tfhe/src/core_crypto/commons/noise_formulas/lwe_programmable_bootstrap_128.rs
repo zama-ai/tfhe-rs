@@ -105,9 +105,15 @@ pub fn pbs_128_variance_132_bits_security_tuniform_impl(
         * (decomposition_level_count
             * output_polynomial_size
             * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-                + (-0.0497829131652661 * output_glwe_dimension * output_polynomial_size
-                    + 7.31469187675068)
-                    .exp2())
+                + (1_f64 / 3.0)
+                    * modulus.powf(-2.0)
+                    * ((2.0
+                        * (-0.025167785 * output_glwe_dimension * output_polynomial_size
+                            + 1.44269504088896 * modulus.ln()
+                            + 4.10067100000001)
+                            .ceil())
+                    .exp2()
+                        + 0.5))
             * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
             * (output_glwe_dimension + 1.0)
             + (1_f64 / 12.0) * modulus.powf(-2.0)

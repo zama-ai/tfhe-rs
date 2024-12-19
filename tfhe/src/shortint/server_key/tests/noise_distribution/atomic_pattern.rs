@@ -32,7 +32,6 @@ use crate::core_crypto::commons::noise_formulas::secure_noise::{
     // minimal_glwe_bound_for_132_bits_security_tuniform,
     minimal_lwe_variance_for_132_bits_security_gaussian,
     minimal_lwe_variance_for_132_bits_security_tuniform,
-    //variance_to_tuniform_bound_log2,
 };
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
@@ -2695,7 +2694,6 @@ const PBS128_PARAMS: PBS128Parameters = PBS128Parameters {
     ciphertext_modulus: CoreCiphertextModulus::new_native(),
 };
 
-// It seems the bound outputted by the RO disagrees with our computation
 // #[test]
 // fn test_noise_check_pbs_128_secure_noise() {
 //     let params = PBS128_PARAMS;
@@ -2706,19 +2704,16 @@ const PBS128_PARAMS: PBS128Parameters = PBS128Parameters {
 //         params.ciphertext_modulus.get_custom_modulus() as f64
 //     };
 
-//     let output_lwe_dimension = params
-//         .glwe_dimension
-//         .to_equivalent_lwe_dimension(params.polynomial_size);
-
-//     let secure_tuniform_variance =
-//         minimal_lwe_variance_for_132_bits_security_tuniform(output_lwe_dimension,
-// modulus_as_f64);     let tuniform_bound =
-// variance_to_tuniform_bound_log2(secure_tuniform_variance, modulus_as_f64);
+//     let tuniform_bound = minimal_glwe_bound_for_132_bits_security_tuniform(
+//         params.glwe_dimension,
+//         params.polynomial_size,
+//         modulus_as_f64,
+//     );
 
 //     match params.glwe_noise_distribution {
 //         DynamicDistribution::Gaussian(_) => panic!("Only TUniform is checked here"),
 //         DynamicDistribution::TUniform(tuniform) => {
-//             assert_eq!(tuniform.bound_log2(), tuniform_bound)
+//             assert_eq!(tuniform.bound_log2(), tuniform_bound.0.log2() as i32)
 //         }
 //     }
 // }

@@ -77,7 +77,15 @@ pub fn keyswitch_additive_variance_132_bits_security_tuniform_impl(
     decomposition_level_count
         * input_lwe_dimension
         * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-            + (7.31469187675068 - 0.0497829131652661 * output_lwe_dimension).exp2())
+            + (1_f64 / 3.0)
+                * modulus.powf(-2.0)
+                * ((2.0
+                    * (-0.025167785 * output_lwe_dimension
+                        + 1.44269504088896 * modulus.ln()
+                        + 4.10067100000001)
+                        .ceil())
+                .exp2()
+                    + 0.5))
         * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
         + input_lwe_dimension
             * (0.0208333333333333 * modulus.powf(-2.0)
