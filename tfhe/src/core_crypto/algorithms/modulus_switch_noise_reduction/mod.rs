@@ -159,3 +159,6 @@ pub fn improve_modulus_switch_noise<Scalar, C1, C2>(
 
     lwe_ciphertext_add_assign(lwe, &encryption_of_zero);
 }
+
+#[cfg(test)]
+mod tests;
