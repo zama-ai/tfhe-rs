@@ -290,6 +290,7 @@ pub unsafe fn packing_keyswitch_list_async<T: UnsignedInteger>(
         streams.ptr[0],
         streams.gpu_indexes[0].0,
         std::ptr::addr_of_mut!(fp_ks_buffer),
+        input_lwe_dimension.0 as u32,
         output_glwe_dimension.0 as u32,
         output_polynomial_size.0 as u32,
         num_lwes.0 as u32,
