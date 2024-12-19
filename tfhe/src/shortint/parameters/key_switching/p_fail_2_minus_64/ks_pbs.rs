@@ -31,7 +31,7 @@ pub const V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2
 pub const V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64:
     ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
     ks_level: DecompositionLevelCount(1),
-    ks_base_log: DecompositionBaseLog(23),
+    ks_base_log: DecompositionBaseLog(24),
     destination_key: EncryptionKeyChoice::Big,
 };
 
@@ -49,7 +49,7 @@ pub const V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2
 pub const V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1:
     ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
     ks_level: DecompositionLevelCount(1),
-    ks_base_log: DecompositionBaseLog(23),
+    ks_base_log: DecompositionBaseLog(24),
     destination_key: EncryptionKeyChoice::Big,
 };
 
