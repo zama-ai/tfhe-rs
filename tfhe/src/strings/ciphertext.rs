@@ -71,6 +71,18 @@ pub enum GenericPatternRef<'a> {
     Enc(&'a FheString),
 }
 
+impl<'a> From<&'a ClearString> for GenericPatternRef<'a> {
+    fn from(value: &'a ClearString) -> Self {
+        Self::Clear(value)
+    }
+}
+
+impl<'a> From<&'a FheString> for GenericPatternRef<'a> {
+    fn from(value: &'a FheString) -> Self {
+        Self::Enc(value)
+    }
+}
+
 impl GenericPatternRef<'_> {
     pub fn to_owned(self) -> GenericPattern {
         match self {
