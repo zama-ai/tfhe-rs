@@ -46,7 +46,14 @@ void scratch_cuda_apply_univariate_lut_kb_64(
     uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     bool allocate_gpu_memory);
-
+void scratch_cuda_apply_many_univariate_lut_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, void const *input_lut, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t grouping_factor, uint32_t num_radix_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    uint32_t num_many_lut, bool allocate_gpu_memory);
 void cuda_apply_univariate_lut_kb_64(void *const *streams,
                                      uint32_t const *gpu_indexes,
                                      uint32_t gpu_count, void *output_radix_lwe,
@@ -439,6 +446,42 @@ void cleanup_cuda_integer_abs_inplace(void *const *streams,
                                       uint32_t const *gpu_indexes,
                                       uint32_t gpu_count,
                                       int8_t **mem_ptr_void);
+
+void scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t grouping_factor, uint32_t num_radix_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory);
+
+void cuda_integer_are_all_comparisons_block_true_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    void *lwe_array_out, void const *lwe_array_in, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks, uint32_t num_radix_blocks);
+
+void cleanup_cuda_integer_are_all_comparisons_block_true(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr_void);
+
+void scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t grouping_factor, uint32_t num_radix_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory);
+
+void cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    void *lwe_array_out, void const *lwe_array_in, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks, uint32_t num_radix_blocks);
+
+void cleanup_cuda_integer_is_at_least_one_comparisons_block_true(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr_void);
 
 } // extern C
 #endif // CUDA_INTEGER_H

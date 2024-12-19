@@ -1558,6 +1558,25 @@ void host_apply_univariate_lut_kb(cudaStream_t const *streams,
 }
 
 template <typename Torus>
+void scratch_cuda_apply_many_univariate_lut_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
+    uint32_t num_radix_blocks, int_radix_params params, uint32_t num_many_lut,
+    bool allocate_gpu_memory) {
+
+  *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
+                                      1, num_radix_blocks, num_many_lut,
+                                      allocate_gpu_memory);
+  // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
+  // 0
+  cuda_memcpy_async_to_gpu((*mem_ptr)->get_lut(0, 0), (void *)input_lut,
+                           (params.glwe_dimension + 1) *
+                               params.polynomial_size * sizeof(Torus),
+                           streams[0], gpu_indexes[0]);
+  (*mem_ptr)->broadcast_lut(streams, gpu_indexes, 0);
+}
+
+template <typename Torus>
 void host_apply_many_univariate_lut_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *radix_lwe_out, Torus const *radix_lwe_in,

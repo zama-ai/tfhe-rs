@@ -58,7 +58,7 @@ __host__ void accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
 template <typename Torus>
 __host__ void are_all_comparisons_block_true(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, Torus *lwe_array_out, Torus *lwe_array_in,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks, uint32_t num_radix_blocks) {
 
@@ -167,7 +167,7 @@ __host__ void are_all_comparisons_block_true(
 template <typename Torus>
 __host__ void is_at_least_one_comparisons_block_true(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, Torus *lwe_array_out, Torus *lwe_array_in,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks, uint32_t num_radix_blocks) {
 
@@ -626,4 +626,35 @@ __host__ void host_integer_radix_maxmin_kb(
       mem_ptr->cmux_buffer, bsks, ksks, total_num_radix_blocks);
 }
 
+template <typename Torus>
+__host__ void host_integer_are_all_comparisons_block_true_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks, uint32_t num_radix_blocks) {
+
+  auto eq_buffer = mem_ptr->eq_buffer;
+
+  // It returns a block encrypting 1 if all input blocks are 1
+  // otherwise the block encrypts 0
+  are_all_comparisons_block_true<Torus>(streams, gpu_indexes, gpu_count,
+                                        lwe_array_out, lwe_array_in, mem_ptr,
+                                        bsks, ksks, num_radix_blocks);
+}
+
+template <typename Torus>
+__host__ void host_integer_is_at_least_one_comparisons_block_true_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks, uint32_t num_radix_blocks) {
+
+  auto eq_buffer = mem_ptr->eq_buffer;
+
+  // It returns a block encrypting 1 if all input blocks are 1
+  // otherwise the block encrypts 0
+  is_at_least_one_comparisons_block_true<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in, mem_ptr,
+      bsks, ksks, num_radix_blocks);
+}
 #endif

@@ -47,6 +47,7 @@ mod scalar_shift;
 mod scalar_sub;
 mod shift;
 mod sub;
+mod vector_find;
 
 #[cfg(all(test, feature = "__long_run_tests"))]
 mod tests_long_run;
