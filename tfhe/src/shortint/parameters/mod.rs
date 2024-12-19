@@ -41,7 +41,6 @@ pub use crate::shortint::parameters::classic::compact_pk::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
 pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::pbs_ks::*;
 pub use crate::shortint::parameters::list_compression::{
     CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
