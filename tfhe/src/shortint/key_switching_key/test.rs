@@ -1,15 +1,16 @@
 use crate::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK};
 use crate::shortint::parameters::{
-    ShortintKeySwitchingParameters, PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    ShortintKeySwitchingParameters, V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
 };
 use crate::shortint::prelude::*;
 
 #[test]
 fn gen_multi_keys_test_fresh_ci_run_filter() {
     let keys = KEY_CACHE_KSK.get_from_param((
-        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     ));
     let ck1 = keys.client_key_1();
@@ -57,7 +58,7 @@ fn gen_multi_keys_test_fresh_ci_run_filter() {
 
 #[test]
 fn gen_multi_keys_test_fresh_2_ci_run_filter() {
-    let keys2 = KEY_CACHE.get_from_param(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
+    let keys2 = KEY_CACHE.get_from_param(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
     let (ck2, sk2) = (keys2.client_key(), keys2.server_key());
 
     let ksk_params = ShortintKeySwitchingParameters::new(
@@ -67,8 +68,8 @@ fn gen_multi_keys_test_fresh_2_ci_run_filter() {
     );
 
     let keys = KEY_CACHE_KSK.get_from_param((
-        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         ksk_params,
     ));
     let ck1 = keys.client_key_1();
@@ -116,8 +117,8 @@ fn gen_multi_keys_test_fresh_2_ci_run_filter() {
 #[test]
 fn gen_multi_keys_test_add_with_overflow_ci_run_filter() {
     let keys = KEY_CACHE_KSK.get_from_param((
-        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     ));
     let (ck1, sk1) = (keys.client_key_1(), keys.server_key_1());
@@ -141,7 +142,7 @@ fn gen_multi_keys_test_add_with_overflow_ci_run_filter() {
 
 #[test]
 fn gen_multi_keys_test_no_shift_ci_run_filter() {
-    let keys2 = KEY_CACHE.get_from_param(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+    let keys2 = KEY_CACHE.get_from_param(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
     let ck2 = keys2.client_key();
 
     let ksk_params = ShortintKeySwitchingParameters::new(
@@ -151,8 +152,8 @@ fn gen_multi_keys_test_no_shift_ci_run_filter() {
     );
 
     let keys = KEY_CACHE_KSK.get_from_param((
-        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         ksk_params,
     ));
     let ksk = keys.key_switching_key();
@@ -162,7 +163,7 @@ fn gen_multi_keys_test_no_shift_ci_run_filter() {
 
 #[test]
 fn gen_multi_keys_test_truncate_ci_run_filter() {
-    let keys2 = KEY_CACHE.get_from_param(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+    let keys2 = KEY_CACHE.get_from_param(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
     let (ck2, sk2) = (keys2.client_key(), keys2.server_key());
 
     let ksk_params = ShortintKeySwitchingParameters::new(
@@ -172,8 +173,8 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
     );
 
     let keys = KEY_CACHE_KSK.get_from_param((
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-        PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         ksk_params,
     ));
     let (ck1, sk1) = (keys.client_key_1(), keys.server_key_1());
