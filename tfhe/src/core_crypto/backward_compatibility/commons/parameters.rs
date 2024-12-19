@@ -172,3 +172,13 @@ pub enum EncryptionKeyChoiceVersions {
 pub enum PBSOrderVersions {
     V0(PBSOrder),
 }
+
+#[derive(VersionsDispatch)]
+pub enum RSigmaFactorVersions {
+    V0(RSigmaFactor),
+}
+
+#[derive(VersionsDispatch)]
+pub enum NoiseEstimationMeasureBoundVersions {
+    V0(NoiseEstimationMeasureBound),
+}
