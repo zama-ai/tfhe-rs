@@ -14,7 +14,7 @@ create_parameterized_test!(big_radix_encrypt_decrypt_128_bits {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         },
         no_coverage => {
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             /* PARAM_MESSAGE_3_CARRY_3_KS_PBS, Skipped as the key requires 32GB
             * PARAM_MESSAGE_4_CARRY_4_KS_PBS, Skipped as the key requires 550GB */
@@ -28,7 +28,7 @@ create_parameterized_test!(
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         },
         no_coverage => {
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             /* PARAM_MESSAGE_3_CARRY_3_KS_PBS, Skipped as its slow
             * PARAM_MESSAGE_4_CARRY_4_KS_PBS, Skipped as its slow */

@@ -2,7 +2,8 @@ use crate::utilities::{write_to_json, OperatorType};
 use criterion::Criterion;
 use rayon::prelude::*;
 use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 };
 use tfhe::shortint::prelude::*;
 
@@ -11,9 +12,9 @@ pub fn pack_cast_64(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group(bench_name);
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
-        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+        gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) =
-        gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+        gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
 
     let ks_param = PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
     let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
@@ -62,9 +63,9 @@ pub fn pack_cast(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group(bench_name);
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
-        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+        gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) =
-        gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+        gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
 
     let ks_param = PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
     let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
@@ -103,9 +104,9 @@ pub fn cast(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group(bench_name);
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
-        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+        gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) =
-        gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+        gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
 
     let ks_param = PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
     let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";

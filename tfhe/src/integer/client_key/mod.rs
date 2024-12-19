@@ -132,12 +132,12 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key, that can encrypt in
     /// // radix and crt decomposition, where each block of the decomposition
     /// // have over 2 bits of message modulus.
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     /// ```
     pub fn new<P>(parameter_set: P) -> Self
     where
@@ -155,12 +155,12 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key, that can encrypt in
     /// // radix and crt decomposition, where each block of the decomposition
     /// // have over 2 bits of message modulus.
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let key = cks.into_raw_parts();
     /// ```
@@ -174,12 +174,12 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key, that can encrypt in
     /// // radix and crt decomposition, where each block of the decomposition
     /// // have over 2 bits of message modulus.
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let key = cks.into_raw_parts();
     ///
@@ -213,9 +213,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     /// let num_block = 4;
     ///
     /// let msg = 167_u64;
@@ -239,9 +239,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     /// let num_block = 4;
     ///
     /// let msg = 167_u64;
@@ -314,9 +314,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     /// let num_block = 4;
     ///
     /// let msg = 191_u64;
@@ -342,9 +342,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     /// let num_block = 4;
     ///
     /// let msg = 191_u64;
@@ -489,9 +489,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let msg = 2_u64;
     ///
@@ -510,11 +510,11 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, size);
     ///
     /// let a = cks.encrypt_bool(false);
     /// let dec = cks.decrypt_bool(&a);
@@ -545,9 +545,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::{BooleanBlock, ClientKey};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let a = cks.encrypt_one_block(1u64);
     /// let wrapped = BooleanBlock::new_unchecked(a);
@@ -564,9 +564,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let msg = 13_u64;
     ///
@@ -604,10 +604,10 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// // Generate the client key and the server key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let msg = 27_u64;
     /// let basis: Vec<u64> = vec![2, 3, 5];
@@ -642,9 +642,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let msg = 13_u64;
     ///
@@ -683,9 +683,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
     ///
     /// let msg = 27_u64;
     /// let basis: Vec<u64> = vec![2, 3, 5];

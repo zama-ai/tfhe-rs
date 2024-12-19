@@ -2,7 +2,7 @@ use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::MaxNoiseLevel;
 use crate::shortint::parameters::{CarryModulus, ClassicPBSParameters, MessageModulus};
 // p-fail = 2^-64.05, algorithmic cost ~ 67, 2-norm = 3
-pub const V0_11_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
+pub const V0_10_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(884),
         glwe_dimension: GlweDimension(4),
@@ -25,7 +25,7 @@ pub const V0_11_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64: ClassicPBSParamete
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
 // p-fail = 2^-64.107, algorithmic cost ~ 124, 2-norm = 5
-pub const V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
+pub const V0_10_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(944),
         glwe_dimension: GlweDimension(1),
@@ -48,7 +48,7 @@ pub const V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64: ClassicPBSParamete
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
 // p-fail = 2^-64.007, algorithmic cost ~ 1066, 2-norm = 9
-pub const V0_11_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
+pub const V0_10_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(1121),
         glwe_dimension: GlweDimension(1),
@@ -71,7 +71,7 @@ pub const V0_11_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64: ClassicPBSParamete
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
 // p-fail = 2^-64.507, algorithmic cost ~ 13479, 2-norm = 17
-pub const V0_11_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
+pub const V0_10_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(1254),
         glwe_dimension: GlweDimension(1),
@@ -93,9 +93,9 @@ pub const V0_11_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64: ClassicPBSParamete
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
-pub const V0_11_WITH_CARRY_PARAMETERS_VEC_PBS_KS: [ClassicPBSParameters; 4] = [
-    V0_11_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64,
+pub const V0_10_WITH_CARRY_PARAMETERS_VEC_PBS_KS: [ClassicPBSParameters; 4] = [
+    V0_10_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64,
+    V0_10_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+    V0_10_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64,
+    V0_10_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64,
 ];

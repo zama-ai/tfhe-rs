@@ -23,7 +23,7 @@ fn test_tag_propagation_cpu() {
         )),
         Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),
         Some((
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         )),
     )
@@ -144,7 +144,7 @@ fn test_tag_propagation_gpu() {
         None,
         Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),
         Some((
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         )),
     )

@@ -496,7 +496,8 @@ pub fn safe_deserialize_conformant<
 mod test_shortint {
     use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
     use crate::shortint::parameters::{
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
     };
     use crate::shortint::{gen_keys, Ciphertext};
 
@@ -520,7 +521,7 @@ mod test_shortint {
         assert!(DeserializationConfig::new(1 << 20)
             .deserialize_from::<Ciphertext>(
                 buffer.as_slice(),
-                &PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64.to_shortint_conformance_param()
+                &V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64.to_shortint_conformance_param()
             )
             .is_err());
 
@@ -555,7 +556,7 @@ mod test_shortint {
         assert!(DeserializationConfig::new(1 << 20,)
             .deserialize_from::<Ciphertext>(
                 buffer.as_slice(),
-                &PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64.to_shortint_conformance_param()
+                &V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64.to_shortint_conformance_param()
             )
             .is_err());
 
@@ -634,7 +635,8 @@ mod test_integer {
     use crate::prelude::*;
     use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
     use crate::shortint::parameters::{
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
     };
     use crate::{
         set_server_key, CompactCiphertextList, CompactCiphertextListConformanceParams,
@@ -673,7 +675,7 @@ mod test_integer {
 
         for param_set in [
             CompactCiphertextListConformanceParams {
-                shortint_params: PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
+                shortint_params: V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
                     .to_shortint_conformance_param(),
                 num_elements_constraint: ListSizeConstraint::exact_size(3),
             },
@@ -756,7 +758,7 @@ mod test_integer {
 
         for param_set in [
             CompactCiphertextListConformanceParams {
-                shortint_params: PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
+                shortint_params: V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
                     .to_shortint_conformance_param(),
                 num_elements_constraint: ListSizeConstraint::exact_size(3),
             },
