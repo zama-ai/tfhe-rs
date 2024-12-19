@@ -555,6 +555,8 @@ impl<T> NotTuple for &mut crate::integer::ciphertext::BaseSignedRadixCiphertext<
 
 impl<T> NotTuple for &Vec<T> {}
 
+impl NotTuple for &crate::integer::ciphertext::BooleanBlock {}
+
 /// For unary operations
 ///
 /// Note, we need to `NotTuple` constraint to avoid conflicts with binary or ternary operations
@@ -653,22 +655,6 @@ where
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_rotate_right_parallelized);
     unchecked_rotate_right_test(param, executor);
 }
-
-//=============================================================================
-// Unchecked Scalar Tests
-//=============================================================================
-
-//=============================================================================
-// Smart Tests
-//=============================================================================
-
-//=============================================================================
-// Smart Scalar Tests
-//=============================================================================
-
-//=============================================================================
-// Default Tests
-//=============================================================================
 
 #[test]
 #[cfg(not(tarpaulin))]

@@ -583,10 +583,13 @@ test_integer_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
 
-.PHONY: test_integer_long_run_gpu # Run the tests of the integer module including experimental on the gpu backend
-test_integer_long_run_gpu: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu,__long_run_tests -p $(TFHE_SPEC) -- integer::gpu::server_key::radix::tests_long_run --test-threads=6
+.PHONY: test_integer_long_run_gpu # Run the long run integer tests on the gpu backend
+test_integer_long_run_gpu: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	LONG_TESTS=TRUE \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
+		--tfhe-package "$(TFHE_SPEC)" --backend "gpu"
 
 .PHONY: test_integer_compression
 test_integer_compression: install_rs_build_toolchain
@@ -768,11 +771,13 @@ test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nexte
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only --tfhe-package "$(TFHE_SPEC)"
 
-.PHONY: test_integer_long_run # Run the long run tests for integer
-test_integer_long_run: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-						--features=integer,internal-keycache,__long_run_tests -p $(TFHE_SPEC) -- integer::server_key::radix_parallel::tests_long_run
-
+.PHONY: test_integer_long_run # Run the long run integer tests
+test_integer_long_run: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	LONG_TESTS=TRUE \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
+		--tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_safe_serialization # Run the tests for safe serialization
 test_safe_serialization: install_rs_build_toolchain install_cargo_nextest
