@@ -14,10 +14,17 @@ env:
 
 on:
   pull_request:
+  pull_request_target:
 
 jobs:
+  check-user-permission:
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (cuda-pcc)
+    needs: check-user-permission
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -57,6 +64,7 @@ jobs:
         with:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up home
         run: |

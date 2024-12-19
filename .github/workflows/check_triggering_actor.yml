@@ -21,7 +21,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
       - name: Check User Permission
-        if: steps.check-access.outputs.require-result == 'false'
+        if: github.triggering_actor != 'dependabot' &&
+          steps.check-access.outputs.require-result == 'false'
         run: |
           echo "${{ github.triggering_actor }} does not have permissions on this repo."
           echo "Current permission level is ${{ steps.check-access.outputs.user-permission }}"

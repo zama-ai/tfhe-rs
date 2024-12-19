@@ -21,6 +21,10 @@ on:
     types:
       - opened
       - synchronize
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
   schedule:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
@@ -39,6 +43,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check for file changes
         id: changed-files
@@ -63,9 +68,15 @@ jobs:
               - scripts/integer-tests.sh
               - ci/slab.toml
 
+  check-user-permission:
+    needs: should-run
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (cuda-unsigned-integer-tests)
-    needs: should-run
+    needs: [ should-run, check-user-permission ]
     if: (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name == 'workflow_dispatch' ||
       needs.should-run.outputs.gpu_test == 'true'
@@ -104,6 +115,10 @@ jobs:
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Hyperstack dependencies
         uses: ./.github/actions/hyperstack_setup

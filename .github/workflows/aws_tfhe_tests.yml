@@ -17,6 +17,8 @@ on:
   workflow_dispatch:
   pull_request:
     types: [ labeled ]
+  pull_request_target:
+    types: [ labeled ]
   schedule:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
@@ -65,6 +67,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check for file changes
         id: changed-files
@@ -132,11 +135,17 @@ jobs:
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
+  check-user-permission:
+    needs: should-run
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (cpu-tests)
     if: github.event_name != 'pull_request' ||
       (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.any_file_changed == 'true')
-    needs: should-run
+    needs: [ should-run, check-user-permission ]
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -167,6 +176,7 @@ jobs:
         with:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203

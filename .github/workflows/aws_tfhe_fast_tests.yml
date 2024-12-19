@@ -20,17 +20,8 @@ on:
   pull_request_target:
 
 jobs:
-  check-user-permission:
-    if: github.event_name == 'pull_request_target'
-    uses: ./.github/workflows/check_triggering_actor.yml
-    secrets:
-      TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   should-run:
     runs-on: ubuntu-latest
-    needs: check-user-permission
-    if: github.event_name != 'pull_request_target' ||
-      needs.check-user-permission.result == 'success'
     permissions:
       pull-requests: write
     outputs:
@@ -134,11 +125,17 @@ jobs:
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
+  check-user-permission:
+    needs: should-run
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (fast-tests)
-    if: github.event_name != 'pull_request' ||
+    if: github.event_name == 'workflow_dispatch' ||
       needs.should-run.outputs.any_file_changed == 'true'
-    needs: should-run
+    needs: [ should-run, check-user-permission ]
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}

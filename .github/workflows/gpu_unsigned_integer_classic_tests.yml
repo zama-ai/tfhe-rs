@@ -17,7 +17,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
-      types: [ labeled ]
+    types: [ labeled ]
+  pull_request_target:
+    types: [ labeled ]
 
 jobs:
   should-run:
@@ -33,6 +35,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check for file changes
         id: changed-files
@@ -57,10 +60,16 @@ jobs:
               - scripts/integer-tests.sh
               - ci/slab.toml
 
+  check-user-permission:
+    needs: should-run
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (cuda-unsigned-classic-tests)
-    needs: should-run
-    if: github.event_name != 'pull_request' ||
+    needs: [ should-run, check-user-permission ]
+    if: github.event_name == 'workflow_dispatch' ||
       (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true') ||
       (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     runs-on: ubuntu-latest
@@ -98,6 +107,10 @@ jobs:
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Hyperstack dependencies
         uses: ./.github/actions/hyperstack_setup
