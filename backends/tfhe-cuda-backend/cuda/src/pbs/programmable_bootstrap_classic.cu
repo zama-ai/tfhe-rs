@@ -136,7 +136,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         num_many_lut, lut_stride);
     break;
   case 512:
-    host_programmable_bootstrap_tbc<Torus, Degree<512>>(
+    host_programmable_bootstrap_tbc<Torus, AmortizedDegree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
@@ -144,7 +144,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         num_many_lut, lut_stride);
     break;
   case 1024:
-    host_programmable_bootstrap_tbc<Torus, Degree<1024>>(
+    host_programmable_bootstrap_tbc<Torus, AmortizedDegree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
@@ -393,7 +393,7 @@ void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
         num_many_lut, lut_stride);
     break;
   case 512:
-    host_programmable_bootstrap_cg<Torus, Degree<512>>(
+    host_programmable_bootstrap_cg<Torus, AmortizedDegree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
@@ -401,7 +401,7 @@ void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
         num_many_lut, lut_stride);
     break;
   case 1024:
-    host_programmable_bootstrap_cg<Torus, Degree<1024>>(
+    host_programmable_bootstrap_cg<Torus, AmortizedDegree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
@@ -468,7 +468,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
         num_many_lut, lut_stride);
     break;
   case 512:
-    host_programmable_bootstrap<Torus, Degree<512>>(
+    host_programmable_bootstrap<Torus, AmortizedDegree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
@@ -476,7 +476,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
         num_many_lut, lut_stride);
     break;
   case 1024:
-    host_programmable_bootstrap<Torus, Degree<1024>>(
+    host_programmable_bootstrap<Torus, AmortizedDegree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
