@@ -237,7 +237,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
         (ClassicalProgrammableBootstrapTestParams){
             887, 1, 2048, new_t_uniform(46), new_t_uniform(17), 22, 1, 4, 4,
             100, 1, 1},
-        // PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
+        // V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
         (ClassicalProgrammableBootstrapTestParams){
             977, 1, 8192, new_gaussian_from_std_dev(3.0144389706858286e-07),
             new_gaussian_from_std_dev(2.168404344971009e-19), 16, 2, 8, 8, 100,

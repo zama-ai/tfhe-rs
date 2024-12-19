@@ -176,14 +176,15 @@ impl KeySwitchingKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    ///     V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     /// };
     /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
-    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let (ck1, sk1) = gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+    /// let (ck2, sk2) = gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///
     /// // Generate the server key:
     /// let ksk = KeySwitchingKey::new(
@@ -322,14 +323,15 @@ impl KeySwitchingKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    ///     V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     /// };
     /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
-    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let (ck1, sk1) = gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+    /// let (ck2, sk2) = gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///
     /// // Generate the server key:
     /// let ksk = KeySwitchingKey::new(
@@ -462,14 +464,15 @@ impl<'keys> KeySwitchingKeyView<'keys> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    ///     V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     /// };
     /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
-    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let (ck1, sk1) = gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+    /// let (ck2, sk2) = gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///
     /// // Generate the server key:
     /// let ksk = KeySwitchingKey::new(

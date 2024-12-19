@@ -41,22 +41,22 @@ macro_rules! create_parameterized_test_bivariate_pbs_compliant{
     ($name:ident)=> {
         create_parameterized_test!($name
         {
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
             PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
@@ -83,7 +83,7 @@ macro_rules! create_parameterized_test_bivariate_pbs_compliant{
     ($name:ident)=> {
         create_parameterized_test!($name
         {
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
         });
@@ -96,13 +96,13 @@ macro_rules! create_parameterized_test_bivariate_pbs_compliant{
 #[cfg(not(tarpaulin))]
 #[test]
 fn test_shortint_compressed_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
-    shortint_compressed_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+    shortint_compressed_public_key_smart_add(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 }
 
 #[cfg(not(tarpaulin))]
 #[test]
 fn test_shortint_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
-    shortint_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+    shortint_public_key_smart_add(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 }
 
 #[cfg(not(tarpaulin))]
