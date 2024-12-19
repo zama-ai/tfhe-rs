@@ -2,6 +2,8 @@
 name: Check commit and PR compliance
 on:
   pull_request:
+  pull_request_target:
+
 jobs:
   check-commit-pr:
     name: Check commit and PR

@@ -3,6 +3,7 @@ name: CI Lint and Checks
 
 on:
   pull_request:
+  pull_request_target:
 
 env:
   ACTIONLINT_VERSION: 1.6.27
