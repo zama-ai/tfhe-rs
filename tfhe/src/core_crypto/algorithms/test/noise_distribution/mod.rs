@@ -95,15 +95,47 @@ pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIA
 // ----    TUNIFORM    ---------------------------------------------------------
 
 #[allow(clippy::excessive_precision)]
+pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_TUNIFORM:
+    MultiBitTestParams<u64> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(267 * 3),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(48),
+    decomp_base_log: DecompositionBaseLog(22),
+    decomp_level_count: DecompositionLevelCount(1),
+    glwe_dimension: GlweDimension(4),
+    polynomial_size: PolynomialSize(512),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
+    message_modulus_log: MessageModulusLog(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    grouping_factor: LweBskGroupingFactor(3),
+    thread_count: ThreadCount(12),
+};
+
+#[allow(clippy::excessive_precision)]
 pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_TUNIFORM:
     MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(295 * 3), // 295 after FFT better fix
+    input_lwe_dimension: LweDimension(293 * 3),
     lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
     decomp_base_log: DecompositionBaseLog(22),
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
+    message_modulus_log: MessageModulusLog(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    grouping_factor: LweBskGroupingFactor(3),
+    thread_count: ThreadCount(12),
+};
+
+#[allow(clippy::excessive_precision)]
+pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_TUNIFORM:
+    MultiBitTestParams<u64> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(333 * 3),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(43),
+    decomp_base_log: DecompositionBaseLog(14),
+    decomp_level_count: DecompositionLevelCount(2),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(8192),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(4),
     message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(3),
