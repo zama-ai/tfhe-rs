@@ -85,19 +85,19 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64:
 // p-fail = 2^-68.192, algorithmic cost ~ 64, 2-norm = 3
 pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64:
     MultiBitPBSParameters = MultiBitPBSParameters {
-    lwe_dimension: LweDimension(720),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
+    lwe_dimension: LweDimension(768),
+    glwe_dimension: GlweDimension(3),
+    polynomial_size: PolynomialSize(512),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        2.540544392252957e-05,
+        1.1098369627275701e-05,
     )),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        2.845267479601915e-15,
+        1.9524392655548086e-11,
     )),
-    pbs_base_log: DecompositionBaseLog(22),
+    pbs_base_log: DecompositionBaseLog(17),
     pbs_level: DecompositionLevelCount(1),
-    ks_base_log: DecompositionBaseLog(3),
-    ks_level: DecompositionLevelCount(5),
+    ks_base_log: DecompositionBaseLog(2),
+    ks_level: DecompositionLevelCount(7),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(2),
     max_noise_level: MaxNoiseLevel::new(3),
@@ -119,7 +119,7 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64:
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         2.845267479601915e-15,
     )),
-    pbs_base_log: DecompositionBaseLog(21),
+    pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_base_log: DecompositionBaseLog(3),
     ks_level: DecompositionLevelCount(5),
