@@ -31,6 +31,7 @@ pub mod multi_bit;
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
+pub mod v0_10;
 
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use super::server_key::PBSConformanceParameters;
