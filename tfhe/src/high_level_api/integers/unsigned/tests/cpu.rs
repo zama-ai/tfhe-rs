@@ -66,7 +66,7 @@ fn test_integer_compressed() {
 #[test]
 fn test_integer_compressed_small() {
     let config = ConfigBuilder::with_custom_parameters(
-        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+        crate::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     )
     .build();
     let (client_key, _) = generate_keys(config);
@@ -157,7 +157,7 @@ fn test_multi_div_rem() {
 #[test]
 fn test_small_uint128() {
     let config = ConfigBuilder::with_custom_parameters(
-        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+        crate::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     )
     .build();
 
@@ -206,7 +206,7 @@ fn test_decompressed_public_key_encrypt() {
 #[test]
 fn test_compact_public_key_big() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64)
+        .use_custom_parameters(V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64)
         .build();
     let (client_key, _) = generate_keys(config);
 
@@ -224,7 +224,7 @@ fn test_compact_public_key_big() {
 #[test]
 fn test_compact_public_key_small() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64)
+        .use_custom_parameters(V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64)
         .build();
     let (client_key, _) = generate_keys(config);
 

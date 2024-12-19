@@ -36,12 +36,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let ctxt: RadixCiphertext = sks.create_trivial_zero_radix(num_blocks);
     ///
@@ -110,12 +110,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let ctxt: RadixCiphertext = sks.create_trivial_radix(212u64, num_blocks);
     ///
@@ -143,12 +143,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -162,7 +162,7 @@ impl ServerKey {
     /// // Decrypt
     /// let res: u64 = cks.decrypt(&ct1);
     /// assert_eq!(
-    ///     7 * (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+    ///     7 * (V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
     ///         .message_modulus
     ///         .0)
     ///         .pow(added_blocks as u32),
@@ -185,12 +185,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -204,7 +204,7 @@ impl ServerKey {
     /// // Decrypt
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(
-    ///     7 * (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+    ///     7 * (V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
     ///         .message_modulus
     ///         .0)
     ///         .pow(added_blocks as u32),
@@ -228,12 +228,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -264,12 +264,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -300,12 +300,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 119u64;
     ///
@@ -331,12 +331,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 119u64;
     ///
@@ -367,12 +367,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 119u64;
     ///
@@ -401,12 +401,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 119u64;
     ///
@@ -437,12 +437,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = -1i8;
     ///
@@ -492,12 +492,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = -2i8;
     ///
@@ -528,12 +528,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = -2i8;
     ///
@@ -604,12 +604,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 8;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = u16::MAX;
     ///
@@ -678,12 +678,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -719,12 +719,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, num_blocks);
     ///
     /// let msg = 10;
     ///
