@@ -66,7 +66,7 @@ fn test_integer_compressed() {
 #[test]
 fn test_integer_compressed_small() {
     let config = ConfigBuilder::with_custom_parameters(
-        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+        crate::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     )
     .build();
     let (client_key, _) = generate_keys(config);
@@ -157,7 +157,7 @@ fn test_multi_div_rem() {
 #[test]
 fn test_small_uint128() {
     let config = ConfigBuilder::with_custom_parameters(
-        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+        crate::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
     )
     .build();
 

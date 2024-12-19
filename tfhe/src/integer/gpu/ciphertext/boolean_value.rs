@@ -108,7 +108,7 @@ impl CudaBooleanBlock {
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::BooleanBlock;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let gpu_index = 0;
     /// let mut stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
@@ -116,7 +116,7 @@ impl CudaBooleanBlock {
     /// // Generate the client key and the server key:
     /// let num_blocks = 1;
     /// let (cks, sks) = gen_keys_radix_gpu(
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     ///     num_blocks,
     ///     &mut stream,
     /// );
