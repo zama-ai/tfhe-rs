@@ -605,9 +605,9 @@ impl CompactCiphertextList {
     ///     RadixCiphertext, SignedRadixCiphertext,
     /// };
     /// use tfhe::integer::{ClientKey, CompactPublicKey};
-    /// use tfhe::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::classic::compact_pk::V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
     ///
-    /// let fhe_params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
+    /// let fhe_params = V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let num_blocks = 4usize;
     ///

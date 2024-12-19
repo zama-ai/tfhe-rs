@@ -17,8 +17,8 @@ use tfhe::shortint::keycache::{
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_NAME,
 };
 use tfhe::shortint::parameters::classic::compact_pk::{
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
 };
 use tfhe::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::{
@@ -37,10 +37,10 @@ struct Args {
 fn params_from_name(name: &str) -> ClassicPBSParameters {
     match name.to_uppercase().as_str() {
         PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64_NAME => {
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64
+            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64
         }
         PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64_NAME => {
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64
+            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64
         }
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64_NAME => {
             PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64
