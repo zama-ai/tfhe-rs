@@ -94,7 +94,8 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
         shell: bash

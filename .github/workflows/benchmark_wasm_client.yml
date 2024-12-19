@@ -36,7 +36,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Check for file changes
         id: changed-files
@@ -88,7 +89,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
         run: |
@@ -176,7 +178,8 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
         shell: bash
