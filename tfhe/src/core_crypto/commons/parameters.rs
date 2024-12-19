@@ -140,7 +140,7 @@ pub struct PolynomialSize(pub usize);
 impl PolynomialSize {
     /// Return the associated [`PolynomialSizeLog`].
     /// If the polynomial size is not a power of 2, returns the floor of its log2
-    pub fn log2(&self) -> PolynomialSizeLog {
+    pub const fn log2(&self) -> PolynomialSizeLog {
         PolynomialSizeLog(self.0.ilog2() as usize)
     }
 
@@ -156,7 +156,7 @@ impl PolynomialSize {
     /// Inputs of a blind rotation are monomials which degree may be up to 2 * N because of the
     /// negacyclicity
     /// Converts a polynomial size into the log modulus of the inputs of a blind rotation
-    pub fn to_blind_rotation_input_modulus_log(&self) -> CiphertextModulusLog {
+    pub const fn to_blind_rotation_input_modulus_log(&self) -> CiphertextModulusLog {
         CiphertextModulusLog(self.log2().0 + 1)
     }
 }
@@ -380,3 +380,11 @@ impl std::ops::Mul<EncryptionNoiseSampleCount> for usize {
 /// A quantity representing a number of bytes used for noise generation during encryption.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct EncryptionNoiseByteCount(pub usize);
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(RSigmaFactorVersions)]
+pub struct RSigmaFactor(pub f64);
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(NoiseEstimationMeasureBoundVersions)]
+pub struct NoiseEstimationMeasureBound(pub f64);

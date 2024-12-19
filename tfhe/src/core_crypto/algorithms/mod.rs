@@ -30,6 +30,7 @@ pub mod lwe_wopbs;
 #[cfg(feature = "zk-pok")]
 pub mod lwe_zero_knowledge_verification;
 pub mod misc;
+pub mod modulus_switch_noise_reduction;
 pub mod polynomial_algorithms;
 pub mod seeded_ggsw_ciphertext_decompression;
 pub mod seeded_ggsw_ciphertext_list_decompression;
