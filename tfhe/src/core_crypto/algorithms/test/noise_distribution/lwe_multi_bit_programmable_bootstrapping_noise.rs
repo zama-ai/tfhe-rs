@@ -15,7 +15,7 @@ use std::mem::discriminant;
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
-const NB_TESTS: usize = 100;
+const NB_TESTS: usize = 200;
 const EXP_NAME: &str = "gpu-tuniform";
 
 fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(params: MultiBitTestParams<u64>) {
@@ -32,7 +32,6 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(params: MultiBitTestParams<u64>)
     let pbs_decomposition_base_log = params.decomp_base_log;
     let pbs_decomposition_level_count = params.decomp_level_count;
     let grouping_factor = params.grouping_factor;
-    assert_eq!(grouping_factor.0, 3);
     assert_eq!(
         discriminant(&lwe_noise_distribution),
         discriminant(&glwe_noise_distribution),
@@ -547,9 +546,15 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(params: MultiBitTestParams<u64>)
 
 #[test]
 fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u64_132_bits() {
+    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
     lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
     lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
     lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
     return;
     //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
     //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
