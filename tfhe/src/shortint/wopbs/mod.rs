@@ -238,11 +238,11 @@ mod experimental {
         ///
         /// ```rust
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs_only::WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
+        /// use tfhe::shortint::parameters::parameters_wopbs_only::LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
         /// use tfhe::shortint::wopbs::*;
         ///
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
         /// ```
         pub fn new_wopbs_key_only_for_wopbs(cks: &ClientKey, sks: &ServerKey) -> Self {
@@ -256,13 +256,13 @@ mod experimental {
         ///
         /// ```rust
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
+        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
         /// use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
         /// use tfhe::shortint::wopbs::*;
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
-        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
         /// ```
         pub fn new_wopbs_key(
             cks: &ClientKey,
@@ -342,14 +342,14 @@ mod experimental {
         ///
         /// ```rust
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// use tfhe::shortint::wopbs::*;
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-        /// let message_modulus = WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
+        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let message_modulus = LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let m = 2;
         /// let ct = cks.encrypt(m);
         /// let lut = wopbs_key.generate_lut(&ct, |x| x * x % message_modulus);
@@ -380,13 +380,13 @@ mod experimental {
         ///
         /// ```rust
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs_only::WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        /// use tfhe::shortint::parameters::parameters_wopbs_only::LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// use tfhe::shortint::wopbs::WopbsKey;
         ///
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
-        /// let message_modulus = WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
+        /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let m = 2;
         /// let ct = cks.encrypt_without_padding(m);
         /// let lut = wopbs_key.generate_lut(&ct, |x| x * x % message_modulus);
@@ -416,12 +416,12 @@ mod experimental {
         ///
         /// ```rust
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
         /// use tfhe::shortint::wopbs::WopbsKey;
         /// use tfhe::shortint::parameters::MessageModulus;
         ///
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
         /// let message_modulus = MessageModulus(5);
         /// let m = 2;
@@ -456,15 +456,15 @@ mod experimental {
         /// ```rust
         /// use rand::Rng;
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// use tfhe::shortint::wopbs::*;
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut rng = rand::thread_rng();
-        /// let message_modulus = WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
+        /// let message_modulus = LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus as u64);
         /// let lut = vec![1_u64 << 59; wopbs_key.param.polynomial_size.0].into();
         /// let ct_res = wopbs_key.programmable_bootstrapping(&sks, &ct, &lut);
@@ -493,14 +493,14 @@ mod experimental {
         /// ```rust
         /// use rand::Rng;
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs_only::WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        /// use tfhe::shortint::parameters::parameters_wopbs_only::LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// use tfhe::shortint::wopbs::*;
         ///
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
         /// let mut rng = rand::thread_rng();
-        /// let message_modulus = WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
+        /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus as u64);
         /// let lut = vec![1_u64 << 59; wopbs_key.param.polynomial_size.0].into();
         /// let ct_res = wopbs_key.wopbs(&ct, &lut);
@@ -533,11 +533,11 @@ mod experimental {
         /// ```rust
         /// use rand::Rng;
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs::WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
+        /// use tfhe::shortint::parameters::parameters_wopbs::LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
         /// use tfhe::shortint::parameters::CarryModulus;
         /// use tfhe::shortint::wopbs::*;
         ///
-        /// let mut msg_1_carry_0_params = WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
+        /// let mut msg_1_carry_0_params = LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
         /// msg_1_carry_0_params.carry_modulus = CarryModulus(1);
         /// let (cks, sks) = gen_keys(msg_1_carry_0_params);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
@@ -579,11 +579,11 @@ mod experimental {
         ///
         /// ```rust
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
         /// use tfhe::shortint::parameters::MessageModulus;
         /// use tfhe::shortint::wopbs::*;
         ///
-        /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
         /// let msg = 2;
         /// let modulus = MessageModulus(5);
