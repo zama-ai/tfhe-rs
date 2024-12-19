@@ -194,6 +194,7 @@ pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(2),
     thread_count: ThreadCount(5),
+    tuniform: false,
 };
 
 pub const MULTI_BIT_3_3_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
@@ -212,6 +213,7 @@ pub const MULTI_BIT_3_3_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(2),
     thread_count: ThreadCount(5),
+    tuniform: false,
 };
 
 pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
@@ -230,6 +232,7 @@ pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
     grouping_factor: LweBskGroupingFactor(2),
     thread_count: ThreadCount(5),
+    tuniform: false,
 };
 
 pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
@@ -248,6 +251,7 @@ pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(3),
     thread_count: ThreadCount(12),
+    tuniform: false,
 };
 
 pub const MULTI_BIT_3_3_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
@@ -266,6 +270,7 @@ pub const MULTI_BIT_3_3_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(3),
     thread_count: ThreadCount(5),
+    tuniform: false,
 };
 
 pub const MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
@@ -284,6 +289,7 @@ pub const MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
     grouping_factor: LweBskGroupingFactor(3),
     thread_count: ThreadCount(12),
+    tuniform: false,
 };
 
 // DISCLAIMER: example parameters tailored for FFT implementation tests. There are not guaranteed
