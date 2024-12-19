@@ -64,7 +64,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check for file changes
@@ -167,7 +168,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Install latest stable

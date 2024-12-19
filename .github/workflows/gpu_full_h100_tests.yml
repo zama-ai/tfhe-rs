@@ -66,7 +66,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup Hyperstack dependencies
         uses: ./.github/actions/hyperstack_setup

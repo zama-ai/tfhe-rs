@@ -26,7 +26,7 @@ on:
         type: boolean
         default: false
     secrets:
-      FHE_ACTIONS_TOKEN:
+      REPO_CHECKOUT_TOKEN:
         required: true
       SLAB_ACTION_TOKEN:
         required: true
@@ -150,7 +150,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup Hyperstack dependencies
         uses: ./.github/actions/hyperstack_setup
@@ -210,7 +211,8 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
         shell: bash
