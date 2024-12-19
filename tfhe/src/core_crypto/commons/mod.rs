@@ -45,6 +45,11 @@ pub mod test_tools {
     use crate::core_crypto::commons::traits::*;
     use tfhe_csprng::seeders::Seed;
 
+    pub fn check_both_ratio_under(a: f64, b: f64, max_ratio: f64) -> bool {
+        assert!(a > 0.0 && b > 0.0);
+        a / b < max_ratio && b / a < max_ratio
+    }
+
     pub fn mean(samples: &[f64]) -> f64 {
         let num_samples = samples.len();
 
