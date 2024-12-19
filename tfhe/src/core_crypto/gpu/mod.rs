@@ -87,7 +87,7 @@ impl Drop for CudaStreams {
     }
 }
 
-/// Discarding bootstrap on a vector of LWE ciphertexts
+/// Programmable bootstrap on a vector of LWE ciphertexts
 ///
 /// # Safety
 ///
@@ -150,7 +150,7 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     );
 }
 
-/// Discarding bootstrap on a vector of LWE ciphertexts
+/// Programmable multi-bit bootstrap on a vector of LWE ciphertexts
 ///
 /// # Safety
 ///
@@ -215,7 +215,7 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
     );
 }
 
-/// Discarding keyswitch on a vector of LWE ciphertexts
+/// Keyswitch on a vector of LWE ciphertexts
 ///
 /// # Safety
 ///
@@ -408,7 +408,7 @@ pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInt
     );
 }
 
-/// Discarding addition of a vector of LWE ciphertexts
+/// Addition of a vector of LWE ciphertexts
 ///
 /// # Safety
 ///
@@ -433,7 +433,7 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
     );
 }
 
-/// Discarding assigned addition of a vector of LWE ciphertexts
+/// Assigned addition of a vector of LWE ciphertexts
 ///
 /// # Safety
 ///
@@ -457,7 +457,7 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
     );
 }
 
-/// Discarding addition of a vector of LWE ciphertexts with a vector of plaintexts
+/// Addition of a vector of LWE ciphertexts with a vector of plaintexts
 ///
 /// # Safety
 ///
@@ -482,7 +482,7 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_async<T: UnsignedIntege
     );
 }
 
-/// Discarding assigned addition of a vector of LWE ciphertexts with a vector of plaintexts
+/// Assigned addition of a vector of LWE ciphertexts with a vector of plaintexts
 ///
 /// # Safety
 ///
@@ -506,7 +506,7 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_assign_async<T: Unsigne
     );
 }
 
-/// Discarding negation of a vector of LWE ciphertexts
+/// Negation of a vector of LWE ciphertexts
 ///
 /// # Safety
 ///
@@ -529,7 +529,7 @@ pub unsafe fn negate_lwe_ciphertext_vector_async<T: UnsignedInteger>(
     );
 }
 
-/// Discarding assigned negation of a vector of LWE ciphertexts
+/// Assigned negation of a vector of LWE ciphertexts
 ///
 /// # Safety
 ///
@@ -552,7 +552,7 @@ pub unsafe fn negate_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
 }
 
 #[allow(clippy::too_many_arguments)]
-/// Discarding assign negation of a vector of LWE ciphertexts representing an integer
+/// Assign negation of a vector of LWE ciphertexts representing an integer
 ///
 /// # Safety
 ///
