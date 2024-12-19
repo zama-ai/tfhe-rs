@@ -11,4 +11,4 @@ mod test_functions;
 const N: usize = 32;
 
 pub use client_key::ClientKey;
-pub use server_key::ServerKey;
+pub use server_key::{ServerKey, ServerKeyRef};

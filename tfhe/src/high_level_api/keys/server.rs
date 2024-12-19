@@ -93,6 +93,11 @@ impl ServerKey {
         self.key.pbs_key()
     }
 
+    #[cfg(feature = "strings")]
+    pub(in crate::high_level_api) fn string_key(&self) -> crate::strings::ServerKeyRef<'_> {
+        crate::strings::ServerKeyRef::new(self.key.pbs_key())
+    }
+
     pub(in crate::high_level_api) fn cpk_casting_key(
         &self,
     ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyView> {
