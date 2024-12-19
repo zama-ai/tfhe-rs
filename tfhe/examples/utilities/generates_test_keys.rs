@@ -36,8 +36,9 @@ use tfhe::shortint::parameters::{
 };
 #[cfg(feature = "experimental")]
 use tfhe::shortint::parameters::{
-    WopbsParameters, WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    WopbsParameters, LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS, LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
 use tfhe::shortint::MultiBitPBSParameters;
 
@@ -118,7 +119,7 @@ fn client_server_keys() {
         {
             const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 1] = [(
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-                WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             )];
             generate_wopbs_keys(&WOPBS_PARAMS);
         }
@@ -152,19 +153,19 @@ fn client_server_keys() {
             const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 4] = [
                 (
                     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-                    WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+                    LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
                 ),
                 (
                     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-                    WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
                 ),
                 (
                     PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-                    WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                    LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                 ),
                 (
                     PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-                    WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+                    LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
                 ),
             ];
 
