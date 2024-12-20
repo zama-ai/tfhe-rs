@@ -112,28 +112,6 @@ pub trait FheMax<Rhs = Self> {
     fn max(&self, other: Rhs) -> Self::Output;
 }
 
-/// Trait required to apply univariate function over homomorphic types.
-///
-/// A `univariate function` is a function with one variable, e.g., of the form f(x).
-pub trait FheBootstrap
-where
-    Self: Sized,
-{
-    /// Compute a function over an encrypted message, and returns a new encrypted value containing
-    /// the result.
-    fn map<F: Fn(u64) -> u64>(&self, func: F) -> Self;
-
-    /// Compute a function over the encrypted message.
-    fn apply<F: Fn(u64) -> u64>(&mut self, func: F);
-}
-
-#[doc(hidden)]
-pub trait FheNumberConstant {
-    const MIN: u64;
-    const MAX: u64;
-    const MODULUS: u64;
-}
-
 pub trait RotateLeft<Rhs = Self> {
     type Output;
 
