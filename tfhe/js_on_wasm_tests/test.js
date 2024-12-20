@@ -110,7 +110,7 @@ test('shortint_encrypt_decrypt', (t) => {
     // No equality tests here, as wasm stores pointers which will always differ
 
     // Encryption using small keys
-    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_name_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
     let params_small = new ShortintParameters(params_name_small);
     let cks_small = Shortint.new_client_key(params_small);
 
@@ -142,7 +142,7 @@ test('shortint_compressed_encrypt_decrypt', (t) => {
 
     // Encryption using small keys
     // We don't have TUniform small params so use previous gaussian ones.
-    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_name_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
     let params_small = new ShortintParameters(params_name_small);
     let cks_small = Shortint.new_client_key(params_small);
 
@@ -158,7 +158,7 @@ test('shortint_compressed_encrypt_decrypt', (t) => {
 });
 
 test('shortint_public_encrypt_decrypt', (t) => {
-    let params_name_2_0 = ShortintParametersName.PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64;
+    let params_name_2_0 = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M64;
     let params_2_0 = new ShortintParameters(params_name_2_0);
     let cks = Shortint.new_client_key(params_2_0);
     let pk = Shortint.new_public_key(cks);
@@ -172,7 +172,7 @@ test('shortint_public_encrypt_decrypt', (t) => {
     assert.deepStrictEqual(decrypted, BigInt(3));
 
     // Small
-    let params_name_2_2_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_name_2_2_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
     let params_2_2_small = new ShortintParameters(params_name_2_2_small);
     let cks_small = Shortint.new_client_key(params_2_2_small);
 
@@ -205,7 +205,7 @@ test('shortint_compressed_public_encrypt_decrypt', (t) => {
     assert.deepStrictEqual(decrypted, BigInt(1));
 
     // Small
-    let params_name_small = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_name_small = ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
     let params_small = new ShortintParameters(params_name_small);
     let cks_small = Shortint.new_client_key(params_small);
 
