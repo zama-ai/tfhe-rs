@@ -52,6 +52,13 @@ pub use compact_public_key_only::{
     CastingFunctionsOwned, CastingFunctionsView, CompactCiphertextListExpansionKind,
     CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
 };
+
+pub use crate::shortint::parameters::v0_10::classic::compact_pk::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::classic::compact_pk::gaussian::p_fail_2_minus_64::pbs_ks::*;
+pub use crate::shortint::parameters::v0_10::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
+pub use crate::shortint::parameters::v0_10::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
+
 #[cfg(tarpaulin)]
 pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
