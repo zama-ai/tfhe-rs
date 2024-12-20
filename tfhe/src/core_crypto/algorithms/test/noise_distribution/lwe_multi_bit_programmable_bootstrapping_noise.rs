@@ -2,7 +2,7 @@ use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::*;
-use crate::core_crypto::commons::noise_formulas::secure_noise::{minimal_glwe_variance_for_132_bits_security_gaussian, minimal_lwe_variance_for_132_bits_security_gaussian};
+use crate::core_crypto::commons::noise_formulas::secure_noise::*;
 use crate::core_crypto::commons::test_tools::{variance};
 use npyz::{DType, WriterBuilder};
 use rayon::prelude::*;
@@ -15,10 +15,13 @@ use std::mem::discriminant;
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
-const NB_TESTS: usize = 200;
-const EXP_NAME: &str = "gpu-tuniform";
+const NB_TESTS: usize = 10;
+const EXP_NAME: &str = "wide-search-2000-tuniform";   // wide-search-2000   gpu-gauss   gpu-tuniform
 
-fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(params: MultiBitTestParams<u64>) {
+fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
+    params: &MultiBitTestParams<u64>,
+    run_measurements: &bool,
+) {
     type Scalar = u64;
     let input_lwe_dimension = params.input_lwe_dimension;
     let lwe_noise_distribution = params.lwe_noise_distribution;
@@ -51,129 +54,14 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(params: MultiBitTestParams<u64>)
         ciphertext_modulus.get_custom_modulus() as f64
     };
 
-    //TODO make this somehow a bit more compact
-    let expected_variance_fft = if let DynamicDistribution::Gaussian(_) = lwe_noise_distribution {
-        match grouping_factor.0 {
-            2 => pbs_variance_132_bits_security_gaussian_gf_2_fft_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            3 => pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            4 => pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            _ => panic!("Unsupported grouping factor: {grouping_factor:?}"),
-        }
-    } else if let DynamicDistribution::TUniform(_) = lwe_noise_distribution {
-        match grouping_factor.0 {
-            2 => pbs_variance_132_bits_security_tuniform_gf_2_fft_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            3 => pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            4 => pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            _ => panic!("Unsupported grouping factor: {grouping_factor:?}"),
-        }
-    } else {
-        panic!("Unknown distribution: {lwe_noise_distribution:?}")
-    };
-
-    let expected_variance_kara = if let DynamicDistribution::Gaussian(_) = lwe_noise_distribution {
-        match grouping_factor.0 {
-            2 => pbs_variance_132_bits_security_gaussian_gf_2_exact_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            3 => pbs_variance_132_bits_security_gaussian_gf_3_exact_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            4 => pbs_variance_132_bits_security_gaussian_gf_4_exact_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            _ => panic!("Unsupported grouping factor: {grouping_factor:?}"),
-        }
-    } else if let DynamicDistribution::TUniform(_) = lwe_noise_distribution {
-        match grouping_factor.0 {
-            2 => pbs_variance_132_bits_security_tuniform_gf_2_exact_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            3 => pbs_variance_132_bits_security_tuniform_gf_3_exact_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            4 => pbs_variance_132_bits_security_tuniform_gf_4_exact_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            ),
-            _ => panic!("Unsupported grouping factor: {grouping_factor:?}"),
-        }
-    } else {
-        panic!("Unknown distribution: {lwe_noise_distribution:?}")
-    };
+    let (expected_variance_kara,expected_variance_fft) = noise_prediction_kara_fft(params);
 
     // 3 sigma                            > half   interval size (msg-mod    +    padding bit)
     if 3.0*expected_variance_fft.0.sqrt() > 0.5 / (2usize.pow(message_modulus_log.0 as u32 + 1) as f64) {return;}
+
+    // output predicted noises to JSON
+    export_noise_predictions(params);
+    if !run_measurements {return;}
 
     let mut rsc = {
         let mut deterministic_seeder = Box::new(
@@ -305,6 +193,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(params: MultiBitTestParams<u64>)
     while msg != Scalar::ZERO {
         //~ msg = msg.wrapping_sub(Scalar::ONE);
         msg = Scalar::ZERO;
+
+        println!("Acquiring {NB_TESTS} samples for \"{EXP_NAME}\" experiment ...");
 
         let current_run_samples_kara_fft: Vec<_> = (0..NB_TESTS)
             .into_par_iter()
@@ -496,27 +386,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(params: MultiBitTestParams<u64>)
         },
     );
 
-    // output predicted noises to JSON
-    let filename_exp_var = format!("./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
-    let mut file_exp_var = File::create(&filename_exp_var).unwrap();
-
-    file_exp_var.write_all(
-        format!(r#"{{
-    "input_lwe_dimension": {},
-    "measured_variance_kara": {},
-    "expected_variance_kara": {},
-    "measured_variance_fft": {},
-    "expected_variance_fft": {},
-    "n_samples": {}
-}}"#,
-            input_lwe_dimension.0,
-            measured_variance_kara.0,
-            expected_variance_kara.0,
-            measured_variance_fft.0,
-            expected_variance_fft.0,
-            NB_TESTS,
-        ).as_bytes()
-    ).unwrap();
+    // output measured noises to JSON
+    export_noise_measurements(params, &measured_variance_kara, &measured_variance_fft);
 
     println!("Finished parameters {params:?}");
 
@@ -544,26 +415,223 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(params: MultiBitTestParams<u64>)
     }
 }
 
+fn export_noise_measurements(
+    params: &MultiBitTestParams<u64>,
+    measured_variance_kara: &Variance,
+    measured_variance_fft: &Variance,
+) {
+    // output measured noises to JSON
+    let distro: &str = if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
+        "GAUSSIAN"
+    } else if let DynamicDistribution::TUniform(_) = params.lwe_noise_distribution {
+        "TUNIFORM"
+    } else {
+        panic!("Unknown distribution: {}", params.lwe_noise_distribution)
+    };
+    let filename_exp_var = format!("./results/{EXP_NAME}/measured-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json", params.grouping_factor.0, params.decomp_base_log.0, params.decomp_level_count.0, params.glwe_dimension.0, params.polynomial_size.0);
+    let mut file_exp_var = File::create(&filename_exp_var).unwrap();
+
+    file_exp_var.write_all(
+        format!(r#"{{
+    "input_lwe_dimension": {},
+    "measured_variance_kara": {},
+    "measured_variance_fft": {},
+    "n_samples": {}
+}}"#,
+            params.input_lwe_dimension.0,
+            measured_variance_kara.0,
+            measured_variance_fft.0,
+            NB_TESTS,
+        ).as_bytes()
+    ).unwrap();
+}
+
+fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
+    // output predicted noises to JSON
+    let distro: &str = if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
+        "GAUSSIAN"
+    } else if let DynamicDistribution::TUniform(_) = params.lwe_noise_distribution {
+        "TUNIFORM"
+    } else {
+        panic!("Unknown distribution: {}", params.lwe_noise_distribution)
+    };
+    let filename_exp_var = format!("./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json", params.grouping_factor.0, params.decomp_base_log.0, params.decomp_level_count.0, params.glwe_dimension.0, params.polynomial_size.0);
+    let mut file_exp_var = File::create(&filename_exp_var).unwrap();
+
+    let (expected_variance_kara,expected_variance_fft) = noise_prediction_kara_fft(params);
+
+    file_exp_var.write_all(
+        format!(r#"{{
+    "input_lwe_dimension": {},
+    "expected_variance_kara": {},
+    "expected_variance_fft": {}
+}}"#,
+            params.input_lwe_dimension.0,
+            expected_variance_kara.0,
+            expected_variance_fft.0,
+        ).as_bytes()
+    ).unwrap();
+}
+
+//TODO make this somehow a bit more compact
+fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance,Variance) {
+    type Scalar = u64;
+    let modulus_as_f64 = if params.ciphertext_modulus.is_native_modulus() {
+        2.0f64.powi(Scalar::BITS as i32)
+    } else {
+        params.ciphertext_modulus.get_custom_modulus() as f64
+    };
+    return (
+        if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
+            match params.grouping_factor.0 {
+                2 => pbs_variance_132_bits_security_gaussian_gf_2_exact_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                3 => pbs_variance_132_bits_security_gaussian_gf_3_exact_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                4 => pbs_variance_132_bits_security_gaussian_gf_4_exact_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
+            }
+        } else if let DynamicDistribution::TUniform(_) = params.lwe_noise_distribution {
+            match params.grouping_factor.0 {
+                2 => pbs_variance_132_bits_security_tuniform_gf_2_exact_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                3 => pbs_variance_132_bits_security_tuniform_gf_3_exact_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                4 => pbs_variance_132_bits_security_tuniform_gf_4_exact_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
+            }
+        } else {
+            panic!("Unknown distribution: {:?}", params.lwe_noise_distribution)
+        },
+        if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
+            match params.grouping_factor.0 {
+                2 => pbs_variance_132_bits_security_gaussian_gf_2_fft_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                3 => pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                4 => pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
+            }
+        } else if let DynamicDistribution::TUniform(_) = params.lwe_noise_distribution {
+            match params.grouping_factor.0 {
+                2 => pbs_variance_132_bits_security_tuniform_gf_2_fft_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                3 => pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                4 => pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
+                    params.input_lwe_dimension,
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    params.decomp_base_log,
+                    params.decomp_level_count,
+                    modulus_as_f64,
+                ),
+                _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
+            }
+        } else {
+            panic!("Unknown distribution: {:?}", params.lwe_noise_distribution)
+        }
+    );
+}
+
 #[test]
 fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u64_132_bits() {
-    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    return;
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
+    test_impl(true);
+}
+
+#[test]
+fn test_export_noise_predictions() {
+    test_impl(false);
+}
+
+fn test_impl(run_measurements: bool) {
+    //TODO FIXME: params need to be updated, cf. mod.rs where they are defined
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ return;
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
     //~ return;
 
-    println!("Acquiring {NB_TESTS} samples for \"{EXP_NAME}\" experiment ...");
-    //~ for gf in [2,3,4] { //TODO add Vanilla BlindRot
-    let gf = 3;
+    for gf in [2,3,4] { //TODO add Vanilla BlindRot
+    //~ let gf = 3;
     for logbase in (9..=30).step_by(3) {
     //~ for logbase in (22..=22).step_by(5) {
     for level in 1..=4 {
@@ -571,10 +639,10 @@ fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit
         if logbase * level < 15 || logbase * level > 30 {continue;}
         //~ for ([k,logN],glwe_noise_std) in [[1,9],[2,9],[3,9],[1,10],[2,10],[1,11]].iter().zip([0.0009193616884853071,1.339775301998614e-07,1.9524392655548086e-11,1.339775301998614e-07,2.845267479601915e-15,2.845267479601915e-15].iter()) { // Gaussian noises
         for (k,logN) in [(1,9),(2,9),(3,9),(1,10),(2,10),(1,11)].iter() {
-            // Gaussian noises only !!!
-            //TODO also test TUniform
+
+            // Gaussian noise
             let glwe_var = minimal_glwe_variance_for_132_bits_security_gaussian(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));   // TODO CiphertextModulus::new_native() ???
-            let params: MultiBitTestParams<u64> = MultiBitTestParams {
+            let gaussian_params: MultiBitTestParams<u64> = MultiBitTestParams {
                 input_lwe_dimension: LweDimension(100 * 3),
                 lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
                     1.4742441118914234e-06 // this shall play no role, right..?
@@ -589,9 +657,26 @@ fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit
                 grouping_factor: LweBskGroupingFactor(gf),
                 thread_count: ThreadCount(12),
             };
-            lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(params);
+            lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&gaussian_params, &run_measurements);
+
+            // TUniform noise
+            let glwe_bnd = minimal_glwe_bound_for_132_bits_security_tuniform(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));
+            let tuniform_params: MultiBitTestParams<u64> = MultiBitTestParams {
+                input_lwe_dimension: LweDimension(100 * 3),
+                lwe_noise_distribution: DynamicDistribution::new_t_uniform(10), // this shall play no role, right..?
+                decomp_base_log: DecompositionBaseLog(logbase),
+                decomp_level_count: DecompositionLevelCount(level),
+                glwe_dimension: GlweDimension(*k),
+                polynomial_size: PolynomialSize(1 << logN),
+                glwe_noise_distribution: DynamicDistribution::new_t_uniform(glwe_bnd),
+                message_modulus_log: MessageModulusLog(4),
+                ciphertext_modulus: CiphertextModulus::new_native(),
+                grouping_factor: LweBskGroupingFactor(gf),
+                thread_count: ThreadCount(12),
+            };
+            lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&tuniform_params, &run_measurements);
         }
     }
     }
-    //~ }
+    }
 }
