@@ -2713,8 +2713,8 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
 pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_output: &mut CudaSliceMut<T>,
-    radix_lwe_input_1: &CudaSlice<T>,
-    radix_lwe_input_2: &CudaSlice<T>,
+    radix_lwe_input_1: &CudaVec<T>,
+    radix_lwe_input_2: &CudaVec<T>,
     input_lut: &[T],
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
