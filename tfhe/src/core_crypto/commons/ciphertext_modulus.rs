@@ -20,13 +20,6 @@ enum CiphertextModulusInner {
     Custom(NonZeroU128),
 }
 
-#[cfg(bench)]
-impl Default for CiphertextModulusInner {
-    fn default() -> Self {
-        CiphertextModulusInner::Native
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[serde(
     try_from = "SerializableCiphertextModulus",
@@ -37,7 +30,6 @@ impl Default for CiphertextModulusInner {
     try_from = "SerializableCiphertextModulus",
     into = "SerializableCiphertextModulus"
 )]
-#[cfg_attr(bench, derive(Default))]
 /// Structure representing a [`CiphertextModulus`] often noted $q$.
 pub struct CiphertextModulus<Scalar: UnsignedInteger> {
     inner: CiphertextModulusInner,
