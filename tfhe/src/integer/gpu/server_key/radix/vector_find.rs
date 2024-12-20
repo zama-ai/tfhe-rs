@@ -279,9 +279,9 @@ impl CudaServerKey {
             .max(num_blocks_to_represent_or_value);
         let or_value: CudaUnsignedRadixCiphertext =
             self.create_trivial_radix(or_value, num_blocks, streams);
-
+        let casted_result = self.cast_to_unsigned(result, num_blocks, streams);
         // Note, this could be slightly faster when we have scalar if then_else
-        self.unchecked_if_then_else(&selected, &result, &or_value, streams)
+        self.unchecked_if_then_else(&selected, &casted_result, &or_value, streams)
     }
 
     /// `match` an input value to an output value
