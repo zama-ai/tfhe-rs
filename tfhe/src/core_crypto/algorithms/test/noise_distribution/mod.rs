@@ -30,6 +30,8 @@ pub const NOISE_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: ClassicTestPara
         ciphertext_modulus: CiphertextModulus::new_native(),
     };
 
+//TODO FIXME after 3af71b4 in the optimizer, param's changed, not updated here yet:
+
 // ----    GAUSSIAN    ---------------------------------------------------------
 
 #[allow(clippy::excessive_precision)]
