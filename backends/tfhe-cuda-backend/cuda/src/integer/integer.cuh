@@ -627,26 +627,46 @@ void rotate_left(Torus *buffer, int mid, uint32_t array_length) {
   std::rotate(buffer, buffer + mid, buffer + array_length);
 }
 
+/// Caller needs to ensure that the operation applied is coherent from an
+/// encoding perspective.
+///
+/// For example:
+///
+/// Input encoding has 2 bits and output encoding has 4 bits, applying the
+/// identity lut would map the following:
+///
+/// 0|00|xx -> 0|00|00
+/// 0|01|xx -> 0|00|01
+/// 0|10|xx -> 0|00|10
+/// 0|11|xx -> 0|00|11
+///
+/// The reason is the identity function is computed in the input space but the
+/// scaling is done in the output space, as there are more bits in the output
+/// space, the delta is smaller hence the apparent "division" happening.
 template <typename Torus>
-void generate_lookup_table(Torus *acc, uint32_t glwe_dimension,
-                           uint32_t polynomial_size, uint32_t message_modulus,
-                           uint32_t carry_modulus,
-                           std::function<Torus(Torus)> f) {
+void generate_lookup_table_with_encoding(Torus *acc, uint32_t glwe_dimension,
+                                         uint32_t polynomial_size,
+                                         uint32_t input_message_modulus,
+                                         uint32_t input_carry_modulus,
+                                         uint32_t output_message_modulus,
+                                         uint32_t output_carry_modulus,
+                                         std::function<Torus(Torus)> f) {
 
-  uint32_t modulus_sup = message_modulus * carry_modulus;
-  uint32_t box_size = polynomial_size / modulus_sup;
-  Torus delta = (1ul << 63) / modulus_sup;
+  uint32_t input_modulus_sup = input_message_modulus * input_carry_modulus;
+  uint32_t output_modulus_sup = output_message_modulus * output_carry_modulus;
+  uint32_t box_size = polynomial_size / input_modulus_sup;
+  Torus output_delta = (1ul << 63) / output_modulus_sup;
 
   memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
 
   auto body = &acc[glwe_dimension * polynomial_size];
 
   // This accumulator extracts the carry bits
-  for (int i = 0; i < modulus_sup; i++) {
+  for (int i = 0; i < input_modulus_sup; i++) {
     int index = i * box_size;
     for (int j = index; j < index + box_size; j++) {
       auto f_eval = f(i);
-      body[j] = f_eval * delta;
+      body[j] = f_eval * output_delta;
     }
   }
 
@@ -658,6 +678,16 @@ void generate_lookup_table(Torus *acc, uint32_t glwe_dimension,
   }
 
   rotate_left<Torus>(body, half_box_size, polynomial_size);
+}
+
+template <typename Torus>
+void generate_lookup_table(Torus *acc, uint32_t glwe_dimension,
+                           uint32_t polynomial_size, uint32_t message_modulus,
+                           uint32_t carry_modulus,
+                           std::function<Torus(Torus)> f) {
+  generate_lookup_table_with_encoding(acc, glwe_dimension, polynomial_size,
+                                      message_modulus, carry_modulus,
+                                      message_modulus, carry_modulus, f);
 }
 
 template <typename Torus>
@@ -803,6 +833,32 @@ void generate_device_accumulator_bivariate_with_factor(
   free(h_lut);
 }
 
+template <typename Torus>
+void generate_device_accumulator_with_encoding(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc,
+    uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t input_message_modulus, uint32_t input_carry_modulus,
+    uint32_t output_message_modulus, uint32_t output_carry_modulus,
+    std::function<Torus(Torus)> f) {
+
+  // host lut
+  Torus *h_lut =
+      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+
+  // fill accumulator
+  generate_lookup_table_with_encoding<Torus>(
+      h_lut, glwe_dimension, polynomial_size, input_message_modulus,
+      input_carry_modulus, output_message_modulus, output_carry_modulus, f);
+
+  // copy host lut and lut_indexes_vec to device
+  cuda_memcpy_async_to_gpu(
+      acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
+      stream, gpu_index);
+
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
+}
+
 /*
  *  generate accumulator for device pointer
  *    v_stream - cuda stream
@@ -818,21 +874,9 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
                                  uint32_t carry_modulus,
                                  std::function<Torus(Torus)> f) {
 
-  // host lut
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
-
-  // fill accumulator
-  generate_lookup_table<Torus>(h_lut, glwe_dimension, polynomial_size,
-                               message_modulus, carry_modulus, f);
-
-  // copy host lut and lut_indexes_vec to device
-  cuda_memcpy_async_to_gpu(
-      acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
-      stream, gpu_index);
-
-  cuda_synchronize_stream(stream, gpu_index);
-  free(h_lut);
+  generate_device_accumulator_with_encoding(
+      stream, gpu_index, acc, glwe_dimension, polynomial_size, message_modulus,
+      carry_modulus, message_modulus, carry_modulus, f);
 }
 
 /*
