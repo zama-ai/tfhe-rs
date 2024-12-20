@@ -281,7 +281,7 @@ fn test_int64_rotate() {
 fn test_multi_bit_rotate() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-            crate::shortint::parameters::PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            crate::shortint::parameters::V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         )
         .build();
     fhe_int64_rotate(config);
@@ -369,7 +369,7 @@ fn test_int32_div_rem() {
 fn test_multi_div_rem() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-            crate::shortint::parameters::PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            crate::shortint::parameters::V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         )
         .build();
     fhe_int32_div_rem(config);
