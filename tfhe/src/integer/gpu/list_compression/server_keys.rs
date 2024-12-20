@@ -195,7 +195,23 @@ impl CudaDecompressionKey {
         start_block_index: usize,
         end_block_index: usize,
         streams: &CudaStreams,
-    ) -> CudaRadixCiphertext {
+    ) -> Result<CudaRadixCiphertext, crate::Error> {
+        if self.message_modulus.0 != self.carry_modulus.0 {
+            return Err(crate::Error::new(format!(
+                "Tried to unpack values from a list where message modulus \
+                ({:?}) is != carry modulus ({:?}), this is not supported.",
+                self.message_modulus, self.carry_modulus,
+            )));
+        }
+
+        if end_block_index >= packed_list.bodies_count {
+            return Err(crate::Error::new(format!(
+                "Tried getting index {end_block_index} for CompressedCiphertextList \
+                with {} elements, out of bound access.",
+                packed_list.bodies_count
+            )));
+        }
+
         let indexes_array = (start_block_index..=end_block_index)
             .map(|x| x as u32)
             .collect_vec();
@@ -264,10 +280,10 @@ impl CudaDecompressionKey {
 
                 let blocks = vec![first_block_info; output_lwe.0.lwe_ciphertext_count.0];
 
-                CudaRadixCiphertext {
+                Ok(CudaRadixCiphertext {
                     d_blocks: output_lwe,
                     info: CudaRadixCiphertextInfo { blocks },
-                }
+                })
             }
             CudaBootstrappingKey::MultiBit(_) => {
                 panic! {"Compression is currently not compatible with Multi-Bit PBS"}

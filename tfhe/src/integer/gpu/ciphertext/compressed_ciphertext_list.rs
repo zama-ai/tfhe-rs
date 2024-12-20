@@ -103,7 +103,7 @@ impl CudaCompressedCiphertextList {
                 start_block_index,
                 end_block_index,
                 streams,
-            ),
+            ).unwrap(),
             current_info,
         ))
     }

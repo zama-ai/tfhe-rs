@@ -300,7 +300,7 @@ __host__ void host_integer_decompress(
   /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
   /// dimension to a big LWE dimension
   auto encryption_params = h_mem_ptr->encryption_params;
-  auto lut = h_mem_ptr->carry_extract_lut;
+  auto lut = h_mem_ptr->decompression_rescale_lut;
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
   if (active_gpu_count == 1) {
     execute_pbs_async<Torus>(
