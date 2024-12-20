@@ -12,8 +12,11 @@ pub(in crate::high_level_api) mod traits;
 
 use crate::array::traits::TensorSlice;
 use crate::high_level_api::array::traits::HasClear;
-use crate::high_level_api::global_state::with_cpu_internal_keys;
+use crate::high_level_api::global_state;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheUintId;
+use crate::high_level_api::keys::InternalServerKey;
 use crate::{FheBool, FheId, FheUint};
 use std::ops::RangeBounds;
 use traits::{ArrayBackend, BackendDataContainer, BackendDataContainerMut};
@@ -345,20 +348,36 @@ declare_concrete_array_types!(
 );
 
 pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]) -> FheBool {
-    with_cpu_internal_keys(|cpu_keys| {
-        let tmp_lhs = lhs
-            .iter()
-            .map(|fhe_uint| fhe_uint.ciphertext.on_cpu().to_owned())
-            .collect::<Vec<_>>();
-        let tmp_rhs = rhs
-            .iter()
-            .map(|fhe_uint| fhe_uint.ciphertext.on_cpu().to_owned())
-            .collect::<Vec<_>>();
+    global_state::with_internal_keys(|sks| match sks {
+        InternalServerKey::Cpu(cpu_key) => {
+            let tmp_lhs = lhs
+                .iter()
+                .map(|fhe_uint| fhe_uint.ciphertext.on_cpu().to_owned())
+                .collect::<Vec<_>>();
+            let tmp_rhs = rhs
+                .iter()
+                .map(|fhe_uint| fhe_uint.ciphertext.on_cpu().to_owned())
+                .collect::<Vec<_>>();
 
-        let result = cpu_keys
-            .pbs_key()
-            .all_eq_slices_parallelized(&tmp_lhs, &tmp_rhs);
-        FheBool::new(result, cpu_keys.tag.clone())
+            let result = cpu_key
+                .pbs_key()
+                .all_eq_slices_parallelized(&tmp_lhs, &tmp_rhs);
+            FheBool::new(result, cpu_key.tag.clone())
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(gpu_key) => with_thread_local_cuda_streams(|streams| {
+            let tmp_lhs = lhs
+                .iter()
+                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu())
+                .collect::<Vec<_>>();
+            let tmp_rhs = rhs
+                .iter()
+                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu())
+                .collect::<Vec<_>>();
+
+            let result = gpu_key.key.key.all_eq_slices(&tmp_lhs, &tmp_rhs, streams);
+            FheBool::new(result, gpu_key.tag.clone())
+        }),
     })
 }
 
@@ -366,19 +385,38 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
     lhs: &[FheUint<Id>],
     pattern: &[FheUint<Id>],
 ) -> FheBool {
-    with_cpu_internal_keys(|cpu_keys| {
-        let tmp_lhs = lhs
-            .iter()
-            .map(|fhe_uint| fhe_uint.ciphertext.on_cpu().to_owned())
-            .collect::<Vec<_>>();
-        let tmp_pattern = pattern
-            .iter()
-            .map(|fhe_uint| fhe_uint.ciphertext.on_cpu().to_owned())
-            .collect::<Vec<_>>();
+    global_state::with_internal_keys(|sks| match sks {
+        InternalServerKey::Cpu(cpu_key) => {
+            let tmp_lhs = lhs
+                .iter()
+                .map(|fhe_uint| fhe_uint.ciphertext.on_cpu().to_owned())
+                .collect::<Vec<_>>();
+            let tmp_pattern = pattern
+                .iter()
+                .map(|fhe_uint| fhe_uint.ciphertext.on_cpu().to_owned())
+                .collect::<Vec<_>>();
 
-        let result = cpu_keys
-            .pbs_key()
-            .contains_sub_slice_parallelized(&tmp_lhs, &tmp_pattern);
-        FheBool::new(result, cpu_keys.tag.clone())
+            let result = cpu_key
+                .pbs_key()
+                .contains_sub_slice_parallelized(&tmp_lhs, &tmp_pattern);
+            FheBool::new(result, cpu_key.tag.clone())
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(gpu_key) => with_thread_local_cuda_streams(|streams| {
+            let tmp_lhs = lhs
+                .iter()
+                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu())
+                .collect::<Vec<_>>();
+            let tmp_pattern = pattern
+                .iter()
+                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu())
+                .collect::<Vec<_>>();
+
+            let result = gpu_key
+                .key
+                .key
+                .contains_sub_slice(&tmp_lhs, &tmp_pattern, streams);
+            FheBool::new(result, gpu_key.tag.clone())
+        }),
     })
 }

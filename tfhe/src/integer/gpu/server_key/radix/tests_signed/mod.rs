@@ -18,6 +18,7 @@ pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
 pub(crate) mod test_sub;
+pub(crate) mod test_vector_comparisons;
 
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -563,5 +564,48 @@ where
             d_res.0.to_signed_radix_ciphertext(&context.streams),
             d_res.1.to_signed_radix_ciphertext(&context.streams),
         )
+    }
+}
+impl<'a, F>
+    FunctionExecutor<(&'a [SignedRadixCiphertext], &'a [SignedRadixCiphertext]), BooleanBlock>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &[CudaSignedRadixCiphertext],
+        &[CudaSignedRadixCiphertext],
+        &CudaStreams,
+    ) -> CudaBooleanBlock,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a [SignedRadixCiphertext], &'a [SignedRadixCiphertext]),
+    ) -> BooleanBlock {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let mut d_ctxs1 = Vec::<CudaSignedRadixCiphertext>::with_capacity(input.0.len());
+        for ctx in input.0 {
+            d_ctxs1.push(CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                ctx,
+                &context.streams,
+            ));
+        }
+        let mut d_ctxs2 = Vec::<CudaSignedRadixCiphertext>::with_capacity(input.0.len());
+        for ctx in input.1 {
+            d_ctxs2.push(CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                ctx,
+                &context.streams,
+            ));
+        }
+
+        let d_block = (self.func)(&context.sks, &d_ctxs1, &d_ctxs2, &context.streams);
+        d_block.to_boolean_block(&context.streams)
     }
 }

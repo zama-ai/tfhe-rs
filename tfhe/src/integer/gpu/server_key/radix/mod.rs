@@ -47,6 +47,7 @@ mod scalar_shift;
 mod scalar_sub;
 mod shift;
 mod sub;
+mod vector_comparisons;
 mod vector_find;
 
 #[cfg(test)]
