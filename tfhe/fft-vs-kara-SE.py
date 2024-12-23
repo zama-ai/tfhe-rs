@@ -7,7 +7,7 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 
-EXP_NAME = "wide-search-2000-gauss" # wide-search-2000-gauss   wide-search-2000-tuniform   gpu-gauss   gpu-tuniform
+EXP_NAME = "bordel" # wide-search-2000-gauss   wide-search-2000-tuniform   gpu-gauss   gpu-tuniform
 
 IN_FILE_FMT  = "results/" + EXP_NAME + "/samples/%s-id=%d-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.npy"
 OUT_FILE_FMT = "results/" + EXP_NAME + "/graphs/%s-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s-nsamples=%d.png"

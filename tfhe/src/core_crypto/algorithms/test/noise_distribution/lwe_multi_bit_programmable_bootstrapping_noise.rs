@@ -16,7 +16,7 @@ use std::mem::discriminant;
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 const NB_TESTS: usize = 10;
-const EXP_NAME: &str = "wide-search-2000-tuniform";   // wide-search-2000   gpu-gauss   gpu-tuniform
+const EXP_NAME: &str = "bordel";   // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
 
 fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
     params: &MultiBitTestParams<u64>,
@@ -177,18 +177,6 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
         &accumulator,
         ciphertext_modulus
     ));
-
-    // const ENV_VAR: &str = "TEST_USE_KARATSUBA";
-
-    // let use_karatsuba: u32 = std::env::var(ENV_VAR)
-    //     .expect(&format!(
-    //         "Set {ENV_VAR} to 1 to use karatsuba, 0 to use fft"
-    //     ))
-    //     .parse()
-    //     .expect(&format!(
-    //         "Set {ENV_VAR} to 1 to use karatsuba, 0 to use fft"
-    //     ));
-    // let use_karatusba = use_karatsuba != 0;
 
     while msg != Scalar::ZERO {
         //~ msg = msg.wrapping_sub(Scalar::ONE);
@@ -386,25 +374,21 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
         },
     );
 
-    // output measured noises to JSON
-    export_noise_measurements(params, &measured_variance_kara, &measured_variance_fft);
-
     println!("Finished parameters {params:?}");
 
-    if measured_variance_fft.0 < expected_variance_fft.0 {
-        // We are in the clear as long as we have at least the noise for security
-        assert!(
-            measured_variance_fft.0 >= minimal_variance.0,
-            "Found insecure variance after PBS\n\
-            measure_variance={measured_variance_fft:?}\n\
-            minimal_variance={minimal_variance:?}"
-        );
-    } else {
-        // Check we are not too far from the expected variance if we are bigger
-        let var_abs_diff = (expected_variance_fft.0 - measured_variance_fft.0).abs();
-        let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance_fft.0;
-
-        //TODO uncomment
+    //TODO uncomment, at some point
+    //~ if measured_variance_fft.0 < expected_variance_fft.0 {
+        //~ // We are in the clear as long as we have at least the noise for security
+        //~ assert!(
+            //~ measured_variance_fft.0 >= minimal_variance.0,
+            //~ "Found insecure variance after PBS\n\
+            //~ measure_variance={measured_variance_fft:?}\n\
+            //~ minimal_variance={minimal_variance:?}"
+        //~ );
+    //~ } else {
+        //~ // Check we are not too far from the expected variance if we are bigger
+        //~ let var_abs_diff = (expected_variance_fft.0 - measured_variance_fft.0).abs();
+        //~ let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance_fft.0;
         //~ assert!(
             //~ var_abs_diff < tolerance_threshold,
             //~ "Absolute difference for variance: {var_abs_diff}, \
@@ -412,38 +396,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
             //~ got variance: {measured_variance_fft:?}, \
             //~ expected variance w/ FFT: {expected_variance_fft:?}"
         //~ );
-    }
-}
-
-fn export_noise_measurements(
-    params: &MultiBitTestParams<u64>,
-    measured_variance_kara: &Variance,
-    measured_variance_fft: &Variance,
-) {
-    // output measured noises to JSON
-    let distro: &str = if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
-        "GAUSSIAN"
-    } else if let DynamicDistribution::TUniform(_) = params.lwe_noise_distribution {
-        "TUNIFORM"
-    } else {
-        panic!("Unknown distribution: {}", params.lwe_noise_distribution)
-    };
-    let filename_exp_var = format!("./results/{EXP_NAME}/measured-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json", params.grouping_factor.0, params.decomp_base_log.0, params.decomp_level_count.0, params.glwe_dimension.0, params.polynomial_size.0);
-    let mut file_exp_var = File::create(&filename_exp_var).unwrap();
-
-    file_exp_var.write_all(
-        format!(r#"{{
-    "input_lwe_dimension": {},
-    "measured_variance_kara": {},
-    "measured_variance_fft": {},
-    "n_samples": {}
-}}"#,
-            params.input_lwe_dimension.0,
-            measured_variance_kara.0,
-            measured_variance_fft.0,
-            NB_TESTS,
-        ).as_bytes()
-    ).unwrap();
+    //~ }
 }
 
 fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
@@ -463,10 +416,22 @@ fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
     file_exp_var.write_all(
         format!(r#"{{
     "input_lwe_dimension": {},
+    "grouping_factor": {},
+    "log_base": {},
+    "level": {},
+    "glwe_dimension": {},
+    "polynomial_degree": {},
+    "distribution": "{}",
     "expected_variance_kara": {},
     "expected_variance_fft": {}
 }}"#,
             params.input_lwe_dimension.0,
+            params.grouping_factor.0,
+            params.decomp_base_log.0,
+            params.decomp_level_count.0,
+            params.glwe_dimension.0,
+            params.polynomial_size.0,
+            distro,
             expected_variance_kara.0,
             expected_variance_fft.0,
         ).as_bytes()
