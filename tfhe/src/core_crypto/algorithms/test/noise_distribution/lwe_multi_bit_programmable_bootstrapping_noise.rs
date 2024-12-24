@@ -15,8 +15,8 @@ use std::mem::discriminant;
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
-const NB_TESTS: usize = 10;
-const EXP_NAME: &str = "bordel";   // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
+const NB_TESTS: usize = 500;
+const EXP_NAME: &str = "log-b-problem";   // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
 
 fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
     params: &MultiBitTestParams<u64>,
@@ -595,15 +595,18 @@ fn test_impl(run_measurements: bool) {
     //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
     //~ return;
 
-    for gf in [2,3,4] { //TODO add Vanilla BlindRot
-    //~ let gf = 3;
-    for logbase in (9..=30).step_by(3) {
-    //~ for logbase in (22..=22).step_by(5) {
-    for level in 1..=4 {
+    //~ for gf in [2,3,4] { //TODO add Vanilla BlindRot
+    let gf = 2;
+    //~ for logbase in (9..=30).step_by(3) {
+    for logbase in 5..=30 {
+    for level in 1..=6 {
     //~ for level in 1..=1 {
-        if logbase * level < 15 || logbase * level > 30 {continue;}
+        //~ if logbase * level < 15 || logbase * level > 36 {continue;}
         //~ for ([k,logN],glwe_noise_std) in [[1,9],[2,9],[3,9],[1,10],[2,10],[1,11]].iter().zip([0.0009193616884853071,1.339775301998614e-07,1.9524392655548086e-11,1.339775301998614e-07,2.845267479601915e-15,2.845267479601915e-15].iter()) { // Gaussian noises
-        for (k,logN) in [(1,9),(2,9),(3,9),(1,10),(2,10),(1,11)].iter() {
+        //~ for (k,logN) in [(1,9),(2,9),(3,9),(1,10),(2,10),(1,11)].iter() {
+        for (k,logN) in [(1,11)].iter() {
+            // skip those not interesting                                           2 is here to make a margin
+            if ((logbase*(level+1)) as f64) < 54_f64-*logN as f64 - (((k+1)*level) as f64).log2() - 2_f64 || logbase * level > 36 {continue;}
 
             // Gaussian noise
             let glwe_var = minimal_glwe_variance_for_132_bits_security_gaussian(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));   // TODO CiphertextModulus::new_native() ???
@@ -624,24 +627,24 @@ fn test_impl(run_measurements: bool) {
             };
             lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&gaussian_params, &run_measurements);
 
-            // TUniform noise
-            let glwe_bnd = minimal_glwe_bound_for_132_bits_security_tuniform(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));
-            let tuniform_params: MultiBitTestParams<u64> = MultiBitTestParams {
-                input_lwe_dimension: LweDimension(100 * 3),
-                lwe_noise_distribution: DynamicDistribution::new_t_uniform(10), // this shall play no role, right..?
-                decomp_base_log: DecompositionBaseLog(logbase),
-                decomp_level_count: DecompositionLevelCount(level),
-                glwe_dimension: GlweDimension(*k),
-                polynomial_size: PolynomialSize(1 << logN),
-                glwe_noise_distribution: DynamicDistribution::new_t_uniform(glwe_bnd),
-                message_modulus_log: MessageModulusLog(4),
-                ciphertext_modulus: CiphertextModulus::new_native(),
-                grouping_factor: LweBskGroupingFactor(gf),
-                thread_count: ThreadCount(12),
-            };
-            lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&tuniform_params, &run_measurements);
+            //~ // TUniform noise
+            //~ let glwe_bnd = minimal_glwe_bound_for_132_bits_security_tuniform(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));
+            //~ let tuniform_params: MultiBitTestParams<u64> = MultiBitTestParams {
+                //~ input_lwe_dimension: LweDimension(100 * 3),
+                //~ lwe_noise_distribution: DynamicDistribution::new_t_uniform(10), // this shall play no role, right..?
+                //~ decomp_base_log: DecompositionBaseLog(logbase),
+                //~ decomp_level_count: DecompositionLevelCount(level),
+                //~ glwe_dimension: GlweDimension(*k),
+                //~ polynomial_size: PolynomialSize(1 << logN),
+                //~ glwe_noise_distribution: DynamicDistribution::new_t_uniform(glwe_bnd),
+                //~ message_modulus_log: MessageModulusLog(4),
+                //~ ciphertext_modulus: CiphertextModulus::new_native(),
+                //~ grouping_factor: LweBskGroupingFactor(gf),
+                //~ thread_count: ThreadCount(12),
+            //~ };
+            //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&tuniform_params, &run_measurements);
         }
     }
     }
-    }
+    //~ }
 }
