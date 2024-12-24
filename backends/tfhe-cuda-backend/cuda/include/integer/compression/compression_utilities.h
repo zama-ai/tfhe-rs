@@ -65,7 +65,7 @@ template <typename Torus> struct int_decompression {
   Torus *tmp_extracted_lwe;
   uint32_t *tmp_indexes_array;
 
-  int_radix_lut<Torus> *carry_extract_lut;
+  int_radix_lut<Torus> *decompression_rescale_lut;
 
   int_decompression(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                     uint32_t gpu_count, int_radix_params encryption_params,
@@ -84,7 +84,7 @@ template <typename Torus> struct int_decompression {
       Torus lwe_accumulator_size = (compression_params.glwe_dimension *
                                         compression_params.polynomial_size +
                                     1);
-      carry_extract_lut = new int_radix_lut<Torus>(
+      decompression_rescale_lut = new int_radix_lut<Torus>(
           streams, gpu_indexes, gpu_count, encryption_params, 1,
           num_radix_blocks, allocate_gpu_memory);
 
@@ -97,18 +97,28 @@ template <typename Torus> struct int_decompression {
           num_radix_blocks * lwe_accumulator_size * sizeof(Torus), streams[0],
           gpu_indexes[0]);
 
-      // Carry extract LUT
-      auto carry_extract_f = [encryption_params](Torus x) -> Torus {
-        return x / encryption_params.message_modulus;
+      // Rescale is done using an identity LUT
+      // Here we do not divide by message_modulus
+      // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits
+      // space, we want to keep the original 2 bits value in the 4 bits space,
+      // so we apply the identity and the encoding will rescale it for us.
+      auto decompression_rescale_f = [encryption_params](Torus x) -> Torus {
+        return x;
       };
 
-      generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], carry_extract_lut->get_lut(0, 0),
-          encryption_params.glwe_dimension, encryption_params.polynomial_size,
-          encryption_params.message_modulus, encryption_params.carry_modulus,
-          carry_extract_f);
+      auto effective_compression_message_modulus =
+          encryption_params.carry_modulus;
+      auto effective_compression_carry_modulus = 1;
 
-      carry_extract_lut->broadcast_lut(streams, gpu_indexes, 0);
+      generate_device_accumulator_with_encoding<Torus>(
+          streams[0], gpu_indexes[0], decompression_rescale_lut->get_lut(0, 0),
+          encryption_params.glwe_dimension, encryption_params.polynomial_size,
+          effective_compression_message_modulus,
+          effective_compression_carry_modulus,
+          encryption_params.message_modulus, encryption_params.carry_modulus,
+          decompression_rescale_f);
+
+      decompression_rescale_lut->broadcast_lut(streams, gpu_indexes, 0);
     }
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -117,8 +127,8 @@ template <typename Torus> struct int_decompression {
     cuda_drop_async(tmp_extracted_lwe, streams[0], gpu_indexes[0]);
     cuda_drop_async(tmp_indexes_array, streams[0], gpu_indexes[0]);
 
-    carry_extract_lut->release(streams, gpu_indexes, gpu_count);
-    delete carry_extract_lut;
+    decompression_rescale_lut->release(streams, gpu_indexes, gpu_count);
+    delete decompression_rescale_lut;
   }
 };
 #endif

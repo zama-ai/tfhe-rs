@@ -38,6 +38,15 @@ void generate_device_accumulator_bivariate_with_factor(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
     uint32_t carry_modulus, std::function<Torus(Torus, Torus)> f, int factor);
+
+template <typename Torus>
+void generate_device_accumulator_with_encoding(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc,
+    uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t input_message_modulus, uint32_t input_carry_modulus,
+    uint32_t output_message_modulus, uint32_t output_carry_modulus,
+    std::function<Torus(Torus)> f);
+
 /*
  *  generate univariate accumulator (lut) for device pointer
  *    stream - cuda stream
