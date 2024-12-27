@@ -596,17 +596,22 @@ fn test_impl(run_measurements: bool) {
     //~ return;
 
     //~ for gf in [2,3,4] { //TODO add Vanilla BlindRot
-    let gf = 2;
+    for gf in [3,4] { //TODO add Vanilla BlindRot
     //~ for logbase in (9..=30).step_by(3) {
     for logbase in 5..=30 {
     for level in 1..=6 {
+    //~ for (logbase,level) in [(10,4),(13,3)].iter() {
+    //~ for (logbase,level) in [(11,4),(12,4),(14,3),(19,2)].iter() {
     //~ for level in 1..=1 {
         //~ if logbase * level < 15 || logbase * level > 36 {continue;}
         //~ for ([k,logN],glwe_noise_std) in [[1,9],[2,9],[3,9],[1,10],[2,10],[1,11]].iter().zip([0.0009193616884853071,1.339775301998614e-07,1.9524392655548086e-11,1.339775301998614e-07,2.845267479601915e-15,2.845267479601915e-15].iter()) { // Gaussian noises
         //~ for (k,logN) in [(1,9),(2,9),(3,9),(1,10),(2,10),(1,11)].iter() {
         for (k,logN) in [(1,11)].iter() {
             // skip those not interesting                                           2 is here to make a margin
-            if ((logbase*(level+1)) as f64) < 54_f64-*logN as f64 - (((k+1)*level) as f64).log2() - 2_f64 || logbase * level > 36 {continue;}
+            if ((logbase*(level+1)) as f64) < 54_f64-*logN as f64 - (((k+1)*level) as f64).log2() - 2_f64 || logbase * level > 36 {
+                println!("Early-discarded: l={level}, logB={logbase}, (k,N)=({k},{})", 1<<*logN);
+                continue;
+            }
 
             // Gaussian noise
             let glwe_var = minimal_glwe_variance_for_132_bits_security_gaussian(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));   // TODO CiphertextModulus::new_native() ???
@@ -646,5 +651,5 @@ fn test_impl(run_measurements: bool) {
         }
     }
     }
-    //~ }
+    }
 }
