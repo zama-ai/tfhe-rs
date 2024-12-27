@@ -77,10 +77,7 @@ pub fn minimal_lwe_bound_for_132_bits_security_tuniform(
     lwe_dimension: LweDimension,
     modulus: f64,
 ) -> u32 {
-    minimal_bound_for_132_bits_security_tuniform_impl(
-        lwe_dimension.0 as f64,
-        modulus,
-    )
+    minimal_bound_for_132_bits_security_tuniform_impl(lwe_dimension.0 as f64, modulus)
 }
 
 pub fn minimal_bound_for_132_bits_security_tuniform_impl(lwe_dimension: f64, modulus: f64) -> u32 {
