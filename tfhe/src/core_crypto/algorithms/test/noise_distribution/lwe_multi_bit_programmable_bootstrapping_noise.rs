@@ -16,7 +16,7 @@ use std::mem::discriminant;
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 const NB_TESTS: usize = 500;
-const EXP_NAME: &str = "log-b-problem";   // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
+const EXP_NAME: &str = "fft-with-gap";   // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
 
 fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
     params: &MultiBitTestParams<u64>,
@@ -595,8 +595,7 @@ fn test_impl(run_measurements: bool) {
     //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
     //~ return;
 
-    //~ for gf in [2,3,4] { //TODO add Vanilla BlindRot
-    for gf in [3,4] { //TODO add Vanilla BlindRot
+    for gf in [2,3,4] { //TODO add Vanilla BlindRot
     //~ for logbase in (9..=30).step_by(3) {
     for logbase in 5..=30 {
     for level in 1..=6 {

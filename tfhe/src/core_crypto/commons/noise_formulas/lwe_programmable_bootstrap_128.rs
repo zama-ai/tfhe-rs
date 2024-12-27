@@ -41,7 +41,7 @@ pub fn pbs_128_variance_132_bits_security_gaussian_impl(
 ) -> f64 {
     input_lwe_dimension
         * (0.0686891258869679
-            * (2.0 * max(0.0, -1.0 * mantissa_size + 1.44269504088896 * modulus.ln())).exp2()
+            * (2.0 * 0.0_f64.max(-1.0 * mantissa_size + 1.44269504088896 * modulus.ln())).exp2()
             * decomposition_base.powf(2.0)
             * decomposition_level_count
             * modulus.powf(-2.0)
@@ -105,7 +105,7 @@ pub fn pbs_128_variance_132_bits_security_tuniform_impl(
 ) -> f64 {
     input_lwe_dimension
         * (0.0686891258869679
-            * (2.0 * max(0.0, -1.0 * mantissa_size + 1.44269504088896 * modulus.ln())).exp2()
+            * (2.0 * 0.0_f64.max(-1.0 * mantissa_size + 1.44269504088896 * modulus.ln())).exp2()
             * decomposition_base.powf(2.0)
             * decomposition_level_count
             * modulus.powf(-2.0)
