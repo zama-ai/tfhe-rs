@@ -164,9 +164,11 @@ __host__ void scratch_packing_keyswitch_lwe_list_to_glwe(
 
   int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
 
-  int memory_unit = glwe_accumulator_size > lwe_dimension
+  // allocate at least LWE-mask times two: to keep both decomposition state and
+  // decomposed intermediate value
+  int memory_unit = glwe_accumulator_size > lwe_dimension * 2
                         ? glwe_accumulator_size
-                        : lwe_dimension;
+                        : lwe_dimension * 2;
 
   if (allocate_gpu_memory) {
     *fp_ks_buffer = (int8_t *)cuda_malloc_async(
@@ -303,10 +305,11 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
   // and the keyswitched GLWEs in the second half of the buffer. Thus the
   // scratch buffer for the fast path must determine the half-size of the
   // scratch buffer as the max between the size of the GLWE and the size of the
-  // LWE-mask
-  int memory_unit = glwe_accumulator_size > lwe_dimension_in
+  // LWE-mask times two (to keep both decomposition state and decomposed
+  // intermediate value)
+  int memory_unit = glwe_accumulator_size > lwe_dimension_in * 2
                         ? glwe_accumulator_size
-                        : lwe_dimension_in;
+                        : lwe_dimension_in * 2;
 
   auto d_mem = (Torus *)fp_ks_buffer;
   auto d_tmp_glwe_array_out = d_mem + num_lwes * memory_unit;
