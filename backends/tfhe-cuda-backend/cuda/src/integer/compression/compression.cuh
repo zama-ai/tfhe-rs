@@ -117,21 +117,11 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   while (rem_lwes > 0) {
     auto chunk_size = min(rem_lwes, mem_ptr->lwe_per_glwe);
 
-    if (can_use_pks_fast_path(
-            input_lwe_dimension, chunk_size, compression_params.polynomial_size,
-            compression_params.ks_level, compression_params.glwe_dimension)) {
-      host_fast_packing_keyswitch_lwe_list_to_glwe<Torus, ulonglong4>(
-          streams[0], gpu_indexes[0], glwe_out, lwe_subset, fp_ksk[0],
-          fp_ks_buffer, input_lwe_dimension, compression_params.glwe_dimension,
-          compression_params.polynomial_size, compression_params.ks_base_log,
-          compression_params.ks_level, chunk_size);
-    } else {
-      host_packing_keyswitch_lwe_list_to_glwe<Torus>(
-          streams[0], gpu_indexes[0], glwe_out, lwe_subset, fp_ksk[0],
-          fp_ks_buffer, input_lwe_dimension, compression_params.glwe_dimension,
-          compression_params.polynomial_size, compression_params.ks_base_log,
-          compression_params.ks_level, chunk_size);
-    }
+    host_fast_packing_keyswitch_lwe_list_to_glwe<Torus, ulonglong4>(
+        streams[0], gpu_indexes[0], glwe_out, lwe_subset, fp_ksk[0],
+        fp_ks_buffer, input_lwe_dimension, compression_params.glwe_dimension,
+        compression_params.polynomial_size, compression_params.ks_base_log,
+        compression_params.ks_level, chunk_size);
 
     rem_lwes -= chunk_size;
     lwe_subset += chunk_size * lwe_in_size;

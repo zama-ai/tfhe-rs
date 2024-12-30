@@ -73,24 +73,13 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     uint32_t output_polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_lwes) {
 
-  if (can_use_pks_fast_path(input_lwe_dimension, num_lwes,
-                            output_polynomial_size, level_count,
-                            output_glwe_dimension)) {
-    host_fast_packing_keyswitch_lwe_list_to_glwe<uint64_t, ulonglong4>(
-        static_cast<cudaStream_t>(stream), gpu_index,
-        static_cast<uint64_t *>(glwe_array_out),
-        static_cast<const uint64_t *>(lwe_array_in),
-        static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
-        input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
-        base_log, level_count, num_lwes);
-  } else
-    host_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
-        static_cast<cudaStream_t>(stream), gpu_index,
-        static_cast<uint64_t *>(glwe_array_out),
-        static_cast<const uint64_t *>(lwe_array_in),
-        static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
-        input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
-        base_log, level_count, num_lwes);
+  host_fast_packing_keyswitch_lwe_list_to_glwe<uint64_t, ulonglong4>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(glwe_array_out),
+      static_cast<const uint64_t *>(lwe_array_in),
+      static_cast<const uint64_t *>(fp_ksk_array), fp_ks_buffer,
+      input_lwe_dimension, output_glwe_dimension, output_polynomial_size,
+      base_log, level_count, num_lwes);
 }
 
 void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,

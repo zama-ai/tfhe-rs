@@ -164,9 +164,11 @@ __host__ void scratch_packing_keyswitch_lwe_list_to_glwe(
 
   int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
 
-  int memory_unit = glwe_accumulator_size > lwe_dimension
+  // allocate at least LWE-mask times two: to keep both decomposition state and
+  // decomposed intermediate value
+  int memory_unit = glwe_accumulator_size > lwe_dimension * 2
                         ? glwe_accumulator_size
-                        : lwe_dimension;
+                        : lwe_dimension * 2;
 
   if (allocate_gpu_memory) {
     *fp_ks_buffer = (int8_t *)cuda_malloc_async(
@@ -221,44 +223,6 @@ __device__ void packing_keyswitch_lwe_ciphertext_into_glwe_ciphertext(
   }
 }
 
-// public functional packing keyswitch for a batch of LWE ciphertexts
-//
-// Selects the input each thread is working on using the y-block index.
-//
-// Assumes there are (glwe_dimension+1) * polynomial_size threads split through
-// different thread blocks at the x-axis to work on that input.
-template <typename Torus>
-__global__ void packing_keyswitch_lwe_list_to_glwe(
-    Torus *glwe_array_out, Torus const *lwe_array_in, Torus const *fp_ksk,
-    uint32_t lwe_dimension_in, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    Torus *d_mem) {
-  const int tid = threadIdx.x + blockIdx.x * blockDim.x;
-
-  const int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
-  const int lwe_size = (lwe_dimension_in + 1);
-
-  const int input_id = blockIdx.y;
-  const int degree = input_id;
-
-  // Select an input
-  auto lwe_in = lwe_array_in + input_id * lwe_size;
-  auto ks_glwe_out = d_mem + input_id * glwe_accumulator_size;
-  auto glwe_out = glwe_array_out + input_id * glwe_accumulator_size;
-
-  // KS LWE to GLWE
-  packing_keyswitch_lwe_ciphertext_into_glwe_ciphertext<Torus>(
-      ks_glwe_out, lwe_in, fp_ksk, lwe_dimension_in, glwe_dimension,
-      polynomial_size, base_log, level_count);
-
-  // P * x ^degree
-  auto in_poly = ks_glwe_out + (tid / polynomial_size) * polynomial_size;
-  auto out_result = glwe_out + (tid / polynomial_size) * polynomial_size;
-  polynomial_accumulate_monic_monomial_mul<Torus>(out_result, in_poly, degree,
-                                                  tid % polynomial_size,
-                                                  polynomial_size, 1, true);
-}
-
 /// To-do: Rewrite this kernel for efficiency
 template <typename Torus>
 __global__ void accumulate_glwes(Torus *glwe_out, Torus *glwe_array_in,
@@ -274,54 +238,6 @@ __global__ void accumulate_glwes(Torus *glwe_out, Torus *glwe_array_in,
       glwe_out[tid] += glwe_in[tid];
     }
   }
-}
-
-template <typename Torus>
-__host__ void host_packing_keyswitch_lwe_list_to_glwe(
-    cudaStream_t stream, uint32_t gpu_index, Torus *glwe_out,
-    Torus const *lwe_array_in, Torus const *fp_ksk_array, int8_t *fp_ks_buffer,
-    uint32_t lwe_dimension_in, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t num_lwes) {
-
-  if (num_lwes > polynomial_size)
-    PANIC("Cuda error: too many LWEs to pack. The number of LWEs should be "
-          "smaller than "
-          "polynomial_size.")
-
-  cudaSetDevice(gpu_index);
-  int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
-
-  int num_blocks = 0, num_threads = 0;
-  getNumBlocksAndThreads(glwe_accumulator_size, 128, num_blocks, num_threads);
-
-  dim3 grid(num_blocks, num_lwes);
-  dim3 threads(num_threads);
-
-  // The fast path of PKS uses the scratch buffer (d_mem) differently:
-  // it needs to store the decomposed masks in the first half of this buffer
-  // and the keyswitched GLWEs in the second half of the buffer. Thus the
-  // scratch buffer for the fast path must determine the half-size of the
-  // scratch buffer as the max between the size of the GLWE and the size of the
-  // LWE-mask
-  int memory_unit = glwe_accumulator_size > lwe_dimension_in
-                        ? glwe_accumulator_size
-                        : lwe_dimension_in;
-
-  auto d_mem = (Torus *)fp_ks_buffer;
-  auto d_tmp_glwe_array_out = d_mem + num_lwes * memory_unit;
-
-  // individually keyswitch each lwe
-  packing_keyswitch_lwe_list_to_glwe<Torus><<<grid, threads, 0, stream>>>(
-      d_tmp_glwe_array_out, lwe_array_in, fp_ksk_array, lwe_dimension_in,
-      glwe_dimension, polynomial_size, base_log, level_count, d_mem);
-  check_cuda_error(cudaGetLastError());
-
-  // accumulate to a single glwe
-  accumulate_glwes<Torus><<<num_blocks, threads, 0, stream>>>(
-      glwe_out, d_tmp_glwe_array_out, glwe_dimension, polynomial_size,
-      num_lwes);
-  check_cuda_error(cudaGetLastError());
 }
 
 #endif
