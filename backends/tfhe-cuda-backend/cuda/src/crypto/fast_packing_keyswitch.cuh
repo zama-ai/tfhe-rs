@@ -26,15 +26,6 @@ template <typename Torus> uint64_t get_shared_mem_size_tgemm() {
   return BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
 }
 
-__host__ inline bool can_use_pks_fast_path(uint32_t lwe_dimension,
-                                           uint32_t num_lwe,
-                                           uint32_t polynomial_size,
-                                           uint32_t level_count,
-                                           uint32_t glwe_dimension) {
-  // TODO: activate it back, fix tests and extend to level_count > 1
-  return false;
-}
-
 // Initialize decomposition by performing rounding
 // and decomposing one level of an array of Torus LWEs. Only
 // decomposes the mask elements of the incoming LWEs.
@@ -57,6 +48,8 @@ __global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
   // is lwe_dimension + 1, while for writing it is lwe_dimension
   auto read_val_idx = lwe_idx * (lwe_dimension + 1) + lwe_sample_idx;
   auto write_val_idx = lwe_idx * lwe_dimension + lwe_sample_idx;
+  auto write_state_idx =
+      num_lwe * lwe_dimension + lwe_idx * lwe_dimension + lwe_sample_idx;
 
   Torus a_i = lwe_in[read_val_idx];
 
@@ -64,6 +57,8 @@ __global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
 
   Torus mod_b_mask = (1ll << base_log) - 1ll;
   lwe_out[write_val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
+  synchronize_threads_in_block();
+  lwe_out[write_state_idx] = state;
 }
 
 // Continue decomposiion of an array of Torus elements in place. Supposes
@@ -84,12 +79,16 @@ decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
     return;
 
   auto val_idx = lwe_idx * lwe_dimension + lwe_sample_idx;
+  auto state_idx = num_lwe * lwe_dimension + val_idx;
 
-  Torus state = buffer_in[val_idx];
+  Torus state = buffer_in[state_idx];
+  synchronize_threads_in_block();
 
   Torus mod_b_mask = (1ll << base_log) - 1ll;
 
   buffer_in[val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
+  synchronize_threads_in_block();
+  buffer_in[state_idx] = state;
 }
 
 // Multiply matrices A, B of size (M, K), (K, N) respectively
@@ -152,7 +151,7 @@ __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
     } else {
       Bs[innerRowB * BN + innerColB] = 0;
     }
-    __syncthreads();
+    synchronize_threads_in_block();
 
     // Advance blocktile for the next iteration of this loop
     A += BK;
@@ -168,7 +167,7 @@ __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
             As[(threadRow * TM + resIdx) * BK + dotIdx] * tmp;
       }
     }
-    __syncthreads();
+    synchronize_threads_in_block();
   }
 
   // Initialize the pointer to the output block of size (BLOCK_SIZE_GEMM,
@@ -259,10 +258,6 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
 
   // Optimization of packing keyswitch when packing many LWEs
 
-  if (level_count > 1) {
-    PANIC("Fast path PKS only supports level_count==1");
-  }
-
   cudaSetDevice(gpu_index);
   check_cuda_error(cudaGetLastError());
 
@@ -273,10 +268,11 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
   // buffer and the keyswitched GLWEs in the second half of the buffer. Thus the
   // scratch buffer for the fast path must determine the half-size of the
   // scratch buffer as the max between the size of the GLWE and the size of the
-  // LWE-mask
-  int memory_unit = glwe_accumulator_size > lwe_dimension
+  // LWE-mask times two (to keep both decomposition state and decomposed
+  // intermediate value)
+  int memory_unit = glwe_accumulator_size > lwe_dimension * 2
                         ? glwe_accumulator_size
-                        : lwe_dimension;
+                        : lwe_dimension * 2;
 
   // ping pong the buffer between successive calls
   // split the buffer in two parts of this size
@@ -309,7 +305,7 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
                  CEIL_DIV(num_lwes, BLOCK_SIZE_GEMM));
   dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
 
-  auto stride_KSK_buffer = glwe_accumulator_size;
+  auto stride_KSK_buffer = glwe_accumulator_size * level_count;
 
   uint32_t shared_mem_size = get_shared_mem_size_tgemm<Torus>();
   tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
@@ -317,21 +313,20 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
       stride_KSK_buffer, d_mem_1);
   check_cuda_error(cudaGetLastError());
 
-  /*
-    TODO: transpose key to generalize to level_count > 1
+  auto ksk_block_size = glwe_accumulator_size;
 
-    for (int li = 1; li < level_count; ++li) {
-      decompose_vectorize_step_inplace<Torus, TorusVec>
-          <<<grid_decomp, threads_decomp, 0, stream>>>(
-              d_mem_0, lwe_dimension, num_lwes, base_log, level_count);
-      check_cuda_error(cudaGetLastError());
+  for (int li = 1; li < level_count; ++li) {
+    decompose_vectorize_step_inplace<Torus, TorusVec>
+        <<<grid_decomp, threads_decomp, 0, stream>>>(
+            d_mem_0, lwe_dimension, num_lwes, base_log, level_count);
+    check_cuda_error(cudaGetLastError());
 
-      tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, shared_mem_size,
-    stream>>>( num_lwes, glwe_accumulator_size, lwe_dimension, d_mem_0,
-          fp_ksk_array + li * ksk_block_size, stride_KSK_buffer, d_mem_1);
-      check_cuda_error(cudaGetLastError());
-    }
-  */
+    tgemm<Torus, TorusVec>
+        <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
+            num_lwes, glwe_accumulator_size, lwe_dimension, d_mem_0,
+            fp_ksk_array + li * ksk_block_size, stride_KSK_buffer, d_mem_1);
+    check_cuda_error(cudaGetLastError());
+  }
 
   // should we include the mask in the rotation ??
   dim3 grid_rotate(CEIL_DIV(num_lwes, BLOCK_SIZE_DECOMP),
