@@ -649,29 +649,41 @@ __host__ void host_multi_bit_programmable_bootstrap(
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
+  bool graphCreated = false;
+  cudaGraph_t graph;
+  cudaGraphExec_t instance;
+
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
-    // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
-        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
-    // Accumulate
-    uint32_t chunk_size = std::min(
-        lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
-    for (uint32_t j = 0; j < chunk_size; j++) {
-      execute_step_one<Torus, params>(
-          stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
-          lwe_input_indexes, buffer, num_samples, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, j, lwe_offset);
+    if (!graphCreated) {
+      cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+      // Compute a keybundle
+      execute_compute_keybundle<Torus, params>(
+          stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+          grouping_factor, level_count, lwe_offset);
+      // Accumulate
+      uint32_t chunk_size = std::min(
+          lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+      for (uint32_t j = 0; j < chunk_size; j++) {
+        execute_step_one<Torus, params>(
+            stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+            lwe_input_indexes, buffer, num_samples, lwe_dimension,
+            glwe_dimension, polynomial_size, base_log, level_count, j,
+            lwe_offset);
 
-      execute_step_two<Torus, params>(
-          stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
-          num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, level_count, j, lwe_offset, num_many_lut,
-          lut_stride);
+        execute_step_two<Torus, params>(
+            stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
+            num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+            grouping_factor, level_count, j, lwe_offset, num_many_lut,
+            lut_stride);
+      }
+      cudaStreamEndCapture(stream, &graph);
+      cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
+      graphCreated = true;
     }
+    cudaGraphLaunch(instance, stream);
   }
 }
 #endif // MULTIBIT_PBS_H

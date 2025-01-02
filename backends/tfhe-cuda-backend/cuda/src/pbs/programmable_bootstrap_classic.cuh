@@ -480,20 +480,30 @@ __host__ void host_programmable_bootstrap(
   double2 *global_join_buffer = pbs_buffer->global_join_buffer;
   int8_t *d_mem = pbs_buffer->d_mem;
 
+  bool graphCreated = false;
+  cudaGraph_t graph;
+  cudaGraphExec_t instance;
   for (int i = 0; i < lwe_dimension; i++) {
-    execute_step_one<Torus, params>(
-        stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
-        lwe_input_indexes, bootstrapping_key, global_accumulator,
-        global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
-        glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
-        partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one);
-    execute_step_two<Torus, params>(
-        stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
-        lut_vector_indexes, bootstrapping_key, global_accumulator,
-        global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
-        glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
-        partial_sm, partial_dm_step_two, full_sm_step_two, full_dm_step_two,
-        num_many_lut, lut_stride);
+    if (!graphCreated) {
+      cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+      execute_step_one<Torus, params>(
+          stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+          lwe_input_indexes, bootstrapping_key, global_accumulator,
+          global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
+          partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one);
+      execute_step_two<Torus, params>(
+          stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+          lut_vector_indexes, bootstrapping_key, global_accumulator,
+          global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
+          partial_sm, partial_dm_step_two, full_sm_step_two, full_dm_step_two,
+          num_many_lut, lut_stride);
+      cudaStreamEndCapture(stream, &graph);
+      cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
+      graphCreated = true;
+    }
+    cudaGraphLaunch(instance, stream);
   }
 }
 
