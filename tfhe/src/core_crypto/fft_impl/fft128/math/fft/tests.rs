@@ -19,6 +19,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         let mut fourier_im0 = avec![0.0f64; fourier_size].into_boxed_slice();
         let mut fourier_im1 = avec![0.0f64; fourier_size].into_boxed_slice();
 
+        println!("sizeof_scalar: {:?}", Scalar::BITS);
         for x in poly.as_mut().iter_mut() {
             *x = generator.random_uniform();
         }
