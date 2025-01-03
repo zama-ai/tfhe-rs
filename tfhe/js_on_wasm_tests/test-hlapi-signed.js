@@ -500,14 +500,19 @@ test('hlapi_compact_ciphertext_list', (t) => {
 
 test('hlapi_compact_ciphertext_list_with_proof', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+		let publicKeyParams = new ShortintCompactPublicKeyEncryptionParameters(
+        ShortintCompactPublicKeyEncryptionParametersName.SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    );
+
     let config = TfheConfigBuilder.default()
         .use_custom_parameters(block_params)
+				.use_dedicated_compact_public_key_parameters(publicKeyParams)
         .build();
 
     let clientKey = TfheClientKey.generate(config);
     let publicKey = TfheCompactPublicKey.new(clientKey);
 
-    let crs = CompactPkeCrs.from_parameters(block_params, 2 + 32 + 1 + 256);
+    let crs = CompactPkeCrs.from_config(config, 2 + 32 + 1 + 256);
 
     const compress = false; // We don't compress as it's too slow on wasm
     let serialized_pke_crs = crs.serialize(compress);

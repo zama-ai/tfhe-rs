@@ -36,7 +36,12 @@ fn test_tag_propagation_zk_pok() {
     use crate::ProvenCompactCiphertextList;
 
     let config =
-        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64).build();
+        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+            .use_dedicated_compact_public_key_parameters((
+                V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            ))
+            .build();
     let crs = crate::zk::CompactPkeCrs::from_config(config, (2 * 32) + (2 * 64) + 2).unwrap();
 
     let metadata = [b'h', b'l', b'a', b'p', b'i'];
