@@ -1,9 +1,10 @@
 use crate::shortint::keycache::KEY_CACHE_WOPBS;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::{
-    MessageModulus, PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    MessageModulus, V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
 };
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{gen_keys, ClassicPBSParameters};
@@ -26,10 +27,10 @@ macro_rules! create_parameterized_test{
     ($name:ident)=> {
         create_parameterized_test!($name
         {
-            (PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS),
-            (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
-            (PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
-            (PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
+            (V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS),
+            (V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            (V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
+            (V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
         });
     };
 }
@@ -49,10 +50,10 @@ macro_rules! create_parameterized_wopbs_only_test{
     ($name:ident)=> {
         create_parameterized_wopbs_only_test!($name
         {
-            WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS
+            LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS
         });
     };
 }
@@ -73,7 +74,7 @@ macro_rules! create_parameterized_test{
     ($name:ident)=> {
         create_parameterized_test!($name
         {
-            (PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS)
+            (V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS)
         });
     };
 }
@@ -93,7 +94,7 @@ macro_rules! create_parameterized_wopbs_only_test{
     ($name:ident)=> {
         create_parameterized_wopbs_only_test!($name
         {
-            WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS
+            LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS
         });
     };
 }
@@ -104,10 +105,10 @@ create_parameterized_test!(generate_lut_modulus);
 create_parameterized_wopbs_only_test!(generate_lut_modulus_not_power_of_two);
 #[cfg(not(tarpaulin))]
 create_parameterized_wopbs_only_test!(generate_lut_wop_only {
-    WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_4_CARRY_4_KS_PBS
+    LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    LEGACY_WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    LEGACY_WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_4_CARRY_4_KS_PBS
 });
 
 fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {

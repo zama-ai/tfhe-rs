@@ -967,7 +967,7 @@ impl CudaServerKey {
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
     ///     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    ///     PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    ///     V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
     /// };
     /// {
     ///     // Generate the client key and the server key:
@@ -1007,11 +1007,11 @@ impl CudaServerKey {
     /// }
     /// {
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
+    ///     let (cks, sks) = gen_keys(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64);
     ///     let gpu_index = 0;
     ///     let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, &streams);
+    ///     let (cks, sks) = gen_keys_gpu(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, &streams);
     ///     let num_blocks = 2;
     ///     let msg = 3;
     ///     let ct = cks.encrypt_radix(msg, num_blocks);

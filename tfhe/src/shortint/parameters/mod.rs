@@ -17,6 +17,8 @@ use crate::core_crypto::prelude::{
     LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::parameters::*;
+#[cfg(feature = "zk-pok")]
+use crate::zk::CompactPkeZkScheme;
 use serde::{Deserialize, Serialize};
 
 use tfhe_versionable::Versionize;
@@ -31,6 +33,7 @@ pub mod multi_bit;
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
+pub mod v0_10;
 
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use super::server_key::PBSConformanceParameters;
@@ -41,7 +44,6 @@ pub use crate::shortint::parameters::classic::compact_pk::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
 pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::pbs_ks::*;
 pub use crate::shortint::parameters::list_compression::{
     CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
@@ -52,6 +54,16 @@ pub use compact_public_key_only::{
     CastingFunctionsOwned, CastingFunctionsView, CompactCiphertextListExpansionKind,
     CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
 };
+
+pub use crate::shortint::parameters::v0_10::classic::compact_pk::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::classic::compact_pk::gaussian::p_fail_2_minus_64::pbs_ks::*;
+pub use crate::shortint::parameters::v0_10::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
+pub use crate::shortint::parameters::v0_10::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::key_switching::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_10::compact_public_key_only::p_fail_2_minus_64::ks_pbs::*;
+
 #[cfg(tarpaulin)]
 pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
@@ -671,56 +683,56 @@ pub const ALL_PARAMETER_VEC: [ClassicPBSParameters; 29] = WITH_CARRY_PARAMETERS_
 
 /// Vector containing all parameter sets where the carry space is strictly greater than one
 pub const WITH_CARRY_PARAMETERS_VEC: [ClassicPBSParameters; 29] = [
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M64,
 ];
 
 /// Vector containing all parameter sets where the carry space is strictly greater than one
 pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [ClassicPBSParameters; 17] = [
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
 ];
 
 /// Nomenclature: PARAM_MESSAGE_X_CARRY_Y: the message (respectively carry) modulus is
@@ -734,12 +746,12 @@ pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [ClassicPBSParameters; 17] 
 ///
 /// ```rust
 /// use tfhe::shortint::parameters::{
-///     get_parameters_from_message_and_carry, PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+///     get_parameters_from_message_and_carry, V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
 /// };
 /// let message_space = 7;
 /// let carry_space = 2;
 /// let param = get_parameters_from_message_and_carry(message_space, carry_space);
-/// assert_eq!(param, PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+/// assert_eq!(param, V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64);
 /// ```
 pub fn get_parameters_from_message_and_carry(
     msg_space: usize,
@@ -783,3 +795,30 @@ pub const COMP_PARAM_MESSAGE_2_CARRY_2: CompressionParameters = COMP_PARAM_MESSA
 // GPU
 pub const PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+/// The Zk scheme for compact private key encryption supported by these parameters.
+///
+/// The Zk Scheme is available in 2 versions. In case of doubt, you should prefer the V2 which is
+/// more efficient.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[repr(C)]
+#[versionize(SupportedCompactPkeZkSchemeVersions)]
+pub enum SupportedCompactPkeZkScheme {
+    /// The given parameters do not support zk proof of encryption
+    ZkNotSupported,
+    V1,
+    V2,
+}
+
+#[cfg(feature = "zk-pok")]
+impl TryFrom<SupportedCompactPkeZkScheme> for CompactPkeZkScheme {
+    type Error = ();
+
+    fn try_from(value: SupportedCompactPkeZkScheme) -> Result<Self, Self::Error> {
+        match value {
+            SupportedCompactPkeZkScheme::ZkNotSupported => Err(()),
+            SupportedCompactPkeZkScheme::V1 => Ok(Self::V1),
+            SupportedCompactPkeZkScheme::V2 => Ok(Self::V2),
+        }
+    }
+}
