@@ -10,6 +10,7 @@ use crate::shortint::parameters::{
     ShortintParameterSet, SupportedCompactPkeZkScheme,
 };
 use crate::shortint::{KeySwitchingKeyView, PaddingBit, ShortintEncoding};
+
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
