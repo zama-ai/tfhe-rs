@@ -2472,10 +2472,10 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail(
         })
         .unzip();
 
-    let sample_count = measured_fails_after_ms_storage.len();
     let measured_fails_after_ms_storage: f64 =
         measured_fails_after_ms_storage.into_iter().flatten().sum();
-    let measured_pfail_after_ms_storage = measured_fails_after_ms_storage / (sample_count as f64);
+    let measured_pfail_after_ms_storage =
+        measured_fails_after_ms_storage / (total_sample_count as f64);
 
     let measured_pfail_after_ms_storage_log2 = measured_pfail_after_ms_storage.log2();
 
