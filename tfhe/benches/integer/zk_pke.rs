@@ -5,6 +5,7 @@ use crate::utilities::{throughput_num_threads, BenchmarkType, BENCH_TYPE};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
+use std::cmp::max;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -18,6 +19,7 @@ use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_p
 use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::PBSParameters;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
+use tfhe::{get_pbs_count, reset_pbs_count};
 use utilities::{write_to_json, OperatorType};
 
 fn write_result(file: &mut File, name: &str, value: usize) {
@@ -96,7 +98,17 @@ fn pke_zk_proof(c: &mut Criterion) {
                         });
                     }
                     BenchmarkType::Throughput => {
-                        let elements = throughput_num_threads(num_block);
+                        // Execute the operation once to know its cost.
+                        let input_msg = rng.gen::<u64>();
+                        let messages = vec![input_msg; fhe_uint_count];
+
+                        reset_pbs_count();
+                        let _ = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
+                            .extend(messages.iter().copied())
+                            .build_with_proof_packed(&crs, &metadata, compute_load);
+                        let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
+                        let elements = throughput_num_threads(num_block, pbs_count);
                         bench_group.throughput(Throughput::Elements(elements));
 
                         bench_id = format!(
@@ -304,7 +316,27 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     }
                     BenchmarkType::Throughput => {
                         // In throughput mode object sizes are not recorded.
-                        let elements = throughput_num_threads(num_block);
+
+                        // Execute the operation once to know its cost.
+                        let input_msg = rng.gen::<u64>();
+                        let messages = vec![input_msg; fhe_uint_count];
+                        let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
+                            .extend(messages.iter().copied())
+                            .build_with_proof_packed(&crs, &metadata, compute_load)
+                            .unwrap();
+
+                        reset_pbs_count();
+                        let _ = ct1.verify_and_expand(
+                            &crs,
+                            &pk,
+                            &metadata,
+                            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                                casting_key.as_view(),
+                            ),
+                        );
+                        let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
+                        let elements = throughput_num_threads(num_block, pbs_count);
                         bench_group.throughput(Throughput::Elements(elements));
 
                         bench_id_verify = format!(

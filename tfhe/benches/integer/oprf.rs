@@ -4,9 +4,11 @@ use crate::utilities::{
 };
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
+use std::cmp::max;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::IntegerKeyKind;
 use tfhe::keycache::NamedParam;
+use tfhe::{get_pbs_count, reset_pbs_count};
 use tfhe_csprng::seeders::Seed;
 
 pub fn unsigned_oprf(c: &mut Criterion) {
@@ -40,12 +42,21 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
+                let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                reset_pbs_count();
+                sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                    Seed(0),
+                    bit_size as u64,
+                    num_block as u64,
+                );
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
                     b.iter(|| {
                         (0..elements).into_par_iter().for_each(|_| {
                             sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
