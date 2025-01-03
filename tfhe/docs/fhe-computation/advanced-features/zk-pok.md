@@ -16,6 +16,9 @@ Note that you need to use dedicated parameters for the compact public key encryp
 
 The following example shows how a client can encrypt and prove a ciphertext, and how a server can verify and compute the ciphertext:
 
+Note that you need to use dedicated parameters for the compact public key encryption. This helps to reduce the size of encrypted data and speed up the zero-knowledge proof computation.
+
+The following example shows how to generate a CRS and proofs for ZKV1. Compared to the previous example, only the parameters are changed:
 ```rust
 use rand::prelude::*;
 use tfhe::prelude::*;
