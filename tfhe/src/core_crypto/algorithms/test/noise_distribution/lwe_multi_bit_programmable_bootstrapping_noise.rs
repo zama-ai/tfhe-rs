@@ -599,18 +599,13 @@ fn test_impl(run_measurements: bool) {
     //~ for logbase in (9..=30).step_by(3) {
     for logbase in 5..=30 {
     for level in 1..=6 {
-    //~ for (logbase,level) in [(10,4),(13,3)].iter() {
-    //~ for (logbase,level) in [(11,4),(12,4),(14,3),(19,2)].iter() {
-    //~ for level in 1..=1 {
-        //~ if logbase * level < 15 || logbase * level > 36 {continue;}
-        //~ for ([k,logN],glwe_noise_std) in [[1,9],[2,9],[3,9],[1,10],[2,10],[1,11]].iter().zip([0.0009193616884853071,1.339775301998614e-07,1.9524392655548086e-11,1.339775301998614e-07,2.845267479601915e-15,2.845267479601915e-15].iter()) { // Gaussian noises
-        //~ for (k,logN) in [(1,9),(2,9),(3,9),(1,10),(2,10),(1,11)].iter() {
-        for (k,logN) in [(1,11)].iter() {
-            // skip those not interesting                                           2 is here to make a margin
-            if ((logbase*(level+1)) as f64) < 54_f64-*logN as f64 - (((k+1)*level) as f64).log2() - 2_f64 || logbase * level > 36 {
-                println!("Early-discarded: l={level}, logB={logbase}, (k,N)=({k},{})", 1<<*logN);
-                continue;
-            }
+        if logbase * level > 36 {continue;}   // also used: logbase * level < 15
+        for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
+            //~ // skip those not interesting                                                             1 is here to make a margin
+            //~ if ((logbase*(level+1)) as f64) < 53_f64 - *logN as f64 - (((k+1)*level) as f64).log2() - 1_f64 || logbase * level > 36 {
+                //~ println!("Early-discarded: l={level}, logB={logbase}, (k,N)=({k},{})", 1<<*logN);
+                //~ continue;
+            //~ }
 
             // Gaussian noise
             let glwe_var = minimal_glwe_variance_for_132_bits_security_gaussian(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));   // TODO CiphertextModulus::new_native() ???
@@ -629,6 +624,13 @@ fn test_impl(run_measurements: bool) {
                 grouping_factor: LweBskGroupingFactor(gf),
                 thread_count: ThreadCount(12),
             };
+
+            // skip those that predict FFT noise <10% of the overall noise
+            let (exp_var_kara,exp_var_fft) = noise_prediction_kara_fft(&gaussian_params);
+            if exp_var_fft.0 < exp_var_kara.0 * 1.1 {
+                println!("FFT-ratio-discarded: l={level}, logB={logbase}, (k,N)=({k},{})", 1<<logN);
+                continue;
+            }
             lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&gaussian_params, &run_measurements);
 
             //~ // TUniform noise
