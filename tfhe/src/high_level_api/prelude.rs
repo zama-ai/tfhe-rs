@@ -15,3 +15,6 @@ pub use crate::high_level_api::traits::{
 
 pub use crate::conformance::ParameterSetConformant;
 pub use crate::core_crypto::prelude::{CastFrom, CastInto};
+
+#[cfg(feature = "strings")]
+pub use crate::high_level_api::strings::traits::*;
