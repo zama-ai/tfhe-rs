@@ -77,6 +77,7 @@ pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
     pub grouping_factor: LweBskGroupingFactor,
     pub thread_count: ThreadCount,
+    pub tuniform: bool,
 }
 
 // PartialEq is implemented manually because thread_count doesn't affect key generation and we want
