@@ -4,6 +4,7 @@ use crate::utilities::{
 };
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
+use std::cmp::max;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::IntegerKeyKind;
 use tfhe::keycache::NamedParam;
@@ -50,7 +51,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                     bit_size as u64,
                     num_block as u64,
                 );
-                let pbs_count = get_pbs_count();
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);

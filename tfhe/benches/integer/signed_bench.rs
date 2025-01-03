@@ -8,6 +8,7 @@ use crate::utilities::{
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
+use std::cmp::max;
 use std::env;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
@@ -74,7 +75,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
 
                 reset_pbs_count();
                 binary_op(&sks, &ct_0, &ct_1);
-                let pbs_count = get_pbs_count();
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);
@@ -168,7 +169,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
 
                 reset_pbs_count();
                 binary_op(&sks, &ct_0, &ct_1);
-                let pbs_count = get_pbs_count();
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);
@@ -257,7 +258,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
 
                 reset_pbs_count();
                 unary_fn(&sks, &ct_0);
-                let pbs_count = get_pbs_count();
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);
@@ -340,7 +341,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
 
                 reset_pbs_count();
                 sks.if_then_else_parallelized(&cond, &ct_then, &ct_else);
-                let pbs_count = get_pbs_count();
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);
@@ -871,7 +872,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
                 reset_pbs_count();
                 binary_op(&sks, &mut ct_0, clear_1);
-                let pbs_count = get_pbs_count();
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);
@@ -1369,6 +1370,7 @@ mod cuda {
     use super::*;
     use criterion::criterion_group;
     use rayon::iter::IntoParallelRefIterator;
+    use std::cmp::max;
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
@@ -1445,6 +1447,8 @@ mod cuda {
                     let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_sks = CudaServerKey::new(&cks, &stream);
 
+                    // TODO Implement modifications as made in unsigned benchmarks
+
                     // Execute the operation once to know its cost.
                     let clearlow = rng.gen::<u128>();
                     let clearhigh = rng.gen::<u128>();
@@ -1462,7 +1466,7 @@ mod cuda {
 
                     reset_pbs_count();
                     binary_op(&gpu_sks, &mut d_ctxt_0, &mut d_ctxt_1, &stream);
-                    let pbs_count = get_pbs_count();
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     let elements = throughput_num_threads(num_block, pbs_count);
@@ -1599,7 +1603,7 @@ mod cuda {
 
                     reset_pbs_count();
                     unary_op(&gpu_sks, &mut d_ctxt, &stream);
-                    let pbs_count = get_pbs_count();
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     let elements = throughput_num_threads(num_block, pbs_count);
@@ -1735,7 +1739,7 @@ mod cuda {
 
                     reset_pbs_count();
                     binary_op(&gpu_sks, &mut d_ctxt_0, clear_0, &stream);
-                    let pbs_count = get_pbs_count();
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!(
                         "{bench_name}::throughput::{param_name}::{bit_size}_bits_scalar_{bit_size}"
@@ -1889,7 +1893,7 @@ mod cuda {
 
                     reset_pbs_count();
                     binary_op(&gpu_sks, &mut d_ctxt_0, &mut d_ctxt_1, &stream);
-                    let pbs_count = get_pbs_count();
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     let elements = throughput_num_threads(num_block, pbs_count);
@@ -2034,7 +2038,7 @@ mod cuda {
 
                     reset_pbs_count();
                     gpu_sks.if_then_else(&d_ct_cond, &d_ct_then, &d_ct_else, &stream);
-                    let pbs_count = get_pbs_count();
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     let elements = throughput_num_threads(num_block, pbs_count);

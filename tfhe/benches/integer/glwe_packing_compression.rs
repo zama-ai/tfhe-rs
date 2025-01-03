@@ -6,6 +6,7 @@ use crate::utilities::{
 };
 use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
+use std::cmp::max;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
 use tfhe::integer::{ClientKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
@@ -85,7 +86,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 
                 reset_pbs_count();
                 let _: RadixCiphertext = compressed.get(0, &decompression_key).unwrap().unwrap();
-                let pbs_count = get_pbs_count();
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 let num_block =
                     (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
@@ -160,6 +161,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
+    use std::cmp::max;
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
@@ -260,7 +262,7 @@ mod cuda {
                         .get(0, &cuda_decompression_key, &stream)
                         .unwrap()
                         .unwrap();
-                    let pbs_count = get_pbs_count();
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     let num_block = (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0))
                         .ceil() as usize;

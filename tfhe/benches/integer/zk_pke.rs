@@ -5,6 +5,7 @@ use crate::utilities::{throughput_num_threads, BenchmarkType, BENCH_TYPE};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
+use std::cmp::max;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -105,7 +106,7 @@ fn pke_zk_proof(c: &mut Criterion) {
                         let _ = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                             .extend(messages.iter().copied())
                             .build_with_proof_packed(&crs, &metadata, compute_load);
-                        let pbs_count = get_pbs_count();
+                        let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                         let elements = throughput_num_threads(num_block, pbs_count);
                         bench_group.throughput(Throughput::Elements(elements));
@@ -333,7 +334,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 casting_key.as_view(),
                             ),
                         );
-                        let pbs_count = get_pbs_count();
+                        let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                         let elements = throughput_num_threads(num_block, pbs_count);
                         bench_group.throughput(Throughput::Elements(elements));
