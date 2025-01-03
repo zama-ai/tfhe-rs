@@ -176,6 +176,7 @@ pub struct ShortintCompactPublicKeyEncryptionParameters {
     // these parameters will always require casting, as they always require casting we add a field
     // for the casting parameters here.
     pub casting_parameters: ShortintCompactCiphertextListCastingParameters,
+    pub zk_scheme: SupportedCompactPkeZkScheme,
 }
 
 impl TryFrom<ShortintCompactPublicKeyEncryptionParameters>
@@ -196,6 +197,7 @@ impl TryFrom<ShortintCompactPublicKeyEncryptionParameters>
             )?,
             expansion_kind:
                 crate::shortint::parameters::CompactCiphertextListExpansionKind::RequiresCasting,
+            zk_scheme: c_params.zk_scheme,
         })
     }
 }
@@ -233,6 +235,7 @@ impl ShortintCompactPublicKeyEncryptionParameters {
             casting_parameters: ShortintCompactCiphertextListCastingParameters::convert(
                 casting_parameters,
             ),
+            zk_scheme: compact_pke_params.zk_scheme,
         }
     }
 }

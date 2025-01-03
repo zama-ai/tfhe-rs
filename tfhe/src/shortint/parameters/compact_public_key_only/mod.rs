@@ -7,9 +7,10 @@ use crate::shortint::backward_compatibility::parameters::compact_public_key_only
 };
 use crate::shortint::parameters::{
     CarryModulus, ClassicPBSParameters, MessageModulus, MultiBitPBSParameters, PBSParameters,
-    ShortintParameterSet,
+    ShortintParameterSet, SupportedCompactPkeZkScheme,
 };
 use crate::shortint::KeySwitchingKeyView;
+
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -50,6 +51,8 @@ pub struct CompactPublicKeyEncryptionParameters {
     pub carry_modulus: CarryModulus,
     pub ciphertext_modulus: CiphertextModulus,
     pub expansion_kind: CompactCiphertextListExpansionKind,
+    // Version of the PKE zk scheme compatible with these parameters
+    pub zk_scheme: SupportedCompactPkeZkScheme,
 }
 
 impl CompactPublicKeyEncryptionParameters {
@@ -60,6 +63,7 @@ impl CompactPublicKeyEncryptionParameters {
         carry_modulus: CarryModulus,
         ciphertext_modulus: CiphertextModulus,
         output_ciphertext_kind: CompactCiphertextListExpansionKind,
+        zk_scheme: SupportedCompactPkeZkScheme,
     ) -> Result<Self, Error> {
         let parameters = Self {
             encryption_lwe_dimension,
@@ -68,6 +72,7 @@ impl CompactPublicKeyEncryptionParameters {
             carry_modulus,
             ciphertext_modulus,
             expansion_kind: output_ciphertext_kind,
+            zk_scheme,
         };
 
         if !parameters.is_valid() {
@@ -126,6 +131,8 @@ impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
             carry_modulus,
             ciphertext_modulus,
             output_ciphertext_kind,
+            // Zk needs specific pke parameters
+            SupportedCompactPkeZkScheme::ZkNotSupported,
         )
     }
 }

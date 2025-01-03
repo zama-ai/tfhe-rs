@@ -258,7 +258,8 @@ impl ShortintCompactPublicKeyEncryptionParameters {
             CarryModulus(carry_modulus),
             ciphertext_modulus,
             // These parameters always requires casting
-            crate::shortint::parameters::CompactCiphertextListExpansionKind::RequiresCasting
+            crate::shortint::parameters::CompactCiphertextListExpansionKind::RequiresCasting,
+            crate::shortint::parameters::SupportedCompactPkeZkScheme::ZkNotSupported
         ).map_err(into_js_error)?;
 
         let casting_parameters =
