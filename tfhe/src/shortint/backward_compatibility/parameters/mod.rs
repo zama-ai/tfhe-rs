@@ -4,7 +4,7 @@ pub mod list_compression;
 
 use tfhe_versionable::VersionsDispatch;
 
-use crate::shortint::parameters::ShortintParameterSetInner;
+use crate::shortint::parameters::*;
 use crate::shortint::*;
 
 #[derive(VersionsDispatch)]
@@ -46,4 +46,9 @@ pub enum MultiBitPBSParametersVersions {
 #[derive(VersionsDispatch)]
 pub enum WopbsParametersVersions {
     V0(WopbsParameters),
+}
+
+#[derive(VersionsDispatch)]
+pub enum SupportedCompactPkeZkSchemeVersions {
+    V0(SupportedCompactPkeZkScheme),
 }

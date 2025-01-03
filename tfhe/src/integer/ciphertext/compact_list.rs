@@ -1164,9 +1164,7 @@ mod tests {
             .checked_pow(num_blocks as u32)
             .unwrap();
 
-        let crs =
-            CompactPkeCrs::from_shortint_params_legacy_v1(pke_params, LweCiphertextCount(512))
-                .unwrap();
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(512)).unwrap();
         let cks = ClientKey::new(fhe_params);
         let sk = ServerKey::new_radix_server_key(&cks);
         let compact_private_key = CompactPrivateKey::new(pke_params);

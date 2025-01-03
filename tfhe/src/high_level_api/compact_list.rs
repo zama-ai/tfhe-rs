@@ -315,39 +315,6 @@ mod zk {
         fn conformance_zk_compact_ciphertext_list() {
             let mut rng = thread_rng();
 
-            let params: crate::shortint::ClassicPBSParameters =
-                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-            let config = crate::ConfigBuilder::with_custom_parameters(params);
-
-            let client_key = crate::ClientKey::generate(config.clone());
-            // This is done in an offline phase and the CRS is shared to all clients and the server
-            let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
-            let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
-            // This can be left empty, but if provided allows to tie the proof to arbitrary data
-            let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
-
-            let clear_a = rng.gen::<u64>();
-            let clear_b = rng.gen::<bool>();
-
-            let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
-                .push(clear_a)
-                .push(clear_b)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
-                .unwrap();
-
-            let params =
-                IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
-                    params.try_into().unwrap(),
-                    &crs,
-                );
-
-            assert!(proven_compact_list.is_conformant(&params));
-        }
-
-        #[test]
-        fn conformance_zk_compact_ciphertext_list_casting() {
-            let mut rng = thread_rng();
-
             let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
             let cpk_params = crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -637,89 +604,6 @@ mod tests {
     #[cfg(feature = "zk-pok")]
     #[test]
     fn test_proven_compact_list() {
-        use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
-        let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        )
-        .build();
-
-        let ck = crate::ClientKey::generate(config);
-        let pk = crate::CompactPublicKey::new(&ck);
-        let sks = crate::ServerKey::new(&ck);
-
-        set_server_key(sks);
-
-        // Intentionally low to that we test when multiple lists and proofs are needed
-        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
-
-        let metadata = [b'h', b'l', b'a', b'p', b'i'];
-
-        let compact_list = ProvenCompactCiphertextList::builder(&pk)
-            .push(17u32)
-            .push(-1i64)
-            .push(false)
-            .push_with_num_bits(3u32, 2)
-            .unwrap()
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
-            .unwrap();
-
-        let serialized = bincode::serialize(&compact_list).unwrap();
-        let compact_list: ProvenCompactCiphertextList = bincode::deserialize(&serialized).unwrap();
-        let expander = compact_list
-            .verify_and_expand(&crs, &pk, &metadata)
-            .unwrap();
-
-        {
-            let a: FheUint32 = expander.get(0).unwrap().unwrap();
-            let b: FheInt64 = expander.get(1).unwrap().unwrap();
-            let c: FheBool = expander.get(2).unwrap().unwrap();
-            let d: FheUint2 = expander.get(3).unwrap().unwrap();
-
-            let a: u32 = a.decrypt(&ck);
-            assert_eq!(a, 17);
-            let b: i64 = b.decrypt(&ck);
-            assert_eq!(b, -1);
-            let c = c.decrypt(&ck);
-            assert!(!c);
-            let d: u8 = d.decrypt(&ck);
-            assert_eq!(d, 3);
-
-            assert!(expander.get::<FheBool>(4).unwrap().is_none());
-        }
-
-        {
-            // Incorrect type
-            assert!(expander.get::<FheInt64>(0).is_err());
-
-            // Correct type but wrong number of bits
-            assert!(expander.get::<FheUint16>(0).is_err());
-        }
-
-        let unverified_expander = compact_list.expand_without_verification().unwrap();
-
-        {
-            let a: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
-            let b: FheInt64 = unverified_expander.get(1).unwrap().unwrap();
-            let c: FheBool = unverified_expander.get(2).unwrap().unwrap();
-            let d: FheUint2 = unverified_expander.get(3).unwrap().unwrap();
-
-            let a: u32 = a.decrypt(&ck);
-            assert_eq!(a, 17);
-            let b: i64 = b.decrypt(&ck);
-            assert_eq!(b, -1);
-            let c = c.decrypt(&ck);
-            assert!(!c);
-            let d: u8 = d.decrypt(&ck);
-            assert_eq!(d, 3);
-
-            assert!(unverified_expander.get::<FheBool>(4).unwrap().is_none());
-        }
-    }
-
-    #[cfg(feature = "zk-pok")]
-    #[test]
-    fn test_proven_compact_list_with_casting() {
         use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
         use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
         use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;

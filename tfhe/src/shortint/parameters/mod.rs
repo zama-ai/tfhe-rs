@@ -17,6 +17,8 @@ use crate::core_crypto::prelude::{
     LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::parameters::*;
+#[cfg(feature = "zk-pok")]
+use crate::zk::CompactPkeZkScheme;
 use serde::{Deserialize, Serialize};
 
 use tfhe_versionable::Versionize;
@@ -793,3 +795,29 @@ pub const COMP_PARAM_MESSAGE_2_CARRY_2: CompressionParameters = COMP_PARAM_MESSA
 // GPU
 pub const PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+/// The Zk scheme for compact private key encryption supported by these parameters.
+///
+/// The Zk Scheme is available in 2 versions. In case of doubt, you should prefer the V2 which is
+/// more efficient.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(SupportedCompactPkeZkSchemeVersions)]
+pub enum SupportedCompactPkeZkScheme {
+    /// The given parameters do not support zk proof of encryption
+    ZkNotSupported,
+    V1,
+    V2,
+}
+
+#[cfg(feature = "zk-pok")]
+impl TryFrom<SupportedCompactPkeZkScheme> for CompactPkeZkScheme {
+    type Error = ();
+
+    fn try_from(value: SupportedCompactPkeZkScheme) -> Result<Self, Self::Error> {
+        match value {
+            SupportedCompactPkeZkScheme::ZkNotSupported => Err(()),
+            SupportedCompactPkeZkScheme::V1 => Ok(Self::V1),
+            SupportedCompactPkeZkScheme::V2 => Ok(Self::V2),
+        }
+    }
+}

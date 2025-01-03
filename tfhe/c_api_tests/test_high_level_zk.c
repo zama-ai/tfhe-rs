@@ -11,12 +11,16 @@ int main(void) {
   ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
   assert(params.encryption_key_choice == ShortintEncryptionKeyChoiceBig);
 
+	ShortintCompactPublicKeyEncryptionParameters pke_params = SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
   int status;
 
   ConfigBuilder *builder;
   status = config_builder_default(&builder);
   assert(status == 0);
   status = config_builder_use_custom_parameters(&builder, params);
+  assert(status == 0);
+  status = use_dedicated_compact_public_key_parameters(&builder, pke_params);
   assert(status == 0);
 
   Config *config;

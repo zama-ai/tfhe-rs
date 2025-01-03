@@ -165,6 +165,38 @@ impl ShortintCompactCiphertextListCastingParameters {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
+pub enum SupportedCompactPkeZkScheme {
+    ZkNotSupported,
+    V1,
+    V2,
+}
+
+impl From<SupportedCompactPkeZkScheme>
+    for crate::shortint::parameters::SupportedCompactPkeZkScheme
+{
+    fn from(value: SupportedCompactPkeZkScheme) -> Self {
+        match value {
+            SupportedCompactPkeZkScheme::ZkNotSupported => Self::ZkNotSupported,
+            SupportedCompactPkeZkScheme::V1 => Self::V1,
+            SupportedCompactPkeZkScheme::V2 => Self::V2,
+        }
+    }
+}
+
+impl SupportedCompactPkeZkScheme {
+    const fn convert(value: crate::shortint::parameters::SupportedCompactPkeZkScheme) -> Self {
+        match value {
+            crate::shortint::parameters::SupportedCompactPkeZkScheme::ZkNotSupported => {
+                Self::ZkNotSupported
+            }
+            crate::shortint::parameters::SupportedCompactPkeZkScheme::V1 => Self::V1,
+            crate::shortint::parameters::SupportedCompactPkeZkScheme::V2 => Self::V2,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct ShortintCompactPublicKeyEncryptionParameters {
     pub encryption_lwe_dimension: usize,
     pub encryption_noise_distribution: crate::c_api::core_crypto::DynamicDistribution,
@@ -176,6 +208,7 @@ pub struct ShortintCompactPublicKeyEncryptionParameters {
     // these parameters will always require casting, as they always require casting we add a field
     // for the casting parameters here.
     pub casting_parameters: ShortintCompactCiphertextListCastingParameters,
+    pub zk_scheme: SupportedCompactPkeZkScheme,
 }
 
 impl TryFrom<ShortintCompactPublicKeyEncryptionParameters>
@@ -196,6 +229,7 @@ impl TryFrom<ShortintCompactPublicKeyEncryptionParameters>
             )?,
             expansion_kind:
                 crate::shortint::parameters::CompactCiphertextListExpansionKind::RequiresCasting,
+            zk_scheme: c_params.zk_scheme.into(),
         })
     }
 }
@@ -233,6 +267,7 @@ impl ShortintCompactPublicKeyEncryptionParameters {
             casting_parameters: ShortintCompactCiphertextListCastingParameters::convert(
                 casting_parameters,
             ),
+            zk_scheme: SupportedCompactPkeZkScheme::convert(compact_pke_params.zk_scheme),
         }
     }
 }
