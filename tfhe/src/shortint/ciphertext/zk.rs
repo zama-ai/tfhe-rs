@@ -7,13 +7,14 @@ use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
     CarryModulus, CiphertextListConformanceParams, CiphertextModulus,
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters, LweDimension,
-    MessageModulus, ShortintCompactCiphertextListCastingMode,
+    MessageModulus, ShortintCompactCiphertextListCastingMode, SupportedCompactPkeZkScheme,
 };
 use crate::shortint::{Ciphertext, CompactPublicKey};
 use crate::zk::{
     CompactPkeCrs, CompactPkeProof, CompactPkeZkScheme, ZkMSBZeroPaddingBitCount,
     ZkVerificationOutcome,
 };
+
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -21,7 +22,8 @@ use tfhe_versionable::Versionize;
 impl CompactPkeCrs {
     /// Construct the CRS that corresponds to the given parameters
     ///
-    /// max_num_message is how many message a single proof can prove
+    /// max_num_message is how many message a single proof can prove.
+    /// The version of the zk scheme is based on the [`CompactPkeZkScheme`] value in the params.
     pub fn from_shortint_params<P, E>(
         params: P,
         max_num_message: LweCiphertextCount,
@@ -43,51 +45,29 @@ impl CompactPkeCrs {
         // 1 padding bit for the PBS
         // Note that if we want to we can prove carry bits are 0 should we need it
         crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
-            Self::new(
-                size,
-                max_num_message,
-                noise_distribution,
-                params.ciphertext_modulus,
-                plaintext_modulus,
-                ZkMSBZeroPaddingBitCount(1),
-                &mut engine.random_generator,
-            )
-        })
-    }
-
-    /// Construct the CRS for the legacy V1 zk scheme that corresponds to the given parameters
-    ///
-    /// max_num_message is how many message a single proof can prove
-    pub fn from_shortint_params_legacy_v1<P, E>(
-        params: P,
-        max_num_message: LweCiphertextCount,
-    ) -> crate::Result<Self>
-    where
-        P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>,
-        crate::Error: From<E>,
-    {
-        let params: CompactPublicKeyEncryptionParameters = params.try_into()?;
-        let (size, noise_distribution) = (
-            params.encryption_lwe_dimension,
-            params.encryption_noise_distribution,
-        );
-
-        let mut plaintext_modulus = params.message_modulus.0 * params.carry_modulus.0;
-        // Our plaintext modulus does not take into account the bit of padding
-        plaintext_modulus *= 2;
-
-        // 1 padding bit for the PBS
-        // Note that if we want to we can prove carry bits are 0 should we need it
-        crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
-            Self::new_legacy_v1(
-                size,
-                max_num_message,
-                noise_distribution,
-                params.ciphertext_modulus,
-                plaintext_modulus,
-                ZkMSBZeroPaddingBitCount(1),
-                &mut engine.random_generator,
-            )
+            match params.zk_scheme {
+                SupportedCompactPkeZkScheme::V1 => Self::new_legacy_v1(
+                    size,
+                    max_num_message,
+                    noise_distribution,
+                    params.ciphertext_modulus,
+                    plaintext_modulus,
+                    ZkMSBZeroPaddingBitCount(1),
+                    &mut engine.random_generator,
+                ),
+                SupportedCompactPkeZkScheme::V2 => Self::new(
+                    size,
+                    max_num_message,
+                    noise_distribution,
+                    params.ciphertext_modulus,
+                    plaintext_modulus,
+                    ZkMSBZeroPaddingBitCount(1),
+                    &mut engine.random_generator,
+                ),
+                SupportedCompactPkeZkScheme::ZkNotSupported => {
+                    Err("Zk proof of encryption is not supported by the provided parameters".into())
+                }
+            }
         })
     }
 }

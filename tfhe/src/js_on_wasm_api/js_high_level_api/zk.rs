@@ -1,9 +1,7 @@
 use wasm_bindgen::prelude::*;
 
-use crate::core_crypto::prelude::LweCiphertextCount;
 use crate::js_on_wasm_api::js_high_level_api::config::TfheConfig;
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic_result, into_js_error};
-use crate::js_on_wasm_api::shortint::ShortintParameters;
 
 use crate::zk::Compressible;
 
@@ -76,21 +74,6 @@ impl CompactPkeCrs {
                 .deserialize_from(buffer)
                 .map(Self)
                 .map_err(into_js_error)
-        })
-    }
-
-    #[wasm_bindgen]
-    pub fn from_parameters(
-        parameters: &ShortintParameters,
-        max_num_message: usize,
-    ) -> Result<CompactPkeCrs, JsError> {
-        catch_panic_result(|| {
-            crate::core_crypto::entities::CompactPkeCrs::from_shortint_params(
-                parameters.0,
-                LweCiphertextCount(max_num_message),
-            )
-            .map(CompactPkeCrs)
-            .map_err(into_js_error)
         })
     }
 

@@ -3,7 +3,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::shortint::parameters::{
     CarryModulus, CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
-    MessageModulus,
+    MessageModulus, SupportedCompactPkeZkScheme,
 };
 
 /// This parameter set should be used when doing zk proof of public key encryption
@@ -19,6 +19,7 @@ pub const V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV2:
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
     expansion_kind: CompactCiphertextListExpansionKind::RequiresCasting,
+    zk_scheme: SupportedCompactPkeZkScheme::V2,
 }
 .validate();
 
@@ -33,6 +34,7 @@ pub const V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1:
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
     expansion_kind: CompactCiphertextListExpansionKind::RequiresCasting,
+    zk_scheme: SupportedCompactPkeZkScheme::V1,
 }
 .validate();
 
@@ -46,5 +48,6 @@ pub const V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1:
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
     expansion_kind: CompactCiphertextListExpansionKind::RequiresCasting,
+    zk_scheme: SupportedCompactPkeZkScheme::V1,
 }
 .validate();
