@@ -8,6 +8,7 @@ mod trim;
 
 pub use crate::high_level_api::backward_compatibility::strings::FheAsciiStringVersions;
 use crate::high_level_api::details::MaybeCloned;
+use crate::integer::ciphertext::{Compressible, Expandable};
 use crate::named::Named;
 use crate::prelude::{FheDecrypt, FheTryEncrypt, Tagged};
 use crate::strings::ciphertext::FheString;
@@ -273,5 +274,52 @@ impl FheTryEncrypt<&String, ClientKey> for FheAsciiString {
 impl FheDecrypt<String> for FheAsciiString {
     fn decrypt(&self, key: &ClientKey) -> String {
         crate::strings::ClientKey::new(&key.key.key).decrypt_ascii(&self.inner.on_cpu())
+    }
+}
+
+impl crate::HlExpandable for FheAsciiString {
+    fn from_cpu_blocks(
+        blocks: Vec<crate::shortint::Ciphertext>,
+        kind: crate::SerializedKind,
+    ) -> crate::Result<Self> {
+        let message_modulus = blocks[0].message_modulus;
+        let inner = <FheString as Expandable>::from_expanded_blocks(
+            blocks,
+            kind.to_data_kind(message_modulus),
+        )?;
+        Ok(Self {
+            inner: inner.into(),
+            tag: Tag::default(),
+        })
+    }
+
+    #[cfg(feature = "gpu")]
+    fn from_gpu_blocks(
+        _blocks: crate::integer::gpu::ciphertext::CudaRadixCiphertext,
+        _kind: crate::SerializedKind,
+    ) -> crate::Result<Self> {
+        Err(crate::error!("Gpu does not support strings"))
+    }
+}
+
+impl crate::HlCompressible for FheAsciiString {
+    fn compress_into(
+        self,
+        messages: &mut Vec<(
+            crate::high_level_api::compressed_ciphertext_list::ToBeCompressed,
+            crate::SerializedKind,
+        )>,
+    ) {
+        match self.inner {
+            AsciiDevice::Cpu(fhe_string) => {
+                let mut blocks = vec![];
+                let data_kind = fhe_string.compress_into(&mut blocks);
+                let message_modulus = blocks[0].message_modulus;
+                messages.push((
+                    crate::high_level_api::compressed_ciphertext_list::ToBeCompressed::Cpu(blocks),
+                    crate::SerializedKind::from_data_kind(data_kind, message_modulus),
+                ));
+            }
+        }
     }
 }

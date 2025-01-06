@@ -14,7 +14,9 @@ use crate::shortint::server_key::{
 };
 use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
+use rayon::prelude::*;
 use rayon::slice::ParallelSlice;
+use std::ops::Range;
 
 impl CompressionKey {
     pub fn compress_ciphertexts_into_list(
@@ -128,6 +130,17 @@ impl CompressionKey {
 }
 
 impl DecompressionKey {
+    pub fn unpack_range(
+        &self,
+        packed: &CompressedCiphertextList,
+        range: Range<usize>,
+    ) -> crate::Result<Vec<Ciphertext>> {
+        range
+            .into_par_iter()
+            .map(|i| self.unpack(packed, i))
+            .collect()
+    }
+
     pub fn unpack(
         &self,
         packed: &CompressedCiphertextList,

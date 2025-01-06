@@ -228,21 +228,7 @@ impl CompactCiphertextListBuilder {
     }
 
     pub fn build_packed(&self) -> crate::Result<CompactCiphertextList> {
-        if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
-            return Err(crate::Error::new("In order to build a packed compact ciphertext list, parameters must have CarryModulus >= MessageModulus".to_string()));
-        }
-
-        // Here self.messages are decomposed blocks in range [0..message_modulus[
-        let msg_mod = self.pk.key.message_modulus().0;
-        let packed_messaged_iter = self
-            .messages
-            .chunks(2)
-            .map(|two_values| (two_values.get(1).copied().unwrap_or(0) * msg_mod) + two_values[0]);
-        let ct_list = self
-            .pk
-            .key
-            .encrypt_iter_with_modulus(packed_messaged_iter, msg_mod * msg_mod);
-
+        let ct_list = self.pk.key.encrypt_slice_packed(self.messages.as_slice())?;
         Ok(CompactCiphertextList {
             ct_list,
             info: self.info.clone(),
@@ -276,26 +262,11 @@ impl CompactCiphertextListBuilder {
         metadata: &[u8],
         load: ZkComputeLoad,
     ) -> crate::Result<ProvenCompactCiphertextList> {
-        if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
-            return Err(crate::Error::new(
-                "In order to build a packed ProvenCompactCiphertextList, \
-                parameters must have CarryModulus >= MessageModulus"
-                    .to_string(),
-            ));
-        }
-
-        let msg_mod = self.pk.key.parameters.message_modulus.0;
-        let packed_messages = self
-            .messages
-            .chunks(2)
-            .map(|two_values| (two_values.get(1).copied().unwrap_or(0) * msg_mod) + two_values[0])
-            .collect::<Vec<_>>();
-        let ct_list = self.pk.key.encrypt_and_prove_slice(
-            packed_messages.as_slice(),
+        let ct_list = self.pk.key.encrypt_and_prove_slice_packed(
+            self.messages.as_slice(),
             crs,
             metadata,
             load,
-            msg_mod * msg_mod,
         )?;
         Ok(ProvenCompactCiphertextList {
             ct_list,

@@ -54,6 +54,7 @@ pub enum FheTypes {
     Type_FheInt256 = 29,
 }
 
+#[allow(clippy::fallible_impl_from)]
 impl From<crate::FheTypes> for FheTypes {
     fn from(value: crate::FheTypes) -> Self {
         match value {
@@ -87,6 +88,7 @@ impl From<crate::FheTypes> for FheTypes {
             crate::FheTypes::Int128 => Self::Type_FheInt128,
             crate::FheTypes::Int160 => Self::Type_FheInt160,
             crate::FheTypes::Int256 => Self::Type_FheInt256,
+            crate::FheTypes::AsciiString => panic!("C API does not have strings yes"),
         }
     }
 }

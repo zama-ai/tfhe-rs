@@ -1,8 +1,6 @@
-use crate::core_crypto::entities::packed_integers::PackedIntegers;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::{glwe_ciphertext_size, CiphertextCount, LweCiphertextCount};
+use crate::core_crypto::prelude::glwe_ciphertext_size;
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -12,8 +10,6 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey, CudaPackedGlweCiphertextList,
 };
-use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
-use crate::shortint::PBSOrder;
 use itertools::Itertools;
 use serde::{Deserializer, Serializer};
 
@@ -87,7 +83,6 @@ impl CudaCompressedCiphertextList {
         self.info.get(index).copied()
     }
 
-    #[allow(clippy::unnecessary_wraps)]
     fn blocks_of(
         &self,
         index: usize,
@@ -104,20 +99,17 @@ impl CudaCompressedCiphertextList {
             .map(|kind| kind.num_blocks(message_modulus))
             .sum();
 
-        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
+        let end_block_index = start_block_index + current_info.num_blocks(message_modulus);
 
-        Some((
-            decomp_key
-                .unpack(
-                    &self.packed_list,
-                    current_info,
-                    start_block_index,
-                    end_block_index,
-                    streams,
-                )
-                .unwrap(),
-            current_info,
-        ))
+        decomp_key
+            .unpack(
+                &self.packed_list,
+                start_block_index..end_block_index,
+                current_info,
+                streams,
+            )
+            .ok()
+            .map(|blocks| (blocks, current_info))
     }
 
     pub fn get<T>(
@@ -188,58 +180,7 @@ impl CudaCompressedCiphertextList {
     /// let converted_compressed = cuda_compressed.to_compressed_ciphertext_list(&streams);
     /// ```
     pub fn to_compressed_ciphertext_list(&self, streams: &CudaStreams) -> CompressedCiphertextList {
-        let ciphertext_modulus = self.packed_list.ciphertext_modulus;
-        let message_modulus = self.packed_list.message_modulus;
-        let carry_modulus = self.packed_list.carry_modulus;
-        let lwe_per_glwe = self.packed_list.lwe_per_glwe;
-        let storage_log_modulus = self.packed_list.storage_log_modulus;
-        let glwe_dimension = self.packed_list.glwe_dimension;
-        let polynomial_size = self.packed_list.polynomial_size;
-        let mut modulus_switched_glwe_ciphertext_list =
-            Vec::with_capacity(self.packed_list.glwe_ciphertext_count().0);
-
-        let flat_cpu_data = unsafe {
-            let mut v = vec![0u64; self.packed_list.data.len()];
-            self.packed_list.data.copy_to_cpu_async(&mut v, streams, 0);
-            streams.synchronize();
-            v
-        };
-
-        let mut num_bodies_left = self.packed_list.bodies_count;
-        let mut chunk_start = 0;
-        while num_bodies_left != 0 {
-            let bodies_count = LweCiphertextCount(num_bodies_left.min(lwe_per_glwe.0));
-            let initial_len = (glwe_dimension.0 * polynomial_size.0) + bodies_count.0;
-            let number_bits_to_pack = initial_len * storage_log_modulus.0;
-            let len = number_bits_to_pack.div_ceil(u64::BITS as usize);
-            let chunk_end = chunk_start + len;
-            modulus_switched_glwe_ciphertext_list.push(CompressedModulusSwitchedGlweCiphertext {
-                packed_integers: PackedIntegers {
-                    packed_coeffs: flat_cpu_data[chunk_start..chunk_end].to_vec(),
-                    log_modulus: storage_log_modulus,
-                    initial_len,
-                },
-                glwe_dimension,
-                polynomial_size,
-                bodies_count,
-                uncompressed_ciphertext_modulus: ciphertext_modulus,
-            });
-            num_bodies_left = num_bodies_left.saturating_sub(lwe_per_glwe.0);
-            chunk_start = chunk_end;
-        }
-
-        let count = CiphertextCount(self.packed_list.bodies_count);
-        let pbs_order = PBSOrder::KeyswitchBootstrap;
-        let packed_list = ShortintCompressedCiphertextList {
-            modulus_switched_glwe_ciphertext_list,
-            ciphertext_modulus,
-            message_modulus,
-            carry_modulus,
-            pbs_order,
-            lwe_per_glwe,
-            count,
-        };
-
+        let packed_list = self.packed_list.to_compressed_ciphertext_list(streams);
         CompressedCiphertextList {
             packed_list,
             info: self.info.clone(),
@@ -250,6 +191,64 @@ impl CudaCompressedCiphertextList {
         Self {
             packed_list: self.packed_list.duplicate(streams),
             info: self.info.clone(),
+        }
+    }
+}
+
+impl crate::shortint::ciphertext::CompressedCiphertextList {
+    pub fn to_cuda_packed_glwe_ciphertext_list(
+        &self,
+        streams: &CudaStreams,
+    ) -> CudaPackedGlweCiphertextList {
+        let lwe_per_glwe = self.lwe_per_glwe;
+
+        let modulus_switched_glwe_ciphertext_list = &self.modulus_switched_glwe_ciphertext_list;
+
+        let first_ct = modulus_switched_glwe_ciphertext_list.first().unwrap();
+        let storage_log_modulus = first_ct.packed_integers.log_modulus;
+        let initial_len = modulus_switched_glwe_ciphertext_list
+            .iter()
+            .map(|glwe| glwe.packed_integers.initial_len)
+            .sum();
+
+        let message_modulus = self.message_modulus;
+        let carry_modulus = self.carry_modulus;
+
+        let mut flat_cpu_data = modulus_switched_glwe_ciphertext_list
+            .iter()
+            .flat_map(|ct| ct.packed_integers.packed_coeffs.clone())
+            .collect_vec();
+
+        let glwe_ciphertext_count = self.modulus_switched_glwe_ciphertext_list.len();
+        let glwe_size = self.modulus_switched_glwe_ciphertext_list[0]
+            .glwe_dimension()
+            .to_glwe_size();
+        let polynomial_size = self.modulus_switched_glwe_ciphertext_list[0].polynomial_size();
+
+        // FIXME: have a more precise memory handling, this is too long and should be "just" the
+        // original flat_cpu_data.len()
+        let unpacked_glwe_ciphertext_flat_len =
+            glwe_ciphertext_count * glwe_ciphertext_size(glwe_size, polynomial_size);
+
+        flat_cpu_data.resize(unpacked_glwe_ciphertext_flat_len, 0u64);
+
+        let flat_gpu_data = unsafe {
+            let v = CudaVec::from_cpu_async(flat_cpu_data.as_slice(), streams, 0);
+            streams.synchronize();
+            v
+        };
+
+        CudaPackedGlweCiphertextList {
+            data: flat_gpu_data,
+            glwe_dimension: first_ct.glwe_dimension(),
+            polynomial_size: first_ct.polynomial_size(),
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus: self.ciphertext_modulus,
+            bodies_count: self.count.0,
+            storage_log_modulus,
+            lwe_per_glwe,
+            initial_len,
         }
     }
 }
@@ -328,59 +327,10 @@ impl CompressedCiphertextList {
         &self,
         streams: &CudaStreams,
     ) -> CudaCompressedCiphertextList {
-        let lwe_per_glwe = self.packed_list.lwe_per_glwe;
-
-        let modulus_switched_glwe_ciphertext_list =
-            &self.packed_list.modulus_switched_glwe_ciphertext_list;
-
-        let first_ct = modulus_switched_glwe_ciphertext_list.first().unwrap();
-        let storage_log_modulus = first_ct.packed_integers.log_modulus;
-        let initial_len = modulus_switched_glwe_ciphertext_list
-            .iter()
-            .map(|glwe| glwe.packed_integers.initial_len)
-            .sum();
-
-        let message_modulus = self.packed_list.message_modulus;
-        let carry_modulus = self.packed_list.carry_modulus;
-
-        let mut flat_cpu_data = modulus_switched_glwe_ciphertext_list
-            .iter()
-            .flat_map(|ct| ct.packed_integers.packed_coeffs.clone())
-            .collect_vec();
-
-        let glwe_ciphertext_count = self.packed_list.modulus_switched_glwe_ciphertext_list.len();
-        let glwe_size = self.packed_list.modulus_switched_glwe_ciphertext_list[0]
-            .glwe_dimension()
-            .to_glwe_size();
-        let polynomial_size =
-            self.packed_list.modulus_switched_glwe_ciphertext_list[0].polynomial_size();
-
-        // FIXME: have a more precise memory handling, this is too long and should be "just" the
-        // original flat_cpu_data.len()
-        let unpacked_glwe_ciphertext_flat_len =
-            glwe_ciphertext_count * glwe_ciphertext_size(glwe_size, polynomial_size);
-
-        flat_cpu_data.resize(unpacked_glwe_ciphertext_flat_len, 0u64);
-
-        let flat_gpu_data = unsafe {
-            let v = CudaVec::from_cpu_async(flat_cpu_data.as_slice(), streams, 0);
-            streams.synchronize();
-            v
-        };
-
         CudaCompressedCiphertextList {
-            packed_list: CudaPackedGlweCiphertextList {
-                data: flat_gpu_data,
-                glwe_dimension: first_ct.glwe_dimension(),
-                polynomial_size: first_ct.polynomial_size(),
-                message_modulus,
-                carry_modulus,
-                ciphertext_modulus: self.packed_list.ciphertext_modulus,
-                bodies_count: self.packed_list.count.0,
-                storage_log_modulus,
-                lwe_per_glwe,
-                initial_len,
-            },
+            packed_list: self
+                .packed_list
+                .to_cuda_packed_glwe_ciphertext_list(streams),
             info: self.info.clone(),
         }
     }

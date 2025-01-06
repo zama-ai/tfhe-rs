@@ -1183,6 +1183,7 @@ pub enum FheTypes {
     Int256,
 }
 
+#[allow(clippy::fallible_impl_from)]
 impl From<crate::FheTypes> for FheTypes {
     fn from(value: crate::FheTypes) -> Self {
         match value {
@@ -1216,6 +1217,7 @@ impl From<crate::FheTypes> for FheTypes {
             crate::FheTypes::Int128 => Self::Int128,
             crate::FheTypes::Int160 => Self::Int160,
             crate::FheTypes::Int256 => Self::Int256,
+            crate::FheTypes::AsciiString => panic!("JS API does not support strings"),
         }
     }
 }

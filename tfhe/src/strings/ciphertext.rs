@@ -55,6 +55,14 @@ impl ClearString {
     pub fn str(&self) -> &str {
         &self.str
     }
+
+    pub fn len(&self) -> usize {
+        self.str.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.str.is_empty()
+    }
 }
 
 impl Compactable for &ClearString {

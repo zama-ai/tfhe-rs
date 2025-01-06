@@ -1,4 +1,4 @@
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use tfhe_versionable::{Unversionize, UnversionizeError, Version, Versionize, VersionizeOwned};
 
 use super::details::MaybeCloned;
 #[cfg(feature = "gpu")]
@@ -16,79 +16,255 @@ use crate::high_level_api::global_state::device_of_internal_keys;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
-use crate::integer::ciphertext::{DataKind, Expandable};
-#[cfg(feature = "gpu")]
-use crate::integer::gpu::ciphertext::compressed_ciphertext_list::{
-    CudaCompressedCiphertextList, CudaExpandable,
-};
+use crate::high_level_api::SerializedKind;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::list_compression::server_keys::CudaPackedGlweCiphertextList;
+use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
 use crate::named::Named;
 use crate::prelude::{CiphertextList, Tagged};
 use crate::shortint::Ciphertext;
 use crate::{FheBool, FheInt, FheUint, Tag};
 
 impl<Id: FheUintId> HlCompressible for FheUint<Id> {
-    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
+    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, SerializedKind)>) {
+        let kind = SerializedKind::Uint {
+            num_bits: Id::num_bits() as u32,
+        };
         match self.ciphertext {
             crate::high_level_api::integers::unsigned::RadixCiphertext::Cpu(cpu_radix) => {
                 let blocks = cpu_radix.blocks;
-                let kind = DataKind::Unsigned(blocks.len());
                 messages.push((ToBeCompressed::Cpu(blocks), kind));
             }
             #[cfg(feature = "gpu")]
             crate::high_level_api::integers::unsigned::RadixCiphertext::Cuda(gpu_radix) => {
                 let blocks = gpu_radix.ciphertext;
-                let kind = DataKind::Unsigned(blocks.info.blocks.len());
                 messages.push((ToBeCompressed::Cuda(blocks), kind));
             }
         }
     }
 }
 impl<Id: FheIntId> HlCompressible for FheInt<Id> {
-    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
+    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, SerializedKind)>) {
+        let kind = SerializedKind::Int {
+            num_bits: Id::num_bits() as u32,
+        };
         match self.ciphertext {
             crate::high_level_api::integers::signed::RadixCiphertext::Cpu(cpu_radix) => {
                 let blocks = cpu_radix.blocks;
-                let kind = DataKind::Signed(blocks.len());
                 messages.push((ToBeCompressed::Cpu(blocks), kind));
             }
             #[cfg(feature = "gpu")]
             crate::high_level_api::integers::signed::RadixCiphertext::Cuda(gpu_radix) => {
                 let blocks = gpu_radix.ciphertext;
-                let kind = DataKind::Signed(blocks.info.blocks.len());
                 messages.push((ToBeCompressed::Cuda(blocks), kind));
             }
         }
     }
 }
 impl HlCompressible for FheBool {
-    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
+    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, SerializedKind)>) {
+        let kind = SerializedKind::Bool;
         match self.ciphertext {
             InnerBoolean::Cpu(cpu_bool) => {
-                let kind = DataKind::Boolean;
                 messages.push((ToBeCompressed::Cpu(vec![cpu_bool.0]), kind));
             }
             #[cfg(feature = "gpu")]
             InnerBoolean::Cuda(cuda_bool) => {
-                let kind = DataKind::Boolean;
                 messages.push((ToBeCompressed::Cuda(cuda_bool.0.ciphertext), kind));
             }
         }
     }
 }
 
-impl<Id: FheUintId> HlExpandable for FheUint<Id> {}
-impl<Id: FheIntId> HlExpandable for FheInt<Id> {}
-impl HlExpandable for FheBool {}
+impl<Id: FheUintId> HlExpandable for FheUint<Id> {
+    fn from_cpu_blocks(blocks: Vec<Ciphertext>, kind: SerializedKind) -> crate::Result<Self> {
+        match kind {
+            SerializedKind::Bool => Err(crate::Error::new(format!(
+                "Tried to expand a FheUint{} while FheBool is stored",
+                Id::num_bits()
+            ))),
+            SerializedKind::Uint { num_bits } => {
+                if num_bits as usize == Id::num_bits() {
+                    Ok(Self::new(RadixCiphertext::from(blocks), Tag::default()))
+                } else {
+                    Err(crate::Error::new(format!(
+                        "Tried to expand a FheUint{} while FheUint{num_bits} is stored",
+                        Id::num_bits()
+                    )))
+                }
+            }
+            SerializedKind::Int { num_bits } => Err(crate::Error::new(format!(
+                "Tried to expand a FheUint{} while FheInt{num_bits} is stored",
+                Id::num_bits()
+            ))),
+            SerializedKind::String { .. } => Err(crate::error!(
+                "Tried to expand a FheUint{} while FheString is stored",
+                Id::num_bits()
+            )),
+        }
+    }
 
-#[cfg(not(feature = "gpu"))]
-pub trait HlExpandable: Expandable {}
-#[cfg(feature = "gpu")]
-pub trait HlExpandable: Expandable + CudaExpandable {}
+    #[cfg(feature = "gpu")]
+    fn from_gpu_blocks(blocks: CudaRadixCiphertext, kind: SerializedKind) -> crate::Result<Self> {
+        match kind {
+            SerializedKind::Bool => Err(crate::Error::new(format!(
+                "Tried to expand a FheUint{} while a FheUintBool is stored in this slot",
+                Id::num_bits(),
+            ))),
+            SerializedKind::Uint { num_bits } => {
+                if num_bits == Id::num_bits() as u32 {
+                    // The expander will be responsible for setting the correct tag
+                    Ok(Self::new(
+                        crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext {
+                            ciphertext: blocks,
+                        },
+                        Tag::default(),
+                    ))
+                } else {
+                    Err(crate::Error::new(format!(
+                        "Tried to expand a FheUint{} while a FheUint{num_bits} is stored in this slot",
+                        Id::num_bits(),
+                    )))
+                }
+            }
+            SerializedKind::Int { num_bits } => Err(crate::Error::new(format!(
+                "Tried to expand a FheUint{} while a FheInt{num_bits} is stored in this slot",
+                Id::num_bits(),
+            ))),
+            SerializedKind::String { .. } => Err(crate::error!(
+                "Tried to expand a FheUint{} while a FheString is stored in this slot",
+                Id::num_bits(),
+            )),
+        }
+    }
+}
+impl<Id: FheIntId> HlExpandable for FheInt<Id> {
+    fn from_cpu_blocks(blocks: Vec<Ciphertext>, kind: SerializedKind) -> crate::Result<Self> {
+        match kind {
+            SerializedKind::Bool => Err(crate::Error::new(format!(
+                "Tried to expand a FheUint{} while FheBool is stored",
+                Id::num_bits()
+            ))),
+            SerializedKind::Uint { num_bits } => Err(crate::Error::new(format!(
+                "Tried to expand a FheInt{} while FheUint{num_bits} is stored",
+                Id::num_bits()
+            ))),
+            SerializedKind::Int { num_bits } => {
+                if num_bits as usize == Id::num_bits() {
+                    Ok(Self::new(
+                        SignedRadixCiphertext::from(blocks),
+                        Tag::default(),
+                    ))
+                } else {
+                    Err(crate::Error::new(format!(
+                        "Tried to expand a FheInt{} while FheInt{num_bits} is stored",
+                        Id::num_bits()
+                    )))
+                }
+            }
+            SerializedKind::String { .. } => Err(crate::error!(
+                "Tried to expand a FheInt{} while FheString is stored",
+                Id::num_bits()
+            )),
+        }
+    }
+
+    #[cfg(feature = "gpu")]
+    fn from_gpu_blocks(blocks: CudaRadixCiphertext, kind: SerializedKind) -> crate::Result<Self> {
+        match kind {
+            SerializedKind::Bool => Err(crate::Error::new(format!(
+                "Tried to expand a FheInt{} while a FheUintBool is stored in this slot",
+                Id::num_bits(),
+            ))),
+            SerializedKind::Uint { num_bits } => Err(crate::Error::new(format!(
+                "Tried to expand a FheInt{} while a FheUint{num_bits} is stored in this slot",
+                Id::num_bits(),
+            ))),
+            SerializedKind::Int { num_bits } => {
+                if num_bits == Id::num_bits() as u32 {
+                    // The expander will be responsible for setting the correct tag
+                    Ok(Self::new(
+                        crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext {
+                            ciphertext: blocks,
+                        },
+                        Tag::default(),
+                    ))
+                } else {
+                    Err(crate::Error::new(format!(
+                        "Tried to expand a FheInt{} while a FheInt{num_bits} is stored in this slot",
+                        Id::num_bits(),
+                    )))
+                }
+            }
+            SerializedKind::String { .. } => Err(crate::error!(
+                "Tried to expand a FheInt{} while a FheString is stored in this slot",
+                Id::num_bits(),
+            )),
+        }
+    }
+}
+
+impl HlExpandable for FheBool {
+    fn from_cpu_blocks(mut blocks: Vec<Ciphertext>, kind: SerializedKind) -> crate::Result<Self> {
+        match kind {
+            SerializedKind::Bool => Ok(blocks
+                .pop()
+                .map(BooleanBlock::new_unchecked)
+                .map(|b| Self::new(b, Tag::default()))
+                .unwrap()),
+            SerializedKind::Uint { num_bits } => Err(crate::Error::new(format!(
+                "Tried to expand a FheBool while a FheUint{num_bits} is stored"
+            ))),
+            SerializedKind::Int { num_bits } => Err(crate::Error::new(format!(
+                "Tried to expand a FheBool while a FheUint{num_bits} is stored"
+            ))),
+            SerializedKind::String { .. } => Err(crate::error!(
+                "Tried to expand a FheBool while FheString is stored",
+            )),
+        }
+    }
+
+    #[cfg(feature = "gpu")]
+    fn from_gpu_blocks(
+        mut radix: CudaRadixCiphertext,
+        kind: SerializedKind,
+    ) -> crate::Result<Self> {
+        use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+
+        match kind {
+            SerializedKind::Bool => {
+                // We know the value is a boolean one (via the data kind)
+                radix.info.blocks[0].degree = crate::shortint::ciphertext::Degree::new(1);
+
+                let boolean_block = CudaBooleanBlock::from_cuda_radix_ciphertext(radix);
+
+                // The expander will be responsible for setting the correct tag
+                Ok(Self::new(boolean_block, Tag::default()))
+            }
+            SerializedKind::Uint { num_bits } => Err(crate::Error::new(format!(
+                "Tried to expand a FheBool while a FheUint{num_bits} is stored in this slot",
+            ))),
+            SerializedKind::Int { num_bits } => Err(crate::Error::new(format!(
+                "Tried to expand a FheBool while a FheInt{num_bits} is stored in this slot",
+            ))),
+            SerializedKind::String { .. } => Err(crate::error!(
+                "Tried to expand a FheBool while FheString is stored",
+            )),
+        }
+    }
+}
+
+pub trait HlExpandable: Sized {
+    fn from_cpu_blocks(blocks: Vec<Ciphertext>, kind: SerializedKind) -> crate::Result<Self>;
+
+    #[cfg(feature = "gpu")]
+    fn from_gpu_blocks(blocks: CudaRadixCiphertext, kind: SerializedKind) -> crate::Result<Self>;
+}
 
 pub trait HlCompressible {
-    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>);
+    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, SerializedKind)>);
 }
 
 pub enum ToBeCompressed {
@@ -98,7 +274,7 @@ pub enum ToBeCompressed {
 }
 
 pub struct CompressedCiphertextListBuilder {
-    inner: Vec<(ToBeCompressed, DataKind)>,
+    inner: Vec<(ToBeCompressed, SerializedKind)>,
 }
 
 impl CompressedCiphertextListBuilder {
@@ -156,12 +332,8 @@ impl CompressedCiphertextListBuilder {
                         let info = self.inner.iter().map(|(_, kind)| *kind).collect();
 
                         CompressedCiphertextList {
-                            inner: InnerCompressedCiphertextList::Cpu(
-                                crate::integer::ciphertext::CompressedCiphertextList {
-                                    packed_list: compressed_list,
-                                    info,
-                                },
-                            ),
+                            inner: InnerCompressedCiphertextList::Cpu(compressed_list),
+                            info,
                             tag: cpu_key.tag.clone(),
                         }
                     })
@@ -201,10 +373,9 @@ impl CompressedCiphertextListBuilder {
                         });
                         let info = self.inner.iter().map(|(_, kind)| *kind).collect();
 
-                        let compressed_list = CudaCompressedCiphertextList { packed_list, info };
-
                         CompressedCiphertextList {
-                            inner: InnerCompressedCiphertextList::Cuda(compressed_list),
+                            inner: InnerCompressedCiphertextList::Cuda(packed_list),
+                            info,
                             tag: cuda_key.tag.clone(),
                         }
                     })
@@ -214,36 +385,94 @@ impl CompressedCiphertextListBuilder {
     }
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone)]
 pub(crate) enum InnerCompressedCiphertextList {
-    Cpu(crate::integer::ciphertext::CompressedCiphertextList),
+    Cpu(crate::shortint::ciphertext::CompressedCiphertextList),
     #[cfg(feature = "gpu")]
-    Cuda(crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList),
+    Cuda(CudaPackedGlweCiphertextList),
+}
+
+impl serde::Serialize for InnerCompressedCiphertextList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        match self {
+            Self::Cpu(inner) => inner.serialize(serializer),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => {
+                let cpu_list = with_thread_local_cuda_streams(|streams| {
+                    inner.to_compressed_ciphertext_list(streams)
+                });
+
+                cpu_list.serialize(serializer)
+            }
+        }
+    }
 }
 
 impl<'de> serde::Deserialize<'de> for InnerCompressedCiphertextList {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: serde::de::Deserializer<'de>,
     {
-        #[derive(Deserialize)]
-        enum Fake {
-            Cpu(crate::integer::ciphertext::CompressedCiphertextList),
-            #[cfg(feature = "gpu")]
-            Cuda(crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList),
-        }
-        let mut new = match Fake::deserialize(deserializer)? {
-            Fake::Cpu(v) => Self::Cpu(v),
-            #[cfg(feature = "gpu")]
-            Fake::Cuda(v) => Self::Cuda(v),
-        };
+        #[allow(unused_mut, reason = "Mutability is tied to a feature")]
+        let mut data =
+            crate::shortint::ciphertext::CompressedCiphertextList::deserialize(deserializer)
+                .map(Self::Cpu)?;
 
-        if let Some(device) = device_of_internal_keys() {
-            new.move_to_device(device);
+        match device_of_internal_keys() {
+            Some(crate::Device::Cpu) | None => Ok(data),
+            #[cfg(feature = "gpu")]
+            Some(device) => {
+                data.move_to_device(device);
+                Ok(data)
+            }
         }
-
-        Ok(new)
     }
+}
+
+#[derive(serde::Serialize)]
+#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
+pub struct InnerCompressedCiphertextListVersion<'vers>(
+    <InnerCompressedCiphertextList as Versionize>::Versioned<'vers>,
+);
+
+impl<'vers> From<&'vers InnerCompressedCiphertextList>
+    for InnerCompressedCiphertextListVersion<'vers>
+{
+    fn from(value: &'vers InnerCompressedCiphertextList) -> Self {
+        Self(value.versionize())
+    }
+}
+
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
+pub struct InnerCompressedCiphertextListOwned(
+    <InnerCompressedCiphertextList as VersionizeOwned>::VersionedOwned,
+);
+
+impl From<InnerCompressedCiphertextList> for InnerCompressedCiphertextListOwned {
+    fn from(value: InnerCompressedCiphertextList) -> Self {
+        Self(value.versionize_owned())
+    }
+}
+
+impl TryFrom<InnerCompressedCiphertextListOwned> for InnerCompressedCiphertextList {
+    type Error = UnversionizeError;
+
+    fn try_from(value: InnerCompressedCiphertextListOwned) -> Result<Self, Self::Error> {
+        Self::unversionize(value.0)
+    }
+}
+
+impl Version for InnerCompressedCiphertextList {
+    type Ref<'vers>
+        = InnerCompressedCiphertextListVersion<'vers>
+    where
+        Self: 'vers;
+
+    type Owned = InnerCompressedCiphertextListOwned;
 }
 
 impl InnerCompressedCiphertextList {
@@ -279,7 +508,7 @@ impl InnerCompressedCiphertextList {
             #[cfg(feature = "gpu")]
             (Self::Cpu(cpu_ct), crate::Device::CudaGpu) => {
                 let cuda_ct = with_thread_local_cuda_streams(|streams| {
-                    cpu_ct.to_cuda_compressed_ciphertext_list(streams)
+                    cpu_ct.to_cuda_packed_glwe_ciphertext_list(streams)
                 });
                 Some(Self::Cuda(cuda_ct))
             }
@@ -290,7 +519,7 @@ impl InnerCompressedCiphertextList {
         }
     }
 
-    fn on_cpu(&self) -> MaybeCloned<crate::integer::ciphertext::CompressedCiphertextList> {
+    fn on_cpu(&self) -> MaybeCloned<crate::shortint::ciphertext::CompressedCiphertextList> {
         match self {
             Self::Cpu(cpu_ct) => MaybeCloned::Borrowed(cpu_ct),
             #[cfg(feature = "gpu")]
@@ -305,15 +534,10 @@ impl InnerCompressedCiphertextList {
     }
 
     #[cfg(feature = "gpu")]
-    fn on_gpu(
-        &self,
-        streams: &CudaStreams,
-    ) -> MaybeCloned<
-        crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList,
-    > {
+    fn on_gpu(&self, streams: &CudaStreams) -> MaybeCloned<CudaPackedGlweCiphertextList> {
         match self {
             Self::Cpu(cpu_ct) => {
-                let cuda_ct = cpu_ct.to_cuda_compressed_ciphertext_list(streams);
+                let cuda_ct = cpu_ct.to_cuda_packed_glwe_ciphertext_list(streams);
                 MaybeCloned::Cloned(cuda_ct)
             }
             Self::Cuda(cuda_ct) => {
@@ -329,17 +553,18 @@ impl InnerCompressedCiphertextList {
 
 impl Versionize for InnerCompressedCiphertextList {
     type Versioned<'vers> =
-        <crate::integer::ciphertext::CompressedCiphertextList as VersionizeOwned>::VersionedOwned;
+        <crate::shortint::ciphertext::CompressedCiphertextList as VersionizeOwned>::VersionedOwned;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         match self {
             Self::Cpu(inner) => inner.clone().versionize_owned(),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => {
-                let cpu_data = with_thread_local_cuda_streams(|streams| {
+                let cpu_list = with_thread_local_cuda_streams(|streams| {
                     inner.to_compressed_ciphertext_list(streams)
                 });
-                cpu_data.versionize_owned()
+
+                cpu_list.versionize_owned()
             }
         }
     }
@@ -347,17 +572,18 @@ impl Versionize for InnerCompressedCiphertextList {
 
 impl VersionizeOwned for InnerCompressedCiphertextList {
     type VersionedOwned =
-        <crate::integer::ciphertext::CompressedCiphertextList as VersionizeOwned>::VersionedOwned;
+        <crate::shortint::ciphertext::CompressedCiphertextList as VersionizeOwned>::VersionedOwned;
 
     fn versionize_owned(self) -> Self::VersionedOwned {
         match self {
             Self::Cpu(inner) => inner.versionize_owned(),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => {
-                let cpu_data = with_thread_local_cuda_streams(|streams| {
+                let cpu_list = with_thread_local_cuda_streams(|streams| {
                     inner.to_compressed_ciphertext_list(streams)
                 });
-                cpu_data.versionize_owned()
+
+                cpu_list.versionize_owned()
             }
         }
     }
@@ -366,7 +592,7 @@ impl VersionizeOwned for InnerCompressedCiphertextList {
 impl Unversionize for InnerCompressedCiphertextList {
     fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
         Ok(Self::Cpu(
-            crate::integer::ciphertext::CompressedCiphertextList::unversionize(versioned)?,
+            crate::shortint::ciphertext::CompressedCiphertextList::unversionize(versioned)?,
         ))
     }
 }
@@ -375,6 +601,7 @@ impl Unversionize for InnerCompressedCiphertextList {
 #[versionize(CompressedCiphertextListVersions)]
 pub struct CompressedCiphertextList {
     pub(in crate::high_level_api) inner: InnerCompressedCiphertextList,
+    pub(in crate::high_level_api) info: Vec<SerializedKind>,
     pub(in crate::high_level_api) tag: Tag,
 }
 
@@ -394,41 +621,47 @@ impl Tagged for CompressedCiphertextList {
 
 impl CiphertextList for CompressedCiphertextList {
     fn len(&self) -> usize {
-        match &self.inner {
-            InnerCompressedCiphertextList::Cpu(inner) => inner.len(),
-            #[cfg(feature = "gpu")]
-            InnerCompressedCiphertextList::Cuda(inner) => inner.len(),
-        }
+        self.info.len()
     }
 
     fn is_empty(&self) -> bool {
-        match &self.inner {
-            InnerCompressedCiphertextList::Cpu(inner) => inner.len() == 0,
-            #[cfg(feature = "gpu")]
-            InnerCompressedCiphertextList::Cuda(inner) => inner.len() == 0,
-        }
+        self.info.is_empty()
     }
 
     fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
-        match &self.inner {
-            InnerCompressedCiphertextList::Cpu(inner) => {
-                inner.get_kind_of(index).and_then(|data_kind| {
-                    crate::FheTypes::from_data_kind(data_kind, inner.packed_list.message_modulus)
-                })
-            }
-            #[cfg(feature = "gpu")]
-            InnerCompressedCiphertextList::Cuda(inner) => {
-                inner.get_kind_of(index).and_then(|data_kind| {
-                    crate::FheTypes::from_data_kind(data_kind, inner.packed_list.message_modulus)
-                })
-            }
-        }
+        self.info
+            .get(index)
+            .and_then(|&kind| crate::FheTypes::try_from(kind).ok())
     }
 
     fn get<T>(&self, index: usize) -> crate::Result<Option<T>>
     where
         T: HlExpandable + Tagged,
     {
+        if index >= self.info.len() {
+            return Ok(None);
+        }
+
+        let Some(preceding_infos) = self.info.get(..index) else {
+            return Ok(None);
+        };
+        let Some(current_info) = self.info.get(index).copied() else {
+            return Ok(None);
+        };
+
+        let message_modulus = match &self.inner {
+            InnerCompressedCiphertextList::Cpu(cpu) => cpu.message_modulus,
+            #[cfg(feature = "gpu")]
+            InnerCompressedCiphertextList::Cuda(gpu) => gpu.message_modulus,
+        };
+        let start_block_index: usize = preceding_infos
+            .iter()
+            .copied()
+            .map(|kind| kind.num_blocks(message_modulus) as usize)
+            .sum();
+
+        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) as usize;
+
         // We use the server key to know where computation should happen,
         // if the data is not on the correct device, a temporary copy (and transfer) will happen
         //
@@ -443,11 +676,14 @@ impl CiphertextList for CompressedCiphertextList {
                     crate::Error::new("Compression key not set in server key".to_owned())
                 })
                 .and_then(|decompression_key| {
-                    let mut ct = self.inner.on_cpu().get::<T>(index, decompression_key);
-                    if let Ok(Some(ct_ref)) = &mut ct {
+                    let mut ct = decompression_key
+                        .key
+                        .unpack_range(&self.inner.on_cpu(), start_block_index..end_block_index)
+                        .and_then(|blocks| T::from_cpu_blocks(blocks, current_info));
+                    if let Ok(ct_ref) = &mut ct {
                         ct_ref.tag_mut().set_data(cpu_key.tag.data())
                     }
-                    ct
+                    Some(ct).transpose()
                 }),
             #[cfg(feature = "gpu")]
             Some(InternalServerKey::Cuda(cuda_key)) => cuda_key
@@ -459,9 +695,13 @@ impl CiphertextList for CompressedCiphertextList {
                 })
                 .and_then(|decompression_key| {
                     let mut ct = with_thread_local_cuda_streams(|streams| {
-                        self.inner
-                            .on_gpu(streams)
-                            .get::<T>(index, decompression_key, streams)
+                        let radix: CudaRadixCiphertext = decompression_key.unpack(
+                            &self.inner.on_gpu(streams),
+                            start_block_index..end_block_index,
+                            current_info.to_data_kind(message_modulus),
+                            streams,
+                        )?;
+                        Some(T::from_gpu_blocks(radix, current_info)).transpose()
                     });
                     if let Ok(Some(ct_ref)) = &mut ct {
                         ct_ref.tag_mut().set_data(cuda_key.tag.data())
@@ -474,26 +714,39 @@ impl CiphertextList for CompressedCiphertextList {
 }
 
 impl CompressedCiphertextList {
-    pub fn into_raw_parts(self) -> (crate::integer::ciphertext::CompressedCiphertextList, Tag) {
-        let Self { inner, tag } = self;
+    pub fn move_to_device(&mut self, device: crate::Device) {
+        self.inner.move_to_device(device)
+    }
+
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        crate::shortint::ciphertext::CompressedCiphertextList,
+        Vec<SerializedKind>,
+        Tag,
+    ) {
+        let Self { inner, info, tag } = self;
         match inner {
-            InnerCompressedCiphertextList::Cpu(inner) => (inner, tag),
+            InnerCompressedCiphertextList::Cpu(inner) => (inner, info, tag),
             #[cfg(feature = "gpu")]
             InnerCompressedCiphertextList::Cuda(inner) => (
                 with_thread_local_cuda_streams(|streams| {
                     inner.to_compressed_ciphertext_list(streams)
                 }),
+                info,
                 tag,
             ),
         }
     }
 
     pub fn from_raw_parts(
-        inner: crate::integer::ciphertext::CompressedCiphertextList,
+        inner: crate::shortint::ciphertext::CompressedCiphertextList,
+        info: Vec<SerializedKind>,
         tag: Tag,
     ) -> Self {
         Self {
             inner: InnerCompressedCiphertextList::Cpu(inner),
+            info,
             tag,
         }
     }
@@ -708,6 +961,52 @@ mod tests {
         set_server_key, unset_server_key, ClientKey, CompressedCiphertextList,
         CompressedCiphertextListBuilder, FheBool, FheInt64, FheUint16, FheUint2, FheUint32,
     };
+
+    #[cfg(feature = "strings")]
+    #[test]
+    fn test_compressed_strings_cpu() {
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
+        let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+            .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::CompressedServerKey::new(&ck);
+
+        // Test with input data being on CPU
+        {
+            let ct1 = crate::FheAsciiString::encrypt("Hello, World", &ck);
+            let ct2 =
+                crate::FheAsciiString::try_encrypt_with_fixed_sized("Hello", 50, &ck).unwrap();
+
+            let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
+            compressed_list_builder.push(ct1).push(ct2);
+
+            set_server_key(sk.decompress());
+            let compressed_list = compressed_list_builder.build().unwrap();
+
+            // Add a serialize-deserialize round trip as it will generally be
+            // how compressed list are use as its meant for data exchange
+            let mut serialized = vec![];
+            safe_serialize(&compressed_list, &mut serialized, 1024 * 1024 * 16).unwrap();
+            let compressed_list: CompressedCiphertextList =
+                safe_deserialize(serialized.as_slice(), 1024 * 1024 * 16).unwrap();
+
+            check_is_correct(&compressed_list, &ck);
+        }
+
+        fn check_is_correct(compressed_list: &CompressedCiphertextList, ck: &ClientKey) {
+            {
+                let a: crate::FheAsciiString = compressed_list.get(0).unwrap().unwrap();
+                let b: crate::FheAsciiString = compressed_list.get(1).unwrap().unwrap();
+
+                let a = a.decrypt(ck);
+                assert_eq!(&a, "Hello, World");
+                let b = b.decrypt(ck);
+                assert_eq!(&b, "Hello");
+            }
+        }
+    }
 
     #[test]
     fn test_compressed_ct_list_cpu_gpu() {

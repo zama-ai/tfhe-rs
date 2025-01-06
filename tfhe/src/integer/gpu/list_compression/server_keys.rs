@@ -1,10 +1,14 @@
+use std::ops::Range;
+
+use crate::core_crypto::entities::packed_integers::PackedIntegers;
 use crate::core_crypto::gpu::entities::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
-    glwe_ciphertext_size, CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount,
-    LweCiphertextCount, PolynomialSize,
+    glwe_ciphertext_size, CiphertextCount, CiphertextModulus, CiphertextModulusLog,
+    GlweCiphertextCount, LweCiphertextCount, PolynomialSize,
 };
 use crate::integer::ciphertext::DataKind;
 use crate::integer::compression_keys::CompressionKey;
@@ -14,10 +18,12 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
 };
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::ciphertext::{CompressedCiphertextList, Degree, NoiseLevel};
 use crate::shortint::prelude::GlweDimension;
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
+
+use crate::core_crypto::gpu::vec::GpuIndex;
 
 #[derive(Debug)]
 pub struct CudaCompressionKey {
@@ -61,6 +67,10 @@ impl CudaPackedGlweCiphertextList {
         GlweCiphertextCount(self.initial_len.div_ceil(uncompressed_glwe_size))
     }
 
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        self.data.gpu_indexes.as_slice()
+    }
+
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
         Self {
             data: self.data.duplicate(streams),
@@ -90,6 +100,62 @@ impl Clone for CudaPackedGlweCiphertextList {
             storage_log_modulus: self.storage_log_modulus,
             lwe_per_glwe: self.lwe_per_glwe,
             initial_len: self.initial_len,
+        }
+    }
+}
+
+impl CudaPackedGlweCiphertextList {
+    pub fn to_compressed_ciphertext_list(&self, streams: &CudaStreams) -> CompressedCiphertextList {
+        let ciphertext_modulus = self.ciphertext_modulus;
+        let message_modulus = self.message_modulus;
+        let carry_modulus = self.carry_modulus;
+        let lwe_per_glwe = self.lwe_per_glwe;
+        let storage_log_modulus = self.storage_log_modulus;
+        let glwe_dimension = self.glwe_dimension;
+        let polynomial_size = self.polynomial_size;
+        let mut modulus_switched_glwe_ciphertext_list =
+            Vec::with_capacity(self.glwe_ciphertext_count().0);
+
+        let flat_cpu_data = unsafe {
+            let mut v = vec![0u64; self.data.len()];
+            self.data.copy_to_cpu_async(&mut v, streams, 0);
+            streams.synchronize();
+            v
+        };
+
+        let mut num_bodies_left = self.bodies_count;
+        let mut chunk_start = 0;
+        while num_bodies_left != 0 {
+            let bodies_count = LweCiphertextCount(num_bodies_left.min(lwe_per_glwe.0));
+            let initial_len = (glwe_dimension.0 * polynomial_size.0) + bodies_count.0;
+            let number_bits_to_pack = initial_len * storage_log_modulus.0;
+            let len = number_bits_to_pack.div_ceil(u64::BITS as usize);
+            let chunk_end = chunk_start + len;
+            modulus_switched_glwe_ciphertext_list.push(CompressedModulusSwitchedGlweCiphertext {
+                packed_integers: PackedIntegers {
+                    packed_coeffs: flat_cpu_data[chunk_start..chunk_end].to_vec(),
+                    log_modulus: storage_log_modulus,
+                    initial_len,
+                },
+                glwe_dimension,
+                polynomial_size,
+                bodies_count,
+                uncompressed_ciphertext_modulus: ciphertext_modulus,
+            });
+            num_bodies_left = num_bodies_left.saturating_sub(lwe_per_glwe.0);
+            chunk_start = chunk_end;
+        }
+
+        let count = CiphertextCount(self.bodies_count);
+        let pbs_order = PBSOrder::KeyswitchBootstrap;
+        CompressedCiphertextList {
+            modulus_switched_glwe_ciphertext_list,
+            ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            lwe_per_glwe,
+            count,
         }
     }
 }
@@ -222,12 +288,11 @@ impl CudaCompressionKey {
 }
 
 impl CudaDecompressionKey {
-    pub fn unpack(
+    pub(crate) fn unpack(
         &self,
         packed_list: &CudaPackedGlweCiphertextList,
+        range: Range<usize>,
         kind: DataKind,
-        start_block_index: usize,
-        end_block_index: usize,
         streams: &CudaStreams,
     ) -> Result<CudaRadixCiphertext, crate::Error> {
         if self.message_modulus.0 != self.carry_modulus.0 {
@@ -238,17 +303,23 @@ impl CudaDecompressionKey {
             )));
         }
 
-        if end_block_index >= packed_list.bodies_count {
+        if range.start > packed_list.bodies_count {
             return Err(crate::Error::new(format!(
-                "Tried getting index {end_block_index} for CompressedCiphertextList \
+                "Tried getting index {} for CompressedCiphertextList \
                 with {} elements, out of bound access.",
-                packed_list.bodies_count
+                range.start, packed_list.bodies_count
             )));
         }
 
-        let indexes_array = (start_block_index..=end_block_index)
-            .map(|x| x as u32)
-            .collect_vec();
+        if range.end > packed_list.bodies_count {
+            return Err(crate::Error::new(format!(
+                "Tried getting index {} for CompressedCiphertextList \
+                with {} elements, out of bound access.",
+                range.end, packed_list.bodies_count
+            )));
+        }
+
+        let indexes_array = range.map(|x| x as u32).collect_vec();
 
         let encryption_glwe_dimension = self.glwe_dimension;
         let encryption_polynomial_size = self.polynomial_size;

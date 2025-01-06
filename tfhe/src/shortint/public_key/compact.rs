@@ -286,6 +286,26 @@ impl CompactPublicKey {
         self.encrypt_iter_with_modulus(messages.iter().copied(), encryption_modulus)
     }
 
+    /// Encrypts the messages contained in the slice into a compact ciphertext list
+    ///
+    /// The messages are packed by two, dividing the number of block required.
+    /// However, this requires parameters with carry_modulus >= message_modulus.
+    /// Additionally, this will require PBS after expansion to split the messages.
+    ///
+    /// See [Self::encrypt_iter] for more details
+    pub fn encrypt_slice_packed(&self, messages: &[u64]) -> crate::Result<CompactCiphertextList> {
+        if self.parameters.carry_modulus.0 < self.parameters.message_modulus.0 {
+            return Err(Error::new("In order to build a packed compact ciphertext list, parameters must have CarryModulus >= MessageModulus".to_string()));
+        }
+
+        // Here self.messages are decomposed blocks in range [0..message_modulus[
+        let msg_mod = self.parameters.message_modulus.0;
+        let packed_messaged_iter = messages
+            .chunks(2)
+            .map(|two_values| (two_values.get(1).copied().unwrap_or(0) * msg_mod) + two_values[0]);
+        Ok(self.encrypt_iter_with_modulus(packed_messaged_iter, msg_mod * msg_mod))
+    }
+
     /// Encrypts the messages coming from the iterator into a compact ciphertext list
     ///
     /// Values of the messages should be in range [0..encryption_modulus[
@@ -448,6 +468,42 @@ impl CompactPublicKey {
         }
 
         Ok(ProvenCompactCiphertextList { proved_lists })
+    }
+
+    /// Encrypts the messages contained in the slice into a compact ciphertext list
+    /// and attaches a proof of encryption.
+    ///
+    /// The messages are packed by two, dividing the number of block required.
+    /// However, this requires parameters with carry_modulus >= message_modulus.
+    /// Additionally, this will require PBS after expansion to split the messages.
+    #[cfg(feature = "zk-pok")]
+    pub fn encrypt_and_prove_slice_packed(
+        &self,
+        messages: &[u64],
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        load: ZkComputeLoad,
+    ) -> crate::Result<ProvenCompactCiphertextList> {
+        if self.parameters.carry_modulus.0 < self.parameters.message_modulus.0 {
+            return Err(Error::new(
+                "In order to build a packed ProvenCompactCiphertextList, \
+                parameters must have CarryModulus >= MessageModulus"
+                    .to_string(),
+            ));
+        }
+
+        let msg_mod = self.parameters.message_modulus.0;
+        let packed_messages = messages
+            .chunks(2)
+            .map(|two_values| (two_values.get(1).copied().unwrap_or(0) * msg_mod) + two_values[0])
+            .collect::<Vec<_>>();
+        self.encrypt_and_prove_slice(
+            packed_messages.as_slice(),
+            crs,
+            metadata,
+            load,
+            msg_mod * msg_mod,
+        )
     }
 
     pub fn size_elements(&self) -> usize {
