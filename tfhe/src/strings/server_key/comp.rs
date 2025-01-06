@@ -1,6 +1,7 @@
 use crate::integer::{BooleanBlock, ServerKey as IntegerServerKey};
-use crate::strings::ciphertext::{FheString, GenericPatternRef};
+use crate::strings::ciphertext::{FheString, GenericPattern, GenericPatternRef};
 use crate::strings::server_key::{FheStringIsEmpty, ServerKey};
+use crate::ClearString;
 use std::borrow::Borrow;
 
 impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
@@ -293,5 +294,48 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
         self.pad_ciphertexts_lsb(&mut lhs_uint, &mut rhs_uint);
 
         sk.ge_parallelized(&lhs_uint, &rhs_uint)
+    }
+
+    /// Returns `true` if an encrypted string and a pattern (either encrypted or clear) are equal,
+    /// ignoring case differences.
+    ///
+    /// Returns `false` if they are not equal.
+    ///
+    /// The pattern for comparison (`rhs`) can be specified as either `GenericPatternRef::Clear` for
+    /// a clear string or `GenericPatternRef::Enc` for an encrypted string.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tfhe::integer::{ClientKey, ServerKey};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::strings::ciphertext::{FheString, GenericPattern};
+    ///
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    /// let sk = ServerKey::new_radix_server_key(&ck);
+    /// let ck = tfhe::strings::ClientKey::new(ck);
+    /// let sk = tfhe::strings::ServerKey::new(sk);
+    /// let (s1, s2) = ("Hello", "hello");
+    ///
+    /// let enc_s1 = FheString::new(&ck, s1, None);
+    /// let enc_s2 = GenericPattern::Enc(FheString::new(&ck, s2, None));
+    ///
+    /// let result = sk.eq_ignore_case(&enc_s1, enc_s2.as_ref());
+    /// let are_equal = ck.inner().decrypt_bool(&result);
+    ///
+    /// assert!(are_equal);
+    /// ```
+    pub fn eq_ignore_case(&self, lhs: &FheString, rhs: GenericPatternRef<'_>) -> BooleanBlock {
+        let (lhs, rhs) = rayon::join(
+            || self.to_lowercase(lhs),
+            || match rhs {
+                GenericPatternRef::Clear(rhs) => {
+                    GenericPattern::Clear(ClearString::new(rhs.str().to_lowercase()))
+                }
+                GenericPatternRef::Enc(rhs) => GenericPattern::Enc(self.to_lowercase(rhs)),
+            },
+        );
+
+        self.eq(&lhs, rhs.as_ref())
     }
 }

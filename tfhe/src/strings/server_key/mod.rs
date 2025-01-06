@@ -21,6 +21,8 @@ where
     inner: T,
 }
 
+pub type ServerKeyRef<'a> = ServerKey<&'a IntegerServerKey>;
+
 impl<T> ServerKey<T>
 where
     T: Borrow<IntegerServerKey> + Sync,
