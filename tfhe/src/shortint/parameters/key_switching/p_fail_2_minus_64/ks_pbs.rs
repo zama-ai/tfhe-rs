@@ -2,11 +2,11 @@ use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, EncryptionKeyChoice,
     ShortintKeySwitchingParameters,
 };
-pub const PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS: ShortintKeySwitchingParameters =
+pub const V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS: ShortintKeySwitchingParameters =
     ShortintKeySwitchingParameters {
-        ks_level: DecompositionLevelCount(15),
-        ks_base_log: DecompositionBaseLog(1),
-        destination_key: EncryptionKeyChoice::Big,
+        ks_level: DecompositionLevelCount(5),
+        ks_base_log: DecompositionBaseLog(3),
+        destination_key: EncryptionKeyChoice::Small,
     };
 
 // The level and base log correspond to the level and base log of the 2_2 TUniform parameters, so

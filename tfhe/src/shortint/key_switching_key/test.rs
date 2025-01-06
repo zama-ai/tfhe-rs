@@ -11,7 +11,7 @@ fn gen_multi_keys_test_fresh_ci_run_filter() {
     let keys = KEY_CACHE_KSK.get_from_param((
         V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-        PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     ));
     let ck1 = keys.client_key_1();
     let (ck2, sk2) = (keys.client_key_2(), keys.server_key_2());
@@ -119,7 +119,7 @@ fn gen_multi_keys_test_add_with_overflow_ci_run_filter() {
     let keys = KEY_CACHE_KSK.get_from_param((
         V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
         V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     ));
     let (ck1, sk1) = (keys.client_key_1(), keys.server_key_1());
     let (ck2, sk2) = (keys.client_key_2(), keys.server_key_2());

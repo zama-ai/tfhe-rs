@@ -190,7 +190,7 @@ impl KeySwitchingKey {
     /// let ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
-    ///     PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+    ///     V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     /// );
     /// ```
     pub fn new<'input_key, InputEncryptionKey>(
@@ -337,7 +337,7 @@ impl KeySwitchingKey {
     /// let ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
-    ///     PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+    ///     V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     /// );
     ///
     /// let cleartext = 1;
@@ -478,7 +478,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
     /// let ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
-    ///     PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+    ///     V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     /// );
     ///
     /// let cleartext = 1;
