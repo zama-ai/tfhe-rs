@@ -21,7 +21,7 @@ on:
 
 jobs:
   check-user-permission:
-    if: github.event_name == 'pull_request_target'
+    if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
     uses: ./.github/workflows/check_triggering_actor.yml
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
