@@ -655,7 +655,9 @@ void generate_lookup_table_with_encoding(Torus *acc, uint32_t glwe_dimension,
   uint32_t input_modulus_sup = input_message_modulus * input_carry_modulus;
   uint32_t output_modulus_sup = output_message_modulus * output_carry_modulus;
   uint32_t box_size = polynomial_size / input_modulus_sup;
-  Torus output_delta = (1ul << 63) / output_modulus_sup;
+  auto nbits = sizeof(Torus) * 8;
+  Torus output_delta =
+      (static_cast<Torus>(1) << (nbits - 1)) / output_modulus_sup;
 
   memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
 
@@ -698,7 +700,8 @@ void generate_many_lookup_table(
 
   uint32_t modulus_sup = message_modulus * carry_modulus;
   uint32_t box_size = polynomial_size / modulus_sup;
-  Torus delta = (1ul << 63) / modulus_sup;
+  auto nbits = sizeof(Torus) * 8;
+  Torus delta = (static_cast<Torus>(1) << (nbits - 1)) / modulus_sup;
 
   memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
 
@@ -1099,7 +1102,8 @@ void host_compute_propagation_simulators_and_group_carries(
       message_modulus, carry_modulus);
 
   uint32_t modulus_sup = message_modulus * carry_modulus;
-  Torus delta = (1ull << 63) / modulus_sup;
+  auto nbits = sizeof(Torus) * 8;
+  Torus delta = (static_cast<Torus>(1) << (nbits - 1)) / modulus_sup;
   auto simulators = mem->simulators;
   auto grouping_pgns = mem->grouping_pgns;
   host_radix_split_simulators_and_grouping_pgns<Torus>(
@@ -1426,8 +1430,8 @@ __host__ void
 create_trivial_radix(cudaStream_t stream, uint32_t gpu_index,
                      Torus *lwe_array_out, Torus const *scalar_array,
                      uint32_t lwe_dimension, uint32_t num_radix_blocks,
-                     uint32_t num_scalar_blocks, uint64_t message_modulus,
-                     uint64_t carry_modulus) {
+                     uint32_t num_scalar_blocks, Torus message_modulus,
+                     Torus carry_modulus) {
 
   cudaSetDevice(gpu_index);
   size_t radix_size = (lwe_dimension + 1) * num_radix_blocks;
@@ -1447,7 +1451,9 @@ create_trivial_radix(cudaStream_t stream, uint32_t gpu_index,
   // Value of the shift we multiply our messages by
   // If message_modulus and carry_modulus are always powers of 2 we can simplify
   // this
-  uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
+  auto nbits = sizeof(Torus) * 8;
+  Torus delta = (static_cast<Torus>(1) << (nbits - 1)) /
+                (message_modulus * carry_modulus);
 
   device_create_trivial_radix<Torus><<<grid, thds, 0, stream>>>(
       lwe_array_out, scalar_array, num_scalar_blocks, lwe_dimension, delta);
