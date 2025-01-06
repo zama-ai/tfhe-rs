@@ -31,7 +31,7 @@ instance_type = "m6i.4xlarge"
 [backend.hyperstack.gpu-test]
 environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
-flavor_name = "n3-RTX-A6000x1"
+flavor_name = "n3-L40x1"
 
 [backend.hyperstack.single-h100]
 environment_name = "canada"

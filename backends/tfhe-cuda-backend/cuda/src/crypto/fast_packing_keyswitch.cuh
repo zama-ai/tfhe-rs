@@ -31,8 +31,8 @@ __host__ inline bool can_use_pks_fast_path(uint32_t lwe_dimension,
                                            uint32_t polynomial_size,
                                            uint32_t level_count,
                                            uint32_t glwe_dimension) {
-  // TODO: Generalize to level_count > 1 by transposing the KSK
-  return level_count == 1;
+  // TODO: activate it back, fix tests and extend to level_count > 1
+  return false;
 }
 
 // Initialize decomposition by performing rounding
