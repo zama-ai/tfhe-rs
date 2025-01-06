@@ -6,4 +6,6 @@ pub mod compressed_ciphertext_list;
 pub mod config;
 pub mod integers;
 pub mod keys;
+#[cfg(feature = "strings")]
+pub mod strings;
 pub mod tag;

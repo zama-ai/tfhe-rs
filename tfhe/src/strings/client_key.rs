@@ -30,6 +30,9 @@ pub struct EncU16 {
 }
 
 impl EncU16 {
+    pub(crate) fn new(value: RadixCiphertext, max: Option<u16>) -> Self {
+        Self { cipher: value, max }
+    }
     pub fn cipher(&self) -> &RadixCiphertext {
         &self.cipher
     }

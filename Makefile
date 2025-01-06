@@ -806,7 +806,7 @@ test_integer_cov: install_rs_check_toolchain install_tarpaulin
 .PHONY: test_high_level_api # Run all the tests for high_level_api
 test_high_level_api: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok -p $(TFHE_SPEC) \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p $(TFHE_SPEC) \
 		-- high_level_api::
 
 test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest

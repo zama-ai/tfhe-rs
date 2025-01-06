@@ -5,10 +5,31 @@ use crate::high_level_api::{
     generate_keys, ClientKey, ConfigBuilder, FheBool, FheUint256, FheUint8, PublicKey, ServerKey,
 };
 use crate::integer::U256;
+use crate::shortint::{ClassicPBSParameters, PBSParameters};
 use crate::{
     set_server_key, CompactPublicKey, CompressedPublicKey, CompressedServerKey, FheUint32, Tag,
 };
 use std::fmt::Debug;
+
+pub(crate) fn setup_cpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
+    let config = params
+        .map_or_else(ConfigBuilder::default, |p| {
+            ConfigBuilder::with_custom_parameters(p.into())
+        })
+        .build();
+
+    let client_key = ClientKey::generate(config);
+    let csks = crate::CompressedServerKey::new(&client_key);
+    let server_key = csks.decompress();
+
+    set_server_key(server_key);
+
+    client_key
+}
+
+pub(crate) fn setup_default_cpu() -> ClientKey {
+    setup_cpu(Option::<ClassicPBSParameters>::None)
+}
 
 fn assert_that_public_key_encryption_is_decrypted_by_client_key<FheType, ClearType>(
     clear: ClearType,

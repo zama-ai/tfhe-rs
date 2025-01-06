@@ -1,5 +1,6 @@
 use crate::conformance::ListSizeConstraint;
 use crate::high_level_api::prelude::*;
+use crate::high_level_api::tests::{setup_cpu, setup_default_cpu};
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::integer::U256;
 use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
@@ -14,26 +15,6 @@ use crate::{
     FheUint256, FheUint32, FheUint32ConformanceParams,
 };
 use rand::prelude::*;
-
-fn setup_cpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
-    let config = params
-        .map_or_else(ConfigBuilder::default, |p| {
-            ConfigBuilder::with_custom_parameters(p.into())
-        })
-        .build();
-
-    let client_key = ClientKey::generate(config);
-    let csks = crate::CompressedServerKey::new(&client_key);
-    let server_key = csks.decompress();
-
-    set_server_key(server_key);
-
-    client_key
-}
-
-fn setup_default_cpu() -> ClientKey {
-    setup_cpu(Option::<ClassicPBSParameters>::None)
-}
 
 #[test]
 fn test_integer_compressed_can_be_serialized() {

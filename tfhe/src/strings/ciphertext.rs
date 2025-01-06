@@ -5,20 +5,25 @@ use crate::integer::{
     ServerKey as IntegerServerKey,
 };
 use crate::shortint::MessageModulus;
+use crate::strings::backward_compatibility::{FheAsciiCharVersions, FheStringVersions};
 use crate::strings::client_key::EncU16;
 use crate::strings::N;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::ParallelSlice;
+use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
+use tfhe_versionable::Versionize;
 
 /// Represents a encrypted ASCII character.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(FheAsciiCharVersions)]
 pub struct FheAsciiChar {
     pub enc_char: RadixCiphertext,
 }
 
 /// Represents a encrypted string made up of [`FheAsciiChar`]s.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(FheStringVersions)]
 pub struct FheString {
     pub enc_string: Vec<FheAsciiChar>,
     pub padded: bool,
@@ -69,6 +74,18 @@ impl GenericPattern {
 pub enum GenericPatternRef<'a> {
     Clear(&'a ClearString),
     Enc(&'a FheString),
+}
+
+impl<'a> From<&'a ClearString> for GenericPatternRef<'a> {
+    fn from(value: &'a ClearString) -> Self {
+        Self::Clear(value)
+    }
+}
+
+impl<'a> From<&'a FheString> for GenericPatternRef<'a> {
+    fn from(value: &'a FheString) -> Self {
+        Self::Enc(value)
+    }
 }
 
 impl GenericPatternRef<'_> {
