@@ -52,6 +52,7 @@ pub use config::{Config, ConfigBuilder};
 #[cfg(feature = "gpu")]
 pub use global_state::CudaGpuChoice;
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
+use serde::{Deserialize, Serialize};
 
 pub use integers::{CompressedFheInt, CompressedFheUint, FheInt, FheUint, IntegerId};
 #[cfg(feature = "gpu")]
@@ -102,7 +103,12 @@ pub use compressed_ciphertext_list::{
 };
 #[cfg(feature = "strings")]
 pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, FheStringLen};
+
+use crate::integer::ciphertext::DataKind;
+use crate::shortint::MessageModulus;
+use crate::Versionize;
 pub use tag::Tag;
+use tfhe_versionable::VersionsDispatch;
 pub use traits::FheId;
 
 mod booleans;
@@ -173,4 +179,86 @@ pub enum FheTypes {
     Int128 = 27,
     Int160 = 28,
     Int256 = 29,
+}
+
+impl TryFrom<SerializedKind> for FheTypes {
+    type Error = crate::Error;
+
+    fn try_from(kind: SerializedKind) -> crate::Result<Self> {
+        match kind {
+            SerializedKind::Bool => Ok(Self::Bool),
+            SerializedKind::Uint { num_bits } => match num_bits {
+                2 => Ok(Self::Uint2),
+                4 => Ok(Self::Uint4),
+                6 => Ok(Self::Uint6),
+                8 => Ok(Self::Uint8),
+                10 => Ok(Self::Uint10),
+                12 => Ok(Self::Uint12),
+                14 => Ok(Self::Uint14),
+                16 => Ok(Self::Uint16),
+                32 => Ok(Self::Uint32),
+                64 => Ok(Self::Uint64),
+                128 => Ok(Self::Uint128),
+                256 => Ok(Self::Uint256),
+                512 => Ok(Self::Uint512),
+                1024 => Ok(Self::Uint1024),
+                2048 => Ok(Self::Uint2048),
+                n => Err(crate::Error::new(format!(
+                    "No unsigned type with {n} bits exits"
+                ))),
+            },
+            SerializedKind::Int { num_bits } => match num_bits {
+                2 => Ok(Self::Int2),
+                4 => Ok(Self::Int4),
+                6 => Ok(Self::Int6),
+                8 => Ok(Self::Int8),
+                10 => Ok(Self::Int10),
+                12 => Ok(Self::Int12),
+                14 => Ok(Self::Int14),
+                16 => Ok(Self::Int16),
+                32 => Ok(Self::Int32),
+                64 => Ok(Self::Int64),
+                128 => Ok(Self::Int128),
+                256 => Ok(Self::Int256),
+                n => Err(crate::Error::new(format!(
+                    "No signed type with {n} bits exits"
+                ))),
+            },
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Copy, Clone, Versionize)]
+#[versionize(SerializedKindVersions)]
+pub enum SerializedKind {
+    Bool,
+    Uint { num_bits: u32 },
+    Int { num_bits: u32 },
+}
+
+impl SerializedKind {
+    fn from_data_kind(value: DataKind, msg_modulus: MessageModulus) -> Self {
+        match value {
+            DataKind::Unsigned(n) => Self::Uint {
+                num_bits: n as u32 * msg_modulus.0.ilog2(),
+            },
+            DataKind::Signed(n) => Self::Int {
+                num_bits: n as u32 * msg_modulus.0.ilog2(),
+            },
+            DataKind::Boolean => Self::Bool,
+        }
+    }
+
+    pub(crate) fn num_blocks(self, message_modulus: MessageModulus) -> u32 {
+        match self {
+            Self::Bool => 1,
+            Self::Uint { num_bits } => num_bits / message_modulus.0.ilog2(),
+            Self::Int { num_bits } => num_bits / message_modulus.0.ilog2(),
+        }
+    }
+}
+
+#[derive(VersionsDispatch)]
+pub enum SerializedKindVersions {
+    V0(SerializedKind),
 }

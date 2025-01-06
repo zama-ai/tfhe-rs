@@ -4,7 +4,6 @@ use crate::integer::compression_keys::{CompressionKey, DecompressionKey};
 use crate::integer::BooleanBlock;
 use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
 use crate::shortint::Ciphertext;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -126,14 +125,13 @@ impl CompressedCiphertextList {
             .sum();
 
         let end_block_index = start_block_index + current_info.num_blocks();
-
-        Some((
-            (start_block_index..end_block_index)
-                .into_par_iter()
-                .map(|i| decomp_key.key.unpack(&self.packed_list, i).unwrap())
-                .collect(),
-            current_info,
-        ))
+        Some(
+            decomp_key
+                .key
+                .unpack_range(&self.packed_list, start_block_index..end_block_index)
+                .map(|block| (block, current_info))
+                .unwrap(),
+        )
     }
 
     pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
