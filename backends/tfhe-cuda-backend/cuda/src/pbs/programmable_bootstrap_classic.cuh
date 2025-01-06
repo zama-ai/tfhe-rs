@@ -485,7 +485,7 @@ __host__ void host_programmable_bootstrap(
   cudaGraphExec_t instance;
   for (int i = 0; i < lwe_dimension; i++) {
     if (!graphCreated) {
-      cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+      cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal);
       execute_step_one<Torus, params>(
           stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, global_accumulator,

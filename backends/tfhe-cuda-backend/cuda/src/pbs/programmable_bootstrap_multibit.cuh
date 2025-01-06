@@ -657,7 +657,7 @@ __host__ void host_multi_bit_programmable_bootstrap(
        lwe_offset += lwe_chunk_size) {
 
     if (!graphCreated) {
-      cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+      cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal);
       // Compute a keybundle
       execute_compute_keybundle<Torus, params>(
           stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
