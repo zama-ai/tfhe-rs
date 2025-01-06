@@ -7,7 +7,7 @@ use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::P
 use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
-use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
+use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
 use crate::shortint::parameters::key_switching::*;
 use crate::shortint::parameters::list_compression::*;
 use crate::shortint::parameters::parameters_wopbs::*;
@@ -285,12 +285,12 @@ impl NamedParam for WopbsParameters {
 
 impl NamedParam for ShortintKeySwitchingParameters {
     fn name(&self) -> String {
-        named_params_impl!(expose PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS);
+        named_params_impl!(expose V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS);
         named_params_impl!(
             {
                 *self;
                 Self
-            } == (PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS)
+            } == (V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS)
         );
 
         format!(
