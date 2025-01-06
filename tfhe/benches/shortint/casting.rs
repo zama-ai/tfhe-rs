@@ -16,8 +16,8 @@ pub fn pack_cast_64(c: &mut Criterion) {
     let (client_key_2, server_key_2): (ClientKey, ServerKey) =
         gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
 
-    let ks_param = PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
-    let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
+    let ks_param = V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
+    let ks_param_name = "V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
 
     let ksk = KeySwitchingKey::new(
         (&client_key_1, Some(&server_key_1)),
@@ -67,8 +67,8 @@ pub fn pack_cast(c: &mut Criterion) {
     let (client_key_2, server_key_2): (ClientKey, ServerKey) =
         gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
 
-    let ks_param = PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
-    let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
+    let ks_param = V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
+    let ks_param_name = "V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
 
     let ksk = KeySwitchingKey::new(
         (&client_key_1, Some(&server_key_1)),
@@ -108,8 +108,8 @@ pub fn cast(c: &mut Criterion) {
     let (client_key_2, server_key_2): (ClientKey, ServerKey) =
         gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
 
-    let ks_param = PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
-    let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
+    let ks_param = V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
+    let ks_param_name = "V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
 
     let ksk = KeySwitchingKey::new(
         (&client_key_1, Some(&server_key_1)),

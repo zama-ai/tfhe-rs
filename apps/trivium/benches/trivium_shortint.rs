@@ -17,7 +17,7 @@ pub fn trivium_shortint_warmup(c: &mut Criterion) {
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
@@ -68,7 +68,7 @@ pub fn trivium_shortint_gen(c: &mut Criterion) {
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
@@ -114,7 +114,7 @@ pub fn trivium_shortint_trans(c: &mut Criterion) {
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     );
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
