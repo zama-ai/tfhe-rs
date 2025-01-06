@@ -45,8 +45,8 @@ pub fn packing_keyswitch_additive_variance_132_bits_security_gaussian_impl(
         * input_lwe_dimension
         * lwe_to_pack
         * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-            + (-0.0513935574229692 * output_glwe_dimension * output_polynomial_size
-                + 5.35186274509803)
+            + (-0.0497829131652661 * output_glwe_dimension * output_polynomial_size
+                + 5.31469187675068)
                 .exp2())
         * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
         + 0.5
@@ -98,9 +98,15 @@ pub fn packing_keyswitch_additive_variance_132_bits_security_tuniform_impl(
         * input_lwe_dimension
         * lwe_to_pack
         * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-            + (-0.0513935574229692 * output_glwe_dimension * output_polynomial_size
-                + 5.35186274509803)
-                .exp2())
+            + (1_f64 / 3.0)
+                * modulus.powf(-2.0)
+                * ((2.0
+                    * (-0.025167785 * output_glwe_dimension * output_polynomial_size
+                        + 1.44269504088896 * modulus.ln()
+                        + 4.10067100000001)
+                        .ceil())
+                .exp2()
+                    + 0.5))
         * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
         + 0.5
             * input_lwe_dimension
