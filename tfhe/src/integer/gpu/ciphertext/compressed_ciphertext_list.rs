@@ -97,13 +97,15 @@ impl CudaCompressedCiphertextList {
         let end_block_index = start_block_index + current_info.num_blocks() - 1;
 
         Some((
-            decomp_key.unpack(
-                &self.packed_list,
-                current_info,
-                start_block_index,
-                end_block_index,
-                streams,
-            ).unwrap(),
+            decomp_key
+                .unpack(
+                    &self.packed_list,
+                    current_info,
+                    start_block_index,
+                    end_block_index,
+                    streams,
+                )
+                .unwrap(),
             current_info,
         ))
     }
