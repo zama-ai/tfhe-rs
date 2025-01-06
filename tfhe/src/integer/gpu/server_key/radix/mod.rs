@@ -151,12 +151,12 @@ impl CudaServerKey {
         res
     }
 
-    pub(crate) fn encoding(&self, padding_bit: PaddingBit) -> ShortintEncoding {
+    pub(crate) fn encoding(&self) -> ShortintEncoding {
         ShortintEncoding {
             ciphertext_modulus: self.ciphertext_modulus,
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
-            padding_bit,
+            padding_bit: PaddingBit::Yes,
         }
     }
 
@@ -191,10 +191,7 @@ impl CudaServerKey {
         );
         let mut info = Vec::with_capacity(num_blocks);
         for (block_value, mut lwe) in decomposer.zip(cpu_lwe_list.iter_mut()) {
-            *lwe.get_mut_body().data = self
-                .encoding(PaddingBit::Yes)
-                .encode(Cleartext(block_value))
-                .0;
+            *lwe.get_mut_body().data = self.encoding().encode(Cleartext(block_value)).0;
             info.push(CudaBlockInfo {
                 degree: Degree::new(block_value),
                 message_modulus: self.message_modulus,

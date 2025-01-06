@@ -492,10 +492,10 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
-        let decrypted_u64: u64 = self.decrypt_no_decode(ct);
+        let decrypted_u64 = self.decrypt_no_decode(ct);
 
         ShortintEncoding::from_parameters(self.parameters, PaddingBit::Yes)
-            .decode(Plaintext(decrypted_u64))
+            .decode(decrypted_u64)
             .0
     }
 
@@ -534,12 +534,12 @@ impl ClientKey {
         self.decrypt_message_and_carry(ct) % ct.message_modulus.0
     }
 
-    pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> u64 {
+    pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> Plaintext<u64> {
         let lwe_decryption_key = match ct.pbs_order {
             PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
             PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
         };
-        decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct).0
+        decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct)
     }
 
     /// Encrypt a small integer message using the client key without padding bit.
@@ -632,7 +632,7 @@ impl ClientKey {
         let decrypted_u64 = self.decrypt_no_decode(ct);
 
         ShortintEncoding::from_parameters(self.parameters, PaddingBit::No)
-            .decode(Plaintext(decrypted_u64))
+            .decode(decrypted_u64)
             .0
     }
 
@@ -780,7 +780,7 @@ impl ClientKey {
     ) -> u64 {
         let basis = message_modulus.0;
 
-        let decrypted_u64: u64 = self.decrypt_no_decode(ct);
+        let decrypted_u64: u64 = self.decrypt_no_decode(ct).0;
 
         let mut result = decrypted_u64 as u128 * basis as u128;
         result = result.wrapping_add((result & 1 << 63) << 1) / (1 << 64);

@@ -61,7 +61,6 @@ impl ShortintEncoding {
     }
 
     pub(crate) fn encode(&self, value: Cleartext<u64>) -> Plaintext<u64> {
-        // TODO store delta in the encoder directly ?
         let delta = compute_delta(
             self.ciphertext_modulus,
             self.message_modulus,

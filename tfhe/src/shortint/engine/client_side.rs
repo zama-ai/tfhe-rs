@@ -66,7 +66,6 @@ impl ShortintEngine {
         u64: RandomGenerable<NoiseDistribution, CustomModulus = u64>,
         KeyCont: crate::core_crypto::commons::traits::Container<Element = u64>,
     {
-        // The input is reduced modulus the message_modulus
         let m = message % message_modulus.0;
 
         let encoded = ShortintEncoding::from_parameters(*client_key_parameters, PaddingBit::Yes)
@@ -166,7 +165,6 @@ impl ShortintEngine {
             * client_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
-        // The input is reduced modulus the message_modulus
         let m = message % message_modulus.0;
 
         let encoded = ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::Yes)

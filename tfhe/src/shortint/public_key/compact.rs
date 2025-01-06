@@ -15,7 +15,9 @@ use crate::shortint::ciphertext::{CompactCiphertextList, Degree};
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
-use crate::shortint::{ClientKey, PaddingBit, ShortintEncoding};
+use crate::shortint::ClientKey;
+#[cfg(feature = "zk-pok")]
+use crate::shortint::ShortintEncoding;
 #[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::Error;
@@ -147,12 +149,7 @@ fn to_plaintext_iterator(
         "Encryption modulus cannot exceed the plaintext modulus"
     );
 
-    let encoding = ShortintEncoding {
-        ciphertext_modulus: parameters.ciphertext_modulus,
-        message_modulus: parameters.message_modulus,
-        carry_modulus: parameters.carry_modulus,
-        padding_bit: PaddingBit::Yes,
-    };
+    let encoding = parameters.encoding();
     message_iter.map(move |message| {
         let m = message % encryption_modulus;
         encoding.encode(Cleartext(m))
@@ -372,13 +369,7 @@ impl CompactPublicKey {
     ) -> crate::Result<ProvenCompactCiphertextList> {
         let plaintext_modulus = self.parameters.message_modulus.0 * self.parameters.carry_modulus.0;
         assert!(encryption_modulus <= plaintext_modulus);
-        let delta = ShortintEncoding {
-            ciphertext_modulus: self.parameters.ciphertext_modulus,
-            message_modulus: self.parameters.message_modulus,
-            carry_modulus: self.parameters.carry_modulus,
-            padding_bit: PaddingBit::Yes,
-        }
-        .delta();
+        let delta = self.encoding().delta();
 
         // This is the maximum number of lwe that can share the same mask in lwe compact pk
         // encryption
@@ -469,6 +460,11 @@ impl CompactPublicKey {
 
     pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
         self.parameters
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub(crate) fn encoding(&self) -> ShortintEncoding {
+        self.parameters.encoding()
     }
 }
 

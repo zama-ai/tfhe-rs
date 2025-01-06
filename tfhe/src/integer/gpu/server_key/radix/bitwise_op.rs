@@ -10,7 +10,6 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     unchecked_bitop_integer_radix_kb_assign_async, BitOpType, CudaServerKey, PBSType,
 };
-use crate::shortint::PaddingBit;
 
 impl CudaServerKey {
     /// Computes homomorphically bitnot for an encrypted integer value.
@@ -81,10 +80,7 @@ impl CudaServerKey {
 
         let scalar = self.message_modulus.0 as u8 - 1;
 
-        let shift_plaintext = self
-            .encoding(PaddingBit::Yes)
-            .encode(Cleartext(u64::from(scalar)))
-            .0;
+        let shift_plaintext = self.encoding().encode(Cleartext(u64::from(scalar))).0;
 
         let scalar_vector = vec![shift_plaintext; ct_blocks];
         let mut d_decomposed_scalar =

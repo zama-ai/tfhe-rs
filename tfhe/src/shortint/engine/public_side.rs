@@ -140,7 +140,6 @@ impl ShortintEngine {
             * public_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
-        //The input is reduced modulus the message_modulus
         let m = message % message_modulus.0;
 
         let plain = ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::Yes)
@@ -201,7 +200,6 @@ impl ShortintEngine {
         let encoded: Vec<_> = messages
             .into_iter()
             .map(move |message| {
-                //The input is reduced modulus the message_modulus
                 let m = message % message_modulus.0;
 
                 ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::Yes)
@@ -257,7 +255,6 @@ impl ShortintEngine {
                         / message_modulus.0,
                 );
 
-                //The input is reduced modulus the message_modulus
                 let m = message % message_modulus.0;
 
                 let encoded =
@@ -475,7 +472,6 @@ impl ShortintEngine {
 
         let (encoded, message_moduli): (Vec<_>, Vec<_>) = message_moduli
             .map(|message_modulus| {
-                //The input is reduced modulus the message_modulus
                 let m = (message % message_modulus.0) as u128;
                 let shifted_message = m * (1 << 64) / message_modulus.0 as u128;
                 // encode the message
