@@ -284,12 +284,24 @@ macro_rules! expose_predefined_parameters {
         $(,)?
     ) => {
         #[wasm_bindgen]
+        #[derive(Clone, Copy)]
         #[allow(non_camel_case_types)]
         pub enum ShortintParametersName {
             $(
                 $param_name,
             )*
         }
+
+        // wasm bindgen does not support methods on enums
+        #[wasm_bindgen]
+        pub fn shortint_params_name(param: ShortintParametersName) -> String {
+            match param {
+                $(
+                    ShortintParametersName::$param_name => stringify!($param_name).to_string(),
+                )*
+            }
+        }
+
 
         #[wasm_bindgen]
         impl ShortintParameters {
