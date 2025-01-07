@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  cargo-tests:
+  cargo-tests-fft:
     runs-on: ${{ matrix.runner_type }}
     strategy:
       matrix:
@@ -38,7 +38,7 @@ jobs:
         run: |
           make test_fft_no_std
 
-  cargo-tests-nightly:
+  cargo-tests-fft-nightly:
     runs-on: ${{ matrix.runner_type }}
     strategy:
       matrix:
@@ -60,7 +60,7 @@ jobs:
         run: |
           make test_fft_no_std_nightly
 
-  cargo-tests-node-js:
+  cargo-tests-fft-node-js:
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
