@@ -25,7 +25,7 @@ To use the `FheUint8` type, enable the `integer` feature:
 
 [dependencies]
 # Default configuration for x86 Unix machines:
-tfhe = { version = "0.10.0", features = ["integer"] }
+tfhe = { version = "0.11.0", features = ["integer"] }
 ```
 
 Refer to the [installation guide](../getting\_started/installation.md) for other configurations.

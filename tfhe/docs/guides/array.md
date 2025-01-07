@@ -19,7 +19,7 @@ The following example shows a complete workflow of working with encrypted arrays
 # Cargo.toml
 
 [dependencies]
-tfhe = { version = "0.10.0", features = ["integer"] }
+tfhe = { version = "0.11.0", features = ["integer"] }
 ```
 
 ```rust
