@@ -12,6 +12,7 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request_target' }}
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
@@ -19,17 +20,8 @@ on:
   pull_request_target:
 
 jobs:
-  check-user-permission:
-    if: github.event_name == 'pull_request_target'
-    uses: ./.github/workflows/check_triggering_actor.yml
-    secrets:
-      TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   should-run:
     runs-on: ubuntu-latest
-    needs: check-user-permission
-    if: github.event_name != 'pull_request_target' ||
-      needs.check-user-permission.result == 'success'
     permissions:
       pull-requests: write
     outputs:
@@ -63,8 +55,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
-          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Check for file changes
         id: changed-files
@@ -132,11 +124,17 @@ jobs:
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
+  check-user-permission:
+    needs: should-run
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (fast-tests)
     if: github.event_name != 'pull_request_target' ||
       needs.should-run.outputs.any_file_changed == 'true'
-    needs: should-run
+    needs: [ should-run, check-user-permission ]
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -166,8 +164,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
-          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
