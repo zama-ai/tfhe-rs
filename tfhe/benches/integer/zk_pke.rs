@@ -14,8 +14,14 @@ use tfhe::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
+    V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+};
+use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
+    V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+};
 use tfhe::shortint::parameters::PBSParameters;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 use utilities::{write_to_json, OperatorType};
@@ -33,11 +39,18 @@ fn pke_zk_proof(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    for (param_pke, _param_casting, param_fhe) in [(
-        V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    )] {
+    for (param_pke, _param_casting, param_fhe) in [
+        (
+            V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ),
+        (
+            V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+            V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ),
+    ] {
         let param_name = param_fhe.name();
         let param_name = param_name.as_str();
         let cks = ClientKey::new(param_fhe);
@@ -52,6 +65,8 @@ fn pke_zk_proof(c: &mut Criterion) {
         let mut metadata = [0u8; (320 / u8::BITS) as usize];
         let mut rng = rand::thread_rng();
         metadata.fill_with(|| rng.gen());
+
+        let zk_vers = param_pke.zk_scheme;
 
         for bits in [64usize, 640, 1280, 4096] {
             assert_eq!(bits % 64, 0);
@@ -81,8 +96,9 @@ fn pke_zk_proof(c: &mut Criterion) {
 
                 match BENCH_TYPE.get().unwrap() {
                     BenchmarkType::Latency => {
-                        bench_id =
-                            format!("{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}");
+                        bench_id = format!(
+                            "{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
+                        );
                         bench_group.bench_function(&bench_id, |b| {
                             let input_msg = rng.gen::<u64>();
                             let messages = vec![input_msg; fhe_uint_count];
@@ -100,7 +116,7 @@ fn pke_zk_proof(c: &mut Criterion) {
                         bench_group.throughput(Throughput::Elements(elements));
 
                         bench_id = format!(
-                            "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{zk_load}"
+                            "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
                         bench_group.bench_function(&bench_id, |b| {
                             let messages = (0..elements)
@@ -155,11 +171,18 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
         .open(results_file)
         .expect("cannot open results file");
 
-    for (param_pke, param_casting, param_fhe) in [(
-        V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    )] {
+    for (param_pke, param_casting, param_fhe) in [
+        (
+            V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ),
+        (
+            V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+            V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ),
+    ] {
         let param_name = param_fhe.name();
         let param_name = param_name.as_str();
         let cks = ClientKey::new(param_fhe);
@@ -173,6 +196,8 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
         let mut metadata = [0u8; (320 / u8::BITS) as usize];
         let mut rng = rand::thread_rng();
         metadata.fill_with(|| rng.gen());
+
+        let zk_vers = param_pke.zk_scheme;
 
         for bits in [64usize, 640, 1280, 4096] {
             assert_eq!(bits % 64, 0);
@@ -199,7 +224,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
             println!("CRS size: {}", crs_data.len());
 
-            let test_name = format!("zk::crs_sizes::{param_name}_{bits}_bits_packed");
+            let test_name = format!("zk::crs_sizes::{param_name}_{bits}_bits_packed_ZK{zk_vers:?}");
 
             write_result(&mut file, &test_name, crs_data.len());
             write_to_json::<u64, _>(
@@ -223,10 +248,11 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
                 match BENCH_TYPE.get().unwrap() {
                     BenchmarkType::Latency => {
-                        bench_id_verify =
-                            format!("{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}");
+                        bench_id_verify = format!(
+                            "{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
+                        );
                         bench_id_verify_and_expand = format!(
-                            "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}"
+                            "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
 
                         let input_msg = rng.gen::<u64>();
@@ -246,7 +272,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         );
 
                         let test_name = format!(
-                            "zk::proven_list_size::{param_name}_{bits}_bits_packed_{zk_load}"
+                            "zk::proven_list_size::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
 
                         write_result(
@@ -268,7 +294,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         println!("proof size: {}", ct1.proof_size());
 
                         let test_name =
-                            format!("zk::proof_sizes::{param_name}_{bits}_bits_packed_{zk_load}");
+                            format!("zk::proof_sizes::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}");
 
                         write_result(&mut file, &test_name, proof_size);
                         write_to_json::<u64, _>(
@@ -308,10 +334,10 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         bench_group.throughput(Throughput::Elements(elements));
 
                         bench_id_verify = format!(
-                            "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{zk_load}"
+                            "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
                         bench_id_verify_and_expand = format!(
-                            "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}"
+                            "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
 
                         println!("Generating proven ciphertexts list ({zk_load})... ");
