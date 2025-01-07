@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  cargo-builds:
+  cargo-builds-ntt:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
