@@ -36,16 +36,16 @@ pub const NOISE_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: ClassicTestPara
 #[allow(dead_code)]
 pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_GAUSSIAN:
     MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(256 * 3),
+    input_lwe_dimension: LweDimension(759),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        1.1098369627275701e-05,
+        1.296274149494132e-05,
     )),
-    decomp_base_log: DecompositionBaseLog(17),
+    decomp_base_log: DecompositionBaseLog(22),
     decomp_level_count: DecompositionLevelCount(1),
-    glwe_dimension: GlweDimension(3),
-    polynomial_size: PolynomialSize(512),
+    glwe_dimension: GlweDimension(2),
+    polynomial_size: PolynomialSize(1024),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        1.9524392655548086e-11,
+        2.845267479601915e-15,
     )),
     message_modulus_log: MessageModulusLog(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
@@ -56,9 +56,9 @@ pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_GAUSSIA
 #[allow(clippy::excessive_precision)]
 pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN:
     MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(279 * 3),
+    input_lwe_dimension: LweDimension(912),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        3.3747142481837397e-06,
+        9.252442079345288e-07,
     )),
     decomp_base_log: DecompositionBaseLog(22),
     decomp_level_count: DecompositionLevelCount(1),
@@ -77,7 +77,7 @@ pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIA
 #[allow(dead_code)]
 pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN:
     MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(326 * 3),
+    input_lwe_dimension: LweDimension(978),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         2.962875621642539e-07,
     )),
