@@ -645,6 +645,7 @@ async function compressedServerKeyBenchMessage2Carry2() {
 async function compactPublicKeyZeroKnowledgeBench() {
   let params_to_bench = [
     {
+      zk_scheme: "ZKV2",
       name: shortint_params_name(
         ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
       ),
@@ -653,6 +654,18 @@ async function compactPublicKeyZeroKnowledgeBench() {
       ),
       casting_params: new ShortintCompactPublicKeyEncryptionParameters(
         ShortintCompactPublicKeyEncryptionParametersName.SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+      ),
+    },
+    {
+      zk_scheme: "ZKV1",
+      name: shortint_params_name(
+        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+      ),
+      block_params: new ShortintParameters(
+        ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+      ),
+      casting_params: new ShortintCompactPublicKeyEncryptionParameters(
+        ShortintCompactPublicKeyEncryptionParametersName.SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
       ),
     },
   ];
@@ -718,6 +731,8 @@ async function compactPublicKeyZeroKnowledgeBench() {
         const mean = timing / bench_loops;
         const common_bench_str =
           "compact_fhe_uint_proven_encryption_" +
+          params.zk_scheme +
+          "_" +
           encrypt_count * 64 +
           "_bits_packed_" +
           load_to_str[loadChoice];
