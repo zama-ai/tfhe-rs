@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  cargo-tests:
+  cargo-tests-ntt:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -33,7 +33,7 @@ jobs:
       - name: Test no-std
         run: make test_ntt_no_std
 
-  cargo-tests-nightly:
+  cargo-tests-ntt-nightly:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
