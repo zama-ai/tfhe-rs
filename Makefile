@@ -824,7 +824,7 @@ test_strings: install_rs_build_toolchain
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
-		--features=boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok \
+		--features=boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok,strings \
 		-p $(TFHE_SPEC) \
 		-- test_user_docs::
 
