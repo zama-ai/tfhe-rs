@@ -57,6 +57,7 @@ mod test_cpu_doc {
     doctest!("../docs/guides/pbs-stats.md", guides_pbs_stats);
     doctest!("../docs/guides/public_key.md", guides_public_key);
     doctest!("../docs/guides/rayon_crate.md", guides_rayon_crate);
+    doctest!("../docs/guides/strings.md", guides_strings);
     doctest!("../docs/guides/trait_bounds.md", guides_trait_bounds);
     doctest!(
         "../docs/guides/trivial_ciphertext.md",
