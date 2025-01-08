@@ -42,6 +42,7 @@
 * [Trivial ciphertexts](guides/trivial\_ciphertext.md)
 * [PBS statistics](guides/pbs-stats.md)
 * [Array](guides/array.md)
+* [Strings](guides/strings.md)
 
 ## Tutorials
 
