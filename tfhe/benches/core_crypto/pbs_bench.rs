@@ -813,6 +813,147 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
         }
     }
 }
+fn multi_bit_pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default +  Sync + Send + Serialize>(
+    c: &mut Criterion,
+    parameters: &[(String, CryptoParametersRecord<Scalar>, LweBskGroupingFactor)],
+) {
+    let bench_name = "core_crypto::mubit_pbs_th";
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for (name, params, grouping_factor) in parameters.iter() {
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension.unwrap(),
+            &mut secret_generator,
+        );
+
+        let glwe_secret_key = GlweSecretKey::new_empty_key(
+            Scalar::ZERO,
+            params.glwe_dimension.unwrap(),
+            params.polynomial_size.unwrap(),
+        );
+        let big_lwe_sk = glwe_secret_key.into_lwe_secret_key();
+        let big_lwe_dimension = big_lwe_sk.lwe_dimension();
+
+        const NUM_CTS: usize = 8192;
+        let lwe_vec: Vec<_> = (0..NUM_CTS)
+            .map(|_| {
+                allocate_and_encrypt_new_lwe_ciphertext(
+                    &input_lwe_secret_key,
+                    Plaintext(Scalar::ZERO),
+                    params.lwe_noise_distribution.unwrap(),
+                    params.ciphertext_modulus.unwrap(),
+                    &mut encryption_generator,
+                )
+            })
+            .collect();
+
+        let multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
+            params.lwe_dimension.unwrap(),
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            *grouping_factor,
+        );
+
+        let mut output_lwe_list = LweCiphertextList::new(
+            Scalar::ZERO,
+            big_lwe_dimension.to_lwe_size(),
+            LweCiphertextCount(NUM_CTS),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        // let fft = Fft::new(params.polynomial_size.unwrap());
+        // let fft = fft.as_view();
+
+        // let mut vec_buffers: Vec<_> = (0..NUM_CTS)
+        //     .map(|_| {
+        //         let mut buffers = ComputationBuffers::new();
+        //         buffers.resize(
+        //             programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+        //                 params.glwe_dimension.unwrap().to_glwe_size(),
+        //                 params.polynomial_size.unwrap(),
+        //                 fft,
+        //             )
+        //             .unwrap()
+        //             .unaligned_bytes_required(),
+        //         );
+        //         buffers
+        //     })
+        //     .collect();
+
+        let glwe = GlweCiphertext::new(
+            Scalar::ONE << 60,
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        // let fbsk = FourierLweBootstrapKey::new(
+        //     params.lwe_dimension.unwrap(),
+        //     params.glwe_dimension.unwrap().to_glwe_size(),
+        //     params.polynomial_size.unwrap(),
+        //     params.pbs_base_log.unwrap(),
+        //     params.pbs_level.unwrap(),
+        // );
+        //for chunk_size in [1, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192] {
+        for chunk_size in [8192] {
+            let id = format!("{bench_name}::{name}::{chunk_size}chunk");
+            {
+                bench_group.bench_function(&id, |b| {
+                    b.iter(|| {
+                        lwe_vec
+                            .par_iter()
+                            .zip(output_lwe_list.par_iter_mut())
+                            .take(chunk_size)
+                            .for_each(|(input_lwe, mut out_lwe)| {
+
+                                multi_bit_programmable_bootstrap_lwe_ciphertext(
+                                    input_lwe,
+                                    &mut out_lwe,
+                                    &glwe,
+                                    &multi_bit_bsk,
+                                    ThreadCount(10),
+                                    false,
+                                );
+                                // programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                                //     input_lwe,
+                                //     &mut out_lwe,
+                                //     &glwe,
+                                //     &fbsk,
+                                //     fft,
+                                //     buffer.stack(),
+                                // );
+                            });
+                        black_box(&mut output_lwe_list);
+                    })
+                });
+            }
+
+            let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+            write_to_json(
+                &id,
+                *params,
+                name,
+                "pbs",
+                &OperatorType::Atomic,
+                bit_size,
+                vec![bit_size],
+            );
+        }
+    }
+}
 
 #[cfg(feature = "gpu")]
 mod cuda {
@@ -1457,12 +1598,19 @@ pub fn pbs_throughput_group() {
     pbs_throughput(&mut criterion, &throughput_benchmark_parameters_32bits());
 }
 
+pub fn multi_bit_pbs_throughput_group() {
+    let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
+    multi_bit_pbs_throughput(&mut criterion, &multi_bit_benchmark_parameters_64bits());
+}
+
 #[cfg(not(feature = "gpu"))]
-criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
+//criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
+criterion_main!(multi_bit_pbs_throughput_group, pbs_throughput_group);
+
 #[cfg(feature = "gpu")]
 criterion_main!(
-    cuda_pbs_group,
-    cuda_multi_bit_pbs_group,
-    cuda_pbs_throughput_group,
+   // cuda_pbs_group,
+    //cuda_multi_bit_pbs_group,
+   // cuda_pbs_throughput_group,
     cuda_multi_bit_pbs_throughput_group
 );
