@@ -66,10 +66,10 @@ impl ShortintEngine {
         u64: RandomGenerable<NoiseDistribution, CustomModulus = u64>,
         KeyCont: crate::core_crypto::commons::traits::Container<Element = u64>,
     {
-        let m = message % message_modulus.0;
+        let m = Cleartext(message % message_modulus.0);
 
-        let encoded = ShortintEncoding::from_parameters(*client_key_parameters, PaddingBit::Yes)
-            .encode(Cleartext(m));
+        let encoded =
+            ShortintEncoding::from_parameters(*client_key_parameters, PaddingBit::Yes).encode(m);
 
         allocate_and_encrypt_new_lwe_ciphertext(
             client_lwe_sk,
@@ -165,10 +165,10 @@ impl ShortintEngine {
             * client_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
-        let m = message % message_modulus.0;
+        let m = Cleartext(message % message_modulus.0);
 
-        let encoded = ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::Yes)
-            .encode(Cleartext(m));
+        let encoded =
+            ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::Yes).encode(m);
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 

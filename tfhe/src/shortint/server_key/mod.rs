@@ -1142,7 +1142,7 @@ impl ServerKey {
 
     pub(crate) fn unchecked_create_trivial_with_lwe_size(
         &self,
-        value: u64,
+        value: Cleartext<u64>,
         lwe_size: LweSize,
     ) -> Ciphertext {
         unchecked_create_trivial_with_lwe_size(
@@ -1165,7 +1165,7 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_create_trivial_with_lwe_size(value, lwe_size)
+        self.unchecked_create_trivial_with_lwe_size(Cleartext(value), lwe_size)
     }
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {

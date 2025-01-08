@@ -255,7 +255,7 @@ impl ClientKey {
         let lwe_size = params.encryption_lwe_dimension().to_lwe_size();
 
         super::ciphertext::unchecked_create_trivial_with_lwe_size(
-            value,
+            Cleartext(value),
             lwe_size,
             params.message_modulus(),
             params.carry_modulus(),

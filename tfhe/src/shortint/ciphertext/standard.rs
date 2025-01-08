@@ -246,7 +246,7 @@ impl Ciphertext {
 }
 
 pub(crate) fn unchecked_create_trivial_with_lwe_size(
-    value: u64,
+    value: Cleartext<u64>,
     lwe_size: LweSize,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -259,12 +259,12 @@ pub(crate) fn unchecked_create_trivial_with_lwe_size(
         carry_modulus,
         padding_bit: PaddingBit::Yes,
     }
-    .encode(Cleartext(value));
+    .encode(value);
 
     let ct =
         allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded, ciphertext_modulus);
 
-    let degree = Degree::new(value);
+    let degree = Degree::new(value.0);
 
     Ciphertext::new(
         ct,

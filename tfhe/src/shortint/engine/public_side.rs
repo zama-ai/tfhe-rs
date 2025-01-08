@@ -140,10 +140,10 @@ impl ShortintEngine {
             * public_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
-        let m = message % message_modulus.0;
+        let m = Cleartext(message % message_modulus.0);
 
-        let plain = ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::Yes)
-            .encode(Cleartext(m));
+        let plain =
+            ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::Yes).encode(m);
 
         // This allocates the required ct
         let mut encrypted_ct = LweCiphertextOwned::new(
