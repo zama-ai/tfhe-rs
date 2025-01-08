@@ -1,12 +1,17 @@
 use criterion::Criterion;
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
+use tfhe::shortint::parameters::{
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+};
 use tfhe::shortint::prelude::*;
 use tfhe::{generate_keys, ConfigBuilder, FheUint64};
 use tfhe_trivium::{KreyviumStreamShortint, TransCiphering};
 
 pub fn kreyvium_shortint_warmup(c: &mut Criterion) {
-    let config = ConfigBuilder::default().build();
+    let config = ConfigBuilder::default()
+        .use_custom_parameters(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64)
+        .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
@@ -57,7 +62,9 @@ pub fn kreyvium_shortint_warmup(c: &mut Criterion) {
 }
 
 pub fn kreyvium_shortint_gen(c: &mut Criterion) {
-    let config = ConfigBuilder::default().build();
+    let config = ConfigBuilder::default()
+        .use_custom_parameters(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64)
+        .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
@@ -103,7 +110,9 @@ pub fn kreyvium_shortint_gen(c: &mut Criterion) {
 }
 
 pub fn kreyvium_shortint_trans(c: &mut Criterion) {
-    let config = ConfigBuilder::default().build();
+    let config = ConfigBuilder::default()
+        .use_custom_parameters(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64)
+        .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();

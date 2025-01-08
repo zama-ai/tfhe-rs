@@ -95,7 +95,7 @@ fn main() {
 			val >>= 1;
 		}
 	}
-	
+
 	let output_0_63    = "F4CD954A717F26A7D6930830C4E7CF0819F80E03F25F342C64ADC66ABA7F8A8E6EAA49F23632AE3CD41A7BD290A0132F81C6D4043B6E397D7388F3A03B5FE358".to_string();
 
 	let cipher_key = key.map(|x| FheBool::encrypt(x, &client_key));
@@ -129,24 +129,36 @@ Other sizes than 64 bit are expected to be available in the future.
 
 # FHE shortint Trivium implementation
 
-The same implementation is also available for generic Ciphertexts representing bits (meant to be used with parameters `PARAM_MESSAGE_1_CARRY_1_KS_PBS`). It uses a lower level API 
-of tfhe-rs, so the syntax is a little bit different. It also implements the `TransCiphering` trait. For optimization purposes, it does not internally run on the same 
-cryptographic parameters as the high level API of tfhe-rs. As such, it requires the usage of a casting key, to switch from one parameter space to another, which makes 
+The same implementation is also available for generic Ciphertexts representing bits (meant to be used with parameters `V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64`).
+It uses a lower level API of tfhe-rs, so the syntax is a little bit different. It also implements the `TransCiphering` trait. For optimization purposes, it does not internally run
+on the same cryptographic parameters as the high level API of tfhe-rs. As such, it requires the usage of a casting key, to switch from one parameter space to another, which makes
 its setup a little more intricate.
 
 Example code:
 ```rust
 use tfhe::shortint::prelude::*;
-use tfhe::shortint::CastingKey;
+use tfhe::shortint::parameters::{
+    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+};
 use tfhe::{ConfigBuilder, generate_keys, FheUint64};
 use tfhe::prelude::*;
 use tfhe_trivium::TriviumStreamShortint;
 
 fn test_shortint() {
-	let config = ConfigBuilder::default().build();
+	let config = ConfigBuilder::default()
+        .use_custom_parameters(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64)
+        .build();
 	let (hl_client_key, hl_server_key) = generate_keys(config);
-	let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
-	let ksk = CastingKey::new((&client_key, &server_key), (&hl_client_key, &hl_server_key));
+    let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
+    let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
+
+	let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+    let ksk = KeySwitchingKey::new(
+        (&client_key, Some(&server_key)),
+        (&underlying_ck, &underlying_sk),
+        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+    );
 
 	let key_string = "0053A6F94C9FF24598EB".to_string();
 	let mut key = [0; 80];
