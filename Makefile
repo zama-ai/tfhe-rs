@@ -435,7 +435,7 @@ check_rust_bindings_did_not_change:
 	cargo build -p tfhe-cuda-backend && "$(MAKE)" fmt_gpu && \
 	git diff --quiet HEAD -- backends/tfhe-cuda-backend/src/bindings.rs || \
 	( echo "Generated bindings have changed! Please run 'git add backends/tfhe-cuda-backend/src/bindings.rs' \
-	and commit the changes." && exit 1 ) 
+	and commit the changes." && exit 1 )
 
 
 .PHONY: tfhe_lints # Run custom tfhe-rs lints
@@ -1315,7 +1315,7 @@ fpcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_t
 check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
-conformance: fix_newline fmt
+conformance: fmt fmt_js
 
 #=============================== FFT Section ==================================
 .PHONY: doc_fft # Build rust doc for tfhe-fft
@@ -1387,7 +1387,7 @@ test_fft_nightly: install_rs_check_toolchain
 .PHONY: test_fft_no_std
 test_fft_no_std: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
-		--no-default-features 
+		--no-default-features
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-fft \
 		--no-default-features \
 		--features=fft128
@@ -1481,7 +1481,7 @@ test_ntt_nightly: install_rs_check_toolchain
 .PHONY: test_ntt_no_std
 test_ntt_no_std: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release -p tfhe-ntt \
-		--no-default-features 
+		--no-default-features
 
 .PHONY: test_ntt_no_std_nightly
 test_ntt_no_std_nightly: install_rs_check_toolchain
