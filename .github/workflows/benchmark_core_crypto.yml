@@ -3,6 +3,9 @@ name: Core crypto benchmarks
 
 on:
   workflow_dispatch:
+  schedule:
+    # Weekly benchmarks will be triggered each Saturday at 5a.m.
+    - cron: '0 5 * * 6'
 
 env:
   CARGO_TERM_COLOR: always
