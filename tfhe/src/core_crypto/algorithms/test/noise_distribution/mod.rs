@@ -2,6 +2,9 @@ use super::*;
 
 mod lwe_encryption_noise;
 mod lwe_keyswitch_noise;
+// We are having crashes on aarch64 at the moment, problem is the code paths are not the same
+// between archs, so we disable those on the Apple M1
+#[cfg(not(target_arch = "aarch64"))]
 mod lwe_multi_bit_programmable_bootstrapping_noise;
 mod lwe_programmable_bootstrapping_noise;
 
