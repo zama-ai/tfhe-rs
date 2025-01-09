@@ -22,6 +22,9 @@ impl CudaServerKey {
         selectors: &[CudaBooleanBlock],
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        if selectors.is_empty() {
+            return self.create_trivial_radix(0, 1, streams);
+        }
         let packed_list = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
             selectors
                 .iter()
@@ -46,6 +49,9 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        if radixes.is_empty() {
+            return self.create_trivial_radix(0, 1, streams);
+        }
         let packed_list = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
             radixes.iter().map(|ciphertext| &ciphertext.d_blocks),
             streams,
