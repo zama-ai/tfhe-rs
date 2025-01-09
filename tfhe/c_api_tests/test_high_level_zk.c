@@ -11,7 +11,7 @@ int main(void) {
   ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
   assert(params.encryption_key_choice == ShortintEncryptionKeyChoiceBig);
 
-	ShortintCompactPublicKeyEncryptionParameters pke_params = SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+  ShortintCompactPublicKeyEncryptionParameters pke_params = SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
   int status;
 
