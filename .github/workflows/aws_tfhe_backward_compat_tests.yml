@@ -76,7 +76,7 @@ jobs:
         with:
           persist-credentials: 'false'
           repository: zama-ai/tfhe-backward-compat-data
-          path: tfhe/tfhe-backward-compat-data
+          path: tests/tfhe-backward-compat-data
           lfs: 'true'
           ref: ${{ steps.backward_compat_branch.outputs.branch }}
 
