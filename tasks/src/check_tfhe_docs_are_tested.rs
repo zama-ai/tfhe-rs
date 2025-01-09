@@ -7,7 +7,7 @@ const DIR_TO_IGNORE: [&str; 3] = [
     ".git",
     "target",
     // If the data repo has been cloned, we ignore its README
-    "tfhe/tfhe-backward-compat-data",
+    "tests/tfhe-backward-compat-data",
 ];
 
 const FILES_TO_IGNORE: [&str; 5] = [

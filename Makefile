@@ -892,11 +892,11 @@ test_versionable: install_rs_build_toolchain
 .PHONY: test_backward_compatibility_ci
 test_backward_compatibility_ci: install_rs_build_toolchain
 	TFHE_BACKWARD_COMPAT_DATA_DIR="$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).path=\"tfhe/$(BACKWARD_COMPAT_DATA_DIR)\"" \
-		--features=shortint,integer,zk-pok -p $(TFHE_SPEC) test_backward_compatibility -- --nocapture
+		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).path=\"tests/$(BACKWARD_COMPAT_DATA_DIR)\"" \
+		--features=shortint,integer,zk-pok -p tests test_backward_compatibility -- --nocapture
 
 .PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
-test_backward_compatibility: tfhe/$(BACKWARD_COMPAT_DATA_DIR) test_backward_compatibility_ci
+test_backward_compatibility: tests/$(BACKWARD_COMPAT_DATA_DIR) test_backward_compatibility_ci
 
 .PHONY: backward_compat_branch # Prints the required backward compatibility branch
 backward_compat_branch:
@@ -1275,9 +1275,9 @@ write_params_to_file: install_rs_check_toolchain
 
 .PHONY: clone_backward_compat_data # Clone the data repo needed for backward compatibility tests
 clone_backward_compat_data:
-	./scripts/clone_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_URL) $(BACKWARD_COMPAT_DATA_BRANCH) tfhe/$(BACKWARD_COMPAT_DATA_DIR)
+	./scripts/clone_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_URL) $(BACKWARD_COMPAT_DATA_BRANCH) tests/$(BACKWARD_COMPAT_DATA_DIR)
 
-tfhe/$(BACKWARD_COMPAT_DATA_DIR): clone_backward_compat_data
+tests/$(BACKWARD_COMPAT_DATA_DIR): clone_backward_compat_data
 
 #
 # Real use case examples

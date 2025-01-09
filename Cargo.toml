@@ -11,10 +11,11 @@ members = [
     "backends/tfhe-cuda-backend",
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",
+    "tests"
 ]
 
 exclude = [
-    "tfhe/backward_compatibility_tests",
+    "tests/backward_compatibility_tests",
     "utils/cargo-tfhe-lints-inner",
     "utils/cargo-tfhe-lints"
 ]

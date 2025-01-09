@@ -1,0 +1,23 @@
+[package]
+name = "tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+tfhe = { path = "../tfhe" }
+tfhe-versionable = { path = "../utils/tfhe-versionable" }
+tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-compat-data.git", branch = "v0.4", default-features = false, features = [
+    "load",
+] }
+ron = "0.8"
+
+
+[[test]]
+name = "backward_compatibility_tests"
+path = "backward_compatibility_tests.rs"
+
+[features]
+shortint = ["tfhe/shortint"]
+integer = ["shortint", "tfhe/integer"]
+zk-pok = ["tfhe/zk-pok"]
