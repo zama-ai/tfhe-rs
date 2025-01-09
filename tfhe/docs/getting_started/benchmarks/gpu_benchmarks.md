@@ -8,26 +8,26 @@ All GPU benchmarks presented here were obtained on H100 GPUs, and rely on the mu
 Below come the results for the execution on a single H100.
 The following table shows the performance when the inputs of the benchmarked operation are encrypted:
 
-{% embed url="https://docs.google.com/spreadsheets/d/1dhNYXm7oY0l2qjX3dNpSZKjIBJElkEZtPDIWHZ4FA_A/edit?usp=sharing" %}
+{% embed url="https://docs.google.com/spreadsheets/d/1xGWykMa8fZ7RWUjkCl-52FJ-BNge8cB-5CSHrVZ6XRo/edit?usp=sharing" %}
 
 The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
-{% embed url="https://docs.google.com/spreadsheets/d/1wtnFnOwHrSOvfTWluUEaDoTULyveseVl1ZsYo3AOFKk/edit?usp=sharing" %}
+{% embed url="https://docs.google.com/spreadsheets/d/1MZfE9c-cQw3yAP55tu0i8uLl4lTAiH9zW3gRFp0ve7s/edit?usp=sharing" %}
 
 ## 2xH100
 
 Below come the results for the execution on two H100's.
 The following table shows the performance when the inputs of the benchmarked operation are encrypted:
 
-{% embed url="https://docs.google.com/spreadsheets/d/1_2AUeu3ua8_PXxMfeJCh-pp6b9e529PGVEYUuZRAThg/edit?usp=sharing" %}
+{% embed url="https://docs.google.com/spreadsheets/d/1bcL0wgFk-cfR4asGSCWDFt7JaqDYJT-l4pH58A-yBkc/edit?usp=sharing" %}
 
 
 The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
-{% embed url="https://docs.google.com/spreadsheets/d/1nLPt_m1MbkSdhMop0iKDnSN_c605l_JdMpK5JC90N_Q/edit?usp=sharing" %}
+{% embed url="https://docs.google.com/spreadsheets/d/1_8VIoStixns22lQq_RBSjVm-0iFHjJpntQTrvEHZpSg/edit?usp=sharing" %}
 
 ## Programmable bootstrapping
 
 The next table shows the execution time of a keyswitch followed by a programmable bootstrapping depending on the precision of the input message. The associated parameter set is given.
 
-{% embed url="https://docs.google.com/spreadsheets/d/11JfbPxJ8XMMfob4AZIWhDSglTO9X_YX8R7dNQK73uuk/edit?usp=sharing" %}
+{% embed url="https://docs.google.com/spreadsheets/d/1KhElQ7sIsShUSVQw5bKFoP-x5BgMaWh1pZtrVAdC3T4/edit?usp=sharing" %}

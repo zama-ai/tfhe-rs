@@ -14,11 +14,11 @@ The following tables benchmark the execution time of some operation sets using `
 
 The next table shows the operation timings on CPU when all inputs are encrypted
 
-{% embed url="https://docs.google.com/spreadsheets/d/1Z2NZvWEkDnbHPYE4Su0Oh2Zz1VBnT9dWbo3E29-LcDg/edit?usp=sharing" %}
+{% embed url="https://docs.google.com/spreadsheets/d/1b_-72ArnSdaqfr-gJOnMmVdcBokYZohnylO4LUj2PMw/edit?usp=sharing" %}
 
 The next table shows the operation timings on CPU when the left input is encrypted and the right is a clear scalar of the same size:
 
-{% embed url="https://docs.google.com/spreadsheets/d/1NGPnuBhRasES9Ghaij4ixJJTpXVMqDzbqMniX-qIMGc/edit?usp=sharing" %}
+{% embed url="https://docs.google.com/spreadsheets/d/1m3tjCi_2GSIHop2zZLAtVbhdDn5wqTGd2lOA3CcJe-U/edit?usp=sharing" %}
 
 All timings are based on parallelized Radix-based integer operations where each block is encrypted using the default parameters `PARAM_MESSAGE_2_CARRY_2_KS_PBS`. To ensure predictable timings, we perform operations in the `default` mode, which ensures that the input and output encoding are similar (i.e., the carries are always emptied).
 
@@ -28,7 +28,7 @@ You can minimize operational costs by selecting from 'unchecked', 'checked', or 
 
 The next table shows the execution time of a keyswitch followed by a programmable bootstrapping depending on the precision of the input message. The associated parameter set is given. The configuration is Concrete FFT + AVX-512.
 
-{% embed url="https://docs.google.com/spreadsheets/d/1OdZrsk0dHTWSLLvstkpiv0u5G5tE0mCqItTb7WixGdg/edit?usp=sharing" %}
+{% embed url="https://docs.google.com/spreadsheets/d/1o6MWpbzbYhDs3Pnoq-2hlNEgO9G8wGR5niW-OOZ6c_4/edit?usp=sharing" %}
 
 ## Reproducing TFHE-rs benchmarks
 
