@@ -2,8 +2,8 @@ name: Tests on M1 CPU
 
 on:
   workflow_dispatch:
-  pull_request:
-    types: [labeled]
+  pull_request_target:
+    types: [ labeled ]
   # Have a nightly build for M1 tests
   schedule:
     # * is a special character in YAML so you have to quote this string
@@ -21,13 +21,20 @@ env:
   # We clear the cache to reduce memory pressure because of the numerous processes of cargo
   # nextest
   TFHE_RS_CLEAR_IN_MEMORY_KEY_CACHE: "1"
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
   cancel-in-progress: true
 
 jobs:
+  check-user-permission:
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   cargo-builds-m1:
+    needs: check-user-permission
     if: ${{ (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs') || github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'm1_test') }}
     runs-on: ["self-hosted", "m1mac"]
     # 12 hours, default is 6 hours, hopefully this is more than enough
@@ -37,6 +44,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
@@ -178,7 +187,7 @@ jobs:
     if: ${{ always() }}
     steps:
       - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request_target' }}
         with:
           labels: m1_test
           github_token: ${{ secrets.GITHUB_TOKEN }}

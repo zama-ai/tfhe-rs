@@ -11,13 +11,20 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 on:
-  pull_request:
+  pull_request_target:
 
 jobs:
+  check-user-permission:
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (cuda-pcc)
+    needs: check-user-permission
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -37,7 +44,7 @@ jobs:
     name: CUDA post-commit checks
     needs: setup-instance
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}
+      group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
@@ -57,6 +64,7 @@ jobs:
         with:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Set up home
         run: |

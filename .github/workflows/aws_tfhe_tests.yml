@@ -10,12 +10,13 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request_target' }}
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-  pull_request:
+  pull_request_target:
     types: [ labeled ]
   schedule:
     # Nightly tests @ 1AM after each work day
@@ -65,6 +66,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Check for file changes
         id: changed-files
@@ -132,11 +134,17 @@ jobs:
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
+  check-user-permission:
+    needs: should-run
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (cpu-tests)
-    if: github.event_name != 'pull_request' ||
+    if: github.event_name != 'pull_request_target' ||
       (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.any_file_changed == 'true')
-    needs: should-run
+    needs: [ should-run, check-user-permission ]
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -154,11 +162,11 @@ jobs:
 
   cpu-tests:
     name: CPU tests
-    if: github.event_name != 'pull_request' ||
-      (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
+    if: github.event_name != 'pull_request_target' ||
+      (github.event_name == 'pull_request_target' && needs.setup-instance.result != 'skipped')
     needs: [ should-run, setup-instance ]
     concurrency:
-      group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}
+      group: ${{ github.workflow }}_${{github.event_name}}_${{ github.head_ref || github.ref }}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
@@ -167,6 +175,7 @@ jobs:
         with:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203

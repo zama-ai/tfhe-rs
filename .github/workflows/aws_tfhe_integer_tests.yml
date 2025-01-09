@@ -14,12 +14,13 @@ env:
   # nextest
   TFHE_RS_CLEAR_IN_MEMORY_KEY_CACHE: "1"
   NO_BIG_PARAMS: FALSE
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-  pull_request:
-    types: [labeled]
+  pull_request_target:
+    types: [ labeled ]
   push:
     branches:
       - main
@@ -28,8 +29,7 @@ jobs:
   should-run:
     if:
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
-      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
-      (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) ||
+      (github.event_name == 'pull_request_target' && contains(github.event.label.name, 'approved')) ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
@@ -44,6 +44,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Check for file changes
         id: changed-files
@@ -61,13 +62,19 @@ jobs:
               - tfhe/src/integer/**
               - .github/workflows/aws_tfhe_integer_tests.yml
 
+  check-user-permission:
+    needs: should-run
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (unsigned-integer-tests)
-    needs: should-run
+    needs: [ should-run, check-user-permission ]
     if:
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs' && needs.should-run.outputs.integer_test == 'true') ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
-      (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) ||
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.integer_test == 'true') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
@@ -88,7 +95,7 @@ jobs:
     name: Unsigned integer tests
     needs: setup-instance
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+      group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
@@ -97,6 +104,7 @@ jobs:
         with:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
@@ -104,7 +112,7 @@ jobs:
           toolchain: stable
 
       - name: Should skip big parameters set
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         run: |
           echo "NO_BIG_PARAMS=TRUE" >> "${GITHUB_ENV}"
 

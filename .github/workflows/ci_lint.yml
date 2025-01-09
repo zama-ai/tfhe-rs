@@ -2,10 +2,11 @@
 name: CI Lint and Checks
 
 on:
-  pull_request:
+  pull_request_target:
 
 env:
   ACTIONLINT_VERSION: 1.6.27
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   lint-check:
@@ -14,6 +15,10 @@ jobs:
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Get actionlint
         run: |

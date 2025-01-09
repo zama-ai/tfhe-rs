@@ -11,24 +11,31 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-  pull_request:
+  pull_request_target:
     types: [ labeled ]
   schedule:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
 
 jobs:
+  check-user-permission:
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   cuda-tests-linux:
     name: CUDA tests (RTX 4090)
+    needs: check-user-permission
     if: github.event_name == 'workflow_dispatch' ||
       contains(github.event.label.name, '4090_test') ||
       (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs')
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}
+      group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
       cancel-in-progress: true
     runs-on: ["self-hosted", "4090-desktop"]
 
@@ -38,6 +45,7 @@ jobs:
         with:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
@@ -69,7 +77,7 @@ jobs:
           make test_high_level_api_gpu
 
       - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
-        if: ${{ always() && github.event_name == 'pull_request' }}
+        if: ${{ always() && github.event_name == 'pull_request_target' }}
         with:
           labels: 4090_test
           github_token: ${{ secrets.GITHUB_TOKEN }}
