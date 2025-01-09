@@ -692,14 +692,14 @@ async function compactPublicKeyZeroKnowledgeBench() {
       [ZkComputeLoad.Verify]: "compute_load_verify",
     };
 
-    let bits_to_encrypt = [64, 640, 1280, 4096];
+      let bits_to_encrypt = [64, 640, 1280, 4096];
 
     let encrypt_counts = bits_to_encrypt.map((v) => v / 64);
 
     for (const encrypt_count of encrypt_counts) {
       console.log("Start CRS generation");
       console.time("CRS generation");
-      let crs = CompactPkeCrs.from_config(config, encrypt_count * 64);
+      let crs = CompactPkeCrs.from_config(config, 4096);
       console.timeEnd("CRS generation");
 
       // 320 bits is a use case we have, 8 bits per byte

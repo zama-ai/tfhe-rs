@@ -79,12 +79,12 @@ fn pke_zk_proof(c: &mut Criterion) {
             let mut rng = rand::thread_rng();
 
             let fhe_uint_count = bits / 64;
+            let crs_size = 4096usize.div_ceil(
+                (param_pke.message_modulus.0 * param_pke.carry_modulus.0).ilog2() as usize,
+            );
 
-            let crs = CompactPkeCrs::from_shortint_params(
-                param_pke,
-                LweCiphertextCount(num_block * fhe_uint_count),
-            )
-            .unwrap();
+            let crs = CompactPkeCrs::from_shortint_params(param_pke, LweCiphertextCount(crs_size))
+                .unwrap();
 
             for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
                 let zk_load = match compute_load {
@@ -210,13 +210,13 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             let mut rng = rand::thread_rng();
 
             let fhe_uint_count = bits / 64;
+            let crs_size = 4096usize.div_ceil(
+                (param_pke.message_modulus.0 * param_pke.carry_modulus.0).ilog2() as usize,
+            );
 
             println!("Generating CRS... ");
-            let crs = CompactPkeCrs::from_shortint_params(
-                param_pke,
-                LweCiphertextCount(num_block * fhe_uint_count),
-            )
-            .unwrap();
+            let crs = CompactPkeCrs::from_shortint_params(param_pke, LweCiphertextCount(crs_size))
+                .unwrap();
 
             let shortint_params: PBSParameters = param_fhe.into();
 
