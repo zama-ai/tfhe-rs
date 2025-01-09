@@ -253,7 +253,12 @@ impl CudaServerKey {
         if clear == Clear::MAX {
             Clear::BITS
         } else {
-            (clear + Clear::ONE).ceil_ilog2() as usize
+            let bits = (clear + Clear::ONE).ceil_ilog2() as usize;
+            if bits == 0 {
+                1
+            } else {
+                bits
+            }
         }
     }
 
