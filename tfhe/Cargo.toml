@@ -140,7 +140,7 @@ split-linked-modules = true
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
-features = ["boolean", "shortint", "integer", "gpu", "zk-pok", "software-prng"]
+features = ["boolean", "shortint", "integer", "gpu", "zk-pok", "software-prng", "strings"]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 ###########
