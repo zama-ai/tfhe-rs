@@ -8,8 +8,14 @@ root = true
 end_of_line = lf
 insert_final_newline = true
 
-# 4 space indentation
-[*.rs]
+# 4 space indentation for rust and toml
+[*.{rs,toml}]
 charset = utf-8
 indent_style = space
 indent_size = 4
+
+# 2 for c and js
+[*.{js,json,c,h}]
+charset = utf-8
+indent_style = space
+indent_size = 2
