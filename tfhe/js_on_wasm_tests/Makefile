@@ -1,9 +1,3 @@
-.PHONY: run_server # Build and run Node server
-run_server:
-	npm install
-	npm run build
-	npm run server
-
 .PHONY: fmt # Format Javascript code
 fmt:
 	npm install

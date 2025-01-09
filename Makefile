@@ -243,7 +243,8 @@ fmt_js: check_nvm_installed
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C tfhe/web_wasm_parallel_tests fmt
+	$(MAKE) -C tfhe/web_wasm_parallel_tests fmt && \
+	$(MAKE) -C tfhe/js_on_wasm_tests fmt
 
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
@@ -272,7 +273,8 @@ check_fmt_js: check_nvm_installed
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C tfhe/web_wasm_parallel_tests check_fmt
+	$(MAKE) -C tfhe/web_wasm_parallel_tests check_fmt && \
+	$(MAKE) -C tfhe/js_on_wasm_tests check_fmt
 
 .PHONY: check_typos # Check for typos in codebase
 check_typos: install_typos_checker
