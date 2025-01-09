@@ -8,10 +8,6 @@ on:
         description: "Dry-run"
         type: boolean
         default: true
-      push_to_crates:
-        description: "Push to crate"
-        type: boolean
-        default: true
 
 env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -97,7 +93,6 @@ jobs:
           } >> "${GITHUB_ENV}"
 
       - name: Publish crate.io package
-        if: ${{ inputs.push_to_crates }}
         env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
