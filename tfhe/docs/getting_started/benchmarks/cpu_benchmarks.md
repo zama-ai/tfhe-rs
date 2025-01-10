@@ -57,6 +57,31 @@ The next table shows the execution time of a keyswitch followed by a programmabl
     </tbody>
 </table>
 
+<iframe srcdoc='<table border="1" cellspacing="0" cellpadding="5" style="border-color: white;">
+    <thead>
+        <tr style="background-color: black; color: white;">
+            <th>Operation \ Time</th>
+            <th>FheUint8</th>
+            <th>FheUint64</th>
+            <th>FheUint256</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="background-color: #fbbc04; color: black; border-color: white;">Add</td>
+            <td style="background-color: #f3f3f3; color: black; text-align: center; border-color: white;">10 ms</td>
+            <td style="background-color: #f3f3f3; color: black; text-align: center; border-color: white;">20 ms</td>
+            <td style="background-color: #f3f3f3; color: black; text-align: center; border-color: white;">100 ms</td>
+        </tr>
+        <tr>
+            <td style="background-color: #fbbc04; color: black; border-color: white;">Mul</td>
+            <td style="background-color: #f3f3f3; color: black; text-align: center; border-color: white;">100 ms</td>
+            <td style="background-color: #f3f3f3; color: black; text-align: center; border-color: white;">200 ms</td>
+            <td style="background-color: #f3f3f3; color: black; text-align: center; border-color: white;">300 ms</td>
+        </tr>
+    </tbody>
+</table>' style="height:200px;width:100%;border:none;overflow:hidden;" name="test">You need a Frames Capable browser to view this content.</iframe> 
+
 ## Reproducing TFHE-rs benchmarks
 
 **TFHE-rs** benchmarks can be easily reproduced from the [source](https://github.com/zama-ai/tfhe-rs).
