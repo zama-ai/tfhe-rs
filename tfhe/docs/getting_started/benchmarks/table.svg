@@ -1,4 +1,36 @@
-<svg width="300" height="130" xmlns="http://www.w3.org/2000/svg">
-  <rect width="200" height="100" x="10" y="10" rx="20" ry="20" fill="blue" />
-  Sorry, your browser does not support inline SVG.
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="200" viewBox="0 0 500 200">
+    <!-- Header Row -->
+    <rect x="0" y="0" width="500" height="40" fill="black" />
+    <text x="10" y="25" fill="white" font-family="Arial" font-size="14">Operation \ Time</text>
+    <text x="140" y="25" fill="white" font-family="Arial" font-size="14">FheUint8</text>
+    <text x="260" y="25" fill="white" font-family="Arial" font-size="14">FheUint64</text>
+    <text x="380" y="25" fill="white" font-family="Arial" font-size="14">FheUint256</text>
+
+    <!-- Row 1 -->
+    <rect x="0" y="40" width="500" height="40" fill="#fbbc04" />
+    <text x="10" y="65" fill="black" font-family="Arial" font-size="14">Add</text>
+    <rect x="120" y="40" width="120" height="40" fill="#f3f3f3" />
+    <text x="160" y="65" fill="black" font-family="Arial" font-size="14" text-anchor="middle">10 ms</text>
+    <rect x="240" y="40" width="120" height="40" fill="#f3f3f3" />
+    <text x="280" y="65" fill="black" font-family="Arial" font-size="14" text-anchor="middle">20 ms</text>
+    <rect x="360" y="40" width="120" height="40" fill="#f3f3f3" />
+    <text x="400" y="65" fill="black" font-family="Arial" font-size="14" text-anchor="middle">100 ms</text>
+
+    <!-- Row 2 -->
+    <rect x="0" y="80" width="500" height="40" fill="#fbbc04" />
+    <text x="10" y="105" fill="black" font-family="Arial" font-size="14">Mul</text>
+    <rect x="120" y="80" width="120" height="40" fill="#f3f3f3" />
+    <text x="160" y="105" fill="black" font-family="Arial" font-size="14" text-anchor="middle">100 ms</text>
+    <rect x="240" y="80" width="120" height="40" fill="#f3f3f3" />
+    <text x="280" y="105" fill="black" font-family="Arial" font-size="14" text-anchor="middle">200 ms</text>
+    <rect x="360" y="80" width="120" height="40" fill="#f3f3f3" />
+    <text x="400" y="105" fill="black" font-family="Arial" font-size="14" text-anchor="middle">300 ms</text>
+
+    <!-- Borders -->
+    <line x1="120" y1="0" x2="120" y2="200" stroke="white" />
+    <line x1="240" y1="0" x2="240" y2="200" stroke="white" />
+    <line x1="360" y1="0" x2="360" y2="200" stroke="white" />
+    <line x1="0" y1="40" x2="500" y2="40" stroke="white" />
+    <line x1="0" y1="80" x2="500" y2="80" stroke="white" />
+    <line x1="0" y1="120" x2="500" y2="120" stroke="white" />
 </svg>
