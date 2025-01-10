@@ -82,6 +82,8 @@ The next table shows the execution time of a keyswitch followed by a programmabl
     </tbody>
 </table>' style="height:200px;width:100%;border:none;overflow:hidden;" name="test">You need a Frames Capable browser to view this content.</iframe> 
 
+{% embed url="table.html" %}
+
 ## Reproducing TFHE-rs benchmarks
 
 **TFHE-rs** benchmarks can be easily reproduced from the [source](https://github.com/zama-ai/tfhe-rs).
