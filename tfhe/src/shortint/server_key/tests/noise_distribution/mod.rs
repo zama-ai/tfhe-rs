@@ -19,3 +19,14 @@ pub fn should_use_one_key_per_sample() -> bool {
         })
     })
 }
+
+pub fn should_run_long_pfail_tests() -> bool {
+    static LONG_PFAIL_TESTS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+    *LONG_PFAIL_TESTS.get_or_init(|| {
+        std::env::var("NOISE_MEASUREMENT_LONG_PFAIL_TESTS").map_or(false, |val| {
+            let val = val.parse::<u32>();
+            val.map_or(false, |val| val != 0)
+        })
+    })
+}
