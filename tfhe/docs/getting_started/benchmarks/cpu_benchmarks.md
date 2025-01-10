@@ -89,6 +89,10 @@ The next table shows the execution time of a keyswitch followed by a programmabl
   Sorry, your browser does not support inline SVG.
 </svg>
 
+![Sweet table](./table.svg)
+
+<img src="./table.svg">
+
 ## Reproducing TFHE-rs benchmarks
 
 **TFHE-rs** benchmarks can be easily reproduced from the [source](https://github.com/zama-ai/tfhe-rs).
