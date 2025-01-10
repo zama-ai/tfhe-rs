@@ -1,4 +1,6 @@
-use super::{scalar_multiplication_variance, should_use_one_key_per_sample};
+use super::{
+    scalar_multiplication_variance, should_run_long_pfail_tests, should_use_one_key_per_sample,
+};
 use crate::core_crypto::algorithms::glwe_sample_extraction::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::glwe_secret_key_generation::allocate_and_generate_new_binary_glwe_secret_key;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_conversion::convert_standard_lwe_bootstrap_key_to_fourier_128;
@@ -798,9 +800,16 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSP
     println!("expected_pfail={expected_pfail}");
     println!("expected_pfail_log2={}", params.log2_p_fail);
 
-    let expected_fails = 200;
+    let (runs_for_expected_fails, expected_fails) = if should_run_long_pfail_tests() {
+        let total_runs = 1_000_000;
+        let expected_fails = (total_runs as f64 * expected_pfail).round() as u32;
+        (total_runs, expected_fails)
+    } else {
+        let expected_fails = 200;
+        let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as u32;
+        (runs_for_expected_fails, expected_fails)
+    };
 
-    let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as u32;
     println!("runs_for_expected_fails={runs_for_expected_fails}");
 
     let params: ShortintParameterSet = params.into();
@@ -1429,9 +1438,15 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
     println!("expected_pfail={expected_pfail}");
     println!("expected_pfail_log2={}", block_params.log2_p_fail);
 
-    let expected_fails = 200;
-
-    let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as u32;
+    let (runs_for_expected_fails, expected_fails) = if should_run_long_pfail_tests() {
+        let total_runs = 1_000_000;
+        let expected_fails = (total_runs as f64 * expected_pfail).round() as u32;
+        (total_runs, expected_fails)
+    } else {
+        let expected_fails = 200;
+        let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as u32;
+        (runs_for_expected_fails, expected_fails)
+    };
     println!("runs_for_expected_fails={runs_for_expected_fails}");
 
     // Disable the auto casting in the keyswitching key to be able to measure things ourselves
@@ -2264,14 +2279,30 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
     println!("expected_pfail_after_ap={expected_pfail_after_ap}");
     println!("expected_pfail_after_ap_log2={expected_pfail_after_ap_log2}");
 
-    let expected_fails_after_ap = 200;
     let samples_per_run = compression_params.lwe_per_glwe.0;
 
-    let runs_for_expected_fails = (expected_fails_after_ap as f64
-        / (expected_pfail_after_ap * samples_per_run as f64))
-        .round() as usize;
+    let (expected_fails_after_ap, runs_for_expected_fails, total_sample_count) =
+        if should_run_long_pfail_tests() {
+            let target_sample_count = 1_000_000;
+            let runs_count = target_sample_count.div_ceil(samples_per_run);
+            let actual_sample_count = runs_count * samples_per_run;
+            let expected_fails_after_ap =
+                (expected_pfail_after_ap * actual_sample_count as f64).round() as u32;
+            (expected_fails_after_ap, runs_count, actual_sample_count)
+        } else {
+            let expected_fails_after_ap = 200;
 
-    let total_sample_count = runs_for_expected_fails * samples_per_run;
+            let runs_for_expected_fails = (expected_fails_after_ap as f64
+                / (expected_pfail_after_ap * samples_per_run as f64))
+                .round() as usize;
+
+            let total_sample_count = runs_for_expected_fails * samples_per_run;
+            (
+                expected_fails_after_ap,
+                runs_for_expected_fails,
+                total_sample_count,
+            )
+        };
 
     println!("runs_for_expected_fails={runs_for_expected_fails}");
     println!("total_sample_count={total_sample_count}");
@@ -2421,8 +2452,16 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail(
 
     let samples_per_run = compression_params.lwe_per_glwe.0;
 
-    let run_count = 500;
-    let total_sample_count = run_count * samples_per_run;
+    let (run_count, total_sample_count) = if should_run_long_pfail_tests() {
+        let target_sample_count = 1_000_000;
+        let run_count = target_sample_count.div_ceil(samples_per_run);
+        let actual_sample_count = run_count * samples_per_run;
+        (run_count, actual_sample_count)
+    } else {
+        let run_count = 500;
+        let total_sample_count = run_count * samples_per_run;
+        (run_count, total_sample_count)
+    };
 
     println!("run_count={run_count}");
     println!("total_sample_count={total_sample_count}");
@@ -3373,14 +3412,26 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
     println!("expected_pfail_before_pbs_128={expected_pfail_before_pbs_128}");
     println!("expected_pfail_before_pbs_128_log2={expected_pfail_before_pbs_128_log2}");
 
-    let expected_fails_before_pbs_128 = 200;
-    let samples_per_run = 1;
+    let (runs_for_expected_fails, expected_fails_before_pbs_128, total_sample_count) =
+        if should_run_long_pfail_tests() {
+            let total_runs = 1_000_000;
+            let expected_fails = (total_runs as f64 * expected_pfail_before_pbs_128).round() as u32;
+            (total_runs, expected_fails, total_runs)
+        } else {
+            let expected_fails_before_pbs_128 = 200;
+            let samples_per_run = 1;
 
-    let runs_for_expected_fails = (expected_fails_before_pbs_128 as f64
-        / (expected_pfail_before_pbs_128 * samples_per_run as f64))
-        .round() as usize;
+            let runs_for_expected_fails = (expected_fails_before_pbs_128 as f64
+                / (expected_pfail_before_pbs_128 * samples_per_run as f64))
+                .round() as usize;
 
-    let total_sample_count = runs_for_expected_fails * samples_per_run;
+            let total_sample_count = runs_for_expected_fails * samples_per_run;
+            (
+                runs_for_expected_fails,
+                expected_fails_before_pbs_128,
+                total_sample_count,
+            )
+        };
 
     println!("runs_for_expected_fails={runs_for_expected_fails}");
     println!("total_sample_count={total_sample_count}");
