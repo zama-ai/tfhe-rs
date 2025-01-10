@@ -84,6 +84,11 @@ The next table shows the execution time of a keyswitch followed by a programmabl
 
 {% embed url="table.html" %}
 
+<svg width="300" height="130" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="100" x="10" y="10" rx="20" ry="20" fill="blue" />
+  Sorry, your browser does not support inline SVG.
+</svg>
+
 ## Reproducing TFHE-rs benchmarks
 
 **TFHE-rs** benchmarks can be easily reproduced from the [source](https://github.com/zama-ai/tfhe-rs).
