@@ -157,7 +157,23 @@ impl crate::V4 {
 
 fn init_negacyclic_twiddles(p: u64, n: usize, twid: &mut [u64], inv_twid: &mut [u64]) {
     let div = Div64::new(p);
-    let w = find_primitive_root64(div, 2 * n as u64).unwrap();
+
+    let w = if p == ((1_u128<<64) - (1_u128<<32) + 1) as u64 {
+        // Used custom root-of-unity with Goldilocks prime
+        match n {
+            32   => 0x8_u64,
+            64   => 0x1fffdfffe00_u64,
+            128  => 0xc2ded1724375e12e_u64,
+            256  => 0xc843f1629460b551_u64,
+            512  => 0x3da05fee70c4f2ba_u64,
+            1024 => 0x7a591595e67c27e8_u64,
+            2048 => 0x984ec5194d005735_u64,
+             _ => find_primitive_root64(div, 2 * n as u64).unwrap(),
+        }
+      } else {
+        find_primitive_root64(div, 2 * n as u64).unwrap()
+    };
+
     let mut k = 0;
     let mut wk = 1u64;
 
