@@ -11,7 +11,7 @@ use std::fmt::Display;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::curve_api::Curve;
-use crate::four_squares::{isqrt, sqr};
+use crate::four_squares::sqr;
 use crate::proofs::pke_v2::Bound;
 use crate::proofs::GroupElements;
 use crate::serialization::{
@@ -102,7 +102,7 @@ impl Upgrade<SerializablePKEv2PublicParams> for SerializablePKEv2PublicParamsV0 
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SerializablePKEv2PublicParams, Self::Error> {
-        let slack_factor = isqrt((self.d + self.k) as u128) as u64;
+        let slack_factor = (self.d + self.k).isqrt() as u64;
         let B_inf = self.B / slack_factor;
         Ok(SerializablePKEv2PublicParams {
             g_lists: self.g_lists,
