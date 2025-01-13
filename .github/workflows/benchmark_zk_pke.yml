@@ -205,7 +205,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (pke-zk-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, pke-zk-benchmarks ]
     runs-on: ubuntu-latest
     steps:

@@ -157,7 +157,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (cuda-erc20-${{ inputs.profile }}-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-erc20-benchmarks, slack-notify ]
     runs-on: ubuntu-latest
     steps:

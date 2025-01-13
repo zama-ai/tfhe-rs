@@ -157,7 +157,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (shortint-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, shortint-benchmarks ]
     runs-on: ubuntu-latest
     steps:

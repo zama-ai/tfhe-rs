@@ -131,7 +131,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (cuda-integer-full-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-core-crypto-benchmarks, slack-notify ]
     runs-on: ubuntu-latest
     steps:

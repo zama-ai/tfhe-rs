@@ -185,7 +185,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (integer-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, signed-integer-benchmarks ]
     runs-on: ubuntu-latest
     steps:

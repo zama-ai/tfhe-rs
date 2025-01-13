@@ -104,7 +104,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (cuda-pcc)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-pcc ]
     runs-on: ubuntu-latest
     steps:

@@ -194,7 +194,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (wasm-client-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, wasm-client-benchmarks ]
     runs-on: ubuntu-latest
     steps:

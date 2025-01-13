@@ -149,7 +149,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (tfhe-zk-pok-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, tfhe-zk-pok-benchmarks ]
     runs-on: ubuntu-latest
     steps:

@@ -121,7 +121,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (boolean-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, boolean-benchmarks ]
     runs-on: ubuntu-latest
     steps:
