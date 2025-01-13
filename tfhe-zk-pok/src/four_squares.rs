@@ -1,7 +1,9 @@
 use ark_ff::biginteger::arithmetic::widening_mul;
 use rand::prelude::*;
 
-pub fn sqr(x: u128) -> u128 {
+/// Avoid overflows for squares of u64
+pub fn sqr(x: u64) -> u128 {
+    let x = x as u128;
     x * x
 }
 
@@ -231,7 +233,7 @@ pub fn four_squares(v: u128) -> [u64; 4] {
             let x = 2 + rng.gen::<u64>() % (b - 2);
             let y = 2 + rng.gen::<u64>() % (b - 2);
 
-            let (sum, o) = u128::overflowing_add(sqr(x as u128), sqr(y as u128));
+            let (sum, o) = u128::overflowing_add(sqr(x), sqr(y));
             if o || sum > v {
                 continue 'main_loop;
             }
@@ -288,9 +290,9 @@ pub fn four_squares(v: u128) -> [u64; 4] {
             let i = mont.natural_from_mont(sqrt);
             let i = if i <= p / 2 { p - i } else { i };
             let z = half_gcd(p, i) as u64;
-            let w = isqrt(p - sqr(z as u128)) as u64;
+            let w = isqrt(p - sqr(z)) as u64;
 
-            if p != sqr(z as u128) + sqr(w as u128) {
+            if p != sqr(z) + sqr(w) {
                 continue 'main_loop;
             }
 

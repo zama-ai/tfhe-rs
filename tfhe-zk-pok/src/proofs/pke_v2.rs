@@ -511,7 +511,7 @@ than the lwe dimension d. Please pick a smaller k: k = {k}, d = {d}"
             Bound::GHL => 950625,
             Bound::CS => 2 * (d as u128 + k as u128) + 4,
         })
-        .checked_mul(B_squared + (sqr((d + 2) as u128) * (d + k) as u128) / 4)
+        .checked_mul(B_squared + (sqr((d + 2) as u64) * (d + k) as u128) / 4)
         .unwrap_or_else(|| {
             panic!(
                 "Invalid parameters for zk_pok, B_squared: {B_squared}, d: {d}, k: {k}. \
@@ -552,8 +552,9 @@ The computed m parameter is {m_bound} > 64. Please select a smaller B, d and/or 
 /// Use the relationship: `||x||_2 <= sqrt(dim)*||x||_inf`. Since we are only interested in the
 /// squared bound, we avoid the sqrt by returning dim*(||x||_inf)^2.
 fn inf_norm_bound_to_euclidean_squared(B_inf: u64, dim: usize) -> u128 {
-    checked_sqr(B_inf as u128)
-        .and_then(|norm_squared| norm_squared.checked_mul(dim as u128))
+    let norm_squared = sqr(B_inf);
+    norm_squared
+        .checked_mul(dim as u128)
         .unwrap_or_else(|| panic!("Invalid parameters for zk_pok, B_inf: {B_inf}, d+k: {dim}"))
 }
 
@@ -765,7 +766,7 @@ fn prove_impl<G: Curve>(
     let e_sqr_norm = e1
         .iter()
         .chain(e2)
-        .map(|x| sqr(x.unsigned_abs() as u128))
+        .map(|x| sqr(x.unsigned_abs()))
         .sum::<u128>();
 
     if sanity_check_mode == ProofSanityCheckMode::Panic {
@@ -940,7 +941,7 @@ fn prove_impl<G: Curve>(
                 assert!(
                     checked_sqr(acc.unsigned_abs()).unwrap() <= B_bound_squared,
                     "sqr(acc) ({}) > B_bound_squared ({B_bound_squared})",
-                    sqr(acc as u128)
+                    checked_sqr(acc.unsigned_abs()).unwrap()
                 );
             }
             acc as i64
@@ -2797,7 +2798,7 @@ mod tests {
                         .e1
                         .iter()
                         .chain(&testcase.e2)
-                        .map(|x| sqr(x.unsigned_abs() as u128))
+                        .map(|x| sqr(x.unsigned_abs()))
                         .sum::<u128>();
 
                     let orig_value = match coeff_type {
@@ -2806,7 +2807,7 @@ mod tests {
                     };
 
                     let bound_squared =
-                        B_with_slack_squared - (e_sqr_norm - sqr(orig_value as u128));
+                        B_with_slack_squared - (e_sqr_norm - sqr(orig_value as u64));
                     isqrt(bound_squared) as i64
                 }
                 // There is no slack effect, any term above B should be refused
