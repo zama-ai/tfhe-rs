@@ -11,7 +11,7 @@ EXP_NAME = "fft-with-gap" # wide-search-2000-gauss   wide-search-2000-tuniform  
 
 IN_FILE_FMT  = "results/" + EXP_NAME + "/samples/%s-id=%d-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.npy"
 GRAPH_FILE_FMT = "results/" + EXP_NAME + "/graphs/%s-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s-nsamples=%d.png"
-LOG_B_FILE_FMT = "results/" + EXP_NAME + "/graphs/logB_issue-gf=%d-k=%d-N=%d-distro=%s.dat"
+LOG_B_FILE_FMT = "results/" + EXP_NAME + "/graphs/logB_issue-gf=%d-distro=%s.dat"
 EXP_VAR_FILE_FMT  = "results/" + EXP_NAME + "/expected-variances-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.json"
 # ~ MEAS_VAR_FILE_FMT = "results/" + EXP_NAME + "/measured-variances-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.json"
 CT_MOD = 2.0**64
@@ -28,11 +28,11 @@ kara_noises = {}
 # ~ for distro in ["TUNIFORM", "GAUSSIAN"]:
 for distro in ["GAUSSIAN"]:
     for gf in range(2,4+1):
-        for k in range(1,4+1):
-            for logN in range(9,13+1):
-                with open(LOG_B_FILE_FMT % (gf, k, 1<<logN, distro), "w") as logB_file:
-                    logB_file.write("#  Excess FFT noise\n")
-                    logB_file.write("#  log B   level       k   log N  pred.slope   avg.slope     a-value    pred/avg\n")
+        with open(LOG_B_FILE_FMT % (gf, distro), "w") as logB_file:
+            logB_file.write("#  Excess FFT noise\n")
+            logB_file.write("#  log B   level       k   log N  pred.slope   avg.slope     a-value   meas/pred\n")
+            for k in range(1,4+1):
+                for logN in range(9,13+1):
                     # ~ for logbase in [3*i for i in range(3,10+1)]:
                     for logbase in range(5,30+1):
                         for level in range(1,6+1):
@@ -168,7 +168,7 @@ for distro in ["GAUSSIAN"]:
                                 logB_file.write("# ")   # comment out anything insignificant
                             else:
                                 logB_file.write("  ")
-                            logB_file.write("%6d %7d %7d %7d  %10.3e  %10.3e  %10.3e  %10.3e\n" % (logbase, level, k, logN, (expected_variance_fft - expected_variance_kara)/y_dimension, fft_avg_slope_2nd_half - kara_avg_slope_2nd_half, fft_a, (expected_variance_fft - expected_variance_kara)/y_dimension / (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half)))
+                            logB_file.write("%6d %7d %7d %7d  %10.3e  %10.3e  %10.3e  %10.3e\n" % (logbase, level, k, logN, (expected_variance_fft - expected_variance_kara)/y_dimension, fft_avg_slope_2nd_half - kara_avg_slope_2nd_half, fft_a, (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / ((expected_variance_fft - expected_variance_kara)/y_dimension)))
 
                             continue ###########################################
 

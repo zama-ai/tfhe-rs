@@ -596,11 +596,11 @@ fn test_impl(run_measurements: bool) {
     //~ return;
 
     for gf in [2,3,4] { //TODO add Vanilla BlindRot
-    //~ for logbase in (9..=30).step_by(3) {
     for logbase in 5..=30 {
     for level in 1..=6 {
         if logbase * level > 36 {continue;}   // also used: logbase * level < 15
-        for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
+        //~ for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
+        for (k,logN) in [(4,9),(2,10),(1,11),(3,10),(2,11),(1,12),(1,13),].iter() {
             //~ // skip those not interesting                                                             1 is here to make a margin
             //~ if ((logbase*(level+1)) as f64) < 53_f64 - *logN as f64 - (((k+1)*level) as f64).log2() - 1_f64 || logbase * level > 36 {
                 //~ println!("Early-discarded: l={level}, logB={logbase}, (k,N)=({k},{})", 1<<*logN);
