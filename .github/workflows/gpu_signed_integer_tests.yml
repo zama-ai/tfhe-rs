@@ -150,7 +150,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (cuda-tests)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-signed-integer-tests ]
     runs-on: ubuntu-latest
     steps:

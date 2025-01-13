@@ -115,7 +115,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (code-coverage)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, code-coverage ]
     runs-on: ubuntu-latest
     steps:

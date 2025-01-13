@@ -112,7 +112,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (core-crypto-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, core-crypto-benchmarks ]
     runs-on: ubuntu-latest
     steps:

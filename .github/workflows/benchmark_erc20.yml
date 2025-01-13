@@ -118,7 +118,7 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (erc20-benchmarks)
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, erc20-benchmarks ]
     runs-on: ubuntu-latest
     steps:
