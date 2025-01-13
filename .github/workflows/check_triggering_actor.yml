@@ -1,8 +1,13 @@
 # Check if triggering actor is a collaborator and has write access
 name: Check Triggering Actor
+# FIXME: rename this file and its description
 
 on:
   workflow_call:
+    inputs:
+      actor:
+        required: true
+        type: string
     secrets:
       TOKEN:
         required: true
@@ -16,7 +21,7 @@ jobs:
         uses: actions-cool/check-user-permission@956b2e73cdfe3bcb819bb7225e490cb3b18fd76e # v2.2.1
         with:
           require: write
-          username: ${{ github.triggering_actor }}
+          username: ${{ inputs.actor }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 

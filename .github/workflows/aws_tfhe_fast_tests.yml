@@ -11,13 +11,34 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request_target' }}
-  REF: ${{ github.event.pull_request.head.sha || github.sha }}
+  IS_PULL_REQUEST: ${{ github.event_name == 'workflow_call' }}
+  REF: ${{ inputs.ref || github.sha }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-  pull_request_target:
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+      SLAB_ACTION_TOKEN:
+        required: true
+      SLAB_BASE_URL:
+        required: true
+      SLAB_URL:
+        required: true
+      JOB_SECRET:
+        required: true
+      SLACK_CHANNEL:
+        required: true
+      BOT_USERNAME:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
 
 jobs:
   should-run:
@@ -128,6 +149,8 @@ jobs:
   check-user-permission:
     needs: should-run
     uses: ./.github/workflows/check_triggering_actor.yml
+    with:
+      actor: ${{ github.triggering_actor }}
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
