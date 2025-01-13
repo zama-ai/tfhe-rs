@@ -35,8 +35,8 @@ let (result, overflowed) = (&a).overflowing_add(&b);
 let result: u16 = result.decrypt(&client_key);
 assert_eq!(result, u16::MAX.wrapping_add(1u16));
 assert_eq!(
-	overflowed.decrypt(&client_key),
-	u16::MAX.overflowing_add(1u16).1
+    overflowed.decrypt(&client_key),
+    u16::MAX.overflowing_add(1u16).1
 );
 assert!(overflowed.decrypt(&client_key));
 ```

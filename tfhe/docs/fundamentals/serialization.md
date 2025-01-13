@@ -24,7 +24,7 @@ fn main() {
 
     let mut buffer = vec![];
 
-	// The last argument is the max allowed size for the serialized buffer
+    // The last argument is the max allowed size for the serialized buffer
     safe_serialize(&server_key, &mut buffer, 1 << 30).unwrap();
 
     let _server_key_deser: ServerKey =
