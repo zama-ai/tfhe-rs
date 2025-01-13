@@ -110,7 +110,7 @@ impl Upgrade<SerializablePKEv2PublicParams> for SerializablePKEv2PublicParamsV0 
             n: self.n,
             d: self.d,
             k: self.k,
-            B_bound_squared: sqr(self.B_bound as u128),
+            B_bound_squared: sqr(self.B_bound),
             B_inf,
             q: self.q,
             t: self.t,
