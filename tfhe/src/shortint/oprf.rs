@@ -1,8 +1,8 @@
 use super::Ciphertext;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, CiphertextModulusLog,
-    LweCiphertext, LweSize, Plaintext,
+    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, CiphertextModulus,
+    CiphertextModulusLog, LweCiphertext, LweSize, Plaintext,
 };
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
@@ -28,35 +28,33 @@ pub fn sha3_hash(values: &mut [u64], seed: Seed) {
         *value = u64::from_le_bytes(bytes);
     }
 }
+pub fn create_random_from_seed(
+    seed: Seed,
+    lwe_size: LweSize,
+    ciphertext_modulus: CiphertextModulus<u64>,
+) -> LweCiphertext<Vec<u64>> {
+    let mut ct = LweCiphertext::new(0, lwe_size, ciphertext_modulus);
 
+    sha3_hash(ct.get_mut_mask().as_mut(), seed);
+
+    ct
+}
+
+pub fn create_random_from_seed_modulus_switched(
+    seed: Seed,
+    lwe_size: LweSize,
+    log_modulus: CiphertextModulusLog,
+    ciphertext_modulus: CiphertextModulus<u64>,
+) -> LweCiphertext<Vec<u64>> {
+    let mut ct = create_random_from_seed(seed, lwe_size, ciphertext_modulus);
+
+    for i in ct.as_mut() {
+        *i = modulus_switch(*i, log_modulus) << (64 - log_modulus.0);
+    }
+
+    ct
+}
 impl ServerKey {
-    pub(crate) fn create_random_from_seed(
-        &self,
-        seed: Seed,
-        lwe_size: LweSize,
-    ) -> LweCiphertext<Vec<u64>> {
-        let mut ct = LweCiphertext::new(0, lwe_size, self.ciphertext_modulus);
-
-        sha3_hash(ct.get_mut_mask().as_mut(), seed);
-
-        ct
-    }
-
-    pub(crate) fn create_random_from_seed_modulus_switched(
-        &self,
-        seed: Seed,
-        lwe_size: LweSize,
-        log_modulus: CiphertextModulusLog,
-    ) -> LweCiphertext<Vec<u64>> {
-        let mut ct = self.create_random_from_seed(seed, lwe_size);
-
-        for i in ct.as_mut() {
-            *i = modulus_switch(*i, log_modulus) << (64 - log_modulus.0);
-        }
-
-        ct
-    }
-
     /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
     /// `2^random_bits_count` must be smaller than the message modulus
     /// The encryted value is oblivious to the server
@@ -123,12 +121,13 @@ impl ServerKey {
 
         let in_lwe_size = self.bootstrapping_key.input_lwe_dimension().to_lwe_size();
 
-        let seeded = self.create_random_from_seed_modulus_switched(
+        let seeded = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             self.bootstrapping_key
                 .polynomial_size()
                 .to_blind_rotation_input_modulus_log(),
+            self.ciphertext_modulus,
         );
 
         let p = 1 << random_bits_count;
@@ -183,6 +182,7 @@ impl ServerKey {
 #[cfg(test)]
 pub(crate) mod test {
     use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
+    use crate::shortint::oprf::create_random_from_seed_modulus_switched;
     use crate::shortint::{ClientKey, ServerKey};
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
@@ -223,12 +223,13 @@ pub(crate) mod test {
 
         let lwe_size = sk.bootstrapping_key.input_lwe_dimension().to_lwe_size();
 
-        let ct = sk.create_random_from_seed_modulus_switched(
+        let ct = create_random_from_seed_modulus_switched(
             seed,
             lwe_size,
             sk.bootstrapping_key
                 .polynomial_size()
                 .to_blind_rotation_input_modulus_log(),
+            sk.ciphertext_modulus,
         );
 
         let sk = ck.small_lwe_secret_key();

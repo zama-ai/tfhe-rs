@@ -1346,6 +1346,17 @@ extern "C" {
     );
 }
 extern "C" {
+    pub fn cuda_add_lwe_ciphertext_vector_plaintext_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        plaintext_in: u64,
+        input_lwe_dimension: u32,
+        input_lwe_ciphertext_count: u32,
+    );
+}
+extern "C" {
     pub fn cuda_fourier_polynomial_mul(
         stream: *mut ffi::c_void,
         gpu_index: u32,

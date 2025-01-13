@@ -481,6 +481,31 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_async<T: UnsignedIntege
     );
 }
 
+/// Addition of a vector of LWE ciphertexts with a plaintext scalar
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn add_lwe_ciphertext_vector_plaintext_scalar_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    plaintext_in: u64,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_add_lwe_ciphertext_vector_plaintext_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].0,
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        plaintext_in,
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
+}
+
 /// Assigned addition of a vector of LWE ciphertexts with a vector of plaintexts
 ///
 /// # Safety

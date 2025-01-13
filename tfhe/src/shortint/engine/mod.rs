@@ -160,20 +160,15 @@ where
 
 pub(crate) fn fill_accumulator_no_encoding<F, C>(
     accumulator: &mut GlweCiphertext<C>,
-    server_key: &ServerKey,
+    polynomial_size: PolynomialSize,
+    glwe_size: GlweSize,
     f: F,
 ) where
     C: ContainerMut<Element = u64>,
     F: Fn(u64) -> u64,
 {
-    assert_eq!(
-        accumulator.polynomial_size(),
-        server_key.bootstrapping_key.polynomial_size()
-    );
-    assert_eq!(
-        accumulator.glwe_size(),
-        server_key.bootstrapping_key.glwe_size()
-    );
+    assert_eq!(accumulator.polynomial_size(), polynomial_size);
+    assert_eq!(accumulator.glwe_size(), glwe_size);
 
     let mut accumulator_view = accumulator.as_mut_view();
 

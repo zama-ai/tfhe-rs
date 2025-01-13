@@ -3,7 +3,9 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
-use crate::integer::gpu::server_key::radix::CudaRadixCiphertext;
+use crate::integer::gpu::server_key::radix::{
+    CudaBlockInfo, CudaRadixCiphertext, CudaRadixCiphertextInfo,
+};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{apply_bivariate_lut_kb_async, PBSType};
 
@@ -23,9 +25,16 @@ impl CudaServerKey {
                 .map(|ciphertext| &ciphertext.as_ref().d_blocks),
             streams,
         );
+        let vec_block_info: Vec<CudaBlockInfo> = radixes
+            .iter()
+            .flat_map(|ct| ct.as_ref().info.blocks.clone())
+            .collect();
+        let radix_info = CudaRadixCiphertextInfo {
+            blocks: vec_block_info,
+        };
         CudaIntegerRadixCiphertext::from(CudaRadixCiphertext {
             d_blocks: packed_list,
-            info: radixes[0].as_ref().info.clone(),
+            info: radix_info,
         })
     }
 
