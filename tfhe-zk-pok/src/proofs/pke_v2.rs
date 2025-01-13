@@ -2787,7 +2787,7 @@ mod tests {
             };
 
             let B_with_slack_squared = inf_norm_bound_to_euclidean_squared(B, d + k);
-            let B_with_slack = isqrt(B_with_slack_squared) as u64;
+            let B_with_slack = B_with_slack_squared.isqrt() as u64;
 
             let bound = match slack_mode {
                 // The slack is maximal, any term above B+slack should be refused
@@ -2808,7 +2808,7 @@ mod tests {
 
                     let bound_squared =
                         B_with_slack_squared - (e_sqr_norm - sqr(orig_value as u64));
-                    isqrt(bound_squared) as i64
+                    bound_squared.isqrt() as i64
                 }
                 // There is no slack effect, any term above B should be refused
                 BoundTestSlackMode::Min => B as i64,
@@ -2850,7 +2850,7 @@ mod tests {
         let crs_max_k = crs_gen::<Curve>(d, d, B, q, t, msbs_zero_padding_bit_count, rng);
 
         let B_with_slack_squared = inf_norm_bound_to_euclidean_squared(B, d + k);
-        let B_with_slack_upper = isqrt(B_with_slack_squared) as u64 + 1;
+        let B_with_slack_upper = B_with_slack_squared.isqrt() as u64 + 1;
 
         // Generate test noise vectors with random coeffs and one completely out of bounds
 

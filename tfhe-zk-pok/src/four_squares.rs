@@ -11,37 +11,8 @@ pub fn checked_sqr(x: u128) -> Option<u128> {
     x.checked_mul(x)
 }
 
-// copied from the standard library
-// since isqrt is unstable at the moment
-pub fn isqrt(this: u128) -> u128 {
-    if this < 2 {
-        return this;
-    }
-
-    // The algorithm is based on the one presented in
-    // <https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Binary_numeral_system_(base_2)>
-    // which cites as source the following C code:
-    // <https://web.archive.org/web/20120306040058/http://medialab.freaknet.org/martin/src/sqrt/sqrt.c>.
-
-    let mut op = this;
-    let mut res = 0;
-    let mut one = 1 << (this.ilog2() & !1);
-
-    while one != 0 {
-        if op >= res + one {
-            op -= res + one;
-            res = (res >> 1) + one;
-        } else {
-            res >>= 1;
-        }
-        one >>= 2;
-    }
-
-    res
-}
-
 fn half_gcd(p: u128, s: u128) -> u128 {
-    let sq_p = isqrt(p as _);
+    let sq_p = p.isqrt();
     let mut a = p;
     let mut b = s;
     while b > sq_p {
@@ -227,7 +198,7 @@ pub fn four_squares(v: u128) -> [u64; 4] {
 
     let f = v % 4;
     if f == 2 {
-        let b = isqrt(v as _) as u64;
+        let b = v.isqrt() as u64;
 
         'main_loop: loop {
             let x = 2 + rng.gen::<u64>() % (b - 2);
@@ -290,7 +261,7 @@ pub fn four_squares(v: u128) -> [u64; 4] {
             let i = mont.natural_from_mont(sqrt);
             let i = if i <= p / 2 { p - i } else { i };
             let z = half_gcd(p, i) as u64;
-            let w = isqrt(p - sqr(z)) as u64;
+            let w = (p - sqr(z)).isqrt() as u64;
 
             if p != sqr(z) + sqr(w) {
                 continue 'main_loop;
