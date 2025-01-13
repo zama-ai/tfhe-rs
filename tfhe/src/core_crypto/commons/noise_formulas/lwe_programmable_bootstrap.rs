@@ -28,6 +28,7 @@ pub fn pbs_variance_132_bits_security_gaussian(
 /// if the keys used are encrypted using secure noise given by the
 /// [`minimal_glwe_variance`](`super::secure_noise`)
 /// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
+#[allow(clippy::suspicious_operation_groupings)]
 pub fn pbs_variance_132_bits_security_gaussian_impl(
     input_lwe_dimension: f64,
     output_glwe_dimension: f64,
