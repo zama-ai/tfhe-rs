@@ -25,9 +25,7 @@ unsafe impl Send for CudaStreams {}
 unsafe impl Sync for CudaStreams {}
 
 impl CudaStreams {
-    /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine,
-    /// if they are connected via Nvlink. If the multiple GPUs on the machine are not connected
-    /// via Nvlink, this function will panic on the Cuda side.
+    /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine
     pub fn new_multi_gpu() -> Self {
         let gpu_count = setup_multi_gpu();
         let mut gpu_indexes = Vec::with_capacity(gpu_count as usize);
