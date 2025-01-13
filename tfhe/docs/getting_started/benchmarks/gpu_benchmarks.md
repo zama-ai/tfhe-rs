@@ -30,4 +30,6 @@ The following table shows the performance when the left input of the benchmarked
 
 The next table shows the execution time of a keyswitch followed by a programmable bootstrapping depending on the precision of the input message. The associated parameter set is given.
 
+Note that these benchmarks use Gaussian parameters.
+
 {% embed url="https://docs.google.com/spreadsheets/d/1KhElQ7sIsShUSVQw5bKFoP-x5BgMaWh1pZtrVAdC3T4/edit?usp=sharing" %}

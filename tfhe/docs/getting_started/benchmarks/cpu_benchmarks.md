@@ -28,6 +28,8 @@ You can minimize operational costs by selecting from 'unchecked', 'checked', or 
 
 The next table shows the execution time of a keyswitch followed by a programmable bootstrapping depending on the precision of the input message. The associated parameter set is given. The configuration is Concrete FFT + AVX-512.
 
+Note that these benchmarks use Gaussian parameters.
+
 {% embed url="https://docs.google.com/spreadsheets/d/1o6MWpbzbYhDs3Pnoq-2hlNEgO9G8wGR5niW-OOZ6c_4/edit?usp=sharing" %}
 
 ## Reproducing TFHE-rs benchmarks
