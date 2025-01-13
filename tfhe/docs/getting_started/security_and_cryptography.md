@@ -63,7 +63,9 @@ The following sections explain the concept of noise and padding in ciphertexts.
 
 To ensure security, LWE requires random noise to be added to the message during encryption.
 
-TFHE scheme draws this random noise from a Centered Normal Distribution with a standard deviation parameter. The choice of standard deviation impacts the security level: increasing the standard deviation enhances security while keeping other factors constant.
+TFHE scheme draws this random noise either from:
+- A Centered Normal Distribution with a standard deviation parameter. The choice of standard deviation impacts the security level: increasing the standard deviation enhances security while keeping other factors constant.
+- A Tweaked Uniform (TUniform) Distribution with a bound parameter $2^b$ defined as follows: any value in the interval $(−2^b, ... , 2^b)$ is selected with probability $1/2^{b+1}$, with the two end points $−2^b$ and $2^b$ being selected with probability $1/2^{b+2}$. The main advantage of this distribution is to be bounded, whereas the usual Central Normal Distribution one is not. In some practical cases, this can simplify the use of homomorphic computation. The choice of the bound impacts the security level: increasing the bound enhances security while keeping other factors constant.
 
 **TFHE-rs** encodes the noise in the least significant bits of each plaintext. Each leveled computation increases the value of the noise. If too many computations are performed, the noise will eventually overflow into the message bits and lead to an incorrect result.
 
