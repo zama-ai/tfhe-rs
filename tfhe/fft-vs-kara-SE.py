@@ -28,6 +28,8 @@ kara_noises = {}
 # ~ for distro in ["TUNIFORM", "GAUSSIAN"]:
 for distro in ["GAUSSIAN"]:
     for gf in range(2,4+1):
+        a0_vals = []
+        a1_vals = []
         with open(LOG_B_FILE_FMT % (gf, distro), "w") as logB_file:
             logB_file.write("#  Excess FFT noise\n")
             logB_file.write("#  log B   level       k   log N  pred.slope   avg.slope     a-value   meas/pred\n")
@@ -160,8 +162,16 @@ for distro in ["GAUSSIAN"]:
 
                             # calc the value of a
                             bits_lost = 11 # (a + c*logN**2)
-                            fft_var_without_a = 1.0 * level*(k+1) * (1<<logbase)**2 * 2**(2*bits_lost) * k * (1<<logN)**2 / (CT_MOD**2)
+                            fft_var_without_a_N = 1.0 * level*(k+1) * (1<<logbase)**2 * 2**(2*bits_lost) * k / (CT_MOD**2)
+                            fft_var_without_a = fft_var_without_a_N * (1<<logN)**2
                             fft_a = (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / fft_var_without_a
+                            fft_a_N = (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / fft_var_without_a_N
+                            log_B_bnd = (53 + 5 - logN - np.log2(level*(k+1))) / (level+1)
+                            if logbase < log_B_bnd - .5:
+                                a0_vals.append([fft_a_N, logN])
+                            elif logbase > log_B_bnd + 2.5: #TODO FIXME this is too much heuristic, shall take into account a proper bound
+                                a1_vals.append([fft_a_N, logN])
+
 
                             # export values:   #  log B   level       k   log N  pred.slope   avg.slope     a-value
                             if fft_avg_slope_2nd_half/kara_avg_slope_2nd_half < 1.2:
@@ -243,6 +253,7 @@ for distro in ["GAUSSIAN"]:
                             # ~ print("FFT  first:", f_vars[0])
                             print("----")
                             print("Value of a:", fft_a)
+                            print("Noise base w/o N^2:", fft_var_without_a_N)
                             print("----")
                             print("FFT excess 0..1:", diff_vars_growth[0])
                             # ~ print("FFT excess 0..1 from plain diff (close to prev?):", fk_vars[0])
@@ -251,3 +262,15 @@ for distro in ["GAUSSIAN"]:
                             # ~ print("----")
                             # ~ print("FFT excess growth mean (close to .. from slope?):", np.mean(diff_vars_growth))
                             print("=" * 80)
+
+        # for distro, gf:
+        print(f"\n==== gf = {gf} ====")
+        print("a0 values:", a0_vals, "... of size:", len(a0_vals))
+        print("----")
+        print("a1 values:", a1_vals, "... of size:", len(a1_vals))
+        print("----")
+
+        ab0, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [ai[1] for ai in a0_vals], [ai[0] for ai in a0_vals])
+        ab1, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [ai[1] for ai in a1_vals], [ai[0] for ai in a1_vals])
+        print(f"curve fit before logB bound: {ab0[0]} N^{ab0[1]}")
+        print(f"curve fit after  logB bound: {ab1[0]} N^{ab1[1]}")
