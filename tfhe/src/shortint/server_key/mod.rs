@@ -640,7 +640,12 @@ impl ServerKey {
             self.bootstrapping_key.polynomial_size(),
             self.ciphertext_modulus,
         );
-        fill_accumulator_no_encoding(&mut acc, self, f);
+        fill_accumulator_no_encoding(
+            &mut acc,
+            self.bootstrapping_key.polynomial_size(),
+            self.bootstrapping_key.glwe_size(),
+            f,
+        );
 
         LookupTableOwned {
             acc,

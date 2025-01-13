@@ -13,9 +13,10 @@
 #include <stdio.h>
 
 template <typename T>
-__global__ void
-plaintext_addition(T *output, T const *lwe_input, T const *plaintext_input,
-                   uint32_t input_lwe_dimension, uint32_t num_entries) {
+__global__ void plaintext_addition(T *output, T const *lwe_input,
+                                   T const *plaintext_input,
+                                   const uint32_t input_lwe_dimension,
+                                   const uint32_t num_entries) {
 
   int tid = threadIdx.x;
   int plaintext_index = blockIdx.x * blockDim.x + tid;
@@ -28,10 +29,26 @@ plaintext_addition(T *output, T const *lwe_input, T const *plaintext_input,
 }
 
 template <typename T>
-__host__ void
-host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index, T *output,
-                        T const *lwe_input, T const *plaintext_input,
-                        uint32_t lwe_dimension, uint32_t lwe_ciphertext_count) {
+__global__ void plaintext_addition_scalar(T *output, T const *lwe_input,
+                                          const T plaintext_input,
+                                          const uint32_t input_lwe_dimension,
+                                          const uint32_t num_entries) {
+
+  int tid = threadIdx.x;
+  int lwe_index = blockIdx.x * blockDim.x + tid;
+  if (lwe_index < num_entries) {
+    int index = lwe_index * (input_lwe_dimension + 1) + input_lwe_dimension;
+    // Here we take advantage of the wrapping behaviour of uint
+    output[index] = lwe_input[index] + plaintext_input;
+  }
+}
+
+template <typename T>
+__host__ void host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index,
+                                      T *output, T const *lwe_input,
+                                      T const *plaintext_input,
+                                      const uint32_t lwe_dimension,
+                                      const uint32_t lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_index);
   int num_blocks = 0, num_threads = 0;
@@ -44,6 +61,27 @@ host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index, T *output,
       output, lwe_input, (lwe_dimension + 1) * lwe_ciphertext_count * sizeof(T),
       stream, gpu_index);
   plaintext_addition<T><<<grid, thds, 0, stream>>>(
+      output, lwe_input, plaintext_input, lwe_dimension, num_entries);
+  check_cuda_error(cudaGetLastError());
+}
+
+template <typename T>
+__host__ void host_addition_plaintext_scalar(
+    cudaStream_t stream, uint32_t gpu_index, T *output, T const *lwe_input,
+    const T plaintext_input, const uint32_t lwe_dimension,
+    const uint32_t lwe_ciphertext_count) {
+
+  cudaSetDevice(gpu_index);
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = lwe_ciphertext_count;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  cuda_memcpy_async_gpu_to_gpu(
+      output, lwe_input, (lwe_dimension + 1) * lwe_ciphertext_count * sizeof(T),
+      stream, gpu_index);
+  plaintext_addition_scalar<T><<<grid, thds, 0, stream>>>(
       output, lwe_input, plaintext_input, lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
 }
@@ -64,8 +102,8 @@ __global__ void addition(T *output, T const *input_1, T const *input_2,
 template <typename T>
 __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index, T *output,
                             T const *input_1, T const *input_2,
-                            uint32_t input_lwe_dimension,
-                            uint32_t input_lwe_ciphertext_count) {
+                            const uint32_t input_lwe_dimension,
+                            const uint32_t input_lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body

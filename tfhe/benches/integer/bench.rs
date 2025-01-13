@@ -1307,11 +1307,12 @@ define_server_key_bench_default_fn!(
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use criterion::criterion_group;
+    use criterion::{black_box, criterion_group};
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
+    use tfhe_csprng::seeders::Seed;
 
     fn bench_cuda_server_key_unary_function_clean_inputs<F>(
         c: &mut Criterion,
@@ -1722,6 +1723,84 @@ mod cuda {
                 param,
                 param.name(),
                 "if_then_else",
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    pub fn cuda_unsigned_oprf(c: &mut Criterion) {
+        let bench_name = "integer::cuda::unsigned_oprf";
+
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(30));
+
+        let streams = CudaStreams::new_multi_gpu();
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            let param_name = param.name();
+
+            let bench_id;
+
+            match BENCH_TYPE.get().unwrap() {
+                BenchmarkType::Latency => {
+                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &streams);
+
+                        b.iter(|| {
+                            _ = black_box(
+                                gpu_sks
+                                    .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                                        Seed(0),
+                                        bit_size as u64,
+                                        num_block as u64,
+                                        &streams,
+                                    ),
+                            );
+                        })
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    let elements = throughput_num_threads(num_block);
+                    bench_group.throughput(Throughput::Elements(elements));
+
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &streams);
+
+                        b.iter(|| {
+                            (0..elements).into_par_iter().for_each(|i| {
+                                let selected_gpu =
+                                    streams.gpu_indexes[i as usize % streams.gpu_indexes.len()];
+                                let stream = CudaStreams::new_single_gpu(selected_gpu);
+                                gpu_sks
+                                    .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                                        Seed(0),
+                                        bit_size as u64,
+                                        num_block as u64,
+                                        &stream,
+                                    );
+                            })
+                        })
+                    });
+                }
+            }
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                "oprf",
                 &OperatorType::Atomic,
                 bit_size as u32,
                 vec![param.message_modulus().0.ilog2(); num_block],
@@ -2376,6 +2455,7 @@ mod cuda {
         cuda_trailing_zeros,
         cuda_trailing_ones,
         cuda_ilog2,
+        cuda_unsigned_oprf,
     );
 
     criterion_group!(
@@ -2395,6 +2475,7 @@ mod cuda {
         cuda_scalar_mul,
         cuda_scalar_div,
         cuda_scalar_rem,
+        cuda_unsigned_oprf,
     );
 
     criterion_group!(

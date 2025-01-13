@@ -7,7 +7,8 @@
 void cuda_mult_lwe_ciphertext_vector_cleartext_vector_32(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_array_in, void const *cleartext_array_in,
-    uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count) {
+    const uint32_t input_lwe_dimension,
+    const uint32_t input_lwe_ciphertext_count) {
 
   host_cleartext_vec_multiplication<uint32_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -47,7 +48,8 @@ void cuda_mult_lwe_ciphertext_vector_cleartext_vector_32(
 void cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_array_in, void const *cleartext_array_in,
-    uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count) {
+    const uint32_t input_lwe_dimension,
+    const uint32_t input_lwe_ciphertext_count) {
 
   host_cleartext_vec_multiplication<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,

@@ -16,8 +16,8 @@
 template <typename T>
 __global__ void cleartext_vec_multiplication(T *output, T const *lwe_input,
                                              T const *cleartext_input,
-                                             uint32_t input_lwe_dimension,
-                                             uint32_t num_entries) {
+                                             const uint32_t input_lwe_dimension,
+                                             const uint32_t num_entries) {
 
   int tid = threadIdx.x;
   int index = blockIdx.x * blockDim.x + tid;
@@ -31,8 +31,8 @@ __global__ void cleartext_vec_multiplication(T *output, T const *lwe_input,
 template <typename T>
 __host__ void host_cleartext_vec_multiplication(
     cudaStream_t stream, uint32_t gpu_index, T *output, T const *lwe_input,
-    T const *cleartext_input, uint32_t input_lwe_dimension,
-    uint32_t input_lwe_ciphertext_count) {
+    T const *cleartext_input, const uint32_t input_lwe_dimension,
+    const uint32_t input_lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body

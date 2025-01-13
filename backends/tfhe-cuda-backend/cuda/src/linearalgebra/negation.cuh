@@ -23,8 +23,8 @@ __global__ void negation(T *output, T const *input, uint32_t num_entries) {
 
 template <typename T>
 __host__ void host_negation(cudaStream_t stream, uint32_t gpu_index, T *output,
-                            T const *input, uint32_t input_lwe_dimension,
-                            uint32_t input_lwe_ciphertext_count) {
+                            T const *input, const uint32_t input_lwe_dimension,
+                            const uint32_t input_lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body

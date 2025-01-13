@@ -1,8 +1,11 @@
-use super::{FheIntId, FheUintId};
+use super::{FheIntId, FheUint, FheUintId};
 use crate::high_level_api::global_state;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::{FheInt, FheUint, Seed};
-
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::{FheInt, Seed};
 impl<Id: FheUintId> FheUint<Id> {
     /// Generates an encrypted unsigned integer
     /// taken uniformly in its full range using the given seed.
@@ -35,9 +38,18 @@ impl<Id: FheUintId> FheUint<Id> {
                 Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                todo!("Cuda devices do not yet support oblivious pseudo random generation")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let d_ct: CudaUnsignedRadixCiphertext = cuda_key
+                    .key
+                    .key
+                    .par_generate_oblivious_pseudo_random_unsigned_integer(
+                        seed,
+                        Id::num_blocks(cuda_key.message_modulus()) as u64,
+                        streams,
+                    );
+
+                Self::new(d_ct, cuda_key.tag.clone())
+            }),
         })
     }
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -75,9 +87,18 @@ impl<Id: FheUintId> FheUint<Id> {
                 Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                todo!("Cuda devices do not yet support oblivious pseudo random generation")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let d_ct: CudaUnsignedRadixCiphertext = cuda_key
+                    .key
+                    .key
+                    .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                        seed,
+                        random_bits_count,
+                        Id::num_blocks(cuda_key.message_modulus()) as u64,
+                        streams,
+                    );
+                Self::new(d_ct, cuda_key.tag.clone())
+            }),
         })
     }
 }
@@ -115,9 +136,18 @@ impl<Id: FheIntId> FheInt<Id> {
                 Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                todo!("Cuda devices do not yet support oblivious pseudo random generation")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let d_ct: CudaSignedRadixCiphertext = cuda_key
+                    .key
+                    .key
+                    .par_generate_oblivious_pseudo_random_signed_integer(
+                        seed,
+                        Id::num_blocks(cuda_key.message_modulus()) as u64,
+                        streams,
+                    );
+
+                Self::new(d_ct, cuda_key.tag.clone())
+            }),
         })
     }
 
@@ -157,9 +187,18 @@ impl<Id: FheIntId> FheInt<Id> {
                 Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                todo!("Cuda devices do not yet support oblivious pseudo random generation")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let d_ct: CudaSignedRadixCiphertext = cuda_key
+                    .key
+                    .key
+                    .par_generate_oblivious_pseudo_random_signed_integer_bounded(
+                        seed,
+                        random_bits_count,
+                        Id::num_blocks(cuda_key.message_modulus()) as u64,
+                        streams,
+                    );
+                Self::new(d_ct, cuda_key.tag.clone())
+            }),
         })
     }
 }

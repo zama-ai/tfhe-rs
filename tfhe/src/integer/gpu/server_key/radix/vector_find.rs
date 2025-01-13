@@ -3,6 +3,7 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{LweBskGroupingFactor, UnsignedInteger};
 use crate::integer::block_decomposition::{BlockDecomposer, Decomposable, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
@@ -31,14 +32,17 @@ impl CudaServerKey {
                 .map(|ciphertext| &ciphertext.0.ciphertext.d_blocks),
             streams,
         );
-
-        let blocks_ct: CudaUnsignedRadixCiphertext = CudaUnsignedRadixCiphertext {
-            ciphertext: CudaRadixCiphertext {
-                d_blocks: packed_list,
-                info: selectors[0].0.ciphertext.info.clone(),
-            },
+        let vec_block_info: Vec<CudaBlockInfo> = selectors
+            .iter()
+            .flat_map(|ct| ct.0.ciphertext.info.blocks.clone())
+            .collect();
+        let radix_info = CudaRadixCiphertextInfo {
+            blocks: vec_block_info,
         };
-        blocks_ct
+        CudaIntegerRadixCiphertext::from(CudaRadixCiphertext {
+            d_blocks: packed_list,
+            info: radix_info,
+        })
     }
     #[allow(clippy::unused_self)]
     pub(crate) fn convert_radixes_vec_to_single_radix_ciphertext<T>(
@@ -56,10 +60,16 @@ impl CudaServerKey {
             radixes.iter().map(|ciphertext| &ciphertext.d_blocks),
             streams,
         );
-
+        let vec_block_info: Vec<CudaBlockInfo> = radixes
+            .iter()
+            .flat_map(|ct| ct.info.blocks.clone())
+            .collect();
+        let radix_info = CudaRadixCiphertextInfo {
+            blocks: vec_block_info,
+        };
         CudaIntegerRadixCiphertext::from(CudaRadixCiphertext {
             d_blocks: packed_list,
-            info: radixes[0].info.clone(),
+            info: radix_info,
         })
     }
 
