@@ -196,6 +196,10 @@ jobs:
         with:
           toolchain: stable
 
+      - name: DEBUG STEP FORCED EXIT
+        run: |
+          exit 1
+
       - name: Run tfhe-csprng tests
         if: needs.should-run.outputs.csprng_test == 'true'
         run: |
