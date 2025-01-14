@@ -826,7 +826,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
             let (mut decomposition, substack1) = TensorSignedDecompositionLendingIter::new(
                 glwe.as_ref()
                     .iter()
-                    .map(|s| decomposer.closest_representable(*s)),
+                    .map(|s| decomposer.init_decomposer_state(*s)),
                 decomposer.base_log(),
                 decomposer.level_count(),
                 substack0,
