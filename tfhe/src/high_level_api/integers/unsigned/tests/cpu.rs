@@ -92,7 +92,7 @@ fn test_uint32_shift() {
 #[test]
 fn test_uint32_shift_multibit() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+        .use_custom_parameters(V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
         .build();
 
     let (client_key, server_key) = generate_keys(config);
@@ -116,7 +116,7 @@ fn test_uint32_rotate() {
 #[test]
 fn test_multi_bit_rotate() {
     let client_key = setup_cpu(Some(
-        V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     ));
     super::test_case_uint32_rotate(&client_key);
 }
@@ -130,7 +130,7 @@ fn test_uint32_div_rem() {
 #[test]
 fn test_multi_div_rem() {
     let client_key = setup_cpu(Some(
-        V0_11_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     ));
     super::test_case_uint32_div_rem(&client_key);
 }
