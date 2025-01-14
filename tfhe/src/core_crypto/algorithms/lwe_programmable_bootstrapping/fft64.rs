@@ -1070,6 +1070,7 @@ pub fn karatsuba_programmable_bootstrap_lwe_ciphertext<
     accumulator: &GlweCiphertext<AccCont>,
     bsk: &LweBootstrapKey<KeyCont>,
     debug_material: Option<(
+        &LweSecretKeyOwned<InputScalar>,
         &GlweSecretKeyOwned<OutputScalar>,
         &GlweCiphertextOwned<OutputScalar>,
     )>,
@@ -1163,7 +1164,7 @@ where
             let monomial_degree = MonomialDegree(pbs_modulus_switch(*lwe_body.data, lut_poly_size));
 
             let mut clear_accumulator = Polynomial::from_container(
-                debug_material.map_or(vec![], |x| x.1.get_body().as_ref().to_vec()),
+                debug_material.map_or(vec![], |x| x.2.get_body().as_ref().to_vec()),
             );
 
             lut.as_mut_polynomial_list()
@@ -1220,8 +1221,8 @@ where
                         stack.rb_mut(),
                     );
 
-                    if let Some((glwe_secret_key, _)) = &debug_material {
-                        let lwe_key_bit: usize = glwe_secret_key.as_ref()[loop_idx].cast_into();
+                    if let Some((lwe_secret_key, glwe_secret_key, _)) = &debug_material {
+                        let lwe_key_bit: usize = lwe_secret_key.as_ref()[loop_idx].cast_into();
 
                         // Rotate the clear accumulator depending on the key bit value
                         polynomial_wrapping_monic_monomial_mul_assign(
