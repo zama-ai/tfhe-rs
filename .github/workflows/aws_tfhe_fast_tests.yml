@@ -26,6 +26,7 @@ on:
   # General entry point for Zama's pull request as well as contribution from forks.
   pull_request_target:
     paths:
+      - '**'
       - '!.github/**'
       - '!ci/**'
 
