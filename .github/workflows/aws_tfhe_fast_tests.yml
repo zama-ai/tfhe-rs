@@ -69,6 +69,10 @@ jobs:
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
           ref: ${{ env.REF }}
 
+      - name: Debug step
+        run: |
+          echo "SPAM"
+
       - name: Check for file changes
         id: changed-files
         uses: tj-actions/changed-files@d6e91a2266cdb9d62096cebf1e8546899c6aa18f
