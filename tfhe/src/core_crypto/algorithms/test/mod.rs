@@ -179,12 +179,12 @@ pub const DUMMY_31_U32: ClassicTestParams<u32> = ClassicTestParams {
 };
 
 pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(818),
+    lwe_dimension: LweDimension(818),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000002226459789930014,
     )),
-    decomp_base_log: DecompositionBaseLog(22),
-    decomp_level_count: DecompositionLevelCount(1),
+    pbs_base_log: DecompositionBaseLog(22),
+    pbs_level: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
@@ -197,12 +197,12 @@ pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
 };
 
 pub const MULTI_BIT_3_3_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(922),
+    lwe_dimension: LweDimension(922),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.0000003272369292345697,
     )),
-    decomp_base_log: DecompositionBaseLog(14),
-    decomp_level_count: DecompositionLevelCount(2),
+    pbs_base_log: DecompositionBaseLog(14),
+    pbs_level: DecompositionLevelCount(2),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
@@ -215,12 +215,12 @@ pub const MULTI_BIT_3_3_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
 };
 
 pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(818),
+    lwe_dimension: LweDimension(818),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000002226459789930014,
     )),
-    decomp_base_log: DecompositionBaseLog(22),
-    decomp_level_count: DecompositionLevelCount(1),
+    pbs_base_log: DecompositionBaseLog(22),
+    pbs_level: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
@@ -233,12 +233,12 @@ pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
 };
 
 pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(888),
+    lwe_dimension: LweDimension(888),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.0000006125031601933181,
     )),
-    decomp_base_log: DecompositionBaseLog(21),
-    decomp_level_count: DecompositionLevelCount(1),
+    pbs_base_log: DecompositionBaseLog(21),
+    pbs_level: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
@@ -251,12 +251,12 @@ pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
 };
 
 pub const MULTI_BIT_3_3_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(972),
+    lwe_dimension: LweDimension(972),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.00000013016688349592805,
     )),
-    decomp_base_log: DecompositionBaseLog(14),
-    decomp_level_count: DecompositionLevelCount(2),
+    pbs_base_log: DecompositionBaseLog(14),
+    pbs_level: DecompositionLevelCount(2),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
@@ -269,12 +269,12 @@ pub const MULTI_BIT_3_3_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
 };
 
 pub const MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(888),
+    lwe_dimension: LweDimension(888),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.0000006125031601933181,
     )),
-    decomp_base_log: DecompositionBaseLog(21),
-    decomp_level_count: DecompositionLevelCount(1),
+    pbs_base_log: DecompositionBaseLog(21),
+    pbs_level: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(

@@ -23,7 +23,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
     run_measurements: &bool,
 ) {
     type Scalar = u64;
-    let input_lwe_dimension = params.input_lwe_dimension;
+    let lwe_dimension = params.lwe_dimension;
     let lwe_noise_distribution = params.lwe_noise_distribution;
     let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -32,8 +32,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let pbs_decomposition_base_log = params.decomp_base_log;
-    let pbs_decomposition_level_count = params.decomp_level_count;
+    let pbs_decomposition_base_log = params.pbs_base_log;
+    let pbs_decomposition_level_count = params.pbs_level;
     let grouping_factor = params.grouping_factor;
     assert_eq!(
         discriminant(&lwe_noise_distribution),
@@ -90,13 +90,13 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
 
     // generate pseudo-random secret
     let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-        input_lwe_dimension,
+        lwe_dimension,
         &mut rsc.secret_random_generator,
     );
     // shall not play any role
     //~ // rewrite with fixed Hamming weight secret (n.b., with odd dimension, this is not exactly 1/2 !!)
     //~ input_lwe_secret_key.as_mut().fill(0);
-    //~ input_lwe_secret_key.as_mut()[..input_lwe_dimension/2].fill(1);
+    //~ input_lwe_secret_key.as_mut()[..lwe_dimension/2].fill(1);
 
     // generate pseudo-random secret
     let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -179,7 +179,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
     ));
 
     while msg != Scalar::ZERO {
-        //~ msg = msg.wrapping_sub(Scalar::ONE);
+        // msg = msg.wrapping_sub(Scalar::ONE);
         msg = Scalar::ZERO;
 
         println!("Acquiring {NB_TESTS} samples for \"{EXP_NAME}\" experiment ...");
@@ -408,14 +408,14 @@ fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
     } else {
         panic!("Unknown distribution: {}", params.lwe_noise_distribution)
     };
-    let filename_exp_var = format!("./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json", params.grouping_factor.0, params.decomp_base_log.0, params.decomp_level_count.0, params.glwe_dimension.0, params.polynomial_size.0);
+    let filename_exp_var = format!("./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json", params.grouping_factor.0, params.pbs_base_log.0, params.pbs_level.0, params.glwe_dimension.0, params.polynomial_size.0);
     let mut file_exp_var = File::create(&filename_exp_var).unwrap();
 
     let (expected_variance_kara,expected_variance_fft) = noise_prediction_kara_fft(params);
 
     file_exp_var.write_all(
         format!(r#"{{
-    "input_lwe_dimension": {},
+    "lwe_dimension": {},
     "grouping_factor": {},
     "log_base": {},
     "level": {},
@@ -425,10 +425,10 @@ fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
     "expected_variance_kara": {},
     "expected_variance_fft": {}
 }}"#,
-            params.input_lwe_dimension.0,
+            params.lwe_dimension.0,
             params.grouping_factor.0,
-            params.decomp_base_log.0,
-            params.decomp_level_count.0,
+            params.pbs_base_log.0,
+            params.pbs_level.0,
             params.glwe_dimension.0,
             params.polynomial_size.0,
             distro,
@@ -450,27 +450,27 @@ fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance,Vari
         if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
             match params.grouping_factor.0 {
                 2 => pbs_variance_132_bits_security_gaussian_gf_2_exact_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 3 => pbs_variance_132_bits_security_gaussian_gf_3_exact_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 4 => pbs_variance_132_bits_security_gaussian_gf_4_exact_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
@@ -478,27 +478,27 @@ fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance,Vari
         } else if let DynamicDistribution::TUniform(_) = params.lwe_noise_distribution {
             match params.grouping_factor.0 {
                 2 => pbs_variance_132_bits_security_tuniform_gf_2_exact_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 3 => pbs_variance_132_bits_security_tuniform_gf_3_exact_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 4 => pbs_variance_132_bits_security_tuniform_gf_4_exact_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
@@ -509,27 +509,27 @@ fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance,Vari
         if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
             match params.grouping_factor.0 {
                 2 => pbs_variance_132_bits_security_gaussian_gf_2_fft_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 3 => pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 4 => pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
@@ -537,27 +537,27 @@ fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance,Vari
         } else if let DynamicDistribution::TUniform(_) = params.lwe_noise_distribution {
             match params.grouping_factor.0 {
                 2 => pbs_variance_132_bits_security_tuniform_gf_2_fft_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 3 => pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 4 => pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
-                    params.input_lwe_dimension,
+                    params.lwe_dimension,
                     params.glwe_dimension,
                     params.polynomial_size,
-                    params.decomp_base_log,
-                    params.decomp_level_count,
+                    params.pbs_base_log,
+                    params.pbs_level,
                     modulus_as_f64,
                 ),
                 _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
@@ -574,7 +574,7 @@ fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit
 }
 
 #[test]
-fn test_export_noise_predictions() {
+fn test_export_multi_bit_noise_predictions() {
     test_impl(false);
 }
 
@@ -595,7 +595,7 @@ fn test_impl(run_measurements: bool) {
     //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
     //~ return;
 
-    for gf in [2,3,4] { //TODO add Vanilla BlindRot
+    for gf in [2,3,4] {
     for logbase in 5..=30 {
     for level in 1..=6 {
         if logbase * level > 36 {continue;}   // also used: logbase * level < 15
@@ -610,12 +610,12 @@ fn test_impl(run_measurements: bool) {
             // Gaussian noise
             let glwe_var = minimal_glwe_variance_for_132_bits_security_gaussian(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));   // TODO CiphertextModulus::new_native() ???
             let gaussian_params: MultiBitTestParams<u64> = MultiBitTestParams {
-                input_lwe_dimension: LweDimension(100 * 3),
+                lwe_dimension: LweDimension(100 * gf),
                 lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
                     1.4742441118914234e-06 // this shall play no role, right..?
                 )),
-                decomp_base_log: DecompositionBaseLog(logbase),
-                decomp_level_count: DecompositionLevelCount(level),
+                pbs_base_log: DecompositionBaseLog(logbase),
+                pbs_level: DecompositionLevelCount(level),
                 glwe_dimension: GlweDimension(*k),
                 polynomial_size: PolynomialSize(1 << logN),
                 glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(glwe_var.get_standard_dev())),
@@ -636,7 +636,7 @@ fn test_impl(run_measurements: bool) {
             //~ // TUniform noise
             //~ let glwe_bnd = minimal_glwe_bound_for_132_bits_security_tuniform(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));
             //~ let tuniform_params: MultiBitTestParams<u64> = MultiBitTestParams {
-                //~ input_lwe_dimension: LweDimension(100 * 3),
+                //~ lwe_dimension: LweDimension(100 * gf),
                 //~ lwe_noise_distribution: DynamicDistribution::new_t_uniform(10), // this shall play no role, right..?
                 //~ decomp_base_log: DecompositionBaseLog(logbase),
                 //~ decomp_level_count: DecompositionLevelCount(level),

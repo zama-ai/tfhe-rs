@@ -22,7 +22,7 @@ pub fn generate_keys<
 
     // Create the LweSecretKey
     let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-        params.input_lwe_dimension,
+        params.lwe_dimension,
         &mut rsc.secret_random_generator,
     );
     let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -36,9 +36,9 @@ pub fn generate_keys<
         Scalar::ZERO,
         params.glwe_dimension.to_glwe_size(),
         params.polynomial_size,
-        params.decomp_base_log,
-        params.decomp_level_count,
-        params.input_lwe_dimension,
+        params.pbs_base_log,
+        params.pbs_level,
+        params.lwe_dimension,
         params.grouping_factor,
         params.ciphertext_modulus,
     );
@@ -52,11 +52,11 @@ pub fn generate_keys<
     );
 
     let mut fbsk = FourierLweMultiBitBootstrapKey::new(
-        params.input_lwe_dimension,
+        params.lwe_dimension,
         params.glwe_dimension.to_glwe_size(),
         params.polynomial_size,
-        params.decomp_base_log,
-        params.decomp_level_count,
+        params.pbs_base_log,
+        params.pbs_level,
         params.grouping_factor,
     );
 

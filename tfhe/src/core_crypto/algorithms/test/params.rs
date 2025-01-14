@@ -66,10 +66,10 @@ pub struct ClassicTestParams<Scalar: UnsignedInteger> {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
-    pub input_lwe_dimension: LweDimension,
+    pub lwe_dimension: LweDimension,
     pub lwe_noise_distribution: DynamicDistribution<Scalar>,
-    pub decomp_base_log: DecompositionBaseLog,
-    pub decomp_level_count: DecompositionLevelCount,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
     pub glwe_noise_distribution: DynamicDistribution<Scalar>,
@@ -83,10 +83,10 @@ pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
 // to change its value in test without the need of regenerating keys in the key cache.
 impl<Scalar: UnsignedInteger> PartialEq for MultiBitTestParams<Scalar> {
     fn eq(&self, other: &Self) -> bool {
-        self.input_lwe_dimension == other.input_lwe_dimension
+        self.lwe_dimension == other.lwe_dimension
             && self.lwe_noise_distribution == other.lwe_noise_distribution
-            && self.decomp_base_log == other.decomp_base_log
-            && self.decomp_level_count == other.decomp_level_count
+            && self.pbs_base_log == other.pbs_base_log
+            && self.pbs_level == other.pbs_level
             && self.glwe_dimension == other.glwe_dimension
             && self.polynomial_size == other.polynomial_size
             && self.glwe_noise_distribution == other.glwe_noise_distribution
@@ -171,8 +171,8 @@ impl<Scalar: UnsignedInteger> NamedParam for MultiBitTestParams<Scalar> {
     fn name(&self) -> String {
         format!(
                 "PARAM_LWE_MULTI_BIT_BOOTSTRAP_glwe_{}_poly_{}_decomp_base_log_{}_decomp_level_{}_input_dim_{}_ct_modulus_{}_msg_modulus_log_{}_group_factor_{}",
-                self.glwe_dimension.0, self.polynomial_size.0, self.decomp_base_log.0,
-                self.decomp_level_count.0, self.input_lwe_dimension.0, self.ciphertext_modulus, self.message_modulus_log.0,
+                self.glwe_dimension.0, self.polynomial_size.0, self.pbs_base_log.0,
+                self.pbs_level.0, self.lwe_dimension.0, self.ciphertext_modulus, self.message_modulus_log.0,
                 self.grouping_factor.0,
             )
     }
