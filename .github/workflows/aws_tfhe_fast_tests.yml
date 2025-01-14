@@ -118,11 +118,6 @@ jobs:
               - 'tfhe/docs/**.md'
               - README.md
 
-      - name: TEST STEP
-        run: |
-          echo "EVENT NAME: ${{ github.event_name }}"
-          exit 1
-
       - name: Aggregate file changes
         id: aggregated-changes
         if: ( steps.changed-files.outputs.dependencies_any_changed == 'true' ||
