@@ -23,7 +23,6 @@ fn compute_delta(
             ciphertext_modulus.get_custom_modulus() as u64
                 / (carry_modulus.0 * message_modulus.0)
                 / if padding_bit == PaddingBit::Yes { 2 } else { 1 }
-                * 2
         }
     }
 }
@@ -72,7 +71,6 @@ impl ShortintEncoding {
     }
 
     pub(crate) fn decode(&self, value: Plaintext<u64>) -> Cleartext<u64> {
-        assert!(self.ciphertext_modulus.is_native_modulus());
         let delta = self.delta();
 
         // The bit before the message
@@ -81,6 +79,15 @@ impl ShortintEncoding {
         // Compute the rounding bit
         let rounding = (value.0 & rounding_bit) << 1;
 
-        Cleartext(value.0.wrapping_add(rounding) / delta)
+        // Force the decoded value to be in the correct range
+        Cleartext(
+            (value.0.wrapping_add(rounding) / delta)
+                % (self.message_modulus.0
+                    * self.carry_modulus.0
+                    * match self.padding_bit {
+                        PaddingBit::No => 1,
+                        PaddingBit::Yes => 2,
+                    }),
+        )
     }
 }
