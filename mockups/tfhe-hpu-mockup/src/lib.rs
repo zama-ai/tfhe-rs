@@ -501,7 +501,7 @@ impl HpuSim {
         let mut cpu_ct = Ciphertext::new(
             cpu_reg,
             Degree::new(sks.max_degree.get()),
-            NoiseLevel::MAX,
+            NoiseLevel::UNKNOWN,
             sks.message_modulus,
             sks.carry_modulus,
             sks.pbs_order,

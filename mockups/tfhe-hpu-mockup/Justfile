@@ -24,8 +24,26 @@ mockup_build:
     cd {{CARGO_HOME}}
     cargo build --release --bin hpu_mockup
 
-# Start mockup with fast configuration
-mockup_fast RUST_LOG=DEFAULT_RUST_LOG: mockup_build init
+# Start mockup 44b with fast configuration
+mockup_44b_fast RUST_LOG=DEFAULT_RUST_LOG: mockup_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    RUST_LOG={{RUST_LOG}} ./target/release/hpu_mockup \
+      --params mockups/tfhe-hpu-mockup/params/tfhers_44b_fast.ron \
+      --report-out mockup_rpt --report-trace
+
+# Start mockup with real 44b configuration
+mockup_44b RUST_LOG=DEFAULT_RUST_LOG: mockup_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    RUST_LOG={{RUST_LOG}} ./target/release/hpu_mockup \
+      --params mockups/tfhe-hpu-mockup/params/tfhers_44b.ron \
+      --report-out mockup_rpt --report-trace
+
+# Start mockup gf64 with fast configuration
+mockup_gf64_fast RUST_LOG=DEFAULT_RUST_LOG: mockup_build init
     #!/usr/bin/env bash
     set -euxo pipefail
     cd {{CARGO_HOME}}

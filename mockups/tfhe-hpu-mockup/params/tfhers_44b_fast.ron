@@ -1,28 +1,27 @@
 (
     rtl_params: (
         pbs_params: (
-            lwe_dimension:724,
+            lwe_dimension:20,
             glwe_dimension:2,
             polynomial_size:1024,
-            lwe_modular_std_dev: 1.2597809688976277e-05,
-            glwe_modular_std_dev: 2.2737367544323206e-13,
-            pbs_base_log: 20,
-            pbs_level: 1,
-            ks_base_log: 2,
-            ks_level: 7,
-            message_width: 2,
-            carry_width: 2,
-            ciphertext_width: 64,
+            lwe_modular_std_dev:0.0,
+            glwe_modular_std_dev:0.0,
+            pbs_base_log:20,
+            pbs_level:1,
+            ks_base_log:2,
+            ks_level:7,
+            message_width:2,
+            carry_width:2,
+            ciphertext_width:44,
         ),
         ntt_params: (
-            core_arch: GF64([5,5]),
-            // core_arch: WmmUnfoldPcg,
+            core_arch: WmmUnfoldPcg,
             batch_pbs_nb: 16,
             total_pbs_nb: 32,
-            ct_width: 64,
+            ct_width: 44,
             radix: 2,
             stg_nb: 10,
-            prime_modulus: 18446744069414584321,
+            prime_modulus: 17592186028033,
             psi: 32,
             delta: 5,
         ),
@@ -56,6 +55,6 @@
         freq_MHz: 300,
         // Timeframe of each simulation slot
         // Enforce responsiveness of the simulation
-        quantum_us: 1_000_000,
+        quantum_us: 100_000,
     )
 )
