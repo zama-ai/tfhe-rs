@@ -1,15 +1,17 @@
 use super::super::math::fft::{Fft, FftView, FourierPolynomialList};
 use super::ggsw::*;
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
+use crate::core_crypto::algorithms::{
+    decrypt_glwe_ciphertext, extract_lwe_sample_from_glwe_ciphertext,
+};
 use crate::core_crypto::backward_compatibility::fft_impl::FourierLweBootstrapKeyVersions;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, MonomialDegree,
-    PolynomialSize,
+    PlaintextCount, PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, IntoContainerOwned, Split,
@@ -370,6 +372,144 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
     }
 
     // CastInto required for PBS modulus switch which returns a usize
+    pub fn blind_rotate_assign_return_noise<InputScalar, OutputScalar>(
+        self,
+        mut lut: GlweCiphertextMutView<'_, OutputScalar>,
+        lwe: LweCiphertextView<'_, InputScalar>,
+        fft: FftView<'_>,
+        mut stack: PodStack<'_>,
+        debug_material: Option<(
+            &LweSecretKeyOwned<InputScalar>,
+            &GlweSecretKeyOwned<OutputScalar>,
+            &GlweCiphertextOwned<OutputScalar>,
+        )>,
+    ) -> Vec<Vec<OutputScalar>>
+    where
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+    {
+        let mut noise_vec = vec![];
+
+        let (lwe_mask, lwe_body) = lwe.get_mask_and_body();
+
+        let lut_poly_size = lut.polynomial_size();
+        let ciphertext_modulus = lut.ciphertext_modulus();
+        assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+        let monomial_degree = MonomialDegree(pbs_modulus_switch(*lwe_body.data, lut_poly_size));
+
+        let mut clear_accumulator = Polynomial::from_container(
+            debug_material.map_or(vec![], |x| x.2.get_body().as_ref().to_vec()),
+        );
+
+        lut.as_mut_polynomial_list()
+            .iter_mut()
+            .for_each(|mut poly| {
+                let (tmp_poly, _) = stack
+                    .rb_mut()
+                    .make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
+
+                let mut tmp_poly = Polynomial::from_container(&mut *tmp_poly);
+                tmp_poly.as_mut().copy_from_slice(poly.as_ref());
+                polynomial_wrapping_monic_monomial_div(&mut poly, &tmp_poly, monomial_degree);
+            });
+
+        // Apply the same computation on the clear polynomial
+        polynomial_wrapping_monic_monomial_div_assign(&mut clear_accumulator, monomial_degree);
+
+        // We initialize the ct_0 used for the successive cmuxes
+        let mut ct0 = lut;
+        let (ct1, mut stack) = stack.make_aligned_raw(ct0.as_ref().len(), CACHELINE_ALIGN);
+        let mut ct1 =
+            GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
+
+        for (loop_idx, (lwe_mask_element, bootstrap_key_ggsw)) in
+            izip!(lwe_mask.as_ref().iter(), self.into_ggsw_iter()).enumerate()
+        {
+            if *lwe_mask_element != InputScalar::ZERO {
+                let monomial_degree =
+                    MonomialDegree(pbs_modulus_switch(*lwe_mask_element, lut_poly_size));
+
+                // we effectively inline the body of cmux here, merging the initial subtraction
+                // operation with the monic polynomial multiplication, then performing the external
+                // product manually
+
+                // We rotate ct_1 and subtract ct_0 (first step of cmux) by performing
+                // ct_1 <- (ct_0 * X^{a_hat}) - ct_0
+                for (mut ct1_poly, ct0_poly) in izip!(
+                    ct1.as_mut_polynomial_list().iter_mut(),
+                    ct0.as_polynomial_list().iter(),
+                ) {
+                    polynomial_wrapping_monic_monomial_mul_and_subtract(
+                        &mut ct1_poly,
+                        &ct0_poly,
+                        monomial_degree,
+                    );
+                }
+
+                // as_mut_view is required to keep borrow rules consistent
+                // second step of cmux
+                add_external_product_assign(
+                    ct0.as_mut_view(),
+                    bootstrap_key_ggsw,
+                    ct1.as_view(),
+                    fft,
+                    stack.rb_mut(),
+                );
+
+                if let Some((lwe_secret_key, glwe_secret_key, _)) = &debug_material {
+                    let lwe_key_bit: usize = lwe_secret_key.as_ref()[loop_idx].cast_into();
+
+                    // Rotate the clear accumulator depending on the key bit value
+                    polynomial_wrapping_monic_monomial_mul_assign(
+                        &mut clear_accumulator,
+                        MonomialDegree(monomial_degree.0 * lwe_key_bit),
+                    );
+
+                    let mut decrypted = PlaintextList::new(
+                        OutputScalar::ZERO,
+                        PlaintextCount(ct0.polynomial_size().0),
+                    );
+
+                    decrypt_glwe_ciphertext(glwe_secret_key, &ct0, &mut decrypted);
+
+                    // println!("decrypted={:?}", decrypted.as_ref());
+                    // println!("clear_accumulator={:?}", clear_accumulator.as_ref());
+
+                    let diff_to_clear: Vec<_> = decrypted
+                        .as_ref()
+                        .iter()
+                        .copied()
+                        .zip(clear_accumulator.as_ref().iter().copied())
+                        .map(|(dec, clear)| dec.wrapping_sub(clear))
+                        .collect();
+
+                    // println!("diff_to_clear={:?}", &diff_to_clear);
+
+                    // assert!(diff_to_clear.iter().copied().all(|x| x == Scalar::ZERO));
+
+                    noise_vec.push(diff_to_clear);
+                }
+            }
+        }
+
+        if !ciphertext_modulus.is_native_modulus() {
+            // When we convert back from the fourier domain, integer values will contain up to 53
+            // MSBs with information. In our representation of power of 2 moduli < native modulus we
+            // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+            // round while keeping the data in the MSBs
+            let signed_decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
+                DecompositionLevelCount(1),
+            );
+            ct0.as_mut()
+                .iter_mut()
+                .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+        }
+
+        noise_vec
+    }
+
+    // CastInto required for PBS modulus switch which returns a usize
     pub fn batch_blind_rotate_assign<InputScalar, OutputScalar>(
         self,
         mut lut_list: GlweCiphertextListMutView<'_, OutputScalar>,
@@ -510,6 +650,55 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
             &mut lwe_out,
             MonomialDegree(0),
         );
+    }
+
+    pub fn bootstrap_return_noise<InputScalar, OutputScalar>(
+        self,
+        mut lwe_out: LweCiphertextMutView<'_, OutputScalar>,
+        lwe_in: LweCiphertextView<'_, InputScalar>,
+        accumulator: GlweCiphertextView<'_, OutputScalar>,
+        fft: FftView<'_>,
+        stack: PodStack<'_>,
+        debug_material: Option<(
+            &LweSecretKeyOwned<InputScalar>,
+            &GlweSecretKeyOwned<OutputScalar>,
+            &GlweCiphertextOwned<OutputScalar>,
+        )>,
+    ) -> Vec<Vec<OutputScalar>>
+    where
+        // CastInto required for PBS modulus switch which returns a usize
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+    {
+        assert!(lwe_in.ciphertext_modulus().is_power_of_two());
+        assert!(lwe_out.ciphertext_modulus().is_power_of_two());
+        assert_eq!(
+            lwe_out.ciphertext_modulus(),
+            accumulator.ciphertext_modulus()
+        );
+
+        let (local_accumulator_data, stack) =
+            stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
+        let mut local_accumulator = GlweCiphertextMutView::from_container(
+            &mut *local_accumulator_data,
+            accumulator.polynomial_size(),
+            accumulator.ciphertext_modulus(),
+        );
+        let noise = self.blind_rotate_assign_return_noise(
+            local_accumulator.as_mut_view(),
+            lwe_in.as_view(),
+            fft,
+            stack,
+            debug_material,
+        );
+
+        extract_lwe_sample_from_glwe_ciphertext(
+            &local_accumulator,
+            &mut lwe_out,
+            MonomialDegree(0),
+        );
+
+        noise
     }
 
     pub fn batch_bootstrap<InputScalar, OutputScalar>(

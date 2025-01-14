@@ -1057,6 +1057,70 @@ pub fn programmable_bootstrap_lwe_ciphertext<
     );
 }
 
+pub fn programmable_bootstrap_lwe_ciphertext_return_noise<
+    InputScalar,
+    OutputScalar,
+    InputCont,
+    OutputCont,
+    AccCont,
+    KeyCont,
+>(
+    input: &LweCiphertext<InputCont>,
+    output: &mut LweCiphertext<OutputCont>,
+    accumulator: &GlweCiphertext<AccCont>,
+    fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
+    debug_material: Option<(
+        &LweSecretKeyOwned<InputScalar>,
+        &GlweSecretKeyOwned<OutputScalar>,
+        &GlweCiphertextOwned<OutputScalar>,
+    )>,
+) -> Vec<Vec<OutputScalar>>
+where
+    // CastInto required for PBS modulus switch which returns a usize
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
+    KeyCont: Container<Element = c64>,
+{
+    assert!(
+        input.ciphertext_modulus().is_power_of_two(),
+        "This operation requires the input to have a power of two modulus."
+    );
+    assert_eq!(
+        output.ciphertext_modulus(),
+        accumulator.ciphertext_modulus()
+    );
+
+    let mut buffers = ComputationBuffers::new();
+
+    let fft = Fft::new(fourier_bsk.polynomial_size());
+    let fft = fft.as_view();
+
+    buffers.resize(
+        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<OutputScalar>(
+            fourier_bsk.glwe_size(),
+            fourier_bsk.polynomial_size(),
+            fft,
+        )
+        .unwrap()
+        .unaligned_bytes_required(),
+    );
+
+    let stack = buffers.stack();
+
+    programmable_bootstrap_lwe_ciphertext_mem_optimized_return_noise(
+        input,
+        output,
+        accumulator,
+        fourier_bsk,
+        fft,
+        stack,
+        debug_material,
+    )
+}
+
 pub fn karatsuba_programmable_bootstrap_lwe_ciphertext<
     InputScalar,
     OutputScalar,
@@ -1338,6 +1402,70 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
         fft,
         stack,
     );
+}
+
+pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_return_noise<
+    InputScalar,
+    OutputScalar,
+    InputCont,
+    OutputCont,
+    AccCont,
+    KeyCont,
+>(
+    input: &LweCiphertext<InputCont>,
+    output: &mut LweCiphertext<OutputCont>,
+    accumulator: &GlweCiphertext<AccCont>,
+    fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
+    fft: FftView<'_>,
+    stack: PodStack<'_>,
+    debug_material: Option<(
+        &LweSecretKeyOwned<InputScalar>,
+        &GlweSecretKeyOwned<OutputScalar>,
+        &GlweCiphertextOwned<OutputScalar>,
+    )>,
+) -> Vec<Vec<OutputScalar>>
+where
+    // CastInto required for PBS modulus switch which returns a usize
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
+    KeyCont: Container<Element = c64>,
+{
+    assert_eq!(
+        accumulator.ciphertext_modulus(),
+        output.ciphertext_modulus(),
+        "Mismatched moduli between accumulator ({:?}) and output ({:?})",
+        accumulator.ciphertext_modulus(),
+        output.ciphertext_modulus()
+    );
+
+    assert_eq!(
+        fourier_bsk.input_lwe_dimension(),
+        input.lwe_size().to_lwe_dimension(),
+        "Mismatched input LweDimension. \
+        FourierLweBootstrapKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        fourier_bsk.input_lwe_dimension(),
+        input.lwe_size().to_lwe_dimension(),
+    );
+    assert_eq!(
+        fourier_bsk.output_lwe_dimension(),
+        output.lwe_size().to_lwe_dimension(),
+        "Mismatched output LweDimension. \
+        FourierLweBootstrapKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        fourier_bsk.output_lwe_dimension(),
+        output.lwe_size().to_lwe_dimension(),
+    );
+
+    fourier_bsk.as_view().bootstrap_return_noise(
+        output.as_mut_view(),
+        input.as_view(),
+        accumulator.as_view(),
+        fft,
+        stack,
+        debug_material,
+    )
 }
 
 /// Return the required memory for [`programmable_bootstrap_lwe_ciphertext_mem_optimized`].
