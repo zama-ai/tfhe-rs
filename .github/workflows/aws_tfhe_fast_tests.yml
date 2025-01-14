@@ -60,6 +60,7 @@ jobs:
       user_docs_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.user_docs_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
+      ci_file_changed: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.ci_any_changed }}
       any_file_changed: ${{ env.IS_PULL_REQUEST == 'false' || steps.aggregated-changes.outputs.any_changed }}
     steps:
       - name: Checkout tfhe-rs
@@ -118,9 +119,13 @@ jobs:
               - '!tfhe/src/c_api/**'
               - 'tfhe/docs/**.md'
               - README.md
+            ci:
+              - .github/**
+              - ci/**
 
       - name: Aggregate file changes
         id: aggregated-changes
+        # CI files are not included in this aggregator.
         if: ( steps.changed-files.outputs.dependencies_any_changed == 'true' ||
           steps.changed-files.outputs.csprng_any_changed == 'true' ||
           steps.changed-files.outputs.zk_pok_any_changed == 'true' ||
@@ -136,16 +141,19 @@ jobs:
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
   # Fail if the triggering actor is not part of Zama organization.
+  # If pull_request_target is emitted and CI files have changed, skip this job. This would skip following jobs.
   check-user-permission:
     needs: should-run
+    if: github.event_name != 'pull_request_target' ||
+      (github.event_name == 'pull_request_target' && needs.should-run.outputs.ci_file_changed == 'false')
     uses: ./.github/workflows/check_triggering_actor.yml
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   setup-instance:
     name: Setup instance (fast-tests)
-    if: github.event_name != 'pull_request_target' ||
-      needs.should-run.outputs.any_file_changed == 'true'
+    if: github.event_name == 'workflow_dispatch' ||
+      (github.event_name != 'workflow_dispatch' && needs.should-run.outputs.any_file_changed == 'true')
     needs: [ should-run, check-user-permission ]
     runs-on: ubuntu-latest
     outputs:
@@ -164,8 +172,8 @@ jobs:
 
   fast-tests:
     name: Fast CPU tests
-    if: github.event_name != 'pull_request_target' ||
-      (github.event_name == 'pull_request_target' && needs.setup-instance.result != 'skipped')
+    if: github.event_name == 'workflow_dispatch' ||
+      needs.setup-instance.result != 'skipped'
     needs: [ should-run, setup-instance ]
     concurrency:
       group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
