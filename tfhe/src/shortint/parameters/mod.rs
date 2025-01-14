@@ -34,6 +34,7 @@ pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
 pub mod v0_10;
+pub mod v0_11;
 
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use super::server_key::PBSConformanceParameters;
@@ -63,6 +64,10 @@ pub use crate::shortint::parameters::v0_10::multi_bit::gaussian::p_fail_2_minus_
 pub use crate::shortint::parameters::v0_10::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::v0_10::key_switching::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::v0_10::compact_public_key_only::p_fail_2_minus_64::ks_pbs::*;
+
+pub use crate::shortint::parameters::v0_11::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::v0_11::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs_gpu::*;
+pub use crate::shortint::parameters::v0_11::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::*;
 
 #[cfg(tarpaulin)]
 pub use coverage_parameters::*;
