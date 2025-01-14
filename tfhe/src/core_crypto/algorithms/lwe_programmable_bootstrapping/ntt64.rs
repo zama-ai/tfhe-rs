@@ -343,7 +343,6 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
 
         for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), bsk.into_ggsw_iter()) {
             if *lwe_mask_element != 0u64 {
-                let stack = &mut *stack;
                 // We copy ct_0 to ct_1
                 let (ct1, stack) =
                     stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
@@ -702,8 +701,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
                 substack0,
             );
 
-            // We loop through the levels (we reverse to match the order of the decomposition
-            // iterator.)
+            // We loop through the levels
             ggsw.into_levels().for_each(|ggsw_decomp_matrix| {
                 // We retrieve the decomposition of this level.
                 let (glwe_level, glwe_decomp_term, substack2) =
@@ -814,7 +812,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
             ggsw.decomposition_level_count(),
         );
 
-        let (output_fft_buffer, mut substack0) =
+        let (output_fft_buffer, substack0) =
             stack.make_aligned_raw::<u64>(poly_size * ggsw.glwe_size().0, align);
         // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
         // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
@@ -825,21 +823,20 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
             // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
             // DOMAIN In this section, we perform the external product in the ntt
             // domain, and accumulate the result in the output_fft_buffer variable.
-            let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(
+            let (mut decomposition, substack1) = TensorSignedDecompositionLendingIter::new(
                 glwe.as_ref()
                     .iter()
                     .map(|s| decomposer.closest_representable(*s)),
                 decomposer.base_log(),
                 decomposer.level_count(),
-                substack0.rb_mut(),
+                substack0,
             );
 
-            // We loop through the levels (we reverse to match the order of the decomposition
-            // iterator.)
-            ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
+            // We loop through the levels
+            ggsw.into_levels().for_each(|ggsw_decomp_matrix| {
                 // We retrieve the decomposition of this level.
-                let (glwe_level, glwe_decomp_term, mut substack2) =
-                    collect_next_term(&mut decomposition, &mut substack1, align);
+                let (glwe_level, glwe_decomp_term, substack2) =
+                    collect_next_term(&mut decomposition, substack1, align);
                 let glwe_decomp_term = GlweCiphertextView::from_container(
                     &*glwe_decomp_term,
                     ggsw.polynomial_size(),
@@ -864,8 +861,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
                     glwe_decomp_term.as_polynomial_list().iter()
                 )
                 .for_each(|(ggsw_row, glwe_poly)| {
-                    let (mut ntt_poly, _) =
-                        substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
+                    let (mut ntt_poly, _) = substack2.make_aligned_raw::<u64>(poly_size, align);
                     // 1. Move poly coef in ntt_modulus if needed
                     ntt_poly.clone_from_slice(glwe_poly.into_container());
                     // NB: Decomposition term is already LSB align
