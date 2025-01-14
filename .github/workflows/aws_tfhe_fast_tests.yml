@@ -11,13 +11,23 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request_target' }}
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
   REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
+  # Trigger pull_request event on CI files to be able to test changes before merging to main branch.
+  # Workflow would fail if changes come from a forked repository since secrets are not available with this event.
+  pull_request:
+    paths:
+      - '.github/**'
+      - 'ci/**'
+  # General entry point for Zama's pull request as well as contribution from forks.
   pull_request_target:
+    paths:
+      - '!.github/**'
+      - '!ci/**'
 
 jobs:
   should-run:
@@ -124,6 +134,7 @@ jobs:
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
+  # Fail if the triggering actor is not part of Zama organization.
   check-user-permission:
     needs: should-run
     uses: ./.github/workflows/check_triggering_actor.yml
