@@ -164,13 +164,7 @@ All operations follow the same syntax than the one described in [here](../gettin
 
 ## Multi-GPU support
 
-TFHE-rs supports platforms with multiple GPUs with some restrictions at the moment:
-the platform should have NVLink support, and only GPUs that have peer access to GPU 0 via NVLink
-will be used for the computation. 
-Depending on the platform, this can restrict the number of GPUs used to perform the computation.
-
-There is **nothing to change in the code to execute on multiple GPUs**, when 
-they are available and have peer access to GPU 0 via NVLink. To keep the API as user-friendly as possible, the configuration is automatically set, i.e., the user has no fine-grained control over the number of GPUs to be used.
+TFHE-rs supports platforms with multiple GPUs. There is **nothing to change in the code to execute on such platforms**. To keep the API as user-friendly as possible, the configuration is automatically set, i.e., the user has no fine-grained control over the number of GPUs to be used.
 
 ## Benchmark 
 Please refer to the [GPU benchmarks](../getting_started/benchmarks/gpu_benchmarks.md) for detailed performance benchmark results.
