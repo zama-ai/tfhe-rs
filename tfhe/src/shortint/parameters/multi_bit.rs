@@ -172,15 +172,15 @@ pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS: MultiBitPBSParameter
 
 pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
-        lwe_dimension: LweDimension(888),
+        lwe_dimension: LweDimension(837),
         glwe_dimension: GlweDimension(1),
         polynomial_size: PolynomialSize(2048),
-        lwe_modular_std_dev: StandardDev(0.0000006125031601933181),
-        glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
-        pbs_base_log: DecompositionBaseLog(21),
+        lwe_modular_std_dev: StandardDev(3.3747142481837397e-06),
+        glwe_modular_std_dev: StandardDev(2.845267479601915e-15),
+        pbs_base_log: DecompositionBaseLog(22),
         pbs_level: DecompositionLevelCount(1),
-        ks_base_log: DecompositionBaseLog(7),
-        ks_level: DecompositionLevelCount(2),
+        ks_base_log: DecompositionBaseLog(3),
+        ks_level: DecompositionLevelCount(5),
         message_modulus: MessageModulus(4),
         carry_modulus: CarryModulus(4),
         ciphertext_modulus: CiphertextModulus::new_native(),
