@@ -8,13 +8,13 @@ Some cryptographic parameters will require tuning to ensure both the correctness
 
 To make it simpler, **we've provided two sets of parameters**, which ensure correct computations for a certain probability with the standard security of 128 bits. There exists an error probability due to the probabilistic nature of the encryption, which requires adding randomness (noise) following a Gaussian distribution. If this noise is too large, the decryption will not give a correct result. There is a trade-off between efficiency and correctness: generally, using a less efficient parameter set (in terms of computation time) leads to a smaller risk of having an error during homomorphic evaluation.
 
-In the two proposed sets of parameters, the only difference lies in this error probability. The default parameter set ensures an error probability of at most $$2^{-40}$$ when computing a programmable bootstrapping (i.e., any gates but the `not`). The other one is closer to the error probability claimed in the original [TFHE paper](https://eprint.iacr.org/2018/421), namely $$2^{-165}$$, but it is up-to-date regarding security requirements.
+In the two proposed sets of parameters, the only difference lies in this error probability. The default parameter set ensures an error probability of at most $$2^{-64}$$ when computing a programmable bootstrapping (i.e., any gates but the `not`). The other one is closer to the error probability claimed in the original [TFHE paper](https://eprint.iacr.org/2018/421), namely $$2^{-165}$$, but it is up-to-date regarding security requirements.
 
 The following array summarizes this:
 
 |     Parameter set     | Error probability |
 | :-------------------: | :---------------: |
-|  DEFAULT\_PARAMETERS  |    $$2^{-40}$$    |
+|  DEFAULT\_PARAMETERS  |    $$2^{-64}$$    |
 | TFHE\_LIB\_PARAMETERS |    $$2^{-165}$$   |
 
 ## User-defined parameters
