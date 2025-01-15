@@ -33,7 +33,7 @@ pub fn u128_to_f64((lo, hi): (u64, u64)) -> f64 {
     const C: f64 = (1u128 << 76) as f64;
     const D: f64 = u128::MAX as f64;
     if hi < 1 << 40 {
-        let l = f64::from_bits(A.to_bits() | (lo << 12) >> 12) - A;
+        let l = f64::from_bits(A.to_bits() | ((lo << 12) >> 12)) - A;
         let h = f64::from_bits(B.to_bits() | ((lo >> 52) | (hi << 12))) - B;
         l + h
     } else {
@@ -306,7 +306,7 @@ pub fn f64_to_u128(f: f64) -> (u64, u64) {
         (0u64, 0u64)
     } else {
         // >= 1, < max
-        let hi = 1 << 63 | f << 11;
+        let hi = (1 << 63) | (f << 11);
         let s = 1150 - (f >> 52); // Shift based on the exponent and bias.
         if s >= 128 {
             (0u64, 0u64)
@@ -322,13 +322,13 @@ pub fn f64_to_u128(f: f64) -> (u64, u64) {
 pub fn f64_to_i128(f: f64) -> (u64, u64) {
     let f = f.to_bits();
 
-    let a = f & !0 >> 1; // Remove sign bit.
+    let a = f & (!0 >> 1); // Remove sign bit.
     if a < 1023 << 52 {
         // >= 0, < 1
         (0, 0)
     } else {
         // >= 1, < max
-        let hi = 1 << 63 | a << 11;
+        let hi = (1 << 63) | (a << 11);
         let s = 1150 - (a >> 52); // Shift based on the exponent and bias.
         let u = if s >= 128 {
             (0, 0)

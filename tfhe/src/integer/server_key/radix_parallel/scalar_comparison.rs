@@ -969,7 +969,7 @@ impl ServerKey {
                         };
                         let b0 = is_x_less_than_y_given_input_borrow(x, y, 0, modulus);
                         let b1 = is_x_less_than_y_given_input_borrow(x, y, 1, modulus);
-                        (b1 << 1 | b0) << 2
+                        ((b1 << 1) | b0) << 2
                     });
 
                     Some(PreparedSignedCheck::Unified(

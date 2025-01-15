@@ -45,7 +45,7 @@ pub(in crate::integer) fn slice_oneblock_clear_unaligned(
     offset: usize,
     block_size: usize,
 ) -> u64 {
-    cur_block >> (offset) | ((next_block << (block_size - offset)) % (1 << block_size))
+    (cur_block >> (offset)) | ((next_block << (block_size - offset)) % (1 << block_size))
 }
 
 impl ServerKey {

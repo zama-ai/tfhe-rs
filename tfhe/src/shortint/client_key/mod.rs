@@ -798,7 +798,7 @@ impl ClientKey {
         let decrypted_u64: u64 = self.decrypt_no_decode(ct);
 
         let mut result = decrypted_u64 as u128 * basis as u128;
-        result = result.wrapping_add((result & 1 << 63) << 1) / (1 << 64);
+        result = result.wrapping_add((result & (1 << 63)) << 1) / (1 << 64);
 
         result as u64 % basis
     }

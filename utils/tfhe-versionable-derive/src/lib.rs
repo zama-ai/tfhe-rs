@@ -514,7 +514,7 @@ fn remove_unsized_bound(
         .filter(|bound| match bound {
             TypeParamBound::Trait(trait_bound) => {
                 if !matches!(trait_bound.modifier, TraitBoundModifier::None) {
-                    if let Some(segment) = trait_bound.path.segments.iter().last() {
+                    if let Some(segment) = trait_bound.path.segments.iter().next_back() {
                         if segment.ident == "Sized" {
                             return false;
                         }

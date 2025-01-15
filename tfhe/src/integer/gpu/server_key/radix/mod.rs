@@ -1160,7 +1160,7 @@ impl CudaServerKey {
         let num_bits_in_block = message_modulus.ilog2();
         let padding_block_creator_lut = self.generate_lookup_table(|x| {
             let x = x % message_modulus;
-            let x_sign_bit = x >> (num_bits_in_block - 1) & 1;
+            let x_sign_bit = (x >> (num_bits_in_block - 1)) & 1;
             // padding is a message full of 1 if sign bit is one
             // else padding is a zero message
             (message_modulus - 1) * x_sign_bit

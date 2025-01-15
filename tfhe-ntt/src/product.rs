@@ -278,12 +278,12 @@ impl Plan {
         let ntt_32: &mut [u32] = bytemuck::cast_slice_mut(ntt_32);
 
         // optimize common cases(?): u64x1, u32x1
-        if self.plan_32.len() == 0 && self.plan_64.len() == 1 {
+        if self.plan_32.is_empty() && self.plan_64.len() == 1 {
             ntt_64.copy_from_slice(standard);
             self.plan_64[0].fwd(ntt_64);
             return;
         }
-        if self.plan_32.len() == 1 && self.plan_64.len() == 0 {
+        if self.plan_32.len() == 1 && self.plan_64.is_empty() {
             for (ntt, &standard) in ntt_32.iter_mut().zip(standard) {
                 *ntt = standard as u32;
             }
@@ -291,7 +291,7 @@ impl Plan {
             return;
         }
 
-        if self.plan_32.len() == 2 && self.plan_64.len() == 0 {
+        if self.plan_32.len() == 2 && self.plan_64.is_empty() {
             let (ntt0, ntt1) = ntt_32.split_at_mut(self.ntt_size());
             let p0_div = self.plan_32[0].p_div();
             let p1_div = self.plan_32[1].p_div();
@@ -375,7 +375,7 @@ impl Plan {
         let ntt_64 = &*ntt_64;
 
         // optimize common cases(?): u64x1, u32x1, u32x2
-        if self.plan_32.len() == 0 && self.plan_64.len() == 0 {
+        if self.plan_32.is_empty() && self.plan_64.is_empty() {
             match mode {
                 InvMode::Replace => standard.fill(0),
                 InvMode::Accumulate => {}
@@ -383,7 +383,7 @@ impl Plan {
             return;
         }
 
-        if self.plan_32.len() == 0 && self.plan_64.len() == 1 {
+        if self.plan_32.is_empty() && self.plan_64.len() == 1 {
             match mode {
                 InvMode::Replace => standard.copy_from_slice(ntt_64),
                 InvMode::Accumulate => {
@@ -396,7 +396,7 @@ impl Plan {
             }
             return;
         }
-        if self.plan_32.len() == 1 && self.plan_64.len() == 0 {
+        if self.plan_32.len() == 1 && self.plan_64.is_empty() {
             match mode {
                 InvMode::Replace => {
                     for (standard, &ntt) in standard.iter_mut().zip(ntt_32) {
@@ -416,7 +416,7 @@ impl Plan {
 
         // implements the algorithms from "the art of computer programming (Donald E. Knuth)" 4.3.2
         // for finding solutions of the chinese remainder theorem
-        if self.plan_32.len() == 2 && self.plan_64.len() == 0 {
+        if self.plan_32.len() == 2 && self.plan_64.is_empty() {
             let (ntt0, ntt1) = ntt_32.split_at(self.ntt_size());
             let p0 = self.plan_32[0].modulus();
             let p1 = self.plan_32[1].modulus();
