@@ -29,30 +29,32 @@ pub struct StairKSParam<Scalar: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
+/// This is the original precision 5 parameters tweaked to use for 4 bits, such that the pfail is
+/// much lower than 2^-14, it should be approximately ~2^-49
 pub const PRECISION_4_STAIR: StairKSParam<u64> = StairKSParam {
-    log_precision: MessageModulusLog(4),
-    _log_mu: 4,
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
+    log_precision: MessageModulusLog(4), //original: log_precision: 5,
+    _log_mu: 5,
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
     partial_glwe_secret_key_fill: PartialGlweSecretKeyRandomCoefCount(2048),
     bsk_glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         3.16202663074765e-16,
     )),
-    lwe_dimension: LweDimension(664),
+    lwe_dimension: LweDimension(732),
     ks1_lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        7.60713313301797e-9,
+        3.31119701700870e-9,
     )),
     ks2_lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000380960250519291,
+        0.0000108646407745138,
     )),
     pbs_level: DecompositionLevelCount(1),
-    pbs_base_log: DecompositionBaseLog(22),
-    ks1_level: DecompositionLevelCount(1),
-    ks1_base_log: DecompositionBaseLog(13),
-    ks2_level: DecompositionLevelCount(6),
+    pbs_base_log: DecompositionBaseLog(23),
+    ks1_level: DecompositionLevelCount(2),
+    ks1_base_log: DecompositionBaseLog(9),
+    ks2_level: DecompositionLevelCount(7),
     ks2_base_log: DecompositionBaseLog(2),
-    ks1_unshared_coeff_count: LweSecretKeyUnsharedCoefCount(922),
-    ks2_unshared_coeff_count: LweSecretKeyUnsharedCoefCount(462),
+    ks1_unshared_coeff_count: LweSecretKeyUnsharedCoefCount(877),
+    ks2_unshared_coeff_count: LweSecretKeyUnsharedCoefCount(439),
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
