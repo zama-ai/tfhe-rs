@@ -1,6 +1,6 @@
 # Cryptographic Parameters
 
-All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-40}$$ when using programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../../../getting\_started/security\_and\_cryptography.md) for more details about the encryption process).
+All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-64}$$ when using programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../../../getting\_started/security\_and\_cryptography.md) for more details about the encryption process).
 
 ## Parameters and message precision
 
@@ -57,26 +57,22 @@ use tfhe::shortint::parameters::DynamicDistribution;
 fn main() {
     // WARNING: might be insecure and/or incorrect
     // You can create your own set of parameters
-    let param = ClassicPBSParameters::new(
-        LweDimension(656),
-        GlweDimension(2),
-        PolynomialSize(512),
-        DynamicDistribution::new_gaussian_from_std_dev(
-            StandardDev(0.000034119201269311964),
-        ),
-        DynamicDistribution::new_gaussian_from_std_dev(
-            StandardDev(0.00000004053919869756513),
-        ),
-        DecompositionBaseLog(8),
-        DecompositionLevelCount(2),
-        DecompositionBaseLog(3),
-        DecompositionLevelCount(4),
-        MessageModulus(4),
-        CarryModulus(1),
-        MaxNoiseLevel::new(2),
-        2.0f64.powi(-40),
-        CiphertextModulus::new_native(),
-        EncryptionKeyChoice::Big,
-    );
+    let param = ClassicPBSParameters {
+        lwe_dimension: LweDimension(879),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(2048),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
+        glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
+        pbs_base_log: DecompositionBaseLog(23),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(3),
+        ks_level: DecompositionLevelCount(5),
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        max_noise_level: MaxNoiseLevel::new(5),
+        log2_p_fail: -71.625,
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+    };
 }
 ```
