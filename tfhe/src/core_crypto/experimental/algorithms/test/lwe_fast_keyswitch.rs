@@ -13,7 +13,7 @@ pub struct FastKSParam<Scalar: UnsignedInteger> {
     pub bsk_partial_glwe_secret_key_fill: PartialGlweSecretKeyRandomCoefCount,
     pub bsk_glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub lwe_dimension: LweDimension,
-    pub ks1_lwe_modular_std_dev: DynamicDistribution<Scalar>,
+    pub ks1_lwe_modular_noise_distribution: DynamicDistribution<Scalar>,
     pub pbs_level: DecompositionLevelCount,
     pub pbs_base_log: DecompositionBaseLog,
     pub ks1_level: DecompositionLevelCount,
@@ -25,27 +25,28 @@ pub struct FastKSParam<Scalar: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
+/// This is the original precision 5 parameters tweaked to use for 4 bits, such that the pfail is
+/// much lower than 2^-14, it should be approximately ~2^-49
 pub const PRECISION_4_FAST_KS: FastKSParam<u64> = FastKSParam {
-    log_precision: MessageModulusLog(4),
-    _log_mu: 4,
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
+    log_precision: MessageModulusLog(4), // original: log_precision: 5,
+    _log_mu: 5,
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
     bsk_partial_glwe_secret_key_fill: PartialGlweSecretKeyRandomCoefCount(2048),
     bsk_glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         3.162026630747649e-16,
     )),
-    lwe_dimension: LweDimension(682),
-    ks1_lwe_modular_std_dev: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        2.7313997525878062e-5,
-    )),
+    lwe_dimension: LweDimension(766),
+    ks1_lwe_modular_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(
+        StandardDev(5.822_216_831_056_818e-6),
+    ),
     pbs_level: DecompositionLevelCount(1),
     pbs_base_log: DecompositionBaseLog(23),
-    ks1_level: DecompositionLevelCount(14),
+    ks1_level: DecompositionLevelCount(15),
     ks1_base_log: DecompositionBaseLog(1),
     ks1_polynomial_size: PolynomialSize(512),
-    ks_in_glwe_dimension: GlweDimension(3), // Original value
-    // ks_in_glwe_dimension: GlweDimension(4), // Test non square pseudo GGSWs
-    phi_in: 1366,
+    ks_in_glwe_dimension: GlweDimension(3),
+    phi_in: 1282,
     ks_out_glwe_dimension: GlweDimension(3),
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
@@ -71,7 +72,7 @@ fn lwe_encrypt_fast_ks_decrypt_custom_mod<
         bsk_partial_glwe_secret_key_fill,
         bsk_glwe_noise_distribution,
         lwe_dimension,
-        ks1_lwe_modular_std_dev,
+        ks1_lwe_modular_noise_distribution,
         pbs_level,
         pbs_base_log,
         ks1_level,
@@ -222,7 +223,7 @@ fn lwe_encrypt_fast_ks_decrypt_custom_mod<
         &small_glwe_secret_key,
         &large_glwe_secret_key_unshared,
         &mut ggsw,
-        ks1_lwe_modular_std_dev,
+        ks1_lwe_modular_noise_distribution,
         &mut rsc.encryption_random_generator,
     );
 
