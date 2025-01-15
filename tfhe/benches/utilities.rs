@@ -44,6 +44,7 @@ pub mod shortint_utils {
     use tfhe::shortint::parameters::V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     use tfhe::shortint::parameters::{
         ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V0_11_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     };
     use tfhe::shortint::{ClassicPBSParameters, PBSParameters, ShortintParameterSet};
 
@@ -61,7 +62,10 @@ pub mod shortint_utils {
 
             if env_config.is_multi_bit {
                 #[cfg(feature = "gpu")]
-                let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
+                // let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
+                let params = vec![
+                    V0_11_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into(),
+                ];
                 #[cfg(not(feature = "gpu"))]
                 let params = vec![
                     V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into(),
