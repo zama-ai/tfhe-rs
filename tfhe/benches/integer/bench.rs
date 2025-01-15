@@ -2036,24 +2036,24 @@ mod cuda {
 
     criterion_group!(
         default_cuda_ops,
-        cuda_neg,
+        /*cuda_neg,
         cuda_sub,
         cuda_unsigned_overflowing_sub,
-        cuda_unsigned_overflowing_add,
+        cuda_unsigned_overflowing_add,*/
         cuda_add,
         cuda_mul,
-        cuda_div_rem,
+        //cuda_div_rem,
         //cuda_div,
         //cuda_rem,
+        cuda_bitand,
         cuda_eq,
-        cuda_ne,
-        cuda_ge,
+        //cuda_ne,
+        //cuda_ge,
         cuda_gt,
-        cuda_le,
+        /*cuda_le,
         cuda_lt,
         cuda_max,
         cuda_min,
-        cuda_bitand,
         cuda_bitor,
         cuda_bitxor,
         cuda_bitnot,
@@ -2061,33 +2061,33 @@ mod cuda {
         cuda_left_shift,
         cuda_right_shift,
         cuda_rotate_left,
-        cuda_rotate_right,
+        cuda_rotate_right,*/
     );
 
     criterion_group!(
         default_scalar_cuda_ops,
-        cuda_scalar_sub,
+        // cuda_scalar_sub,
         cuda_scalar_add,
         cuda_scalar_mul,
-        cuda_scalar_left_shift,
+        /*cuda_scalar_left_shift,
         cuda_scalar_right_shift,
         cuda_scalar_rotate_left,
-        cuda_scalar_rotate_right,
+        cuda_scalar_rotate_right,*/
         cuda_scalar_bitand,
-        cuda_scalar_bitor,
-        cuda_scalar_bitxor,
+        /*cuda_scalar_bitor,
+        cuda_scalar_bitxor,*/
         cuda_scalar_eq,
-        cuda_scalar_ne,
-        cuda_scalar_ge,
+        //cuda_scalar_ne,
+        //cuda_scalar_ge,
         cuda_scalar_gt,
-        cuda_scalar_le,
+        /*cuda_scalar_le,
         cuda_scalar_lt,
         cuda_scalar_max,
         cuda_scalar_min,
         //cuda_scalar_div_rem,
         cuda_scalar_div,
         cuda_scalar_rem,
-        cuda_unsigned_overflowing_scalar_add,
+        cuda_unsigned_overflowing_scalar_add,*/
     );
 
     fn cuda_bench_server_key_cast_function<F>(
@@ -2518,7 +2518,7 @@ fn go_through_gpu_bench_groups(val: &str) {
         "default" => {
             default_cuda_ops();
             default_scalar_cuda_ops();
-            cuda_cast_ops();
+            // cuda_cast_ops();
         }
         "unchecked" => {
             unchecked_cuda_ops();
