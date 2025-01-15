@@ -40,7 +40,7 @@ $$b = (\sum_{i = 0}^{n-1}{a_i * s_i}) + plaintext$$
 
 Now that the encryption scheme is defined, let's review the example of the addition between ciphertexts to illustrate why it is slower to compute over encrypted data.
 
-To add two ciphertexts, we must add their $mask$ and $body$:
+To add two ciphertexts, we must add their $$mask$$ and $$body$$:
 
 $$
 ct_0 = (a_{0}, ..., a_{n-1}, b) \\ ct_1 = (a_{0}^{\prime}, ..., a_{n-1}^{\prime}, b^{\prime}) \\ ct_{2} = ct_0 + ct_1 \\ ct_{2} = (a_{0} + a_{0}^{\prime}, ..., a_{n-1} + a_{n-1}^{\prime}, b + b^{\prime})\\ b + b^{\prime} = (\sum_{i = 0}^{n-1}{a_i * s_i}) + plaintext + (\sum_{i = 0}^{n-1}{a_i^{\prime} * s_i}) + plaintext^{\prime}\\ b + b^{\prime} = (\sum_{i = 0}^{n-1}{(a_i + a_i^{\prime})* s_i}) + \Delta m + \Delta m^{\prime} + e + e^{\prime}\\
@@ -65,7 +65,7 @@ To ensure security, LWE requires random noise to be added to the message during 
 
 TFHE scheme draws this random noise either from:
 - A Centered Normal Distribution with a standard deviation parameter. The choice of standard deviation impacts the security level: increasing the standard deviation enhances security while keeping other factors constant.
-- A Tweaked Uniform (TUniform) Distribution with a bound parameter $2^b$ defined as follows: any value in the interval $(−2^b, ... , 2^b)$ is selected with probability $1/2^{b+1}$, with the two end points $−2^b$ and $2^b$ being selected with probability $1/2^{b+2}$. The main advantage of this distribution is to be bounded, whereas the usual Central Normal Distribution one is not. In some practical cases, this can simplify the use of homomorphic computation. The choice of the bound impacts the security level: increasing the bound enhances security while keeping other factors constant.
+- A Tweaked Uniform (TUniform) Distribution with a bound parameter $$2^b$$ defined as follows: any value in the interval $$(−2^b, ... , 2^b)$$ is selected with probability $$1/2^{b+1}$$, with the two end points $$−2^b$$ and $$2^b$$ being selected with probability $$1/2^{b+2}$$. The main advantage of this distribution is to be bounded, whereas the usual Central Normal Distribution one is not. In some practical cases, this can simplify the use of homomorphic computation. The choice of the bound impacts the security level: increasing the bound enhances security while keeping other factors constant.
 
 **TFHE-rs** encodes the noise in the least significant bits of each plaintext. Each leveled computation increases the value of the noise. If too many computations are performed, the noise will eventually overflow into the message bits and lead to an incorrect result.
 
@@ -95,7 +95,7 @@ For example, when adding two ciphertexts, the sum could exceed the range of eith
 
 By default, the cryptographic parameters provided by **TFHE-rs** ensure at least 128 bits of security. The security has been evaluated using the latest versions of the Lattice Estimator ([repository](https://github.com/malb/lattice-estimator)) with `red_cost_model = reduction.RC.BDGL16`.
 
-The default parameters for the **TFHE-rs** library are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at p\_error = $2^{-40}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model \[1].
+The default parameters for the **TFHE-rs** library are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at p\_error = $$2^{-64}$$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model \[1].
 
 \[1][ Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022.](https://eprint.iacr.org/2022/816.pdf)
 

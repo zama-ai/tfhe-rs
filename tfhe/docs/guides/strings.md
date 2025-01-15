@@ -21,7 +21,7 @@ A variety of common operations are supported for `FheAsciiString`. These include
 - **Search**:  `find` / `rfind`
 
 
-When encrypting strings, you can add padding to hide the actual length of strings. 
+When encrypting strings, you can add padding to hide the actual length of strings.
 The null character (b'\0') is used as the padding.
 Here is an example:
 
@@ -41,13 +41,13 @@ use tfhe::safe_serialization::safe_serialize;
 fn main() {
     let config = ConfigBuilder::default().build();
     let (cks, sks) = generate_keys(config);
-    
+
     set_server_key(sks);
-    
+
     let r = FheAsciiString::try_encrypt("café is french for coffee", &cks);
     // As the input string is not strictly ASCII, it is not compatible
     assert!(r.is_err());
-    
+
     let string = FheAsciiString::try_encrypt("tfhe-rs", &cks).unwrap();
     // This adds 3 chars of padding to the chars of the input string
     let padded_string = FheAsciiString::try_encrypt_with_padding("tfhe-rs", 3, &cks).unwrap();
@@ -61,7 +61,7 @@ fn main() {
     // The two strings created with padding, have the same
     // memory/disk footprint, even though the lengths are not the same
     assert_eq!(buffer1.len(), buffer2.len());
-    
+
     // When a string has no padding, its length is known in clear
     let len = string.len();
     assert!(matches!(len, FheStringLen::NoPadding(7)));
@@ -80,7 +80,7 @@ fn main() {
 
     // Padded and un-padded strings are equal if the content is
     assert!(padded_string.eq(&string).decrypt(&cks));
-    
+
     let prefix = ClearString::new("tfhe".to_string());
     let (stripped_string, has_been_stripped) = string.strip_prefix(&prefix);
     // Notice that stripping, makes the string as being considered as padded
