@@ -39,13 +39,13 @@ pub fn pbs_variance_132_bits_security_gaussian_fft_mul_impl(
     modulus: f64,
 ) -> f64 {
     input_lwe_dimension
-        * (0.0686891258869679
+        * (0.010135851312702993
             * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
             * decomposition_base.powf(2.0)
             * decomposition_level_count
             * modulus.powf(-2.0)
             * output_glwe_dimension
-            * output_polynomial_size.powf(2.0)
+            * output_polynomial_size.powf(2.1842816616230243)
             * (output_glwe_dimension + 1.0)
             + decomposition_level_count
                 * output_polynomial_size
@@ -100,13 +100,13 @@ pub fn pbs_variance_132_bits_security_tuniform_fft_mul_impl(
     modulus: f64,
 ) -> f64 {
     input_lwe_dimension
-        * (0.0686891258869679
+        * (0.010135851312702993
             * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
             * decomposition_base.powf(2.0)
             * decomposition_level_count
             * modulus.powf(-2.0)
             * output_glwe_dimension
-            * output_polynomial_size.powf(2.0)
+            * output_polynomial_size.powf(2.1842816616230243)
             * (output_glwe_dimension + 1.0)
             + decomposition_level_count
                 * output_polynomial_size

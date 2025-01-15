@@ -3,7 +3,7 @@ use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::*;
 use crate::core_crypto::commons::noise_formulas::secure_noise::*;
-use crate::core_crypto::commons::test_tools::{variance};
+use crate::core_crypto::commons::test_tools::variance;
 use npyz::{DType, WriterBuilder};
 use rayon::prelude::*;
 use std::fs::OpenOptions;
@@ -251,7 +251,6 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
                     //~ }
                     writer.push(&(row[0] as i64)).unwrap();   // essentially SE
                 }
-                //TODO close file?
 
                 let last_ext_prod_karatsuba_noise = karatsuba_noise.last().unwrap();
 
@@ -293,8 +292,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
                         .dtype(DType::new_scalar("<i8".parse().unwrap()))
                         .shape(&[
                             fft_noise.len() as u64,
-                            //~ fft_noise[0].len() as u64
-                            1u64
+                            //~ fft_noise[0].len() as u64,
+                            1u64,
                         ])
                         .writer(&mut file)
                         .begin_nd()
@@ -315,16 +314,10 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
                     ciphertext_modulus
                 ));
 
-                let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &karatsuba_out_ct);
-
-                let decoded = round_decode(decrypted.0, delta) % msg_modulus;
-
                 //TODO FIXME uncomment !!
+                //~ let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &karatsuba_out_ct);
+                //~ let decoded = round_decode(decrypted.0, delta) % msg_modulus;
                 //~ assert_eq!(decoded, f(msg));
-
-                // torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
-
-                // println!("{last_ext_prod_fft_noise:?}");
 
                 // output a tuple with (Kara-noises, FFT-noises)
                 (

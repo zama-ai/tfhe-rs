@@ -27,7 +27,7 @@ kara_noises = {}
 
 # ~ for distro in ["TUNIFORM", "GAUSSIAN"]:
 for distro in ["GAUSSIAN"]:
-    for gf in range(2,4+1):
+    for gf in range(1,4+1):
         a0_vals = []
         a1_vals = []
         with open(LOG_B_FILE_FMT % (gf, distro), "w") as logB_file:
@@ -55,7 +55,7 @@ for distro in ["GAUSSIAN"]:
                                 continue
                             with open(EXP_VAR_FILE_FMT % (gf, logbase, level, k, 1<<logN, distro)) as file_exp_var:
                                 exp_vars = json.load(file_exp_var)
-                            y_dimension = exp_vars["input_lwe_dimension"] / gf
+                            y_dimension = exp_vars["lwe_dimension"] / gf
                             expected_variance_kara = exp_vars["expected_variance_kara"]
                             expected_variance_fft  = exp_vars["expected_variance_fft"]
 
@@ -270,7 +270,9 @@ for distro in ["GAUSSIAN"]:
         print("a1 values:", a1_vals, "... of size:", len(a1_vals))
         print("----")
 
-        ab0, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [ai[1] for ai in a0_vals], [ai[0] for ai in a0_vals])
-        ab1, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [ai[1] for ai in a1_vals], [ai[0] for ai in a1_vals])
-        print(f"curve fit before logB bound: {ab0[0]} N^{ab0[1]}")
-        print(f"curve fit after  logB bound: {ab1[0]} N^{ab1[1]}")
+        if len(a0_vals) > 0:
+            ab0, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [ai[1] for ai in a0_vals], [ai[0] for ai in a0_vals])
+            print(f"curve fit before logB bound: {ab0[0]} N^{ab0[1]}")
+        if len(a1_vals) > 0:
+            ab1, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [ai[1] for ai in a1_vals], [ai[0] for ai in a1_vals])
+            print(f"curve fit after  logB bound: {ab1[0]} N^{ab1[1]}")

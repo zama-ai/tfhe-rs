@@ -13,7 +13,7 @@ set datafile missing NaN
 set grid
 set key top left
 
-do for [gf=2:4] {
+do for [gf=1:4] {
 f = sprintf(IN_FMT, gf)
 if (file_exists(f)) {
     # log-B

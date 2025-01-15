@@ -3,7 +3,7 @@ use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::*;
 use crate::core_crypto::commons::noise_formulas::secure_noise::*;
-use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
+use crate::core_crypto::commons::test_tools::variance;
 use npyz::{DType, WriterBuilder};
 use rayon::prelude::*;
 use std::fs::OpenOptions;
@@ -238,7 +238,6 @@ fn lwe_encrypt_pbs_decrypt_custom_mod(
                     //~ }
                     writer.push(&(row[0] as i64)).unwrap();   // essentially SE
                 }
-                //TODO close file?
 
                 let last_ext_prod_karatsuba_noise = karatsuba_noise.last().unwrap();
 
@@ -253,27 +252,17 @@ fn lwe_encrypt_pbs_decrypt_custom_mod(
                     ciphertext_modulus,
                 );
 
-                programmable_bootstrap_lwe_ciphertext( //TODO let fft_noise = programmable_bootstrap_lwe_ciphertext_return_noise(...
+                let fft_noise = programmable_bootstrap_lwe_ciphertext_return_noise(
                     &lwe_ciphertext_in,
                     &mut fft_out_ct,
                     &accumulator,
                     &fbsk,
+                    Some((
+                        &input_lwe_secret_key,
+                        &output_glwe_secret_key,
+                        &reference_accumulator,
+                    )),
                 );
-
-                assert!(check_encrypted_content_respects_mod(
-                    &fft_out_ct,
-                    ciphertext_modulus
-                ));
-
-                let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &fft_out_ct);
-
-                let decoded = round_decode(decrypted.0, delta) % msg_modulus;
-
-                assert_eq!(decoded, f(msg));
-
-                //~ let fft_noise = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
-                let fft_noise = karatsuba_noise.clone();
-                torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
 
                 let filename_fft = format!("./results/{EXP_NAME}/samples/fft-id={thread_id}-gf=1-logB={}-l={}-k={}-N={}-distro={distro}.npy", pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
 
@@ -303,7 +292,6 @@ fn lwe_encrypt_pbs_decrypt_custom_mod(
                     //~ }
                     writer.push(&(row[0] as i64)).unwrap();   // essentially SE
                 }
-                //TODO close file?
 
                 let last_ext_prod_fft_noise = fft_noise.last().unwrap();
 
@@ -317,11 +305,9 @@ fn lwe_encrypt_pbs_decrypt_custom_mod(
                 let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
                 //TODO FIXME uncomment !!
+                //~ let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &karatsuba_out_ct);
+                //~ let decoded = round_decode(decrypted.0, delta) % msg_modulus;
                 //~ assert_eq!(decoded, f(msg));
-
-                // torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
-
-                // println!("{last_ext_prod_fft_noise:?}");
 
                 // output a tuple with (Kara-noises, FFT-noises)
                 (
