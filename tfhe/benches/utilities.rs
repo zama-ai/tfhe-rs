@@ -39,12 +39,10 @@ pub mod shortint_utils {
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
     #[cfg(feature = "gpu")]
-    use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+    use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     #[cfg(not(feature = "gpu"))]
     use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
-    use tfhe::shortint::parameters::{
-        ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    };
+    use tfhe::shortint::parameters::{ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
     use tfhe::shortint::PBSParameters;
 
     /// An iterator that yields a succession of combinations
@@ -61,7 +59,10 @@ pub mod shortint_utils {
 
             if env_config.is_multi_bit {
                 #[cfg(feature = "gpu")]
-                let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
+                let params = vec![
+                    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into(),
+                ];
+                // let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
                 #[cfg(not(feature = "gpu"))]
                 let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
 

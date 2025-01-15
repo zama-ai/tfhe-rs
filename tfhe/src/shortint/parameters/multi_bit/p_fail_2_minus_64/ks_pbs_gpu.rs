@@ -120,7 +120,7 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64:
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         2.845267479601915e-15,
     )),
-    pbs_base_log: DecompositionBaseLog(21),
+    pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_base_log: DecompositionBaseLog(3),
     ks_level: DecompositionLevelCount(5),
