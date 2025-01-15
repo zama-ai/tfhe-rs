@@ -111,10 +111,8 @@ pub fn new_seeder() -> Box<dyn Seeder> {
                     seeder = if let Some(seed) = inner {
                         Some(Box::new(
                             crate::core_crypto::commons::generators::DeterministicSeeder::<
-                                crate::core_crypto::prelude::ActivatedRandomGenerator,
-                            >::new(concrete_csprng::seeders::Seed(
-                                *seed,
-                            )),
+                                tfhe_csprng::generators::DefaultRandomGenerator,
+                            >::new(tfhe_csprng::seeders::Seed(*seed)),
                         ))
                     } else {
                         Some(Box::new(UnixSeeder::new(0)))
