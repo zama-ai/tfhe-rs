@@ -46,7 +46,7 @@ impl CompressionKey {
 
         assert!(
             message_modulus.0 <= carry_modulus.0,
-            "GLWE packing is implemented with messages in carries, so carry_modulus (={}) can't be bigger than message_modulus(={})",
+            "GLWE packing is implemented with messages in carries, so carry_modulus (={}) must be greater than or equal to message_modulus (={})",
             carry_modulus.0,
             message_modulus.0 ,
         );
