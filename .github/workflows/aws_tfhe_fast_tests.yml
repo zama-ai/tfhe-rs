@@ -30,6 +30,8 @@ on:
       - '!.github/**'
       - '!ci/**'
 
+# Not a useful change in CI files
+
 jobs:
   should-run:
     runs-on: ubuntu-latest
