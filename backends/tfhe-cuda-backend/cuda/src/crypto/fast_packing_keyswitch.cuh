@@ -98,6 +98,10 @@ decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
 // BLOCK_SIZE_GEMM) splitting them in multiple tiles: (BLOCK_SIZE_GEMM,
 // THREADS_GEMM)-shaped tiles of values from A, and a (THREADS_GEMM,
 // BLOCK_SIZE_GEMM)-shaped tiles of values from B.
+//
+// This code is adapted by generalizing the 1d block-tiling
+// kernel from https://github.com/siboehm/SGEMM_CUDA
+// to any matrix dimension
 template <typename Torus, typename TorusVec>
 __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
                       int stride_B, Torus *C) {
@@ -110,7 +114,6 @@ __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
   const uint cRow = blockIdx.y;
   const uint cCol = blockIdx.x;
 
-  const uint totalResultsBlocktile = BM * BN;
   const int threadCol = threadIdx.x % BN;
   const int threadRow = threadIdx.x / BN;
 
