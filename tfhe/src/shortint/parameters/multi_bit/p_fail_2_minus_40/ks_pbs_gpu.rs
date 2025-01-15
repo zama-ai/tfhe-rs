@@ -107,23 +107,23 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40:
 
 pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
-    lwe_dimension: LweDimension(888),
+    lwe_dimension: LweDimension(837),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000006125031601933181,
+        3.3747142481837397e-06,
     )),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000003152931493498455,
+        2.845267479601915e-15,
     )),
-    pbs_base_log: DecompositionBaseLog(21),
+    pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
-    ks_base_log: DecompositionBaseLog(7),
-    ks_level: DecompositionLevelCount(2),
+    ks_base_log: DecompositionBaseLog(3),
+    ks_level: DecompositionLevelCount(5),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     max_noise_level: MaxNoiseLevel::new(5),
-    log2_p_fail: -40.,
+    log2_p_fail: -64.655,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
     grouping_factor: LweBskGroupingFactor(3),

@@ -39,7 +39,7 @@ impl Default for ParamsAndNumBlocksIter {
 
         if env_config.is_multi_bit {
             #[cfg(feature = "gpu")]
-            let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
+            let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
             #[cfg(not(feature = "gpu"))]
             let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
 
@@ -1931,45 +1931,46 @@ mod cuda {
 
     criterion_group!(
         default_cuda_ops,
-        cuda_neg,
-        cuda_sub,
-        cuda_unsigned_overflowing_sub,
+        // cuda_neg,
+        // cuda_sub,
+        // cuda_unsigned_overflowing_sub,
         cuda_add,
         cuda_mul,
-        cuda_eq,
-        cuda_ne,
-        cuda_ge,
-        cuda_gt,
-        cuda_le,
-        cuda_lt,
-        cuda_max,
-        cuda_min,
         cuda_bitand,
-        cuda_bitor,
-        cuda_bitxor,
-        cuda_default_if_then_else,
-        cuda_left_shift,
-        cuda_right_shift,
-        cuda_rotate_left,
-        cuda_rotate_right,
+        cuda_eq,
+        // cuda_ne,
+        // cuda_ge,
+        cuda_gt,
+        // cuda_le,
+        // cuda_lt,
+        // cuda_max,
+        // cuda_min,
+        // cuda_bitor,
+        // cuda_bitxor,
+        // cuda_default_if_then_else,
+        // cuda_left_shift,
+        // cuda_right_shift,
+        // cuda_rotate_left,
+        // cuda_rotate_right,
     );
 
     criterion_group!(
         default_scalar_cuda_ops,
-        cuda_scalar_sub,
+        // cuda_scalar_sub,
         cuda_scalar_add,
         cuda_scalar_mul,
-        cuda_scalar_left_shift,
-        cuda_scalar_right_shift,
+        // cuda_scalar_left_shift,
+        // cuda_scalar_right_shift,
         cuda_scalar_bitand,
-        cuda_scalar_bitor,
-        cuda_scalar_bitxor,
-        cuda_scalar_ge,
+        // cuda_scalar_bitor,
+        // cuda_scalar_bitxor,
+        cuda_scalar_eq,
+        // cuda_scalar_ge,
         cuda_scalar_gt,
-        cuda_scalar_le,
-        cuda_scalar_lt,
-        cuda_scalar_max,
-        cuda_scalar_min,
+        // cuda_scalar_le,
+        // cuda_scalar_lt,
+        // cuda_scalar_max,
+        // cuda_scalar_min,
     );
 
     fn cuda_bench_server_key_cast_function<F>(
@@ -2402,7 +2403,7 @@ fn go_through_gpu_bench_groups(val: &str) {
         "default" => {
             default_cuda_ops();
             default_scalar_cuda_ops();
-            cuda_cast_ops()
+            // cuda_cast_ops()
         }
         "unchecked" => {
             unchecked_cuda_ops();
