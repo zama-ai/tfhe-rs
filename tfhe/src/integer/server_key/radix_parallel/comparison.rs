@@ -311,7 +311,7 @@ impl ServerKey {
                             is_x_less_than_y_given_input_borrow(x, y, 0, self.message_modulus());
                         let b1 =
                             is_x_less_than_y_given_input_borrow(x, y, 1, self.message_modulus());
-                        (b1 << 1 | b0) << 2
+                        ((b1 << 1) | b0) << 2
                     });
 
                     Some(PreparedSignedCheck::Unified(

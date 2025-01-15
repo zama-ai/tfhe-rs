@@ -166,7 +166,7 @@ pub fn f64_to_u128(f: f64) -> u128 {
         0
     } else {
         // >= 1, < max
-        let m = 1 << 127 | (f as u128) << 75; // Mantissa and the implicit 1-bit.
+        let m = (1 << 127) | ((f as u128) << 75); // Mantissa and the implicit 1-bit.
         let s = 1150 - (f >> 52); // Shift based on the exponent and bias.
         if s >= 128 {
             0
@@ -180,13 +180,13 @@ pub fn f64_to_u128(f: f64) -> u128 {
 pub fn f64_to_i128(f: f64) -> i128 {
     let f = f.to_bits();
 
-    let a = f & !0 >> 1; // Remove sign bit.
+    let a = f & (!0 >> 1); // Remove sign bit.
     if a < 1023 << 52 {
         // >= 0, < 1
         0
     } else {
         // >= 1, < max
-        let m = 1 << 127 | (a as u128) << 75; // Mantissa and the implicit 1-bit.
+        let m = (1 << 127) | ((a as u128) << 75); // Mantissa and the implicit 1-bit.
         let s = 1150 - (a >> 52); // Shift based on the exponent and bias.
         let u = (m >> s) as i128; // Unsigned result.
         if (f as i64) < 0 {
