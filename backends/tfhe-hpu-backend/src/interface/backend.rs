@@ -327,7 +327,12 @@ impl HpuBackend {
         for (id, bsk_cut) in bsk.as_view().into_container().into_iter().enumerate() {
             bsk_key.write_cut_at(id, 0, bsk_cut);
             #[cfg(feature = "io-dump")]
-            io_dump::dump(&bsk_cut, io_dump::DumpKind::Bsk, io_dump::DumpId::Key(id));
+            io_dump::dump(
+                &bsk_cut,
+                params,
+                io_dump::DumpKind::Bsk,
+                io_dump::DumpId::Key(id),
+            );
         }
 
         // Write pc_addr in memory
@@ -439,7 +444,12 @@ impl HpuBackend {
         for (id, ksk_cut) in ksk.as_view().into_container().into_iter().enumerate() {
             ksk_key.write_cut_at(id, 0, ksk_cut);
             #[cfg(feature = "io-dump")]
-            io_dump::dump(&ksk_cut, io_dump::DumpKind::Ksk, io_dump::DumpId::Key(id));
+            io_dump::dump(
+                &ksk_cut,
+                params,
+                io_dump::DumpKind::Ksk,
+                io_dump::DumpId::Key(id),
+            );
         }
 
         // Write pc_addr in memory
@@ -507,6 +517,7 @@ impl HpuBackend {
             #[cfg(feature = "io-dump")]
             io_dump::dump(
                 &hpu_lut.as_ref(),
+                params,
                 io_dump::DumpKind::Glwe,
                 io_dump::DumpId::Lut(lut_gid),
             );

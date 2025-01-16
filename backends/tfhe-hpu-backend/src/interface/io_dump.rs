@@ -5,6 +5,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use crate::interface::memory::ciphertext::SlotId;
+use crate::prelude::HpuParameters;
 
 /// Configure the line width in dumped files
 pub const LINE_WIDTH_BYTES: usize = 64_usize;
@@ -52,7 +53,12 @@ pub enum DumpId {
     Lut(usize),
 }
 
-pub fn dump<T: HexMem>(value: &T, kind: DumpKind, id: DumpId) {
+pub fn dump<T: num_traits::PrimInt + num_traits::cast::AsPrimitive<u32>>(
+    value: &[T],
+    params: &HpuParameters,
+    kind: DumpKind,
+    id: DumpId,
+) {
     HPU_IO_DUMP.with_borrow(|inner| {
         if let Some(path) = inner {
             // Open file
@@ -93,7 +99,33 @@ pub fn dump<T: HexMem>(value: &T, kind: DumpKind, id: DumpId) {
                 .unwrap();
 
             // Dump
-            value.write_hex(&mut wr_f, LINE_WIDTH_BYTES, Some("XX"));
+            // Based on configuration dump value must be shrinked to 32b (i.e. when contained informations is <= 32)
+            let (word_bits, line_bytes) = match kind {
+                DumpKind::Bsk => (params.ntt_params.ct_width, LINE_WIDTH_BYTES),
+                DumpKind::Ksk => (
+                    (params.ks_params.lbz * params.ks_params.width) as u32,
+                    LINE_WIDTH_BYTES,
+                ),
+                DumpKind::Glwe => (params.ntt_params.ct_width, LINE_WIDTH_BYTES),
+                DumpKind::BlweIn => (params.ntt_params.ct_width, LINE_WIDTH_BYTES),
+                DumpKind::BlweOut => (params.ntt_params.ct_width, LINE_WIDTH_BYTES),
+            };
+
+            // Shrink value to 32b when possible
+            if word_bits <= u32::BITS {
+                let value_32b = value
+                    .into_iter()
+                    .map(|x| {
+                        let x_u32: u32 = x.as_();
+                        x_u32
+                    })
+                    .collect::<Vec<u32>>();
+                value_32b
+                    .as_slice()
+                    .write_hex(&mut wr_f, line_bytes, Some("XX"));
+            } else {
+                value.write_hex(&mut wr_f, line_bytes, Some("XX"));
+            }
         }
     })
 }

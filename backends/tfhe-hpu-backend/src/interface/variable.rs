@@ -136,11 +136,13 @@ impl HpuVarWrapped {
             let mut inner = var.inner.lock().unwrap();
 
             for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct.into_iter()) {
+                let params = ct.params().clone();
                 for (id, cut) in ct.into_container().iter().enumerate() {
                     slot.mz[id].write(0, &cut);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
                         &cut.as_slice(),
+                        &params,
                         io_dump::DumpKind::BlweIn,
                         io_dump::DumpId::Slot(slot.id, id),
                     );
@@ -182,6 +184,7 @@ impl HpuVarWrapped {
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
                         &cut.as_ref(),
+                        &params,
                         io_dump::DumpKind::BlweOut,
                         io_dump::DumpId::Slot(slot.id, id),
                     );
