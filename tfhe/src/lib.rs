@@ -120,7 +120,8 @@ mod js_on_wasm_api;
     feature = "shortint",
     feature = "boolean",
     feature = "integer",
-    feature = "zk-pok"
+    feature = "zk-pok",
+    feature = "strings"
 ))]
 mod test_user_docs;
 
