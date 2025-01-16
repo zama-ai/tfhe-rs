@@ -7,9 +7,6 @@ use std::path::PathBuf;
 use crate::interface::memory::ciphertext::SlotId;
 use crate::prelude::HpuParameters;
 
-/// Configure the line width in dumped files
-pub const LINE_WIDTH_BYTES: usize = 64_usize;
-
 thread_local! {
     static HPU_IO_DUMP: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
 }
@@ -101,14 +98,14 @@ pub fn dump<T: num_traits::PrimInt + num_traits::cast::AsPrimitive<u32>>(
             // Dump
             // Based on configuration dump value must be shrinked to 32b (i.e. when contained informations is <= 32)
             let (word_bits, line_bytes) = match kind {
-                DumpKind::Bsk => (params.ntt_params.ct_width, LINE_WIDTH_BYTES),
+                DumpKind::Bsk => (params.ntt_params.ct_width, params.pc_params.bsk_bytes_w),
                 DumpKind::Ksk => (
                     (params.ks_params.lbz * params.ks_params.width) as u32,
-                    LINE_WIDTH_BYTES,
+                    params.pc_params.ksk_bytes_w,
                 ),
-                DumpKind::Glwe => (params.ntt_params.ct_width, LINE_WIDTH_BYTES),
-                DumpKind::BlweIn => (params.ntt_params.ct_width, LINE_WIDTH_BYTES),
-                DumpKind::BlweOut => (params.ntt_params.ct_width, LINE_WIDTH_BYTES),
+                DumpKind::Glwe => (params.ntt_params.ct_width, params.pc_params.glwe_bytes_w),
+                DumpKind::BlweIn => (params.ntt_params.ct_width, params.pc_params.pem_bytes_w),
+                DumpKind::BlweOut => (params.ntt_params.ct_width, params.pc_params.pem_bytes_w),
             };
 
             // Shrink value to 32b when possible

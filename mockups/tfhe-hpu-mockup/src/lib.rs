@@ -29,7 +29,7 @@ pub use modules::isc;
 use modules::{HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 
 use hpu_asm::{Asm, AsmBin, PbsLut};
-use tfhe::tfhe_hpu_backend::interface::io_dump::{HexMem, LINE_WIDTH_BYTES};
+use tfhe::tfhe_hpu_backend::interface::io_dump::HexMem;
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 pub struct HpuSim {
@@ -668,11 +668,17 @@ impl HpuSim {
                 // Compact Blwe on 32b if possible
                 if self.params.rtl_params.ntt_params.ct_width <= u32::BITS {
                     let slice_32b = slice.iter().map(|x| *x as u32).collect::<Vec<u32>>();
-                    slice_32b
-                        .as_slice()
-                        .write_hex(&mut wr_f, LINE_WIDTH_BYTES, Some("XX"));
+                    slice_32b.as_slice().write_hex(
+                        &mut wr_f,
+                        self.params.rtl_params.pc_params.pem_bytes_w,
+                        Some("XX"),
+                    );
                 } else {
-                    slice.write_hex(&mut wr_f, LINE_WIDTH_BYTES, Some("XX"));
+                    slice.write_hex(
+                        &mut wr_f,
+                        self.params.rtl_params.pc_params.pem_bytes_w,
+                        Some("XX"),
+                    );
                 }
             });
     }

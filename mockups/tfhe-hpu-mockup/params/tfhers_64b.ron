@@ -34,8 +34,12 @@
         ),
         pc_params: (
             ksk_pc: 4,
+            ksk_bytes_w: 32,
             bsk_pc: 4,
+            bsk_bytes_w: 32,
             pem_pc: 2,
+            pem_bytes_w: 32,
+            glwe_bytes_w: 32,
         ),
         regf_params: (
             reg_nb: 64,

@@ -176,6 +176,23 @@ impl RegisterMap {
                 let pc_p = &self.rtl_params.pc_params;
                 pc_p.pem_pc as u32
             }
+            "Info::ksk_axi4_data_w" => {
+                let bytes_w = &self.rtl_params.pc_params.ksk_bytes_w;
+                *bytes_w as u32 * u8::BITS
+            }
+            "Info::bsk_axi4_data_w" => {
+                let bytes_w = &self.rtl_params.pc_params.bsk_bytes_w;
+                *bytes_w as u32 * u8::BITS
+            }
+            "Info::pem_axi4_data_w" => {
+                let bytes_w = &self.rtl_params.pc_params.pem_bytes_w;
+                *bytes_w as u32 * u8::BITS
+            }
+            "Info::glwe_axi4_data_w" => {
+                let bytes_w = &self.rtl_params.pc_params.glwe_bytes_w;
+                *bytes_w as u32 * u8::BITS
+            }
+
             "Info::RegfInfo" => {
                 let regf_p = &self.rtl_params.regf_params;
                 (regf_p.reg_nb + (regf_p.coef_nb << 8)) as u32

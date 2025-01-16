@@ -179,6 +179,7 @@ impl FromRtl for HpuNttCoreArch {
 
 impl FromRtl for HpuPcParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
+        // Extract number of Pc for each channel
         let hbm_pc = regmap
             .register()
             .get("Info::HbmPc")
@@ -197,10 +198,52 @@ impl FromRtl for HpuPcParameters {
         let bsk_pc = *hbm_pc_fields.get("bsk_pc").expect("Unknow field") as usize;
         let pem_pc = *hbm_pc_2_fields.get("pem_pc").expect("Unknow field") as usize;
 
+        // Extract bus width for each channel
+        let ksk_bytes_w = {
+            let ksk_axi4_data_w = regmap
+                .register()
+                .get("Info::ksk_axi4_data_w")
+                .expect("Unknow register, check regmap definition");
+            let ksk_axi4_data_w_val = ffi_hw.read_reg(*ksk_axi4_data_w.offset() as u64);
+            // Value is in bit in rtl and SW expect bytes
+            ksk_axi4_data_w_val.div_ceil(u8::BITS) as usize
+        };
+        let bsk_bytes_w = {
+            let bsk_axi4_data_w = regmap
+                .register()
+                .get("Info::bsk_axi4_data_w")
+                .expect("Unknow register, check regmap definition");
+            let bsk_axi4_data_w_val = ffi_hw.read_reg(*bsk_axi4_data_w.offset() as u64);
+            // Value is in bit in rtl and SW expect bytes
+            bsk_axi4_data_w_val.div_ceil(u8::BITS) as usize
+        };
+        let pem_bytes_w = {
+            let pem_axi4_data_w = regmap
+                .register()
+                .get("Info::pem_axi4_data_w")
+                .expect("Unknow register, check regmap definition");
+            let pem_axi4_data_w_val = ffi_hw.read_reg(*pem_axi4_data_w.offset() as u64);
+            // Value is in bit in rtl and SW expect bytes
+            pem_axi4_data_w_val.div_ceil(u8::BITS) as usize
+        };
+        let glwe_bytes_w = {
+            let glwe_axi4_data_w = regmap
+                .register()
+                .get("Info::glwe_axi4_data_w")
+                .expect("Unknow register, check regmap definition");
+            let glwe_axi4_data_w_val = ffi_hw.read_reg(*glwe_axi4_data_w.offset() as u64);
+            // Value is in bit in rtl and SW expect bytes
+            glwe_axi4_data_w_val.div_ceil(u8::BITS) as usize
+        };
+
         Self {
             ksk_pc,
             bsk_pc,
             pem_pc,
+            ksk_bytes_w,
+            bsk_bytes_w,
+            pem_bytes_w,
+            glwe_bytes_w,
         }
     }
 }

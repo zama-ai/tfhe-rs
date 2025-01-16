@@ -106,8 +106,13 @@ impl HpuNttParameters {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuPcParameters {
     pub ksk_pc: usize,
+    pub ksk_bytes_w: usize,
     pub bsk_pc: usize,
+    pub bsk_bytes_w: usize,
     pub pem_pc: usize,
+    pub pem_bytes_w: usize,
+    // pub glwe_pc: usize, // Currently hardcoded to 1
+    pub glwe_bytes_w: usize,
 }
 
 /// Parameters related to regfile
