@@ -196,6 +196,8 @@ pub enum CompactPkeCrs {
 
 impl Named for CompactPkeCrs {
     const NAME: &'static str = "zk::CompactPkeCrs";
+
+    const BACKWARD_COMPATIBILITY_ALIASES: &'static [&'static str] = &["zk::CompactPkePublicParams"];
 }
 
 impl From<ZkCompactPkeV1PublicParams> for CompactPkeCrs {
