@@ -58,7 +58,7 @@ jobs:
               - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
-              - 'tfhe/docs/**.md'
+              - 'tfhe/docs/**/**.md'
               - '.github/workflows/gpu_signed_integer_tests.yml'
               - scripts/integer-tests.sh
               - ci/slab.toml

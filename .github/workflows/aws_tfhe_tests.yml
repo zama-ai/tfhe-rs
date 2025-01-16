@@ -111,7 +111,7 @@ jobs:
             user_docs:
               - tfhe/src/**
               - '!tfhe/src/c_api/**'
-              - 'tfhe/docs/**.md'
+              - 'tfhe/docs/**/**.md'
               - README.md
 
       - name: Aggregate file changes
