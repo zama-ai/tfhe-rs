@@ -142,7 +142,7 @@ impl CudaServerKey {
             ctxt
         } else {
             tmp_ctxt = ctxt.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_ctxt, streams);
+            self.full_propagate_assign(&mut tmp_ctxt, streams);
             &mut tmp_ctxt
         };
 

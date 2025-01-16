@@ -8,6 +8,7 @@
 
 #include "device.h"
 #include "helper_multi_gpu.h"
+#include "integer/integer.h"
 #include "linear_algebra.h"
 #include "utils/kernel_dimensions.cuh"
 #include <stdio.h>
@@ -100,10 +101,40 @@ __global__ void addition(T *output, T const *input_1, T const *input_2,
 
 // Coefficient-wise addition
 template <typename T>
-__host__ void host_addition(cudaStream_t stream, uint32_t gpu_index, T *output,
-                            T const *input_1, T const *input_2,
-                            const uint32_t input_lwe_dimension,
-                            const uint32_t input_lwe_ciphertext_count) {
+__host__ void host_addition(cudaStream_t stream, uint32_t gpu_index,
+                            CudaRadixCiphertextFFI *output,
+                            CudaRadixCiphertextFFI const *input_1,
+                            CudaRadixCiphertextFFI const *input_2) {
+
+  cudaSetDevice(gpu_index);
+  // lwe_size includes the presence of the body
+  // whereas lwe_dimension is the number of elements in the mask
+  int lwe_size = output->lwe_dimension + 1;
+  // Create a 1-dimensional grid of threads
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = output->num_radix_blocks * lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  addition<T><<<grid, thds, 0, stream>>>(
+      static_cast<T *>(output->ptr), static_cast<const T *>(input_1->ptr),
+      static_cast<const T *>(input_2->ptr), num_entries);
+  check_cuda_error(cudaGetLastError());
+  for (uint i = 0; i < output->num_radix_blocks; i++) {
+    output->degrees[i] = input_1->degrees[i] + input_2->degrees[i];
+    output->noise_levels[i] =
+        input_1->noise_levels[i] + input_2->noise_levels[i];
+  }
+}
+
+// Coefficient-wise addition
+template <typename T>
+__host__ void legacy_host_addition(cudaStream_t stream, uint32_t gpu_index,
+                                   T *output, T const *input_1,
+                                   T const *input_2,
+                                   const uint32_t input_lwe_dimension,
+                                   const uint32_t input_lwe_ciphertext_count) {
 
   cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body

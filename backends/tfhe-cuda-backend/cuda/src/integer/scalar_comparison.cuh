@@ -540,10 +540,10 @@ __host__ void integer_radix_signed_scalar_maxmin_kb(
 
   // Selector
   // CMUX for Max or Min
-  host_integer_radix_cmux_kb<Torus>(streams, gpu_indexes, gpu_count,
-                                    lwe_array_out, sign, lwe_array_left,
-                                    lwe_array_right, mem_ptr->cmux_buffer, bsks,
-                                    ksks, total_num_radix_blocks);
+  legacy_host_integer_radix_cmux_kb<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array_out, sign, lwe_array_left,
+      lwe_array_right, mem_ptr->cmux_buffer, bsks, ksks,
+      total_num_radix_blocks);
 }
 
 template <typename Torus>
@@ -621,7 +621,7 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
 
   // Selector
   // CMUX for Max or Min
-  host_integer_radix_cmux_kb<Torus>(
+  legacy_host_integer_radix_cmux_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out,
       mem_ptr->tmp_lwe_array_out, lwe_array_left, lwe_array_right,
       mem_ptr->cmux_buffer, bsks, ksks, total_num_radix_blocks);

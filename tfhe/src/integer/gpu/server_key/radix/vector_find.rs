@@ -250,9 +250,7 @@ impl CudaServerKey {
             self.unchecked_match_value(ct, matches, streams)
         } else {
             let mut clone = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut clone, streams);
-            }
+            self.full_propagate_assign(&mut clone, streams);
             self.unchecked_match_value(&clone, matches, streams)
         }
     }
@@ -366,9 +364,7 @@ impl CudaServerKey {
             self.unchecked_match_value_or(ct, matches, or_value, streams)
         } else {
             let mut clone = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut clone, streams);
-            }
+            self.full_propagate_assign(&mut clone, streams);
             self.unchecked_match_value_or(&clone, matches, or_value, streams)
         }
     }
@@ -446,11 +442,9 @@ impl CudaServerKey {
         let cts = if cts.iter().any(|ct| !ct.block_carries_are_empty()) {
             // Need a way to parallelize this step
             for ct in cts.iter() {
-                let mut temp_ct = unsafe { ct.duplicate_async(streams) };
+                let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe {
-                        self.full_propagate_assign_async(&mut temp_ct, streams);
-                    }
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -464,9 +458,7 @@ impl CudaServerKey {
             value
         } else {
             tmp_value = value.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp_value, streams);
-            }
+            self.full_propagate_assign(&mut tmp_value, streams);
             &tmp_value
         };
 
@@ -550,11 +542,9 @@ impl CudaServerKey {
         let cts = if cts.iter().any(|ct| !ct.block_carries_are_empty()) {
             // Need a way to parallelize this step
             for ct in cts.iter() {
-                let mut temp_ct = unsafe { ct.duplicate_async(streams) };
+                let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe {
-                        self.full_propagate_assign_async(&mut temp_ct, streams);
-                    }
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -642,9 +632,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_ct = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp_ct, streams);
-            }
+            self.full_propagate_assign(&mut tmp_ct, streams);
             &tmp_ct
         };
         self.unchecked_is_in_clears(ct, clears, streams)
@@ -744,9 +732,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_ct = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp_ct, streams);
-            }
+            self.full_propagate_assign(&mut tmp_ct, streams);
             streams.synchronize();
             &tmp_ct
         };
@@ -873,9 +859,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_ct = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp_ct, streams);
-            }
+            self.full_propagate_assign(&mut tmp_ct, streams);
             streams.synchronize();
             &tmp_ct
         };
@@ -978,11 +962,9 @@ impl CudaServerKey {
         let cts = if cts.iter().any(|ct| !ct.block_carries_are_empty()) {
             // Need a way to parallelize this step
             for ct in cts.iter() {
-                let mut temp_ct = unsafe { ct.duplicate_async(streams) };
+                let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe {
-                        self.full_propagate_assign_async(&mut temp_ct, streams);
-                    }
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -996,9 +978,7 @@ impl CudaServerKey {
             value
         } else {
             tmp_value = value.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp_value, streams);
-            }
+            self.full_propagate_assign(&mut tmp_value, streams);
             &tmp_value
         };
         self.unchecked_index_of(cts, value, streams)
@@ -1100,11 +1080,9 @@ impl CudaServerKey {
         let cts = if cts.iter().any(|ct| !ct.block_carries_are_empty()) {
             // Need a way to parallelize this step
             for ct in cts.iter() {
-                let mut temp_ct = unsafe { ct.duplicate_async(streams) };
+                let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe {
-                        self.full_propagate_assign_async(&mut temp_ct, streams);
-                    }
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -1231,11 +1209,9 @@ impl CudaServerKey {
         let cts = if cts.iter().any(|ct| !ct.block_carries_are_empty()) {
             // Need a way to parallelize this step
             for ct in cts.iter() {
-                let mut temp_ct = unsafe { ct.duplicate_async(streams) };
+                let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe {
-                        self.full_propagate_assign_async(&mut temp_ct, streams);
-                    }
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -1365,11 +1341,9 @@ impl CudaServerKey {
         let cts = if cts.iter().any(|ct| !ct.block_carries_are_empty()) {
             // Need a way to parallelize this step
             for ct in cts.iter() {
-                let mut temp_ct = unsafe { ct.duplicate_async(streams) };
+                let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    unsafe {
-                        self.full_propagate_assign_async(&mut temp_ct, streams);
-                    }
+                    self.full_propagate_assign(&mut temp_ct, streams);
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -1383,9 +1357,7 @@ impl CudaServerKey {
             value
         } else {
             tmp_value = value.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp_value, streams);
-            }
+            self.full_propagate_assign(&mut tmp_value, streams);
             &tmp_value
         };
         self.unchecked_first_index_of(cts, value, streams)
@@ -1640,7 +1612,7 @@ impl CudaServerKey {
                     streams,
                 );
             }
-            let mut temp = unsafe { aggregated_vector.duplicate_async(streams) };
+            let mut temp = aggregated_vector.duplicate(streams);
             let mut aggregated_mut_slice = aggregated_vector
                 .as_mut()
                 .d_blocks
@@ -1712,13 +1684,11 @@ impl CudaServerKey {
         let last_chunk_size = one_hot_vector.len() - (num_chunks - 1) * chunk_size;
         for ct_idx in 0..last_chunk_size {
             let one_hot_idx = (num_chunks - 1) * chunk_size + ct_idx;
-            unsafe {
-                self.unchecked_add_assign_async(
-                    &mut aggregated_vector,
-                    &one_hot_vector[one_hot_idx],
-                    streams,
-                );
-            }
+            self.unchecked_add_assign(
+                &mut aggregated_vector,
+                &one_hot_vector[one_hot_idx],
+                streams,
+            );
         }
 
         let message_extract_lut =
@@ -1745,7 +1715,7 @@ impl CudaServerKey {
             .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
             .unwrap();
         unsafe {
-            let mut temp = aggregated_vector.duplicate_async(streams);
+            let mut temp = aggregated_vector.duplicate(streams);
             let aggregated_slice = temp
                 .as_mut()
                 .d_blocks
@@ -1805,7 +1775,7 @@ impl CudaServerKey {
             }
         }
         unsafe {
-            let mut temp = aggregated_vector.duplicate_async(streams);
+            let mut temp = aggregated_vector.duplicate(streams);
             let aggregated_slice = temp
                 .as_mut()
                 .d_blocks
@@ -1941,7 +1911,7 @@ impl CudaServerKey {
         let mut first_true: T =
             unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
 
-        let mut clone_ct = unsafe { values.duplicate_async(streams) };
+        let mut clone_ct = values.duplicate(streams);
         let mut slice_in = clone_ct
             .as_mut()
             .d_blocks
@@ -2022,7 +1992,7 @@ impl CudaServerKey {
             }
         });
 
-        let cloned_ct = unsafe { first_true.duplicate_async(streams) };
+        let cloned_ct = first_true.duplicate(streams);
         let slice_in_final = cloned_ct
             .as_ref()
             .d_blocks
