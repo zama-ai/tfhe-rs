@@ -193,7 +193,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, streams);
+            self.full_propagate_assign(ct, streams);
         }
         self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarAnd, streams);
         ct.as_mut().info = ct.as_ref().info.after_scalar_bitand(rhs);
@@ -234,7 +234,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, streams);
+            self.full_propagate_assign(ct, streams);
         }
         self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarOr, streams);
         ct.as_mut().info = ct.as_ref().info.after_scalar_bitor(rhs);
@@ -275,7 +275,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, streams);
+            self.full_propagate_assign(ct, streams);
         }
         self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarXor, streams);
         ct.as_mut().info = ct.as_ref().info.after_scalar_bitxor(rhs);

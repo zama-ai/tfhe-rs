@@ -1164,64 +1164,6 @@ void host_compute_shifted_blocks_and_borrow_states(
 }
 
 template <typename Torus>
-void host_legacy_propagate_single_carry(cudaStream_t const *streams,
-                                        uint32_t const *gpu_indexes,
-                                        uint32_t gpu_count, Torus *lwe_array,
-                                        Torus *carry_out, Torus *input_carries,
-                                        int_legacy_sc_prop_memory<Torus> *mem,
-                                        void *const *bsks, Torus *const *ksks,
-                                        uint32_t num_blocks) {
-  auto params = mem->params;
-  if (params.message_modulus == 2)
-    PANIC("Cuda error: single carry propagation is not supported for 1 bit "
-          "messages")
-  auto glwe_dimension = params.glwe_dimension;
-  auto polynomial_size = params.polynomial_size;
-  auto big_lwe_size = glwe_dimension * polynomial_size + 1;
-  auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-
-  auto generates_or_propagates = mem->generates_or_propagates;
-  auto step_output = mem->step_output;
-
-  auto luts_array = mem->luts_array;
-  auto luts_carry_propagation_sum = mem->luts_carry_propagation_sum;
-  auto message_acc = mem->message_acc;
-
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, generates_or_propagates, lwe_array, bsks,
-      ksks, num_blocks, luts_array);
-
-  // compute prefix sum with hillis&steele
-  host_compute_prefix_sum_hillis_steele<Torus>(
-      streams, gpu_indexes, gpu_count, step_output, generates_or_propagates,
-      params, luts_carry_propagation_sum, bsks, ksks, num_blocks);
-
-  host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
-                                        step_output, generates_or_propagates, 1,
-                                        num_blocks, big_lwe_size);
-  if (carry_out != nullptr) {
-    cuda_memcpy_async_gpu_to_gpu(carry_out, step_output, big_lwe_size_bytes,
-                                 streams[0], gpu_indexes[0]);
-  }
-  cuda_memset_async(step_output, 0, big_lwe_size_bytes, streams[0],
-                    gpu_indexes[0]);
-
-  if (input_carries != nullptr) {
-    cuda_memcpy_async_gpu_to_gpu((void *)input_carries, step_output,
-                                 big_lwe_size_bytes * num_blocks, streams[0],
-                                 gpu_indexes[0]);
-  }
-
-  host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array, lwe_array,
-                       step_output, glwe_dimension * polynomial_size,
-                       num_blocks);
-
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array, lwe_array, bsks, ksks,
-      num_blocks, message_acc);
-}
-
-template <typename Torus>
 void host_generate_last_block_inner_propagation(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *last_block_inner_propagation, Torus const *lhs,
@@ -1336,10 +1278,10 @@ void host_full_propagate_inplace(cudaStream_t const *streams,
 
     if (i < num_blocks - 1) {
       auto next_input_block = &input_blocks[(i + 1) * big_lwe_size];
-      host_addition<Torus>(streams[0], gpu_indexes[0], next_input_block,
-                           (Torus const *)next_input_block,
-                           &mem_ptr->tmp_big_lwe_vector[big_lwe_size],
-                           params.big_lwe_dimension, 1);
+      legacy_host_addition<Torus>(streams[0], gpu_indexes[0], next_input_block,
+                                  (Torus const *)next_input_block,
+                                  &mem_ptr->tmp_big_lwe_vector[big_lwe_size],
+                                  params.big_lwe_dimension, 1);
     }
   }
 }
@@ -1703,8 +1645,8 @@ void host_propagate_single_carry(cudaStream_t const *streams,
     PANIC("Cuda error: single carry propagation is not supported for overflow, "
           "try using add_and_propagate_single_carry");
   if (uses_carry == 1) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array, lwe_array,
-                         input_carries, big_lwe_dimension, 1);
+    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array,
+                                lwe_array, input_carries, big_lwe_dimension, 1);
   }
   // Step 1
   host_compute_shifted_blocks_and_states<Torus>(
@@ -1728,17 +1670,18 @@ void host_propagate_single_carry(cudaStream_t const *streams,
 
   auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
   auto shifted_blocks = mem->shifted_blocks_state_mem->shifted_blocks;
-  host_addition<Torus>(streams[0], gpu_indexes[0], prepared_blocks,
-                       shifted_blocks,
-                       mem->prop_simu_group_carries_mem->simulators,
-                       big_lwe_dimension, num_radix_blocks);
+  legacy_host_addition<Torus>(streams[0], gpu_indexes[0], prepared_blocks,
+                              shifted_blocks,
+                              mem->prop_simu_group_carries_mem->simulators,
+                              big_lwe_dimension, num_radix_blocks);
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
-                         mem->prop_simu_group_carries_mem->simulators +
-                             (num_radix_blocks - 1) * big_lwe_size,
-                         big_lwe_dimension, 1);
+    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], output_flag,
+                                output_flag,
+                                mem->prop_simu_group_carries_mem->simulators +
+                                    (num_radix_blocks - 1) * big_lwe_size,
+                                big_lwe_dimension, 1);
   }
 
   host_radix_sum_in_groups<Torus>(
@@ -1746,10 +1689,11 @@ void host_propagate_single_carry(cudaStream_t const *streams,
       mem->prop_simu_group_carries_mem->resolved_carries, num_radix_blocks,
       big_lwe_size, group_size);
   if (requested_flag == outputFlag::FLAG_CARRY) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
-                         mem->prop_simu_group_carries_mem->resolved_carries +
-                             (mem->num_groups - 1) * big_lwe_size,
-                         big_lwe_dimension, 1);
+    legacy_host_addition<Torus>(
+        streams[0], gpu_indexes[0], output_flag, output_flag,
+        mem->prop_simu_group_carries_mem->resolved_carries +
+            (mem->num_groups - 1) * big_lwe_size,
+        big_lwe_dimension, 1);
 
     cuda_memcpy_async_gpu_to_gpu(
         prepared_blocks + num_radix_blocks * big_lwe_size, output_flag,
@@ -1800,12 +1744,12 @@ void host_add_and_propagate_single_carry(
         big_lwe_size_bytes, streams[0], gpu_indexes[0]);
   }
 
-  host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array, lhs_array,
-                       rhs_array, big_lwe_dimension, num_radix_blocks);
+  legacy_host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array, lhs_array,
+                              rhs_array, big_lwe_dimension, num_radix_blocks);
 
   if (uses_carry == 1) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array, lhs_array,
-                         input_carries, big_lwe_dimension, 1);
+    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array,
+                                lhs_array, input_carries, big_lwe_dimension, 1);
   }
   // Step 1
   host_compute_shifted_blocks_and_states<Torus>(
@@ -1835,17 +1779,18 @@ void host_add_and_propagate_single_carry(
 
   auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
   auto shifted_blocks = mem->shifted_blocks_state_mem->shifted_blocks;
-  host_addition<Torus>(streams[0], gpu_indexes[0], prepared_blocks,
-                       shifted_blocks,
-                       mem->prop_simu_group_carries_mem->simulators,
-                       big_lwe_dimension, num_radix_blocks);
+  legacy_host_addition<Torus>(streams[0], gpu_indexes[0], prepared_blocks,
+                              shifted_blocks,
+                              mem->prop_simu_group_carries_mem->simulators,
+                              big_lwe_dimension, num_radix_blocks);
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
-                         mem->prop_simu_group_carries_mem->simulators +
-                             (num_radix_blocks - 1) * big_lwe_size,
-                         big_lwe_dimension, 1);
+    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], output_flag,
+                                output_flag,
+                                mem->prop_simu_group_carries_mem->simulators +
+                                    (num_radix_blocks - 1) * big_lwe_size,
+                                big_lwe_dimension, 1);
   }
 
   // Step 3
@@ -1859,15 +1804,17 @@ void host_add_and_propagate_single_carry(
       requested_flag == outputFlag::FLAG_CARRY) {
     if (num_radix_blocks == 1 && requested_flag == outputFlag::FLAG_OVERFLOW &&
         uses_carry == 1) {
-      host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
-                           input_carries, big_lwe_dimension, 1);
+      legacy_host_addition<Torus>(streams[0], gpu_indexes[0], output_flag,
+                                  output_flag, input_carries, big_lwe_dimension,
+                                  1);
 
     } else {
 
-      host_addition<Torus>(streams[0], gpu_indexes[0], output_flag, output_flag,
-                           mem->prop_simu_group_carries_mem->resolved_carries +
-                               (mem->num_groups - 1) * big_lwe_size,
-                           big_lwe_dimension, 1);
+      legacy_host_addition<Torus>(
+          streams[0], gpu_indexes[0], output_flag, output_flag,
+          mem->prop_simu_group_carries_mem->resolved_carries +
+              (mem->num_groups - 1) * big_lwe_size,
+          big_lwe_dimension, 1);
     }
     cuda_memcpy_async_gpu_to_gpu(
         prepared_blocks + num_radix_blocks * big_lwe_size, output_flag,
@@ -1960,11 +1907,11 @@ void host_single_borrow_propagate(
       num_radix_blocks, message_modulus, carry_modulus);
 
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], mem->overflow_block,
-                         mem->overflow_block,
-                         mem->prop_simu_group_carries_mem->simulators +
-                             (num_radix_blocks - 1) * big_lwe_size,
-                         big_lwe_dimension, 1);
+    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], mem->overflow_block,
+                                mem->overflow_block,
+                                mem->prop_simu_group_carries_mem->simulators +
+                                    (num_radix_blocks - 1) * big_lwe_size,
+                                big_lwe_dimension, 1);
   }
   auto resolved_borrows = mem->prop_simu_group_carries_mem->resolved_carries;
 
@@ -1972,10 +1919,10 @@ void host_single_borrow_propagate(
   //  This needs to be done before because in next step we modify the resolved
   //  borrows
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], mem->overflow_block,
-                         mem->overflow_block,
-                         resolved_borrows + (num_groups - 1) * big_lwe_size,
-                         big_lwe_dimension, 1);
+    legacy_host_addition<Torus>(
+        streams[0], gpu_indexes[0], mem->overflow_block, mem->overflow_block,
+        resolved_borrows + (num_groups - 1) * big_lwe_size, big_lwe_dimension,
+        1);
   }
 
   cuda_event_record(mem->incoming_events[0], streams[0], gpu_indexes[0]);

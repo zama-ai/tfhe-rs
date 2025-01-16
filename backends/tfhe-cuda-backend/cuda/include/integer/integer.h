@@ -38,6 +38,15 @@ enum SIGNED_OPERATION { ADDITION = 1, SUBTRACTION = -1 };
 enum outputFlag { FLAG_NONE = 0, FLAG_OVERFLOW = 1, FLAG_CARRY = 2 };
 
 extern "C" {
+
+typedef struct {
+  void *ptr;
+  uint64_t *degrees;
+  uint64_t *noise_levels;
+  uint32_t num_radix_blocks;
+  uint32_t lwe_dimension;
+} CudaRadixCiphertextFFI;
+
 void scratch_cuda_apply_univariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, void const *input_lut, uint32_t lwe_dimension,
@@ -258,9 +267,11 @@ void scratch_cuda_integer_radix_cmux_kb_64(
 
 void cuda_cmux_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_condition, void const *lwe_array_true,
-    void const *lwe_array_false, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, uint32_t lwe_ciphertext_count);
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_condition,
+    CudaRadixCiphertextFFI const *lwe_array_true,
+    CudaRadixCiphertextFFI const *lwe_array_false, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_integer_radix_cmux(void *const *streams,
                                      uint32_t const *gpu_indexes,
@@ -439,8 +450,8 @@ void scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
 
 void cuda_integer_abs_inplace_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *ct, int8_t *mem_ptr, bool is_signed, void *const *bsks,
-    void *const *ksks, uint32_t num_blocks);
+    CudaRadixCiphertextFFI *ct, int8_t *mem_ptr, bool is_signed,
+    void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_integer_abs_inplace(void *const *streams,
                                       uint32_t const *gpu_indexes,

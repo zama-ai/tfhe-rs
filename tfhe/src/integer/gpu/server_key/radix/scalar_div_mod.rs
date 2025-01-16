@@ -296,7 +296,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -425,7 +425,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -536,7 +536,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -776,7 +776,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -894,7 +894,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
@@ -1006,7 +1006,7 @@ impl CudaServerKey {
             numerator
         } else {
             tmp_numerator = numerator.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_numerator, streams);
+            self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 

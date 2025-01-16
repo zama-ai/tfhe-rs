@@ -421,14 +421,39 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    let mut output_degrees_vec: Vec<u64> = vec![0; num_samples as usize];
+    let mut output_noise_levels_vec: Vec<u64> = vec![0; num_samples as usize];
+    let mut input_1_degrees_vec = output_degrees_vec.clone();
+    let mut input_1_noise_levels_vec = output_noise_levels_vec.clone();
+    let mut input_2_degrees_vec = output_degrees_vec.clone();
+    let mut input_2_noise_levels_vec = output_noise_levels_vec.clone();
+    let mut lwe_array_out_data = CudaRadixCiphertextFFI {
+        ptr: lwe_array_out.as_mut_c_ptr(0),
+        degrees: output_degrees_vec.as_mut_ptr(),
+        noise_levels: output_noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks: num_samples,
+        lwe_dimension: lwe_dimension.0 as u32,
+    };
+    let lwe_array_in_1_data = CudaRadixCiphertextFFI {
+        ptr: lwe_array_in_1.get_mut_c_ptr(0),
+        degrees: input_1_degrees_vec.as_mut_ptr(),
+        noise_levels: input_1_noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks: num_samples,
+        lwe_dimension: lwe_dimension.0 as u32,
+    };
+    let lwe_array_in_2_data = CudaRadixCiphertextFFI {
+        ptr: lwe_array_in_2.get_mut_c_ptr(0),
+        degrees: input_2_degrees_vec.as_mut_ptr(),
+        noise_levels: input_2_noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks: num_samples,
+        lwe_dimension: lwe_dimension.0 as u32,
+    };
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].0,
-        lwe_array_out.as_mut_c_ptr(0),
-        lwe_array_in_1.as_c_ptr(0),
-        lwe_array_in_2.as_c_ptr(0),
-        lwe_dimension.0 as u32,
-        num_samples,
+        &mut lwe_array_out_data,
+        &lwe_array_in_1_data,
+        &lwe_array_in_2_data,
     );
 }
 
@@ -445,14 +470,30 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
     lwe_dimension: LweDimension,
     num_samples: u32,
 ) {
+    let mut output_degrees_vec: Vec<u64> = vec![0; num_samples as usize];
+    let mut output_noise_levels_vec: Vec<u64> = vec![0; num_samples as usize];
+    let mut input_degrees_vec = output_degrees_vec.clone();
+    let mut input_noise_levels_vec = output_noise_levels_vec.clone();
+    let mut lwe_array_out_data = CudaRadixCiphertextFFI {
+        ptr: lwe_array_out.as_mut_c_ptr(0),
+        degrees: output_degrees_vec.as_mut_ptr(),
+        noise_levels: output_noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks: num_samples,
+        lwe_dimension: lwe_dimension.0 as u32,
+    };
+    let lwe_array_in_data = CudaRadixCiphertextFFI {
+        ptr: lwe_array_in.get_mut_c_ptr(0),
+        degrees: input_degrees_vec.as_mut_ptr(),
+        noise_levels: input_noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks: num_samples,
+        lwe_dimension: lwe_dimension.0 as u32,
+    };
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].0,
-        lwe_array_out.as_mut_c_ptr(0),
-        lwe_array_out.as_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        lwe_dimension.0 as u32,
-        num_samples,
+        &mut lwe_array_out_data,
+        &lwe_array_out_data,
+        &lwe_array_in_data,
     );
 }
 

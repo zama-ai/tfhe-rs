@@ -60,7 +60,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.unchecked_scalar_add_assign(&mut result, scalar, streams);
         result
     }
@@ -166,7 +166,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(streams) };
+        let mut result = ct.duplicate(streams);
         self.scalar_add_assign(&mut result, scalar, streams);
         result
     }
@@ -185,7 +185,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, streams);
+            self.full_propagate_assign(ct, streams);
         };
 
         self.unchecked_scalar_add_assign_async(ct, scalar, streams);
@@ -213,9 +213,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8> + CastInto<u64>,
     {
         let mut result;
-        unsafe {
-            result = ct_left.duplicate_async(stream);
-        }
+        result = ct_left.duplicate(stream);
         let overflowed = self.unsigned_overflowing_scalar_add_assign(&mut result, scalar, stream);
         (result, overflowed)
     }
@@ -229,10 +227,8 @@ impl CudaServerKey {
     where
         Scalar: DecomposableInto<u8> + CastInto<u64>,
     {
-        unsafe {
-            if !ct_left.block_carries_are_empty() {
-                self.full_propagate_assign_async(ct_left, stream);
-            }
+        if !ct_left.block_carries_are_empty() {
+            self.full_propagate_assign(ct_left, stream);
         }
         self.unchecked_unsigned_overflowing_scalar_add_assign(ct_left, scalar, stream)
     }
@@ -247,9 +243,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8> + CastInto<u64>,
     {
         let mut result;
-        unsafe {
-            result = ct_left.duplicate_async(stream);
-        }
+        result = ct_left.duplicate(stream);
         let overflowed =
             self.unchecked_unsigned_overflowing_scalar_add_assign(&mut result, scalar, stream);
         (result, overflowed)
@@ -334,11 +328,9 @@ impl CudaServerKey {
         Scalar: SignedNumeric + DecomposableInto<u64> + CastInto<u64>,
     {
         let mut tmp_lhs;
-        unsafe {
-            tmp_lhs = ct_left.duplicate_async(streams);
-            if !tmp_lhs.block_carries_are_empty() {
-                self.full_propagate_assign_async(&mut tmp_lhs, streams);
-            }
+        tmp_lhs = ct_left.duplicate(streams);
+        if !tmp_lhs.block_carries_are_empty() {
+            self.full_propagate_assign(&mut tmp_lhs, streams);
         }
 
         let trivial: CudaSignedRadixCiphertext = self.create_trivial_radix(

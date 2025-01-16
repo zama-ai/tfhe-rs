@@ -386,59 +386,57 @@ impl CudaServerKey {
         carry_out
     }
 
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub(crate) unsafe fn full_propagate_assign_async<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn full_propagate_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
         streams: &CudaStreams,
     ) {
         let ciphertext = ct.as_mut();
         let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                full_propagate_assign_async(
-                    streams,
-                    &mut ciphertext.d_blocks.0.d_vec,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_bsk.input_lwe_dimension(),
-                    d_bsk.glwe_dimension(),
-                    d_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count(),
-                    d_bsk.decomp_base_log(),
-                    num_blocks,
-                    ciphertext.info.blocks.first().unwrap().message_modulus,
-                    ciphertext.info.blocks.first().unwrap().carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                full_propagate_assign_async(
-                    streams,
-                    &mut ciphertext.d_blocks.0.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_multibit_bsk.input_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension(),
-                    d_multibit_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count(),
-                    d_multibit_bsk.decomp_base_log(),
-                    num_blocks,
-                    ciphertext.info.blocks.first().unwrap().message_modulus,
-                    ciphertext.info.blocks.first().unwrap().carry_modulus,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                );
-            }
-        };
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    full_propagate_assign_async(
+                        streams,
+                        &mut ciphertext.d_blocks.0.d_vec,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.input_lwe_dimension(),
+                        d_bsk.glwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count(),
+                        d_bsk.decomp_base_log(),
+                        num_blocks,
+                        ciphertext.info.blocks.first().unwrap().message_modulus,
+                        ciphertext.info.blocks.first().unwrap().carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    full_propagate_assign_async(
+                        streams,
+                        &mut ciphertext.d_blocks.0.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_multibit_bsk.input_lwe_dimension(),
+                        d_multibit_bsk.glwe_dimension(),
+                        d_multibit_bsk.polynomial_size(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count(),
+                        d_multibit_bsk.decomp_base_log(),
+                        num_blocks,
+                        ciphertext.info.blocks.first().unwrap().message_modulus,
+                        ciphertext.info.blocks.first().unwrap().carry_modulus,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                    );
+                }
+            };
+        }
         ciphertext.info.blocks.iter_mut().for_each(|b| {
             b.degree = Degree::new(b.message_modulus.0 - 1);
             b.noise_level = if b.noise_level == NoiseLevel::ZERO {
@@ -447,6 +445,7 @@ impl CudaServerKey {
                 NoiseLevel::NOMINAL
             };
         });
+        streams.synchronize();
     }
 
     /// Prepend trivial zero LSB blocks to an existing [`CudaUnsignedRadixCiphertext`] or
@@ -1354,7 +1353,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !source.block_carries_are_empty() {
-            self.full_propagate_assign_async(&mut source, streams);
+            self.full_propagate_assign(&mut source, streams);
         }
         let current_num_blocks = source.as_ref().info.blocks.len();
         if T::IS_SIGNED {
@@ -1460,7 +1459,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !source.block_carries_are_empty() {
-            self.full_propagate_assign_async(&mut source, streams);
+            self.full_propagate_assign(&mut source, streams);
         }
 
         let current_num_blocks = source.as_ref().info.blocks.len();

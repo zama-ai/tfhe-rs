@@ -2,6 +2,8 @@
 #define CUDA_INTEGER_UTILITIES_H
 
 #include "integer.h"
+#include "integer/radix_ciphertext.cuh"
+#include "integer/radix_ciphertext.h"
 #include "keyswitch.h"
 #include "pbs/programmable_bootstrap.cuh"
 #include <cassert>
@@ -2963,9 +2965,9 @@ template <typename Torus> struct int_cmux_buffer {
   int_radix_lut<Torus> *predicate_lut;
   int_radix_lut<Torus> *message_extract_lut;
 
-  Torus *buffer_in;
-  Torus *buffer_out;
-  Torus *condition_array;
+  CudaRadixCiphertextFFI *buffer_in = new CudaRadixCiphertextFFI;
+  CudaRadixCiphertextFFI *buffer_out = new CudaRadixCiphertextFFI;
+  CudaRadixCiphertextFFI *condition_array = new CudaRadixCiphertextFFI;
 
   int_radix_params params;
 
@@ -2978,15 +2980,15 @@ template <typename Torus> struct int_cmux_buffer {
     this->params = params;
 
     if (allocate_gpu_memory) {
-      Torus big_size =
-          (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-
-      buffer_in =
-          (Torus *)cuda_malloc_async(2 * big_size, streams[0], gpu_indexes[0]);
-      buffer_out =
-          (Torus *)cuda_malloc_async(2 * big_size, streams[0], gpu_indexes[0]);
-      condition_array =
-          (Torus *)cuda_malloc_async(2 * big_size, streams[0], gpu_indexes[0]);
+      create_trivial_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], buffer_in, 2 * num_radix_blocks,
+          params.big_lwe_dimension);
+      create_trivial_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], buffer_out, 2 * num_radix_blocks,
+          params.big_lwe_dimension);
+      create_trivial_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], condition_array, 2 * num_radix_blocks,
+          params.big_lwe_dimension);
 
       auto lut_f = [predicate_lut_f](Torus block, Torus condition) -> Torus {
         return predicate_lut_f(condition) ? 0 : block;
@@ -3047,9 +3049,12 @@ template <typename Torus> struct int_cmux_buffer {
     message_extract_lut->release(streams, gpu_indexes, gpu_count);
     delete message_extract_lut;
 
-    cuda_drop_async(buffer_in, streams[0], gpu_indexes[0]);
-    cuda_drop_async(buffer_out, streams[0], gpu_indexes[0]);
-    cuda_drop_async(condition_array, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], buffer_in);
+    delete buffer_in;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], buffer_out);
+    delete buffer_out;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], condition_array);
+    delete condition_array;
   }
 };
 
@@ -4351,7 +4356,7 @@ template <typename Torus> struct int_abs_buffer {
   int_sc_prop_memory<Torus> *scp_mem;
   int_bitop_buffer<Torus> *bitxor_mem;
 
-  Torus *mask;
+  CudaRadixCiphertextFFI *mask = new CudaRadixCiphertextFFI;
   int_abs_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                  uint32_t gpu_count, int_radix_params params,
                  uint32_t num_radix_blocks, bool allocate_gpu_memory) {
@@ -4372,11 +4377,9 @@ template <typename Torus> struct int_abs_buffer {
           streams, gpu_indexes, gpu_count, BITOP_TYPE::BITXOR, params,
           num_radix_blocks, allocate_gpu_memory);
 
-      uint32_t lwe_size = params.big_lwe_dimension + 1;
-      uint32_t lwe_size_bytes = lwe_size * sizeof(Torus);
-
-      mask = (Torus *)cuda_malloc_async(num_radix_blocks * lwe_size_bytes,
-                                        streams[0], gpu_indexes[0]);
+      create_trivial_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                   mask, num_radix_blocks,
+                                                   params.big_lwe_dimension);
     }
   }
 
@@ -4390,7 +4393,8 @@ template <typename Torus> struct int_abs_buffer {
     delete scp_mem;
     delete bitxor_mem;
 
-    cuda_drop_async(mask, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], mask);
+    delete mask;
   }
 };
 

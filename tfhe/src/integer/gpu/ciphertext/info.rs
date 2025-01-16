@@ -72,23 +72,6 @@ impl CudaRadixCiphertextInfo {
         Some(decomposer)
     }
 
-    pub(crate) fn after_add(&self, other: &Self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .zip(&other.blocks)
-                .map(|(left, right)| CudaBlockInfo {
-                    degree: left.degree + right.degree,
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: left.noise_level + right.noise_level,
-                })
-                .collect(),
-        }
-    }
-
     pub(crate) fn after_neg(&self) -> Self {
         let new_degrees_iter = NegatedDegreeIter::new(
             self.blocks

@@ -620,7 +620,7 @@ __host__ void host_integer_radix_maxmin_kb(
       ksks, total_num_radix_blocks);
 
   // Selector
-  host_integer_radix_cmux_kb<Torus>(
+  legacy_host_integer_radix_cmux_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out,
       mem_ptr->tmp_lwe_array_out, lwe_array_left, lwe_array_right,
       mem_ptr->cmux_buffer, bsks, ksks, total_num_radix_blocks);
