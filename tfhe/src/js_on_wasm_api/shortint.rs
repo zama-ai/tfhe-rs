@@ -2,7 +2,7 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::DefaultRandomGenerator;
-use crate::js_on_wasm_api::js_high_level_api::into_js_error;
+use crate::js_on_wasm_api::into_js_error;
 use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
     V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
