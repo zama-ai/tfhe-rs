@@ -45,12 +45,21 @@ pub mod test_tools {
     use crate::core_crypto::commons::traits::*;
     use tfhe_csprng::seeders::Seed;
 
+    pub fn mean(samples: &[f64]) -> f64 {
+        let num_samples = samples.len();
+
+        samples.iter().sum::<f64>() / (num_samples as f64)
+    }
+
     pub fn variance(samples: &[f64]) -> Variance {
         let num_samples = samples.len();
-        let mean = samples.iter().sum::<f64>() / (num_samples as f64);
-        Variance(
-            samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / ((num_samples - 1) as f64),
-        )
+
+        let mean = mean(samples);
+
+        let sum_squared_deviations_to_the_mean =
+            samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>();
+
+        Variance(sum_squared_deviations_to_the_mean / ((num_samples - 1) as f64))
     }
 
     pub fn new_random_generator() -> RandomGenerator<DefaultRandomGenerator> {
