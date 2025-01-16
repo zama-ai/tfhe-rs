@@ -25,19 +25,16 @@ void scratch_cuda_integer_radix_cmux_kb_64(
 
 void cuda_cmux_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_condition, void const *lwe_array_true,
-    void const *lwe_array_false, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, uint32_t lwe_ciphertext_count) {
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_condition,
+    CudaRadixCiphertextFFI const *lwe_array_true,
+    CudaRadixCiphertextFFI const *lwe_array_false, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks) {
 
   host_integer_radix_cmux_kb<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lwe_array_out),
-      static_cast<const uint64_t *>(lwe_condition),
-      static_cast<const uint64_t *>(lwe_array_true),
-      static_cast<const uint64_t *>(lwe_array_false),
-      (int_cmux_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-
-      lwe_ciphertext_count);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array_out,
+      lwe_condition, lwe_array_true, lwe_array_false,
+      (int_cmux_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_integer_radix_cmux(void *const *streams,

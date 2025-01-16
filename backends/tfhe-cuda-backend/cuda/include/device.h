@@ -42,6 +42,9 @@ void cuda_destroy_stream(cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_synchronize_stream(cudaStream_t stream, uint32_t gpu_index);
 
+void synchronize_streams(cudaStream_t const *streams,
+                         uint32_t const *gpu_indexes, uint32_t gpu_count);
+
 uint32_t cuda_is_available();
 
 void *cuda_malloc(uint64_t size, uint32_t gpu_index);

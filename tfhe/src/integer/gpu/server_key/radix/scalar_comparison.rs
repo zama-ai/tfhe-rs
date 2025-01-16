@@ -606,7 +606,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_lhs = ct.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_lhs, streams);
+            self.full_propagate_assign(&mut tmp_lhs, streams);
             &tmp_lhs
         };
 
@@ -688,7 +688,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_lhs = ct.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_lhs, streams);
+            self.full_propagate_assign(&mut tmp_lhs, streams);
             &tmp_lhs
         };
 
@@ -929,7 +929,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_lhs = ct.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_lhs, streams);
+            self.full_propagate_assign(&mut tmp_lhs, streams);
             &tmp_lhs
         };
 
@@ -970,7 +970,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_lhs = ct.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_lhs, streams);
+            self.full_propagate_assign(&mut tmp_lhs, streams);
             &tmp_lhs
         };
 
@@ -1011,7 +1011,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_lhs = ct.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_lhs, streams);
+            self.full_propagate_assign(&mut tmp_lhs, streams);
             &tmp_lhs
         };
 
@@ -1051,7 +1051,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_lhs = ct.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_lhs, streams);
+            self.full_propagate_assign(&mut tmp_lhs, streams);
             &tmp_lhs
         };
 
@@ -1156,7 +1156,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_lhs = ct.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_lhs, streams);
+            self.full_propagate_assign(&mut tmp_lhs, streams);
             &tmp_lhs
         };
 
@@ -1192,7 +1192,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_lhs = ct.duplicate_async(streams);
-            self.full_propagate_assign_async(&mut tmp_lhs, streams);
+            self.full_propagate_assign(&mut tmp_lhs, streams);
             &tmp_lhs
         };
 

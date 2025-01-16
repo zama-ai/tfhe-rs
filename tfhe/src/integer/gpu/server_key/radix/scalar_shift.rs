@@ -371,7 +371,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, streams);
+            self.full_propagate_assign(ct, streams);
         }
 
         self.unchecked_scalar_right_shift_assign_async(ct, shift, streams);
@@ -459,7 +459,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, streams);
+            self.full_propagate_assign(ct, streams);
         }
 
         self.unchecked_scalar_left_shift_assign_async(ct, shift, streams);
@@ -542,11 +542,11 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe {
-            if !ct.block_carries_are_empty() {
-                self.full_propagate_assign_async(ct, streams);
-            }
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_assign(ct, streams);
+        }
 
+        unsafe {
             self.unchecked_scalar_left_shift_assign_async(ct, shift, streams);
         };
         streams.synchronize();
@@ -562,11 +562,11 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe {
-            if !ct.block_carries_are_empty() {
-                self.full_propagate_assign_async(ct, streams);
-            }
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_assign(ct, streams);
+        }
 
+        unsafe {
             self.unchecked_scalar_right_shift_assign_async(ct, shift, streams);
         };
         streams.synchronize();

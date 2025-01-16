@@ -15,7 +15,10 @@ use crate::shortint::{CarryModulus, MessageModulus};
 pub use server_key::CudaServerKey;
 use std::cmp::min;
 
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::server_key::radix_parallel::OutputFlag;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
 
@@ -55,6 +58,45 @@ pub enum ComparisonType {
     LE = 5,
     MAX = 6,
     MIN = 7,
+}
+
+fn prepare_cuda_radix_ciphertext_ffi(input: &CudaRadixCiphertext) -> CudaRadixCiphertextFFI {
+    let mut degrees_vec: Vec<u64> = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut noise_levels_vec: Vec<u64> =
+        input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    CudaRadixCiphertextFFI {
+        ptr: input.d_blocks.0.d_vec.get_mut_c_ptr(0),
+        degrees: degrees_vec.as_mut_ptr(),
+        noise_levels: noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks: input.d_blocks.0.lwe_ciphertext_count.0 as u32,
+        lwe_dimension: input.d_blocks.0.lwe_dimension.0 as u32,
+    }
+}
+
+fn prepare_cuda_boolean_block_ffi(input: &CudaBooleanBlock) -> CudaRadixCiphertextFFI {
+    let mut degrees_vec: Vec<u64> = input
+        .0
+        .ciphertext
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut noise_levels_vec: Vec<u64> = input
+        .0
+        .ciphertext
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    CudaRadixCiphertextFFI {
+        ptr: input.0.ciphertext.d_blocks.0.d_vec.get_mut_c_ptr(0),
+        degrees: degrees_vec.as_mut_ptr(),
+        noise_levels: noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks: input.0.ciphertext.d_blocks.0.lwe_ciphertext_count.0 as u32,
+        lwe_dimension: input.0.ciphertext.d_blocks.0.lwe_dimension.0 as u32,
+    }
 }
 
 pub fn gen_keys_gpu<P>(parameters_set: P, streams: &CudaStreams) -> (ClientKey, CudaServerKey)
@@ -490,32 +532,40 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_add_integer_radix_assign_async<T: UnsignedInteger>(
+pub unsafe fn unchecked_add_integer_radix_assign(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaVec<T>,
-    radix_lwe_right: &CudaVec<T>,
-    lwe_dimension: LweDimension,
-    num_blocks: u32,
+    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_lwe_right: &CudaRadixCiphertext,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(0),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_right.gpu_index(0),
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
+    let mut radix_lwe_left_data = prepare_cuda_radix_ciphertext_ffi(radix_lwe_left);
+    let radix_lwe_right_data = prepare_cuda_radix_ciphertext_ffi(radix_lwe_right);
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].0,
-        radix_lwe_left.as_mut_c_ptr(0),
-        radix_lwe_left.as_c_ptr(0),
-        radix_lwe_right.as_c_ptr(0),
-        lwe_dimension.0 as u32,
-        num_blocks,
+        &mut radix_lwe_left_data,
+        &radix_lwe_left_data,
+        &radix_lwe_right_data,
     );
+    radix_lwe_left
+        .info
+        .blocks
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, b)| {
+            b.degree = Degree(*radix_lwe_left_data.degrees.wrapping_add(i));
+            b.noise_level = NoiseLevel(*radix_lwe_left_data.noise_levels.wrapping_add(i));
+        });
+    streams.synchronize();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2089,12 +2139,12 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
+pub unsafe fn unchecked_cmux_integer_radix_kb<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_out: &mut CudaVec<T>,
-    radix_lwe_condition: &CudaVec<T>,
-    radix_lwe_true: &CudaVec<T>,
-    radix_lwe_false: &CudaVec<T>,
+    radix_lwe_out: &mut CudaRadixCiphertext,
+    radix_lwe_condition: &CudaBooleanBlock,
+    radix_lwe_true: &CudaRadixCiphertext,
+    radix_lwe_false: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -2113,22 +2163,28 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_out.gpu_index(0),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_condition.gpu_index(0),
+        radix_lwe_condition
+            .0
+            .ciphertext
+            .d_blocks
+            .0
+            .d_vec
+            .gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_true.gpu_index(0),
+        radix_lwe_true.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_false.gpu_index(0),
+        radix_lwe_false.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -2141,6 +2197,10 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
+    let mut radix_lwe_out_data = prepare_cuda_radix_ciphertext_ffi(radix_lwe_out);
+    let radix_lwe_true_data = prepare_cuda_radix_ciphertext_ffi(radix_lwe_true);
+    let radix_lwe_false_data = prepare_cuda_radix_ciphertext_ffi(radix_lwe_false);
+    let condition_data = prepare_cuda_boolean_block_ffi(radix_lwe_condition);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_cmux_kb_64(
         streams.ptr.as_ptr(),
@@ -2176,14 +2236,13 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
             .collect::<Vec<u32>>()
             .as_ptr(),
         streams.len() as u32,
-        radix_lwe_out.as_mut_c_ptr(0),
-        radix_lwe_condition.as_c_ptr(0),
-        radix_lwe_true.as_c_ptr(0),
-        radix_lwe_false.as_c_ptr(0),
+        &mut radix_lwe_out_data,
+        &condition_data,
+        &radix_lwe_true_data,
+        &radix_lwe_false_data,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_integer_radix_cmux(
         streams.ptr.as_ptr(),
@@ -2196,6 +2255,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    streams.synchronize()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3150,9 +3210,9 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+pub unsafe fn unchecked_signed_abs_radix_kb_assign<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    ct: &mut CudaVec<T>,
+    ct: &mut CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -3169,7 +3229,13 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
 ) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        ct.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut ct_data = prepare_cuda_radix_ciphertext_ffi(ct);
     scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams
@@ -3205,12 +3271,11 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
             .collect::<Vec<u32>>()
             .as_ptr(),
         streams.len() as u32,
-        ct.as_mut_c_ptr(0),
+        &mut ct_data,
         mem_ptr,
         true,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_integer_abs_inplace(
         streams.ptr.as_ptr(),
@@ -3223,6 +3288,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    streams.synchronize()
 }
 
 #[allow(clippy::too_many_arguments)]

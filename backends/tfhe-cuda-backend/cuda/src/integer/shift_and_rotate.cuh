@@ -144,10 +144,10 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
     // The shift bit is already properly aligned/positioned
     for (int i = 0; i < total_nb_bits; i++)
-      host_addition<Torus>(streams[0], gpu_indexes[0],
-                           mux_inputs + i * big_lwe_size,
-                           mux_inputs + i * big_lwe_size, shift_bit,
-                           mem->params.big_lwe_dimension, 1);
+      legacy_host_addition<Torus>(streams[0], gpu_indexes[0],
+                                  mux_inputs + i * big_lwe_size,
+                                  mux_inputs + i * big_lwe_size, shift_bit,
+                                  mem->params.big_lwe_dimension, 1);
 
     // we have
     // control_bit|b|a
@@ -180,8 +180,8 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     auto bit_to_add = input_bits_a + i * big_lwe_size;
 
     for (int j = 0; j < num_radix_blocks; j++) {
-      host_addition<Torus>(streams[0], gpu_indexes[0], block, block, bit_to_add,
-                           big_lwe_dimension, 1);
+      legacy_host_addition<Torus>(streams[0], gpu_indexes[0], block, block,
+                                  bit_to_add, big_lwe_dimension, 1);
 
       block += big_lwe_size;
       bit_to_add += bits_per_block * big_lwe_size;

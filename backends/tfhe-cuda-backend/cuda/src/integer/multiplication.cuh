@@ -228,9 +228,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
                                  streams[0], gpu_indexes[0]);
   }
   if (num_radix_in_vec == 2) {
-    host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
-                         &old_blocks[num_blocks * big_lwe_size],
-                         big_lwe_dimension, num_blocks);
+    legacy_host_addition<Torus>(
+        streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
+        &old_blocks[num_blocks * big_lwe_size], big_lwe_dimension, num_blocks);
     return;
   }
 
@@ -445,9 +445,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   luts_message_carry->release(streams, gpu_indexes, gpu_count);
   delete (luts_message_carry);
 
-  host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
-                       &old_blocks[num_blocks * big_lwe_size],
-                       big_lwe_dimension, num_blocks);
+  legacy_host_addition<Torus>(
+      streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
+      &old_blocks[num_blocks * big_lwe_size], big_lwe_dimension, num_blocks);
 }
 
 template <typename Torus, class params>

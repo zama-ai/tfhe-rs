@@ -106,8 +106,8 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut quotient = unsafe { numerator.duplicate_async(streams) };
-        let mut remainder = unsafe { numerator.duplicate_async(streams) };
+        let mut quotient = numerator.duplicate(streams);
+        let mut remainder = numerator.duplicate(streams);
 
         unsafe {
             self.unchecked_div_rem_assign_async(
@@ -135,22 +135,20 @@ impl CudaServerKey {
         ) {
             (true, true) => (numerator, divisor),
             (true, false) => {
-                tmp_divisor = unsafe { divisor.duplicate_async(streams) };
-                unsafe { self.full_propagate_assign_async(&mut tmp_divisor, streams) };
+                tmp_divisor = divisor.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_divisor, streams);
                 (numerator, &tmp_divisor)
             }
             (false, true) => {
-                tmp_numerator = unsafe { numerator.duplicate_async(streams) };
-                unsafe { self.full_propagate_assign_async(&mut tmp_numerator, streams) };
+                tmp_numerator = numerator.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_numerator, streams);
                 (&tmp_numerator, divisor)
             }
             (false, false) => {
-                tmp_divisor = unsafe { divisor.duplicate_async(streams) };
-                tmp_numerator = unsafe { numerator.duplicate_async(streams) };
-                unsafe {
-                    self.full_propagate_assign_async(&mut tmp_numerator, streams);
-                    self.full_propagate_assign_async(&mut tmp_divisor, streams);
-                }
+                tmp_divisor = divisor.duplicate(streams);
+                tmp_numerator = numerator.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_numerator, streams);
+                self.full_propagate_assign(&mut tmp_divisor, streams);
                 (&tmp_numerator, &tmp_divisor)
             }
         };
@@ -177,22 +175,20 @@ impl CudaServerKey {
         ) {
             (true, true) => (numerator, divisor),
             (true, false) => {
-                tmp_divisor = unsafe { divisor.duplicate_async(streams) };
-                unsafe { self.full_propagate_assign_async(&mut tmp_divisor, streams) };
+                tmp_divisor = divisor.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_divisor, streams);
                 (numerator, &tmp_divisor)
             }
             (false, true) => {
-                tmp_numerator = unsafe { numerator.duplicate_async(streams) };
-                unsafe { self.full_propagate_assign_async(&mut tmp_numerator, streams) };
+                tmp_numerator = numerator.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_numerator, streams);
                 (&tmp_numerator, divisor)
             }
             (false, false) => {
-                tmp_divisor = unsafe { divisor.duplicate_async(streams) };
-                tmp_numerator = unsafe { numerator.duplicate_async(streams) };
-                unsafe {
-                    self.full_propagate_assign_async(&mut tmp_numerator, streams);
-                    self.full_propagate_assign_async(&mut tmp_divisor, streams);
-                }
+                tmp_divisor = divisor.duplicate(streams);
+                tmp_numerator = numerator.duplicate(streams);
+                self.full_propagate_assign(&mut tmp_numerator, streams);
+                self.full_propagate_assign(&mut tmp_divisor, streams);
                 (&tmp_numerator, &tmp_divisor)
             }
         };

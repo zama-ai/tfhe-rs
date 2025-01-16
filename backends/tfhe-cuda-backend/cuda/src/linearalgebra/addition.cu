@@ -1,20 +1,13 @@
+#include "integer/integer.h"
 #include "linearalgebra/addition.cuh"
 
-/*
- * Perform the addition of two u32 input LWE ciphertext vectors.
- * See the equivalent operation on u64 ciphertexts for more details.
- */
 void cuda_add_lwe_ciphertext_vector_32(
-    void *stream, uint32_t gpu_index, void *lwe_array_out,
-    void const *lwe_array_in_1, void const *lwe_array_in_2,
-    const uint32_t input_lwe_dimension,
-    const uint32_t input_lwe_ciphertext_count) {
+    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in_1,
+    CudaRadixCiphertextFFI const *lwe_array_in_2) {
 
   host_addition<uint32_t>(static_cast<cudaStream_t>(stream), gpu_index,
-                          static_cast<uint32_t *>(lwe_array_out),
-                          static_cast<const uint32_t *>(lwe_array_in_1),
-                          static_cast<const uint32_t *>(lwe_array_in_2),
-                          input_lwe_dimension, input_lwe_ciphertext_count);
+                          lwe_array_out, lwe_array_in_1, lwe_array_in_2);
 }
 
 /*
@@ -44,16 +37,12 @@ void cuda_add_lwe_ciphertext_vector_32(
  * that performs the operation on the GPU.
  */
 void cuda_add_lwe_ciphertext_vector_64(
-    void *stream, uint32_t gpu_index, void *lwe_array_out,
-    void const *lwe_array_in_1, void const *lwe_array_in_2,
-    const uint32_t input_lwe_dimension,
-    const uint32_t input_lwe_ciphertext_count) {
+    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in_1,
+    CudaRadixCiphertextFFI const *lwe_array_in_2) {
 
   host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
-                          static_cast<uint64_t *>(lwe_array_out),
-                          static_cast<const uint64_t *>(lwe_array_in_1),
-                          static_cast<const uint64_t *>(lwe_array_in_2),
-                          input_lwe_dimension, input_lwe_ciphertext_count);
+                          lwe_array_out, lwe_array_in_1, lwe_array_in_2);
 }
 
 /*
