@@ -402,7 +402,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
     // but in that position, interesting_remainder2 always has a 0
     auto &merged_interesting_remainder = interesting_remainder1;
 
-    host_addition<Torus>(
+    legacy_host_addition<Torus>(
         streams[0], gpu_indexes[0], merged_interesting_remainder.data,
         merged_interesting_remainder.data, interesting_remainder2.data,
         radix_params.big_lwe_dimension, merged_interesting_remainder.len);
@@ -507,10 +507,10 @@ __host__ void host_unsigned_integer_div_rem_kb(
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
     }
 
-    host_addition<Torus>(streams[0], gpu_indexes[0], overflow_sum.data,
-                         subtraction_overflowed.data,
-                         at_least_one_upper_block_is_non_zero.data,
-                         radix_params.big_lwe_dimension, 1);
+    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], overflow_sum.data,
+                                subtraction_overflowed.data,
+                                at_least_one_upper_block_is_non_zero.data,
+                                radix_params.big_lwe_dimension, 1);
 
     int factor = (i) ? 3 : 2;
     int factor_lut_id = factor - 2;
@@ -552,7 +552,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
           mem_ptr->merge_overflow_flags_luts[pos_in_block]
               ->params.message_modulus);
 
-      host_addition<Torus>(
+      legacy_host_addition<Torus>(
           streams[0], gpu_indexes[0], &quotient[block_of_bit * big_lwe_size],
           &quotient[block_of_bit * big_lwe_size], did_not_overflow.data,
           radix_params.big_lwe_dimension, 1);
@@ -588,9 +588,9 @@ __host__ void host_unsigned_integer_div_rem_kb(
 
   // Clean the quotient and remainder
   // as even though they have no carries, they are not at nominal noise level
-  host_addition<Torus>(streams[0], gpu_indexes[0], remainder, remainder1.data,
-                       remainder2.data, radix_params.big_lwe_dimension,
-                       remainder1.len);
+  legacy_host_addition<Torus>(streams[0], gpu_indexes[0], remainder,
+                              remainder1.data, remainder2.data,
+                              radix_params.big_lwe_dimension, remainder1.len);
 
   for (uint j = 0; j < gpu_count; j++) {
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
@@ -636,12 +636,14 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
 
-    host_integer_abs_kb<Torus>(int_mem_ptr->sub_streams_1, gpu_indexes,
-                               gpu_count, positive_numerator.data, bsks, ksks,
-                               int_mem_ptr->abs_mem_1, true, num_blocks);
-    host_integer_abs_kb<Torus>(int_mem_ptr->sub_streams_2, gpu_indexes,
-                               gpu_count, positive_divisor.data, bsks, ksks,
-                               int_mem_ptr->abs_mem_2, true, num_blocks);
+    legacy_host_integer_abs_kb_async<Torus>(
+        int_mem_ptr->sub_streams_1, gpu_indexes, gpu_count,
+        positive_numerator.data, bsks, ksks, int_mem_ptr->abs_mem_1, true,
+        num_blocks);
+    legacy_host_integer_abs_kb_async<Torus>(
+        int_mem_ptr->sub_streams_2, gpu_indexes, gpu_count,
+        positive_divisor.data, bsks, ksks, int_mem_ptr->abs_mem_2, true,
+        num_blocks);
     for (uint j = 0; j < int_mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(int_mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(int_mem_ptr->sub_streams_2[j], gpu_indexes[j]);
@@ -689,12 +691,12 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
         int_mem_ptr->scp_mem_2, bsks, ksks, num_blocks, requested_flag,
         uses_carry);
 
-    host_integer_radix_cmux_kb<Torus>(
+    legacy_host_integer_radix_cmux_kb<Torus>(
         int_mem_ptr->sub_streams_1, gpu_indexes, gpu_count, quotient,
         int_mem_ptr->sign_bits_are_different, int_mem_ptr->negated_quotient,
         quotient, int_mem_ptr->cmux_quotient_mem, bsks, ksks, num_blocks);
 
-    host_integer_radix_cmux_kb<Torus>(
+    legacy_host_integer_radix_cmux_kb<Torus>(
         int_mem_ptr->sub_streams_2, gpu_indexes, gpu_count, remainder,
         &numerator[big_lwe_size * (num_blocks - 1)],
         int_mem_ptr->negated_remainder, remainder,
