@@ -4,7 +4,8 @@ file_exists(file) = system("[ -f '".file."' ] && echo '1' || echo '0'") + 0
 
 IN_FMT = "logB_issue-gf=%d-distro=GAUSSIAN.dat"
 OUT_LOG_B_FMT = "plot-logB-gf=%d-k=%d-N=%d-distro=GAUSSIAN.png"
-OUT_N_FMT = "plot-N-gf=%d-k=%d-distro=GAUSSIAN.png"
+OUT_LOG_N_FMT = "plot-logN-gf=%d-k=%d-distro=GAUSSIAN.png"
+OUT_KL_FMT = "plot-(k+1)l-gf=%d-distro=GAUSSIAN.png"
 
 set term pngcairo size 1200,900 linewidth 2
 
@@ -44,7 +45,7 @@ if (file_exists(f)) {
     set yrange [1e-21:1e-6]
     # logB_l = [[18,2], [28,1], [22,1], [14,2]]
     do for [k=1:4] {
-        set output sprintf(OUT_N_FMT, gf, k, N)
+        set output sprintf(OUT_LOG_N_FMT, gf, k)
         plot \
             f u 4:(($2 == 1 && $1 == 22 && $3 == k) ? $5 : NaN) w lp t 'pred. slope, logB=22, l=1', \
             f u 4:(($2 == 1 && $1 == 22 && $3 == k) ? $6 : NaN) w lp t 'meas. slope, logB=22, l=1', \
@@ -55,5 +56,15 @@ if (file_exists(f)) {
             f u 4:(($2 == 2 && $1 == 18 && $3 == k) ? $5 : NaN) w lp t 'pred. slope, logB=18, l=2', \
             f u 4:(($2 == 2 && $1 == 18 && $3 == k) ? $6 : NaN) w lp t 'meas. slope, logB=18, l=2'
     }
+
+    # (k+1)l
+    set xrange [1:31]
+    set yrange [1e-34:1e-29]
+    #~ do for [k=1:4] {
+        set output sprintf(OUT_KL_FMT, gf)
+        plot \
+            f u ($2*($3+1)):($5 / ((2**$1)**2 * $3 * (2**$4)**2.1842816616230243) * ($2*($3+1))**.12) w lp t 'pred. slope', \
+            f u ($2*($3+1)):($6 / ((2**$1)**2 * $3 * (2**$4)**2.1842816616230243)) w lp t 'meas. slope'
+    #~ }
 }
 }

@@ -63,14 +63,14 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
                     * output_glwe_dimension
                     * output_polynomial_size.powf(2.80531938005189)
                     * (output_glwe_dimension + 1.0))
-            .min((0.0384144380684433
+            .min((0.0352972805940533
                         * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
                         * decomposition_base.powf(2.0)
-                        * decomposition_level_count
+                        * decomposition_level_count.powf(1.13850605887757)
                         * modulus.powf(-2.0)
                         * output_glwe_dimension
                         * output_polynomial_size.powf(2.20143023115282)
-                        * (output_glwe_dimension + 1.0))
+                        * (output_glwe_dimension + 1.0).powf(1.13850605887757))
                 .max(0.0076882357486299
                         * (2.0
                             * (58.0
@@ -153,14 +153,14 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
                     * output_polynomial_size.powf(2.84004704080945)
                     * (output_glwe_dimension + 1.0))
             .min((
-                    0.0835133106092481
+                    0.07875733673670883
                         * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
                         * decomposition_base.powf(2.0)
-                        * decomposition_level_count
+                        * decomposition_level_count.powf(1.11087424029826)
                         * modulus.powf(-2.0)
                         * output_glwe_dimension
                         * output_polynomial_size.powf(2.19814034945335)
-                        * (output_glwe_dimension + 1.0))
+                        * (output_glwe_dimension + 1.0).powf(1.11087424029826))
                 .max(0.00878032641424879
                         * (2.0
                             * (58.0
@@ -243,14 +243,14 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
                     * output_polynomial_size.powf(2.81904598224102)
                     * (output_glwe_dimension + 1.0))
             .min((
-                    0.235030612155937
+                    0.21468613419336083
                         * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
                         * decomposition_base.powf(2.0)
-                        * decomposition_level_count
+                        * decomposition_level_count.powf(1.1233323278727)
                         * modulus.powf(-2.0)
                         * output_glwe_dimension
                         * output_polynomial_size.powf(2.16783493025297)
-                        * (output_glwe_dimension + 1.0))
+                        * (output_glwe_dimension + 1.0).powf(1.1233323278727))
                 .max(0.0192795994698064
                         * (2.0
                             * (58.0

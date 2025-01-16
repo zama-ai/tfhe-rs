@@ -28,8 +28,10 @@ kara_noises = {}
 # ~ for distro in ["TUNIFORM", "GAUSSIAN"]:
 for distro in ["GAUSSIAN"]:
     for gf in range(1,4+1):
-        a0_vals = []
-        a1_vals = []
+        a0_N_vals = []
+        a1_N_vals = []
+        a0_N_kl_vals = []
+        a1_N_kl_vals = []
         with open(LOG_B_FILE_FMT % (gf, distro), "w") as logB_file:
             logB_file.write("#  Excess FFT noise\n")
             logB_file.write("#  log B   level       k   log N  pred.slope   avg.slope     a-value   meas/pred\n")
@@ -162,15 +164,20 @@ for distro in ["GAUSSIAN"]:
 
                             # calc the value of a
                             bits_lost = 11 # (a + c*logN**2)
-                            fft_var_without_a_N = 1.0 * level*(k+1) * (1<<logbase)**2 * 2**(2*bits_lost) * k / (CT_MOD**2)
+                            fft_var_without_a_N_kl = 1.0 * (1<<logbase)**2 * 2**(2*bits_lost) * k / (CT_MOD**2)
+                            fft_var_without_a_N = fft_var_without_a_N_kl * level*(k+1)
                             fft_var_without_a = fft_var_without_a_N * (1<<logN)**2
                             fft_a = (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / fft_var_without_a
                             fft_a_N = (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / fft_var_without_a_N
+                            fft_a_N_kl = (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / fft_var_without_a_N_kl
+
                             log_B_bnd = (53 + 5 - logN - np.log2(level*(k+1))) / (level+1)
                             if logbase < log_B_bnd - .5:
-                                a0_vals.append([fft_a_N, logN])
+                                a0_N_vals.append([fft_a_N, logN])
+                                a0_N_kl_vals.append([fft_a_N_kl, logN, (k+1)*level])
                             elif logbase > log_B_bnd + 2.5: #TODO FIXME this is too much heuristic, shall take into account a proper bound
-                                a1_vals.append([fft_a_N, logN])
+                                a1_N_vals.append([fft_a_N, logN])
+                                a1_N_kl_vals.append([fft_a_N_kl, logN, (k+1)*level])
 
 
                             # export values:   #  log B   level       k   log N  pred.slope   avg.slope     a-value
@@ -265,14 +272,19 @@ for distro in ["GAUSSIAN"]:
 
         # for distro, gf:
         print(f"\n==== gf = {gf} ====")
-        print("a0 values:", a0_vals, "... of size:", len(a0_vals))
+        print("a0 values:", a0_N_vals, "... of size:", len(a0_N_vals))
         print("----")
-        print("a1 values:", a1_vals, "... of size:", len(a1_vals))
+        print("a1 values:", a1_N_vals, "... of size:", len(a1_N_vals))
         print("----")
 
-        if len(a0_vals) > 0:
-            ab0, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [ai[1] for ai in a0_vals], [ai[0] for ai in a0_vals])
-            print(f"curve fit before logB bound: {ab0[0]} N^{ab0[1]}")
-        if len(a1_vals) > 0:
-            ab1, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [ai[1] for ai in a1_vals], [ai[0] for ai in a1_vals])
-            print(f"curve fit after  logB bound: {ab1[0]} N^{ab1[1]}")
+        if len(a0_N_vals) > 0:
+            ab0_N, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [a0i[1] for a0i in a0_N_vals], [a0i[0] for a0i in a0_N_vals])
+            print(f"curve fit in N, before logB bound: {ab0_N[0]} N^{ab0_N[1]}")
+            ab0_kl, _ = curve_fit(lambda kl, a, b: a*kl**b, [ai[2] for ai in a0_N_kl_vals], [ai[0] / ((2.0**ai[1])**ab1_N[1]) for ai in a0_N_kl_vals])
+            print(f"curve fit in (k+1)l, before logB bound: {ab0_kl[0]} ((k+1)l)^{ab0_kl[1]} N^{ab0_N[1]}")
+        if len(a1_N_vals) > 0:
+            ab1_N, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [a1i[1] for a1i in a1_N_vals], [a1i[0] for a1i in a1_N_vals])
+            print(f"curve fit in N, after  logB bound: {ab1_N[0]} N^{ab1_N[1]}")
+            ab1_kl, _ = curve_fit(lambda kl, a, b: a*kl**b, [ai[2] for ai in a1_N_kl_vals], [ai[0] / ((2.0**ai[1])**ab1_N[1]) for ai in a1_N_kl_vals])
+            print(f"curve fit in (k+1)l, after  logB bound: {ab1_kl[0]} ((k+1)l)^{ab1_kl[1]} N^{ab1_N[1]}")
+
