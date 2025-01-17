@@ -470,6 +470,12 @@ macro_rules! create_fhe_int_wrapper_type {
                 clear_shift_type: $clear_shift_type,
             );
 
+            impl_unary_fn_on_type!($name =>
+                /// Returns the absolute value.
+                ///
+                /// (if x < 0 { -x } else { x })
+                abs
+            );
 
             // Define oprf
             ::paste::paste! {
