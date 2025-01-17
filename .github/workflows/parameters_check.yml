@@ -14,7 +14,7 @@ on:
 
 jobs:
   params-curves-security-check:
-    runs-on: large_ubuntu_16
+    runs-on: large_ubuntu_16-22.04
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
