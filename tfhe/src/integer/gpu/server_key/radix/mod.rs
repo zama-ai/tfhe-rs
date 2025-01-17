@@ -289,7 +289,7 @@ impl CudaServerKey {
                     uses_carry,
                 );
             }
-        };
+        }
         carry_out
     }
 
@@ -367,7 +367,7 @@ impl CudaServerKey {
                     uses_carry,
                 );
             }
-        };
+        }
         carry_out
     }
 

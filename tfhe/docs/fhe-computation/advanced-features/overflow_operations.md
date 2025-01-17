@@ -17,10 +17,10 @@ Here's the list of operations supported along with their symbol:
 The usage of these operations is similar to the standard ones. The key difference is in the decryption process, as shown in following example:
 
 ```rust
-/// Adds two [FheUint] and returns a boolean indicating overflow.
-///
-/// * The operation is modular, i.e on overflow the result wraps around.
-/// * On overflow the [FheBool] is true, otherwise false
+// Adds two [FheUint] and returns a boolean indicating overflow.
+//
+// * The operation is modular, i.e on overflow the result wraps around.
+// * On overflow the [FheBool] is true, otherwise false
 
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
