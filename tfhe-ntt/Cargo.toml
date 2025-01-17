@@ -22,7 +22,7 @@ std = ["pulp/std", "aligned-vec/std"]
 nightly = ["pulp/nightly"]
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = "0.5"
 rand = { workspace = true }
 serde = "1.0.163"
 serde_json = "1.0.96"
