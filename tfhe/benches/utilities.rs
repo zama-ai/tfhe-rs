@@ -55,6 +55,34 @@ pub mod shortint_utils {
             itertools::Product<IntoIter<tfhe::shortint::PBSParameters>, IntoIter<usize>>,
     }
 
+    impl ParamsAndNumBlocksIter {
+        pub fn new_with_large_sizes() -> Self {
+            let env_config = EnvConfig::new();
+
+            if env_config.is_multi_bit {
+                #[cfg(feature = "gpu")]
+                let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
+                #[cfg(not(feature = "gpu"))]
+                let params = vec![
+                    V0_11_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into(),
+                ];
+
+                let params_and_bit_sizes = iproduct!(params, env_config.large_bit_sizes());
+                Self {
+                    params_and_bit_sizes,
+                }
+            } else {
+                // FIXME One set of parameter is tested since we want to benchmark only quickest
+                // operations.
+                let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into()];
+
+                let params_and_bit_sizes = iproduct!(params, env_config.large_bit_sizes());
+                Self {
+                    params_and_bit_sizes,
+                }
+            }
+        }
+    }
     impl Default for ParamsAndNumBlocksIter {
         fn default() -> Self {
             let env_config = EnvConfig::new();
@@ -340,7 +368,9 @@ pub fn write_to_json<
 const FAST_BENCH_BIT_SIZES: [usize; 1] = [64];
 const BENCH_BIT_SIZES: [usize; 8] = [4, 8, 16, 32, 40, 64, 128, 256];
 const MULTI_BIT_CPU_SIZES: [usize; 6] = [4, 8, 16, 32, 40, 64];
-
+const LARGE_FAST_BENCH_BIT_SIZES: [usize; 1] = [2048];
+const LARGE_BENCH_BIT_SIZES: [usize; 3] = [512, 1024, 2048];
+const LARGE_MULTI_BIT_CPU_SIZES: [usize; 3] = [512, 1024, 2048];
 /// User configuration in which benchmarks must be run.
 #[derive(Default)]
 pub struct EnvConfig {
@@ -380,6 +410,21 @@ impl EnvConfig {
             }
         } else {
             BENCH_BIT_SIZES.to_vec()
+        }
+    }
+    /// Get precisions values to benchmark.
+    #[allow(dead_code)]
+    pub fn large_bit_sizes(&self) -> Vec<usize> {
+        if self.is_fast_bench {
+            LARGE_FAST_BENCH_BIT_SIZES.to_vec()
+        } else if self.is_multi_bit {
+            if cfg!(feature = "gpu") {
+                LARGE_BENCH_BIT_SIZES.to_vec()
+            } else {
+                LARGE_MULTI_BIT_CPU_SIZES.to_vec()
+            }
+        } else {
+            LARGE_BENCH_BIT_SIZES.to_vec()
         }
     }
 }
