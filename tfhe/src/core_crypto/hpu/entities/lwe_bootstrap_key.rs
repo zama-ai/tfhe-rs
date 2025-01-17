@@ -79,7 +79,7 @@ fn shuffle_gf64(
         for glwe_idx in 0..glwe_kp1 {
             for stg_iter in 0..ntt_p.stg_iter(glwe_n) {
                 for g_idx in 0..glwe_kp1 {
-                    for l_idx in (0..pbs_l).rev() {
+                    for l_idx in 0..pbs_l {
                         let p_view = GgswIndex {
                             s_dim: g_idx,
                             lvl_dim: l_idx,
@@ -162,7 +162,7 @@ fn unshuffle_gf64(
         for glwe_idx in 0..glwe_kp1 {
             for stg_iter in 0..ntt_p.stg_iter(glwe_n) {
                 for g_idx in 0..glwe_kp1 {
-                    for l_idx in (0..pbs_l).rev() {
+                    for l_idx in 0..pbs_l {
                         let p_view = GgswIndex {
                             s_dim: g_idx,
                             lvl_dim: l_idx,
@@ -227,7 +227,7 @@ fn shuffle_wmm(
         for glwe_idx in 0..glwe_kp1 {
             for stg_iter in 0..ntt_p.stg_iter(glwe_n) {
                 for g_idx in 0..glwe_kp1 {
-                    for l_idx in (0..pbs_l).rev() {
+                    for l_idx in 0..pbs_l {
                         let p_view = GgswIndex {
                             s_dim: g_idx,
                             lvl_dim: l_idx,
@@ -286,7 +286,7 @@ fn unshuffle_wmm(hpu_bsk: HpuLweBootstrapKeyView<u64>) -> NttLweBootstrapKeyOwne
         for glwe_idx in 0..glwe_kp1 {
             for stg_iter in 0..ntt_p.stg_iter(glwe_n) {
                 for g_idx in 0..glwe_kp1 {
-                    for l_idx in (0..pbs_l).rev() {
+                    for l_idx in 0..pbs_l {
                         let p_view = GgswIndex {
                             s_dim: g_idx,
                             lvl_dim: l_idx,
