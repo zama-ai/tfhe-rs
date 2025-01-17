@@ -20,12 +20,12 @@ fn pbs_128(c: &mut Criterion) {
 
     type Scalar = u128;
 
-    let lwe_dimension = LweDimension(860);
+    let lwe_dimension = LweDimension(879);
     let glwe_dimension = GlweDimension(2);
     let polynomial_size = PolynomialSize(2048);
-    let lwe_noise_distribution = DynamicDistribution::new_t_uniform(45);
-    let glwe_noise_distribution = DynamicDistribution::new_t_uniform(24);
-    let pbs_base_log = DecompositionBaseLog(24);
+    let lwe_noise_distribution = DynamicDistribution::new_t_uniform(46);
+    let glwe_noise_distribution = DynamicDistribution::new_t_uniform(30);
+    let pbs_base_log = DecompositionBaseLog(32);
     let pbs_level = DecompositionLevelCount(3);
     let ciphertext_modulus = CiphertextModulus::new_native();
 
