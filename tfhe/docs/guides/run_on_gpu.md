@@ -19,7 +19,7 @@ To use the **TFHE-rs** GPU backend in your project, add the following dependency
 
 
 ```toml
-tfhe = { version = "0.11.0", features = ["boolean", "shortint", "integer", "gpu"] }
+tfhe = { version = "0.11.1", features = ["boolean", "shortint", "integer", "gpu"] }
 ```
 
 {% hint style="success" %}
