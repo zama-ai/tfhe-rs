@@ -117,7 +117,7 @@ install_wasm_bindgen_cli: install_rs_build_toolchain
 .PHONY: install_wasm_pack # Install wasm-pack to build JS packages
 install_wasm_pack: install_rs_build_toolchain
 	@wasm-pack --version | grep "$(WASM_PACK_VERSION)" > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked wasm-pack@0.13.1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked wasm-pack@$(WASM_PACK_VERSION) || \
 	( echo "Unable to install cargo wasm-pack, unknown error." && exit 1 )
 
 .PHONY: install_node # Install last version of NodeJS via nvm
@@ -521,11 +521,11 @@ build_web_js_api: install_rs_build_toolchain install_wasm_pack
 build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
 	cd tfhe && \
 	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory,+mutable-globals" rustup run $(RS_CHECK_TOOLCHAIN) \
+	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory" rustup run $(RS_CHECK_TOOLCHAIN) \
 		wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok \
 		-Z build-std=panic_abort,std && \
-	find pkg/snippets -type f -iname workerHelpers.worker.js -exec sed -i "s|from '..\/..\/..\/';|from '..\/..\/..\/tfhe.js';|" {} \;
+	find pkg/snippets -type f -iname workerHelpers.js -exec sed -i "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|" {} \;
 	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
 
 .PHONY: build_node_js_api # Build the js API targeting nodejs
