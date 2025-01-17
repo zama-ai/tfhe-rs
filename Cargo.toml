@@ -11,13 +11,10 @@ members = [
     "backends/tfhe-cuda-backend",
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",
-    "tests"
+    "tests",
 ]
 
-exclude = [
-    "tests/backward_compatibility_tests",
-    "utils/tfhe-lints",
-]
+exclude = ["tests/backward_compatibility_tests", "utils/tfhe-lints"]
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }
 bytemuck = "1.14.3"
@@ -28,7 +25,7 @@ pulp = { version = "0.20.0", default-features = false }
 rand = "0.8"
 rayon = "1"
 serde = { version = "1.0", default-features = false }
-wasm-bindgen = ">=0.2.86,<0.2.94"
+wasm-bindgen = "0.2.100"
 
 [profile.bench]
 lto = "fat"
@@ -48,6 +45,4 @@ lto = "off"
 debug-assertions = false
 
 [workspace.metadata.dylint]
-libraries = [
-    { path = "utils/tfhe-lints" }
-]
+libraries = [{ path = "utils/tfhe-lints" }]
