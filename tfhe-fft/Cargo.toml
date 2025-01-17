@@ -43,7 +43,7 @@ getrandom = { version = "0.2", features = ["js"] }
 rug = "1.19.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-criterion = "0.4"
+criterion = "0.5"
 fftw-sys = { version = "0.6", default-features = false, features = ["system"] }
 
 [[bench]]
