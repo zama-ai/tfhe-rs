@@ -11,8 +11,8 @@ default = []
 hw-xrt = []
 hw-aved = []
 io-dump = ["num-traits"]
-utils = ["clap", "clap-num"]
 rtl_graph = ["dot2"]
+utils = ["clap", "clap-num", "packed_struct", "bitvec", "serde_json"]
 
 [build-dependencies]
 cxx-build = "1.0"
@@ -54,6 +54,10 @@ nix = { version = "0.29.0", features = ["ioctl", "uio"] }
 
 # Dependencies used for rtl_graph features
 dot2 = { version = "*", optional=true }
+
+bitvec = { version = "*", optional=true }
+packed_struct = { path = "src/packed_struct", optional=true }
+serde_json = { version = "*", optional=true }
 
 # Binary for manual debugging
 # Enable to access Hpu register and drive some custom sequence by hand
