@@ -45,6 +45,7 @@ pub(crate) const UNVERSIONIZE_ERROR_NAME: &str = crate_full_path!("UnversionizeE
 
 pub(crate) const SERIALIZE_TRAIT_NAME: &str = "::serde::Serialize";
 pub(crate) const DESERIALIZE_TRAIT_NAME: &str = "::serde::Deserialize";
+pub(crate) const DESERIALIZE_OWNED_TRAIT_NAME: &str = "::serde::de::DeserializeOwned";
 pub(crate) const FROM_TRAIT_NAME: &str = "::core::convert::From";
 pub(crate) const TRY_INTO_TRAIT_NAME: &str = "::core::convert::TryInto";
 pub(crate) const INTO_TRAIT_NAME: &str = "::core::convert::Into";
@@ -316,14 +317,26 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
 pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    let mut generics = input.generics.clone();
+    // Versionize needs T to impl Serialize
+    let mut versionize_generics = input.generics.clone();
     syn_unwrap!(add_trait_where_clause(
-        &mut generics,
+        &mut versionize_generics,
         &[parse_quote! { Self }],
-        &["Clone"]
+        &[SERIALIZE_TRAIT_NAME]
     ));
 
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    // VersionizeOwned needs T to impl Serialize and DeserializeOwned
+    let mut versionize_owned_generics = input.generics.clone();
+    syn_unwrap!(add_trait_where_clause(
+        &mut versionize_owned_generics,
+        &[parse_quote! { Self }],
+        &[SERIALIZE_TRAIT_NAME, DESERIALIZE_OWNED_TRAIT_NAME]
+    ));
+
+    let (impl_generics, ty_generics, versionize_where_clause) =
+        versionize_generics.split_for_impl();
+    let (_, _, versionize_owned_where_clause) = versionize_owned_generics.split_for_impl();
+
     let input_ident = &input.ident;
 
     let versionize_trait: Path = parse_const_str(VERSIONIZE_TRAIT_NAME);
@@ -334,8 +347,8 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
 
     quote! {
         #[automatically_derived]
-        impl #impl_generics #versionize_trait for #input_ident #ty_generics #where_clause {
-            type Versioned<#lifetime> = &#lifetime Self;
+        impl #impl_generics #versionize_trait for #input_ident #ty_generics #versionize_where_clause {
+            type Versioned<#lifetime> = &#lifetime Self where Self: 'vers;
 
             fn versionize(&self) -> Self::Versioned<'_> {
                 self
@@ -343,7 +356,7 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl #impl_generics #versionize_owned_trait for #input_ident #ty_generics #where_clause {
+        impl #impl_generics #versionize_owned_trait for #input_ident #ty_generics #versionize_owned_where_clause {
             type VersionedOwned = Self;
 
             fn versionize_owned(self) -> Self::VersionedOwned {
@@ -352,14 +365,14 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl #impl_generics #unversionize_trait for #input_ident #ty_generics #where_clause {
+        impl #impl_generics #unversionize_trait for #input_ident #ty_generics #versionize_owned_where_clause {
             fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, #unversionize_error> {
                 Ok(versioned)
             }
         }
 
         #[automatically_derived]
-        impl NotVersioned for #input_ident #ty_generics #where_clause {}
+        impl #impl_generics NotVersioned for #input_ident #ty_generics #versionize_owned_where_clause {}
 
     }
     .into()

@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use tfhe_versionable::{NotVersioned, Versionize, VersionsDispatch};
 
 #[derive(Clone, Serialize, Deserialize, NotVersioned)]
-struct MyStructNotVersioned {
-    val: u32,
+struct MyStructNotVersioned<Inner> {
+    val: Inner,
 }
 
 #[derive(Versionize)]
 #[versionize(MyStructVersions)]
 struct MyStruct {
-    inner: MyStructNotVersioned,
+    inner: MyStructNotVersioned<u32>,
 }
 
 #[derive(VersionsDispatch)]
