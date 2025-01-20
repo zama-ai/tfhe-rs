@@ -45,7 +45,9 @@ pub mod shortint_utils {
     use tfhe::shortint::parameters::{
         ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     };
-    use tfhe::shortint::{ClassicPBSParameters, PBSParameters, ShortintParameterSet};
+    use tfhe::shortint::{
+        ClassicPBSParameters, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
+    };
 
     /// An iterator that yields a succession of combinations
     /// of parameters and a num_block to achieve a certain bit_size ciphertext
@@ -144,7 +146,25 @@ pub mod shortint_utils {
 
     impl From<(CompressionParameters, ClassicPBSParameters)> for CryptoParametersRecord<u64> {
         fn from((comp_params, pbs_params): (CompressionParameters, ClassicPBSParameters)) -> Self {
-            let pbs_params = ShortintParameterSet::new_pbs_param_set(pbs_params.into());
+            (comp_params, PBSParameters::PBS(pbs_params)).into()
+        }
+    }
+
+    impl From<(CompressionParameters, MultiBitPBSParameters)> for CryptoParametersRecord<u64> {
+        fn from(
+            (comp_params, multi_bit_pbs_params): (CompressionParameters, MultiBitPBSParameters),
+        ) -> Self {
+            (
+                comp_params,
+                PBSParameters::MultiBitPBS(multi_bit_pbs_params),
+            )
+                .into()
+        }
+    }
+
+    impl From<(CompressionParameters, PBSParameters)> for CryptoParametersRecord<u64> {
+        fn from((comp_params, pbs_params): (CompressionParameters, PBSParameters)) -> Self {
+            let pbs_params = ShortintParameterSet::new_pbs_param_set(pbs_params);
             let lwe_dimension = pbs_params.encryption_lwe_dimension();
             CryptoParametersRecord {
                 lwe_dimension: Some(lwe_dimension),

@@ -154,6 +154,7 @@ mod cuda {
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::gen_keys_radix_gpu;
+    use tfhe::shortint::parameters::V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
     fn gpu_glwe_packing(c: &mut Criterion) {
         let bench_name = "integer::cuda::packing_compression";
@@ -164,10 +165,13 @@ mod cuda {
 
         let stream = CudaStreams::new_multi_gpu();
 
-        let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let param = V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
         let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
         let log_message_modulus = param.message_modulus.0.ilog2() as usize;
+
+        let cks = ClientKey::new(param);
+        let private_compression_key = cks.new_compression_private_key(comp_param);
 
         for bit_size in [
             2,
@@ -185,26 +189,23 @@ mod cuda {
             let bench_id_pack;
             let bench_id_unpack;
 
+            // Generate and convert compression keys
+            let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
+            let (compressed_compression_key, compressed_decompression_key) =
+                radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
+            let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&stream);
+            let cuda_decompression_key = compressed_decompression_key.decompress_to_cuda(
+                radix_cks.parameters().glwe_dimension(),
+                radix_cks.parameters().polynomial_size(),
+                radix_cks.parameters().message_modulus(),
+                radix_cks.parameters().carry_modulus(),
+                radix_cks.parameters().ciphertext_modulus(),
+                &stream,
+            );
+
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
                     // Generate private compression key
-                    let cks = ClientKey::new(param);
-                    let private_compression_key = cks.new_compression_private_key(comp_param);
-
-                    // Generate and convert compression keys
-                    let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
-                    let (compressed_compression_key, compressed_decompression_key) = radix_cks
-                        .new_compressed_compression_decompression_keys(&private_compression_key);
-                    let cuda_compression_key =
-                        compressed_compression_key.decompress_to_cuda(&stream);
-                    let cuda_decompression_key = compressed_decompression_key.decompress_to_cuda(
-                        radix_cks.parameters().glwe_dimension(),
-                        radix_cks.parameters().polynomial_size(),
-                        radix_cks.parameters().message_modulus(),
-                        radix_cks.parameters().carry_modulus(),
-                        radix_cks.parameters().ciphertext_modulus(),
-                        &stream,
-                    );
 
                     // Encrypt
                     let ct = cks.encrypt_radix(0_u32, num_blocks);
@@ -243,23 +244,6 @@ mod cuda {
                         .ceil() as usize;
                     let elements = throughput_num_threads(num_block);
                     bench_group.throughput(Throughput::Elements(elements));
-
-                    let cks = ClientKey::new(param);
-                    let private_compression_key = cks.new_compression_private_key(comp_param);
-
-                    let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
-                    let (compressed_compression_key, compressed_decompression_key) = radix_cks
-                        .new_compressed_compression_decompression_keys(&private_compression_key);
-                    let cuda_compression_key =
-                        compressed_compression_key.decompress_to_cuda(&stream);
-                    let cuda_decompression_key = compressed_decompression_key.decompress_to_cuda(
-                        radix_cks.parameters().glwe_dimension(),
-                        radix_cks.parameters().polynomial_size(),
-                        radix_cks.parameters().message_modulus(),
-                        radix_cks.parameters().carry_modulus(),
-                        radix_cks.parameters().ciphertext_modulus(),
-                        &stream,
-                    );
 
                     // Encrypt
                     let ct = cks.encrypt_radix(0_u32, num_blocks);
