@@ -16,7 +16,7 @@ use crate::shortint::backward_compatibility::list_compression::{
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::{PBSConformanceParameters, ShortintBootstrappingKey};
-use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
+use crate::shortint::EncryptionKeyChoice;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
@@ -81,20 +81,16 @@ impl ClientKey {
         &self,
         private_compression_key: &CompressionPrivateKeys,
     ) -> (CompressedCompressionKey, CompressedDecompressionKey) {
-        let cks_params: ClassicPBSParameters = match self.parameters.pbs_parameters().unwrap() {
-            PBSParameters::PBS(a) => a,
-            PBSParameters::MultiBitPBS(_) => {
-                panic!("Compression is currently not compatible with Multi Bit PBS")
-            }
-        };
-
-        let params = &private_compression_key.params;
-
         assert_eq!(
-            cks_params.encryption_key_choice,
+            self.parameters
+                .pbs_parameters()
+                .unwrap()
+                .encryption_key_choice(),
             EncryptionKeyChoice::Big,
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
+
+        let params = &private_compression_key.params;
 
         let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_seeded_lwe_packing_keyswitch_key(

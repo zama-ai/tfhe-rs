@@ -7,7 +7,7 @@ use crate::shortint::backward_compatibility::list_compression::CompressionPrivat
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::list_compression::CompressionParameters;
-use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
+use crate::shortint::EncryptionKeyChoice;
 use std::fmt::Debug;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
@@ -22,15 +22,11 @@ impl ClientKey {
         &self,
         params: CompressionParameters,
     ) -> CompressionPrivateKeys {
-        let cks_params: ClassicPBSParameters = match self.parameters.pbs_parameters().unwrap() {
-            PBSParameters::PBS(a) => a,
-            PBSParameters::MultiBitPBS(_) => {
-                panic!("Compression is currently not compatible with Multi Bit PBS")
-            }
-        };
-
         assert_eq!(
-            cks_params.encryption_key_choice,
+            self.parameters
+                .pbs_parameters()
+                .unwrap()
+                .encryption_key_choice(),
             EncryptionKeyChoice::Big,
             "Compression is only compatible with ciphertext in post PBS dimension"
         );

@@ -1,5 +1,5 @@
 use crate::integer::gen_keys_radix;
-use crate::integer::tests::create_parameterized_test_classical_params;
+use crate::integer::tests::create_parameterized_test;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
@@ -7,9 +7,7 @@ use rand::Rng;
 
 const NB_TESTS: usize = 10;
 
-// Remove multi bit PBS parameters as
-// modulus switch compression and multi bit PBS are currently not compatible
-create_parameterized_test_classical_params!(modulus_switch_compression_signed);
+create_parameterized_test!(modulus_switch_compression_signed);
 
 fn modulus_switch_compression_signed<P>(param: P)
 where
