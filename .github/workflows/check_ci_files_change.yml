@@ -1,0 +1,41 @@
+# Check if there is any change in CI files since last commit
+name: Check changes in CI files
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        type: string
+        required: true
+    outputs:
+      ci_file_changed:
+        value: ${{ jobs.check-changes.outputs.ci_file_changed }}
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      ci_file_changed: ${{ steps.changed-files.outputs.ci_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@d6e91a2266cdb9d62096cebf1e8546899c6aa18f
+        with:
+          since_last_remote_commit: true
+          files_yaml: |
+            ci:
+              - .github/**
+              - ci/**

@@ -11,7 +11,6 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
 
 on:
   workflow_dispatch:
@@ -110,7 +109,7 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Full H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Full H100 tests finished with status: ${{ needs.cuda-tests-linux.result }} on '${{ env.BRANCH }}'. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (cuda-h100-tests)
@@ -133,4 +132,4 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-h100-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (cuda-h100-tests) finished with status: ${{ job.status }} on '${{ env.BRANCH }}'. (${{ env.ACTION_RUN_URL }})"

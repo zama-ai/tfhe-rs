@@ -28,7 +28,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
     permissions:
-      pull-requests: write
+      pull-requests: read
     outputs:
       wasm_bench: ${{ steps.changed-files.outputs.wasm_bench_any_changed }}
     steps:

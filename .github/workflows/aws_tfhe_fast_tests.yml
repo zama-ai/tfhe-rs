@@ -36,7 +36,7 @@ jobs:
   should-run:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      pull-requests: read
     outputs:
       csprng_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.csprng_any_changed }}
       zk_pok_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.zk_pok_any_changed }}
@@ -62,7 +62,6 @@ jobs:
       user_docs_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.user_docs_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
-      ci_file_changed: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.ci_any_changed }}
       any_file_changed: ${{ env.IS_PULL_REQUEST == 'false' || steps.aggregated-changes.outputs.any_changed }}
     steps:
       - name: Checkout tfhe-rs
@@ -122,13 +121,9 @@ jobs:
               - '!tfhe/src/c_api/**'
               - 'tfhe/docs/**/**.md'
               - README.md
-            ci:
-              - .github/**
-              - ci/**
 
       - name: Aggregate file changes
         id: aggregated-changes
-        # CI files are not included in this aggregator.
         if: ( steps.changed-files.outputs.dependencies_any_changed == 'true' ||
           steps.changed-files.outputs.csprng_any_changed == 'true' ||
           steps.changed-files.outputs.zk_pok_any_changed == 'true' ||
@@ -143,12 +138,19 @@ jobs:
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
+  check-ci-files:
+    uses: ./.github/workflows/check_ci_files_change.yml
+    with:
+      checkout_ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
   # Fail if the triggering actor is not part of Zama organization.
   # If pull_request_target is emitted and CI files have changed, skip this job. This would skip following jobs.
   check-user-permission:
-    needs: should-run
+    needs: check-ci-files
     if: github.event_name != 'pull_request_target' ||
-      (github.event_name == 'pull_request_target' && needs.should-run.outputs.ci_file_changed == 'false')
+      (github.event_name == 'pull_request_target' && needs.check-ci-files.outputs.ci_file_changed == 'false')
     uses: ./.github/workflows/check_triggering_actor.yml
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}

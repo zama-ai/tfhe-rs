@@ -11,20 +11,53 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  MSG_MINIMAL: event,action url,commit
+  BRANCH: ${{ github.head_ref || github.ref }}
   FAST_BENCH: TRUE
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
+  # Trigger pull_request event on CI files to be able to test changes before merging to main branch.
+  # Workflow would fail if changes come from a forked repository since secrets are not available with this event.
   pull_request:
-    types: [labeled]
+    types: [ labeled ]
+    paths:
+      - '.github/**'
+      - 'ci/**'
+  # General entry point for Zama's pull request as well as contribution from forks.
+  pull_request_target:
+    types: [ labeled ]
+    paths:
+      - '**'
+      - '!.github/**'
+      - '!ci/**'
   schedule:
     # Weekly benchmarks will be triggered each Friday at 9p.m.
     - cron: "0 21 * * 5"
 
 jobs:
+  check-ci-files:
+    uses: ./.github/workflows/check_ci_files_change.yml
+    with:
+      checkout_ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+  # Fail if the triggering actor is not part of Zama organization.
+  # If pull_request_target is emitted and CI files have changed, skip this job. This would skip following jobs.
+  check-user-permission:
+    needs: check-ci-files
+    if: github.event_name != 'pull_request_target' ||
+      (github.event_name == 'pull_request_target' && needs.check-ci-files.outputs.ci_file_changed == 'false')
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   cuda-integer-benchmarks:
     name: Cuda integer benchmarks (RTX 4090)
+    needs: check-user-permission
     if: ${{ github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs' ||
       contains(github.event.label.name, '4090_bench') }}
@@ -33,10 +66,6 @@ jobs:
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ["self-hosted", "4090-desktop"]
     timeout-minutes: 1440 # 24 hours
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -44,6 +73,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Get benchmark details
         run: |
@@ -101,7 +131,7 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Integer RTX 4090 full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Integer RTX 4090 full benchmarks finished with status: ${{ job.status }} on '${{ env.BRANCH }}'. (${{ env.ACTION_RUN_URL }})"
 
   cuda-core-crypto-benchmarks:
     name: Cuda core crypto benchmarks  (RTX 4090)
@@ -186,11 +216,11 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Core crypto RTX 4090 full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Core crypto RTX 4090 full benchmarks finished with status: ${{ job.status }} on '${{ env.BRANCH }}'. (${{ env.ACTION_RUN_URL }})"
 
   remove_github_label:
     name: Remove 4090 bench label
-    if: ${{ always() && github.event_name == 'pull_request' }}
+    if: ${{ always() && github.event_name == 'pull_request_target' }}
     needs: [cuda-integer-benchmarks, cuda-core-crypto-benchmarks]
     runs-on: ubuntu-latest
     steps:
