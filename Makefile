@@ -282,14 +282,14 @@ check_typos: install_typos_checker
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu \
+		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats \
 		--all-targets \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: check_gpu # Run check on tfhe with "gpu" enabled
 check_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" check \
-		--features=boolean,shortint,integer,internal-keycache,gpu \
+		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats \
 		--all-targets \
 		-p $(TFHE_SPEC)
 
@@ -405,10 +405,10 @@ clippy_trivium: install_rs_check_toolchain
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,experimental \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_tfhe_csprng # Run clippy lints on tfhe-csprng
@@ -1071,35 +1071,35 @@ bench_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p $(TFHE_SPEC) --
 
 .PHONY: bench_signed_integer # Run benchmarks for signed integer
 bench_signed_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed-bench \
-	--features=integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_gpu # Run benchmarks for integer on GPU backend
 bench_integer_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
 bench_integer_compression: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench	glwe_packing_compression-integer-bench \
-	--features=integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_compression_gpu
 bench_integer_compression_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench	glwe_packing_compression-integer-bench \
-	--features=integer,internal-keycache,gpu -p $(TFHE_SPEC) --
+	--features=integer,internal-keycache,gpu,pbs-stats -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_multi_bit # Run benchmarks for unsigned integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
@@ -1107,7 +1107,7 @@ bench_integer_multi_bit: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p $(TFHE_SPEC) --
 
 .PHONY: bench_signed_integer_multi_bit # Run benchmarks for signed integer using multi-bit parameters
 bench_signed_integer_multi_bit: install_rs_check_toolchain
@@ -1115,7 +1115,7 @@ bench_signed_integer_multi_bit: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed-bench \
-	--features=integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=integer,internal-keycache,nightly-avx512,pbs-stats -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_multi_bit_gpu # Run benchmarks for integer on GPU backend using multi-bit parameters
 bench_integer_multi_bit_gpu: install_rs_check_toolchain
@@ -1123,7 +1123,7 @@ bench_integer_multi_bit_gpu: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p $(TFHE_SPEC) --
 
 .PHONY: bench_unsigned_integer_multi_bit_gpu # Run benchmarks for unsigned integer on GPU backend using multi-bit parameters
 bench_unsigned_integer_multi_bit_gpu: install_rs_check_toolchain
@@ -1131,14 +1131,14 @@ bench_unsigned_integer_multi_bit_gpu: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) -- ::unsigned
+	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p $(TFHE_SPEC) -- ::unsigned
 
 .PHONY: bench_integer_zk # Run benchmarks for integer encryption with ZK proofs
 bench_integer_zk: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench zk-pke-bench \
-	--features=integer,internal-keycache,zk-pok,nightly-avx512 \
+	--features=integer,internal-keycache,zk-pok,nightly-avx512,pbs-stats \
 	-p $(TFHE_SPEC) --
 
 .PHONY: bench_shortint # Run benchmarks for shortint
