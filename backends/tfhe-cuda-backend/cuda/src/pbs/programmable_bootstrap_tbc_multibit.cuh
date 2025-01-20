@@ -204,10 +204,12 @@ __host__ void scratch_tbc_multi_bit_programmable_bootstrap(
     pbs_buffer<uint64_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  cudaSetDevice(gpu_index);
 
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool supports_dsm =
       supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
-          Torus>(polynomial_size);
+          Torus>(polynomial_size, max_shared_memory);
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
@@ -223,8 +225,6 @@ __host__ void scratch_tbc_multi_bit_programmable_bootstrap(
     minimum_sm_tbc_accumulate =
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
-
-  int max_shared_memory = cuda_get_max_shared_memory(0);
 
   if (max_shared_memory < full_sm_keybundle) {
     check_cuda_error(cudaFuncSetAttribute(
@@ -301,11 +301,14 @@ __host__ void execute_tbc_external_product_loop(
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t lwe_offset, uint32_t num_many_lut,
     uint32_t lut_stride) {
+  cudaSetDevice(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
+
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto supports_dsm =
       supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
-          Torus>(polynomial_size);
+          Torus>(polynomial_size, max_shared_memory);
 
   uint64_t full_dm =
       get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap<Torus>(
@@ -318,9 +321,6 @@ __host__ void execute_tbc_external_product_loop(
     minimum_dm =
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
-
-  int max_shared_memory = cuda_get_max_shared_memory(0);
-  cudaSetDevice(gpu_index);
 
   uint32_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
@@ -426,12 +426,11 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
-    uint32_t polynomial_size) {
+    uint32_t polynomial_size, int max_shared_memory) {
   uint64_t minimum_sm =
       get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
           polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(0);
   if (max_shared_memory <= minimum_sm) {
     // If we cannot store a single polynomial in a block shared memory we
     // cannot use TBC
@@ -444,7 +443,7 @@ bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
 template <typename Torus, class params>
 __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count) {
+    uint32_t level_count, int max_shared_memory) {
 
   if (!cuda_check_support_thread_block_clusters())
     return false;
@@ -457,7 +456,7 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
           polynomial_size);
   uint64_t minimum_sm_tbc_accumulate = 0;
   if (supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
-          Torus>(polynomial_size))
+          Torus>(polynomial_size, max_shared_memory))
     minimum_sm_tbc_accumulate =
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
@@ -480,7 +479,6 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
    * case and it will fail if we try. Thus, since level_count *
    * (glwe_dimension+1) is usually smaller than 8 at this moment, we will
    * disable cudaFuncAttributeNonPortableClusterSizeAllowed */
-  int max_shared_memory = cuda_get_max_shared_memory(0);
   if (max_shared_memory <
       partial_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
     check_cuda_error(cudaFuncSetAttribute(
@@ -520,5 +518,5 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
 
 template bool
 supports_distributed_shared_memory_on_multibit_programmable_bootstrap<uint64_t>(
-    uint32_t polynomial_size);
+    uint32_t polynomial_size, int max_shared_memory);
 #endif // FASTMULTIBIT_PBS_H

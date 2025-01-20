@@ -61,7 +61,7 @@ get_buffer_size_partial_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
-    uint32_t polynomial_size);
+    uint32_t polynomial_size, int max_shared_memory);
 
 template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer;
 
@@ -77,10 +77,10 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
              uint32_t polynomial_size, uint32_t level_count,
              uint32_t input_lwe_ciphertext_count, PBS_VARIANT pbs_variant,
              bool allocate_gpu_memory) {
-
+    cudaSetDevice(gpu_index);
     this->pbs_variant = pbs_variant;
 
-    auto max_shared_memory = cuda_get_max_shared_memory(0);
+    auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
     if (allocate_gpu_memory) {
       switch (pbs_variant) {
@@ -157,7 +157,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
 
         bool supports_dsm =
             supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-                Torus>(polynomial_size);
+                Torus>(polynomial_size, max_shared_memory);
 
         uint64_t full_sm =
             get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
@@ -218,8 +218,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
 template <typename Torus>
 uint64_t get_buffer_size_programmable_bootstrap_cg(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count) {
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory) {
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(polynomial_size);
   uint64_t partial_sm =
@@ -245,7 +244,8 @@ template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
                                                    uint32_t polynomial_size,
                                                    uint32_t level_count,
-                                                   uint32_t num_samples);
+                                                   uint32_t num_samples,
+                                                   int max_shared_memory);
 
 template <typename Torus>
 void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(

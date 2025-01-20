@@ -225,7 +225,7 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
       get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap<Torus>(
           polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   if (max_shared_memory < full_sm_keybundle) {
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
@@ -309,7 +309,7 @@ __host__ void execute_cg_external_product_loop(
   uint64_t no_dm = 0;
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cudaSetDevice(gpu_index);
 
   uint32_t keybundle_size_per_input =
@@ -406,7 +406,8 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
 // Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size(
-    int glwe_dimension, int level_count, int num_samples) {
+    int glwe_dimension, int level_count, int num_samples,
+    int max_shared_memory) {
 
   // If Cooperative Groups is not supported, no need to check anything else
   if (!cuda_check_support_cooperative_groups())
@@ -426,7 +427,6 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size(
   int number_of_blocks = level_count * (glwe_dimension + 1) * num_samples;
   int max_active_blocks_per_sm;
 
-  int max_shared_memory = cuda_get_max_shared_memory(0);
   if (max_shared_memory < partial_sm_cg_accumulate) {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
@@ -457,30 +457,37 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size(
 // group constraints
 template <typename Torus>
 __host__ bool supports_cooperative_groups_on_multibit_programmable_bootstrap(
-    int glwe_dimension, int polynomial_size, int level_count, int num_samples) {
+    int glwe_dimension, int polynomial_size, int level_count, int num_samples,
+    int max_shared_memory) {
   switch (polynomial_size) {
   case 256:
     return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
-        Torus, AmortizedDegree<256>>(glwe_dimension, level_count, num_samples);
+        Torus, AmortizedDegree<256>>(glwe_dimension, level_count, num_samples,
+                                     max_shared_memory);
   case 512:
     return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
-        Torus, AmortizedDegree<512>>(glwe_dimension, level_count, num_samples);
+        Torus, AmortizedDegree<512>>(glwe_dimension, level_count, num_samples,
+                                     max_shared_memory);
   case 1024:
     return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
-        Torus, AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples);
+        Torus, AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples,
+                                      max_shared_memory);
   case 2048:
     return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
-        Torus, AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples);
+        Torus, AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples,
+                                      max_shared_memory);
   case 4096:
     return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
-        Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples);
+        Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
+                                      max_shared_memory);
   case 8192:
     return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
-        Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples);
+        Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples,
+                                      max_shared_memory);
   case 16384:
     return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
-        Torus, AmortizedDegree<16384>>(glwe_dimension, level_count,
-                                       num_samples);
+        Torus, AmortizedDegree<16384>>(glwe_dimension, level_count, num_samples,
+                                       max_shared_memory);
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
           "N's are powers of two"

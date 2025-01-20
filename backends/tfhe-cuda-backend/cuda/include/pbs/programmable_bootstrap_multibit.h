@@ -8,7 +8,7 @@ extern "C" {
 
 bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples);
+    uint32_t num_samples, int max_shared_memory);
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
