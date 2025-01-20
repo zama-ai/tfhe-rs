@@ -232,31 +232,37 @@ impl DecompressionKey {
 mod test {
     use super::*;
     use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::{gen_keys, ClientKey};
+    use crate::shortint::{gen_keys, ClientKey, ShortintParameterSet};
     use rayon::iter::IntoParallelIterator;
 
     #[test]
     fn test_packing() {
-        // Generate the client key and the server key:
-        let (cks, _sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+        for params in [
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+        ] {
+            // Generate the client key and the server key:
+            let (cks, _sks) = gen_keys::<ShortintParameterSet>(params);
 
-        let private_compression_key: crate::shortint::list_compression::CompressionPrivateKeys =
-            cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let private_compression_key: crate::shortint::list_compression::CompressionPrivateKeys =
+                cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 
-        let (compression_key, decompression_key) =
-            cks.new_compression_decompression_keys(&private_compression_key);
+            let (compression_key, decompression_key) =
+                cks.new_compression_decompression_keys(&private_compression_key);
 
-        for number_to_pack in [1, 128] {
-            let f = |x| (x + 1) % 4;
+            for number_to_pack in [1, 128] {
+                let f = |x| (x + 1) % params.message_modulus().0;
 
-            test_packing_(
-                &compression_key,
-                &decompression_key,
-                &cks,
-                f,
-                number_to_pack,
-            );
+                test_packing_(
+                    &compression_key,
+                    &decompression_key,
+                    &cks,
+                    f,
+                    number_to_pack,
+                );
+            }
         }
     }
 

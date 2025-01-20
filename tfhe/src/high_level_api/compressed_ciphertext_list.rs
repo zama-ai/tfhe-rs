@@ -558,7 +558,9 @@ pub mod gpu {
 mod tests {
     use crate::prelude::*;
     use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::PBSParameters;
     use crate::{
         set_server_key, ClientKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
         FheBool, FheInt64, FheUint16, FheUint2, FheUint32,
@@ -566,95 +568,98 @@ mod tests {
 
     #[test]
     fn test_compressed_ct_list_cpu_gpu() {
-        let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        )
-        .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
-        .build();
+        for params in [
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+        ] {
+            let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
+                .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+                .build();
 
-        let ck = crate::ClientKey::generate(config);
-        let sk = crate::CompressedServerKey::new(&ck);
+            let ck = crate::ClientKey::generate(config);
+            let sk = crate::CompressedServerKey::new(&ck);
 
-        // Test with input data being on CPU
-        {
-            let ct1 = FheUint32::encrypt(17_u32, &ck);
-            let ct2 = FheInt64::encrypt(-1i64, &ck);
-            let ct3 = FheBool::encrypt(false, &ck);
-            let ct4 = FheUint2::encrypt(3u8, &ck);
+            // Test with input data being on CPU
+            {
+                let ct1 = FheUint32::encrypt(17_u32, &ck);
+                let ct2 = FheInt64::encrypt(-1i64, &ck);
+                let ct3 = FheBool::encrypt(false, &ck);
+                let ct4 = FheUint2::encrypt(3u8, &ck);
 
-            let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
-            compressed_list_builder
-                .push(ct1)
-                .push(ct2)
-                .push(ct3)
-                .push(ct4);
+                let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
+                compressed_list_builder
+                    .push(ct1)
+                    .push(ct2)
+                    .push(ct3)
+                    .push(ct4);
 
-            set_server_key(sk.decompress());
-            check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
+                set_server_key(sk.decompress());
+                check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
 
+                #[cfg(feature = "gpu")]
+                {
+                    set_server_key(sk.decompress_to_gpu());
+                    check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
+                }
+            }
+
+            // Test with input data being on GPU
             #[cfg(feature = "gpu")]
             {
+                let mut ct1 = FheUint32::encrypt(17_u32, &ck);
+                let mut ct2 = FheInt64::encrypt(-1i64, &ck);
+                let mut ct3 = FheBool::encrypt(false, &ck);
+                let mut ct4 = FheUint2::encrypt(3u8, &ck);
+
+                ct1.move_to_device(crate::Device::CudaGpu);
+                ct2.move_to_device(crate::Device::Cpu);
+                ct3.move_to_device(crate::Device::CudaGpu);
+                ct4.move_to_device(crate::Device::Cpu);
+
+                let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
+                compressed_list_builder
+                    .push(ct1)
+                    .push(ct2)
+                    .push(ct3)
+                    .push(ct4);
+
+                set_server_key(sk.decompress());
+                check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
+
                 set_server_key(sk.decompress_to_gpu());
                 check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
             }
-        }
 
-        // Test with input data being on GPU
-        #[cfg(feature = "gpu")]
-        {
-            let mut ct1 = FheUint32::encrypt(17_u32, &ck);
-            let mut ct2 = FheInt64::encrypt(-1i64, &ck);
-            let mut ct3 = FheBool::encrypt(false, &ck);
-            let mut ct4 = FheUint2::encrypt(3u8, &ck);
+            fn check_is_correct(compressed_list: &CompressedCiphertextList, ck: &ClientKey) {
+                let serialized = bincode::serialize(&compressed_list).unwrap();
 
-            ct1.move_to_device(crate::Device::CudaGpu);
-            ct2.move_to_device(crate::Device::Cpu);
-            ct3.move_to_device(crate::Device::CudaGpu);
-            ct4.move_to_device(crate::Device::Cpu);
+                let compressed_list: CompressedCiphertextList =
+                    bincode::deserialize(&serialized).unwrap();
+                {
+                    let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
+                    let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
+                    let c: FheBool = compressed_list.get(2).unwrap().unwrap();
+                    let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
 
-            let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
-            compressed_list_builder
-                .push(ct1)
-                .push(ct2)
-                .push(ct3)
-                .push(ct4);
+                    let a: u32 = a.decrypt(ck);
+                    assert_eq!(a, 17);
+                    let b: i64 = b.decrypt(ck);
+                    assert_eq!(b, -1);
+                    let c = c.decrypt(ck);
+                    assert!(!c);
+                    let d: u8 = d.decrypt(ck);
+                    assert_eq!(d, 3);
 
-            set_server_key(sk.decompress());
-            check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
+                    assert!(compressed_list.get::<FheBool>(4).unwrap().is_none());
+                }
 
-            set_server_key(sk.decompress_to_gpu());
-            check_is_correct(&compressed_list_builder.build().unwrap(), &ck);
-        }
+                {
+                    // Incorrect type
+                    assert!(compressed_list.get::<FheInt64>(0).is_err());
 
-        fn check_is_correct(compressed_list: &CompressedCiphertextList, ck: &ClientKey) {
-            let serialized = bincode::serialize(&compressed_list).unwrap();
-
-            let compressed_list: CompressedCiphertextList =
-                bincode::deserialize(&serialized).unwrap();
-            {
-                let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
-                let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
-                let c: FheBool = compressed_list.get(2).unwrap().unwrap();
-                let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
-
-                let a: u32 = a.decrypt(ck);
-                assert_eq!(a, 17);
-                let b: i64 = b.decrypt(ck);
-                assert_eq!(b, -1);
-                let c = c.decrypt(ck);
-                assert!(!c);
-                let d: u8 = d.decrypt(ck);
-                assert_eq!(d, 3);
-
-                assert!(compressed_list.get::<FheBool>(4).unwrap().is_none());
-            }
-
-            {
-                // Incorrect type
-                assert!(compressed_list.get::<FheInt64>(0).is_err());
-
-                // Correct type but wrong number of bits
-                assert!(compressed_list.get::<FheUint16>(0).is_err());
+                    // Correct type but wrong number of bits
+                    assert!(compressed_list.get::<FheUint16>(0).is_err());
+                }
             }
         }
     }
