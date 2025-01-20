@@ -1,12 +1,14 @@
 use crate::core_crypto::entities::{LweCiphertextList, LweCiphertextOwned};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
+use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{CiphertextModulus, LweSize};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::BooleanBlock;
 use crate::shortint::Ciphertext;
+
+use super::CudaIntegerRadixCiphertext;
 
 /// Wrapper type used to signal that the inner value encrypts 0 or 1
 ///
@@ -176,6 +178,10 @@ impl CudaBooleanBlock {
         let ct = unsafe { self.duplicate_async(streams) };
         streams.synchronize();
         ct
+    }
+
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        self.0.gpu_indexes()
     }
 }
 

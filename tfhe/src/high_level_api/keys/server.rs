@@ -15,6 +15,8 @@ use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
+#[cfg(feature = "gpu")]
+use crate::GpuIndex;
 use crate::Tag;
 use std::sync::Arc;
 
@@ -259,7 +261,15 @@ impl CompressedServerKey {
 
     #[cfg(feature = "gpu")]
     pub fn decompress_to_gpu(&self) -> CudaServerKey {
-        let streams = CudaStreams::new_multi_gpu();
+        self.decompress_to_specific_gpu(crate::CudaGpuChoice::default())
+    }
+
+    #[cfg(feature = "gpu")]
+    pub fn decompress_to_specific_gpu(
+        &self,
+        gpu_choice: impl Into<crate::CudaGpuChoice>,
+    ) -> CudaServerKey {
+        let streams = gpu_choice.into().build_streams();
         let key = crate::integer::gpu::CudaServerKey::decompress_from_cpu(
             &self.integer_key.key,
             &streams,
@@ -334,6 +344,22 @@ impl CudaServerKey {
     pub(crate) fn message_modulus(&self) -> crate::shortint::MessageModulus {
         self.key.key.message_modulus
     }
+
+    pub(crate) fn pbs_key(&self) -> &crate::integer::gpu::CudaServerKey {
+        &self.key.key
+    }
+
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        &self.key.key.key_switching_key.d_vec.gpu_indexes
+    }
+
+    pub(crate) fn build_streams(&self) -> CudaStreams {
+        if self.gpu_indexes().len() == 1 {
+            CudaStreams::new_single_gpu(self.gpu_indexes()[0])
+        } else {
+            CudaStreams::new_multi_gpu()
+        }
+    }
 }
 
 #[cfg(feature = "gpu")]
@@ -351,6 +377,16 @@ pub enum InternalServerKey {
     Cpu(ServerKey),
     #[cfg(feature = "gpu")]
     Cuda(CudaServerKey),
+}
+
+impl std::fmt::Debug for InternalServerKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Cpu(_) => f.debug_tuple("Cpu").finish(),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(_) => f.debug_tuple("Cuda").finish(),
+        }
+    }
 }
 
 impl From<ServerKey> for InternalServerKey {
