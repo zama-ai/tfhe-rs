@@ -171,20 +171,27 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 ///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
-pub fn programmable_bootstrap_f128_lwe_ciphertext<Scalar, InputCont, OutputCont, AccCont, KeyCont>(
+pub fn programmable_bootstrap_f128_lwe_ciphertext<
+    InputScalar,
+    OutputScalar,
+    InputCont,
+    OutputCont,
+    AccCont,
+    KeyCont,
+>(
     input: &LweCiphertext<InputCont>,
     output: &mut LweCiphertext<OutputCont>,
     accumulator: &GlweCiphertext<AccCont>,
     fourier_bsk: &Fourier128LweBootstrapKey<KeyCont>,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize>,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
-    AccCont: Container<Element = Scalar>,
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
     KeyCont: Container<Element = f64>,
 {
-    assert_eq!(input.ciphertext_modulus(), output.ciphertext_modulus());
     assert_eq!(
         output.ciphertext_modulus(),
         accumulator.ciphertext_modulus()
@@ -196,7 +203,7 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext<Scalar, InputCont, OutputCont,
     let fft = fft.as_view();
 
     buffers.resize(
-        programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+        programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement::<OutputScalar>(
             fourier_bsk.glwe_size(),
             fourier_bsk.polynomial_size(),
             fft,
@@ -222,7 +229,8 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext<Scalar, InputCont, OutputCont,
 /// having a capacity at least as large as the result of
 /// [`programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement`].
 pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     InputCont,
     OutputCont,
     AccCont,
@@ -236,10 +244,11 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized<
     stack: PodStack<'_>,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize>,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
-    AccCont: Container<Element = Scalar>,
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
     KeyCont: Container<Element = f64>,
 {
     fourier_bsk.bootstrap(output, input, accumulator, fft, stack);

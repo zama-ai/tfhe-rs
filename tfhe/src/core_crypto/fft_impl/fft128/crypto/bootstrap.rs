@@ -245,24 +245,30 @@ where
     Cont: Container<Element = f64>,
 {
     // CastInto required for PBS modulus switch which returns a usize
-    pub fn blind_rotate_assign<Scalar, ContLut, ContLwe>(
+    pub fn blind_rotate_assign<InputScalar, OutputScalar, ContLut, ContLwe>(
         &self,
         lut: &mut GlweCiphertext<ContLut>,
         lwe: &LweCiphertext<ContLwe>,
         fft: Fft128View<'_>,
         stack: PodStack<'_>,
     ) where
-        Scalar: UnsignedTorus + CastInto<usize>,
-        ContLut: ContainerMut<Element = Scalar>,
-        ContLwe: Container<Element = Scalar>,
+        // CastInto required for PBS modulus switch which returns a usize
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+        ContLut: ContainerMut<Element = OutputScalar>,
+        ContLwe: Container<Element = InputScalar>,
     {
-        fn implementation<Scalar: UnsignedTorus + CastInto<usize>>(
+        fn implementation<InputScalar, OutputScalar>(
             this: Fourier128LweBootstrapKey<&[f64]>,
-            mut lut: GlweCiphertext<&mut [Scalar]>,
-            lwe: LweCiphertext<&[Scalar]>,
+            mut lut: GlweCiphertext<&mut [OutputScalar]>,
+            lwe: LweCiphertext<&[InputScalar]>,
             fft: Fft128View<'_>,
             mut stack: PodStack<'_>,
-        ) {
+        ) where
+            // CastInto required for PBS modulus switch which returns a usize
+            InputScalar: UnsignedTorus + CastInto<usize>,
+            OutputScalar: UnsignedTorus,
+        {
             let lwe = lwe.as_ref();
             let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
 
@@ -286,7 +292,7 @@ where
             for (lwe_mask_element, bootstrap_key_ggsw) in
                 izip!(lwe_mask.iter(), this.into_ggsw_iter())
             {
-                if *lwe_mask_element != Scalar::ZERO {
+                if *lwe_mask_element != InputScalar::ZERO {
                     let stack = stack.rb_mut();
                     // We copy ct_0 to ct_1
                     let (ct1, stack) =
@@ -329,7 +335,7 @@ where
         implementation(self.as_view(), lut.as_mut_view(), lwe.as_view(), fft, stack);
     }
 
-    pub fn bootstrap<Scalar, ContLweOut, ContLweIn, ContAcc>(
+    pub fn bootstrap<InputScalar, OutputScalar, ContLweOut, ContLweIn, ContAcc>(
         &self,
         lwe_out: &mut LweCiphertext<ContLweOut>,
         lwe_in: &LweCiphertext<ContLweIn>,
@@ -338,24 +344,28 @@ where
         stack: PodStack<'_>,
     ) where
         // CastInto required for PBS modulus switch which returns a usize
-        Scalar: UnsignedTorus + CastInto<usize>,
-        ContLweOut: ContainerMut<Element = Scalar>,
-        ContLweIn: Container<Element = Scalar>,
-        ContAcc: Container<Element = Scalar>,
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+        ContLweOut: ContainerMut<Element = OutputScalar>,
+        ContLweIn: Container<Element = InputScalar>,
+        ContAcc: Container<Element = OutputScalar>,
     {
-        fn implementation<Scalar: UnsignedTorus + CastInto<usize>>(
+        fn implementation<InputScalar, OutputScalar>(
             this: Fourier128LweBootstrapKey<&[f64]>,
-            mut lwe_out: LweCiphertext<&mut [Scalar]>,
-            lwe_in: LweCiphertext<&[Scalar]>,
-            accumulator: GlweCiphertext<&[Scalar]>,
+            mut lwe_out: LweCiphertext<&mut [OutputScalar]>,
+            lwe_in: LweCiphertext<&[InputScalar]>,
+            accumulator: GlweCiphertext<&[OutputScalar]>,
             fft: Fft128View<'_>,
             stack: PodStack<'_>,
-        ) {
+        ) where
+            // CastInto required for PBS modulus switch which returns a usize
+            InputScalar: UnsignedTorus + CastInto<usize>,
+            OutputScalar: UnsignedTorus,
+        {
             // We type check dynamically with TypeId
             #[allow(clippy::transmute_undefined_repr)]
-            if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
+            if TypeId::of::<OutputScalar>() == TypeId::of::<u128>() {
                 let mut lwe_out: LweCiphertext<&mut [u128]> = unsafe { transmute(lwe_out) };
-                let lwe_in: LweCiphertext<&[u128]> = unsafe { transmute(lwe_in) };
                 let accumulator: GlweCiphertext<&[u128]> = unsafe { transmute(accumulator) };
 
                 return this.bootstrap_u128(&mut lwe_out, &lwe_in, &accumulator, fft, stack);
