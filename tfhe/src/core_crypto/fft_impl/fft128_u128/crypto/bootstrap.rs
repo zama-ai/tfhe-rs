@@ -2,6 +2,8 @@ use super::super::math::fft::{wrapping_neg, Fft128View};
 use super::ggsw::cmux_split;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::math::torus::UnsignedTorus;
+use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, MonomialDegree,
 };
@@ -58,7 +60,7 @@ impl<Cont> Fourier128LweBootstrapKey<Cont>
 where
     Cont: Container<Element = f64>,
 {
-    pub fn blind_rotate_assign_split<ContLutLo, ContLutHi, ContLwe>(
+    pub fn blind_rotate_assign_split<InputScalar, ContLutLo, ContLutHi, ContLwe>(
         &self,
         lut_lo: &mut GlweCiphertext<ContLutLo>,
         lut_hi: &mut GlweCiphertext<ContLutHi>,
@@ -66,18 +68,23 @@ where
         fft: Fft128View<'_>,
         stack: &mut PodStack,
     ) where
+        // CastInto required for PBS modulus switch which returns a usize
+        InputScalar: UnsignedTorus + CastInto<usize>,
         ContLutLo: ContainerMut<Element = u64>,
         ContLutHi: ContainerMut<Element = u64>,
-        ContLwe: Container<Element = u128>,
+        ContLwe: Container<Element = InputScalar>,
     {
-        fn implementation(
+        fn implementation<InputScalar>(
             this: Fourier128LweBootstrapKey<&[f64]>,
             mut lut_lo: GlweCiphertext<&mut [u64]>,
             mut lut_hi: GlweCiphertext<&mut [u64]>,
-            lwe: LweCiphertext<&[u128]>,
+            lwe: LweCiphertext<&[InputScalar]>,
             fft: Fft128View<'_>,
             stack: &mut PodStack,
-        ) {
+        ) where
+            // CastInto required for PBS modulus switch which returns a usize
+            InputScalar: UnsignedTorus + CastInto<usize>,
+        {
             let lwe = lwe.as_ref();
             let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
 
@@ -102,7 +109,7 @@ where
             for (lwe_mask_element, bootstrap_key_ggsw) in
                 izip!(lwe_mask.iter(), this.into_ggsw_iter())
             {
-                if *lwe_mask_element != 0 {
+                if *lwe_mask_element != InputScalar::ZERO {
                     let stack = &mut *stack;
                     // We copy ct_0 to ct_1
                     let (ct1_lo, stack) =
@@ -154,7 +161,7 @@ where
         );
     }
 
-    pub fn bootstrap_u128<ContLweOut, ContLweIn, ContAcc>(
+    pub fn bootstrap_u128<InputScalar, ContLweOut, ContLweIn, ContAcc>(
         &self,
         lwe_out: &mut LweCiphertext<ContLweOut>,
         lwe_in: &LweCiphertext<ContLweIn>,
@@ -162,18 +169,23 @@ where
         fft: Fft128View<'_>,
         stack: &mut PodStack,
     ) where
+        // CastInto required for PBS modulus switch which returns a usize
+        InputScalar: UnsignedTorus + CastInto<usize>,
         ContLweOut: ContainerMut<Element = u128>,
-        ContLweIn: Container<Element = u128>,
+        ContLweIn: Container<Element = InputScalar>,
         ContAcc: Container<Element = u128>,
     {
-        fn implementation(
+        fn implementation<InputScalar>(
             this: Fourier128LweBootstrapKey<&[f64]>,
             mut lwe_out: LweCiphertext<&mut [u128]>,
-            lwe_in: LweCiphertext<&[u128]>,
+            lwe_in: LweCiphertext<&[InputScalar]>,
             accumulator: GlweCiphertext<&[u128]>,
             fft: Fft128View<'_>,
             stack: &mut PodStack,
-        ) {
+        ) where
+            // CastInto required for PBS modulus switch which returns a usize
+            InputScalar: UnsignedTorus + CastInto<usize>,
+        {
             let align = CACHELINE_ALIGN;
             let ciphertext_modulus = accumulator.ciphertext_modulus();
 
