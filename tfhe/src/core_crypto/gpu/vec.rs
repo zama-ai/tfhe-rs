@@ -93,18 +93,13 @@ impl<T: Numeric> CudaVec<T> {
     pub fn new_multi_gpu(len: usize, streams: &CudaStreams) -> Self {
         let size = len as u64 * std::mem::size_of::<T>() as u64;
         let mut ptrs = Vec::with_capacity(streams.len());
-        for (index, &stream) in streams.ptr.iter().enumerate() {
-            let ptr = unsafe { cuda_malloc_async(size, stream, index as u32) };
+        for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
+            let gpu_index = streams.gpu_indexes[i];
+            let ptr = unsafe { cuda_malloc_async(size, stream_ptr, gpu_index.0) };
             unsafe {
-                cuda_memset_async(
-                    ptr,
-                    0u64,
-                    size,
-                    streams.ptr[index],
-                    streams.gpu_indexes[index].0,
-                );
+                cuda_memset_async(ptr, 0u64, size, stream_ptr, gpu_index.0);
             }
-            streams.synchronize_one(index as u32);
+            streams.synchronize_one(i as u32);
             ptrs.push(ptr);
         }
 
@@ -203,19 +198,20 @@ impl<T: Numeric> CudaVec<T> {
     where
         T: Numeric,
     {
-        for (gpu_index, &stream) in streams.ptr.iter().enumerate() {
+        for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
             assert!(self.len() >= src.len());
             let size = std::mem::size_of_val(src);
 
             // We have to check that src is not empty, because Rust slice with size 0 results in an
             // invalid pointer being passed to copy_to_gpu_async
             if size > 0 {
+                let gpu_index = streams.gpu_indexes[i];
                 cuda_memcpy_async_to_gpu(
-                    self.get_mut_c_ptr(gpu_index as u32),
+                    self.get_mut_c_ptr(i as u32),
                     src.as_ptr().cast(),
                     size as u64,
-                    stream,
-                    streams.gpu_indexes[gpu_index].0,
+                    stream_ptr,
+                    gpu_index.0,
                 );
             }
         }
@@ -442,13 +438,9 @@ unsafe impl<T> Sync for CudaVec<T> where T: Sync + Numeric {}
 impl<T: Numeric> Drop for CudaVec<T> {
     /// Free memory for pointer `ptr` synchronously
     fn drop(&mut self) {
-        for (ptr, gpu_index) in self
-            .ptr
-            .iter()
-            .copied()
-            .zip(self.gpu_indexes.iter().copied())
-        {
+        for (i, &ptr) in self.ptr.iter().enumerate() {
             // Synchronizes the device to be sure no stream is still using this pointer
+            let gpu_index = self.gpu_indexes[i];
             synchronize_device(gpu_index.0);
             unsafe { cuda_drop(ptr, gpu_index.0) };
         }

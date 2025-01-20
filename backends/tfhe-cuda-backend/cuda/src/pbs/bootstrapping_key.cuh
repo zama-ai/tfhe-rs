@@ -111,10 +111,12 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
 
   cuda_memcpy_async_to_gpu(d_bsk, h_bsk, buffer_size, stream, gpu_index);
 
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+
   double2 *buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
   switch (polynomial_size) {
   case 256:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<256>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -132,7 +134,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
     }
     break;
   case 512:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<512>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -150,7 +152,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
     }
     break;
   case 1024:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<1024>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -168,7 +170,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
     }
     break;
   case 2048:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<2048>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -186,7 +188,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
     }
     break;
   case 4096:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<4096>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -204,7 +206,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
     }
     break;
   case 8192:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<8192>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -222,7 +224,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
     }
     break;
   case 16384:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<16384>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
