@@ -22,15 +22,14 @@ void scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
 
 void cuda_integer_abs_inplace_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *ct, int8_t *mem_ptr, bool is_signed, void *const *bsks,
-    void *const *ksks, uint32_t num_blocks) {
+    CudaRadixCiphertextFFI *ct, int8_t *mem_ptr, bool is_signed,
+    void *const *bsks, void *const *ksks) {
 
   auto mem = (int_abs_buffer<uint64_t> *)mem_ptr;
 
   host_integer_abs_kb<uint64_t>((cudaStream_t *)(streams), gpu_indexes,
-                                gpu_count, static_cast<uint64_t *>(ct), bsks,
-                                (uint64_t **)(ksks), mem, is_signed,
-                                num_blocks);
+                                gpu_count, ct, bsks, (uint64_t **)(ksks), mem,
+                                is_signed);
 }
 
 void cleanup_cuda_integer_abs_inplace(void *const *streams,

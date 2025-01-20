@@ -2,81 +2,82 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
-use crate::integer::gpu::{unchecked_signed_abs_radix_kb_assign_async, PBSType};
+use crate::integer::gpu::{unchecked_signed_abs_radix_kb_assign, PBSType};
 
 impl CudaServerKey {
     /// # Safety
     ///
     /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
     ///   synchronization is required
-    pub unsafe fn unchecked_abs_assign_async<T>(&self, ct: &mut T, streams: &CudaStreams)
+    pub fn unchecked_abs_assign<T>(&self, ct: &mut T, streams: &CudaStreams)
     where
         T: CudaIntegerRadixCiphertext,
     {
         let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_signed_abs_radix_kb_assign_async(
-                    streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    num_blocks,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_signed_abs_radix_kb_assign_async(
-                    streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    num_blocks,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                );
-            }
-        };
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    unchecked_signed_abs_radix_kb_assign(
+                        streams,
+                        ct.as_mut(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        num_blocks,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    unchecked_signed_abs_radix_kb_assign(
+                        streams,
+                        ct.as_mut(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        num_blocks,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                    );
+                }
+            };
+        }
     }
     pub fn unchecked_abs<T>(&self, ct: &T, streams: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut res = unsafe { ct.duplicate_async(streams) };
+        let mut res = ct.duplicate(streams);
         if T::IS_SIGNED {
-            unsafe { self.unchecked_abs_assign_async(&mut res, streams) };
+            self.unchecked_abs_assign(&mut res, streams);
         }
-        streams.synchronize();
         res
     }
 
@@ -130,14 +131,13 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut res = unsafe { ct.duplicate_async(streams) };
+        let mut res = ct.duplicate(streams);
         if !ct.block_carries_are_empty() {
-            unsafe { self.full_propagate_assign_async(&mut res, streams) };
+            self.full_propagate_assign(&mut res, streams);
         };
         if T::IS_SIGNED {
-            unsafe { self.unchecked_abs_assign_async(&mut res, streams) };
+            self.unchecked_abs_assign(&mut res, streams);
         }
-        streams.synchronize();
         res
     }
 }

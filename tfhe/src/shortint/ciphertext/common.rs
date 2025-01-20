@@ -65,7 +65,7 @@ impl MaxNoiseLevel {
     Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Versionize,
 )]
 #[versionize(NoiseLevelVersions)]
-pub struct NoiseLevel(u64);
+pub struct NoiseLevel(pub(crate) u64);
 
 impl NoiseLevel {
     pub const NOMINAL: Self = Self(1);
@@ -148,7 +148,7 @@ impl MaxDegree {
     Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Versionize,
 )]
 #[versionize(DegreeVersions)]
-pub struct Degree(pub(super) u64);
+pub struct Degree(pub(crate) u64);
 
 impl Degree {
     pub fn new(degree: u64) -> Self {
