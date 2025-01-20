@@ -204,6 +204,88 @@ __device__ void negacyclic_inverse_fft_f128(double *dt_re_hi, double *dt_re_lo,
   __syncthreads();
 }
 
+// params is expected to be full degree not half degree
+template <class params>
+__device__ void convert_u128_to_f128(
+    double *out_re_hi, double *out_re_lo,
+    double *out_im_hi, double *out_im_lo,
+    const __uint128_t *in_re, const __uint128_t *in_im) {
+
+  Index tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < params::opt / 2; i++) {
+    auto out_re = u128_to_signed_to_f128(in_re[tid]);
+    auto out_im = u128_to_signed_to_f128(in_im[tid]);
+
+    out_re_hi[tid] = out_re.hi;
+    out_re_lo[tid] = out_re.lo;
+    out_im_hi[tid] = out_im.hi;
+    out_im_lo[tid] = out_im.lo;
+
+  }
+}
+
+// params is expected to be full degree not half degree
+template <class params>
+__global__ void batch_convert_u128_to_f128(
+    double *out_re_hi, double *out_re_lo,
+    double *out_im_hi, double *out_im_lo,
+    const __uint128_t *in) {
+
+  convert_u128_to_f128<params>(
+      &out_re_hi[blockIdx.x * params::degree / 2],
+      &out_re_lo[blockIdx.x * params::degree / 2],
+      &out_im_hi[blockIdx.x * params::degree / 2],
+      &out_im_lo[blockIdx.x * params::degree / 2],
+      &in[blockIdx.x * params::degree],
+      &in[blockIdx.x * params::degree + params::degree / 2]);
+}
+
+template <class params, sharedMemDegree SMD>
+__global__ void batch_NSMFFT_128(double *in_re_hi, double *in_re_lo,
+                            double *in_im_hi,
+                            double *in_im_lo,
+                            double *out_re_hi, double *out_re_lo,
+                            double *out_im_hi,
+                            double *out_im_lo,
+                            double *buffer) {
+  extern __shared__ double sharedMemoryFFT[];
+  double2 *re_hi, *re_lo, *im_hi, *im_lo;
+  if (SMD == NOSM) {
+    re_hi = &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 0];
+    re_lo = &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 1];
+    im_hi = &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 2];
+    im_lo = &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 3];
+  } else {
+    re_hi = &sharedMemoryFFT[params::degree / 2 * 0];
+    re_lo = &sharedMemoryFFT[params::degree / 2 * 1];
+    im_hi = &sharedMemoryFFT[params::degree / 2 * 2];
+    im_lo = &sharedMemoryFFT[params::degree / 2 * 3];
+  }
+
+  Index tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < params::opt / 2; ++i) {
+    re_hi[tid] = in_re_hi[blockIdx.x * (params::degree / 2) + tid];
+    re_lo[tid] = in_re_lo[blockIdx.x * (params::degree / 2) + tid];
+    im_hi[tid] = in_im_hi[blockIdx.x * (params::degree / 2) + tid];
+    im_lo[tid] = in_im_lo[blockIdx.x * (params::degree / 2) + tid];
+  }
+  __syncthreads();
+  negacyclic_forward_fft_f128<HalfDegree<params>>(re_hi, re_lo, im_hi, im_lo);
+  __syncthreads();
+
+  tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < params::opt / 2; ++i) {
+    out_re_hi[blockIdx.x * (params::degree / 2) + tid] = re_hi[tid];
+    out_re_lo[blockIdx.x * (params::degree / 2) + tid] = re_lo[tid];
+    out_im_hi[blockIdx.x * (params::degree / 2) + tid] = im_hi[tid];
+    out_im_lo[blockIdx.x * (params::degree / 2) + tid] = im_lo[tid];
+
+  }
+}
+
 void print_uint128_bits(__uint128_t value) {
   char buffer[129];   // 128 bits + null terminator
   buffer[128] = '\0'; // Null-terminate the string

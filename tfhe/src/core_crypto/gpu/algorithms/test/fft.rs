@@ -7,7 +7,7 @@ use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
-    for size_log in 13..=13 {
+    for size_log in 10..=10 {
         let size = 1_usize << size_log;
         let fourier_size = PolynomialSize(size).to_fourier_polynomial_size().0;
 

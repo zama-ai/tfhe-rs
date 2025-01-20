@@ -2,6 +2,9 @@
 #ifndef TFHE_RS_BACKENDS_TFHE_CUDA_BACKEND_CUDA_SRC_FFT128_F128_CUH_
 #define TFHE_RS_BACKENDS_TFHE_CUDA_BACKEND_CUDA_SRC_FFT128_F128_CUH_
 
+#include <cstdint>
+#include <cstring>
+
 struct alignas(16) f128 {
   double hi;
   double lo;
@@ -204,5 +207,110 @@ struct f128x2 {
     im = new_im;
     return *this;
   }
+};
+
+__host__ __device__ inline uint64_t double_to_bits(double d) {
+  uint64_t bits;
+  std::memcpy(&bits, &d, sizeof(bits));
+  return bits;
+}
+
+__host__ __device__ inline double bits_to_double(uint64_t bits)
+{
+  double d;
+  std::memcpy(&d, &bits, sizeof(d));
+  return d;
+}
+
+
+__host__ __device__ double u128_to_f64(__uint128_t x) {
+  const __uint128_t ONE = 1;
+  const double A = ONE << 52;
+  const double B = ONE << 104;
+  const double C = ONE << 76;
+  const double D = 340282366920938500000000000000000000000.;
+
+  const __uint128_t threshold = (ONE << 104);
+
+  if (x < threshold) {
+    uint64_t A_bits = double_to_bits(A);
+
+    __uint128_t shifted = (x << 12);
+    uint64_t lower64 = static_cast<uint64_t>(shifted);
+    lower64 >>= 12;
+
+    uint64_t bits_l = A_bits | lower64;
+    double l_temp = bits_to_double(bits_l);
+    double l = l_temp - A;
+
+    uint64_t B_bits = double_to_bits(B);
+    uint64_t top64 = static_cast<uint64_t>(x >> 52);
+    uint64_t bits_h = B_bits | top64;
+    double h_temp = bits_to_double(bits_h);
+    double h = h_temp - B;
+
+    return (l + h);
+
+  } else {
+    uint64_t C_bits = double_to_bits(C);
+
+    __uint128_t shifted = (x >> 12);
+    uint64_t lower64 = static_cast<uint64_t>(shifted);
+    lower64 >>= 12;
+
+    uint64_t x_lo = static_cast<uint64_t>(x);
+    uint64_t mask_part = (x_lo & 0xFFFFFFULL);
+
+    uint64_t bits_l = C_bits | lower64 | mask_part;
+    double l_temp = bits_to_double(bits_l);
+    double l = l_temp - C;
+
+    uint64_t D_bits = double_to_bits(D);
+    uint64_t top64 = static_cast<uint64_t>(x >> 76);
+    uint64_t bits_h = D_bits | top64;
+    double h_temp = bits_to_double(bits_h);
+    double h = h_temp - D;
+
+    return (l + h);
+  }
+}
+
+__host__ __device__ __uint128_t f64_to_u128(const double f) {
+  const __uint128_t ONE = 1;
+  const uint64_t f_bits = double_to_bits(f);
+  if (f_bits < 1023ull << 52) {
+    return 0;
+  } else {
+    const __uint128_t m = ONE << 127 | (__uint128_t) f_bits << 75;
+    const uint64_t s = 1150 - (f_bits >> 52);
+    if (s >= 128) {
+      return 0;
+    } else {
+      return m >> s;
+    }
+  }
+}
+
+__host__ __device__ double i128_to_f64(__int128_t const x) {
+  uint64_t sign = static_cast<uint64_t>(x >> 64) & (1ULL << 63);
+  __uint128_t abs = (x < 0)
+      ? static_cast<__uint128_t>(-x)
+      : static_cast<__uint128_t>(x);
+
+  return bits_to_double(double_to_bits(u128_to_f64(abs)) | sign);
+
+}
+__host__ __device__ f128 u128_to_signed_to_f128(__uint128_t x) {
+  const double first_approx = i128_to_f64(x);
+  const uint64_t sign_bit = double_to_bits(first_approx) * (1ull << 64);
+  const __uint128_t first_approx_roundtrip =
+      f64_to_u128((first_approx < 0) ? -first_approx : first_approx);
+  const __uint128_t first_approx_roundtrip_signed = (sign_bit == (1ull << 63))
+      ?-first_approx_roundtrip
+      :first_approx_roundtrip;
+
+  double correction = i128_to_f64(x - first_approx_roundtrip_signed);
+
+  return f128(first_approx, correction);
 };
 #endif
