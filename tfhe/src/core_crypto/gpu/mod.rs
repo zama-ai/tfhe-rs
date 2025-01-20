@@ -332,12 +332,12 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
     polynomial_size: PolynomialSize,
 ) {
     let size = std::mem::size_of_val(src);
-    for (gpu_index, &stream) in streams.ptr.iter().enumerate() {
+    for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
         assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
         cuda_convert_lwe_programmable_bootstrap_key_64(
-            stream,
-            streams.gpu_indexes[gpu_index].0,
-            dest.get_mut_c_ptr(gpu_index as u32),
+            stream_ptr,
+            streams.gpu_indexes[i],
+            dest.as_mut_c_ptr(i as u32),
             src.as_ptr().cast(),
             input_lwe_dim.0 as u32,
             glwe_dim.0 as u32,
@@ -365,12 +365,12 @@ pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: Unsigned
     grouping_factor: LweBskGroupingFactor,
 ) {
     let size = std::mem::size_of_val(src);
-    for (gpu_index, &stream) in streams.ptr.iter().enumerate() {
+    for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
         assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
         cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
-            stream,
-            streams.gpu_indexes[gpu_index].0,
-            dest.as_mut_c_ptr(gpu_index as u32),
+            stream_ptr,
+            streams.gpu_indexes[i],
+            dest.as_mut_c_ptr(i as u32),
             src.as_ptr().cast(),
             input_lwe_dim.0 as u32,
             glwe_dim.0 as u32,

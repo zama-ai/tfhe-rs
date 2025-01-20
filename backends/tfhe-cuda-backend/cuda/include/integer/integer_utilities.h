@@ -149,7 +149,9 @@ template <typename Torus> struct int_radix_lut {
   std::vector<Torus *> lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec;
 
-  int_radix_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+  uint32_t *gpu_indexes;
+
+  int_radix_lut(cudaStream_t const *streams, uint32_t const *input_gpu_indexes,
                 uint32_t gpu_count, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, bool allocate_gpu_memory) {
 
@@ -159,6 +161,9 @@ template <typename Torus> struct int_radix_lut {
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
     Torus lut_buffer_size =
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
+
+    gpu_indexes = (uint32_t *)malloc(gpu_count * sizeof(uint32_t));
+    std::memcpy(gpu_indexes, input_gpu_indexes, gpu_count * sizeof(uint32_t));
 
     ///////////////
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
@@ -255,7 +260,7 @@ template <typename Torus> struct int_radix_lut {
   }
 
   // constructor to reuse memory
-  int_radix_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+  int_radix_lut(cudaStream_t const *streams, uint32_t const *input_gpu_indexes,
                 uint32_t gpu_count, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, int_radix_lut *base_lut_object) {
 
@@ -265,6 +270,9 @@ template <typename Torus> struct int_radix_lut {
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
     Torus lut_buffer_size =
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
+
+    gpu_indexes = (uint32_t *)malloc(gpu_count * sizeof(uint32_t));
+    std::memcpy(gpu_indexes, input_gpu_indexes, gpu_count * sizeof(uint32_t));
 
     // base lut object should have bigger or equal memory than current one
     assert(num_radix_blocks <= base_lut_object->num_blocks);
@@ -494,6 +502,7 @@ template <typename Torus> struct int_radix_lut {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    free(this->gpu_indexes);
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_drop_async(lut_vec[i], streams[i], gpu_indexes[i]);
       cuda_drop_async(lut_indexes_vec[i], streams[i], gpu_indexes[i]);
