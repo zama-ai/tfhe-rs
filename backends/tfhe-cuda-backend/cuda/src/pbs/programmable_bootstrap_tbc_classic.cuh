@@ -201,9 +201,12 @@ __host__ void scratch_programmable_bootstrap_tbc(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
+  cudaSetDevice(gpu_index);
+
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-          Torus>(polynomial_size);
+          Torus>(polynomial_size, max_shared_memory);
 
   uint64_t full_sm = get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
       polynomial_size);
@@ -215,7 +218,6 @@ __host__ void scratch_programmable_bootstrap_tbc(
     minimum_sm_tbc =
         get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
             polynomial_size);
-  int max_shared_memory = cuda_get_max_shared_memory(0);
 
   if (max_shared_memory >= full_sm + minimum_sm_tbc) {
     check_cuda_error(cudaFuncSetAttribute(
@@ -262,10 +264,12 @@ __host__ void host_programmable_bootstrap_tbc(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_many_lut, uint32_t lut_stride) {
+  cudaSetDevice(gpu_index);
 
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-          Torus>(polynomial_size);
+          Torus>(polynomial_size, max_shared_memory);
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
@@ -279,9 +283,6 @@ __host__ void host_programmable_bootstrap_tbc(
     minimum_sm_tbc =
         get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
             polynomial_size);
-
-  int max_shared_memory = cuda_get_max_shared_memory(0);
-  cudaSetDevice(gpu_index);
 
   uint64_t full_dm = full_sm;
 
@@ -342,7 +343,8 @@ __host__ void host_programmable_bootstrap_tbc(
 // Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
-    int glwe_dimension, int level_count, int num_samples) {
+    int glwe_dimension, int level_count, int num_samples,
+    int max_shared_memory) {
 
   // If Cooperative Groups is not supported, no need to check anything else
   if (!cuda_check_support_cooperative_groups())
@@ -356,7 +358,6 @@ __host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
       get_buffer_size_partial_sm_programmable_bootstrap_tbc<Torus>(
           params::degree);
 
-  int max_shared_memory = cuda_get_max_shared_memory(0);
   int thds = params::degree / params::opt;
 
   // Get the maximum number of active blocks per streaming multiprocessors
@@ -387,12 +388,11 @@ __host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
-    uint32_t polynomial_size) {
+    uint32_t polynomial_size, int max_shared_memory) {
   uint64_t minimum_sm =
       get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
           polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(0);
   if (max_shared_memory < minimum_sm) {
     // If we cannot store a single polynomial in a block shared memory we cannot
     // use TBC
@@ -405,7 +405,7 @@ bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
 template <typename Torus, class params>
 __host__ bool supports_thread_block_clusters_on_classic_programmable_bootstrap(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count) {
+    uint32_t level_count, int max_shared_memory) {
 
   if (!cuda_check_support_thread_block_clusters() || num_samples > 128)
     return false;
@@ -417,7 +417,7 @@ __host__ bool supports_thread_block_clusters_on_classic_programmable_bootstrap(
           polynomial_size);
   uint64_t minimum_sm_tbc = 0;
   if (supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-          Torus>(polynomial_size))
+          Torus>(polynomial_size, max_shared_memory))
     minimum_sm_tbc =
         get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
             polynomial_size);
@@ -440,7 +440,6 @@ __host__ bool supports_thread_block_clusters_on_classic_programmable_bootstrap(
    * case and it will fail if we try. Thus, since level_count *
    * (glwe_dimension+1) is usually smaller than 8 at this moment, we will
    * disable cudaFuncAttributeNonPortableClusterSizeAllowed */
-  int max_shared_memory = cuda_get_max_shared_memory(0);
   if (max_shared_memory < partial_sm + minimum_sm_tbc) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_tbc<Torus, params, NOSM>,

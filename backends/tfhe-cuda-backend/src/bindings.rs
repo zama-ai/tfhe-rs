@@ -1560,6 +1560,7 @@ unsafe extern "C" {
         polynomial_size: u32,
         level_count: u32,
         num_samples: u32,
+        max_shared_memory: ffi::c_int,
     ) -> bool;
 }
 unsafe extern "C" {

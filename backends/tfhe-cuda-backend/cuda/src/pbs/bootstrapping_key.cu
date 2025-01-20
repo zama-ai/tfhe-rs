@@ -106,10 +106,12 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
   int gridSize = total_polynomials;
   int blockSize = polynomial_size / choose_opt_amortized(polynomial_size);
 
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+
   double2 *buffer;
   switch (polynomial_size) {
   case 256:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<256>, ForwardFFT>,
@@ -130,7 +132,7 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
     }
     break;
   case 512:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<521>, ForwardFFT>,
@@ -151,7 +153,7 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
     }
     break;
   case 1024:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<1024>, ForwardFFT>,
@@ -172,7 +174,7 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
     }
     break;
   case 2048:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<2048>, ForwardFFT>,
@@ -193,7 +195,7 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
     }
     break;
   case 4096:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<4096>, ForwardFFT>,
@@ -214,7 +216,7 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
     }
     break;
   case 8192:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<8192>, ForwardFFT>,
@@ -235,7 +237,7 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
     }
     break;
   case 16384:
-    if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
+    if (shared_memory_size <= max_shared_memory) {
       buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<16384>, ForwardFFT>,
