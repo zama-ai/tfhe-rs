@@ -1,4 +1,4 @@
-use crate::core_crypto::entities::{GlweCiphertext, LweCiphertextList};
+use crate::core_crypto::entities::{Cleartext, GlweCiphertext, LweCiphertextList};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{CudaLweList, CudaStreams};
@@ -26,7 +26,7 @@ use crate::shortint::engine::{
 use crate::shortint::server_key::{
     BivariateLookupTableOwned, LookupTableOwned, ManyLookupTableOwned,
 };
-use crate::shortint::PBSOrder;
+use crate::shortint::{PBSOrder, PaddingBit, ShortintEncoding};
 
 mod abs;
 mod add;
@@ -154,6 +154,15 @@ impl CudaServerKey {
         res
     }
 
+    pub(crate) fn encoding(&self) -> ShortintEncoding {
+        ShortintEncoding {
+            ciphertext_modulus: self.ciphertext_modulus,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            padding_bit: PaddingBit::Yes,
+        }
+    }
+
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
@@ -173,8 +182,6 @@ impl CudaServerKey {
             PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_size(),
         };
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-
         let decomposer = BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
             .iter_as::<u64>()
             .chain(std::iter::repeat(0))
@@ -187,7 +194,7 @@ impl CudaServerKey {
         );
         let mut info = Vec::with_capacity(num_blocks);
         for (block_value, mut lwe) in decomposer.zip(cpu_lwe_list.iter_mut()) {
-            *lwe.get_mut_body().data = block_value * delta;
+            *lwe.get_mut_body().data = self.encoding().encode(Cleartext(block_value)).0;
             info.push(CudaBlockInfo {
                 degree: Degree::new(block_value),
                 message_modulus: self.message_modulus,

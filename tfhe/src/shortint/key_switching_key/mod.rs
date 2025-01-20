@@ -4,7 +4,7 @@
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, KeyswitchKeyConformanceParams, LweKeyswitchKeyOwned,
+    keyswitch_lwe_ciphertext, Cleartext, KeyswitchKeyConformanceParams, LweKeyswitchKeyOwned,
     SeededLweKeyswitchKeyOwned,
 };
 use crate::shortint::ciphertext::Degree;
@@ -518,7 +518,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
         };
         let mut keyswitched = self
             .dest_server_key
-            .unchecked_create_trivial_with_lwe_size(0, output_lwe_size);
+            .unchecked_create_trivial_with_lwe_size(Cleartext(0), output_lwe_size);
 
         // TODO: We are outside the standard AP, if we chain keyswitches, we will refresh, which is
         // safer for now. We can likely add an additional flag in shortint to indicate if we

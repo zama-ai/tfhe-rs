@@ -50,6 +50,7 @@
 pub mod backward_compatibility;
 pub mod ciphertext;
 pub mod client_key;
+pub(crate) mod encoding;
 pub mod engine;
 pub mod key_switching_key;
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
@@ -67,6 +68,7 @@ pub(crate) mod wopbs;
 
 pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use client_key::ClientKey;
+pub(crate) use encoding::{PaddingBit, ShortintEncoding};
 pub use key_switching_key::{CompressedKeySwitchingKey, KeySwitchingKey, KeySwitchingKeyView};
 pub use parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel,

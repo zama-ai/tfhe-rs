@@ -9,8 +9,7 @@ use crate::shortint::parameters::{
     CarryModulus, ClassicPBSParameters, MessageModulus, MultiBitPBSParameters, PBSParameters,
     ShortintParameterSet, SupportedCompactPkeZkScheme,
 };
-use crate::shortint::KeySwitchingKeyView;
-
+use crate::shortint::{KeySwitchingKeyView, PaddingBit, ShortintEncoding};
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -101,6 +100,15 @@ impl CompactPublicKeyEncryptionParameters {
             "Invalid CompactPublicKeyEncryptionParameters, \
             encryption_lwe_dimension is not a power of 2, which is required.",
         );
+    }
+
+    pub(crate) fn encoding(&self) -> ShortintEncoding {
+        ShortintEncoding {
+            ciphertext_modulus: self.ciphertext_modulus,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            padding_bit: PaddingBit::Yes,
+        }
     }
 }
 

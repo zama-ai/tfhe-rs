@@ -6,7 +6,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{allocate_and_trivially_encrypt_new_lwe_ciphertext, LweSize};
 use crate::shortint::backward_compatibility::ciphertext::CiphertextVersions;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
-use crate::shortint::CiphertextModulus;
+use crate::shortint::{CiphertextModulus, PaddingBit, ShortintEncoding};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
@@ -199,6 +199,15 @@ impl Ciphertext {
             .map(|x| x % self.message_modulus.0)
     }
 
+    pub(crate) fn encoding(&self, padding_bit: PaddingBit) -> ShortintEncoding {
+        ShortintEncoding {
+            ciphertext_modulus: self.ct.ciphertext_modulus(),
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            padding_bit,
+        }
+    }
+
     /// See [Self::decrypt_trivial].
     /// # Example
     ///
@@ -225,8 +234,11 @@ impl Ciphertext {
     /// ```
     pub fn decrypt_trivial_message_and_carry(&self) -> Result<u64, NotTrivialCiphertextError> {
         if self.is_trivial() {
-            let delta = (1u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-            Ok(self.ct.get_body().data / delta)
+            let decoded = self
+                .encoding(PaddingBit::Yes)
+                .decode(Plaintext(*self.ct.get_body().data))
+                .0;
+            Ok(decoded)
         } else {
             Err(NotTrivialCiphertextError)
         }
@@ -234,23 +246,25 @@ impl Ciphertext {
 }
 
 pub(crate) fn unchecked_create_trivial_with_lwe_size(
-    value: u64,
+    value: Cleartext<u64>,
     lwe_size: LweSize,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     pbs_order: PBSOrder,
     ciphertext_modulus: CiphertextModulus,
 ) -> Ciphertext {
-    let delta = (1_u64 << 63) / (message_modulus.0 * carry_modulus.0);
-
-    let shifted_value = value * delta;
-
-    let encoded = Plaintext(shifted_value);
+    let encoded = ShortintEncoding {
+        ciphertext_modulus,
+        message_modulus,
+        carry_modulus,
+        padding_bit: PaddingBit::Yes,
+    }
+    .encode(value);
 
     let ct =
         allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded, ciphertext_modulus);
 
-    let degree = Degree::new(value);
+    let degree = Degree::new(value.0);
 
     Ciphertext::new(
         ct,

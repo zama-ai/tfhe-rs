@@ -1,3 +1,4 @@
+use crate::core_crypto::entities::Cleartext;
 use crate::core_crypto::gpu::algorithms::{
     cuda_lwe_ciphertext_negate_assign, cuda_lwe_ciphertext_plaintext_add_assign,
 };
@@ -78,8 +79,8 @@ impl CudaServerKey {
         let ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
 
         let scalar = self.message_modulus.0 as u8 - 1;
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-        let shift_plaintext = u64::from(scalar) * delta;
+
+        let shift_plaintext = self.encoding().encode(Cleartext(u64::from(scalar))).0;
 
         let scalar_vector = vec![shift_plaintext; ct_blocks];
         let mut d_decomposed_scalar =
