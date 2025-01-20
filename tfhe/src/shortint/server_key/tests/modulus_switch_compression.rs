@@ -4,8 +4,6 @@ use crate::shortint::parameters::*;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use rand::Rng;
 
-// Remove multi bit PBS parameters as
-// modulus switch compression and multi bit PBS are currently not compatible
 create_parameterized_test!(shortint_modulus_switch_compression);
 
 fn shortint_modulus_switch_compression<P>(param: P)
