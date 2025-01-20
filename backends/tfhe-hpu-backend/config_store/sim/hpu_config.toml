@@ -53,7 +53,8 @@
     {Hbm={pc=23}}
   ]
 
-trace_pc = {Hbm={pc=35}}
+  trace_pc = {Hbm={pc=35}}
+  trace_depth = 32 # In MB
 
 [firmware]
   integer_w=[16]

@@ -48,6 +48,7 @@
   ]
 
   trace_pc = {Hbm={pc=0}}
+  trace_depth = 4 # In MB
 
 [firmware]
   integer_w=[16]
