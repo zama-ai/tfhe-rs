@@ -99,6 +99,8 @@ pub struct BoardConfig {
     pub fw_pc: ffi::MemKind,
     /// Depict the memory connected to trace manager
     pub trace_pc: ffi::MemKind,
+    /// The trace memory depth in MB
+    pub trace_depth: usize,
 
     /// Depict the hbm_pc connected to bsk master_axi
     pub bsk_pc: Vec<ffi::MemKind>,

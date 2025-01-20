@@ -56,19 +56,21 @@
     {Hbm={pc=23}}
   ]
 
-trace_pc = {Hbm={pc=35}}
+  trace_pc = {Hbm={pc=35}}
+  trace_depth = 32 # In MB
 
 [firmware]
   integer_w=[16]
   # Set to true for the firmware scheduler to try to fill the PE batch FIFO
   # first even at the expense of missing dependencies
   fill_batch_fifo = true
-  min_batch_size = true
+  min_batch_size = false
   kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
   custom_iop.'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_0.asm"
   custom_iop.'IOP[1]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_1.asm"
   custom_iop.'IOP[2]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_2.asm"
   custom_iop.'IOP[3]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_3.asm"
+  custom_iop.'IOP[4]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_4.asm"
   custom_iop.'IOP[8]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_8.asm"
   custom_iop.'IOP[9]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_9.asm"
   custom_iop.'IOP[16]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_16.asm"
