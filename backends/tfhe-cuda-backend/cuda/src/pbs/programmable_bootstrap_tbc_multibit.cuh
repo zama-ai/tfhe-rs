@@ -224,7 +224,7 @@ __host__ void scratch_tbc_multi_bit_programmable_bootstrap(
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   if (max_shared_memory < full_sm_keybundle) {
     check_cuda_error(cudaFuncSetAttribute(
@@ -319,7 +319,7 @@ __host__ void execute_tbc_external_product_loop(
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cudaSetDevice(gpu_index);
 
   uint32_t keybundle_size_per_input =
@@ -426,12 +426,11 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
-    uint32_t polynomial_size) {
+    uint32_t polynomial_size, int max_shared_memory) {
   uint64_t minimum_sm =
       get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
           polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(0);
   if (max_shared_memory <= minimum_sm) {
     // If we cannot store a single polynomial in a block shared memory we
     // cannot use TBC
@@ -480,7 +479,7 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
    * case and it will fail if we try. Thus, since level_count *
    * (glwe_dimension+1) is usually smaller than 8 at this moment, we will
    * disable cudaFuncAttributeNonPortableClusterSizeAllowed */
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   if (max_shared_memory <
       partial_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
     check_cuda_error(cudaFuncSetAttribute(

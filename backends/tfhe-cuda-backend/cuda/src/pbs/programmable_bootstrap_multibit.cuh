@@ -388,7 +388,7 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
@@ -506,7 +506,7 @@ __host__ void execute_compute_keybundle(
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cudaSetDevice(gpu_index);
 
   auto d_mem = buffer->d_mem_keybundle;
@@ -550,7 +550,7 @@ execute_step_one(cudaStream_t stream, uint32_t gpu_index,
   uint64_t partial_sm_accumulate_step_one =
       get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one<
           Torus>(polynomial_size);
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cudaSetDevice(gpu_index);
 
   //
@@ -604,7 +604,7 @@ execute_step_two(cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
   uint64_t full_sm_accumulate_step_two =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cudaSetDevice(gpu_index);
 
   auto d_mem = buffer->d_mem_acc_step_two;

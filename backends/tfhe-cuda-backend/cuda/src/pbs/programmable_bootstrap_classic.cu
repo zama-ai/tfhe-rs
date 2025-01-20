@@ -8,9 +8,11 @@ template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
                                                    uint32_t polynomial_size,
                                                    uint32_t level_count,
-                                                   uint32_t num_samples) {
+                                                   uint32_t num_samples,
+                                                   int max_shared_memory) {
   return supports_cooperative_groups_on_programmable_bootstrap<Torus>(
-      glwe_dimension, polynomial_size, level_count, num_samples);
+      glwe_dimension, polynomial_size, level_count, num_samples,
+      max_shared_memory);
 }
 
 template <typename Torus>
@@ -720,7 +722,7 @@ void cleanup_cuda_programmable_bootstrap(void *stream, uint32_t gpu_index,
 
 template bool has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples);
+    uint32_t num_samples, int max_shared_memory);
 
 template void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,

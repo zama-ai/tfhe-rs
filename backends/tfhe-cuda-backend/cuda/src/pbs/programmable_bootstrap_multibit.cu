@@ -9,9 +9,10 @@
 
 bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples) {
+    uint32_t num_samples, int max_shared_memory) {
   return supports_cooperative_groups_on_multibit_programmable_bootstrap<
-      uint64_t>(glwe_dimension, polynomial_size, level_count, num_samples);
+      uint64_t>(glwe_dimension, polynomial_size, level_count, num_samples,
+                max_shared_memory);
 }
 
 template <typename Torus>
@@ -401,7 +402,8 @@ void scratch_cuda_multi_bit_programmable_bootstrap_64(
 #endif
       if (supports_cooperative_groups_on_multibit_programmable_bootstrap<
               uint64_t>(glwe_dimension, polynomial_size, level_count,
-                        input_lwe_ciphertext_count))
+                        input_lwe_ciphertext_count,
+                        cuda_get_max_shared_memory(gpu_index)))
     scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
         glwe_dimension, polynomial_size, level_count,
@@ -440,7 +442,7 @@ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
           polynomial_size);
 
   int max_blocks_per_sm;
-  int max_shared_memory = cuda_get_max_shared_memory(0);
+  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cudaSetDevice(gpu_index);
   if (max_shared_memory < full_sm_keybundle)
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
