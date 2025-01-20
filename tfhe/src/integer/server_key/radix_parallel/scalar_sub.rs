@@ -1,9 +1,9 @@
-use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
+use crate::core_crypto::prelude::{Cleartext, SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix::scalar_sub::TwosComplementNegation;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
-use crate::shortint::Ciphertext;
+use crate::shortint::{Ciphertext, PaddingBit};
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -155,17 +155,17 @@ impl ServerKey {
                 .generate_lookup_table(|x| if x < self.message_modulus().0 { 1 } else { 0 });
 
         let mut borrow = self.key.create_trivial(0);
-        let delta = (1_u64 << 63) / (self.message_modulus().0 * self.carry_modulus().0);
+        let encoding = self.key.encoding(PaddingBit::Yes);
         for (lhs_b, scalar_b) in lhs.blocks.iter_mut().zip(scalar_blocks.iter().copied()) {
             // Here we use core_crypto instead of shortint scalar_sub_assign
             // because we need a true subtraction, not an addition of the inverse
             crate::core_crypto::algorithms::lwe_ciphertext_plaintext_sub_assign(
                 &mut lhs_b.ct,
-                crate::core_crypto::prelude::Plaintext(u64::from(scalar_b) * delta),
+                encoding.encode(Cleartext(u64::from(scalar_b))),
             );
             crate::core_crypto::algorithms::lwe_ciphertext_plaintext_add_assign(
                 &mut lhs_b.ct,
-                crate::core_crypto::prelude::Plaintext(self.message_modulus().0 * delta),
+                encoding.encode(Cleartext(self.message_modulus().0)),
             );
             lhs_b.degree = crate::shortint::ciphertext::Degree::new(
                 lhs_b.degree.get() + (self.message_modulus().0 - u64::from(scalar_b)),

@@ -3,7 +3,7 @@
 pub(crate) mod secret_encryption_key;
 use tfhe_versionable::Versionize;
 
-use super::PBSOrder;
+use super::{PBSOrder, PaddingBit, ShortintEncoding};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
@@ -255,7 +255,7 @@ impl ClientKey {
         let lwe_size = params.encryption_lwe_dimension().to_lwe_size();
 
         super::ciphertext::unchecked_create_trivial_with_lwe_size(
-            value,
+            Cleartext(value),
             lwe_size,
             params.message_modulus(),
             params.carry_modulus(),
@@ -492,18 +492,11 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
-        let decrypted_u64: u64 = self.decrypt_no_decode(ct);
+        let decrypted_u64 = self.decrypt_no_decode(ct);
 
-        let delta = (1_u64 << 63)
-            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0);
-
-        //The bit before the message
-        let rounding_bit = delta >> 1;
-
-        //compute the rounding bit
-        let rounding = (decrypted_u64 & rounding_bit) << 1;
-
-        (decrypted_u64.wrapping_add(rounding)) / delta
+        ShortintEncoding::from_parameters(self.parameters, PaddingBit::Yes)
+            .decode(decrypted_u64)
+            .0
     }
 
     /// Decrypt a ciphertext encrypting a message using the client key.
@@ -541,12 +534,12 @@ impl ClientKey {
         self.decrypt_message_and_carry(ct) % ct.message_modulus.0
     }
 
-    pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> u64 {
+    pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> Plaintext<u64> {
         let lwe_decryption_key = match ct.pbs_order {
             PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
             PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
         };
-        decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct).0
+        decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct)
     }
 
     /// Encrypt a small integer message using the client key without padding bit.
@@ -638,17 +631,9 @@ impl ClientKey {
     pub fn decrypt_message_and_carry_without_padding(&self, ct: &Ciphertext) -> u64 {
         let decrypted_u64 = self.decrypt_no_decode(ct);
 
-        let delta = ((1_u64 << 63)
-            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0))
-            * 2;
-
-        //The bit before the message
-        let rounding_bit = delta >> 1;
-
-        //compute the rounding bit
-        let rounding = (decrypted_u64 & rounding_bit) << 1;
-
-        (decrypted_u64.wrapping_add(rounding)) / delta
+        ShortintEncoding::from_parameters(self.parameters, PaddingBit::No)
+            .decode(decrypted_u64)
+            .0
     }
 
     /// Decrypt a ciphertext encrypting an integer message using the client key,
@@ -795,7 +780,7 @@ impl ClientKey {
     ) -> u64 {
         let basis = message_modulus.0;
 
-        let decrypted_u64: u64 = self.decrypt_no_decode(ct);
+        let decrypted_u64: u64 = self.decrypt_no_decode(ct).0;
 
         let mut result = decrypted_u64 as u128 * basis as u128;
         result = result.wrapping_add((result & (1 << 63)) << 1) / (1 << 64);
