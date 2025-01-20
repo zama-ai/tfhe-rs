@@ -42,7 +42,10 @@ impl CudaStreams {
     }
     /// Create a new `CudaStreams` structure with one GPU, whose index corresponds to the one given
     /// as input
+    ///
+    /// # Panics if the gpu index does not have a corresponding GPU
     pub fn new_single_gpu(gpu_index: GpuIndex) -> Self {
+        let gpu_index = gpu_index.validate().unwrap();
         Self {
             ptr: vec![unsafe { cuda_create_stream(gpu_index.0) }],
             gpu_indexes: vec![gpu_index],
@@ -72,6 +75,10 @@ impl CudaStreams {
     /// Returns `true` if the CudaVec contains no elements.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        &self.gpu_indexes
     }
 }
 

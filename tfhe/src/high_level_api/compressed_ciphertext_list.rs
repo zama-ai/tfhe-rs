@@ -409,7 +409,9 @@ pub mod gpu {
             messages: &mut Vec<CudaRadixCiphertext>,
             streams: &CudaStreams,
         ) -> DataKind {
-            self.ciphertext.into_gpu().compress_into(messages, streams)
+            self.ciphertext
+                .into_gpu(streams)
+                .compress_into(messages, streams)
         }
     }
 
@@ -419,7 +421,9 @@ pub mod gpu {
             messages: &mut Vec<CudaRadixCiphertext>,
             streams: &CudaStreams,
         ) -> DataKind {
-            self.ciphertext.into_gpu().compress_into(messages, streams)
+            self.ciphertext
+                .into_gpu(streams)
+                .compress_into(messages, streams)
         }
     }
 
@@ -429,7 +433,9 @@ pub mod gpu {
             messages: &mut Vec<CudaRadixCiphertext>,
             streams: &CudaStreams,
         ) -> DataKind {
-            self.ciphertext.into_gpu().compress_into(messages, streams)
+            self.ciphertext
+                .into_gpu(streams)
+                .compress_into(messages, streams)
         }
     }
 

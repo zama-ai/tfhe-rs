@@ -368,11 +368,11 @@ pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]
         InternalServerKey::Cuda(gpu_key) => with_thread_local_cuda_streams(|streams| {
             let tmp_lhs = lhs
                 .iter()
-                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu())
+                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu(streams))
                 .collect::<Vec<_>>();
             let tmp_rhs = rhs
                 .iter()
-                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu())
+                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu(streams))
                 .collect::<Vec<_>>();
 
             let result = gpu_key.key.key.all_eq_slices(&tmp_lhs, &tmp_rhs, streams);
@@ -405,11 +405,11 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
         InternalServerKey::Cuda(gpu_key) => with_thread_local_cuda_streams(|streams| {
             let tmp_lhs = lhs
                 .iter()
-                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu())
+                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu(streams))
                 .collect::<Vec<_>>();
             let tmp_pattern = pattern
                 .iter()
-                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu())
+                .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu(streams))
                 .collect::<Vec<_>>();
 
             let result = gpu_key

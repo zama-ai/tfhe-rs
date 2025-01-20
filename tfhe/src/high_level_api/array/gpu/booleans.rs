@@ -159,7 +159,9 @@ impl BitwiseArrayBackend for GpuFheBoolArrayBackend {
             with_thread_local_cuda_streams(|streams| {
                 lhs.par_iter()
                     .zip(rhs.par_iter())
-                    .map(|(lhs, rhs)| CudaBooleanBlock(cuda_key.bitand(&lhs.0, &rhs.0, streams)))
+                    .map(|(lhs, rhs)| {
+                        CudaBooleanBlock(cuda_key.pbs_key().bitand(&lhs.0, &rhs.0, streams))
+                    })
                     .collect::<Vec<_>>()
             })
         }))
@@ -173,7 +175,9 @@ impl BitwiseArrayBackend for GpuFheBoolArrayBackend {
             with_thread_local_cuda_streams(|streams| {
                 lhs.par_iter()
                     .zip(rhs.par_iter())
-                    .map(|(lhs, rhs)| CudaBooleanBlock(cuda_key.bitor(&lhs.0, &rhs.0, streams)))
+                    .map(|(lhs, rhs)| {
+                        CudaBooleanBlock(cuda_key.pbs_key().bitor(&lhs.0, &rhs.0, streams))
+                    })
                     .collect::<Vec<_>>()
             })
         }))
@@ -187,7 +191,9 @@ impl BitwiseArrayBackend for GpuFheBoolArrayBackend {
             with_thread_local_cuda_streams(|streams| {
                 lhs.par_iter()
                     .zip(rhs.par_iter())
-                    .map(|(lhs, rhs)| CudaBooleanBlock(cuda_key.bitxor(&lhs.0, &rhs.0, streams)))
+                    .map(|(lhs, rhs)| {
+                        CudaBooleanBlock(cuda_key.pbs_key().bitxor(&lhs.0, &rhs.0, streams))
+                    })
                     .collect::<Vec<_>>()
             })
         }))
@@ -197,7 +203,7 @@ impl BitwiseArrayBackend for GpuFheBoolArrayBackend {
         GpuBooleanOwned(global_state::with_cuda_internal_keys(|cuda_key| {
             with_thread_local_cuda_streams(|streams| {
                 lhs.par_iter()
-                    .map(|lhs| CudaBooleanBlock(cuda_key.bitnot(&lhs.0, streams)))
+                    .map(|lhs| CudaBooleanBlock(cuda_key.pbs_key().bitnot(&lhs.0, streams)))
                     .collect::<Vec<_>>()
             })
         }))
@@ -214,7 +220,9 @@ impl ClearBitwiseArrayBackend<bool> for GpuFheBoolArrayBackend {
                 lhs.par_iter()
                     .zip(rhs.par_iter().copied())
                     .map(|(lhs, rhs)| {
-                        CudaBooleanBlock(cuda_key.scalar_bitand(&lhs.0, rhs as u8, streams))
+                        CudaBooleanBlock(
+                            cuda_key.pbs_key().scalar_bitand(&lhs.0, rhs as u8, streams),
+                        )
                     })
                     .collect::<Vec<_>>()
             })
@@ -230,7 +238,9 @@ impl ClearBitwiseArrayBackend<bool> for GpuFheBoolArrayBackend {
                 lhs.par_iter()
                     .zip(rhs.par_iter().copied())
                     .map(|(lhs, rhs)| {
-                        CudaBooleanBlock(cuda_key.scalar_bitor(&lhs.0, rhs as u8, streams))
+                        CudaBooleanBlock(
+                            cuda_key.pbs_key().scalar_bitor(&lhs.0, rhs as u8, streams),
+                        )
                     })
                     .collect::<Vec<_>>()
             })
@@ -246,7 +256,9 @@ impl ClearBitwiseArrayBackend<bool> for GpuFheBoolArrayBackend {
                 lhs.par_iter()
                     .zip(rhs.par_iter().copied())
                     .map(|(lhs, rhs)| {
-                        CudaBooleanBlock(cuda_key.scalar_bitxor(&lhs.0, rhs as u8, streams))
+                        CudaBooleanBlock(
+                            cuda_key.pbs_key().scalar_bitxor(&lhs.0, rhs as u8, streams),
+                        )
                     })
                     .collect::<Vec<_>>()
             })

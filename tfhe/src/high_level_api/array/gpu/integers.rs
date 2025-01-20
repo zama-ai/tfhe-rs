@@ -110,7 +110,7 @@ where
         with_thread_local_cuda_streams(|streams| {
             lhs.par_iter()
                 .zip(rhs.par_iter())
-                .map(|(lhs, rhs)| op(cuda_key, lhs, rhs, streams))
+                .map(|(lhs, rhs)| op(cuda_key.pbs_key(), lhs, rhs, streams))
                 .collect::<Vec<_>>()
         })
     }))
@@ -172,7 +172,7 @@ where
         with_thread_local_cuda_streams(|streams| {
             lhs.par_iter()
                 .zip(rhs.par_iter())
-                .map(|(lhs, rhs)| op(cuda_key, lhs, *rhs, streams))
+                .map(|(lhs, rhs)| op(cuda_key.pbs_key(), lhs, *rhs, streams))
                 .collect::<Vec<_>>()
         })
     }))
@@ -337,7 +337,7 @@ where
         GpuOwned(global_state::with_cuda_internal_keys(|cuda_key| {
             with_thread_local_cuda_streams(|streams| {
                 lhs.par_iter()
-                    .map(|lhs| cuda_key.bitnot(lhs, streams))
+                    .map(|lhs| cuda_key.pbs_key().bitnot(lhs, streams))
                     .collect::<Vec<_>>()
             })
         }))
