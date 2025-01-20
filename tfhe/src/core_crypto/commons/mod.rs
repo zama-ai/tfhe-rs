@@ -26,12 +26,13 @@ pub mod traits;
 #[cfg(test)]
 pub mod test_tools {
     use rand::Rng;
+    use statrs::distribution::{ChiSquared, ContinuousCDF};
 
     pub use crate::core_crypto::algorithms::misc::{
         modular_distance, modular_distance_custom_mod, torus_modular_diff,
     };
     use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-    use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
+    use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev, Variance};
     use crate::core_crypto::commons::generators::{
         EncryptionRandomGenerator, SecretRandomGenerator,
     };
@@ -45,12 +46,62 @@ pub mod test_tools {
     use crate::core_crypto::commons::traits::*;
     use tfhe_csprng::seeders::Seed;
 
+    pub fn arithmetic_mean(samples: &[f64]) -> f64 {
+        samples.iter().copied().sum::<f64>() / samples.len() as f64
+    }
+
     pub fn variance(samples: &[f64]) -> Variance {
         let num_samples = samples.len();
-        let mean = samples.iter().sum::<f64>() / (num_samples as f64);
+        let mean = arithmetic_mean(samples);
         Variance(
             samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / ((num_samples - 1) as f64),
         )
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct VarianceConfidenceInterval {
+        lower_bound: Variance,
+        upper_bound: Variance,
+    }
+
+    impl VarianceConfidenceInterval {
+        pub fn variance_is_in_interval(&self, variance_to_check: Variance) -> bool {
+            self.lower_bound <= variance_to_check && self.upper_bound >= variance_to_check
+        }
+
+        pub fn lower_bound(&self) -> Variance {
+            self.lower_bound
+        }
+
+        pub fn upper_bound(&self) -> Variance {
+            self.upper_bound
+        }
+    }
+
+    /// Note that the confidence_level is the probability to be in the interval to be computed.
+    pub fn variance_confidence_interval(
+        sample_count: f64,
+        measured_variance: Variance,
+        confidence_level: f64,
+    ) -> VarianceConfidenceInterval {
+        assert!(confidence_level >= 0.0);
+        assert!(confidence_level <= 1.0);
+        let alpha = 1.0 - confidence_level;
+        let degrees_of_freedom = sample_count - 1.0;
+        let chi2 = ChiSquared::new(degrees_of_freedom).unwrap();
+        let chi2_lower = chi2.inverse_cdf(alpha / 2.0);
+        let chi2_upper = chi2.inverse_cdf(1.0 - alpha / 2.0);
+
+        // Lower bound is divided by chi2_upper, upper bound divided by chi2_lower
+        let lower_bound = Variance(degrees_of_freedom * measured_variance.0 / chi2_upper);
+        let upper_bound = Variance(degrees_of_freedom * measured_variance.0 / chi2_lower);
+
+        assert!(lower_bound <= upper_bound);
+
+        VarianceConfidenceInterval {
+            lower_bound,
+            upper_bound,
+        }
     }
 
     pub fn new_random_generator() -> RandomGenerator<DefaultRandomGenerator> {
@@ -345,5 +396,46 @@ pub mod test_tools {
             let distance = torus_modular_diff(seven_eighth, one_eighth, q);
             assert_eq!(distance, -0.25);
         }
+    }
+
+    #[test]
+    fn test_confidence_interval() {
+        // https://stats.libretexts.org/Bookshelves/Introductory_Statistics/
+        // Inferential_Statistics_and_Probability_-_A_Holistic_Approach_(Geraghty)/
+        // 09%3A_Point_Estimation_and_Confidence_Intervals/9.03%3A_Confidence_Intervals
+
+        // In performance measurement of investments, standard deviation is a measure of volatility
+        // or risk. Twenty monthly returns from a mutual fund show an average monthly return of
+        // 1 percent and a sample standard deviation of 5 percent.
+        // Find a 95% confidence interval for the monthly standard deviation of the mutual fund.
+
+        // The Chi‐square distribution will have 20‐1 =19 degrees of freedom. Using technology,
+        // we find that the two critical values are  chi2_left=8.90655
+        // and   chi2_right=32.8523
+        // Formula for confidence interval for sigma
+        // is:  sqrt(19 * 5^2 / 32.8523) sqrt(19 * 5^2 / 8.90655) = (3.8,7.3)
+
+        // One can say with 95% confidence that the standard deviation for this mutual fund is
+        // between 3.8 and 7.3 percent per month.
+
+        let measured_std_dev = StandardDev(0.05);
+        let measured_variance = measured_std_dev.get_variance();
+
+        let confidence_level = 0.95;
+
+        let confidence_interval =
+            variance_confidence_interval(20., measured_variance, confidence_level);
+
+        let lower_bound = confidence_interval.lower_bound();
+        let upper_bound = confidence_interval.upper_bound();
+
+        let approx_expected_lower_bound = StandardDev(0.038).get_variance();
+        let approx_expected_upper_bound = StandardDev(0.073).get_variance();
+
+        let lower_bound_abs_diff = (lower_bound.0 - approx_expected_lower_bound.0).abs();
+        let upper_bound_abs_diff = (upper_bound.0 - approx_expected_upper_bound.0).abs();
+
+        assert!(lower_bound_abs_diff / approx_expected_lower_bound.0 < 0.01);
+        assert!(upper_bound_abs_diff / approx_expected_upper_bound.0 < 0.01);
     }
 }
