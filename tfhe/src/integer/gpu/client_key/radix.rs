@@ -11,7 +11,7 @@ use crate::integer::gpu::list_compression::server_keys::{
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::RadixClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
+use crate::shortint::EncryptionKeyChoice;
 
 impl RadixClientKey {
     pub fn new_cuda_compression_decompression_keys(
@@ -21,16 +21,10 @@ impl RadixClientKey {
     ) -> (CudaCompressionKey, CudaDecompressionKey) {
         let private_compression_key = &private_compression_key.key;
 
-        let cks_params: ClassicPBSParameters = match self.parameters() {
-            PBSParameters::PBS(a) => a,
-            PBSParameters::MultiBitPBS(_) => {
-                panic!("Compression is currently not compatible with Multi Bit PBS")
-            }
-        };
         let params = &private_compression_key.params;
 
         assert_eq!(
-            cks_params.encryption_key_choice,
+            self.parameters().encryption_key_choice(),
             EncryptionKeyChoice::Big,
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
