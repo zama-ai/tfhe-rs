@@ -46,6 +46,20 @@ pub fn ggsw_ciphertext_list_size(
     ciphertext_count.0 * ggsw_ciphertext_size(glwe_size, polynomial_size, decomp_level_count)
 }
 
+pub fn fourier_ggsw_ciphertext_list_size(
+    ciphertext_count: GgswCiphertextCount,
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    decomp_level_count: DecompositionLevelCount,
+) -> usize {
+    ciphertext_count.0
+        * fourier_ggsw_ciphertext_size(
+            glwe_size,
+            polynomial_size.to_fourier_polynomial_size(),
+            decomp_level_count,
+        )
+}
+
 pub fn ggsw_ciphertext_list_encryption_fork_config<Scalar, MaskDistribution, NoiseDistribution>(
     ggsw_ciphertext_count: GgswCiphertextCount,
     glwe_size: GlweSize,
