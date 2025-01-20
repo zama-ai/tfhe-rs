@@ -6,7 +6,8 @@ use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{
-    Ciphertext, ClientKey, CompressedCiphertext, PBSOrder, ShortintParameterSet,
+    Ciphertext, ClientKey, CompressedCiphertext, PBSOrder, PaddingBit, ShortintEncoding,
+    ShortintParameterSet,
 };
 
 impl ShortintEngine {
@@ -65,16 +66,10 @@ impl ShortintEngine {
         u64: RandomGenerable<NoiseDistribution, CustomModulus = u64>,
         KeyCont: crate::core_crypto::commons::traits::Container<Element = u64>,
     {
-        //The delta is the one defined by the parameters
-        let delta = (1_u64 << 63)
-            / (client_key_parameters.message_modulus().0 * client_key_parameters.carry_modulus().0);
+        let m = Cleartext(message % message_modulus.0);
 
-        //The input is reduced modulus the message_modulus
-        let m = message % message_modulus.0;
-
-        let shifted_message = m * delta;
-
-        let encoded = Plaintext(shifted_message);
+        let encoded =
+            ShortintEncoding::from_parameters(*client_key_parameters, PaddingBit::Yes).encode(m);
 
         allocate_and_encrypt_new_lwe_ciphertext(
             client_lwe_sk,
@@ -164,22 +159,16 @@ impl ShortintEngine {
         message: u64,
         message_modulus: MessageModulus,
     ) -> CompressedCiphertext {
-        //This ensures that the space message_modulus*carry_modulus < param.message_modulus *
+        // This ensures that the space message_modulus*carry_modulus < param.message_modulus *
         // param.carry_modulus
         let carry_modulus = (client_key.parameters.message_modulus().0
             * client_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
-        //The delta is the one defined by the parameters
-        let delta = (1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0);
+        let m = Cleartext(message % message_modulus.0);
 
-        //The input is reduced modulus the message_modulus
-        let m = message % message_modulus.0;
-
-        let shifted_message = m * delta;
-
-        let encoded = Plaintext(shifted_message);
+        let encoded =
+            ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::Yes).encode(m);
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
@@ -210,11 +199,8 @@ impl ShortintEngine {
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
 
-        let delta = (1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0);
-        let shifted_message = message * delta;
-
-        let encoded = Plaintext(shifted_message);
+        let encoded = ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::Yes)
+            .encode(Cleartext(message));
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &encryption_lwe_sk,
@@ -242,15 +228,8 @@ impl ShortintEngine {
         client_key: &ClientKey,
         message: u64,
     ) -> Ciphertext {
-        //Multiply by 2 to reshift and exclude the padding bit
-        let delta = ((1_u64 << 63)
-            / (client_key.parameters.message_modulus().0
-                * client_key.parameters.carry_modulus().0))
-            * 2;
-
-        let shifted_message = message * delta;
-
-        let encoded = Plaintext(shifted_message);
+        let encoded = ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::No)
+            .encode(Cleartext(message));
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
@@ -280,15 +259,8 @@ impl ShortintEngine {
         client_key: &ClientKey,
         message: u64,
     ) -> CompressedCiphertext {
-        //Multiply by 2 to reshift and exclude the padding bit
-        let delta = ((1_u64 << 63)
-            / (client_key.parameters.message_modulus().0
-                * client_key.parameters.carry_modulus().0))
-            * 2;
-
-        let shifted_message = message * delta;
-
-        let encoded = Plaintext(shifted_message);
+        let encoded = ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::No)
+            .encode(Cleartext(message));
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 

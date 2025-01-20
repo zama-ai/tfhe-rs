@@ -49,7 +49,7 @@ use crate::shortint::engine::{
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
-use crate::shortint::{EncryptionKeyChoice, PBSOrder};
+use crate::shortint::{EncryptionKeyChoice, PBSOrder, PaddingBit, ShortintEncoding};
 use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
@@ -403,34 +403,6 @@ pub struct ServerKey {
     pub pbs_order: PBSOrder,
 }
 
-impl ServerKey {
-    pub fn conformance_params(&self) -> CiphertextConformanceParams {
-        let lwe_dim = self.ciphertext_lwe_dimension();
-
-        let ms_decompression_method = match &self.bootstrapping_key {
-            ShortintBootstrappingKey::Classic(_) => MsDecompressionType::ClassicPbs,
-            ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
-                MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
-            }
-        };
-
-        let ct_params = LweCiphertextParameters {
-            lwe_dim,
-            ct_modulus: self.ciphertext_modulus,
-            ms_decompression_method,
-        };
-
-        CiphertextConformanceParams {
-            ct_params,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            degree: Degree::new(self.message_modulus.0 - 1),
-            pbs_order: self.pbs_order,
-            noise_level: NoiseLevel::NOMINAL,
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
 pub struct LookupTable<C: Container<Element = u64>> {
@@ -589,6 +561,41 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
+        }
+    }
+
+    pub fn conformance_params(&self) -> CiphertextConformanceParams {
+        let lwe_dim = self.ciphertext_lwe_dimension();
+
+        let ms_decompression_method = match &self.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(_) => MsDecompressionType::ClassicPbs,
+            ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
+                MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
+            }
+        };
+
+        let ct_params = LweCiphertextParameters {
+            lwe_dim,
+            ct_modulus: self.ciphertext_modulus,
+            ms_decompression_method,
+        };
+
+        CiphertextConformanceParams {
+            ct_params,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            degree: Degree::new(self.message_modulus.0 - 1),
+            pbs_order: self.pbs_order,
+            noise_level: NoiseLevel::NOMINAL,
+        }
+    }
+
+    pub(crate) fn encoding(&self, padding_bit: PaddingBit) -> ShortintEncoding {
+        ShortintEncoding {
+            ciphertext_modulus: self.ciphertext_modulus,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            padding_bit,
         }
     }
 
@@ -1140,7 +1147,7 @@ impl ServerKey {
 
     pub(crate) fn unchecked_create_trivial_with_lwe_size(
         &self,
-        value: u64,
+        value: Cleartext<u64>,
         lwe_size: LweSize,
     ) -> Ciphertext {
         unchecked_create_trivial_with_lwe_size(
@@ -1163,17 +1170,15 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_create_trivial_with_lwe_size(value, lwe_size)
+        self.unchecked_create_trivial_with_lwe_size(Cleartext(value), lwe_size)
     }
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
         let modular_value = value % self.message_modulus.0;
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-
-        let shifted_value = modular_value * delta;
-
-        let encoded = Plaintext(shifted_value);
+        let encoded = self
+            .encoding(PaddingBit::Yes)
+            .encode(Cleartext(modular_value));
 
         trivially_encrypt_lwe_ciphertext(&mut ct.ct, encoded);
 
@@ -1214,8 +1219,10 @@ impl ServerKey {
 
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
         let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-        let ct_value = *ct.ct.get_body().data / delta;
+        let ct_value = self
+            .encoding(PaddingBit::Yes)
+            .decode(Plaintext(*ct.ct.get_body().data))
+            .0;
 
         let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup as usize;
         let result = if ct_value >= modulus_sup {
@@ -1237,8 +1244,10 @@ impl ServerKey {
 
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
         let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0);
-        let ct_value = *ct.ct.get_body().data / delta;
+        let ct_value = self
+            .encoding(PaddingBit::Yes)
+            .decode(Plaintext(*ct.ct.get_body().data))
+            .0;
 
         let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup as usize;
 
