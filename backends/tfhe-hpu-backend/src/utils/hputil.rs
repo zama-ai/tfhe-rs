@@ -6,8 +6,15 @@ use tfhe_hpu_backend::interface::rtl;
 use tfhe_hpu_backend::interface::rtl::FromRtl;
 use tfhe_hpu_backend::prelude::*;
 
+use tfhe_hpu_backend::isc_trace::{IscTraceStream, TraceDump};
+
 use clap::{Parser, Subcommand, ValueEnum};
 use clap_num::maybe_hex;
+
+use serde_json;
+use std::fs::File;
+
+use tracing_subscriber::fmt::MakeWriter;
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command {
@@ -66,6 +73,12 @@ pub enum Command {
         // Pattern to write in Mz
         #[arg(short, long, value_parser=maybe_hex::<u8>)]
         pattern: u8,
+    },
+
+    #[clap(about = "Trace Dump")]
+    TraceDump {
+        #[arg(short, long, default_value_t = String::from("trace.json"))]
+        file: String,
     },
 }
 
@@ -128,6 +141,10 @@ fn main() {
             .collect::<Vec<_>>();
         hw_regmap::FlatRegmap::from_file(&regmap_str)
     };
+
+    // Init the memory backend
+    let params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
+    hpu_hw.init_mem(&config, &params);
 
     // Handle user command --------------------------------------------------
     match args.cmd {
@@ -258,6 +275,14 @@ fn main() {
             let mut mz = hpu_hw.alloc(cut_props);
             mz.write(0, bfr.as_slice());
             mz.sync(ffi::SyncMode::Host2Device);
+        }
+        Command::TraceDump { file: filename } => {
+            let trace = TraceDump::new_from(&mut hpu_hw, &regmap, config.board.trace_depth);
+            let parsed = IscTraceStream::from(trace);
+
+            let file = File::create(filename).expect("Failed to create or open trace dump file");
+            serde_json::to_writer_pretty(file.make_writer(), &parsed)
+                .expect("Could not write trace dump");
         }
     }
 }
