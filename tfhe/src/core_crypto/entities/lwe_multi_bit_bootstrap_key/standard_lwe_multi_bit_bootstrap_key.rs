@@ -38,30 +38,6 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> std::ops::Deref
     }
 }
 
-pub fn lwe_multi_bit_bootstrap_key_size(
-    input_lwe_dimension: LweDimension,
-    glwe_size: GlweSize,
-    polynomial_size: PolynomialSize,
-    decomp_level_count: DecompositionLevelCount,
-    grouping_factor: LweBskGroupingFactor,
-) -> Result<usize, &'static str> {
-    if input_lwe_dimension.0 % grouping_factor.0 != 0 {
-        return Err("lwe_multi_bit_bootstrap_key_size error: \
-        input_lwe_dimension is required to be a multiple of grouping_factor");
-    }
-
-    let equivalent_multi_bit_dimension = input_lwe_dimension.0 / grouping_factor.0;
-    let ggsw_count =
-        equivalent_multi_bit_dimension * grouping_factor.ggsw_per_multi_bit_element().0;
-
-    Ok(ggsw_ciphertext_list_size(
-        GgswCiphertextCount(ggsw_count),
-        glwe_size,
-        polynomial_size,
-        decomp_level_count,
-    ))
-}
-
 #[allow(clippy::too_many_arguments)]
 pub fn lwe_multi_bit_bootstrap_key_fork_config<Scalar, MaskDistribution, NoiseDistribution>(
     input_lwe_dimension: LweDimension,

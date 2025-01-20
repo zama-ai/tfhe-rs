@@ -2,6 +2,7 @@ use tfhe_fft::c64;
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
+use crate::core_crypto::entities::lwe_multi_bit_bootstrap_key::Fourier128LweMultiBitBootstrapKey;
 use crate::core_crypto::prelude::{
     Container, FourierLweMultiBitBootstrapKey, LweMultiBitBootstrapKey, UnsignedInteger,
 };
@@ -32,4 +33,9 @@ impl<C: Container<Element = c64>> Deprecable for FourierLweMultiBitBootstrapKey<
 pub enum FourierLweMultiBitBootstrapKeyVersions<C: Container<Element = c64>> {
     V0(Deprecated<FourierLweMultiBitBootstrapKey<C>>),
     V1(FourierLweMultiBitBootstrapKey<C>),
+}
+
+#[derive(VersionsDispatch)]
+pub enum Fourier128MultiBitLweBootstrapKeyVersions<C: Container<Element = f64>> {
+    V0(Fourier128LweMultiBitBootstrapKey<C>),
 }
