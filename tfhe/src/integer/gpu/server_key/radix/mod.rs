@@ -21,12 +21,10 @@ use crate::integer::gpu::{
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::engine::{
-    fill_accumulator, fill_accumulator_no_encoding, fill_many_lut_accumulator,
-};
+use crate::shortint::engine::{fill_accumulator_no_encoding, fill_many_lut_accumulator};
 use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::server_key::{
-    BivariateLookupTableOwned, LookupTableOwned, ManyLookupTableOwned,
+    generate_lookup_table, BivariateLookupTableOwned, LookupTableOwned, ManyLookupTableOwned,
 };
 use crate::shortint::{PBSOrder, PaddingBit, ShortintEncoding};
 
@@ -783,20 +781,15 @@ impl CudaServerKey {
                 (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
             }
         };
-        let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, self.ciphertext_modulus);
-        let max_value = fill_accumulator(
-            &mut acc,
-            polynomial_size,
+
+        generate_lookup_table(
             glwe_size,
+            polynomial_size,
+            self.ciphertext_modulus,
             self.message_modulus,
             self.carry_modulus,
             f,
-        );
-
-        LookupTableOwned {
-            acc,
-            degree: Degree::new(max_value),
-        }
+        )
     }
     pub(crate) fn generate_lookup_table_no_encode<F>(&self, f: F) -> LookupTableOwned
     where
