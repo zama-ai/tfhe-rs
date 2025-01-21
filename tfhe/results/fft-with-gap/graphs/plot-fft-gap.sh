@@ -26,16 +26,28 @@ if (file_exists(f)) {
             set output sprintf(OUT_LOG_B_FMT, gf, k, N)
             plot \
                 f u 1:(($2 == 1 && $3 == k && $4 == logN) ? $5 : NaN) w lp t 'pred. slope, l=1', \
+                f u 1:(($2 == 1 && $3 == k && $4 == logN && $8 == -1) ? $5 : NaN) w p pt 6 ps 2.5 lc 0 t 'before plateau', \
+                f u 1:(($2 == 1 && $3 == k && $4 == logN && $8 == +1) ? $5 : NaN) w p pt 4 ps 2.5 lc 0 t  'after plateau', \
                 f u 1:(($2 == 1 && $3 == k && $4 == logN) ? $6 : NaN) w lp t 'meas. slope, l=1', \
                 f u 1:(($2 == 2 && $3 == k && $4 == logN) ? $5 : NaN) w lp t 'pred. slope, l=2', \
+                f u 1:(($2 == 2 && $3 == k && $4 == logN && $8 == -1) ? $5 : NaN) w p pt 6 ps 2.5 lc 0 t 'before plateau', \
+                f u 1:(($2 == 2 && $3 == k && $4 == logN && $8 == +1) ? $5 : NaN) w p pt 4 ps 2.5 lc 0 t  'after plateau', \
                 f u 1:(($2 == 2 && $3 == k && $4 == logN) ? $6 : NaN) w lp t 'meas. slope, l=2', \
                 f u 1:(($2 == 3 && $3 == k && $4 == logN) ? $5 : NaN) w lp t 'pred. slope, l=3', \
+                f u 1:(($2 == 3 && $3 == k && $4 == logN && $8 == -1) ? $5 : NaN) w p pt 6 ps 2.5 lc 0 t 'before plateau', \
+                f u 1:(($2 == 3 && $3 == k && $4 == logN && $8 == +1) ? $5 : NaN) w p pt 4 ps 2.5 lc 0 t  'after plateau', \
                 f u 1:(($2 == 3 && $3 == k && $4 == logN) ? $6 : NaN) w lp t 'meas. slope, l=3', \
                 f u 1:(($2 == 4 && $3 == k && $4 == logN) ? $5 : NaN) w lp t 'pred. slope, l=4', \
+                f u 1:(($2 == 4 && $3 == k && $4 == logN && $8 == -1) ? $5 : NaN) w p pt 6 ps 2.5 lc 0 t 'before plateau', \
+                f u 1:(($2 == 4 && $3 == k && $4 == logN && $8 == +1) ? $5 : NaN) w p pt 4 ps 2.5 lc 0 t  'after plateau', \
                 f u 1:(($2 == 4 && $3 == k && $4 == logN) ? $6 : NaN) w lp t 'meas. slope, l=4', \
                 f u 1:(($2 == 5 && $3 == k && $4 == logN) ? $5 : NaN) w lp t 'pred. slope, l=5', \
+                f u 1:(($2 == 5 && $3 == k && $4 == logN && $8 == -1) ? $5 : NaN) w p pt 6 ps 2.5 lc 0 t 'before plateau', \
+                f u 1:(($2 == 5 && $3 == k && $4 == logN && $8 == +1) ? $5 : NaN) w p pt 4 ps 2.5 lc 0 t  'after plateau', \
                 f u 1:(($2 == 5 && $3 == k && $4 == logN) ? $6 : NaN) w lp t 'meas. slope, l=5', \
                 f u 1:(($2 == 6 && $3 == k && $4 == logN) ? $5 : NaN) w lp t 'pred. slope, l=6', \
+                f u 1:(($2 == 6 && $3 == k && $4 == logN && $8 == -1) ? $5 : NaN) w p pt 6 ps 2.5 lc 0 t 'before plateau', \
+                f u 1:(($2 == 6 && $3 == k && $4 == logN && $8 == +1) ? $5 : NaN) w p pt 4 ps 2.5 lc 0 t  'after plateau', \
                 f u 1:(($2 == 6 && $3 == k && $4 == logN) ? $6 : NaN) w lp t 'meas. slope, l=6'
         }
     }
@@ -58,13 +70,32 @@ if (file_exists(f)) {
     }
 
     # (k+1)l
-    set xrange [1:31]
-    set yrange [1e-34:1e-29]
+    set xrange [1:11]
+    set yrange [1e-34:1e-31]
     #~ do for [k=1:4] {
+    if (gf == 2) {
         set output sprintf(OUT_KL_FMT, gf)
         plot \
-            f u ($2*($3+1)):($5 / ((2**$1)**2 * $3 * (2**$4)**2.1842816616230243) * ($2*($3+1))**.12) w lp t 'pred. slope', \
-            f u ($2*($3+1)):($6 / ((2**$1)**2 * $3 * (2**$4)**2.1842816616230243)) w lp t 'meas. slope'
-    #~ }
+            f u ($2*($3+1)):($8 == -1 ? $5 / ((2**$1)**2 * $3 * (2**$4)**2.823854616672861) : NaN) w p t 'pred. slope before bound', \
+            f u ($2*($3+1)):($8 == -1 ? $6 / ((2**$1)**2 * $3 * (2**$4)**2.823854616672861) : NaN) w p t 'meas. slope before bound', \
+            f u ($2*($3+1)):($8 == +1 ? $5 / ((2**$1)**2 * $3 * (2**$4)**2.199976884576144) : NaN) w p t 'pred. slope after bound', \
+            f u ($2*($3+1)):($8 == +1 ? $6 / ((2**$1)**2 * $3 * (2**$4)**2.199976884576144) : NaN) w p t 'meas. slope after bound'
+    }
+    if (gf == 3) {
+        set output sprintf(OUT_KL_FMT, gf)
+        plot \
+            f u ($2*($3+1)):($8 == -1 ? $5 / ((2**$1)**2 * $3 * (2**$4)**2.9546582263796637) : NaN) w p t 'pred. slope before bound', \
+            f u ($2*($3+1)):($8 == -1 ? $6 / ((2**$1)**2 * $3 * (2**$4)**2.9546582263796637) : NaN) w p t 'meas. slope before bound', \
+            f u ($2*($3+1)):($8 == +1 ? $5 / ((2**$1)**2 * $3 * (2**$4)**2.186096703735851) : NaN) w p t 'pred. slope after bound', \
+            f u ($2*($3+1)):($8 == +1 ? $6 / ((2**$1)**2 * $3 * (2**$4)**2.186096703735851) : NaN) w p t 'meas. slope after bound'
+    }
+    if (gf == 4) {
+        set output sprintf(OUT_KL_FMT, gf)
+        plot \
+            f u ($2*($3+1)):($8 == -1 ? $5 / ((2**$1)**2 * $3 * (2**$4)**2.8850256339231044) : NaN) w p t 'pred. slope before bound', \
+            f u ($2*($3+1)):($8 == -1 ? $6 / ((2**$1)**2 * $3 * (2**$4)**2.8850256339231044) : NaN) w p t 'meas. slope before bound', \
+            f u ($2*($3+1)):($8 == +1 ? $5 / ((2**$1)**2 * $3 * (2**$4)**2.165413038755238) : NaN) w p t 'pred. slope after bound', \
+            f u ($2*($3+1)):($8 == +1 ? $6 / ((2**$1)**2 * $3 * (2**$4)**2.165413038755238) : NaN) w p t 'meas. slope after bound'
+    }
 }
 }

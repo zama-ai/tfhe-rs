@@ -14,7 +14,9 @@ GRAPH_FILE_FMT = "results/" + EXP_NAME + "/graphs/%s-gf=%d-logB=%d-l=%d-k=%d-N=%
 LOG_B_FILE_FMT = "results/" + EXP_NAME + "/graphs/logB_issue-gf=%d-distro=%s.dat"
 EXP_VAR_FILE_FMT  = "results/" + EXP_NAME + "/expected-variances-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.json"
 # ~ MEAS_VAR_FILE_FMT = "results/" + EXP_NAME + "/measured-variances-gf=%d-logB=%d-l=%d-k=%d-N=%d-distro=%s.json"
-CT_MOD = 2.0**64
+LOG_CT_MOD = 64
+CT_MOD = 2.0**LOG_CT_MOD
+MANTISSA = 53
 
 FIG_W = 2400
 FIG_H = 1200
@@ -25,6 +27,43 @@ NB_TESTS_MAX = 2501
 fft_noises = {}
 kara_noises = {}
 
+def log_B_bound(N, k, level, mantissa=MANTISSA, nb_bodies=1):
+    return (mantissa + 5 - np.log2(level*N*(k+nb_bodies))) / (level+1)
+
+def fft_var_base(N,k,level,base,modulus=CT_MOD,mantissa=MANTISSA,nb_bodies=1):
+    bits_lost = max(0, np.log2(modulus) - mantissa)
+    return (base ** 2 * 2**(2*bits_lost) * k) / (modulus ** 2)
+
+# keep here a copy of the FFT noise prediction from the optimizer (required to make sure where the log-B-bound is)
+def fft_variance(N,k,level,base,grouping_factor,modulus=CT_MOD,mantissa=MANTISSA,nb_bodies=1):
+    # heuristically derived bound where the next round's decomposition reaches the end of the f64's mantissa (after iFFT of the previous round)
+    log_B_bnd = log_B_bound(N, k, level, mantissa, nb_bodies)
+    fft_base = fft_var_base(N, k, level, base, modulus, mantissa, nb_bodies)
+    plateau = fft_var_base(N, k, level, 2.0**log_B_bnd, modulus, mantissa, nb_bodies)
+
+    match grouping_factor:
+        case 1: # unclear why no gap is visible around log-B-bound
+            return 0.008123839635618114 * fft_base * (level*(k+nb_bodies))**1.1654625080569405 * N**2.1868139742256645
+        case 2:
+            ae0 = [0.0016164663250953194,1.7723465249981651,2.823854616672861]
+            ae1 = [0.03599200920446593,1.134176035036238,2.199976884576144]
+        case 3:
+            ae0 = [0.001992664372777639,1.5646501444166445,2.9546582263796637]
+            ae1 = [0.08716929989326194,1.100161733092288,2.186096703735851]
+        case 4:
+            ae0 = [0.007837346866432544,1.444815803227099,2.8850256339231044]
+            ae1 = [0.21946020970040536,1.1208479503946256,2.165413038755238]
+        case _:
+            exit(f"!! Grouping factor {grouping_factor} not supported !!")
+
+    return min( \
+        ae0[0] * fft_base * (level*(k+nb_bodies))**ae0[1] * N**ae0[2], \
+        max( \
+            ae0[0] * plateau  * (level*(k+nb_bodies))**ae0[1] * N**ae0[2], \
+            ae1[0] * fft_base * (level*(k+nb_bodies))**ae1[1] * N**ae1[2]) \
+    )
+
+
 # ~ for distro in ["TUNIFORM", "GAUSSIAN"]:
 for distro in ["GAUSSIAN"]:
     for gf in range(1,4+1):
@@ -33,13 +72,15 @@ for distro in ["GAUSSIAN"]:
         a0_N_kl_vals = []
         a1_N_kl_vals = []
         with open(LOG_B_FILE_FMT % (gf, distro), "w") as logB_file:
-            logB_file.write("#  Excess FFT noise\n")
-            logB_file.write("#  log B   level       k   log N  pred.slope   avg.slope     a-value   meas/pred\n")
+            logB_file.write(   "#  Excess FFT noise\n")
+            logB_file.write(   "#  log B   level       k   log N  pred.slope   avg.slope     meas/pred    bnd_flag\n")
             for k in range(1,4+1):
                 for logN in range(9,13+1):
-                    # ~ for logbase in [3*i for i in range(3,10+1)]:
-                    for logbase in range(5,30+1):
-                        for level in range(1,6+1):
+                    N = 1<<logN
+                    for level in range(1,6+1):
+                        # ~ for logbase in [3*i for i in range(3,10+1)]:
+                        for logbase in range(5,30+1):
+                            base = 1<<logbase
                             # ~ if logbase * level < 15 or logbase * level > 36:
                                 # ~ continue
 
@@ -53,25 +94,25 @@ for distro in ["GAUSSIAN"]:
                             }.items()))
 
                             # load predicted noise
-                            if not osp.isfile(EXP_VAR_FILE_FMT % (gf, logbase, level, k, 1<<logN, distro)):
+                            if not osp.isfile(EXP_VAR_FILE_FMT % (gf, logbase, level, k, N, distro)):
                                 continue
-                            with open(EXP_VAR_FILE_FMT % (gf, logbase, level, k, 1<<logN, distro)) as file_exp_var:
+                            with open(EXP_VAR_FILE_FMT % (gf, logbase, level, k, N, distro)) as file_exp_var:
                                 exp_vars = json.load(file_exp_var)
                             y_dimension = exp_vars["lwe_dimension"] / gf
                             expected_variance_kara = exp_vars["expected_variance_kara"]
                             expected_variance_fft  = exp_vars["expected_variance_fft"]
 
                             # load noise measurements into a single array
-                            data_len = len(np.load(IN_FILE_FMT % ("fft", 0, gf, logbase, level, k, 1<<logN, distro)))
+                            data_len = len(np.load(IN_FILE_FMT % ("fft", 0, gf, logbase, level, k, N, distro)))
                             fft_noises[params] = [np.array([]) for _ in range(0,data_len)]
                             kara_noises[params] = [np.array([]) for _ in range(0,data_len)]
 
                             for thread_id in range(0,NB_TESTS_MAX):
-                                if not osp.isfile(IN_FILE_FMT % ("fft", thread_id, gf, logbase, level, k, 1<<logN, distro)):
+                                if not osp.isfile(IN_FILE_FMT % ("fft", thread_id, gf, logbase, level, k, N, distro)):
                                     total_samples = thread_id
                                     break
-                                fi = np.load(IN_FILE_FMT % ("fft", thread_id, gf, logbase, level, k, 1<<logN, distro)) / CT_MOD
-                                ki = np.load(IN_FILE_FMT % ("kara", thread_id, gf, logbase, level, k, 1<<logN, distro)) / CT_MOD
+                                fi = np.load(IN_FILE_FMT % ("fft", thread_id, gf, logbase, level, k, N, distro)) / CT_MOD
+                                ki = np.load(IN_FILE_FMT % ("kara", thread_id, gf, logbase, level, k, N, distro)) / CT_MOD
                                 fft_noises[params] = np.column_stack([fft_noises[params],fi])
                                 kara_noises[params] = np.column_stack([kara_noises[params],ki])
 
@@ -116,7 +157,7 @@ for distro in ["GAUSSIAN"]:
                                 # ~ fmt ='o',
                             # ~ )
                             # ~ plt.title(f"FFT mean & std-dev {params}")
-                            # ~ plt.savefig(GRAPH_FILE_FMT % ("stddev-mean-fft", gf, logbase, level, k, 1<<logN, distro, total_samples)) # , format="pdf", bbox_inches="tight"
+                            # ~ plt.savefig(GRAPH_FILE_FMT % ("stddev-mean-fft", gf, logbase, level, k, N, distro, total_samples)) # , format="pdf", bbox_inches="tight"
                             # ~ # plt.show()
                             # ~ plt.close()
 
@@ -134,7 +175,7 @@ for distro in ["GAUSSIAN"]:
                                 # ~ fmt ='o', color='tab:orange',
                             # ~ )
                             # ~ plt.title(f"Karatsuba mean & std-dev {params}")
-                            # ~ plt.savefig(GRAPH_FILE_FMT % ("stddev-mean-kara", gf, logbase, level, k, 1<<logN, distro, total_samples)) # , format="pdf", bbox_inches="tight"
+                            # ~ plt.savefig(GRAPH_FILE_FMT % ("stddev-mean-kara", gf, logbase, level, k, N, distro, total_samples)) # , format="pdf", bbox_inches="tight"
                             # ~ # plt.show()
                             # ~ plt.close()
 
@@ -162,30 +203,33 @@ for distro in ["GAUSSIAN"]:
                             kara_avg_slope_2nd_half = np.mean(np.array(k_vars[len(k_vars)//2:])/x_vals[len(k_vars)//2:])
                             fft_avg_slope_2nd_half  = np.mean(np.array(f_vars[len(f_vars)//2:])/x_vals[len(f_vars)//2:])
 
-                            # calc the value of a
-                            bits_lost = 11 # (a + c*logN**2)
-                            fft_var_without_a_N_kl = 1.0 * (1<<logbase)**2 * 2**(2*bits_lost) * k / (CT_MOD**2)
+                            # calc the value of FFT variance in various configs
+                            fft_var = fft_variance(N,k,level,base,gf)
+                            log_B_bnd = log_B_bound(N,k,level)
+                            bits_lost = LOG_CT_MOD - MANTISSA
+                            fft_var_without_a_N_kl = 1.0 * base**2 * 2**(2*bits_lost) * k / (CT_MOD**2)
                             fft_var_without_a_N = fft_var_without_a_N_kl * level*(k+1)
-                            fft_var_without_a = fft_var_without_a_N * (1<<logN)**2
-                            fft_a = (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / fft_var_without_a
                             fft_a_N = (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / fft_var_without_a_N
                             fft_a_N_kl = (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / fft_var_without_a_N_kl
 
-                            log_B_bnd = (53 + 5 - logN - np.log2(level*(k+1))) / (level+1)
-                            if logbase < log_B_bnd - .5:
-                                a0_N_vals.append([fft_a_N, logN])
-                                a0_N_kl_vals.append([fft_a_N_kl, logN, (k+1)*level])
-                            elif logbase > log_B_bnd + 2.5: #TODO FIXME this is too much heuristic, shall take into account a proper bound
-                                a1_N_vals.append([fft_a_N, logN])
-                                a1_N_kl_vals.append([fft_a_N_kl, logN, (k+1)*level])
-
-
-                            # export values:   #  log B   level       k   log N  pred.slope   avg.slope     a-value
+                            # significant FFT contribution?
                             if fft_avg_slope_2nd_half/kara_avg_slope_2nd_half < 1.2:
                                 logB_file.write("# ")   # comment out anything insignificant
                             else:
                                 logB_file.write("  ")
-                            logB_file.write("%6d %7d %7d %7d  %10.3e  %10.3e  %10.3e  %10.3e\n" % (logbase, level, k, logN, (expected_variance_fft - expected_variance_kara)/y_dimension, fft_avg_slope_2nd_half - kara_avg_slope_2nd_half, fft_a, (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / ((expected_variance_fft - expected_variance_kara)/y_dimension)))
+                                # values for curve fit
+                                bnd_flag = 0
+                                if logbase < log_B_bnd: # testing without -0.5
+                                    a0_N_vals.append([fft_a_N, logN])
+                                    a0_N_kl_vals.append([fft_a_N_kl, logN, (k+1)*level])
+                                    bnd_flag = -1
+                                elif fft_var > fft_variance(N, k, level, 2.0**log_B_bnd, gf) * 1.1:
+                                    a1_N_vals.append([fft_a_N, logN])
+                                    a1_N_kl_vals.append([fft_a_N_kl, logN, (k+1)*level])
+                                    bnd_flag = 1
+
+                            # export values:   #  log B   level       k   log N  pred.slope   avg.slope     meas/pred    bnd_flag
+                            logB_file.write("%6d %7d %7d %7d  %10.3e  %10.3e  %10.3e %11d\n" % (logbase, level, k, logN, fft_var, fft_avg_slope_2nd_half - kara_avg_slope_2nd_half, (fft_avg_slope_2nd_half - kara_avg_slope_2nd_half) / ((expected_variance_fft - expected_variance_kara)/y_dimension), bnd_flag))
 
                             continue ###########################################
 
@@ -193,14 +237,14 @@ for distro in ["GAUSSIAN"]:
 
                             plt.figure(figsize=(FIG_W/DPI, FIG_H/DPI), dpi=DPI)
                             plt.tight_layout() ; plt.grid() # ; plt.ylim(-.2e-9,5.0e-9) ; plt.gca().yaxis.set_major_locator(MultipleLocator(.5e-9))
-                            plt.title(f"FFT vs. Kara var's {params}. FFT-only slope: {fft_avg_slope_2nd_half - kara_avg_slope_2nd_half}, FFT-only terms: {fft_var_without_a}, FFT-only 'a': {fft_a}")
+                            plt.title(f"FFT vs. Kara var's {params}. FFT-only slope: {fft_avg_slope_2nd_half - kara_avg_slope_2nd_half}")
                             plt.plot(x_vals, f_vars, '.', label='meas FFT', color='tab:blue')
                             plt.plot([0,y_dimension], [0.0,expected_variance_fft], '.', label='exp FFT', color='tab:blue', linestyle='dotted', marker=',')
                             plt.plot([0,y_dimension], [0.0,fft_avg_slope_2nd_half*y_dimension], '.', label='avg. slope FFT', color='tab:blue', linestyle='dashed', marker=',')
                             plt.plot(x_vals, k_vars, '.', label='Karatsuba', color='tab:orange')
                             plt.plot([0,y_dimension], [0.0,expected_variance_kara], '.', label='exp Kara', color='tab:orange', linestyle='dotted', marker=',')
                             plt.plot([0,y_dimension], [0.0,kara_avg_slope_2nd_half*y_dimension], '.', label='avg. slope Kara', color='tab:orange', linestyle='dashed', marker=',')
-                            plt.savefig(GRAPH_FILE_FMT % ("variances-FFT-Kara", gf, logbase, level, k, 1<<logN, distro, total_samples)) # , format="pdf", bbox_inches="tight"
+                            plt.savefig(GRAPH_FILE_FMT % ("variances-FFT-Kara", gf, logbase, level, k, N, distro, total_samples)) # , format="pdf", bbox_inches="tight"
                             # plt.show()
                             plt.close()
 
@@ -213,7 +257,7 @@ for distro in ["GAUSSIAN"]:
                             plt.plot(x_vals[0:4], k_vars[0:4], marker='o', label='meas Karatsuba', color='tab:orange')
                             plt.plot([0,4], [0.0,expected_variance_kara/y_dimension*4], '.', label='exp Kara', color='tab:orange', linestyle='dotted', marker=',')
                             plt.ylim(bottom=0) # after plotting the data: https://stackoverflow.com/a/11745291/1869446
-                            plt.savefig(GRAPH_FILE_FMT % ("variances-start-FFT-Kara", gf, logbase, level, k, 1<<logN, distro, total_samples)) # , format="pdf", bbox_inches="tight"
+                            plt.savefig(GRAPH_FILE_FMT % ("variances-start-FFT-Kara", gf, logbase, level, k, N, distro, total_samples)) # , format="pdf", bbox_inches="tight"
                             # plt.show()
                             plt.close()
 
@@ -225,7 +269,7 @@ for distro in ["GAUSSIAN"]:
                             # ~ plt.tight_layout() ; plt.grid() # ; plt.ylim(-.2e-9,5.0e-10) ; plt.gca().yaxis.set_major_locator(MultipleLocator(.5e-10))
                             # ~ plt.title(f"Growth of diff: FFT - Kara {params}")
                             # ~ plt.plot(x_vals, diff_vars_growth, '.', label='Growth')
-                            # ~ plt.savefig(GRAPH_FILE_FMT % ("growth-FFT-Kara", gf, logbase, level, k, 1<<logN, distro, total_samples)) # , format="pdf", bbox_inches="tight"
+                            # ~ plt.savefig(GRAPH_FILE_FMT % ("growth-FFT-Kara", gf, logbase, level, k, N, distro, total_samples)) # , format="pdf", bbox_inches="tight"
                             # ~ # plt.show()
                             # ~ plt.close()
 
@@ -240,7 +284,7 @@ for distro in ["GAUSSIAN"]:
                             plt.plot([0,y_dimension], [expected_variance_kara/y_dimension,expected_variance_kara/y_dimension], '.', label='exp Kara', color='tab:orange', linestyle='dotted', marker=',')
                             plt.plot([0,y_dimension], [kara_avg_slope_2nd_half,kara_avg_slope_2nd_half], '.', label='avg. slope Kara', color='tab:orange', linestyle='dashed', marker=',')
                             plt.ylim(bottom=0)
-                            plt.savefig(GRAPH_FILE_FMT % ("variances-per-step-FFT-Kara", gf, logbase, level, k, 1<<logN, distro, total_samples)) # , format="pdf", bbox_inches="tight"
+                            plt.savefig(GRAPH_FILE_FMT % ("variances-per-step-FFT-Kara", gf, logbase, level, k, N, distro, total_samples)) # , format="pdf", bbox_inches="tight"
                             # plt.show()
                             plt.close()
 
@@ -272,19 +316,22 @@ for distro in ["GAUSSIAN"]:
 
         # for distro, gf:
         print(f"\n==== gf = {gf} ====")
-        print("a0 values:", a0_N_vals, "... of size:", len(a0_N_vals))
+        print("a0_N values:", a0_N_vals, "... of size:", len(a0_N_vals))
+        print("a0_N_kl values:", a0_N_kl_vals, "... of size:", len(a0_N_kl_vals))
         print("----")
-        print("a1 values:", a1_N_vals, "... of size:", len(a1_N_vals))
+        print("a1_N values:", a1_N_vals, "... of size:", len(a1_N_vals))
+        print("a1_N_kl values:", a1_N_kl_vals, "... of size:", len(a1_N_kl_vals))
         print("----")
 
         if len(a0_N_vals) > 0:
-            ab0_N, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [a0i[1] for a0i in a0_N_vals], [a0i[0] for a0i in a0_N_vals])
-            print(f"curve fit in N, before logB bound: {ab0_N[0]} N^{ab0_N[1]}")
-            ab0_kl, _ = curve_fit(lambda kl, a, b: a*kl**b, [ai[2] for ai in a0_N_kl_vals], [ai[0] / ((2.0**ai[1])**ab1_N[1]) for ai in a0_N_kl_vals])
+            ab0_N, _ = curve_fit(lambda logN, log_a, b: log_a + b*logN, [a0i[1] for a0i in a0_N_vals], [np.log2(a0i[0]) for a0i in a0_N_vals])
+            print(f"curve fit in N, before logB bound: {2.0**ab0_N[0]} N^{ab0_N[1]}")
+            ab0_kl, _ = curve_fit(lambda kl, a, b: a*kl**b, [ai[2] for ai in a0_N_kl_vals], [ai[0] / ((2.0**ai[1])**ab0_N[1]) for ai in a0_N_kl_vals])
             print(f"curve fit in (k+1)l, before logB bound: {ab0_kl[0]} ((k+1)l)^{ab0_kl[1]} N^{ab0_N[1]}")
         if len(a1_N_vals) > 0:
-            ab1_N, _ = curve_fit(lambda logN, a, b: a*(2**logN)**b, [a1i[1] for a1i in a1_N_vals], [a1i[0] for a1i in a1_N_vals])
-            print(f"curve fit in N, after  logB bound: {ab1_N[0]} N^{ab1_N[1]}")
+            ab1_N, _ = curve_fit(lambda logN, log_a, b: log_a + b*logN, [a1i[1] for a1i in a1_N_vals], [np.log2(a1i[0]) for a1i in a1_N_vals])
+            print(f"curve fit in N, after  logB bound: {2.0**ab1_N[0]} N^{ab1_N[1]}")
+            #TODO FIXME try log-fit here, too
             ab1_kl, _ = curve_fit(lambda kl, a, b: a*kl**b, [ai[2] for ai in a1_N_kl_vals], [ai[0] / ((2.0**ai[1])**ab1_N[1]) for ai in a1_N_kl_vals])
             print(f"curve fit in (k+1)l, after  logB bound: {ab1_kl[0]} ((k+1)l)^{ab1_kl[1]} N^{ab1_N[1]}")
 
