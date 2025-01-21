@@ -43,8 +43,8 @@ use crate::core_crypto::prelude::{AtomicPattern, ComputationBuffers};
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
-    fill_accumulator, fill_accumulator_no_encoding, fill_accumulator_with_encoding,
-    fill_many_lut_accumulator, ShortintEngine,
+    fill_accumulator_no_encoding, fill_accumulator_with_encoding, fill_many_lut_accumulator,
+    ShortintEngine,
 };
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
@@ -1562,20 +1562,16 @@ pub fn generate_lookup_table<F>(
 where
     F: Fn(u64) -> u64,
 {
-    let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, ciphertext_modulus);
-    let max_value = fill_accumulator(
-        &mut acc,
-        polynomial_size,
+    generate_lookup_table_with_encoding(
         glwe_size,
+        polynomial_size,
+        ciphertext_modulus,
+        message_modulus,
+        carry_modulus,
         message_modulus,
         carry_modulus,
         f,
-    );
-
-    LookupTableOwned {
-        acc,
-        degree: Degree::new(max_value),
-    }
+    )
 }
 
 /// Caller needs to ensure that the operation applied is coherent from an encoding perspective.

@@ -77,30 +77,6 @@ impl Memory {
     }
 }
 
-pub(crate) fn fill_accumulator<F, C>(
-    accumulator: &mut GlweCiphertext<C>,
-    polynomial_size: PolynomialSize,
-    glwe_size: GlweSize,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    f: F,
-) -> u64
-where
-    C: ContainerMut<Element = u64>,
-    F: Fn(u64) -> u64,
-{
-    fill_accumulator_with_encoding(
-        accumulator,
-        polynomial_size,
-        glwe_size,
-        message_modulus,
-        carry_modulus,
-        message_modulus,
-        carry_modulus,
-        f,
-    )
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn fill_accumulator_with_encoding<F, C>(
     accumulator: &mut GlweCiphertext<C>,
