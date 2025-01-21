@@ -113,7 +113,7 @@ impl RegisterMap {
                 cut_w
                     .iter()
                     .enumerate()
-                    .fold(0, |acc, (id, val)| acc + (val << (id * 4)) as u32)
+                    .fold(0, |acc, (id, val)| acc + ((*val as u32) << (id * 4)))
             }
             "Info::NttArch" => match self.rtl_params.ntt_params.core_arch {
                 HpuNttCoreArch::WmmCompact => NTT_CORE_ARCH_OFS,
