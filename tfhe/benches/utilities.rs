@@ -389,7 +389,7 @@ pub mod integer_utils {
     use super::*;
     use std::sync::OnceLock;
     #[cfg(feature = "gpu")]
-    use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
+    use tfhe::core_crypto::gpu::get_number_of_gpus;
 
     /// Generate a number of threads to use to saturate current machine for throughput measurements.
     #[allow(dead_code)]
@@ -404,8 +404,7 @@ pub mod integer_utils {
         {
             // This value is for Nvidia H100 GPU
             let streaming_multiprocessors = 132;
-            let num_gpus = unsafe { cuda_get_number_of_gpus() };
-            let total_num_sm = streaming_multiprocessors * num_gpus;
+            let total_num_sm = streaming_multiprocessors * get_number_of_gpus();
             let operation_loading =
                 ((total_num_sm as u64 / op_pbs_count) as f64).max(minimum_loading);
             (total_num_sm as f64 * block_multiplicator * operation_loading) as u64
@@ -418,6 +417,13 @@ pub mod integer_utils {
             ((num_threads + (num_threads * 0.2)) * block_multiplicator.min(1.0) * operation_loading)
                 as u64
         }
+    }
+
+    /// Get number of streams usable for CUDA throughput benchmarks
+    #[allow(dead_code)]
+    #[cfg(feature = "gpu")]
+    pub fn cuda_num_streams(num_block: usize) -> u64 {
+        ((192 / num_block) * get_number_of_gpus() as usize) as u64
     }
 
     #[allow(dead_code)]
