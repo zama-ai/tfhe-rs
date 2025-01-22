@@ -15,6 +15,7 @@ use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::prelude::GlweDimension;
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
@@ -311,7 +312,7 @@ impl CudaDecompressionKey {
                     degree,
                     message_modulus,
                     carry_modulus,
-                    pbs_order: PBSOrder::KeyswitchBootstrap,
+                    atomic_pattern: AtomicPatternKind::Classical(PBSOrder::KeyswitchBootstrap),
                     noise_level: NoiseLevel::NOMINAL,
                 };
 

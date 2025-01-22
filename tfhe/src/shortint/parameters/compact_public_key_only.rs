@@ -2,9 +2,9 @@ use crate::shortint::backward_compatibility::parameters::compact_public_key_only
     CompactCiphertextListExpansionKindVersions, CompactPublicKeyEncryptionParametersVersions,
 };
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution, LweDimension,
-    MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters, ShortintParameterSet,
-    SupportedCompactPkeZkScheme,
+    AtomicPatternKind, CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution,
+    LweDimension, MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters,
+    ShortintParameterSet, SupportedCompactPkeZkScheme,
 };
 use crate::shortint::{KeySwitchingKeyView, PaddingBit, ShortintEncoding};
 use crate::Error;
@@ -32,9 +32,11 @@ pub enum ShortintCompactCiphertextListCastingMode<'a> {
     NoCasting,
 }
 
-impl From<PBSOrder> for CompactCiphertextListExpansionKind {
-    fn from(value: PBSOrder) -> Self {
-        Self::NoCasting(value)
+impl From<AtomicPatternKind> for CompactCiphertextListExpansionKind {
+    fn from(value: AtomicPatternKind) -> Self {
+        match value {
+            AtomicPatternKind::Classical(pbsorder) => Self::NoCasting(pbsorder),
+        }
     }
 }
 
