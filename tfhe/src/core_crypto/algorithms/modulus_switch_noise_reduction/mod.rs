@@ -76,13 +76,19 @@ fn measure<Scalar: UnsignedInteger>(
     expectancy.abs() + std_dev * r_sigma_factor
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum BestCandidate {
+    NoAddition,
+    AddEncryptionOfZero { index: usize },
+}
+
 pub fn choose_candidate_to_improve_modulus_switch_noise<Scalar, C1, C2>(
     lwe: &LweCiphertext<C1>,
     encryptions_of_zero: &LweCiphertextList<C2>,
     r_sigma_factor: f64,
     bound: f64,
     log_modulus: CiphertextModulusLog,
-) -> Result<usize, usize>
+) -> Result<BestCandidate, BestCandidate>
 where
     Scalar: UnsignedInteger,
     C1: Container<Element = Scalar>,
@@ -96,41 +102,52 @@ where
 
     assert_ne!(encryptions_of_zero.lwe_ciphertext_count().0, 0);
 
-    let mut best_index = 0;
+    let mask = lwe.get_mask();
 
-    let mut best_measure = f64::INFINITY;
+    let mask = mask.as_ref();
+
+    let base_measure = measure(
+        r_sigma_factor,
+        log_modulus,
+        mask.iter().copied(),
+        *lwe.get_body().data,
+    );
+
+    let mut best_candidate = BestCandidate::NoAddition;
+    let mut best_measure = base_measure;
+
+    if base_measure <= bound {
+        return Ok(best_candidate);
+    }
 
     for (index, encryption_of_zero) in encryptions_of_zero.iter().enumerate() {
-        let mask = lwe.get_mask();
-
         let mask_2 = encryption_of_zero.get_mask();
 
+        let mask_2 = mask_2.as_ref();
+
         let mask_diff = mask
-            .as_ref()
             .iter()
-            .zip_eq(mask_2.as_ref().iter())
+            .zip_eq(mask_2.iter())
             .map(|(a, b)| a.wrapping_add(*b));
 
-        let measure = measure(
-            r_sigma_factor,
-            log_modulus,
-            mask_diff,
-            lwe.get_body()
-                .data
-                .wrapping_add(*encryption_of_zero.get_body().data),
-        );
+        let body_add = lwe
+            .get_body()
+            .data
+            .wrapping_add(*encryption_of_zero.get_body().data);
+
+        let measure = measure(r_sigma_factor, log_modulus, mask_diff, body_add);
 
         if measure < best_measure {
             best_measure = measure;
-            best_index = index;
+            best_candidate = BestCandidate::AddEncryptionOfZero { index };
         }
 
         if measure <= bound {
-            return Ok(index);
+            return Ok(best_candidate);
         }
     }
 
-    Err(best_index)
+    Err(best_candidate)
 }
 
 pub fn improve_modulus_switch_noise<Scalar, C1, C2>(
@@ -144,7 +161,7 @@ pub fn improve_modulus_switch_noise<Scalar, C1, C2>(
     C1: ContainerMut<Element = Scalar>,
     C2: Container<Element = Scalar>,
 {
-    let index = choose_candidate_to_improve_modulus_switch_noise(
+    let best_candidate = choose_candidate_to_improve_modulus_switch_noise(
         lwe,
         encryptions_of_zero,
         r_sigma_factor,
@@ -154,15 +171,20 @@ pub fn improve_modulus_switch_noise<Scalar, C1, C2>(
 
     #[cfg(test)]
     assert!(
-        index.is_ok(),
+        best_candidate.is_ok(),
         "MS noise reduction bound not reached for any candidate"
     );
 
-    let index = index.unwrap_or_else(|a| a);
+    let best_candidate = best_candidate.unwrap_or_else(|a| a);
 
-    let encryption_of_zero = encryptions_of_zero.get(index);
+    match best_candidate {
+        BestCandidate::NoAddition => {}
+        BestCandidate::AddEncryptionOfZero { index } => {
+            let encryption_of_zero = encryptions_of_zero.get(index);
 
-    lwe_ciphertext_add_assign(lwe, &encryption_of_zero);
+            lwe_ciphertext_add_assign(lwe, &encryption_of_zero);
+        }
+    }
 }
 
 #[cfg(test)]

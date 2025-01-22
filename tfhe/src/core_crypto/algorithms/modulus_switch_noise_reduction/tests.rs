@@ -134,7 +134,16 @@ fn improve_modulus_switch_noise_test_average_number_checks(
         )
         .expect("No candidate was good enough");
 
-        number_checks += index;
+        // Check for NoAddition in all cases
+        number_checks += 1;
+
+        match index {
+            BestCandidate::NoAddition => {}
+            BestCandidate::AddEncryptionOfZero { index } => {
+                // Number of checks from 0 to index included
+                number_checks += index + 1;
+            }
+        }
     }
 
     let average_number_checks = number_checks as f64 / number_loops as f64;
