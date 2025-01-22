@@ -14,7 +14,7 @@ pub const DOP_MIN_WIDTH: usize = 8;
 
 /// Generic arguments
 /// Used to pack argument under the same type
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Arg {
     Reg(RegId),
     Mem(MemId),
@@ -60,7 +60,7 @@ impl std::str::FromStr for Arg {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         lazy_static! {
                     static ref DOP_ARG_RE: regex::Regex = regex::Regex::new(
-        r"(?<register>^R(?<rid>[0-9]+))|(?<mem_addr>^@((?<hex_cid>0x[0-9a-fA-F]+)|(?<cid>[0-9]+)))|(?<mem_tmpl>^(?<mt_orig>TS|TD|TH)(\[(?<mt_id>\d+)\])*\.(?<mt_bid>\d+))|(?<imm_cst>^((?<hex_cst>0x[0-9a-fA-F]+)|(?<cst>[0-9]+)))|(?<imm_var>^TI\[(?<it_id>\d+)\]\.(?<it_bid>\d+))|(?<pbs>^Pbs(?<pbs_name>(\D+)))"
+        r"(?<register>^R(?<rid>[0-9]+))|(?<mem_addr>^@((?<hex_cid>0x[0-9a-fA-F]+)|(?<cid>[0-9]+)))|(?<mem_tmpl>^(?<mt_orig>TS|TD|TH)(\[(?<mt_id>\d+)\])*\.(?<mt_bid>\d+))|(?<imm_cst>^((?<hex_cst>0x[0-9a-fA-F]+)|(?<cst>[0-9]+)))|(?<imm_var>^TI\[(?<it_id>\d+)\]\.(?<it_bid>\d+))|(?<pbs>^Pbs(?<pbs_name>(\S+)))"
                     )
                     .expect("Invalid regex");
                 }
@@ -239,7 +239,7 @@ impl FromAsm for field::PeArithInsn {
         };
 
         Ok(Self {
-            opcode: Opcode(opcode),
+            opcode: Opcode::from(opcode),
             mul_factor,
             src1_rid,
             src0_rid,
@@ -296,7 +296,7 @@ impl FromAsm for field::PeArithMsgInsn {
         };
 
         Ok(Self {
-            opcode: Opcode(opcode),
+            opcode: Opcode::from(opcode),
             msg_cst,
             src_rid,
             dst_rid,
@@ -318,8 +318,9 @@ impl FromAsm for field::PeMemInsn {
         if args.len() != 2 {
             return Err(ParsingError::ArgNumber(2, args.len()));
         }
+
         let (rid, mid) = match opcode {
-            opcode::LD => {
+            _x if _x == u8::from(opcode::Opcode::LD()) => {
                 let rid = match args[0] {
                     Arg::Reg(id) => id,
                     _ => {
@@ -340,7 +341,7 @@ impl FromAsm for field::PeMemInsn {
                 };
                 (rid, slot)
             }
-            opcode::ST => {
+            _x if _x == u8::from(opcode::Opcode::ST()) => {
                 let slot = match args[0] {
                     Arg::Mem(id) => id,
                     _ => {
@@ -370,7 +371,7 @@ impl FromAsm for field::PeMemInsn {
         };
 
         Ok(Self {
-            opcode: Opcode(opcode),
+            opcode: Opcode::from(opcode),
             slot: mid,
             rid,
         })
@@ -379,16 +380,16 @@ impl FromAsm for field::PeMemInsn {
 
 impl ToAsm for PeMemInsn {
     fn dst(&self) -> Vec<arg::Arg> {
-        match self.opcode.0 {
-            opcode::LD => vec![Arg::Reg(self.rid)],
-            opcode::ST => vec![Arg::Mem(self.slot)],
+        match self.opcode {
+            _x if _x == opcode::Opcode::LD() => vec![Arg::Reg(self.rid)],
+            _x if _x == opcode::Opcode::ST() => vec![Arg::Mem(self.slot)],
             _ => panic!("Unsupported opcode for PeMemInsn"),
         }
     }
     fn src(&self) -> Vec<arg::Arg> {
-        match self.opcode.0 {
-            opcode::LD => vec![Arg::Mem(self.slot)],
-            opcode::ST => vec![Arg::Reg(self.rid)],
+        match self.opcode {
+            _x if _x == opcode::Opcode::LD() => vec![Arg::Mem(self.slot)],
+            _x if _x == opcode::Opcode::ST() => vec![Arg::Reg(self.rid)],
             _ => panic!("Unsupported opcode for PeMemInsn"),
         }
     }
@@ -429,7 +430,7 @@ impl FromAsm for field::PePbsInsn {
         };
 
         Ok(Self {
-            opcode: Opcode(opcode),
+            opcode: Opcode::from(opcode),
             gid: pbs_lut.gid(),
             src_rid,
             dst_rid,
@@ -470,7 +471,7 @@ impl FromAsm for field::PeSyncInsn {
         };
 
         Ok(Self {
-            opcode: Opcode(opcode),
+            opcode: Opcode::from(opcode),
             sid,
         })
     }
