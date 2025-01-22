@@ -1,7 +1,8 @@
 //! Module with the definition of the compressed PublicKey.
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::AtomicPattern;
 use crate::shortint::backward_compatibility::public_key::CompressedPublicKeyVersions;
-use crate::shortint::ciphertext::{Ciphertext, PBSOrder};
+use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
 use crate::shortint::ClientKey;
@@ -16,7 +17,7 @@ use tfhe_versionable::Versionize;
 pub struct CompressedPublicKey {
     pub(crate) lwe_public_key: SeededLwePublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPattern,
 }
 
 impl CompressedPublicKey {
@@ -39,13 +40,19 @@ impl CompressedPublicKey {
     }
 
     /// Deconstruct a [`CompressedPublicKey`] into its constituents.
-    pub fn into_raw_parts(self) -> (SeededLwePublicKeyOwned<u64>, ShortintParameterSet, PBSOrder) {
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        SeededLwePublicKeyOwned<u64>,
+        ShortintParameterSet,
+        AtomicPattern,
+    ) {
         let Self {
             lwe_public_key,
             parameters,
-            pbs_order,
+            atomic_pattern,
         } = self;
-        (lwe_public_key, parameters, pbs_order)
+        (lwe_public_key, parameters, atomic_pattern)
     }
 
     /// Construct a [`CompressedPublicKey`] from its constituents.
@@ -56,14 +63,15 @@ impl CompressedPublicKey {
     pub fn from_raw_parts(
         lwe_public_key: SeededLwePublicKeyOwned<u64>,
         parameters: ShortintParameterSet,
-        pbs_order: PBSOrder,
+        atomic_pattern: AtomicPattern,
     ) -> Self {
-        let expected_pbs_order: PBSOrder = parameters.encryption_key_choice().into();
+        let expected_atomic_pattern =
+            AtomicPattern::Classical(parameters.encryption_key_choice().into());
 
         assert_eq!(
-            pbs_order, expected_pbs_order,
-            "Mismatch between expected PBSOrder ({expected_pbs_order:?}) and \
-            provided PBSOrder ({pbs_order:?})"
+            atomic_pattern, expected_atomic_pattern,
+            "Mismatch between expected atomic pattern ({expected_atomic_pattern:?}) and \
+            provided atomic pattern ({atomic_pattern:?})"
         );
 
         let ciphertext_lwe_dimension = parameters.encryption_lwe_dimension();
@@ -89,7 +97,7 @@ impl CompressedPublicKey {
         Self {
             lwe_public_key,
             parameters,
-            pbs_order,
+            atomic_pattern,
         }
     }
 

@@ -39,7 +39,7 @@ where
             assert_eq!(decompressed_ct.noise_level, NoiseLevel::NOMINAL);
             assert_eq!(ctxt.message_modulus, decompressed_ct.message_modulus);
             assert_eq!(ctxt.carry_modulus, decompressed_ct.carry_modulus);
-            assert_eq!(ctxt.pbs_order, decompressed_ct.pbs_order);
+            assert_eq!(ctxt.atomic_pattern, decompressed_ct.atomic_pattern);
         }
         {
             let lookup_table = sks.generate_msg_lookup_table(|a| a + 1, ctxt.message_modulus);
@@ -54,7 +54,7 @@ where
             assert_eq!(decompressed_ct.noise_level, NoiseLevel::NOMINAL);
             assert_eq!(ctxt.message_modulus, decompressed_ct.message_modulus);
             assert_eq!(ctxt.carry_modulus, decompressed_ct.carry_modulus);
-            assert_eq!(ctxt.pbs_order, decompressed_ct.pbs_order);
+            assert_eq!(ctxt.atomic_pattern, decompressed_ct.atomic_pattern);
         }
     }
 }

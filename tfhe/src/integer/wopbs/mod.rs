@@ -351,7 +351,7 @@ mod experimental {
                     NoiseLevel::NOMINAL,
                     block.message_modulus,
                     block.carry_modulus,
-                    block.pbs_order,
+                    block.atomic_pattern,
                 ));
             }
             T::from_blocks(ct_vec_out)
@@ -438,7 +438,7 @@ mod experimental {
                     NoiseLevel::NOMINAL,
                     block.message_modulus,
                     block.carry_modulus,
-                    block.pbs_order,
+                    block.atomic_pattern,
                 ));
             }
             T::from_blocks(ct_vec_out)
@@ -1145,7 +1145,7 @@ mod experimental {
                     NoiseLevel::NOMINAL,
                     block.message_modulus,
                     block.carry_modulus,
-                    block.pbs_order,
+                    block.atomic_pattern,
                 ));
             }
             T::from_blocks(ct_vec_out)
