@@ -2,7 +2,7 @@ use crate::core_crypto::entities::packed_integers::PackedIntegers;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::{CiphertextCount, LweCiphertextCount};
+use crate::core_crypto::prelude::{AtomicPattern, CiphertextCount, LweCiphertextCount};
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -235,13 +235,13 @@ impl CudaCompressedCiphertextList {
         }
 
         let count = CiphertextCount(self.packed_list.bodies_count);
-        let pbs_order = PBSOrder::KeyswitchBootstrap;
+        let atomic_pattern = AtomicPattern::Classical(PBSOrder::KeyswitchBootstrap);
         let packed_list = ShortintCompressedCiphertextList {
             modulus_switched_glwe_ciphertext_list,
             ciphertext_modulus,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             lwe_per_glwe,
             count,
         };

@@ -1,4 +1,5 @@
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::AtomicPattern;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::radix::{
@@ -35,7 +36,7 @@ impl CudaServerKey {
                     degree: Degree::new(1),
                     message_modulus: self.message_modulus,
                     carry_modulus: self.carry_modulus,
-                    pbs_order: self.pbs_order,
+                    atomic_pattern: AtomicPattern::Classical(self.pbs_order),
                     noise_level: NoiseLevel::NOMINAL,
                 }],
             },
@@ -101,7 +102,7 @@ impl CudaServerKey {
                     degree: Degree::new(1),
                     message_modulus: self.message_modulus,
                     carry_modulus: self.carry_modulus,
-                    pbs_order: self.pbs_order,
+                    atomic_pattern: AtomicPattern::Classical(self.pbs_order),
                     noise_level: NoiseLevel::NOMINAL,
                 }],
             },

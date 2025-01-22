@@ -1,3 +1,4 @@
+use crate::core_crypto::prelude::AtomicPattern;
 use crate::shortint::backward_compatibility::parameters::compact_public_key_only::{
     CompactCiphertextListExpansionKindVersions, CompactPublicKeyEncryptionParametersVersions,
 };
@@ -15,7 +16,7 @@ use tfhe_versionable::Versionize;
 #[versionize(CompactCiphertextListExpansionKindVersions)]
 pub enum CompactCiphertextListExpansionKind {
     RequiresCasting,
-    NoCasting(PBSOrder),
+    NoCasting(PBSOrder), // TODO: change to AtomicPattern too ?
 }
 
 pub type CastingFunctionsOwned<'functions> =
@@ -32,9 +33,11 @@ pub enum ShortintCompactCiphertextListCastingMode<'a> {
     NoCasting,
 }
 
-impl From<PBSOrder> for CompactCiphertextListExpansionKind {
-    fn from(value: PBSOrder) -> Self {
-        Self::NoCasting(value)
+impl From<AtomicPattern> for CompactCiphertextListExpansionKind {
+    fn from(value: AtomicPattern) -> Self {
+        match value {
+            AtomicPattern::Classical(pbsorder) => Self::NoCasting(pbsorder),
+        }
     }
 }
 

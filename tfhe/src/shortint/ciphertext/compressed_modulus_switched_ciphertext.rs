@@ -4,7 +4,7 @@ use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
 use crate::core_crypto::prelude::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
-use crate::core_crypto::prelude::LweCiphertextConformanceParams;
+use crate::core_crypto::prelude::{AtomicPattern, LweCiphertextConformanceParams};
 use crate::shortint::backward_compatibility::ciphertext::{
     CompressedModulusSwitchedCiphertextVersions,
     InternalCompressedModulusSwitchedCiphertextVersions,
@@ -45,7 +45,7 @@ pub struct CompressedModulusSwitchedCiphertext {
     pub(crate) degree: Degree,
     pub(crate) message_modulus: MessageModulus,
     pub(crate) carry_modulus: CarryModulus,
-    pub(crate) pbs_order: PBSOrder,
+    pub(crate) atomic_pattern: AtomicPattern,
 }
 
 impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
@@ -57,13 +57,13 @@ impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
         } = self;
 
         compressed_modulus_switched_lwe_ciphertext.is_conformant(&param.ct_params)
             && *message_modulus == param.message_modulus
             && *carry_modulus == param.carry_modulus
-            && *pbs_order == param.pbs_order
+            && *atomic_pattern == param.atomic_pattern
             && *degree == param.degree
     }
 }

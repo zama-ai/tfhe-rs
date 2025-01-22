@@ -15,7 +15,7 @@ pub use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    GlweCiphertextConformanceParams, LweCiphertextConformanceParams,
+    AtomicPattern, GlweCiphertextConformanceParams, LweCiphertextConformanceParams,
     LweCiphertextListConformanceParams, LweKeyswitchKeyConformanceParams,
 };
 use crate::shortint::backward_compatibility::parameters::*;
@@ -123,7 +123,7 @@ pub struct CiphertextConformanceParams {
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
     pub noise_level: NoiseLevel,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPattern,
 }
 
 /// Structure to store the expected properties of a compressed ciphertext
@@ -137,7 +137,7 @@ pub struct CompressedCiphertextConformanceParams {
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
     pub noise_level: NoiseLevel,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPattern,
 }
 
 /// Structure to store the expected properties of a ciphertext list
@@ -166,7 +166,7 @@ impl CiphertextConformanceParams {
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
             degree: self.degree,
-            expansion_kind: self.pbs_order.into(),
+            expansion_kind: self.atomic_pattern.into(),
         }
     }
 }

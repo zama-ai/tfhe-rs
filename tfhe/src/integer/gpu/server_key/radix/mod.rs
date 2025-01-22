@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{CudaLweList, CudaStreams};
 use crate::core_crypto::prelude::{
-    ContiguousEntityContainerMut, LweBskGroupingFactor, LweCiphertextCount,
+    AtomicPattern, ContiguousEntityContainerMut, LweBskGroupingFactor, LweCiphertextCount,
 };
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -203,7 +203,7 @@ impl CudaServerKey {
                 degree: Degree::new(block_value),
                 message_modulus: self.message_modulus,
                 carry_modulus: self.carry_modulus,
-                pbs_order: self.pbs_order,
+                atomic_pattern: AtomicPattern::Classical(self.pbs_order),
                 noise_level: NoiseLevel::ZERO,
             });
         }

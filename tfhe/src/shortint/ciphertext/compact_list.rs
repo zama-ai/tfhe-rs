@@ -5,6 +5,7 @@ use super::standard::Ciphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::traits::ContiguousEntityContainer;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::AtomicPattern;
 use crate::shortint::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 pub use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
@@ -118,7 +119,8 @@ impl CompactCiphertextList {
                     None => &vec![None; output_lwe_ciphertext_list.lwe_ciphertext_count().0],
                 };
 
-                let pbs_order = casting_key.dest_server_key.pbs_order;
+                let atomic_pattern =
+                    AtomicPattern::Classical(casting_key.dest_server_key.pbs_order);
 
                 let res = output_lwe_ciphertext_list
                     .par_iter()
@@ -134,7 +136,7 @@ impl CompactCiphertextList {
                             NoiseLevel::UNKNOWN,
                             self.message_modulus,
                             self.carry_modulus,
-                            pbs_order,
+                            atomic_pattern,
                         );
 
                         casting_key
@@ -151,13 +153,15 @@ impl CompactCiphertextList {
                             lwe_view.as_ref().to_vec(),
                             self.ct_list.ciphertext_modulus(),
                         );
+                        let atomic_pattern = AtomicPattern::Classical(pbs_order);
+
                         Ciphertext::new(
                             ct,
                             self.degree,
                             NoiseLevel::NOMINAL,
                             self.message_modulus,
                             self.carry_modulus,
-                            pbs_order,
+                            atomic_pattern,
                         )
                     })
                     .collect::<Vec<_>>();
