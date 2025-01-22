@@ -13,8 +13,8 @@ pub use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams, LweCiphertextCount,
-    LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
+    AtomicPattern, GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams,
+    LweCiphertextCount, LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::parameters::*;
 #[cfg(feature = "zk-pok")]
@@ -188,13 +188,16 @@ impl ClassicPBSParameters {
     }
 
     pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
-        let (pbs_order, expected_dim) = match self.encryption_key_choice {
+        let (atomic_pattern, expected_dim) = match self.encryption_key_choice {
             EncryptionKeyChoice::Big => (
-                PBSOrder::KeyswitchBootstrap,
+                AtomicPattern::Classical(PBSOrder::KeyswitchBootstrap),
                 self.glwe_dimension
                     .to_equivalent_lwe_dimension(self.polynomial_size),
             ),
-            EncryptionKeyChoice::Small => (PBSOrder::BootstrapKeyswitch, self.lwe_dimension),
+            EncryptionKeyChoice::Small => (
+                AtomicPattern::Classical(PBSOrder::BootstrapKeyswitch),
+                self.lwe_dimension,
+            ),
         };
 
         let message_modulus = self.message_modulus;
@@ -213,7 +216,7 @@ impl ClassicPBSParameters {
             },
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             degree,
             noise_level,
         }
@@ -250,7 +253,7 @@ pub struct CiphertextConformanceParams {
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
     pub noise_level: NoiseLevel,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPattern,
 }
 
 /// Structure to store the expected properties of a compressed ciphertext
@@ -264,7 +267,7 @@ pub struct CompressedCiphertextConformanceParams {
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
     pub noise_level: NoiseLevel,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPattern,
 }
 
 /// Structure to store the expected properties of a ciphertext list
@@ -293,7 +296,7 @@ impl CiphertextConformanceParams {
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
             degree: self.degree,
-            expansion_kind: self.pbs_order.into(),
+            expansion_kind: self.atomic_pattern.into(),
         }
     }
 }

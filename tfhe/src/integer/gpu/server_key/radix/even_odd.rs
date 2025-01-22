@@ -6,6 +6,7 @@ use crate::integer::gpu::server_key::radix::{
     LweCiphertextCount,
 };
 use crate::integer::gpu::server_key::CudaServerKey;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::parameters::{Degree, NoiseLevel};
 
 impl CudaServerKey {
@@ -35,7 +36,7 @@ impl CudaServerKey {
                     degree: Degree::new(1),
                     message_modulus: self.message_modulus,
                     carry_modulus: self.carry_modulus,
-                    pbs_order: self.pbs_order,
+                    atomic_pattern: AtomicPattern::Classical(self.pbs_order),
                     noise_level: NoiseLevel::NOMINAL,
                 }],
             },
@@ -101,7 +102,7 @@ impl CudaServerKey {
                     degree: Degree::new(1),
                     message_modulus: self.message_modulus,
                     carry_modulus: self.carry_modulus,
-                    pbs_order: self.pbs_order,
+                    atomic_pattern: AtomicPattern::Classical(self.pbs_order),
                     noise_level: NoiseLevel::NOMINAL,
                 }],
             },

@@ -1,8 +1,9 @@
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::server_key::radix::neg::NegatedDegreeIter;
 use crate::integer::server_key::TwosComplementNegation;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
+use crate::shortint::{CarryModulus, MessageModulus};
 use itertools::Itertools;
 
 #[derive(Clone, Copy)]
@@ -10,7 +11,7 @@ pub struct CudaBlockInfo {
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPattern,
     pub noise_level: NoiseLevel,
 }
 
@@ -82,7 +83,7 @@ impl CudaRadixCiphertextInfo {
                     degree: left.degree + right.degree,
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: left.noise_level + right.noise_level,
                 })
                 .collect(),
@@ -105,7 +106,7 @@ impl CudaRadixCiphertextInfo {
                     degree: d,
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: left.noise_level,
                 })
                 .collect(),
@@ -121,7 +122,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -137,7 +138,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(info.message_modulus.0 - 1),
                     message_modulus: info.message_modulus,
                     carry_modulus: info.carry_modulus,
-                    pbs_order: info.pbs_order,
+                    atomic_pattern: info.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -153,7 +154,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -170,7 +171,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -186,7 +187,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -201,7 +202,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(b.message_modulus.0 - 1),
                     message_modulus: b.message_modulus,
                     carry_modulus: b.carry_modulus,
-                    pbs_order: b.pbs_order,
+                    atomic_pattern: b.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -216,7 +217,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(b.message_modulus.0 - 1),
                     message_modulus: b.message_modulus,
                     carry_modulus: b.carry_modulus,
-                    pbs_order: b.pbs_order,
+                    atomic_pattern: b.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -232,7 +233,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -247,7 +248,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -262,7 +263,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -277,7 +278,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level,
                 })
                 .collect(),
@@ -304,7 +305,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.degree.get() + u64::from(scalar_block)),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: left.noise_level,
                 })
                 .collect(),
@@ -320,7 +321,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(info.message_modulus.0 - 1),
                     message_modulus: info.message_modulus,
                     carry_modulus: info.carry_modulus,
-                    pbs_order: info.pbs_order,
+                    atomic_pattern: info.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -345,7 +346,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.degree.get() + u64::from(scalar_block)),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: left.noise_level,
                 })
                 .collect(),
@@ -362,7 +363,7 @@ impl CudaRadixCiphertextInfo {
                     degree: left.degree.after_bitand(right.degree),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -379,7 +380,7 @@ impl CudaRadixCiphertextInfo {
                     degree: left.degree.after_bitor(right.degree),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -396,7 +397,7 @@ impl CudaRadixCiphertextInfo {
                     degree: left.degree.after_bitxor(right.degree),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -411,7 +412,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(b.message_modulus.0 - 1),
                     message_modulus: b.message_modulus,
                     carry_modulus: b.carry_modulus,
-                    pbs_order: b.pbs_order,
+                    atomic_pattern: b.atomic_pattern,
                     noise_level: b.noise_level,
                 })
                 .collect(),
@@ -438,7 +439,7 @@ impl CudaRadixCiphertextInfo {
                         .after_bitand(Degree::new(u64::from(scalar_block))),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: left.noise_level,
                 })
                 .collect(),
@@ -466,7 +467,7 @@ impl CudaRadixCiphertextInfo {
                         .after_bitor(Degree::new(u64::from(scalar_block))),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: left.noise_level,
                 })
                 .collect(),
@@ -494,7 +495,7 @@ impl CudaRadixCiphertextInfo {
                         .after_bitxor(Degree::new(u64::from(scalar_block))),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: left.noise_level,
                 })
                 .collect(),
@@ -518,7 +519,7 @@ impl CudaRadixCiphertextInfo {
                     },
                     message_modulus: block.message_modulus,
                     carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
+                    atomic_pattern: block.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -539,7 +540,7 @@ impl CudaRadixCiphertextInfo {
                     },
                     message_modulus: block.message_modulus,
                     carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
+                    atomic_pattern: block.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -555,7 +556,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(left.message_modulus.0 - 1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -576,7 +577,7 @@ impl CudaRadixCiphertextInfo {
                     },
                     message_modulus: block.message_modulus,
                     carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
+                    atomic_pattern: block.atomic_pattern,
                     noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
@@ -595,7 +596,7 @@ impl CudaRadixCiphertextInfo {
                 degree: Degree::new(0),
                 message_modulus: self.blocks.first().unwrap().message_modulus,
                 carry_modulus: self.blocks.first().unwrap().carry_modulus,
-                pbs_order: self.blocks.first().unwrap().pbs_order,
+                atomic_pattern: self.blocks.first().unwrap().atomic_pattern,
                 noise_level: NoiseLevel::ZERO,
             });
         }
@@ -622,7 +623,7 @@ impl CudaRadixCiphertextInfo {
                 degree: Degree::new(0),
                 message_modulus: self.blocks.first().unwrap().message_modulus,
                 carry_modulus: self.blocks.first().unwrap().carry_modulus,
-                pbs_order: self.blocks.first().unwrap().pbs_order,
+                atomic_pattern: self.blocks.first().unwrap().atomic_pattern,
                 noise_level: NoiseLevel::ZERO,
             });
         }

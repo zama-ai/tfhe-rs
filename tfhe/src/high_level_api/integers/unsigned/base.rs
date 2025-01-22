@@ -1111,7 +1111,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::core_crypto::prelude::UnsignedInteger;
+    use crate::core_crypto::prelude::{AtomicPattern, UnsignedInteger};
     use crate::prelude::*;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     use crate::shortint::{CiphertextModulus, PBSOrder};
@@ -1191,7 +1191,8 @@ mod test {
                 ct.ciphertext.as_cpu_mut().blocks.push(cloned_block);
             },
             &|i, ct: &mut Ct| {
-                ct.ciphertext.as_cpu_mut().blocks[i].pbs_order = PBSOrder::BootstrapKeyswitch;
+                ct.ciphertext.as_cpu_mut().blocks[i].atomic_pattern =
+                    AtomicPattern::Classical(PBSOrder::BootstrapKeyswitch);
             },
         ];
 

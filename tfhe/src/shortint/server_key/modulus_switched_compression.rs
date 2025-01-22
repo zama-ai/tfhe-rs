@@ -68,7 +68,7 @@ impl ServerKey {
             degree: ct.degree,
             message_modulus: ct.message_modulus,
             carry_modulus: ct.carry_modulus,
-            pbs_order: ct.pbs_order,
+            atomic_pattern: ct.atomic_pattern,
         }
     }
 
@@ -202,7 +202,7 @@ impl ServerKey {
             NoiseLevel::NOMINAL,
             compressed_ct.message_modulus,
             compressed_ct.carry_modulus,
-            compressed_ct.pbs_order,
+            compressed_ct.atomic_pattern,
         )
     }
 }

@@ -1,8 +1,8 @@
 use super::Ciphertext;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, CiphertextModulus,
-    CiphertextModulusLog, LweCiphertext, LweSize, Plaintext,
+    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, AtomicPattern,
+    CiphertextModulus, CiphertextModulusLog, LweCiphertext, LweSize, Plaintext,
 };
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
@@ -174,7 +174,7 @@ impl ServerKey {
             noise_level: NoiseLevel::NOMINAL,
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
-            pbs_order: self.pbs_order,
+            atomic_pattern: AtomicPattern::Classical(self.pbs_order),
         }
     }
 }

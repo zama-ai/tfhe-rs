@@ -15,6 +15,7 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
 };
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::prelude::GlweDimension;
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
@@ -274,7 +275,7 @@ impl CudaDecompressionKey {
                     degree,
                     message_modulus,
                     carry_modulus,
-                    pbs_order: PBSOrder::KeyswitchBootstrap,
+                    atomic_pattern: AtomicPattern::Classical(PBSOrder::KeyswitchBootstrap),
                     noise_level: NoiseLevel::NOMINAL,
                 };
 

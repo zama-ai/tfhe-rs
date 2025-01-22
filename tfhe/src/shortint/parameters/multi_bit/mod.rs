@@ -2,7 +2,7 @@ use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::entities::{
     LweCiphertextParameters, MsDecompressionType, MultiBitBootstrapKeyConformanceParams,
 };
-use crate::core_crypto::prelude::{DynamicDistribution, LweBskGroupingFactor};
+use crate::core_crypto::prelude::{AtomicPattern, DynamicDistribution, LweBskGroupingFactor};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::{
     V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64,
@@ -150,13 +150,16 @@ impl MultiBitPBSParameters {
     }
 
     pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
-        let (pbs_order, expected_dim) = match self.encryption_key_choice {
+        let (atomic_pattern, expected_dim) = match self.encryption_key_choice {
             EncryptionKeyChoice::Big => (
-                PBSOrder::KeyswitchBootstrap,
+                AtomicPattern::Classical(PBSOrder::KeyswitchBootstrap),
                 self.glwe_dimension
                     .to_equivalent_lwe_dimension(self.polynomial_size),
             ),
-            EncryptionKeyChoice::Small => (PBSOrder::BootstrapKeyswitch, self.lwe_dimension),
+            EncryptionKeyChoice::Small => (
+                AtomicPattern::Classical(PBSOrder::BootstrapKeyswitch),
+                self.lwe_dimension,
+            ),
         };
 
         let message_modulus = self.message_modulus;
@@ -175,7 +178,7 @@ impl MultiBitPBSParameters {
             },
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             degree,
             noise_level,
         }

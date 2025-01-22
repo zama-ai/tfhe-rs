@@ -39,7 +39,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::core_crypto::prelude::ComputationBuffers;
+use crate::core_crypto::prelude::{AtomicPattern, ComputationBuffers};
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
@@ -585,7 +585,7 @@ impl ServerKey {
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
             degree: Degree::new(self.message_modulus.0 - 1),
-            pbs_order: self.pbs_order,
+            atomic_pattern: AtomicPattern::Classical(self.pbs_order),
             noise_level: NoiseLevel::NOMINAL,
         }
     }
@@ -1155,7 +1155,7 @@ impl ServerKey {
             lwe_size,
             self.message_modulus,
             self.carry_modulus,
-            self.pbs_order,
+            AtomicPattern::Classical(self.pbs_order),
             self.ciphertext_modulus,
         )
     }

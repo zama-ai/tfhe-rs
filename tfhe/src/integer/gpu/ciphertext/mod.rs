@@ -127,7 +127,7 @@ impl CudaRadixCiphertext {
                     degree: block.degree,
                     message_modulus: block.message_modulus,
                     carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
+                    atomic_pattern: block.atomic_pattern,
                     noise_level: block.noise_level(),
                 })
                 .collect(),
@@ -151,7 +151,7 @@ impl CudaRadixCiphertext {
                 noise_level: i.noise_level,
                 message_modulus: i.message_modulus,
                 carry_modulus: i.carry_modulus,
-                pbs_order: i.pbs_order,
+                atomic_pattern: i.atomic_pattern,
             })
             .collect()
     }
@@ -225,7 +225,7 @@ impl CudaUnsignedRadixCiphertext {
                     degree: block.degree,
                     message_modulus: block.message_modulus,
                     carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
+                    atomic_pattern: block.atomic_pattern,
                     noise_level: block.noise_level(),
                 })
                 .collect(),
@@ -340,7 +340,7 @@ impl CudaSignedRadixCiphertext {
                     degree: block.degree,
                     message_modulus: block.message_modulus,
                     carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
+                    atomic_pattern: block.atomic_pattern,
                     noise_level: block.noise_level(),
                 })
                 .collect(),
