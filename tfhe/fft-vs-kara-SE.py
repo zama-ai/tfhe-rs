@@ -29,6 +29,8 @@ fft_noises = {}
 kara_noises = {}
 
 def log_B_bound(level, k, N, mantissa=MANTISSA, nb_bodies=1):
+    # n.b. !!! in the optimizer, +7 is used instead, to avoid underestimations around the unstable plateau
+    # also, the curve fit was made with 5, not with 7 !!!
     return (mantissa + 5 - np.log2(level*N*(k+nb_bodies))) / (level+1)
 
 def fft_var_base(base, log_mod=LOG_CT_MOD, mantissa=MANTISSA):
@@ -44,17 +46,17 @@ def fft_variance(base, level, k, N, gf, log_mod=LOG_CT_MOD, mantissa=MANTISSA, n
 
     match gf:
         case 1: # unclear why no gap is visible around log-B-bound
-            ae1 = [0.016395903791648524, 1.1539867258284064, 0.6614093808492308]   # post-bound
+            ae1 = [0.007055857074515369, 1.2200341768234066, 1.0182758006937769]   # post-bound
             return ae1[0] * fft_base * (k*N)**ae1[1] * (level*(k+nb_bodies))**ae1[2] * N
         case 2:
-            ae0 = [0.0035538816415335807, 1.8886421784251788, 1.0337971136779827]   # pre-bound
-            ae1 = [0.06213583993059502, 1.1700249080909213, 0.7024590778893669]   # post-bound
+            ae0 = [0.002198730742187336, 1.9454823914975672, 1.0414771149597082]   # pre-bound
+            ae1 = [0.04408419079060492, 1.1863309572742167, 0.9520130331861396]   # post-bound
         case 3:
-            ae0 = [0.003855805298979682, 1.9226834480394626, 1.111270151863804]   # pre-bound
-            ae1 = [0.10022507854715357, 1.195421185333465, 0.7569013122605333]   # post-bound
+            ae0 = [0.004919593456537255, 1.9072214291896599, 1.011101247104754]   # pre-bound
+            ae1 = [0.08647998614194002, 1.1951694645748305, 0.9480625121016949]   # post-bound
         case 4:
-            ae0 = [0.0032829437110018364, 2.005765741381761, 1.1260999635999407]   # pre-bound
-            ae1 = [0.38222512854570123, 1.1127395986156432, 0.8711026568105277]   # post-bound
+            ae0 = [0.008548835894699377, 1.9075907752971348, 1.0071546386211694]   # pre-bound
+            ae1 = [0.25761688396443255, 1.1558681035803715, 0.9673568364804596]   # post-bound
         case _:
             exit(f"!! Grouping factor {gf} not supported !!")
 
@@ -66,14 +68,15 @@ def fft_variance(base, level, k, N, gf, log_mod=LOG_CT_MOD, mantissa=MANTISSA, n
     )
 
 # FFT noise model for curve fitting: O(B^2 (kN)^e0 ((k+1)l)^e1 N log^e2(N)) ... however, not working with power of log(N)
-# ~ def fft_var_model(params, a, eNk, ekl, eN):
-def fft_var_model(params, a, eNk, ekl):
+# ~ def fft_log_var_model(params, a, eNk, ekl, eN):
+def fft_log_var_model(params, a, eNk, ekl):
     nb_bodies = 1
     base, level, k, logN = params
     # python vyprcanej: dělení neee ... return a * (base**2 * 2**(2*BITS_LOST)) / ((2**LOG_CT_MOD) ** 2) * (k*(2**logN))**eNk * (level*(k+nb_bodies))**ekl * (2**logN) * logN**eN
-    # ~ return a * (base**2 * 2**(2*BITS_LOST)) * (k*(2**logN))**eNk * (level*(k+nb_bodies))**ekl * (2**logN) * logN**eN
-    return a * (base**2 * 2**(2*BITS_LOST)) * (k*(2**logN))**eNk * (level*(k+nb_bodies))**ekl * (2**logN)
+    # ~ return np.log2(a * (base**2 * 2**(2*BITS_LOST)) * (k*(2**logN))**eNk * (level*(k+nb_bodies))**ekl * (2**logN) * logN**eN)
+    return np.log2(a * (base**2 * 2**(2*BITS_LOST)) * (k*(2**logN))**eNk * (level*(k+nb_bodies))**ekl * (2**logN))
 
+#TODO rework into 2-pass: first fit the curve, then generate the output files with updated predictions (now the values in fft_variance must be updated manually)
 # ~ for distro in ["TUNIFORM", "GAUSSIAN"]:
 for distro in ["GAUSSIAN"]:
     for gf in range(1,4+1):
@@ -319,9 +322,9 @@ for distro in ["GAUSSIAN"]:
         print(f"        case {gf}:")
         if len(fft_vars_0) > 4:
             fft_vars_0 = np.array(fft_vars_0)
-            a3e_0, _ = curve_fit(fft_var_model, fft_vars_0[:, 1:].T, fft_vars_0[:, 0], p0=[0.0035, 1.9, 1.1])
+            a3e_0, _ = curve_fit(fft_log_var_model, fft_vars_0[:, 1:].T, np.log2(fft_vars_0[:, 0]), p0=[0.0035, 1.9, 1.1])
             print(f"            ae0 = [{a3e_0[0]}, {a3e_0[1]}, {a3e_0[2]}]   # pre-bound")
         if len(fft_vars_1) > 4:
             fft_vars_1 = np.array(fft_vars_1)
-            a3e_1, _ = curve_fit(fft_var_model, fft_vars_1[:, 1:].T, fft_vars_1[:, 0], p0=[0.08, 1.15, 0.8])
+            a3e_1, _ = curve_fit(fft_log_var_model, fft_vars_1[:, 1:].T, np.log2(fft_vars_1[:, 0]), p0=[0.08, 1.15, 0.8])
             print(f"            ae1 = [{a3e_1[0]}, {a3e_1[1]}, {a3e_1[2]}]   # post-bound")

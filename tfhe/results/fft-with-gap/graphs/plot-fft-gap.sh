@@ -73,6 +73,7 @@ if (file_exists(f)) {
     set xrange [1:11]
     set yrange [1e-34:1e-31]
     #~ do for [k=1:4] {
+    # TODO fix the noise model param's
     if (gf == 2) {
         set output sprintf(OUT_KL_FMT, gf)
         plot \
