@@ -2,8 +2,9 @@ use super::{CompressionKey, DecompressionKey};
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
     extract_lwe_sample_from_glwe_ciphertext,
-    par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, CiphertextCount, GlweCiphertext,
-    LweCiphertext, LweCiphertextCount, LweCiphertextList, MonomialDegree,
+    par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, CiphertextCount,
+    CiphertextModulus, GlweCiphertext, LweCiphertext, LweCiphertextCount, LweCiphertextList,
+    MonomialDegree,
 };
 use crate::shortint::ciphertext::CompressedCiphertextList;
 use crate::shortint::engine::ShortintEngine;
@@ -11,7 +12,7 @@ use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
     apply_programmable_bootstrap, generate_lookup_table_with_encoding, unchecked_scalar_mul_assign,
 };
-use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
+use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
 
@@ -25,7 +26,9 @@ impl CompressionKey {
         let lwe_pksk = &self.packing_key_switching_key;
 
         let polynomial_size = lwe_pksk.output_polynomial_size();
-        let ciphertext_modulus = lwe_pksk.ciphertext_modulus();
+
+        let out_ciphertext_modulus = lwe_pksk.ciphertext_modulus();
+
         let glwe_size = lwe_pksk.output_glwe_size();
         let lwe_size = lwe_pksk.input_key_lwe_dimension().to_lwe_size();
 
@@ -43,6 +46,7 @@ impl CompressionKey {
         let message_modulus = first_ct.message_modulus;
         let carry_modulus = first_ct.carry_modulus;
         let pbs_order = first_ct.pbs_order;
+        let in_ciphertext_modulus = first_ct.ct.ciphertext_modulus();
 
         assert!(
             message_modulus.0 <= carry_modulus.0,
@@ -86,6 +90,12 @@ impl CompressionKey {
                         "All ciphertexts do not have the same pbs order"
                     );
 
+                    assert_eq!(
+                        in_ciphertext_modulus,
+                        ct.ct.ciphertext_modulus(),
+                        "All ciphertexts do not have the same ciphertext modulus"
+                    );
+
                     let mut ct = ct.clone();
                     let max_noise_level =
                         MaxNoiseLevel::new((ct.noise_level() * message_modulus.0).get());
@@ -94,12 +104,12 @@ impl CompressionKey {
                     list.extend(ct.ct.as_ref());
                 }
 
-                let list = LweCiphertextList::from_container(list, lwe_size, ciphertext_modulus);
+                let list = LweCiphertextList::from_container(list, lwe_size, in_ciphertext_modulus);
 
                 let bodies_count = LweCiphertextCount(ct_list.len());
 
                 let mut out =
-                    GlweCiphertext::new(0, glwe_size, polynomial_size, ciphertext_modulus);
+                    GlweCiphertext::new(0, glwe_size, polynomial_size, out_ciphertext_modulus);
 
                 par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
                     lwe_pksk, &list, &mut out,
@@ -120,7 +130,7 @@ impl CompressionKey {
             pbs_order,
             lwe_per_glwe,
             count,
-            ciphertext_modulus,
+            ciphertext_modulus: out_ciphertext_modulus,
         }
     }
 }
@@ -147,6 +157,9 @@ impl DecompressionKey {
             )));
         }
 
+        let in_ciphertext_modulus = packed.ciphertext_modulus;
+        let out_ciphertext_modulus = CiphertextModulus::new_native();
+
         let encryption_cleartext_modulus = packed.message_modulus.0 * packed.carry_modulus.0;
         // We multiply by message_modulus during compression so the actual modulus for the
         // compression is smaller
@@ -157,7 +170,7 @@ impl DecompressionKey {
         let decompression_rescale = generate_lookup_table_with_encoding(
             self.out_glwe_size(),
             self.out_polynomial_size(),
-            packed.ciphertext_modulus,
+            out_ciphertext_modulus,
             // Input moduli are the effective compression ones
             effective_compression_message_modulus,
             effective_compression_carry_modulus,
@@ -172,7 +185,6 @@ impl DecompressionKey {
         );
 
         let polynomial_size = packed.modulus_switched_glwe_ciphertext_list[0].polynomial_size();
-        let ciphertext_modulus = packed.ciphertext_modulus;
         let glwe_dimension = packed.modulus_switched_glwe_ciphertext_list[0].glwe_dimension();
 
         let lwe_per_glwe = packed.lwe_per_glwe.0;
@@ -187,7 +199,7 @@ impl DecompressionKey {
 
         let monomial_degree = MonomialDegree(index % lwe_per_glwe);
 
-        let mut intermediate_lwe = LweCiphertext::new(0, lwe_size, ciphertext_modulus);
+        let mut intermediate_lwe = LweCiphertext::new(0, lwe_size, in_ciphertext_modulus);
 
         extract_lwe_sample_from_glwe_ciphertext(
             &packed_glwe,
@@ -198,7 +210,7 @@ impl DecompressionKey {
         let mut output_br = LweCiphertext::new(
             0,
             self.blind_rotate_key.output_lwe_dimension().to_lwe_size(),
-            ciphertext_modulus,
+            out_ciphertext_modulus,
         );
 
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -231,6 +243,7 @@ impl DecompressionKey {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::shortint::list_compression::CompressionPrivateKeys;
     use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::{gen_keys, ClientKey};
@@ -241,7 +254,7 @@ mod test {
         // Generate the client key and the server key:
         let (cks, _sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 
-        let private_compression_key: crate::shortint::list_compression::CompressionPrivateKeys =
+        let private_compression_key: CompressionPrivateKeys =
             cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 
         let (compression_key, decompression_key) =

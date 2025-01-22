@@ -1,5 +1,6 @@
 use tfhe_versionable::Versionize;
 
+use super::CiphertextModulus;
 use crate::core_crypto::prelude::{CiphertextModulusLog, LweCiphertextCount};
 use crate::shortint::backward_compatibility::parameters::list_compression::CompressionParametersVersions;
 use crate::shortint::parameters::{
@@ -20,6 +21,7 @@ pub struct CompressionParameters {
     pub lwe_per_glwe: LweCiphertextCount,
     pub storage_log_modulus: CiphertextModulusLog,
     pub packing_ks_key_noise_distribution: DynamicDistribution<u64>,
+    pub ciphertext_modulus_after_packing_ks: CiphertextModulus,
 }
 
 pub const COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompressionParameters =
@@ -36,4 +38,5 @@ pub const V0_11_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompressionPa
         lwe_per_glwe: LweCiphertextCount(256),
         storage_log_modulus: CiphertextModulusLog(12),
         packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(43),
+        ciphertext_modulus_after_packing_ks: CiphertextModulus::new_native(),
     };
