@@ -1,15 +1,11 @@
 # CUST_2
-# Simple IOp to check PBS behavior
-# Dest <- PBSNone(Src_a)
-LD   R0   TA.0
-PBS  R0   R0    PbsNone
-ST   TD.0 R0 
-LD   R1   TA.1
-PBS  R1   R1    PbsNone
-ST   TD.1 R1 
-LD   R2   TA.2
-PBS  R2   R2    PbsNone
-ST   TD.2 R2 
-LD   R3   TA.3
-PBS  R3   R3    PbsNone
-ST   TD.3 R3 
+# Simple IOp to check the xfer between Hpu/Cpu
+# Dest <- Src_b
+LD R0   TS[1].0
+LD R1   TS[1].1
+LD R2   TS[1].2
+LD R3   TS[1].3
+ST TD[0].0 R0 
+ST TD[0].1 R1 
+ST TD[0].2 R2 
+ST TD[0].3 R3 

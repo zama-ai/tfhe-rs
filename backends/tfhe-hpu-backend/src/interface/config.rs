@@ -69,8 +69,8 @@ pub struct BoardConfig {
 /// Embedded Fw properties
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct FwConfig {
-    /// Select pe-pbs block width
-    pub pbs_batch_w: usize,
+    pub sim: String,
+    pub kogge: String,
 
     /// List of supported integer width
     /// NB: Currently only one width is supported at a time
@@ -79,6 +79,9 @@ pub struct FwConfig {
     /// List of custom iop to load
     /// IopName -> Iop asm file
     pub custom_iop: HashMap<String, String>,
+
+    // Whether to target fw for ipip or not
+    pub ipip: bool
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -99,7 +102,7 @@ impl HpuConfig {
         };
 
         match toml::from_str(&file_str) {
-            Ok(regmap) => regmap,
+            Ok(cfg) => cfg,
             Err(err) => panic!("Error: {err}"),
         }
     }
