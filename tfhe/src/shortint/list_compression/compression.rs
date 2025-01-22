@@ -43,7 +43,7 @@ impl CompressionKey {
 
         let message_modulus = first_ct.message_modulus;
         let carry_modulus = first_ct.carry_modulus;
-        let pbs_order = first_ct.pbs_order;
+        let atomic_pattern = first_ct.atomic_pattern;
 
         assert!(
             message_modulus.0 <= carry_modulus.0,
@@ -84,7 +84,7 @@ impl CompressionKey {
                         "All ciphertexts do not have the same carry modulus"
                     );
                     assert_eq!(
-                        pbs_order, ct.pbs_order,
+                        atomic_pattern, ct.atomic_pattern,
                         "All ciphertexts do not have the same pbs order"
                     );
 
@@ -119,7 +119,7 @@ impl CompressionKey {
             modulus_switched_glwe_ciphertext_list: glwe_ct_list,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             lwe_per_glwe,
             count,
             ciphertext_modulus,
@@ -240,7 +240,7 @@ impl DecompressionKey {
             NoiseLevel::NOMINAL,
             packed.message_modulus,
             packed.carry_modulus,
-            packed.pbs_order,
+            packed.atomic_pattern,
         ))
     }
 }
