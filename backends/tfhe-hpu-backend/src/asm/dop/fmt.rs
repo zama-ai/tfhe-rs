@@ -53,7 +53,7 @@ impl From<&PeArithInsn> for PeArithHex {
             .with_src0_rid(value.src0_rid.0)
             .with_src1_rid(value.src1_rid.0)
             .with_mul_factor(value.mul_factor.0)
-            .with_opcode(value.opcode.0)
+            .with_opcode(value.opcode.into())
     }
 }
 impl From<&PeArithHex> for PeArithInsn {
@@ -63,7 +63,7 @@ impl From<&PeArithHex> for PeArithInsn {
             src0_rid: RegId(value.src0_rid()),
             src1_rid: RegId(value.src1_rid()),
             mul_factor: MulFactor(value.mul_factor()),
-            opcode: Opcode(value.opcode()),
+            opcode: Opcode::from(value.opcode()),
         }
     }
 }
@@ -100,7 +100,7 @@ impl From<&PeArithMsgInsn> for PeArithMsgHex {
             .with_src_rid(value.src_rid.0)
             .with_msg_mode(mode)
             .with_msg_cst(cst)
-            .with_opcode(value.opcode.0)
+            .with_opcode(value.opcode.into())
     }
 }
 
@@ -115,7 +115,7 @@ impl From<&PeArithMsgHex> for PeArithMsgInsn {
             dst_rid: RegId(value.dst_rid()),
             src_rid: RegId(value.src_rid()),
             msg_cst,
-            opcode: Opcode(value.opcode()),
+            opcode: Opcode::from(value.opcode()),
         }
     }
 }
@@ -155,7 +155,7 @@ impl From<&PeMemInsn> for PeMemHex {
             .with_rid(value.rid.0)
             .with_mode(mode)
             .with_slot(slot)
-            .with_opcode(value.opcode.0)
+            .with_opcode(value.opcode.into())
     }
 }
 
@@ -182,7 +182,7 @@ impl From<&PeMemHex> for PeMemInsn {
         Self {
             rid: RegId(value.rid()),
             slot,
-            opcode: Opcode(value.opcode()),
+            opcode: Opcode::from(value.opcode()),
         }
     }
 }
@@ -206,7 +206,7 @@ impl From<&PePbsInsn> for PePbsHex {
             .with_dst_rid(value.dst_rid.0)
             .with_src_rid(value.src_rid.0)
             .with_gid(value.gid.0)
-            .with_opcode(value.opcode.0)
+            .with_opcode(value.opcode.into())
     }
 }
 impl From<&PePbsHex> for PePbsInsn {
@@ -215,7 +215,7 @@ impl From<&PePbsHex> for PePbsInsn {
             dst_rid: RegId(value.dst_rid()),
             src_rid: RegId(value.src_rid()),
             gid: PbsGid(value.gid()),
-            opcode: Opcode(value.opcode()),
+            opcode: Opcode::from(value.opcode()),
         }
     }
 }
@@ -232,14 +232,14 @@ impl From<&PeSyncInsn> for PeSyncHex {
     fn from(value: &PeSyncInsn) -> Self {
         Self::new()
             .with_sid(value.sid.0)
-            .with_opcode(value.opcode.0)
+            .with_opcode(value.opcode.into())
     }
 }
 impl From<&PeSyncHex> for PeSyncInsn {
     fn from(value: &PeSyncHex) -> Self {
         Self {
             sid: SyncId(value.sid()),
-            opcode: Opcode(value.opcode()),
+            opcode: Opcode::from(value.opcode()),
         }
     }
 }

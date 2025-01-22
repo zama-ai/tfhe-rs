@@ -43,7 +43,7 @@ pub enum VarPos {
 /// asm::Arg is used to know position of the associated value
 #[derive(Clone)]
 struct MetaVar {
-    prog: Rc<RefCell<program::ProgramInner>>,
+    prog: program::Program,
     #[allow(unused)]
     uid: usize,
     pos: Option<VarPos>,
@@ -65,12 +65,9 @@ impl Drop for MetaVar {
             // Release ressource attached to inner
             match pos {
                 VarPos::Reg(rid) => {
-                    trace!(target: "MetaDrop", "Release Reg {rid}");
                     prog.reg_release(*rid);
                 }
-
                 VarPos::Mem(mid) => {
-                    trace!(target: "MetaDrop", "Release Heap {mid}");
                     prog.heap_release(*mid);
                 }
                 VarPos::Imm(_) | VarPos::Pbs(_) => {}
@@ -110,7 +107,7 @@ impl From<&MetaVarCell> for MetaVarCellWeak {
 /// MetaVarCell Constructors
 impl MetaVarCell {
     pub fn new(
-        prog: Rc<RefCell<program::ProgramInner>>,
+        prog: program::Program,
         uid: usize,
         from: Option<VarPos>,
         tfhe_params: DigitParameters,
@@ -118,7 +115,14 @@ impl MetaVarCell {
         let degree = if let Some(pos) = from.as_ref() {
             match pos {
                 VarPos::Reg(_) | VarPos::Mem(_) | VarPos::Imm(_) => tfhe_params.msg_mask(),
-                VarPos::Pbs(lut) => lut.degree(&tfhe_params, tfhe_params.msg_mask()),
+                VarPos::Pbs(lut) =>
+                // TODO Apply degree analyses later for many-lut case
+                {
+                    (0..lut.lut_nb() as usize)
+                        .map(|pos| lut.fn_at(pos, &tfhe_params, tfhe_params.msg_mask()))
+                        .max()
+                        .unwrap()
+                }
             }
         } else {
             0
@@ -152,8 +156,32 @@ impl MetaVarCell {
             return;
         }
 
+        let (rid, _) = self.0.borrow().prog.borrow_mut().reg_lru();
+        self.force_reg_alloc(rid);
+    }
+
+    // Forces allocation in register regid.
+    pub(super) fn force_reg_alloc(&self, rid: asm::RegId) {
+        // Early return if already in Reg or Imm like var
+        if self.is_in(PosKind::REG) && self.as_reg().unwrap() == rid {
+            // Update LRU and return
+            self.0
+                .borrow()
+                .prog
+                .borrow_mut()
+                .reg_access(self.as_reg().unwrap());
+            return;
+        } else if self.is_in(PosKind::IMM | PosKind::PBS) {
+            return;
+        }
+
         // Get cache entry and update state
-        let (rid, evicted) = self.0.borrow().prog.borrow_mut().reg_swap_lru(self.clone());
+        let evicted = self
+            .0
+            .borrow()
+            .prog
+            .borrow_mut()
+            .reg_swap_force(&rid, self.clone());
 
         // Move evicted value in Memory if any
         if let Some(var) = evicted {
@@ -289,8 +317,8 @@ impl MetaVarCell {
 
     pub fn check_degree(&self) {
         let max_degree = {
-            let msg_w = self.0.borrow().prog.borrow().params.msg_w;
-            let carry_w = self.0.borrow().prog.borrow().params.carry_w;
+            let msg_w = self.0.borrow().prog.params().msg_w;
+            let carry_w = self.0.borrow().prog.params().carry_w;
             (1 << (msg_w + carry_w + 1/* padding */)) - 1
         };
 
@@ -300,7 +328,7 @@ impl MetaVarCell {
 
 /// Utilities for uncheck field extraction
 impl MetaVarCell {
-    fn as_reg(&self) -> Option<asm::RegId> {
+    pub(crate) fn as_reg(&self) -> Option<asm::RegId> {
         if let Some(VarPos::Reg(id)) = self.0.borrow().pos {
             Some(id)
         } else {
@@ -308,7 +336,7 @@ impl MetaVarCell {
         }
     }
 
-    fn as_mem(&self) -> Option<asm::MemId> {
+    pub(crate) fn as_mem(&self) -> Option<asm::MemId> {
         if let Some(VarPos::Mem(mid)) = self.0.borrow().pos {
             Some(mid)
         } else {
@@ -316,7 +344,7 @@ impl MetaVarCell {
         }
     }
 
-    fn as_imm(&self) -> Option<asm::ImmId> {
+    pub(crate) fn as_imm(&self) -> Option<asm::ImmId> {
         if let Some(VarPos::Imm(val)) = self.0.borrow().pos {
             Some(val)
         } else {
@@ -324,7 +352,7 @@ impl MetaVarCell {
         }
     }
 
-    fn as_pbs(&self) -> Option<asm::Pbs> {
+    pub(crate) fn as_pbs(&self) -> Option<asm::Pbs> {
         if let Some(VarPos::Pbs(lut)) = self.0.borrow().pos.as_ref() {
             Some(lut.clone())
         } else {
@@ -335,18 +363,12 @@ impl MetaVarCell {
 
 impl MetaVarCell {
     fn pbs_raw(
-        dst: &MetaVarCell,
+        dst_slice: &[&MetaVarCell],
         src: &MetaVarCell,
         lut: &MetaVarCell,
         flush: bool,
         tfhe_params: &DigitParameters,
     ) {
-        // Check operand type
-        assert!(
-            dst.is_in(PosKind::REG | PosKind::MEM),
-            "Pbs dst must be of kind Reg|Mem MetaVar"
-        );
-
         assert!(
             src.is_in(PosKind::REG | PosKind::MEM),
             "Pbs src must be of kind Reg|Mem MetaVar"
@@ -358,55 +380,145 @@ impl MetaVarCell {
         );
 
         // Enforce that operand are in Register
-        dst.reg_alloc_mv();
+        // and that all destinations are consecutive
+        let dst = &dst_slice[0];
+
+        let in_reg = dst_slice
+            .iter()
+            .fold(false, |acc, d| acc || (d.get_pos() == PosKind::REG));
+
+        if in_reg == false {
+            // Get the best possible range of registers
+            let dst_rid = dst
+                .0
+                .borrow()
+                .prog
+                .borrow()
+                .aligned_reg_range(dst_slice.len())
+                .unwrap();
+            // Evict whatever is in the range
+            dst_slice
+                .iter()
+                .enumerate()
+                .for_each(|(i, d)| d.force_reg_alloc(asm::RegId(dst_rid.0 + i as u8)));
+        } else {
+            let lut_nb = lut.as_pbs().unwrap().lut_lg();
+            let mask = !((1 << lut_nb) - 1);
+            assert!(
+                dst.as_reg().is_some()
+                    && dst_slice
+                        .iter()
+                        .fold(
+                            (dst.as_reg().unwrap().0 & mask, true),
+                            |(prev, acc), this| {
+                                (prev + 1, acc && (prev == (this.as_reg().unwrap().0 & mask)))
+                            }
+                        )
+                        .1,
+                "ManyLUT PBS register indexes must be consecutive and aligned to \
+            the respective power of two, current indexes: {:?}",
+                dst_slice
+                    .iter()
+                    .map(|d| d.as_reg().unwrap())
+                    .collect::<Vec<_>>()
+            );
+        }
         src.reg_alloc_mv();
 
+        // The first destination is used as the source of all information
         let dst_rid = dst.as_reg().unwrap();
         let src_rid = src.as_reg().unwrap();
         let pbs = lut.as_pbs().unwrap();
-        let degree = pbs.degree(tfhe_params, src.get_degree());
+
+        assert!(
+            pbs.lut_nb() == dst_slice.len() as u8,
+            "No enough destinations specified to receive all outputs in the PBS"
+        );
 
         // Select between standard and flushed Pbs
-        if flush {
-            let asm = asm::dop::DOpPbsF::new(dst_rid, src_rid, pbs.gid()).into();
-            dst.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
+        // Also select correct opcode based lut width
+        let asm = if flush {
+            match pbs.lut_nb() {
+                1 => asm::dop::DOpPbsF::new(dst_rid, src_rid, pbs.gid()).into(),
+                2 => asm::dop::DOpPbsMl2F::new(dst_rid, src_rid, pbs.gid()).into(),
+                4 => asm::dop::DOpPbsMl4F::new(dst_rid, src_rid, pbs.gid()).into(),
+                8 => asm::dop::DOpPbsMl8F::new(dst_rid, src_rid, pbs.gid()).into(),
+                _ => panic!("PbsF with {} entries lut are not supported", pbs.lut_nb()),
+            }
         } else {
-            let asm = asm::dop::DOpPbs::new(dst_rid, src_rid, pbs.gid()).into();
-            dst.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
-        }
+            match pbs.lut_nb() {
+                1 => asm::dop::DOpPbs::new(dst_rid, src_rid, pbs.gid()).into(),
+                2 => asm::dop::DOpPbsMl2::new(dst_rid, src_rid, pbs.gid()).into(),
+                4 => asm::dop::DOpPbsMl4::new(dst_rid, src_rid, pbs.gid()).into(),
+                8 => asm::dop::DOpPbsMl8::new(dst_rid, src_rid, pbs.gid()).into(),
+                _ => panic!("PbsF with {} entries lut are not supported", pbs.lut_nb()),
+            }
+        };
+        dst.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
 
-        dst.updt_degree(degree);
+        dst_slice
+            .iter()
+            .enumerate()
+            .for_each(|(i, dst)| dst.updt_degree(pbs.deg_at(i, tfhe_params, src.get_degree())));
+
         trace!(
             target: "MetaOp",
             "PbsRaw:: {:?} <= {:?}, {:?}{}",
-            dst.0.borrow(),
+            vec![dst_slice.iter().map(|dst| dst.0.borrow())],
             src.0.borrow(),
             lut.0.borrow(),
             if flush { "[Flush]" } else { ""},
         );
-        dst.check_degree();
+
+        dst_slice.iter().for_each(|d| d.check_degree());
     }
 
     pub fn pbs_assign(&mut self, lut: &MetaVarCell, flush: bool) {
         // Construct tfhe params
-        let tfhe_params = self.0.borrow().prog.borrow().params.clone().into();
+        let tfhe_params = self.0.borrow().prog.params().clone().into();
         // Deffered to default logic
-        Self::pbs_raw(self, self, lut, flush, &tfhe_params);
+        Self::pbs_raw(&[self], self, lut, flush, &tfhe_params);
     }
 
     pub fn pbs(&self, lut: &MetaVarCell, flush: bool) -> Self {
         // Allocate output variable
-        let prog_clone = self.0.borrow().prog.clone();
-        let out = self.0.borrow().prog.borrow_mut().new_var(prog_clone);
-        // Allocate it in register
-        out.reg_alloc_mv();
+        let prog = &self.0.borrow().prog.clone();
+        let dst = prog.borrow_mut().new_var(prog.clone());
+
+        // NB: No need to move the destination to a register here, it is done in
+        // pbs_raw already
 
         // Construct tfhe params
-        let tfhe_params = self.0.borrow().prog.borrow().params.clone().into();
+        let tfhe_params = prog.params().clone().into();
 
         // Deffered to default logic
-        Self::pbs_raw(&out, self, lut, flush, &tfhe_params);
-        out
+        Self::pbs_raw(&[&dst], self, lut, flush, &tfhe_params);
+        dst
+    }
+
+    pub fn pbs_many(&self, lut: &MetaVarCell, flush: bool) -> Vec<Self> {
+        // Allocate output variable
+        let lut_nb = lut.as_pbs().unwrap().lut_nb();
+        let out_vec = (0..lut_nb)
+            .map(|_| {
+                let prog = &self.0.borrow().prog;
+                let var = prog.borrow_mut().new_var(prog.clone());
+                var
+            })
+            .collect::<Vec<_>>();
+
+        // Construct tfhe params
+        let tfhe_params = self.0.borrow().prog.params().clone().into();
+
+        // Deffered to default logic
+        Self::pbs_raw(
+            &out_vec.iter().collect::<Vec<_>>(),
+            self,
+            lut,
+            flush,
+            &tfhe_params,
+        );
+        out_vec
     }
 
     // TODO define bivariant version of Pbs
@@ -425,7 +537,7 @@ impl MetaVarCell {
             "Add src must be of kind Reg|Mem|IMM MetaVar"
         );
         assert!(
-            mul_factor <= (1 << rhs_0.0.borrow().prog.borrow().params.carry_w),
+            mul_factor <= (1 << rhs_0.0.borrow().prog.params().carry_w),
             "mul_factor must be <= carry_mask to prevent overflow"
         );
 
@@ -438,12 +550,12 @@ impl MetaVarCell {
 
         match (rhs_0_imm, rhs_1_imm) {
             (false, false) => {
-                // Ct x Ct
+                // (Ct x Const) + Ct
                 // -> dst must be in ALU
                 dst.reg_alloc_mv();
                 let dst_rid = dst.as_reg().unwrap();
                 let rhs_rid = (rhs_0.as_reg().unwrap(), rhs_1.as_reg().unwrap());
-                let degree = rhs_0.get_degree() + (rhs_1.get_degree() * mul_factor as usize);
+                let degree = (rhs_0.get_degree() * mul_factor as usize) + rhs_1.get_degree();
 
                 let asm = asm::dop::DOpMac::new(
                     dst_rid,
@@ -457,7 +569,7 @@ impl MetaVarCell {
                 dst.updt_degree(degree);
             }
             (false, true) => {
-                // Imm x Ct
+                // (Ct * Const) + Imm
                 // -> dst must be in ALU
                 warn!("mac_raw anti-pattern. Expand on two DOps [Muls, Adds]");
 
@@ -490,7 +602,7 @@ impl MetaVarCell {
                 dst.updt_degree(degree);
             }
             (true, false) => {
-                // Ct x Imm
+                // (Imm x Const) + Ct
                 // -> dst must be in ALU
                 dst.reg_alloc_mv();
                 let dst_rid = dst.as_reg().unwrap();
@@ -515,9 +627,11 @@ impl MetaVarCell {
                         // Move templated constant in register and recurse
                         // Allocate extra register
                         // Force it's value to Imm::Var
-                        let prog = dst.0.borrow().prog.clone();
-                        let prog_clone = prog.clone();
-                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        let mut reg_0 = {
+                            let prog = &dst.0.borrow().prog;
+                            let var = prog.borrow_mut().new_var(prog.clone());
+                            var
+                        };
                         reg_0.reg_alloc_mv();
                         reg_0.mv_assign(rhs_0);
                         Self::mac_raw(dst, &reg_0, mul_factor, rhs_1)
@@ -525,7 +639,7 @@ impl MetaVarCell {
                 }
             }
             (true, true) => {
-                // Imm x Imm -> compile time computation
+                // (Imm x Const) + Imm -> compile time computation
                 match (rhs_0.as_imm().unwrap(), rhs_1.as_imm().unwrap()) {
                     (ImmId::Cst(cst_a), ImmId::Cst(cst_b)) => {
                         // Compile time constant
@@ -537,9 +651,11 @@ impl MetaVarCell {
                         // Move templated constant in register and recurse
                         // Allocate extra register
                         // Force it's value to Imm::Var
-                        let prog = dst.0.borrow().prog.clone();
-                        let prog_clone = prog.clone();
-                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        let mut reg_0 = {
+                            let prog = &dst.0.borrow().prog;
+                            let var = prog.borrow_mut().new_var(prog.clone());
+                            var
+                        };
                         reg_0.reg_alloc_mv();
                         reg_0.mv_assign(rhs_0);
                         Self::mac_raw(dst, &reg_0, mul_factor, rhs_1)
@@ -548,9 +664,11 @@ impl MetaVarCell {
                         // Move templated constant in register and recurse
                         // Allocate extra register
                         // Force it's value to Imm::Var
-                        let prog = dst.0.borrow().prog.clone();
-                        let prog_clone = prog.clone();
-                        let mut reg_1 = prog.borrow_mut().new_var(prog_clone);
+                        let mut reg_1 = {
+                            let prog = &dst.0.borrow().prog;
+                            let var = prog.borrow_mut().new_var(prog.clone());
+                            var
+                        };
                         reg_1.reg_alloc_mv();
                         reg_1.mv_assign(rhs_1);
                         Self::mac_raw(dst, rhs_0, mul_factor, &reg_1)
@@ -558,20 +676,15 @@ impl MetaVarCell {
                 }
             }
         }
-        trace!(
-            target: "MetaOp",
-            "MacRaw:: {:?} <= {:?}*{mul_factor}+ {:?}",
-            dst.0.borrow(),
-            rhs_0.0.borrow(),
-            rhs_1.0.borrow()
-        );
-        dst.check_degree();
     }
 
     pub fn mac(&self, mul_factor: u8, rhs: &MetaVarCell) -> MetaVarCell {
         // Allocate output variable
-        let prog_clone = self.0.borrow().prog.clone();
-        let dst = self.0.borrow().prog.borrow_mut().new_var(prog_clone);
+        let dst = {
+            let prog = &self.0.borrow().prog;
+            let var = prog.borrow_mut().new_var(prog.clone());
+            var
+        };
         MetaVarCell::mac_raw(&dst, self, mul_factor, rhs);
         dst
     }
@@ -752,9 +865,11 @@ impl MetaVarCell {
                         // Move templated constant in register and recurse
                         // Allocate extra register
                         // Force it's value to Imm::Var
-                        let prog = dst.0.borrow().prog.clone();
-                        let prog_clone = prog.clone();
-                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        let mut reg_0 = {
+                            let prog = &dst.0.borrow().prog;
+                            let var = prog.borrow_mut().new_var(prog.clone());
+                            var
+                        };
                         reg_0.reg_alloc_mv();
                         reg_0.mv_assign(rhs_0);
                         Self::add_raw(dst, &reg_0, rhs_1)
@@ -763,9 +878,11 @@ impl MetaVarCell {
                         // Move templated constant in register and recurse
                         // Allocate extra register
                         // Force it's value to Imm::Var
-                        let prog = dst.0.borrow().prog.clone();
-                        let prog_clone = prog.clone();
-                        let mut reg_1 = prog.borrow_mut().new_var(prog_clone);
+                        let mut reg_1 = {
+                            let prog = &dst.0.borrow().prog;
+                            let var = prog.borrow_mut().new_var(prog.clone());
+                            var
+                        };
                         reg_1.reg_alloc_mv();
                         reg_1.mv_assign(rhs_1);
                         Self::add_raw(dst, rhs_0, &reg_1)
@@ -789,8 +906,11 @@ impl Add for &MetaVarCell {
 
     fn add(self, rhs: Self) -> Self::Output {
         // Allocate output variable
-        let prog_clone = self.0.borrow().prog.clone();
-        let dst = self.0.borrow().prog.borrow_mut().new_var(prog_clone);
+        let dst = {
+            let prog = &self.0.borrow().prog;
+            let var = prog.borrow_mut().new_var(prog.clone());
+            var
+        };
 
         MetaVarCell::add_raw(&dst, self, rhs);
         dst
@@ -899,9 +1019,11 @@ impl MetaVarCell {
                         // Move templated constant in register and recurse
                         // Allocate extra register
                         // Force it's value to Imm::Var
-                        let prog = dst.0.borrow().prog.clone();
-                        let prog_clone = prog.clone();
-                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        let mut reg_0 = {
+                            let prog = &dst.0.borrow().prog;
+                            let var = prog.borrow_mut().new_var(prog.clone());
+                            var
+                        };
                         reg_0.reg_alloc_mv();
                         reg_0.mv_assign(rhs_0);
                         Self::sub_raw(dst, &reg_0, rhs_1)
@@ -910,9 +1032,11 @@ impl MetaVarCell {
                         // Move templated constant in register and recurse
                         // Allocate extra register
                         // Force it's value to Imm::Var
-                        let prog = dst.0.borrow().prog.clone();
-                        let prog_clone = prog.clone();
-                        let mut reg_1 = prog.borrow_mut().new_var(prog_clone);
+                        let mut reg_1 = {
+                            let prog = &dst.0.borrow().prog;
+                            let var = prog.borrow_mut().new_var(prog.clone());
+                            var
+                        };
                         reg_1.reg_alloc_mv();
                         reg_1.mv_assign(rhs_1);
                         Self::sub_raw(dst, rhs_0, &reg_1)
@@ -936,8 +1060,11 @@ impl Sub for &MetaVarCell {
 
     fn sub(self, rhs: Self) -> Self::Output {
         // Allocate output variable
-        let prog_clone = self.0.borrow().prog.clone();
-        let dst = self.0.borrow().prog.borrow_mut().new_var(prog_clone);
+        let dst = {
+            let prog = &self.0.borrow().prog;
+            let var = prog.borrow_mut().new_var(prog.clone());
+            var
+        };
 
         MetaVarCell::sub_raw(&dst, self, rhs);
         dst
@@ -1038,9 +1165,11 @@ impl MetaVarCell {
                         // Move templated constant in register and recurse
                         // Allocate extra register
                         // Force it's value to Imm::Var
-                        let prog = dst.0.borrow().prog.clone();
-                        let prog_clone = prog.clone();
-                        let mut reg_0 = prog.borrow_mut().new_var(prog_clone);
+                        let mut reg_0 = {
+                            let prog = &dst.0.borrow().prog;
+                            let var = prog.borrow_mut().new_var(prog.clone());
+                            var
+                        };
                         reg_0.reg_alloc_mv();
                         reg_0.mv_assign(rhs_0);
                         Self::mul_raw(dst, &reg_0, rhs_1)
@@ -1049,9 +1178,11 @@ impl MetaVarCell {
                         // Move templated constant in register and recurse
                         // Allocate extra register
                         // Force it's value to Imm::Var
-                        let prog = dst.0.borrow().prog.clone();
-                        let prog_clone = prog.clone();
-                        let mut reg_1 = prog.borrow_mut().new_var(prog_clone);
+                        let mut reg_1 = {
+                            let prog = &dst.0.borrow().prog;
+                            let var = prog.borrow_mut().new_var(prog.clone());
+                            var
+                        };
                         reg_1.reg_alloc_mv();
                         reg_1.mv_assign(rhs_1);
                         Self::mul_raw(dst, rhs_0, &reg_1)
@@ -1075,9 +1206,11 @@ impl Mul for &MetaVarCell {
 
     fn mul(self, rhs: Self) -> Self::Output {
         // Allocate output variable
-        let prog_clone = self.0.borrow().prog.clone();
-        let dst = self.0.borrow().prog.borrow_mut().new_var(prog_clone);
-
+        let dst = {
+            let prog = &self.0.borrow().prog;
+            let var = prog.borrow_mut().new_var(prog.clone());
+            var
+        };
         MetaVarCell::mul_raw(&dst, self, rhs);
         dst
     }
