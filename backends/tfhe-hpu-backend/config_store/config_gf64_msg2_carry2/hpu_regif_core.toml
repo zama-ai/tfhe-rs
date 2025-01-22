@@ -145,13 +145,41 @@ align_offset=true
   write_access="None"
   field.pem_pc = { size_b=8, offset_b=0, param_name="PEM_PC", description="pem_pc"}
 
+[section.Info.register.pem_axi4_data_w]
+  description="Ciphertext AXI4 bus data width"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  param_name="AXI4_PEM_DATA_W"
+
+[section.Info.register.glwe_axi4_data_w]
+  description="GLWE AXI4 bus data width"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  param_name="AXI4_GLWE_DATA_W"
+
+[section.Info.register.bsk_axi4_data_w]
+  description="BSK AXI4 bus data width"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  param_name="AXI4_BSK_DATA_W"
+
+[section.Info.register.ksk_axi4_data_w]
+  description="KSK AXI4 bus data width"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  param_name="AXI4_KSK_DATA_W"
+
 # =====================================================================================================================
 [section.LdSt]
 description="Define some properties of CT buffers in board-memory"
 align_offset=true
-duplicate=["_bank0","_bank1","_bank2","_bank3"]
+
 [section.LdSt.register.addr]
-  description="Ciphertext buffer addr"
+  description="Ciphertext buffer addr for PC#"
   owner="User"
   read_access="Read"
   write_access="Write"

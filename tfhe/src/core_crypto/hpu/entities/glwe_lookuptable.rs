@@ -7,7 +7,8 @@ use super::algorithms::{modswitch, order};
 use super::{FromWith, IntoWith};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::shortint::ClassicPBSParameters;
+use crate::core_crypto::prelude::CiphertextModulus;
+use crate::shortint::{ClassicPBSParameters, PaddingBit, ShortintEncoding};
 
 impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParameters>
     for HpuGlweLookuptableOwned<Scalar>
@@ -89,7 +90,12 @@ pub fn create_hpu_lookuptable(
     let box_size = pbs_p.polynomial_size.0 / modulus_sup;
 
     // Value of the shift we multiply our messages by
-    let delta = (1_u64 << 63) / (pbs_p.message_modulus.0 * pbs_p.carry_modulus.0) as u64;
+    let encoding = ShortintEncoding {
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        message_modulus: pbs_p.message_modulus,
+        carry_modulus: pbs_p.carry_modulus,
+        padding_bit: PaddingBit::Yes,
+    };
 
     let mut body = cpu_acc_view.get_mut_body();
     let body_u64 = body.as_mut();
@@ -99,10 +105,18 @@ pub fn create_hpu_lookuptable(
         carry_w: params.pbs_params.carry_width,
     };
 
-    for i in 0..modulus_sup {
-        let index = i * box_size;
-        let f_eval = pbs.eval(&digits_params, i as usize) as u64;
-        body_u64[index..index + box_size].fill(f_eval * delta);
+    let lut_nb = pbs.lut_nb() as usize;
+
+    let single_function_sub_lut_size = (modulus_sup / lut_nb) * box_size;
+
+    for (pos, function_sub_lut) in body_u64
+        .chunks_mut(single_function_sub_lut_size)
+        .enumerate()
+    {
+        for (msg_value, sub_lut_box) in function_sub_lut.chunks_exact_mut(box_size).enumerate() {
+            let function_eval = pbs.fn_at(pos, &digits_params, msg_value) as u64;
+            sub_lut_box.fill(encoding.encode(Cleartext(function_eval)).0);
+        }
     }
 
     let half_box_size = box_size / 2;

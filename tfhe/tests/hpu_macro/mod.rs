@@ -143,7 +143,11 @@ hpu_testcase!("MULS" => [(FheUint8, u8),(FheUint16, u16), (FheUint32, u32), (Fhe
 // Alu IOp with Ct x Ct
 hpu_testcase!("ADD" => [(FheUint8, u8),(FheUint16, u16), (FheUint32, u32), (FheUint64, u64)]
     |a, b| (a.wrapping_add(b)));
+hpu_testcase!("ADDK" => [(FheUint8, u8),(FheUint16, u16), (FheUint32, u32), (FheUint64, u64)]
+    |a, b| (a.wrapping_add(b)));
 hpu_testcase!("SUB" => [(FheUint8, u8),(FheUint16, u16), (FheUint32, u32), (FheUint64, u64)]
+    |a, b| (a.wrapping_sub(b)));
+hpu_testcase!("SUBK" => [(FheUint8, u8),(FheUint16, u16), (FheUint32, u32), (FheUint64, u64)]
     |a, b| (a.wrapping_sub(b)));
 hpu_testcase!("MUL" => [(FheUint8, u8),(FheUint16, u16), (FheUint32, u32), (FheUint64, u64)]
     |a, b| (a.wrapping_mul(b)));

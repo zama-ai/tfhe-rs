@@ -49,17 +49,4 @@
             min_iop_size: 4,
         ),
     ),
-    isc_sim_params: (
-        // Number of register in HPU
-        register: 64,
-        // Depth of the instruction scheduler lookahead buffer
-        isc_depth: 64,
-        // Configuration of Hpu ALUs/Pbs units
-        pe_cfg: "mockups/tfhe-hpu-mockup/params/pe/hpu_default.ron",
-        // Targeted freq (only used for timing report)
-        freq_MHz: 300,
-        // Timeframe of each simulation slot
-        // Enforce responsiveness of the simulation
-        quantum_us: 100_000,
-    )
 )

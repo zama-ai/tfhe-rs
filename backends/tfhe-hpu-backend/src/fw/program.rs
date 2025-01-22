@@ -14,6 +14,8 @@ use crate::asm;
 use super::metavar::{MetaVarCell, MetaVarCellWeak, VarPos};
 use super::FwParameters;
 
+use tracing::trace;
+
 #[derive(Debug)]
 pub struct ProgramInner {
     uid: usize,
@@ -26,30 +28,30 @@ pub struct ProgramInner {
 
 /// ProgramInner constructors
 impl ProgramInner {
-    pub fn new(props: &FwParameters) -> Self {
-        let nb_regs = match std::num::NonZeroUsize::try_from(props.regs) {
+    pub fn new(params: &FwParameters) -> Self {
+        let nb_regs = match std::num::NonZeroUsize::try_from(params.regs) {
             Ok(val) => val,
             _ => panic!("Error: Number of registers must be >= 0"),
         };
         let mut regs = LruCache::<asm::RegId, Option<MetaVarCellWeak>>::new(nb_regs);
         // At start regs cache is full of unused slot
-        for rid in 0..props.regs {
+        for rid in 0..params.regs {
             regs.put(asm::RegId(rid as u8), None);
         }
 
-        let nb_heap = match std::num::NonZeroUsize::try_from(props.heap_size) {
+        let nb_heap = match std::num::NonZeroUsize::try_from(params.heap_size) {
             Ok(val) => val,
             _ => panic!("Error: Number of heap slot must be >= 0"),
         };
         let mut heap = LruCache::<asm::MemId, Option<MetaVarCellWeak>>::new(nb_heap);
         // At start heap cache is full of unused slot
-        for hid in 0..props.heap_size as u16 {
+        for hid in 0..params.heap_size as u16 {
             heap.put(asm::MemId::new_heap(hid), None);
         }
 
         Self {
             uid: 0,
-            params: props.clone(),
+            params: params.clone(),
             regs,
             heap,
             vars: HashMap::new(),
@@ -63,7 +65,7 @@ impl ProgramInner {
     /// Retrieved least-recent-used register entry
     /// Return associated register id and evicted variable if any
     /// Warn: Keep cache state unchanged ...
-    fn reg_lru(&mut self) -> (asm::RegId, Option<MetaVarCell>) {
+    pub(crate) fn reg_lru(&mut self) -> (asm::RegId, Option<MetaVarCell>) {
         let (rid, rdata) = self
             .regs
             .peek_lru()
@@ -83,8 +85,86 @@ impl ProgramInner {
         (*rid, evicted)
     }
 
+    // Tries to get a range of consecutive aligned free registers and falls back
+    // to the range starting a the LRU
+    pub(crate) fn aligned_reg_range(&self, range: usize) -> Option<asm::RegId> {
+        let range = range as u8;
+        let log_size = asm::dop::ceil_ilog2(&range);
+        let mask = (1 << log_size) - 1;
+        let aligned = || {
+            self.regs
+                .iter()
+                .rev()
+                .filter(|(reg, _)| (reg.0 & mask) == 0)
+        };
+        let rid = aligned()
+            .filter(|(reg, _)| {
+                let reg = reg.0;
+                (reg..reg + range).fold(true, |acc, reg| {
+                    acc & self
+                        .regs
+                        .peek(&asm::RegId(reg))
+                        .is_some_and(|r| r.is_none())
+                })
+            })
+            .map(|(reg, _)| *reg)
+            .next();
+        rid.or_else(|| {
+            aligned()
+                .filter(|(reg, _)| {
+                    let reg = reg.0;
+                    (reg + 1..reg + range).fold(true, |acc, reg| {
+                        acc & self.regs.peek(&asm::RegId(reg)).is_some()
+                    })
+                })
+                .map(|(i, _)| *i)
+                .next()
+        })
+    }
+
+    // Retrieves the indicated RID
+    // The cache state is unchanged
+    pub(crate) fn reg(&mut self, rid: &asm::RegId) -> Option<MetaVarCell> {
+        let rdata = self
+            .regs
+            .peek(&rid)
+            .expect(&format!("Error register {rid:} is not available"));
+
+        let evicted = if let Some(weak_evicted) = rdata {
+            match weak_evicted.try_into() {
+                Ok(cell) => Some(cell),
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
+        evicted
+    }
+
+    // Insert the MetaVar in the indicated cache slot and return any evicted
+    // value
+    pub(crate) fn reg_swap_force(
+        &mut self,
+        rid: &asm::RegId,
+        var: MetaVarCell,
+    ) -> Option<MetaVarCell> {
+        // Find lru slot
+        let evicted = self.reg(&rid);
+
+        // Update cache state
+        *(self
+            .regs
+            .get_mut(&rid)
+            .expect("Update an `unused` register")) = Some((&var).into());
+
+        evicted
+    }
+
     /// Release register entry
     pub(crate) fn reg_release(&mut self, rid: asm::RegId) {
+        trace!(target: "Program", "Release Reg {rid}");
+
         *(self
             .regs
             .get_mut(&rid)
@@ -107,20 +187,6 @@ impl ProgramInner {
     /// Notify register access to update LRU state
     pub(crate) fn reg_access(&mut self, rid: asm::RegId) {
         self.regs.promote(&rid)
-    }
-
-    /// Insert MetaVar in cache and return evicted value if any
-    pub(crate) fn reg_swap_lru(&mut self, var: MetaVarCell) -> (asm::RegId, Option<MetaVarCell>) {
-        // Find lru slot
-        let (rid, evicted) = self.reg_lru();
-
-        // Update cache state
-        *(self
-            .regs
-            .get_mut(&rid)
-            .expect("Update an `unused` register")) = Some((&var).into());
-
-        (rid, evicted)
     }
 
     /// Retrieved least-recent-used heap entry
@@ -148,6 +214,7 @@ impl ProgramInner {
 
     /// Release register entry
     pub(crate) fn heap_release(&mut self, mid: asm::MemId) {
+        trace!(target: "Program", "Release Heap {mid}");
         match mid {
             asm::MemId::Heap { .. } => {
                 *(self
@@ -197,8 +264,7 @@ impl ProgramInner {
 /// MetaVar handling
 impl ProgramInner {
     /// Create MetaVar from an optional argument
-    /// Hack around to have access to a reference to RefCell Wrapped
-    fn var_from(&mut self, from: Option<VarPos>, ref_to_self: Rc<RefCell<Self>>) -> MetaVarCell {
+    fn var_from(&mut self, from: Option<VarPos>, ref_to_self: Program) -> MetaVarCell {
         // Create MetaVar
         let uid = self.uid;
         self.uid += 1;
@@ -213,25 +279,35 @@ impl ProgramInner {
         var
     }
 
-    pub fn new_var(&mut self, ref_to_self: Rc<RefCell<Self>>) -> MetaVarCell {
+    pub fn new_var(&mut self, ref_to_self: Program) -> MetaVarCell {
         self.var_from(None, ref_to_self)
     }
 }
 
+#[derive(Clone)]
 pub struct Program {
     inner: Rc<RefCell<ProgramInner>>,
 }
 
+impl std::ops::Deref for Program {
+    type Target = Rc<RefCell<ProgramInner>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 impl Program {
-    pub fn new(props: &FwParameters) -> Self {
+    pub fn new(params: &FwParameters) -> Self {
         Self {
-            inner: Rc::new(RefCell::new(ProgramInner::new(props))),
+            inner: Rc::new(RefCell::new(ProgramInner::new(params))),
         }
     }
 
-    pub fn props(&self) -> FwParameters {
+    pub fn params(&self) -> FwParameters {
         self.inner.borrow().params.clone()
     }
+
     pub fn push_comment(&mut self, comment: String) {
         self.inner.borrow_mut().stmts.push_comment(comment)
     }
@@ -241,8 +317,7 @@ impl Program {
     // }
 
     pub fn var_from(&mut self, from: Option<VarPos>) -> MetaVarCell {
-        let inner_clone = self.inner.clone();
-        self.inner.borrow_mut().var_from(from, inner_clone)
+        self.inner.borrow_mut().var_from(from, self.clone())
     }
 
     pub fn new_var(&mut self) -> MetaVarCell {
@@ -275,7 +350,7 @@ impl Program {
     // TODO pass the associated operand or immediat to obtain the inner blk properties instead of
     // using the global one
     pub fn iop_template_var(&mut self, kind: asm::OperandKind, pos_id: u8) -> Vec<MetaVarCell> {
-        let nb_blk = self.inner.borrow().params.blk_w() as u8;
+        let nb_blk = self.params().blk_w() as u8;
         match kind {
             asm::OperandKind::Src => {
                 // Digit in iop arg are contiguous
@@ -328,6 +403,44 @@ impl Program {
                 cell.heap_alloc_mv(true);
             }
         });
+    }
+
+    /// Removes the given register from use
+    pub fn reg_pop(&self, rid: &asm::RegId) -> Option<MetaVarCellWeak> {
+        self.inner.borrow_mut().regs.pop(rid).unwrap()
+    }
+
+    /// Adds the given register for use
+    pub fn reg_put(&mut self, rid: asm::RegId, meta: Option<MetaVarCellWeak>) {
+        self.inner.borrow_mut().regs.put(rid, meta);
+    }
+
+    // Checks if the provided register ranges are available
+    pub fn reg_avail(&mut self, range: Vec<usize>) -> bool {
+        let mut inner = self.inner.borrow_mut();
+
+        // Make a copy of the current register cache to restore state after
+        // we're done. Unfortunately, the easiest thing I can come up with to
+        // test for this is to try to allocate them, which changes the cache
+        // state.
+        let reg_copy = inner.regs.clone();
+
+        let avail = range
+            .into_iter()
+            .fold(true, |acc, range| acc && 
+                 inner.aligned_reg_range(range)
+                      .and_then(|id| Some(id.0 as usize))
+                      .and_then(|id| {
+                          (id..id+range)
+                              .for_each(|id| {inner.regs.pop(&asm::RegId(id as u8));});
+                          Some(true)
+                      })
+                      .is_some()
+            );
+
+        inner.regs = reg_copy;
+
+        avail
     }
 }
 

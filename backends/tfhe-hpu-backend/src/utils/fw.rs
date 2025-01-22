@@ -54,6 +54,14 @@ pub struct Args {
     /// Integer bit width
     #[clap(long, value_parser, default_value_t = 8)]
     integer_w: usize,
+
+    /// AluStore configuration file
+    #[clap(
+        long,
+        value_parser,
+        default_value = "backends/tfhe-hpu-backend/config/to_be_defined.ron"
+    )]
+    alu_store: String,
 }
 
 /// Extract ArchProperties from CliArgs
@@ -67,6 +75,7 @@ impl From<&Args> for fw::FwParameters {
             carry_w: args.carry_w,
             nu: args.nu,
             integer_w: args.integer_w,
+            alu_store: args.alu_store,
         }
     }
 }
@@ -106,8 +115,8 @@ fn main() -> Result<(), anyhow::Error> {
 
         // Instanciate Fw and start translation ----------------------------------------
         let mut fw = fw::AvlblFw::new(&args.fw_kind);
-        let props = fw::FwParameters::from(&args);
-        let prog = fw.expand(&props, iop);
+        let params = fw::FwParameters::from(&args);
+        let prog = fw.expand(&params, iop);
         prog.write_asm(&asm_p.as_os_str().to_str().unwrap())?;
         prog.write_hex(&hex_p.as_os_str().to_str().unwrap())?;
     }

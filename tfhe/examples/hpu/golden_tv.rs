@@ -140,13 +140,13 @@ pub fn main() {
     let a = if let Some(val) = args.src_a {
         val
     } else {
-        rng.gen_range(0..((1 << args.integer_width) - 1))
+        rng.gen_range(0..(u64::max_value() >> (u64::BITS - (args.integer_width as u32))))
     };
 
     let b = if let Some(val) = args.src_b {
         val
     } else {
-        rng.gen_range(0..((1 << args.integer_width) - 1))
+        rng.gen_range(0..(u64::max_value() >> (u64::BITS - (args.integer_width as u32))))
     };
 
     // Execute based on required integer_w ------------------------------------

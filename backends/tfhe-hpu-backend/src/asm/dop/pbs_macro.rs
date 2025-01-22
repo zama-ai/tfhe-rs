@@ -10,17 +10,19 @@ pub const CMP_SUPERIOR: usize = 2;
 macro_rules! impl_pbs {
     (
         $pbs: literal => $gid: literal [
-          $func: expr,
-          $deg: expr $(,)?
+            $(@$id:literal => {
+                $func: expr;
+                $deg: expr$(;)?
+                }$(,)?)+
         ]
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone)]
-            pub struct [<Pbs $pbs:camel>](PbsGid);
+            #[derive(Debug, PartialEq, Eq, Clone)]
+            pub struct [<Pbs $pbs:camel>]();
 
-            impl Default for [< Pbs $pbs:camel >] {
+            impl Default for [<Pbs $pbs:camel>]{
                 fn default() -> Self {
-                    Self(PbsGid($gid))
+                    Self ()
                 }
             }
 
@@ -29,13 +31,38 @@ macro_rules! impl_pbs {
                     $pbs
                 }
                 fn gid(&self) -> PbsGid {
-                    self.0
+                    PbsGid($gid)
                 }
-                fn eval(&self, params: &DigitParameters, val: usize) -> usize {
-                    $func(params, val)
+                fn lut_nb(&self) -> u8 {
+                    if let Some(max) = [$($id,)*].iter().max() {
+                        max +1} else {0}
                 }
-                fn degree(&self, params: &DigitParameters, deg: usize) -> usize {
-                    $deg(params, deg)
+                fn lut_lg(&self) -> u8 {
+                    ceil_ilog2(&self.lut_nb())
+                }
+
+                fn fn_at(&self, pos: usize, params: &DigitParameters, val: usize ) -> usize {
+                    match pos {
+                        $(
+                            $id => ($func)(params, val),
+                        )*
+                        _ => {
+                            // Unspecified -> Default to identity
+                            val
+                        },
+                    }
+                }
+
+                fn deg_at(&self, pos: usize, params: &DigitParameters, deg: usize ) -> usize {
+                    match pos {
+                        $(
+                            $id => ($deg)(params, deg),
+                        )*
+                        _ => {
+                            // Unspecified -> Default to identity
+                            deg
+                        },
+                    }
                 }
             }
         }
@@ -46,17 +73,19 @@ macro_rules! impl_pbs {
 macro_rules! pbs {
     (
         $([$pbs: literal => $gid: literal [
-            $func: expr,
-            $deg: expr $(,)?
-          ]] $(,)?)*
+            $(@$id:literal => {
+                $func: expr;
+                $deg: expr$(;)?
+                }$(,)?)+]
+          ] $(,)?)*
     ) => {
         ::paste::paste! {
             $(
-                impl_pbs!($pbs => $gid [ $func, $deg]);
+            impl_pbs!($pbs => $gid [ $(@$id => {$func; $deg;},)*]);
             )*
 
             /// Aggregate Pbs concrete type in one enumeration
-            #[derive(Debug, Clone)]
+            #[derive(Debug, Clone, PartialEq, Eq)]
             #[enum_dispatch(PbsLut)]
             pub enum Pbs{
                     $([< $pbs:camel >]([< Pbs $pbs:camel >]),)*
