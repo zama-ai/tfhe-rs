@@ -3,13 +3,8 @@
 
 // Retrieved CtId definition
 // This definition is on the boundaries between IOp and DOp and thus define in the top.
+use super::opcode::Opcode;
 use crate::asm::CtId;
-
-/// Register argument
-/// Direct mapping of value to register Id
-/// 7bits wide -> 128 registers
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct Opcode(pub u8);
 
 /// Register argument
 /// Direct mapping of value to register Id
@@ -70,7 +65,7 @@ impl std::fmt::Display for MemId {
 /// Memory arguments
 /// Have multiple mode for proper support of template addressing
 /// Template enable runtime replacement of MemId with associated Top-level arguments
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ImmId {
     Cst(u16),
     Var { tid: u8, bid: u8 },
@@ -106,7 +101,7 @@ impl std::fmt::Display for PbsGid {
 
 /// Sync argument
 /// Currently unsused
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SyncId(pub u32);
 
 impl std::fmt::Display for SyncId {
@@ -118,7 +113,7 @@ impl std::fmt::Display for SyncId {
 /// PeArith instructions
 /// Arithmetic operation that use one destination register and two sources register
 /// Have also an extra mul_factor field for MAC insn
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PeArithInsn {
     pub dst_rid: RegId,
     pub src0_rid: RegId,
@@ -130,7 +125,7 @@ pub struct PeArithInsn {
 /// PeaMsg instructions
 /// Arithmetic operation that use one destination register, one source register and an immediat
 /// value
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PeArithMsgInsn {
     pub dst_rid: RegId,
     pub src_rid: RegId,
@@ -140,7 +135,7 @@ pub struct PeArithMsgInsn {
 
 /// PeMem instructions
 /// LD/St operation with one register and one memory slot
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PeMemInsn {
     pub rid: RegId,
     pub slot: MemId,
@@ -148,7 +143,7 @@ pub struct PeMemInsn {
 }
 
 /// PePbs instructions
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PePbsInsn {
     pub dst_rid: RegId,
     pub src_rid: RegId,
@@ -157,7 +152,7 @@ pub struct PePbsInsn {
 }
 
 /// PeSync instructions
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PeSyncInsn {
     pub sid: SyncId,
     pub opcode: Opcode,

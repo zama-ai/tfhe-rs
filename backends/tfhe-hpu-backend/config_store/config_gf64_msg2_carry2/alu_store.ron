@@ -1,0 +1,86 @@
+([
+    ("LdSt_0", (
+        capabilities: [
+            MEM
+        ],
+        cost: 354,
+    )),
+    ("Lin_0", (
+        capabilities: [
+            ARITH,
+        ],
+        cost: 2048,
+    )),
+    ("KsPbs_0", (
+        capabilities: [
+            PBS
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_1", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_2", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_3", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_4", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_5", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_6", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_7", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_8", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_9", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_10", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+    ("KsPbs_11", (
+        capabilities: [
+            PBS,
+        ],
+        cost: 382688,
+    )),
+])

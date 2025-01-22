@@ -5,14 +5,13 @@
 //! * DigitOperations (DOp)
 //! * IntegerOperarions (IOp)
 
-// pub mod impl;
-pub mod program;
-pub use program::Program;
 pub mod fw_impl;
 pub mod metavar;
+pub mod program;
+pub mod rtl;
+pub mod isc_sim;
 
 use crate::asm;
-
 use enum_dispatch::enum_dispatch;
 use strum_macros::{EnumDiscriminants, EnumString};
 
@@ -28,6 +27,9 @@ pub struct FwParameters {
     pub carry_w: usize,
     pub nu: usize,
     pub integer_w: usize,
+    pub ipip: bool,
+    pub kogge: String,
+    pub sim_params: isc_sim::IscSimParameters,
 }
 
 impl FwParameters {
@@ -50,7 +52,11 @@ impl From<FwParameters> for asm::DigitParameters {
 #[enum_dispatch]
 pub trait Fw {
     /// Expand a program of IOp into a program of DOp
-    fn expand(&mut self, arch: &FwParameters, iopcode: &asm::AsmIOpcode) -> asm::Program<asm::DOp>;
+    fn expand(
+        &mut self,
+        params: &FwParameters,
+        iopcode: &asm::AsmIOpcode,
+    ) -> asm::Program<asm::DOp>;
 }
 
 /// Gather available Fw in a enum for selection at runtime by user

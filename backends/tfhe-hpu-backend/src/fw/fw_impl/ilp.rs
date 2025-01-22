@@ -2,19 +2,24 @@
 //! Implementation of Ilp firmware
 //!
 //! In this version of the Fw focus is done on Instruction Level Parallelism
-use std::collections::VecDeque;
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, VecDeque};
 
 use super::*;
 use crate::asm::{self, OperandKind, Pbs};
+use crate::fw::program::Program;
+use crate::fw::FwParameters;
 use itertools::Itertools;
 use tracing::{debug, instrument, trace};
 
+use crate::asm::iop::opcode::*;
 use crate::new_pbs;
 
-use crate::asm::iop::opcode::*;
 crate::impl_fw!("Ilp" [
     ADD => fw_impl::ilp::iop_add;
+    ADDK => fw_impl::ilp::iop_add_kogge;
     SUB => fw_impl::ilp::iop_sub;
+    SUBK => fw_impl::ilp::iop_sub_kogge;
     MUL => fw_impl::ilp::iop_mul;
 
     ADDS => fw_impl::ilp::iop_adds;
@@ -52,6 +57,36 @@ pub fn iop_add(prog: &mut Program) {
     iop_addx(prog, &mut dst, &src_a, &src_b);
 }
 
+#[instrument(level = "info", skip(prog))]
+pub fn iop_add_kogge(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("ADDK Operand::Dst Operand::Src Operand::Src".to_string());
+
+    let rtl = {
+        // Convert MetaVarCell in VarCell for Rtl analysis
+        let a = src_a
+            .into_iter()
+            .map(|x| VarCell::from(x))
+            .collect::<Vec<_>>();
+        let b = src_b
+            .into_iter()
+            .map(|x| VarCell::from(x))
+            .collect::<Vec<_>>();
+
+        // Do a + b with the kogge stone adder
+        cached_kogge_add(prog, a, b, None, dst)
+    }; // Any reference to any metavar not linked to the RTL is dropped here
+    rtl.add(prog);
+}
+
 pub fn iop_adds(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -77,7 +112,7 @@ pub fn iop_addx(
     src_a: &[metavar::MetaVarCell],
     src_b: &[metavar::MetaVarCell],
 ) {
-    let props = prog.props();
+    let props = prog.params();
 
     // Wrapped required lookup table in MetaVar
     let pbs_msg = new_pbs!(prog, "MsgOnly");
@@ -85,7 +120,7 @@ pub fn iop_addx(
 
     let mut carry: Option<metavar::MetaVarCell> = None;
 
-    (0..prog.props().blk_w()).for_each(|blk| {
+    (0..prog.params().blk_w()).for_each(|blk| {
         prog.push_comment(format!(" ==> Work on output block {blk}"));
 
         let mut msg = &src_a[blk] + &src_b[blk];
@@ -119,6 +154,48 @@ pub fn iop_sub(prog: &mut Program) {
     iop_subx(prog, &mut dst, &src_a, &src_b);
 }
 
+#[instrument(level = "info", skip(prog))]
+pub fn iop_sub_kogge(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("SUBK Operand::Dst Operand::Src Operand::Src".to_string());
+
+    let rtl = {
+        // Convert MetaVarCell in VarCell for Rtl analysis
+        let a = src_a
+            .into_iter()
+            .map(|x| VarCell::from(x))
+            .collect::<Vec<_>>();
+        let b = src_b
+            .into_iter()
+            .map(|x| VarCell::from(x))
+            .collect::<Vec<_>>();
+
+        let imm = (0..a.len())
+            .map(|_| VarCell::from(prog.new_imm((1 << prog.params().msg_w) - 1)))
+            .collect::<Vec<_>>();
+
+        // subtracting b to a constant with all ones. This will bitwise invert b.
+        let b_bw_inv = b
+            .into_iter()
+            .zip(imm)
+            .map(|(x, i)| &i - &x)
+            .collect::<Vec<_>>();
+        let one = VarCell::from(prog.new_imm(1));
+
+        // Do a + ~b + 1 with the kogge stone adder
+        cached_kogge_add(prog, a, b_bw_inv, Some(one), dst)
+    }; // Any reference to any metavar not linked to the RTL is dropped here
+    rtl.add(prog);
+}
+
 pub fn iop_subs(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -144,7 +221,7 @@ pub fn iop_subx(
     src_a: &[metavar::MetaVarCell],
     src_b: &[metavar::MetaVarCell],
 ) {
-    let props = prog.props();
+    let props = prog.params();
     let tfhe_params: asm::DigitParameters = props.clone().into();
 
     // Wrapped required lookup table in MetaVar
@@ -154,7 +231,7 @@ pub fn iop_subx(
     let mut z_cor: Option<usize> = None;
     let mut carry: Option<metavar::MetaVarCell> = None;
 
-    (0..prog.props().blk_w()).for_each(|blk| {
+    (0..prog.params().blk_w()).for_each(|blk| {
         // Compute -b
         // Algo is based on neg_from + correction factor
         // neg_from - b + z_cor
@@ -208,7 +285,7 @@ pub fn iop_ssub(prog: &mut Program) {
     // Add Comment header
     prog.push_comment("SSUB Operand::Dst Operand::Src Operand::Immediat".to_string());
 
-    let props = prog.props();
+    let props = prog.params();
     let tfhe_params: asm::DigitParameters = props.clone().into();
 
     // Wrapped required lookup table in MetaVar
@@ -218,7 +295,7 @@ pub fn iop_ssub(prog: &mut Program) {
     let mut z_cor: Option<usize> = None;
     let mut carry: Option<metavar::MetaVarCell> = None;
 
-    (0..prog.props().blk_w()).for_each(|blk| {
+    (0..prog.params().blk_w()).for_each(|blk| {
         // Compute -a
         // Algo is based on neg_from + correction factor
         // neg_from - a + z_cor
@@ -298,7 +375,7 @@ pub fn iop_mulx(
     src_a: &[metavar::MetaVarCell],
     src_b: &[metavar::MetaVarCell],
 ) {
-    let props = prog.props();
+    let props = prog.params();
     let tfhe_params: asm::DigitParameters = props.clone().into();
     let blk_w = props.blk_w();
 
@@ -508,7 +585,7 @@ pub fn iop_bw(prog: &mut Program, bw_op: Pbs) {
     // Add Comment header
     prog.push_comment(format!("BW_{bw_op} Operand::Dst Operand::Src Operand::Src"));
 
-    let props = prog.props();
+    let props = prog.params();
     let tfhe_params: asm::DigitParameters = props.clone().into();
 
     // Wrapped given bw_op lookup table in MetaVar
@@ -543,7 +620,7 @@ pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
         "CMP_{cmp_op} Operand::Dst Operand::Src Operand::Src"
     ));
 
-    let props = prog.props();
+    let props = prog.params();
     let tfhe_params: asm::DigitParameters = props.clone().into();
 
     // Wrapped given cmp_op and comp_sign lookup table in MetaVar
@@ -613,4 +690,285 @@ pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
         let mut d = d.clone();
         d <<= cst_0.clone();
     });
+}
+
+// For the kogge stone add/sub
+use crate::fw::rtl::{Rtl, VarCell};
+use lazy_static::lazy_static;
+use std::cmp::{Eq, PartialEq};
+use std::env;
+use std::error::Error;
+use std::sync::{Arc, Mutex};
+
+// For the kogge block table
+use ron;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, Hash, PartialEq, Eq, Debug)]
+struct KoggeBlockTableIndex {
+    blk_w: usize,
+    pbs_w: usize,
+}
+
+impl From<FwParameters> for KoggeBlockTableIndex {
+    fn from(value: FwParameters) -> Self {
+        KoggeBlockTableIndex {
+            blk_w: value.blk_w(),
+            pbs_w: value.pbs_batch_w,
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+struct KoggeBlockCfg {
+    #[serde(skip)]
+    filename: String,
+    table: HashMap<KoggeBlockTableIndex, usize>,
+}
+
+fn append_bin(name: &str) -> String {
+    let exe = env::current_exe().unwrap();
+    let exe_dir = exe.parent().and_then(|p| p.to_str()).unwrap_or(".");
+    format!("{}/{}", exe_dir, name)
+}
+
+impl KoggeBlockCfg {
+    fn try_with_filename<F, E, R>(name: &str, f: F) -> Result<E, R>
+    where
+        F: Fn(&str) -> Result<E, R>,
+    {
+        f(name).or_else(|_| f(&append_bin(name)))
+    }
+
+    pub fn new(filename: &str) -> KoggeBlockCfg {
+        if let Ok(contents) =
+            KoggeBlockCfg::try_with_filename(filename, |f| std::fs::read_to_string(f))
+        {
+            let mut res: KoggeBlockCfg = ron::from_str(&contents)
+                .expect(&format!("{} is not a valid KoggeBlockCfg", filename));
+            res.filename = String::from(filename);
+            res
+        } else {
+            KoggeBlockCfg {
+                filename: String::from(filename),
+                table: HashMap::new(),
+            }
+        }
+    }
+
+    pub fn entry(&mut self, index: KoggeBlockTableIndex) -> Entry<'_, KoggeBlockTableIndex, usize> {
+        self.table.entry(index)
+    }
+
+    pub fn get(&mut self, index: &KoggeBlockTableIndex) -> Option<&usize> {
+        self.table.get(index)
+    }
+
+    fn try_write(&self) -> Result<(), Box<dyn Error>> {
+        let file = KoggeBlockCfg::try_with_filename(&self.filename, |name| {
+            std::fs::File::options()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(name)
+        })?;
+        ron::ser::to_writer_pretty(file, self, ron::ser::PrettyConfig::default())?;
+        Ok(())
+    }
+}
+
+impl Drop for KoggeBlockCfg {
+    fn drop(&mut self) {
+        if let Err(err) = self.try_write() {
+            print!("Could not write {}: {}\n", self.filename, err);
+        }
+    }
+}
+
+impl From<&str> for KoggeBlockCfg {
+    fn from(alu_store: &str) -> Self {
+        let mut hash = KOGGE_BLOCK_CFG.lock().unwrap();
+        (hash
+            .entry(alu_store.to_string())
+            .or_insert_with_key(|key| KoggeBlockCfg::new(key)))
+        .clone()
+    }
+}
+
+lazy_static! {
+    static ref KOGGE_BLOCK_CFG: Arc<Mutex<HashMap<String, KoggeBlockCfg>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+}
+
+#[derive(Hash, PartialEq, Eq, Clone)]
+struct Range(usize, usize);
+
+struct KoggeTree {
+    cache: HashMap<Range, VarCell>,
+    tfhe_params: asm::DigitParameters,
+    pbs: Pbs,
+}
+
+impl KoggeTree {
+    fn new(prg: &mut Program, inputs: Vec<VarCell>) -> KoggeTree {
+        let mut cache = HashMap::new();
+        inputs.into_iter().enumerate().for_each(|(i, v)| {
+            cache.insert(Range(i, i), v);
+        });
+        let props = prg.params();
+        let tfhe_params: asm::DigitParameters = props.clone().into();
+        let pbs = asm::Pbs::GenPropMerge(asm::dop::PbsGenPropMerge::default());
+        KoggeTree {
+            cache,
+            tfhe_params,
+            pbs,
+        }
+    }
+
+    fn get_subindex(&self, index: &Range) -> (Range, Range) {
+        let range = index.1 - index.0 + 1;
+        // Find the biggest power of two smaller than range
+        let pow = 1 << range.ilog2();
+        let mid = if pow == range {
+            index.0 + (pow >> 1)
+        } else {
+            index.0 + pow
+        };
+        (Range(index.0, mid - 1), Range(mid, index.1))
+    }
+
+    fn insert_subtree(&mut self, index: &Range) {
+        if !self.cache.contains_key(&index) {
+            let (lhs, rhs) = self.get_subindex(&index);
+            self.insert_subtree(&lhs);
+            self.insert_subtree(&rhs);
+
+            let (lhs, rhs) = (self.cache.get(&lhs).unwrap(), self.cache.get(&rhs).unwrap());
+
+            let mac = rhs.mac(self.tfhe_params.msg_range(), lhs);
+            let pbs = mac.pbs(&self.pbs).into_iter().next().unwrap();
+            self.cache.insert((*index).clone(), pbs);
+        }
+    }
+
+    fn get_subtree(&mut self, index: &Range) -> &VarCell {
+        self.insert_subtree(&index);
+        self.cache.get(&index).unwrap()
+    }
+}
+
+// Receives cypher texts with carry (in carry save form) and outputs cypher
+// texts with carry propagated. The first item in the input vector is the carry
+// in.
+// Calling this only makes sense if the generated PBSs fit nicely into the batch
+// size.
+#[instrument(level = "info", skip(prog))]
+fn propagate_carry(
+    prog: &mut Program,
+    dst: &mut [VarCell],
+    carrysave: &[VarCell],
+    cin: &Option<VarCell>,
+) -> VarCell {
+    let tfhe_params: asm::DigitParameters = prog.params().clone().into();
+
+    let pbs_genprop = asm::Pbs::ManyGenProp(asm::dop::PbsManyGenProp::default());
+    let pbs_genprop_add = asm::Pbs::GenPropAdd(asm::dop::PbsGenPropAdd::default());
+
+    // Split the result into message and propagate/generate information using a
+    // manyLUT
+    let (msg, mut carry): (Vec<_>, Vec<_>) = carrysave
+        .into_iter()
+        .map(|v| {
+            let mut res = v.pbs(&pbs_genprop).into_iter();
+            (res.next().unwrap(), res.next().unwrap())
+        })
+        .unzip();
+
+    // Add the carry in as the first carry if any
+    carry.insert(
+        0,
+        cin.clone().unwrap_or(VarCell::from({
+            let new = prog.var_from(None);
+            &VarCell::from(new.clone()) - &VarCell::from(new)
+        })),
+    );
+
+    // Build a list of terminal outputs
+    let mut carry_tree = KoggeTree::new(prog, carry);
+
+    for i in 0..msg.len() {
+        let subtree = carry_tree.get_subtree(&Range(0, i));
+        let mac = subtree.mac(tfhe_params.msg_range(), &msg[i]);
+        let pbs = mac.pbs(&pbs_genprop_add).into_iter().next().unwrap();
+        dst[i] <<= &pbs;
+    }
+
+    carry_tree.get_subtree(&Range(0, msg.len())).clone()
+}
+
+// Adds two vectors of VarCells and produces a register transfer level
+// description of a kogge stone adder that can then be added to the program
+fn kogge_adder(
+    prog: &mut Program,
+    a: Vec<VarCell>,
+    b: Vec<VarCell>,
+    mut cin: Option<VarCell>,
+    mut dst: Vec<VarCell>,
+    par_w: usize,
+) -> Rtl {
+    let csave: Vec<_> = a
+        .into_iter()
+        .zip(b.into_iter())
+        .map(|(a, b)| &a + &b)
+        .collect();
+
+    (0..csave.len().div_ceil(par_w)).for_each(|chunk_idx| {
+        let start = chunk_idx * par_w;
+        let end = (start + par_w).min(csave.len());
+        cin = Some(propagate_carry(
+            prog,
+            &mut dst[start..],
+            &csave[start..end],
+            &cin,
+        ));
+    });
+
+    Rtl::from(dst)
+}
+
+// cached kogge_adder wrapper
+// This finds the best par_w for the given architecture and caches the result
+fn cached_kogge_add(
+    prog: &mut Program,
+    a: Vec<VarCell>,
+    b: Vec<VarCell>,
+    cin: Option<VarCell>,
+    dst: Vec<metavar::MetaVarCell>,
+) -> Rtl {
+    let mut kogge_cfg = KoggeBlockCfg::from(prog.params().kogge.as_str());
+    let index: KoggeBlockTableIndex = prog.params().into();
+    let dst: Vec<_> = dst.iter().map(|v| VarCell::from(v.clone())).collect();
+
+    kogge_cfg
+        .get(&index)
+        .and_then(|w| Some(*w..=*w))
+        .or_else(|| Some(1..=index.blk_w))
+        .unwrap()
+        .map(|w| {
+            // Build a new tree for every par_w trial, which means that we
+            // need to get fresh variables for each trial.
+            let unlink = |v: &Vec<VarCell>| v.iter().map(|v| v.unlinked()).collect();
+            let a: Vec<_> = unlink(&a);
+            let b: Vec<_> = unlink(&b);
+            let dst: Vec<_> = unlink(&dst);
+            let cin = cin.clone().and_then(|c| Some(c.unlinked()));
+            let tree = kogge_adder(prog, a, b, cin, dst, w);
+            (w, tree.estimate(prog))
+        })
+        .min_by_key(|(_, cycle_estimate)| *cycle_estimate)
+        .map(|(w, _)| {
+            kogge_cfg.entry(index).or_insert(w);
+            kogge_adder(prog, a, b, cin, dst, w)
+        })
+        .unwrap()
 }

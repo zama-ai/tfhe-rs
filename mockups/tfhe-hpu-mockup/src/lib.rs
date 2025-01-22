@@ -1,3 +1,6 @@
+#[cfg(feature = "isc-order-check")]
+use hpu_asm::dop::ToAsm;
+use hpu_asm::PbsLut;
 use std::array::from_fn;
 use std::collections::VecDeque;
 use std::io::Write;
@@ -16,14 +19,11 @@ use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::prelude::ClassicPBSParameters;
 
 mod ipc;
-mod report;
 use ipc::Ipc;
-
-mod mockup_params;
-pub use mockup_params::{MockupOptions, MockupParameters};
 
 mod modules;
 pub use modules::isc;
+pub use modules::params::{MockupOptions, MockupParameters};
 use modules::{HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 
 use tfhe::tfhe_hpu_backend::interface::io_dump::HexMem;
@@ -433,17 +433,29 @@ impl HpuSim {
                 self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
             }
             hpu_asm::DOp::PBS(op_impl) => {
-                self.apply_pbs2reg(op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
+                self.apply_pbs2reg(1, op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
             }
-            hpu_asm::DOp::PBS_ML2(_op_impl) => todo!("Add support for many-lut PBS"),
-            hpu_asm::DOp::PBS_ML4(_op_impl) => todo!("Add support for many-lut PBS"),
-            hpu_asm::DOp::PBS_ML8(_op_impl) => todo!("Add support for many-lut PBS"),
+            hpu_asm::DOp::PBS_ML2(op_impl) => {
+                self.apply_pbs2reg(2, op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
+            }
+            hpu_asm::DOp::PBS_ML4(op_impl) => {
+                self.apply_pbs2reg(4, op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
+            }
+            hpu_asm::DOp::PBS_ML8(op_impl) => {
+                self.apply_pbs2reg(8, op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
+            }
             hpu_asm::DOp::PBS_F(op_impl) => {
-                self.apply_pbs2reg(op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
+                self.apply_pbs2reg(1, op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
             }
-            hpu_asm::DOp::PBS_ML2_F(_op_impl) => todo!("Add support for many-lut PBS"),
-            hpu_asm::DOp::PBS_ML4_F(_op_impl) => todo!("Add support for many-lut PBS"),
-            hpu_asm::DOp::PBS_ML8_F(_op_impl) => todo!("Add support for many-lut PBS"),
+            hpu_asm::DOp::PBS_ML2_F(op_impl) => {
+                self.apply_pbs2reg(2, op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
+            }
+            hpu_asm::DOp::PBS_ML4_F(op_impl) => {
+                self.apply_pbs2reg(4, op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
+            }
+            hpu_asm::DOp::PBS_ML8_F(op_impl) => {
+                self.apply_pbs2reg(8, op_impl.0.dst_rid, op_impl.0.src_rid, op_impl.0.gid)
+            }
             hpu_asm::DOp::SYNC(_) => {
                 // Push ack in stream
                 let iop = self
@@ -457,33 +469,34 @@ impl HpuSim {
                 // Generate executed DOp order
                 #[cfg(feature = "isc-order-check")]
                 if let Some(dump_path) = self.options.dump_out.as_ref() {
-                    let iop_hex = iop.bin_encode_le().unwrap();
-                    let iop_opcode = iop_hex.last().unwrap();
-                    let iop_as_header = format!("# {}", iop.asm_encode(0));
+                    let iopcode = iop.opcode().0;
 
-                    let asm_p = format!("{dump_path}/dop/dop_{iop_opcode:x}_executed.asm");
-                    hpu_asm::write_asm(
-                        &iop_as_header,
-                        &self.dops_exec_order,
-                        &asm_p,
-                        hpu_asm::ARG_MIN_WIDTH,
-                    )
-                    .unwrap();
-                    let hex_p = format!("{dump_path}/iop/iop_{iop_opcode:x}_executed.hex");
-                    hpu_asm::write_hex("", self.dops_exec_order.as_slice(), &hex_p).unwrap();
+                    let asm_p = format!("{dump_path}/dop/dop_executed_{iopcode:0>2x}.asm");
+                    let hex_p = format!("{dump_path}/dop/dop_executed_{iopcode:0>2x}.hex");
+                    let dop_prog = hpu_asm::Program::new(
+                        self.dops_exec_order
+                            .iter()
+                            .map(|op| hpu_asm::AsmOp::Stmt(op.clone()))
+                            .collect::<Vec<_>>(),
+                    );
+                    dop_prog.write_asm(&asm_p).unwrap();
+                    dop_prog.write_hex(&hex_p).unwrap();
                 }
 
                 // Generate report
                 let time_rpt = self.isc.time_report();
                 let dop_rpt = self.isc.dop_report();
+                let pe_rpt = self.isc.pe_report();
                 tracing::info!("Report for IOp: {}", iop);
                 tracing::info!("{time_rpt:?}");
                 tracing::info!("{dop_rpt}");
+                tracing::info!("{pe_rpt}");
 
                 if let Some(mut rpt_file) = self.options.report_file((&iop).into()) {
                     writeln!(rpt_file, "Report for IOp: {}", iop).unwrap();
                     writeln!(rpt_file, "{time_rpt:?}").unwrap();
                     writeln!(rpt_file, "{dop_rpt}").unwrap();
+                    writeln!(rpt_file, "{pe_rpt}").unwrap();
                 }
 
                 let trace = self.isc.reset_trace();
@@ -509,26 +522,55 @@ impl HpuSim {
     /// TODO: Read PbsLut from Hbm instead of online generation based on Pbs Id
     fn apply_pbs2reg(
         &mut self,
+        opcode_lut_nb: u8,
         dst_rid: hpu_asm::RegId,
         src_rid: hpu_asm::RegId,
         gid: hpu_asm::PbsGid,
     ) {
         let mut cpu_reg = self.reg2cpu(src_rid);
         let lut = hpu_asm::Pbs::from_hex(gid).expect("Invalid PBS Gid");
+        // TODO use an assert or a simple warning
+        // In practice, hardware apply the LUT but extract only opcode_lut_nb Ct
+        assert_eq!(
+            lut.lut_nb(),
+            opcode_lut_nb,
+            "ERROR: Mismatch between PBS ML configuration and selected Lut."
+        );
 
         // Generate Lut
-        let hpu_lut = create_hpu_lookuptable(self.params.rtl_params.clone(), lut);
+        let hpu_lut = create_hpu_lookuptable(self.params.rtl_params.clone(), lut.clone());
         let mut tfhe_lut = hpu_lut.as_view().into();
 
         // Get keys and computation buffer
         let (ksk, ref mut bfr_after_ks, bsk) = self.get_server_key();
 
         // TODO add a check on trivialness for fast simulation ?
-        // TODO assert ordering
+        // TODO assert ordering (i.e. KS+PBS)
         keyswitch_lwe_ciphertext(ksk, &cpu_reg, bfr_after_ks);
         blind_rotate_ntt64_bnf_assign(bfr_after_ks, &mut tfhe_lut, &bsk);
-        extract_lwe_sample_from_glwe_ciphertext(&tfhe_lut, &mut cpu_reg, MonomialDegree(0));
-        self.cpu2reg(dst_rid, cpu_reg.as_view());
+
+        assert_eq!(
+            dst_rid.0,
+            (dst_rid.0 >> lut.lut_lg()) << lut.lut_lg(),
+            "Pbs destination register must be aligned with lut size"
+        );
+
+        // Compute ManyLut function stride
+        let fn_stride = {
+            let pbs_p = &self.params.rtl_params.pbs_params;
+            let modulus_sup = 1_usize << pbs_p.message_width + pbs_p.carry_width;
+            let box_size = pbs_p.polynomial_size / modulus_sup;
+            // Max valid degree for a ciphertext when using the LUT we generate
+            // If MaxDegree == 1, we can have two input values 0 and 1, so we need MaxDegree + 1 boxes
+            let max_degree = modulus_sup / lut.lut_nb() as usize;
+            max_degree * box_size
+        };
+
+        for fn_idx in 0..lut.lut_nb() as usize {
+            let monomial_degree = MonomialDegree(fn_idx * fn_stride);
+            extract_lwe_sample_from_glwe_ciphertext(&tfhe_lut, &mut cpu_reg, monomial_degree);
+            self.cpu2reg(hpu_asm::RegId(dst_rid.0 + fn_idx as u8), cpu_reg.as_view());
+        }
     }
 
     // NB: to prevent issues with borrow checker we have to clone the value from
@@ -709,40 +751,35 @@ impl HpuSim {
         // Check collision with all DOp before
         for dop in self.dops_check_order[0..exec_pos].iter() {
             // Read after Write check
-            let raw_err = if let Some(dst) = exec_dop.dst().get(0) {
-                dop.src()
-                    .iter()
-                    .map(|src| src == dst)
-                    .fold(false, |acc, cur| acc || cur)
-            } else {
-                false
-            };
+            let raw_err = exec_dop
+                .dst()
+                .into_iter()
+                .flat_map(|dst| dop.src().into_iter().map(move |src| dst == src))
+                .fold(false, |acc, cur| acc || cur);
 
             // Write afer read check
             // Mainly associated register is read before the expected write
-            let war_err = if let Some(dop_dst) = dop.dst().get(0) {
-                exec_dop
-                    .src()
-                    .iter()
-                    .map(|src| src == dop_dst)
-                    .fold(false, |acc, cur| acc || cur)
-            } else {
-                false
-            };
+            let war_err = dop
+                .dst()
+                .into_iter()
+                .flat_map(|dst| exec_dop.src().into_iter().map(move |src| dst == src))
+                .fold(false, |acc, cur| acc || cur);
+
+            // Write after write check
+            let waw_err = dop
+                .dst()
+                .into_iter()
+                .flat_map(|dst| exec_dop.dst().into_iter().map(move |edst| dst == edst))
+                .fold(false, |acc, cur| acc || cur);
 
             if raw_err {
-                tracing::warn!(
-                    "RAW_ERR {} -> {}",
-                    exec_dop.asm_encode(0),
-                    dop.asm_encode(0)
-                );
+                tracing::warn!("RAW_ERR {} -> {}", exec_dop, dop);
             }
             if war_err {
-                tracing::warn!(
-                    "WAR_ERR {} -> {}",
-                    exec_dop.asm_encode(0),
-                    dop.asm_encode(0)
-                );
+                tracing::warn!("WAR_ERR {} -> {}", exec_dop, dop);
+            }
+            if waw_err {
+                tracing::warn!("WAW_ERR {} -> {}", exec_dop, dop);
             }
         }
 

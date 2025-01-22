@@ -16,7 +16,7 @@ macro_rules! impl_dop_parser {
         ::paste::paste! {
             impl [<DOp $asm:camel>] {
                 fn from_args(args: &[arg::Arg]) -> Result<DOp, ParsingError> {
-                    let fmt_op = $field::from_args($opcode, args)?;
+                    let fmt_op = $field::from_args($opcode.into(), args)?;
                     Ok(DOp::[< $asm:upper >](Self(fmt_op)))
                 }
 
@@ -25,7 +25,7 @@ macro_rules! impl_dop_parser {
                 }
 
                 pub fn opcode() -> u8 {
-                    $opcode
+                    $opcode.into()
                 }
             }
 
@@ -63,13 +63,13 @@ macro_rules! impl_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<DOp $asm:camel>](pub PeArithInsn);
 
             impl [<DOp $asm:camel>] {
                 pub fn new(dst: RegId, src0: RegId, src1: RegId) -> Self {
                     Self(PeArithInsn {
-                        opcode: Opcode($opcode as u8),
+                        opcode: $opcode,
                         mul_factor: MulFactor(0),
                         src1_rid: src1,
                         src0_rid: src0,
@@ -88,13 +88,13 @@ macro_rules! impl_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<DOp $asm:camel>](pub PeArithInsn);
 
             impl [<DOp $asm:camel>] {
                 pub fn new(dst_rid: RegId, src0_rid: RegId, src1_rid: RegId, mul_factor: MulFactor) -> Self {
                     Self(PeArithInsn {
-                        opcode: Opcode($opcode as u8),
+                        opcode: $opcode,
                         mul_factor,
                         src1_rid,
                         src0_rid,
@@ -113,13 +113,13 @@ macro_rules! impl_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<DOp $asm:camel>](pub PeArithMsgInsn);
 
             impl [<DOp $asm:camel>] {
                 pub fn new(dst_rid: RegId, src_rid: RegId, msg_cst: ImmId) -> Self {
                     Self(PeArithMsgInsn {
-                        opcode: Opcode($opcode as u8),
+                        opcode: $opcode,
                         msg_cst,
                         src_rid,
                         dst_rid,
@@ -143,13 +143,13 @@ macro_rules! impl_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<DOp $asm:camel>](pub PeMemInsn);
 
             impl [<DOp $asm:camel>] {
                 pub fn new(rid: RegId, mid: MemId) -> Self {
                     Self(PeMemInsn {
-                        opcode: Opcode($opcode as u8),
+                        opcode: $opcode,
                         slot: mid,
                         rid,
                         })
@@ -179,13 +179,13 @@ macro_rules! impl_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<DOp $asm:camel>](pub PeMemInsn);
 
             impl [<DOp $asm:camel>] {
                 pub fn new( mid: MemId, rid: RegId) -> Self {
                     Self(PeMemInsn {
-                        opcode: Opcode($opcode as u8),
+                        opcode: $opcode,
                         slot: mid,
                         rid,
                         })
@@ -215,13 +215,13 @@ macro_rules! impl_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<DOp $asm:camel>](pub PePbsInsn);
 
             impl [<DOp $asm:camel>] {
                 pub fn new(dst_rid: RegId, src_rid: RegId, gid: PbsGid) -> Self {
                     Self(PePbsInsn {
-                        opcode: Opcode($opcode as u8),
+                        opcode: $opcode,
                         gid,
                         src_rid,
                         dst_rid,
@@ -240,13 +240,13 @@ macro_rules! impl_dop {
         $(,)?
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<DOp $asm:camel>](pub PeSyncInsn);
 
             impl [<DOp $asm:camel>] {
                 pub fn new(sid: Option<SyncId>) -> Self {
                     Self(PeSyncInsn {
-                        opcode: Opcode($opcode as u8),
+                        opcode: $opcode,
                         sid: sid.unwrap_or(SyncId(0))
                         })
                 }
@@ -271,7 +271,7 @@ macro_rules! dop {
 
             /// Aggregate DOp concrete type in one enumeration
             // #[derive(Debug, Clone)]
-            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             #[enum_dispatch(ToAsm, ToHex)]
             #[allow(non_camel_case_types)]
             pub enum DOp{
@@ -348,7 +348,7 @@ macro_rules! dop {
 
                     $(
                         dop_from_arg.asm.insert(stringify!([< $asm:upper >]).to_string(), [<DOp $asm:camel >]::from_args);
-                        dop_from_arg.hex.insert($opcode, [<DOp $asm:camel >]::from_hex);
+                        dop_from_arg.hex.insert(u8::from($opcode), [<DOp $asm:camel >]::from_hex);
                     )*
                     dop_from_arg
                 };

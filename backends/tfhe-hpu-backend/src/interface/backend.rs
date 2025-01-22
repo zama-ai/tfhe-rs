@@ -2,7 +2,8 @@
 use super::*;
 use crate::asm::PbsLut;
 use crate::entities::*;
-use crate::fw::{Fw, FwParameters};
+use crate::fw::isc_sim::InstructionKind;
+use crate::fw::{Fw, FwParameters, isc_sim::IscSimParameters};
 use crate::{asm, ffi};
 use rtl::FromRtl;
 
@@ -19,6 +20,7 @@ pub struct HpuBackend {
 
     // Extracted parameters
     pub(crate) params: HpuParameters,
+    pub(crate) sim_params: IscSimParameters,
     // Prevent to parse regmap at each polling iteration
     workq_addr: u64,
     ackq_addr: u64,
@@ -89,6 +91,8 @@ impl HpuBackend {
         let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
 
         let params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
+        let sim_params = IscSimParameters::from_ron(&config.firmware.sim);
+
         // Flush ack_q
         // Ensure that no residue from previous execution were stall in the pipe
         let ackq_addr = (*regmap
@@ -229,6 +233,7 @@ impl HpuBackend {
             hpu_hw,
             regmap,
             params,
+            sim_params,
             workq_addr,
             ackq_addr,
             bsk_key,
@@ -546,15 +551,26 @@ impl HpuBackend {
     pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
         // Create Asm architecture properties and Fw instanciation
         // TODO construct from real params
-        let fw_arch_props = FwParameters {
+        let pbs_batch_w = self.sim_params.pe_cfg.0
+            .iter()
+            .filter_map(|(_,pe)| match pe.kind {
+                InstructionKind::Pbs => Some(pe.batch_size),
+                _ => None
+            })
+            .next()
+            .unwrap();
+        let fw_params = FwParameters {
             regs: self.params.regf_params.reg_nb,
             heap_size: config.board.heap_size,
-            pbs_batch_w: config.firmware.pbs_batch_w,
+            pbs_batch_w,
             msg_w: 2,
             carry_w: 2,
             nu: 5,
             // TODO extend with multi-width support
             integer_w: config.firmware.integer_w[0],
+            ipip: config.firmware.ipip,
+            kogge: config.firmware.kogge.clone(),
+            sim_params: self.sim_params.clone(),
         };
 
         let mut fw = crate::fw::fw_impl::ilp::Ilp::default();
@@ -564,7 +580,7 @@ impl HpuBackend {
             .iter()
             .map(|iop| {
                 let opcode = iop.opcode();
-                let prog = fw.expand(&fw_arch_props, iop);
+                let prog = fw.expand(&fw_params, iop);
                 (opcode.0 as usize, prog.tr_table())
             })
             .collect::<Vec<_>>();

@@ -9,6 +9,7 @@ use std::fs::OpenOptions;
 use std::path::Path;
 
 use hpu_sim::{HpuSim, MockupOptions, MockupParameters};
+use tfhe::tfhe_hpu_backend::fw::isc_sim::{IscSimParameters, PeConfigStore};
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 /// Define CLI arguments
@@ -141,6 +142,8 @@ fn main() {
     let config = HpuConfig::read_from(&args.config);
     let params = {
         let mut params = MockupParameters::from_ron(&args.params);
+        params.isc_sim_params = IscSimParameters::from_ron(&config.firmware.sim);
+
         // Override some parameters if required
         if let Some(freq_mhz) = args.freq_mhz.as_ref() {
             params.isc_sim_params.freq_MHz = *freq_mhz;
@@ -152,7 +155,7 @@ fn main() {
             params.isc_sim_params.isc_depth = *isc_depth;
         }
         if let Some(pe_cfg) = args.pe_cfg.as_ref() {
-            params.isc_sim_params.pe_cfg = pe_cfg.clone();
+            params.isc_sim_params.pe_cfg = PeConfigStore::from_ron(pe_cfg);
         }
         params
     };

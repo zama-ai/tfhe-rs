@@ -14,7 +14,9 @@ crate::hpu_testbundle!("alus"::32 => [
 #[cfg(feature = "hpu-xfer")]
 crate::hpu_testbundle!("alu"::32 => [
     "add",
+    "addk",
     "sub",
+    "subk",
     "mul"
 ]);
 

@@ -11,43 +11,44 @@ use std::collections::HashMap;
 use crate::{dop, impl_dop, impl_dop_parser};
 pub use arg::{FromAsm, ParsingError, ToAsm};
 pub use field::{
-    ImmId, MemId, MulFactor, Opcode, PbsGid, PeArithInsn, PeArithMsgInsn, PeMemInsn, PePbsInsn,
-    PeSyncInsn, RegId, SyncId,
+    ImmId, MemId, MulFactor, PbsGid, PeArithInsn, PeArithMsgInsn, PeMemInsn, PePbsInsn, PeSyncInsn,
+    RegId, SyncId,
 };
 pub use fmt::{
     DOpRawHex, DOpRepr, PeArithHex, PeArithMsgHex, PeMemHex, PePbsHex, PeSyncHex, ToHex,
 };
+pub use opcode::{DOpType, Opcode};
 
 dop!(
     // Arith operation
-    ["ADD", opcode::ADD, PeArithInsn],
-    ["SUB", opcode::SUB, PeArithInsn],
-    ["MAC", opcode::MAC, PeArithInsn{mul_factor}],
+    ["ADD", opcode::Opcode::ADD(), PeArithInsn],
+    ["SUB", opcode::Opcode::SUB(), PeArithInsn],
+    ["MAC", opcode::Opcode::MAC(), PeArithInsn{mul_factor}],
 
     // ArithMsg operation
-    ["ADDS", opcode::ADDS, PeArithMsgInsn],
-    ["SUBS", opcode::SUBS, PeArithMsgInsn],
-    ["SSUB", opcode::SSUB, PeArithMsgInsn],
-    ["MULS", opcode::MULS, PeArithMsgInsn],
+    ["ADDS", opcode::Opcode::ADDS(), PeArithMsgInsn],
+    ["SUBS", opcode::Opcode::SUBS(), PeArithMsgInsn],
+    ["SSUB", opcode::Opcode::SSUB(), PeArithMsgInsn],
+    ["MULS", opcode::Opcode::MULS(), PeArithMsgInsn],
 
     // Ld/st operation
-    ["LD", opcode::LD, PeMemInsn{ld}],
-    ["ST", opcode::ST, PeMemInsn{st}]
+    ["LD", opcode::Opcode::LD(), PeMemInsn{ld}],
+    ["ST", opcode::Opcode::ST(), PeMemInsn{st}]
 
     // Pbs operation
-    ["PBS", opcode::PBS, PePbsInsn],
-    ["PBS_ML2", opcode::PBS_ML2, PePbsInsn],
-    ["PBS_ML4", opcode::PBS_ML4, PePbsInsn],
-    ["PBS_ML8", opcode::PBS_ML8, PePbsInsn],
+    ["PBS", opcode::Opcode::PBS(1), PePbsInsn],
+    ["PBS_ML2", opcode::Opcode::PBS(2), PePbsInsn],
+    ["PBS_ML4", opcode::Opcode::PBS(4), PePbsInsn],
+    ["PBS_ML8", opcode::Opcode::PBS(8), PePbsInsn],
 
     // Pbs flush operation
-    ["PBS_F", opcode::PBS_F, PePbsInsn],
-    ["PBS_ML2_F", opcode::PBS_ML2_F, PePbsInsn],
-    ["PBS_ML4_F", opcode::PBS_ML4_F, PePbsInsn],
-    ["PBS_ML8_F", opcode::PBS_ML8_F, PePbsInsn],
+    ["PBS_F", opcode::Opcode::PBS_F(1), PePbsInsn],
+    ["PBS_ML2_F", opcode::Opcode::PBS_F(2), PePbsInsn],
+    ["PBS_ML4_F", opcode::Opcode::PBS_F(4), PePbsInsn],
+    ["PBS_ML8_F", opcode::Opcode::PBS_F(8), PePbsInsn],
 
     // Sync operation
-    ["SYNC", opcode::SYNC, PeSyncInsn],
+    ["SYNC", opcode::Opcode::SYNC(), PeSyncInsn],
 );
 
 #[derive(Debug, Clone, Copy)]
@@ -97,8 +98,14 @@ impl DigitParameters {
 pub trait PbsLut {
     fn name(&self) -> &'static str;
     fn gid(&self) -> PbsGid;
-    fn eval(&self, params: &DigitParameters, val: usize) -> usize;
-    fn degree(&self, params: &DigitParameters, deg: usize) -> usize;
+    fn lut_nb(&self) -> u8;
+    fn lut_lg(&self) -> u8;
+    fn fn_at(&self, pos: usize, params: &DigitParameters, val: usize) -> usize;
+    fn deg_at(&self, pos: usize, params: &DigitParameters, deg: usize) -> usize;
+    // Blanket implementation
+    fn lut_msk(&self) -> usize {
+        usize::max_value()<<self.lut_lg()
+    }
 }
 
 use crate::{impl_pbs, pbs};
@@ -107,128 +114,272 @@ use pbs_macro::{CMP_EQUAL, CMP_INFERIOR, CMP_SUPERIOR};
 
 pbs!(
 ["None" => 0 [
-    |_params: &DigitParameters, val | val,
-    |_params: &DigitParameters, deg| deg,
+    @0 =>{
+        |_params: &DigitParameters, val | val;
+        |_params: &DigitParameters, deg| deg;
+    }
 ]],
 ["MsgOnly" => 1 [
-    |params: &DigitParameters, val | val & params.msg_mask(),
-    |params: &DigitParameters, _deg| params.msg_mask(),
+    @0 =>{
+        |params: &DigitParameters, val | val & params.msg_mask();
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
 ]],
 ["CarryOnly" => 2 [
-    |params: &DigitParameters, val | val & params.carry_mask(),
-    |params: &DigitParameters, _deg| params.carry_mask(),
+    @0 =>{
+        |params: &DigitParameters, val | val & params.carry_mask();
+        |params: &DigitParameters, _deg| params.carry_mask();
+    }
 ]],
 ["CarryInMsg" => 3 [
-    |params: &DigitParameters, val | (val & params.carry_mask()) >> params.msg_w,
-    |params: &DigitParameters, _deg| params.msg_mask(),
+    @0 =>{
+        |params: &DigitParameters, val | (val & params.carry_mask()) >> params.msg_w;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
 ]]
 ["MultCarryMsg" => 4 [
-    |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) & params.data_mask(),
-    |params: &DigitParameters, _deg| params.data_mask(),
+    @0 =>{
+        |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) & params.data_mask();
+        |params: &DigitParameters, _deg| params.data_mask();
+    }
 ]],
 ["MultCarryMsgLsb" => 5 [
-    |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) & params.msg_mask(),
-    |params: &DigitParameters, _deg| params.msg_mask(),
+    @0 =>{
+        |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) & params.msg_mask();
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
 ]],
 ["MultCarryMsgMsb" => 6 [
-    |params: &DigitParameters, val | ((((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) >> params.msg_w) & params.msg_mask(),
-    |params: &DigitParameters, _deg| params.msg_mask(),
+    @0 =>{
+        |params: &DigitParameters, val | ((((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) >> params.msg_w) & params.msg_mask();
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
 ]],
 ["BwAnd" => 7 [
-    |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) & (val & params.msg_mask())) & params.msg_mask(),
-    |params: &DigitParameters, _deg| params.msg_mask(),
+    @0 =>{
+        |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) & (val & params.msg_mask())) & params.msg_mask();
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
 ]],
 ["BwOr" => 8 [
-    |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) | (val & params.msg_mask())) & params.msg_mask(),
-    |params: &DigitParameters, _deg| params.msg_mask(),
+    @0 =>{
+        |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) | (val & params.msg_mask())) & params.msg_mask();
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
 ]],
 ["BwXor" => 9 [
-    |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) ^ (val & params.msg_mask())) & params.msg_mask(),
-    |params: &DigitParameters, _deg| params.msg_mask(),
+    @0 =>{
+        |params: &DigitParameters, val | (((val & params.carry_mask()) >> params.msg_w) ^ (val & params.msg_mask())) & params.msg_mask();
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
 ]],
 
 ["CmpSign" => 10 [
-    |params: &DigitParameters, val | {
-        // Signed comparaison with 0. Based on behavior of negacyclic function.
-        // Example for Padding| 4bit digits (i.e 2msg2Carry)
-        // 1|xxxx -> SignLut -> -1 -> 0|1111
-        // x|0000 -> SignLut ->  0 -> 0|0000
-        // 0|xxxx -> SignLut ->  1 -> 0|0001
-        if val != 0 {
-            if 0b1 ==  val >> (params.msg_w + params.carry_w) {
-                params.data_mask()
-            } else {
-                1
-            }
-        } else {0}
-    },
-    // WARN: in practice return value with padding that could encode -1, 0, 1
-    //       But should always be follow by an add to reach back range 0, 1, 2
-    //       To ease degree handling considered an output degree of 1 to obtain
-    //       degree 2 after add
-    // Not a perfect solution but the easiest to prevent degree error
-    |_params: &DigitParameters, _deg| 1,
+    @0 =>{
+        |params: &DigitParameters, val | {
+            // Signed comparaison with 0. Based on behavior of negacyclic function.
+            // Example for Padding| 4bit digits (i.e 2msg2Carry)
+            // 1|xxxx -> SignLut -> -1 -> 0|1111
+            // x|0000 -> SignLut ->  0 -> 0|0000
+            // 0|xxxx -> SignLut ->  1 -> 0|0001
+            if val != 0 {
+                if 0b1 ==  val >> (params.msg_w + params.carry_w) {
+                    params.data_mask()
+                } else {
+                    1
+                }
+            } else {0}
+        };
+        // WARN: in practice return value with padding that could encode -1, 0, 1
+        //       But should always be follow by an add to reach back range 0, 1, 2
+        //       To ease degree handling considered an output degree of 1 to obtain
+        //       degree 2 after add
+        // Not a perfect solution but the easiest to prevent degree error
+        |_params: &DigitParameters, _deg| 1;
+    }
 ]],
 ["CmpReduce" => 11 [
-    |params: &DigitParameters, val | {
-        // Carry contain MSB cmp result, msg LSB cmp result
-        // Reduction is made from lsb to msb as follow
-        // MSB      | LSB | Out
-        // Inferior | x   | Inferior
-        // Equal    | x   | x
-        // Superior | x   | Superior
-        let carry_field = (val & params.carry_mask()) >> params.msg_w;
-        let msg_field = val & params.msg_mask();
+    @0 =>{
+        |params: &DigitParameters, val | {
+            // Carry contain MSB cmp result, msg LSB cmp result
+            // Reduction is made from lsb to msb as follow
+            // MSB      | LSB | Out
+            // Inferior | x   | Inferior
+            // Equal    | x   | x
+            // Superior | x   | Superior
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
 
-        match (carry_field, msg_field) {
-            (CMP_EQUAL, lsb_cmp) => lsb_cmp,
-            _ => carry_field
-        }
-    },
-    |_params: &DigitParameters, _deg| 2,
+            match (carry_field, msg_field) {
+                (CMP_EQUAL, lsb_cmp) => lsb_cmp,
+                _ => carry_field
+            }
+        };
+        |_params: &DigitParameters, _deg| 2;
+    }
 ]]
 
 ["CmpGt" => 12 [
-    |params: &DigitParameters, val | match val & params.msg_mask() {
-        CMP_SUPERIOR => 1,
-        _ => 0,
-    },
-    |_params: &DigitParameters, _deg| 1,
+    @0 =>{
+        |params: &DigitParameters, val | match val & params.msg_mask() {
+            CMP_SUPERIOR => 1,
+            _ => 0,
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
 ]],
 ["CmpGte" => 13 [
-    |params: &DigitParameters, val | match val & params.msg_mask() {
-        CMP_SUPERIOR | CMP_EQUAL => 1,
-        _ => 0,
-    },
-    |_params: &DigitParameters, _deg| 1,
+    @0 =>{
+        |params: &DigitParameters, val | match val & params.msg_mask() {
+            CMP_SUPERIOR | CMP_EQUAL => 1,
+            _ => 0,
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
 ]],
 // Could be merge with Gt/Gte
 ["CmpLt" => 14 [
-    |params: &DigitParameters, val | match val & params.msg_mask() {
-        CMP_INFERIOR => 1,
-        _ => 0,
-    },
-    |_params: &DigitParameters, _deg| 1,
+    @0 =>{
+        |params: &DigitParameters, val | match val & params.msg_mask() {
+            CMP_INFERIOR => 1,
+            _ => 0,
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
 ]],
 ["CmpLte" => 15 [
-    |params: &DigitParameters, val | match val & params.msg_mask() {
-        CMP_INFERIOR | CMP_EQUAL => 1,
-        _ => 0,
-    },
-    |_params: &DigitParameters, _deg| 1,
+    @0 =>{
+        |params: &DigitParameters, val | match val & params.msg_mask() {
+            CMP_INFERIOR | CMP_EQUAL => 1,
+            _ => 0,
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
 ]],
 ["CmpEq" => 16 [
-    |params: &DigitParameters, val | match val & params.msg_mask() {
-        CMP_EQUAL => 1,
-        _ => 0,
-    },
-    |_params: &DigitParameters, _deg| 1,
+    @0 =>{
+        |params: &DigitParameters, val | match val & params.msg_mask() {
+            CMP_EQUAL => 1,
+            _ => 0,
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
 ]],
 ["CmpNeq" => 17 [
-    |params: &DigitParameters, val | match val & params.msg_mask() {
-        CMP_EQUAL => 0,
-        _ => 1,
+    @0 =>{
+        |params: &DigitParameters, val | match val & params.msg_mask() {
+            CMP_EQUAL => 0,
+            _ => 1,
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["ManyGenProp" => 18 [ // Turns carry save into a generate/propagate pair and message with manyLUT
+    @0 =>{
+        |params: &DigitParameters, val| { val & params.msg_mask()};
+        |params: &DigitParameters, _deg| params.msg_mask();
     },
-    |_params: &DigitParameters, _deg| 1,
+    @1 =>{
+        |params: &DigitParameters, val| {
+               ((val & params.carry_mask()) >> (params.msg_w)) |                // Generate
+               (((val & params.msg_mask()) == params.msg_mask()) as usize) << 1 // Propagate
+           };
+        |_params: &DigitParameters, _deg| 3;
+    }
+]],
+["GenPropMerge" => 19 [ // merges two generate/propagate pairs
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let lhs =  val & params.msg_mask();
+           let rhs = (val & params.carry_mask()) >> params.msg_w;
+           let (lhs_prop, lhs_gen) = (((lhs & 2) >> 1), lhs & 1);
+           let (rhs_prop, rhs_gen) = (((rhs & 2) >> 1), rhs & 1);
+           let (gen, prop) = (
+               (rhs_gen | rhs_prop & lhs_gen),
+               (rhs_prop & lhs_prop),
+           );
+           (prop << 1) | gen
+       };
+        |_params: &DigitParameters, _deg| 3;
+    }
+]],
+["GenPropAdd" => 20 [ // Adds a generate/propagate pair with a message modulus message
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let lhs =  val & params.msg_mask();
+           let rhs = (val & params.carry_mask()) >> params.msg_w;
+           let rhs_gen = rhs & 1;
+           (lhs + rhs_gen) & params.msg_mask()
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+
+// Below Pbs are defined for Test only
+["TestMany2" => 21 [
+    @0 =>{
+        |_params: &DigitParameters, val | val;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |_params: &DigitParameters, val | val +1;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+]],
+["TestMany4" => 22 [
+    @0 =>{
+        |_params: &DigitParameters, val | val;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |_params: &DigitParameters, val | val +1;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @2 =>{
+        |_params: &DigitParameters, val | val +2;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @3 =>{
+        |_params: &DigitParameters, val | val +3;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+]],
+["TestMany8" => 23 [
+    @0 =>{
+        |_params: &DigitParameters, val | val;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |_params: &DigitParameters, val | val +1;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @2 =>{
+        |_params: &DigitParameters, val | val +2;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @3 =>{
+        |_params: &DigitParameters, val | val +3;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @4 =>{
+        |_params: &DigitParameters, val | val +4;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @5 =>{
+        |_params: &DigitParameters, val | val +5;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @6 =>{
+        |_params: &DigitParameters, val | val +6;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @7 =>{
+        |_params: &DigitParameters, val | val +7;
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
 ]],
 );
+
+pub(crate) fn ceil_ilog2(value: &u8) -> u8 {
+    (value.ilog2() + u32::from(!value.is_power_of_two())) as u8
+}
