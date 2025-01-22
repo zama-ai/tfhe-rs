@@ -1144,7 +1144,7 @@ mod test {
     use super::*;
     use crate::core_crypto::prelude::UnsignedInteger;
     use crate::prelude::*;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::shortint::parameters::{AtomicPatternKind, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
     use crate::shortint::{CiphertextModulus, PBSOrder};
     use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
     use rand::{thread_rng, Rng};
@@ -1222,7 +1222,8 @@ mod test {
                 ct.ciphertext.as_cpu_mut().blocks.push(cloned_block);
             },
             &|i, ct: &mut Ct| {
-                ct.ciphertext.as_cpu_mut().blocks[i].pbs_order = PBSOrder::BootstrapKeyswitch;
+                ct.ciphertext.as_cpu_mut().blocks[i].atomic_pattern =
+                    AtomicPatternKind::Classical(PBSOrder::BootstrapKeyswitch);
             },
         ];
 

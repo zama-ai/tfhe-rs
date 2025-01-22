@@ -9,7 +9,7 @@ use crate::shortint::backward_compatibility::ciphertext::{
     CompressedModulusSwitchedCiphertextVersions,
     InternalCompressedModulusSwitchedCiphertextVersions,
 };
-use crate::shortint::parameters::CiphertextConformanceParams;
+use crate::shortint::parameters::{AtomicPatternKind, CiphertextConformanceParams};
 use crate::shortint::{CarryModulus, MessageModulus};
 
 /// An object to store a ciphertext using less memory.
@@ -45,7 +45,7 @@ pub struct CompressedModulusSwitchedCiphertext {
     pub(crate) degree: Degree,
     pub(crate) message_modulus: MessageModulus,
     pub(crate) carry_modulus: CarryModulus,
-    pub(crate) pbs_order: PBSOrder,
+    pub(crate) atomic_pattern: AtomicPatternKind,
 }
 
 impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
@@ -57,13 +57,13 @@ impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
         } = self;
 
         compressed_modulus_switched_lwe_ciphertext.is_conformant(&param.ct_params)
             && *message_modulus == param.message_modulus
             && *carry_modulus == param.carry_modulus
-            && *pbs_order == param.pbs_order
+            && *atomic_pattern == param.atomic_pattern
             && *degree == param.degree
     }
 }

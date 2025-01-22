@@ -45,6 +45,7 @@ pub mod v1_0;
 pub use aliases::*;
 pub use v1_0 as current_params;
 
+pub use super::atomic_pattern::AtomicPatternKind;
 use super::backward_compatibility::parameters::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionParamsVersions;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use super::server_key::PBSConformanceParams;
@@ -123,7 +124,7 @@ pub struct CiphertextConformanceParams {
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
     pub noise_level: NoiseLevel,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPatternKind,
 }
 
 /// Structure to store the expected properties of a compressed ciphertext
@@ -137,7 +138,7 @@ pub struct CompressedCiphertextConformanceParams {
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
     pub noise_level: NoiseLevel,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPatternKind,
 }
 
 /// Structure to store the expected properties of a ciphertext list
@@ -166,7 +167,7 @@ impl CiphertextConformanceParams {
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
             degree: self.degree,
-            expansion_kind: self.pbs_order.into(),
+            expansion_kind: self.atomic_pattern.into(),
         }
     }
 }

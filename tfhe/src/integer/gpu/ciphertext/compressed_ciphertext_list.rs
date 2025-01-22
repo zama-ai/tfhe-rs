@@ -13,6 +13,7 @@ use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey, CudaPackedGlweCiphertextList,
 };
 use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
+use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::PBSOrder;
 use itertools::Itertools;
 use serde::{Deserializer, Serializer};
@@ -235,13 +236,13 @@ impl CudaCompressedCiphertextList {
         }
 
         let count = CiphertextCount(self.packed_list.bodies_count);
-        let pbs_order = PBSOrder::KeyswitchBootstrap;
+        let atomic_pattern = AtomicPatternKind::Classical(PBSOrder::KeyswitchBootstrap);
         let packed_list = ShortintCompressedCiphertextList {
             modulus_switched_glwe_ciphertext_list,
             ciphertext_modulus,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             lwe_per_glwe,
             count,
         };

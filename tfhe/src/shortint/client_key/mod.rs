@@ -13,7 +13,8 @@ use crate::shortint::backward_compatibility::client_key::ClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{
-    DynamicDistribution, EncryptionKeyChoice, MessageModulus, ShortintParameterSet,
+    AtomicPatternKind, DynamicDistribution, EncryptionKeyChoice, MessageModulus,
+    ShortintParameterSet,
 };
 use crate::shortint::CarryModulus;
 use secret_encryption_key::SecretEncryptionKeyView;
@@ -250,6 +251,8 @@ impl ClientKey {
 
     #[cfg(test)]
     pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
+        use crate::shortint::parameters::AtomicPatternKind;
+
         let params = self.parameters;
 
         let lwe_size = params.encryption_lwe_dimension().to_lwe_size();
@@ -259,7 +262,7 @@ impl ClientKey {
             lwe_size,
             params.message_modulus(),
             params.carry_modulus(),
-            PBSOrder::from(params.encryption_key_choice()),
+            AtomicPatternKind::Classical(PBSOrder::from(params.encryption_key_choice())),
             params.ciphertext_modulus(),
         )
     }
@@ -513,9 +516,13 @@ impl ClientKey {
     }
 
     pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> Plaintext<u64> {
-        let lwe_decryption_key = match ct.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
-            PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
+        let lwe_decryption_key = match ct.atomic_pattern {
+            AtomicPatternKind::Classical(PBSOrder::KeyswitchBootstrap) => {
+                self.large_lwe_secret_key()
+            }
+            AtomicPatternKind::Classical(PBSOrder::BootstrapKeyswitch) => {
+                self.small_lwe_secret_key()
+            }
         };
         decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct)
     }
