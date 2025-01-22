@@ -10,16 +10,31 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  MSG_MINIMAL: event,action url,commit
+  BRANCH: ${{ github.head_ref || github.ref }}
   # We clear the cache to reduce memory pressure because of the numerous processes of cargo
   # nextest
   TFHE_RS_CLEAR_IN_MEMORY_KEY_CACHE: "1"
   NO_BIG_PARAMS: FALSE
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
+  # Trigger pull_request event on CI files to be able to test changes before merging to main branch.
+  # Workflow would fail if changes come from a forked repository since secrets are not available with this event.
   pull_request:
-    types: [labeled]
+    types: [ labeled ]
+    paths:
+      - '.github/**'
+      - 'ci/**'
+  # General entry point for Zama's pull request as well as contribution from forks.
+  pull_request_target:
+    types: [ labeled ]
+    paths:
+      - '**'
+      - '!.github/**'
+      - '!ci/**'
   push:
     branches:
       - main
@@ -29,11 +44,11 @@ jobs:
     if:
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
-      (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) ||
+      ((github.event_name == 'pull_request_target' || github.event_name == 'pull_request_target') && contains(github.event.label.name, 'approved')) ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      pull-requests: read
     outputs:
       integer_test: ${{ github.event_name == 'workflow_dispatch' ||
         steps.changed-files.outputs.integer_any_changed }}
@@ -44,6 +59,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Check for file changes
         id: changed-files
@@ -61,13 +77,30 @@ jobs:
               - tfhe/src/integer/**
               - .github/workflows/aws_tfhe_signed_integer_tests.yml
 
+  check-ci-files:
+    uses: ./.github/workflows/check_ci_files_change.yml
+    with:
+      checkout_ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+  # Fail if the triggering actor is not part of Zama organization.
+  # If pull_request_target is emitted and CI files have changed, skip this job. This would skip following jobs.
+  check-user-permission:
+    needs: check-ci-files
+    if: github.event_name != 'pull_request_target' ||
+      (github.event_name == 'pull_request_target' && needs.check-ci-files.outputs.ci_file_changed == 'false')
+    uses: ./.github/workflows/check_actor_permissions.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (unsigned-integer-tests)
-    needs: should-run
+    needs: [ should-run, check-user-permission ]
     if:
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs' && needs.should-run.outputs.integer_test == 'true') ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
-      (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) ||
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.integer_test == 'true') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
@@ -88,7 +121,7 @@ jobs:
     name: Signed integer tests
     needs: setup-instance
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+      group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
@@ -97,6 +130,7 @@ jobs:
         with:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
@@ -104,7 +138,7 @@ jobs:
           toolchain: stable
 
       - name: Should skip big parameters set
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         run: |
           echo "NO_BIG_PARAMS=TRUE" >> "${GITHUB_ENV}"
 
@@ -134,7 +168,7 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Signed Integer tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Signed Integer tests finished with status: ${{ job.status }} on '${{ env.BRANCH }}'. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (signed-integer-tests)
@@ -158,4 +192,4 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (signed-integer-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (signed-integer-tests) finished with status: ${{ job.status }} on '${{ env.BRANCH }}'. (${{ env.ACTION_RUN_URL }})"
