@@ -186,7 +186,7 @@ The following example shows how to compress and decompress a list containing 4 m
 ```rust
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::{
-    COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_2_CARRY_2,
+    COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
 };
 use tfhe::{
     set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
@@ -195,7 +195,7 @@ use tfhe::{
 
 fn main() {
     let config =
-        tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2)
+        tfhe::ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS)
             .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2)
             .build();
 
