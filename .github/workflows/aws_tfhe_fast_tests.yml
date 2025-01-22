@@ -32,6 +32,8 @@ on:
       - '!.github/**'
       - '!ci/**'
 
+# A change in CI file
+
 jobs:
   should-run:
     runs-on: ubuntu-latest
