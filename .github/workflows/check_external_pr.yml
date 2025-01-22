@@ -1,0 +1,32 @@
+# Check if a pull request fulfill pre-conditions to be accepted
+name: Check PR from fork
+
+on:
+  pull_request_target:
+    paths:
+      - '.github/**'
+      - 'ci/**'
+
+jobs:
+  # Fail if the triggering actor is not part of Zama organization.
+  check-user-permission:
+    name: Check event user permissions
+    uses: ./.github/workflows/check_actor_permissions.yml
+    with:
+      username: ${{ github.event.pull_request.user.login }}
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  write-comment:
+    name: Write PR comment
+    if: ${{ always() && needs.check-user-permission.outputs.is_authorized == 'false' }}
+    needs: check-user-permission
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Write warning
+        uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b
+        with:
+          message: |
+            CI files have changed. Only Zama organization members are authorized to modify these files.
