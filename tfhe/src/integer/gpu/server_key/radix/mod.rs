@@ -24,6 +24,7 @@ use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::{
     fill_accumulator, fill_accumulator_no_encoding, fill_many_lut_accumulator,
 };
+use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::server_key::{
     BivariateLookupTableOwned, LookupTableOwned, ManyLookupTableOwned,
 };
@@ -199,7 +200,7 @@ impl CudaServerKey {
                 degree: Degree::new(block_value),
                 message_modulus: self.message_modulus,
                 carry_modulus: self.carry_modulus,
-                pbs_order: self.pbs_order,
+                atomic_pattern: AtomicPatternKind::Classical(self.pbs_order),
                 noise_level: NoiseLevel::ZERO,
             });
         }

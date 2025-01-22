@@ -47,6 +47,7 @@
 //! let output = client_key.decrypt(&ct_3);
 //! assert_eq!(output, 1);
 //! ```
+pub mod atomic_pattern;
 pub mod backward_compatibility;
 pub mod ciphertext;
 pub mod client_key;
@@ -72,8 +73,9 @@ pub use client_key::ClientKey;
 pub(crate) use encoding::{PaddingBit, ShortintEncoding};
 pub use key_switching_key::{CompressedKeySwitchingKey, KeySwitchingKey, KeySwitchingKeyView};
 pub use parameters::{
-    CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel,
-    MessageModulus, MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
+    AtomicPatternKind, CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice,
+    MaxNoiseLevel, MessageModulus, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
+    WopbsParameters,
 };
 pub use public_key::{
     CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
