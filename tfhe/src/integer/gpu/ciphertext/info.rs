@@ -1,12 +1,13 @@
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
+use crate::shortint::parameters::AtomicPatternKind;
+use crate::shortint::{CarryModulus, MessageModulus};
 
 #[derive(Clone, Copy)]
 pub struct CudaBlockInfo {
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPatternKind,
     pub noise_level: NoiseLevel,
 }
 
@@ -31,7 +32,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(1),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
+                    atomic_pattern: left.atomic_pattern,
                     noise_level,
                 })
                 .collect(),
@@ -47,7 +48,7 @@ impl CudaRadixCiphertextInfo {
                     degree: Degree::new(b.message_modulus.0 - 1),
                     message_modulus: b.message_modulus,
                     carry_modulus: b.carry_modulus,
-                    pbs_order: b.pbs_order,
+                    atomic_pattern: b.atomic_pattern,
                     noise_level: b.noise_level,
                 })
                 .collect(),
@@ -66,7 +67,7 @@ impl CudaRadixCiphertextInfo {
                 degree: Degree::new(0),
                 message_modulus: self.blocks.first().unwrap().message_modulus,
                 carry_modulus: self.blocks.first().unwrap().carry_modulus,
-                pbs_order: self.blocks.first().unwrap().pbs_order,
+                atomic_pattern: self.blocks.first().unwrap().atomic_pattern,
                 noise_level: NoiseLevel::ZERO,
             });
         }
@@ -93,7 +94,7 @@ impl CudaRadixCiphertextInfo {
                 degree: Degree::new(0),
                 message_modulus: self.blocks.first().unwrap().message_modulus,
                 carry_modulus: self.blocks.first().unwrap().carry_modulus,
-                pbs_order: self.blocks.first().unwrap().pbs_order,
+                atomic_pattern: self.blocks.first().unwrap().atomic_pattern,
                 noise_level: NoiseLevel::ZERO,
             });
         }
