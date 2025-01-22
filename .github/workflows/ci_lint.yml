@@ -14,6 +14,9 @@ jobs:
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get actionlint
         run: |
@@ -31,3 +34,4 @@ jobs:
         with:
           allowlist: |
             slsa-framework/slsa-github-generator
+            ./

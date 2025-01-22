@@ -11,16 +11,29 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  MSG_MINIMAL: event,action url,commit
+  BRANCH: ${{ github.head_ref || github.ref }}
   FAST_TESTS: TRUE
   NIGHTLY_TESTS: FALSE
+  REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
+  # Trigger pull_request event on CI files to be able to test changes before merging to main branch.
+  # Workflow would fail if changes come from a forked repository since secrets are not available with this event.
   pull_request:
-    types:
-      - opened
-      - synchronize
+    types: [ labeled ]
+    paths:
+      - '.github/**'
+      - 'ci/**'
+  # General entry point for Zama's pull request as well as contribution from forks.
+  pull_request_target:
+    types: [ labeled ]
+    paths:
+      - '**'
+      - '!.github/**'
+      - '!ci/**'
   schedule:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
@@ -29,7 +42,7 @@ jobs:
   should-run:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      pull-requests: read
     outputs:
       gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
     steps:
@@ -39,6 +52,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Check for file changes
         id: changed-files
@@ -63,9 +77,26 @@ jobs:
               - scripts/integer-tests.sh
               - ci/slab.toml
 
+  check-ci-files:
+    uses: ./.github/workflows/check_ci_files_change.yml
+    with:
+      checkout_ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+  # Fail if the triggering actor is not part of Zama organization.
+  # If pull_request_target is emitted and CI files have changed, skip this job. This would skip following jobs.
+  check-user-permission:
+    needs: check-ci-files
+    if: github.event_name != 'pull_request_target' ||
+      (github.event_name == 'pull_request_target' && needs.check-ci-files.outputs.ci_file_changed == 'false')
+    uses: ./.github/workflows/check_triggering_actor.yml
+    secrets:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   setup-instance:
     name: Setup instance (cuda-unsigned-integer-tests)
-    needs: should-run
+    needs: [ should-run, check-user-permission ]
     if: (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name == 'workflow_dispatch' ||
       needs.should-run.outputs.gpu_test == 'true'
@@ -87,10 +118,10 @@ jobs:
   cuda-unsigned-integer-tests:
     name: CUDA unsigned integer tests
     needs: [ should-run, setup-instance ]
-    if: github.event_name != 'pull_request' ||
-      (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
+    if: github.event_name != 'pull_request_target' ||
+      (github.event_name == 'pull_request_target' && needs.setup-instance.result != 'skipped')
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}
+      group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
@@ -104,6 +135,10 @@ jobs:
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          ref: ${{ env.REF }}
 
       - name: Setup Hyperstack dependencies
         uses: ./.github/actions/hyperstack_setup
@@ -143,7 +178,7 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ needs.cuda-unsigned-integer-tests.result }}
-          SLACK_MESSAGE: "Unsigned integer GPU tests finished with status: ${{ needs.cuda-unsigned-integer-tests.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Unsigned integer GPU tests finished with status: ${{ needs.cuda-unsigned-integer-tests.result }} on '${{ env.BRANCH }}'. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (cuda-tests)
@@ -167,4 +202,4 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-unsigned-integer-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (cuda-unsigned-integer-tests) finished with status: ${{ job.status }} on '${{ env.BRANCH }}'. (${{ env.ACTION_RUN_URL }})"
