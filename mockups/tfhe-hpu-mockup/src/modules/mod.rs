@@ -7,7 +7,9 @@ pub(crate) use hbm::{HbmBank, HBM_BANK_NB};
 pub(crate) mod regmap;
 pub(crate) use regmap::{RegisterEvent, RegisterMap};
 
-pub mod isc;
-
 pub(crate) mod ucore;
 pub(crate) use ucore::UCore;
+
+pub(crate) mod params;
+
+pub use tfhe::tfhe_hpu_backend::fw::isc_sim as isc;
