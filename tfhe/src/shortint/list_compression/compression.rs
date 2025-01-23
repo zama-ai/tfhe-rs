@@ -12,7 +12,7 @@ use crate::shortint::server_key::{
     apply_programmable_bootstrap_no_ms_noise_reduction, generate_lookup_table_with_encoding,
     unchecked_scalar_mul_assign, ShortintBootstrappingKey,
 };
-use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
+use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
 
@@ -219,11 +219,7 @@ impl DecompressionKey {
         }
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (_ciphertext_buffers, buffers) = engine.get_buffers_no_sk(
-                self.blind_rotate_key.input_lwe_dimension(),
-                self.blind_rotate_key.output_lwe_dimension(),
-                CiphertextModulus::new_native(),
-            );
+            let buffers = engine.get_computation_buffers();
 
             apply_programmable_bootstrap_no_ms_noise_reduction(
                 &self.blind_rotate_key,
