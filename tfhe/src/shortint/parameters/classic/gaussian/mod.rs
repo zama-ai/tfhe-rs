@@ -1,7 +1,10 @@
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
 
+pub mod p_fail_2_minus_128;
+pub mod p_fail_2_minus_40;
 pub mod p_fail_2_minus_64;
+pub mod p_fail_2_minus_80;
 
 pub const ALL_PARAMETER_VEC_GAUSSIAN: [ClassicPBSParameters; 40] = [
     V0_11_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64,
