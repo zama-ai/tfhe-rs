@@ -306,7 +306,7 @@ impl NoiseSquashingKey {
         );
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let buffers = &mut engine.computation_buffers;
+            let buffers = engine.get_computation_buffers();
             buffers.resize(mem_requirement);
 
             programmable_bootstrap_f128_lwe_ciphertext_mem_optimized(

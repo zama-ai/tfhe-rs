@@ -672,7 +672,8 @@ mod experimental {
             let fft = fft.as_view();
 
             ShortintEngine::with_thread_local_mut(|engine| {
-                engine.computation_buffers.resize(
+                let buffers = engine.get_computation_buffers();
+                buffers.resize(
                     extract_bits_from_lwe_ciphertext_mem_optimized_requirement::<u64>(
                         ciphertext.ct.lwe_size().to_lwe_dimension(),
                         ksk.output_key_lwe_dimension(),
@@ -684,7 +685,7 @@ mod experimental {
                     .unaligned_bytes_required(),
                 );
 
-                let stack = engine.computation_buffers.stack();
+                let stack = buffers.stack();
 
                 match bsk {
                     ShortintBootstrappingKey::Classic {
@@ -751,12 +752,12 @@ mod experimental {
             let acc = self.pbs_server_key.generate_lookup_table(|x| x);
 
             ShortintEngine::with_thread_local_mut(|engine| {
-                let (mut ciphertext_buffers, buffers) = engine.get_buffers(&self.pbs_server_key);
+                let (mut ciphertext_buffer, buffers) = engine.get_buffers(&self.pbs_server_key);
                 // Compute a key switch
                 keyswitch_lwe_ciphertext(
                     &self.pbs_server_key.key_switching_key,
                     &ct_in.ct,
-                    &mut ciphertext_buffers.buffer_lwe_after_ks,
+                    &mut ciphertext_buffer,
                 );
 
                 let ct_out = match &self.pbs_server_key.bootstrapping_key {
@@ -783,7 +784,7 @@ mod experimental {
 
                         // Compute a bootstrap
                         programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                            &ciphertext_buffers.buffer_lwe_after_ks,
+                            &ciphertext_buffer,
                             &mut ct_out,
                             &acc.acc,
                             fourier_bsk,
@@ -869,7 +870,8 @@ mod experimental {
             let fft = fft.as_view();
 
             ShortintEngine::with_thread_local_mut(|engine| {
-                engine.computation_buffers.resize(
+                let buffers = engine.get_computation_buffers();
+                buffers.resize(
                     circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement::<u64>(
                         extracted_bits.lwe_ciphertext_count(),
                         output_cbs_vp_ct.lwe_ciphertext_count(),
@@ -885,7 +887,7 @@ mod experimental {
                         .unaligned_bytes_required(),
                 );
 
-                let stack = engine.computation_buffers.stack();
+                let stack = buffers.stack();
 
                 match &sks.bootstrapping_key {
                     ShortintBootstrappingKey::Classic{bsk, modulus_switch_noise_reduction_key:_ } => {
