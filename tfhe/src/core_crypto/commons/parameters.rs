@@ -267,7 +267,7 @@ pub struct MessageModulusLog(pub usize);
 pub struct ThreadCount(pub usize);
 
 /// The number of key bits grouped together in the multi_bit PBS
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, Serialize, Deserialize, Versionize)]
 #[versionize(LweBskGroupingFactorVersions)]
 pub struct LweBskGroupingFactor(pub usize);
 

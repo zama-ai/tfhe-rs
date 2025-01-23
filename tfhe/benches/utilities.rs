@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::{env, fs};
 use tfhe::core_crypto::prelude::*;

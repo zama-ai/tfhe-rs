@@ -1,7 +1,9 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+use crate::utilities::{
+    multi_bit_num_threads, write_to_json, CryptoParametersRecord, OperatorType,
+};
 use criterion::{black_box, criterion_main, Criterion};
 use rayon::prelude::*;
 use serde::Serialize;
@@ -16,8 +18,52 @@ use tfhe::shortint::parameters::*;
 
 const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 1] =
     [PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128];
+// const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 1] =
+//     [PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64];
+//
+// const SHORTINT_BENCH_PARAMS_GAUSSIAN: [ClassicPBSParameters; 4] = [
+//     V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+//     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+//     V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+//     V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+// ];
+
+const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 4] = [
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M80,
+    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+    V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+];
 
 const SHORTINT_BENCH_PARAMS_GAUSSIAN: [ClassicPBSParameters; 4] = [
+    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
     V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
@@ -96,19 +142,201 @@ fn multi_bit_benchmark_parameters_64bits(
 ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
     let parameters = if cfg!(feature = "gpu") {
         vec![
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
         ]
     } else {
         vec![
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
             V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
             V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            V1_0_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
         ]
     };
 
@@ -133,8 +361,8 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     let bench_name = "core_crypto::pbs_mem_optimized";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -363,8 +591,8 @@ fn multi_bit_pbs<
     let bench_name = "core_crypto::multi_bit_pbs";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -419,6 +647,13 @@ fn multi_bit_pbs<
             params.ciphertext_modulus.unwrap(),
         );
 
+        let thread_count = multi_bit_num_threads(
+            params.message_modulus.unwrap(),
+            params.carry_modulus.unwrap(),
+            grouping_factor.0,
+        )
+        .unwrap() as usize;
+
         let id = format!("{bench_name}::{name}::parallelized");
         bench_group.bench_function(&id, |b| {
             b.iter(|| {
@@ -427,7 +662,7 @@ fn multi_bit_pbs<
                     &mut out_pbs_ct,
                     &accumulator.as_view(),
                     &multi_bit_bsk,
-                    ThreadCount(10),
+                    ThreadCount(thread_count),
                     false,
                 );
                 black_box(&mut out_pbs_ct);
@@ -456,8 +691,8 @@ fn multi_bit_deterministic_pbs<
     let bench_name = "core_crypto::multi_bit_deterministic_pbs";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -544,8 +779,8 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
     let bench_name = "core_crypto::pbs_ntt";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -698,8 +933,8 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
     let bench_name = "core_crypto::pbs_throughput";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -836,9 +1071,24 @@ mod cuda {
     use tfhe::shortint::parameters::*;
     use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
 
-    const SHORTINT_CUDA_BENCH_PARAMS: [ClassicPBSParameters; 14] = [
+    const SHORTINT_CUDA_BENCH_PARAMS: [ClassicPBSParameters; 31] = [
         // TUniform
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
+        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
+        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
+        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
+        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
+        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
+        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
+        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
         // Gaussian
         V1_0_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M128,
         V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
@@ -853,6 +1103,22 @@ mod cuda {
         V1_0_PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M128,
         V1_0_PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M128,
         V1_0_PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M128,
+        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
+        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
+        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
+        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
+        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
+        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
+        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
+        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
+        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
     ];
 
     fn cuda_benchmark_parameters_64bits() -> Vec<(String, CryptoParametersRecord<u64>)> {
@@ -876,8 +1142,8 @@ mod cuda {
         let bench_name = "core_crypto::cuda::pbs";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .sample_size(10)
+            .measurement_time(std::time::Duration::from_secs(30));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -997,8 +1263,8 @@ mod cuda {
         let bench_name = "core_crypto::cuda::multi_bit_pbs";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .sample_size(10)
+            .measurement_time(std::time::Duration::from_secs(30));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -1119,8 +1385,8 @@ mod cuda {
         let bench_name = "core_crypto::cuda::pbs_throughput";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .sample_size(10)
+            .measurement_time(std::time::Duration::from_secs(30));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -1259,8 +1525,8 @@ mod cuda {
         let bench_name = "core_crypto::cuda::multi_bit_pbs_throughput";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .sample_size(10)
+            .measurement_time(std::time::Duration::from_secs(30));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -1427,15 +1693,15 @@ use cuda::{
 pub fn pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
     mem_optimized_pbs(&mut criterion, &benchmark_parameters_64bits());
-    mem_optimized_pbs(&mut criterion, &benchmark_parameters_32bits());
-    mem_optimized_pbs_ntt(&mut criterion);
-    mem_optimized_batched_pbs(&mut criterion, &benchmark_parameters_64bits());
+    // mem_optimized_pbs(&mut criterion, &benchmark_parameters_32bits());
+    // mem_optimized_pbs_ntt(&mut criterion);
+    // mem_optimized_batched_pbs(&mut criterion, &benchmark_parameters_64bits());
 }
 
 pub fn multi_bit_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
     multi_bit_pbs(&mut criterion, &multi_bit_benchmark_parameters_64bits());
-    multi_bit_deterministic_pbs(&mut criterion, &multi_bit_benchmark_parameters_64bits());
+    //multi_bit_deterministic_pbs(&mut criterion, &multi_bit_benchmark_parameters_64bits());
 }
 
 pub fn pbs_throughput_group() {
@@ -1445,11 +1711,12 @@ pub fn pbs_throughput_group() {
 }
 
 #[cfg(not(feature = "gpu"))]
-criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
+criterion_main!(pbs_group);
+// criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
 #[cfg(feature = "gpu")]
 criterion_main!(
     cuda_pbs_group,
     cuda_multi_bit_pbs_group,
-    cuda_pbs_throughput_group,
-    cuda_multi_bit_pbs_throughput_group
+    // cuda_pbs_throughput_group,
+    // cuda_multi_bit_pbs_throughput_group
 );
