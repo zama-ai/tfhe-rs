@@ -146,7 +146,7 @@ impl ServerKey {
         let mut ct = LweCiphertext::new(0, out_lwe_size, self.ciphertext_modulus);
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (_, buffers) = engine.get_buffers(self);
+            let buffers = engine.get_computation_buffers();
 
             apply_programmable_bootstrap_no_ms_noise_reduction(
                 &self.bootstrapping_key,
