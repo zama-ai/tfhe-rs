@@ -24,19 +24,18 @@ impl ServerKey {
     ) -> CompressedModulusSwitchedCiphertext {
         let compressed_modulus_switched_lwe_ciphertext =
             ShortintEngine::with_thread_local_mut(|engine| {
-                let (mut ciphertext_buffers, _) = engine.get_buffers(self);
+                let (mut ciphertext_buffer, _) = engine.get_buffers(self);
                 match self.pbs_order {
                     PBSOrder::KeyswitchBootstrap => {
                         keyswitch_lwe_ciphertext(
                             &self.key_switching_key,
                             &ct.ct,
-                            &mut ciphertext_buffers.buffer_lwe_after_ks,
+                            &mut ciphertext_buffer,
                         );
                     }
-                    PBSOrder::BootstrapKeyswitch => ciphertext_buffers
-                        .buffer_lwe_after_ks
-                        .as_mut()
-                        .copy_from_slice(ct.ct.as_ref()),
+                    PBSOrder::BootstrapKeyswitch => {
+                        ciphertext_buffer.as_mut().copy_from_slice(ct.ct.as_ref())
+                    }
                 }
 
                 match &self.bootstrapping_key {
@@ -49,18 +48,21 @@ impl ServerKey {
 
                         let input_improved_before_ms;
 
+                        // The solution suggested by clippy does not work because of the capture of
+                        // `input_improved_before_ms`
+                        #[allow(clippy::option_if_let_else)]
                         let input_modulus_switch = if let Some(modulus_switch_noise_reduction_key) =
                             modulus_switch_noise_reduction_key
                         {
                             input_improved_before_ms = apply_modulus_switch_noise_reduction(
                                 modulus_switch_noise_reduction_key,
                                 log_modulus,
-                                &ciphertext_buffers.buffer_lwe_after_ks,
+                                &ciphertext_buffer,
                             );
 
                             input_improved_before_ms.as_view()
                         } else {
-                            ciphertext_buffers.buffer_lwe_after_ks.as_view()
+                            ciphertext_buffer.as_view()
                         };
 
                         InternalCompressedModulusSwitchedCiphertext::Classic(
@@ -73,7 +75,7 @@ impl ServerKey {
                     ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
                         InternalCompressedModulusSwitchedCiphertext::MultiBit(
                             CompressedModulusSwitchedMultiBitLweCiphertext::compress(
-                                &ciphertext_buffers.buffer_lwe_after_ks,
+                                &ciphertext_buffer,
                                 self.bootstrapping_key
                                     .polynomial_size()
                                     .to_blind_rotation_input_modulus_log(),
@@ -150,7 +152,7 @@ impl ServerKey {
         );
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(self);
 
             match &self.bootstrapping_key {
                 ShortintBootstrappingKey::Classic { .. } => {
@@ -163,7 +165,7 @@ impl ServerKey {
                     apply_programmable_bootstrap_no_ms_noise_reduction(
                         &self.bootstrapping_key,
                         &ct,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &mut ciphertext_buffer,
                         &acc.acc,
                         buffers,
                     );
@@ -197,7 +199,7 @@ impl ServerKey {
 
                     extract_lwe_sample_from_glwe_ciphertext(
                         &local_accumulator,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &mut ciphertext_buffer,
                         MonomialDegree(0),
                     );
                 }
@@ -206,11 +208,11 @@ impl ServerKey {
             match self.pbs_order {
                 PBSOrder::KeyswitchBootstrap => output
                     .as_mut()
-                    .copy_from_slice(ciphertext_buffers.buffer_lwe_after_pbs.into_container()),
+                    .copy_from_slice(ciphertext_buffer.into_container()),
                 PBSOrder::BootstrapKeyswitch => {
                     keyswitch_lwe_ciphertext(
                         &self.key_switching_key,
-                        &ciphertext_buffers.buffer_lwe_after_pbs,
+                        &ciphertext_buffer,
                         &mut output,
                     );
                 }
