@@ -135,12 +135,11 @@ pub fn keyswitch_lwe_ciphertext_into_glwe_ciphertext<Scalar, KeyCont, InputCont,
     );
 
     assert!(
-        lwe_pksk.ciphertext_modulus() == input_lwe_ciphertext.ciphertext_modulus(),
-        "Mismatched CiphertextModulus. \
-        LwePackingKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
-        lwe_pksk.ciphertext_modulus(),
+         input_lwe_ciphertext.ciphertext_modulus().is_compatible_with_native_modulus(),
+        "input LweCiphertext CiphertextModulus {:?} must be is compatible with native modulus for decomposition",
         input_lwe_ciphertext.ciphertext_modulus()
     );
+
     assert!(
         lwe_pksk.ciphertext_modulus() == output_glwe_ciphertext.ciphertext_modulus(),
         "Mismatched CiphertextModulus. \
@@ -334,12 +333,11 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
     );
 
     assert!(
-        lwe_pksk.ciphertext_modulus() == input_lwe_ciphertext.ciphertext_modulus(),
-        "Mismatched CiphertextModulus. \
-        LwePackingKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
-        lwe_pksk.ciphertext_modulus(),
-        input_lwe_ciphertext.ciphertext_modulus()
-    );
+        input_lwe_ciphertext.ciphertext_modulus().is_compatible_with_native_modulus(),
+       "input LweCiphertext CiphertextModulus {:?} must be is compatible with native modulus for decomposition",
+       input_lwe_ciphertext.ciphertext_modulus()
+   );
+
     assert!(
         lwe_pksk.ciphertext_modulus() == output_glwe_ciphertext.ciphertext_modulus(),
         "Mismatched CiphertextModulus. \
@@ -665,12 +663,11 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext_with_thread
     );
 
     assert!(
-        lwe_pksk.ciphertext_modulus() == input_lwe_ciphertext_list.ciphertext_modulus(),
-        "Mismatched CiphertextModulus. \
-        LwePackingKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
-        lwe_pksk.ciphertext_modulus(),
-        input_lwe_ciphertext_list.ciphertext_modulus()
-    );
+        input_lwe_ciphertext_list.ciphertext_modulus().is_compatible_with_native_modulus(),
+       "input LweCiphertext CiphertextModulus {:?} must be is compatible with native modulus for decomposition",
+       input_lwe_ciphertext_list.ciphertext_modulus()
+   );
+
     assert!(
         lwe_pksk.ciphertext_modulus() == output_glwe_ciphertext.ciphertext_modulus(),
         "Mismatched CiphertextModulus. \
