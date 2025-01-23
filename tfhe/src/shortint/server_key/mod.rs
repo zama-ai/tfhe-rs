@@ -819,18 +819,18 @@ impl ServerKey {
         }
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(self);
             match self.pbs_order {
                 PBSOrder::KeyswitchBootstrap => {
                     keyswitch_lwe_ciphertext(
                         &self.key_switching_key,
                         &ct.ct,
-                        &mut ciphertext_buffers.buffer_lwe_after_ks,
+                        &mut ciphertext_buffer,
                     );
 
                     apply_programmable_bootstrap(
                         &self.bootstrapping_key,
-                        &ciphertext_buffers.buffer_lwe_after_ks,
+                        &ciphertext_buffer,
                         &mut ct.ct,
                         &acc.acc,
                         buffers,
@@ -840,14 +840,14 @@ impl ServerKey {
                     apply_programmable_bootstrap(
                         &self.bootstrapping_key,
                         &ct.ct,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &mut ciphertext_buffer,
                         &acc.acc,
                         buffers,
                     );
 
                     keyswitch_lwe_ciphertext(
                         &self.key_switching_key,
-                        &ciphertext_buffers.buffer_lwe_after_pbs,
+                        &ciphertext_buffer,
                         &mut ct.ct,
                     );
                 }
@@ -1280,18 +1280,14 @@ impl ServerKey {
 
         ShortintEngine::with_thread_local_mut(|engine| {
             // Compute the programmable bootstrapping with fixed test polynomial
-            let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(self);
 
             // Compute a key switch
-            keyswitch_lwe_ciphertext(
-                &self.key_switching_key,
-                &ct.ct,
-                &mut ciphertext_buffers.buffer_lwe_after_ks,
-            );
+            keyswitch_lwe_ciphertext(&self.key_switching_key, &ct.ct, &mut ciphertext_buffer);
 
             apply_blind_rotate(
                 &self.bootstrapping_key,
-                &ciphertext_buffers.buffer_lwe_after_ks.as_view(),
+                &ciphertext_buffer.as_view(),
                 &mut acc,
                 buffers,
             );
@@ -1332,7 +1328,7 @@ impl ServerKey {
 
         ShortintEngine::with_thread_local_mut(|engine| {
             // Compute the programmable bootstrapping with fixed test polynomial
-            let (_, buffers) = engine.get_buffers(self);
+            let buffers = engine.get_computation_buffers();
 
             apply_blind_rotate(&self.bootstrapping_key, &ct.ct, &mut acc, buffers);
         });
