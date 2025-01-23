@@ -18,6 +18,8 @@ FAST_BENCH?=FALSE
 NIGHTLY_TESTS?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
 BENCH_TYPE?=latency
+BENCH_PARAM_TYPE?=classical
+BENCH_PARAMS_SET?=default
 NODE_VERSION=22.6
 BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.git
 BACKWARD_COMPAT_DATA_BRANCH?=v0.5
@@ -1158,6 +1160,13 @@ bench_boolean: install_rs_check_toolchain
 bench_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+
+.PHONY: bench_ks_pbs # Run benchmarks for KS-PBS
+bench_ks_pbs: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench ks-pbs-bench \
 	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
 .PHONY: bench_pbs128 # Run benchmarks for PBS using FFT 128 bits

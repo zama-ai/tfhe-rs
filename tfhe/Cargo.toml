@@ -160,6 +160,12 @@ harness = false
 required-features = ["boolean", "shortint", "internal-keycache"]
 
 [[bench]]
+name = "ks-pbs-bench"
+path = "benches/core_crypto/ks_pbs_bench.rs"
+harness = false
+required-features = ["shortint", "internal-keycache"]
+
+[[bench]]
 name = "dev-bench"
 path = "benches/core_crypto/dev_bench.rs"
 harness = false
