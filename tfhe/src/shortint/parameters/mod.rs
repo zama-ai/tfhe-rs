@@ -42,15 +42,34 @@ pub use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 use crate::shortint::ciphertext::MaxDegree;
 pub use crate::shortint::parameters::classic::compact_pk::*;
+pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_128::ks_pbs::*;
+pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_40::ks_pbs::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
+pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_80::ks_pbs::*;
+pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_128::ks_pbs::*;
+pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_40::ks_pbs::*;
 pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
+pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_80::ks_pbs::*;
 pub use crate::shortint::parameters::list_compression::{
     CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
+pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_128::ks_pbs::*;
+pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_128::ks_pbs_gpu::*;
+pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_40::ks_pbs::*;
+pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_40::ks_pbs_gpu::*;
 pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs_gpu::*;
+pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_80::ks_pbs::*;
+pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_80::ks_pbs_gpu::*;
+pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_128::ks_pbs::*;
+pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_128::ks_pbs_gpu::*;
+pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_40::ks_pbs::*;
+pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_40::ks_pbs_gpu::*;
+pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::*;
+pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_80::ks_pbs::*;
+pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_80::ks_pbs_gpu::*;
 pub use compact_public_key_only::{
     CastingFunctionsOwned, CastingFunctionsView, CompactCiphertextListExpansionKind,
     CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
