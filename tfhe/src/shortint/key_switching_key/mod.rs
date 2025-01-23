@@ -631,7 +631,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                             .zip(functions_to_use.par_iter())
                             .for_each(|(correct_key_ct, function)| {
                                 ShortintEngine::with_thread_local_mut(|engine| {
-                                    let (_, buffers) = engine.get_buffers(self.dest_server_key);
+                                    let buffers = engine.get_computation_buffers();
                                     let acc = self.dest_server_key.generate_lookup_table(function);
                                     apply_programmable_bootstrap(
                                         &self.dest_server_key.bootstrapping_key,
@@ -681,7 +681,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                             .zip(functions_to_use.par_iter())
                             .for_each(|(correct_key_ct, function)| {
                                 ShortintEngine::with_thread_local_mut(|engine| {
-                                    let (_, buffers) = engine.get_buffers(self.dest_server_key);
+                                    let buffers = engine.get_computation_buffers();
                                     let acc = self.dest_server_key.generate_lookup_table(|n| {
                                         // Call the function on the shifted arrival
                                         // value
@@ -744,7 +744,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                             .zip(functions_to_use.par_iter())
                             .for_each(|(correct_key_ct, function)| {
                                 ShortintEngine::with_thread_local_mut(|engine| {
-                                    let (_, buffers) = engine.get_buffers(self.dest_server_key);
+                                    let buffers = engine.get_computation_buffers();
                                     let acc = self.dest_server_key.generate_lookup_table(function);
                                     apply_programmable_bootstrap(
                                         &self.dest_server_key.bootstrapping_key,
