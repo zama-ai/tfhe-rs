@@ -5,10 +5,13 @@
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::math::fft::{
     par_convert_polynomials_list_to_fourier, Fft, FftView,
 };
+
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use rayon::prelude::*;
 use tfhe_fft::c64;
 
 /// Convert an [`LWE multi_bit bootstrap key`](`LweMultiBitBootstrapKey`) with standard
@@ -98,4 +101,48 @@ pub fn par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier<Scalar, Input
         input_bsk.polynomial_size(),
         fft,
     );
+}
+
+pub fn par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_128<
+    Scalar,
+    InputCont,
+    OutputCont,
+>(
+    input_bsk: &LweMultiBitBootstrapKey<InputCont>,
+    output_bsk: &mut Fourier128LweMultiBitBootstrapKey<OutputCont>,
+) where
+    Scalar: UnsignedTorus,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = f64>,
+{
+    let fft = Fft128::new(input_bsk.polynomial_size());
+    let fft = fft.as_view();
+
+    assert_eq!(input_bsk.polynomial_size(), output_bsk.polynomial_size());
+
+    let fourier_poly_size = output_bsk.polynomial_size().to_fourier_polynomial_size();
+
+    let (data_re0, data_re1, data_im0, data_im1) = output_bsk.as_mut_view().data();
+
+    data_re0
+        .par_chunks_exact_mut(fourier_poly_size.0)
+        .zip(
+            data_re1.par_chunks_exact_mut(fourier_poly_size.0).zip(
+                data_im0
+                    .par_chunks_exact_mut(fourier_poly_size.0)
+                    .zip(data_im1.par_chunks_exact_mut(fourier_poly_size.0)),
+            ),
+        )
+        .zip(input_bsk.as_polynomial_list().par_iter())
+        .for_each(
+            |((fourier_re0, (fourier_re1, (fourier_im0, fourier_im1))), coef_poly)| {
+                fft.forward_as_torus(
+                    fourier_re0,
+                    fourier_re1,
+                    fourier_im0,
+                    fourier_im1,
+                    coef_poly.as_ref(),
+                );
+            },
+        );
 }
