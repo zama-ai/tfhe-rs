@@ -23,26 +23,25 @@ impl ServerKey {
     ) -> CompressedModulusSwitchedCiphertext {
         let compressed_modulus_switched_lwe_ciphertext =
             ShortintEngine::with_thread_local_mut(|engine| {
-                let (mut ciphertext_buffers, _) = engine.get_buffers(self);
+                let (mut ciphertext_buffer, _) = engine.get_buffers(self);
                 match self.pbs_order {
                     PBSOrder::KeyswitchBootstrap => {
                         keyswitch_lwe_ciphertext(
                             &self.key_switching_key,
                             &ct.ct,
-                            &mut ciphertext_buffers.buffer_lwe_after_ks,
+                            &mut ciphertext_buffer,
                         );
                     }
-                    PBSOrder::BootstrapKeyswitch => ciphertext_buffers
-                        .buffer_lwe_after_ks
-                        .as_mut()
-                        .copy_from_slice(ct.ct.as_ref()),
+                    PBSOrder::BootstrapKeyswitch => {
+                        ciphertext_buffer.as_mut().copy_from_slice(ct.ct.as_ref())
+                    }
                 }
 
                 match &self.bootstrapping_key {
                     ShortintBootstrappingKey::Classic(_) => {
                         InternalCompressedModulusSwitchedCiphertext::Classic(
                             CompressedModulusSwitchedLweCiphertext::compress(
-                                &ciphertext_buffers.buffer_lwe_after_ks,
+                                &ciphertext_buffer,
                                 self.bootstrapping_key
                                     .polynomial_size()
                                     .to_blind_rotation_input_modulus_log(),
@@ -52,7 +51,7 @@ impl ServerKey {
                     ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
                         InternalCompressedModulusSwitchedCiphertext::MultiBit(
                             CompressedModulusSwitchedMultiBitLweCiphertext::compress(
-                                &ciphertext_buffers.buffer_lwe_after_ks,
+                                &ciphertext_buffer,
                                 self.bootstrapping_key
                                     .polynomial_size()
                                     .to_blind_rotation_input_modulus_log(),
@@ -129,7 +128,7 @@ impl ServerKey {
         );
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(self);
 
             match &self.bootstrapping_key {
                 ShortintBootstrappingKey::Classic(_) => {
@@ -142,7 +141,7 @@ impl ServerKey {
                     apply_programmable_bootstrap(
                         &self.bootstrapping_key,
                         &ct,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &mut ciphertext_buffer,
                         &acc.acc,
                         buffers,
                     );
@@ -176,7 +175,7 @@ impl ServerKey {
 
                     extract_lwe_sample_from_glwe_ciphertext(
                         &local_accumulator,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &mut ciphertext_buffer,
                         MonomialDegree(0),
                     );
                 }
@@ -185,11 +184,11 @@ impl ServerKey {
             match self.pbs_order {
                 PBSOrder::KeyswitchBootstrap => output
                     .as_mut()
-                    .copy_from_slice(ciphertext_buffers.buffer_lwe_after_pbs.into_container()),
+                    .copy_from_slice(ciphertext_buffer.into_container()),
                 PBSOrder::BootstrapKeyswitch => {
                     keyswitch_lwe_ciphertext(
                         &self.key_switching_key,
-                        &ciphertext_buffers.buffer_lwe_after_pbs,
+                        &ciphertext_buffer,
                         &mut output,
                     );
                 }
