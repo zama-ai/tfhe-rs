@@ -122,7 +122,9 @@ __host__ void are_all_comparisons_block_true(
         };
         generate_device_accumulator<Torus>(
             streams[0], gpu_indexes[0], is_max_value_lut->get_lut(0, 1),
-            glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+            is_max_value_lut->get_degree(1),
+            is_max_value_lut->get_max_degree(1), glwe_dimension,
+            polynomial_size, message_modulus, carry_modulus,
             is_equal_to_num_blocks_lut_f);
 
         Torus *h_lut_indexes = (Torus *)malloc(num_chunks * sizeof(Torus));
@@ -460,7 +462,8 @@ __host__ void tree_sign_reduction(
     f = sign_handler_f;
   }
   generate_device_accumulator<Torus>(
-      streams[0], gpu_indexes[0], last_lut->get_lut(0, 0), glwe_dimension,
+      streams[0], gpu_indexes[0], last_lut->get_lut(0, 0),
+      last_lut->get_degree(0), last_lut->get_max_degree(0), glwe_dimension,
       polynomial_size, message_modulus, carry_modulus, f);
   last_lut->broadcast_lut(streams, gpu_indexes, 0);
 

@@ -644,13 +644,11 @@ void rotate_left(Torus *buffer, int mid, uint32_t array_length) {
 /// scaling is done in the output space, as there are more bits in the output
 /// space, the delta is smaller hence the apparent "division" happening.
 template <typename Torus>
-void generate_lookup_table_with_encoding(Torus *acc, uint32_t glwe_dimension,
-                                         uint32_t polynomial_size,
-                                         uint32_t input_message_modulus,
-                                         uint32_t input_carry_modulus,
-                                         uint32_t output_message_modulus,
-                                         uint32_t output_carry_modulus,
-                                         std::function<Torus(Torus)> f) {
+uint64_t generate_lookup_table_with_encoding(
+    Torus *acc, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t input_message_modulus, uint32_t input_carry_modulus,
+    uint32_t output_message_modulus, uint32_t output_carry_modulus,
+    std::function<Torus(Torus)> f) {
 
   uint32_t input_modulus_sup = input_message_modulus * input_carry_modulus;
   uint32_t output_modulus_sup = output_message_modulus * output_carry_modulus;
@@ -662,12 +660,14 @@ void generate_lookup_table_with_encoding(Torus *acc, uint32_t glwe_dimension,
   memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
 
   auto body = &acc[glwe_dimension * polynomial_size];
+  uint64_t degree = 0;
 
   // This accumulator extracts the carry bits
   for (int i = 0; i < input_modulus_sup; i++) {
     int index = i * box_size;
     for (int j = index; j < index + box_size; j++) {
       auto f_eval = f(i);
+      degree = max(degree, f_eval);
       body[j] = f_eval * output_delta;
     }
   }
@@ -680,22 +680,23 @@ void generate_lookup_table_with_encoding(Torus *acc, uint32_t glwe_dimension,
   }
 
   rotate_left<Torus>(body, half_box_size, polynomial_size);
+  return degree;
 }
 
 template <typename Torus>
-void generate_lookup_table(Torus *acc, uint32_t glwe_dimension,
-                           uint32_t polynomial_size, uint32_t message_modulus,
-                           uint32_t carry_modulus,
-                           std::function<Torus(Torus)> f) {
-  generate_lookup_table_with_encoding(acc, glwe_dimension, polynomial_size,
-                                      message_modulus, carry_modulus,
-                                      message_modulus, carry_modulus, f);
+uint64_t generate_lookup_table(Torus *acc, uint32_t glwe_dimension,
+                               uint32_t polynomial_size,
+                               uint32_t message_modulus, uint32_t carry_modulus,
+                               std::function<Torus(Torus)> f) {
+  return generate_lookup_table_with_encoding(
+      acc, glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+      message_modulus, carry_modulus, f);
 }
 
 template <typename Torus>
-void generate_many_lookup_table(
-    Torus *acc, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t message_modulus, uint32_t carry_modulus,
+uint64_t generate_many_lookup_table(
+    Torus *acc, uint64_t *degrees, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
     std::vector<std::function<Torus(Torus)>> &functions) {
 
   uint32_t modulus_sup = message_modulus * carry_modulus;
@@ -713,6 +714,10 @@ void generate_many_lookup_table(
 
   // Space used for each sub lut
   uint32_t single_function_sub_lut_size = (modulus_sup / fn_counts) * box_size;
+  uint64_t max_degree = (modulus_sup / fn_counts - 1);
+  for (int f = 0; f < fn_counts; f++) {
+    degrees[f] = 0;
+  }
 
   // This accumulator extracts the carry bits
   for (int f = 0; f < fn_counts; f++) {
@@ -721,6 +726,7 @@ void generate_many_lookup_table(
       int index = i * box_size + lut_offset;
       for (int j = index; j < index + box_size; j++) {
         auto f_eval = functions[f](i);
+        degrees[f] = max(f_eval, degrees[f]);
         body[j] = f_eval * delta;
       }
     }
@@ -733,14 +739,15 @@ void generate_many_lookup_table(
   }
 
   rotate_left<Torus>(body, half_box_size, polynomial_size);
+  return max_degree;
 }
 
 template <typename Torus>
-void generate_lookup_table_bivariate(Torus *acc, uint32_t glwe_dimension,
-                                     uint32_t polynomial_size,
-                                     uint32_t message_modulus,
-                                     uint32_t carry_modulus,
-                                     std::function<Torus(Torus, Torus)> f) {
+uint64_t generate_lookup_table_bivariate(Torus *acc, uint32_t glwe_dimension,
+                                         uint32_t polynomial_size,
+                                         uint32_t message_modulus,
+                                         uint32_t carry_modulus,
+                                         std::function<Torus(Torus, Torus)> f) {
 
   Torus factor_u64 = message_modulus;
   auto wrapped_f = [factor_u64, message_modulus, f](Torus input) -> Torus {
@@ -750,12 +757,13 @@ void generate_lookup_table_bivariate(Torus *acc, uint32_t glwe_dimension,
     return f(lhs, rhs);
   };
 
-  generate_lookup_table<Torus>(acc, glwe_dimension, polynomial_size,
-                               message_modulus, carry_modulus, wrapped_f);
+  return generate_lookup_table<Torus>(acc, glwe_dimension, polynomial_size,
+                                      message_modulus, carry_modulus,
+                                      wrapped_f);
 }
 
 template <typename Torus>
-void generate_lookup_table_bivariate_with_factor(
+uint64_t generate_lookup_table_bivariate_with_factor(
     Torus *acc, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t message_modulus, uint32_t carry_modulus,
     std::function<Torus(Torus, Torus)> f, int factor) {
@@ -768,8 +776,9 @@ void generate_lookup_table_bivariate_with_factor(
     return f(lhs, rhs);
   };
 
-  generate_lookup_table<Torus>(acc, glwe_dimension, polynomial_size,
-                               message_modulus, carry_modulus, wrapped_f);
+  return generate_lookup_table<Torus>(acc, glwe_dimension, polynomial_size,
+                                      message_modulus, carry_modulus,
+                                      wrapped_f);
 }
 
 /*
@@ -782,16 +791,18 @@ void generate_lookup_table_bivariate_with_factor(
 template <typename Torus>
 void generate_device_accumulator_bivariate(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
-    uint32_t carry_modulus, std::function<Torus(Torus, Torus)> f) {
+    uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f) {
 
   // host lut
   Torus *h_lut =
       (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
-
+  *max_degree = message_modulus * carry_modulus - 1;
   // fill bivariate accumulator
-  generate_lookup_table_bivariate<Torus>(h_lut, glwe_dimension, polynomial_size,
-                                         message_modulus, carry_modulus, f);
+  *degree = generate_lookup_table_bivariate<Torus>(
+      h_lut, glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+      f);
 
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_async_to_gpu(acc_bivariate, h_lut,
@@ -813,15 +824,17 @@ void generate_device_accumulator_bivariate(
 template <typename Torus>
 void generate_device_accumulator_bivariate_with_factor(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
-    uint32_t carry_modulus, std::function<Torus(Torus, Torus)> f, int factor) {
+    uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f, int factor) {
 
   // host lut
   Torus *h_lut =
       (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
 
+  *max_degree = message_modulus * carry_modulus - 1;
   // fill bivariate accumulator
-  generate_lookup_table_bivariate_with_factor<Torus>(
+  *degree = generate_lookup_table_bivariate_with_factor<Torus>(
       h_lut, glwe_dimension, polynomial_size, message_modulus, carry_modulus, f,
       factor);
 
@@ -838,8 +851,8 @@ void generate_device_accumulator_bivariate_with_factor(
 
 template <typename Torus>
 void generate_device_accumulator_with_encoding(
-    cudaStream_t stream, uint32_t gpu_index, Torus *acc,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_message_modulus, uint32_t input_carry_modulus,
     uint32_t output_message_modulus, uint32_t output_carry_modulus,
     std::function<Torus(Torus)> f) {
@@ -848,8 +861,9 @@ void generate_device_accumulator_with_encoding(
   Torus *h_lut =
       (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
 
+  *max_degree = input_message_modulus * input_carry_modulus - 1;
   // fill accumulator
-  generate_lookup_table_with_encoding<Torus>(
+  *degree = generate_lookup_table_with_encoding<Torus>(
       h_lut, glwe_dimension, polynomial_size, input_message_modulus,
       input_carry_modulus, output_message_modulus, output_carry_modulus, f);
 
@@ -871,15 +885,17 @@ void generate_device_accumulator_with_encoding(
  */
 template <typename Torus>
 void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
-                                 Torus *acc, uint32_t glwe_dimension,
+                                 Torus *acc, uint64_t *degree,
+                                 uint64_t *max_degree, uint32_t glwe_dimension,
                                  uint32_t polynomial_size,
                                  uint32_t message_modulus,
                                  uint32_t carry_modulus,
                                  std::function<Torus(Torus)> f) {
 
   generate_device_accumulator_with_encoding(
-      stream, gpu_index, acc, glwe_dimension, polynomial_size, message_modulus,
-      carry_modulus, message_modulus, carry_modulus, f);
+      stream, gpu_index, acc, degree, max_degree, glwe_dimension,
+      polynomial_size, message_modulus, carry_modulus, message_modulus,
+      carry_modulus, f);
 }
 
 /*
@@ -891,9 +907,9 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
  */
 template <typename Torus>
 void generate_many_lut_device_accumulator(
-    cudaStream_t stream, uint32_t gpu_index, Torus *acc,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
-    uint32_t carry_modulus,
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degrees,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t carry_modulus,
     std::vector<std::function<Torus(Torus)>> &functions) {
 
   // host lut
@@ -901,8 +917,9 @@ void generate_many_lut_device_accumulator(
       (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
 
   // fill accumulator
-  generate_many_lookup_table<Torus>(h_lut, glwe_dimension, polynomial_size,
-                                    message_modulus, carry_modulus, functions);
+  *max_degree = generate_many_lookup_table<Torus>(
+      h_lut, degrees, glwe_dimension, polynomial_size, message_modulus,
+      carry_modulus, functions);
 
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_async_to_gpu(
@@ -1455,9 +1472,9 @@ reduce_signs(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   if (num_sign_blocks > 2) {
     auto lut = diff_buffer->reduce_signs_lut;
     generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], lut->get_lut(0, 0), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus,
-        reduce_two_orderings_function);
+        streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
+        lut->get_max_degree(0), glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, reduce_two_orderings_function);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     while (num_sign_blocks > 2) {
@@ -1489,8 +1506,9 @@ reduce_signs(cudaStream_t const *streams, uint32_t const *gpu_indexes,
 
     auto lut = diff_buffer->reduce_signs_lut;
     generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], lut->get_lut(0, 0), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, final_lut_f);
+        streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
+        lut->get_max_degree(0), glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, final_lut_f);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
@@ -1508,8 +1526,9 @@ reduce_signs(cudaStream_t const *streams, uint32_t const *gpu_indexes,
 
     auto lut = mem_ptr->diff_buffer->reduce_signs_lut;
     generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], lut->get_lut(0, 0), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, final_lut_f);
+        streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
+        lut->get_max_degree(0), glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, final_lut_f);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(

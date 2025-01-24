@@ -112,6 +112,8 @@ template <typename Torus> struct int_decompression {
 
       generate_device_accumulator_with_encoding<Torus>(
           streams[0], gpu_indexes[0], decompression_rescale_lut->get_lut(0, 0),
+          decompression_rescale_lut->get_degree(0),
+          decompression_rescale_lut->get_max_degree(0),
           encryption_params.glwe_dimension, encryption_params.polynomial_size,
           effective_compression_message_modulus,
           effective_compression_carry_modulus,
