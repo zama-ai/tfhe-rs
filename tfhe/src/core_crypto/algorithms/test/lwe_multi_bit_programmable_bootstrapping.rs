@@ -664,7 +664,7 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(
     let (input_lwe_secret_key, output_lwe_secret_key, bsk) = {
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            params.input_lwe_dimension,
+            params.lwe_dimension,
             &mut rsc.secret_random_generator,
         );
         let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -678,9 +678,9 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(
             0u128,
             params.glwe_dimension.to_glwe_size(),
             params.polynomial_size,
-            params.decomp_base_log,
-            params.decomp_level_count,
-            params.input_lwe_dimension,
+            params.pbs_base_log,
+            params.pbs_level,
+            params.lwe_dimension,
             params.grouping_factor,
             params.ciphertext_modulus,
         );
@@ -822,7 +822,7 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(
     let (input_lwe_secret_key, output_lwe_secret_key, bsk, fbsk) = {
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            params.input_lwe_dimension,
+            params.lwe_dimension,
             &mut rsc.secret_random_generator,
         );
         let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -836,9 +836,9 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(
             0u128,
             params.glwe_dimension.to_glwe_size(),
             params.polynomial_size,
-            params.decomp_base_log,
-            params.decomp_level_count,
-            params.input_lwe_dimension,
+            params.pbs_base_log,
+            params.pbs_level,
+            params.lwe_dimension,
             params.grouping_factor,
             params.ciphertext_modulus,
         );
@@ -948,9 +948,6 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(
 }
 
 #[test]
-pub fn test_lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_factor_3_thread_12_native_mod()
-{
-    lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(
-        MULTI_BIT_2_2_3_PARAMS_U128,
-    );
+pub fn test_lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_factor_3_thread_12_native_mod() {
+    lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(MULTI_BIT_2_2_3_PARAMS_U128);
 }

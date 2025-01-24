@@ -251,12 +251,12 @@ pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
 };
 
 pub const MULTI_BIT_2_2_3_PARAMS_U128: MultiBitTestParams<u128> = MultiBitTestParams {
-    input_lwe_dimension: LweDimension(888),
+    lwe_dimension: LweDimension(888),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.0000006125031601933181 * 0.0000006125031601933181,
     )),
-    decomp_base_log: DecompositionBaseLog(21),
-    decomp_level_count: DecompositionLevelCount(1),
+    pbs_base_log: DecompositionBaseLog(21),
+    pbs_level: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
