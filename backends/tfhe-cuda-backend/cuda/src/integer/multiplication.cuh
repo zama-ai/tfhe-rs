@@ -280,10 +280,13 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
   // generate accumulators
   generate_device_accumulator<Torus>(
-      streams[0], gpu_indexes[0], message_acc, glwe_dimension, polynomial_size,
-      message_modulus, carry_modulus, lut_f_message);
+      streams[0], gpu_indexes[0], message_acc,
+      luts_message_carry->get_degree(0), luts_message_carry->get_max_degree(0),
+      glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+      lut_f_message);
   generate_device_accumulator<Torus>(
-      streams[0], gpu_indexes[0], carry_acc, glwe_dimension, polynomial_size,
+      streams[0], gpu_indexes[0], carry_acc, luts_message_carry->get_degree(1),
+      luts_message_carry->get_max_degree(1), glwe_dimension, polynomial_size,
       message_modulus, carry_modulus, lut_f_carry);
   luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
 

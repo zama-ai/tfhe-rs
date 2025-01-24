@@ -10,6 +10,14 @@
 #include <cmath>
 #include <functional>
 
+class NoiseLevel {
+public:
+  // Constants equivalent to the Rust code
+  static const uint64_t NOMINAL = 1;
+  static const uint64_t ZERO = 0;
+  static const uint64_t UNKNOWN = std::numeric_limits<uint64_t>::max();
+};
+
 template <typename Torus>
 __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
                                           uint32_t value, uint32_t blocks_count,
@@ -32,19 +40,21 @@ void generate_ids_update_degrees(int *terms_degree, size_t *h_lwe_idx_in,
 template <typename Torus>
 void generate_device_accumulator_bivariate(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
-    uint32_t carry_modulus, std::function<Torus(Torus, Torus)> f);
+    uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f);
 
 template <typename Torus>
 void generate_device_accumulator_bivariate_with_factor(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
-    uint32_t carry_modulus, std::function<Torus(Torus, Torus)> f, int factor);
+    uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f, int factor);
 
 template <typename Torus>
 void generate_device_accumulator_with_encoding(
-    cudaStream_t stream, uint32_t gpu_index, Torus *acc,
-    uint32_t glwe_dimension, uint32_t polynomial_size,
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_message_modulus, uint32_t input_carry_modulus,
     uint32_t output_message_modulus, uint32_t output_carry_modulus,
     std::function<Torus(Torus)> f);
@@ -58,7 +68,8 @@ void generate_device_accumulator_with_encoding(
  */
 template <typename Torus>
 void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
-                                 Torus *acc, uint32_t glwe_dimension,
+                                 Torus *acc, uint64_t *degree,
+                                 uint64_t *max_degree, uint32_t glwe_dimension,
                                  uint32_t polynomial_size,
                                  uint32_t message_modulus,
                                  uint32_t carry_modulus,
@@ -66,9 +77,10 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
 
 template <typename Torus>
 void generate_many_lut_device_accumulator(
-    cudaStream_t stream, uint32_t gpu_index, Torus *acc,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
-    uint32_t carry_modulus, std::vector<std::function<Torus(Torus)>> &f);
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degrees,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    std::vector<std::function<Torus(Torus)>> &f);
 
 struct int_radix_params {
   PBS_TYPE pbs_type;
@@ -117,6 +129,12 @@ template <typename Torus> struct int_radix_lut {
   int_radix_params params;
   uint32_t num_blocks;
   uint32_t num_luts;
+  uint32_t num_many_lut = 1;
+  // Tracks the degree of each LUT and the max degree on CPU
+  // The max degree is (message_modulus * carry_modulus - 1) except for many lut
+  // for which it's different
+  uint64_t *degrees;
+  uint64_t *max_degrees;
 
   int active_gpu_count;
   bool mem_reuse = false;
@@ -125,7 +143,7 @@ template <typename Torus> struct int_radix_lut {
   // (same for tmp lwe arrays)
   std::vector<int8_t *> buffer;
 
-  // These arrays will all reside on GPU 0
+  // These arrays will reside on all GPUs
   // lut could actually be allocated & initialized GPU per GPU but this is not
   // done at the moment
   std::vector<Torus *> lut_vec;
@@ -254,6 +272,8 @@ template <typename Torus> struct int_radix_lut {
       tmp_lwe_before_ks =
           (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
     }
+    degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
+    max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
   }
 
   // constructor to reuse memory
@@ -331,6 +351,8 @@ template <typename Torus> struct int_radix_lut {
                              gpu_indexes[0]);
     memcpy(h_lwe_indexes_out, h_lwe_indexes_in,
            num_radix_blocks * sizeof(Torus));
+    degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
+    max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
   }
 
   // Construction for many luts
@@ -339,6 +361,7 @@ template <typename Torus> struct int_radix_lut {
                 uint32_t num_radix_blocks, uint32_t num_many_lut,
                 bool allocate_gpu_memory) {
 
+    this->num_many_lut = num_many_lut;
     this->params = params;
     this->num_blocks = num_radix_blocks;
     this->num_luts = num_luts;
@@ -438,6 +461,8 @@ template <typename Torus> struct int_radix_lut {
       tmp_lwe_before_ks =
           (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
     }
+    degrees = (uint64_t *)malloc(num_many_lut * num_luts * sizeof(uint64_t));
+    max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
   }
 
   // Return a pointer to idx-ith lut at gpu_index's global memory
@@ -448,6 +473,12 @@ template <typename Torus> struct int_radix_lut {
     assert(lut != nullptr);
     return &lut[idx * lut_size];
   }
+
+  // Return a pointer to idx-ith degree at gpu_index's global memory
+  Torus *get_degree(size_t idx) { return &degrees[num_many_lut * idx]; }
+
+  // Return a pointer to idx-ith max degree at gpu_index's global memory
+  Torus *get_max_degree(size_t idx) { return &max_degrees[idx]; }
 
   // Return a pointer to idx-ith lut indexes at gpu_index's global memory
   Torus *get_lut_indexes(uint32_t gpu_index, size_t ind) {
@@ -542,6 +573,8 @@ template <typename Torus> struct int_radix_lut {
       lwe_after_pbs_vec.clear();
       lwe_trivial_indexes_vec.clear();
     }
+    free(degrees);
+    free(max_degrees);
   }
 };
 template <typename Torus> struct int_bit_extract_luts_buffer {
@@ -569,9 +602,10 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
         };
 
         generate_device_accumulator<Torus>(
-            streams[0], gpu_indexes[0], lut->get_lut(0, i),
-            params.glwe_dimension, params.polynomial_size,
-            params.message_modulus, params.carry_modulus, operator_f);
+            streams[0], gpu_indexes[0], lut->get_lut(0, i), lut->get_degree(i),
+            lut->get_max_degree(i), params.glwe_dimension,
+            params.polynomial_size, params.message_modulus,
+            params.carry_modulus, operator_f);
       }
 
       /**
@@ -768,6 +802,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], mux_lut->get_lut(0, 0),
+          mux_lut->get_degree(0), mux_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, mux_lut_f);
       mux_lut->broadcast_lut(streams, gpu_indexes, 0);
@@ -775,6 +810,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
       auto cleaning_lut_f = [](Torus x) -> Torus { return x; };
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], cleaning_lut->get_lut(0, 0),
+          cleaning_lut->get_degree(0), cleaning_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, cleaning_lut_f);
       cleaning_lut->broadcast_lut(streams, gpu_indexes, 0);
@@ -829,17 +865,21 @@ template <typename Torus> struct int_fullprop_buffer {
 
       //
       Torus *lut_buffer_message = lut->get_lut(0, 0);
+      uint64_t *message_degree = lut->get_degree(0);
+      uint64_t *message_max_degree = lut->get_max_degree(0);
       Torus *lut_buffer_carry = lut->get_lut(0, 1);
+      uint64_t *carry_degree = lut->get_degree(1);
+      uint64_t *carry_max_degree = lut->get_max_degree(1);
 
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], lut_buffer_message, params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f_message);
+          streams[0], gpu_indexes[0], lut_buffer_message, message_degree,
+          message_max_degree, params.glwe_dimension, params.polynomial_size,
+          params.message_modulus, params.carry_modulus, lut_f_message);
 
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], lut_buffer_carry, params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f_carry);
+          streams[0], gpu_indexes[0], lut_buffer_carry, carry_degree,
+          carry_max_degree, params.glwe_dimension, params.polynomial_size,
+          params.message_modulus, params.carry_modulus, lut_f_carry);
 
       Torus lwe_indexes_size = 2 * sizeof(Torus);
       Torus *h_lwe_indexes = (Torus *)malloc(lwe_indexes_size);
@@ -956,10 +996,12 @@ template <typename Torus> struct int_legacy_sc_prop_memory {
     // generate luts (aka accumulators)
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], lut_does_block_generate_carry,
+        luts_array->get_degree(0), luts_array->get_max_degree(0),
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_lut_does_block_generate_carry);
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], lut_does_block_generate_or_propagate,
+        luts_array->get_degree(1), luts_array->get_max_degree(1),
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_lut_does_block_generate_or_propagate);
     cuda_set_value_async<Torus>(streams[0], gpu_indexes[0],
@@ -968,12 +1010,16 @@ template <typename Torus> struct int_legacy_sc_prop_memory {
 
     generate_device_accumulator_bivariate<Torus>(
         streams[0], gpu_indexes[0], luts_carry_propagation_sum->get_lut(0, 0),
-        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+        luts_carry_propagation_sum->get_degree(0),
+        luts_carry_propagation_sum->get_max_degree(0), glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
         f_luts_carry_propagation_sum);
 
     generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], message_acc->get_lut(0, 0), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_message_acc);
+        streams[0], gpu_indexes[0], message_acc->get_lut(0, 0),
+        message_acc->get_degree(0), message_acc->get_max_degree(0),
+        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+        f_message_acc);
 
     luts_array->broadcast_lut(streams, gpu_indexes, 0);
     luts_carry_propagation_sum->broadcast_lut(streams, gpu_indexes, 0);
@@ -1071,10 +1117,12 @@ template <typename Torus> struct int_overflowing_sub_memory {
     // generate luts (aka accumulators)
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], lut_does_block_generate_carry,
+        luts_array->get_degree(0), luts_array->get_max_degree(0),
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_lut_does_block_generate_carry);
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], lut_does_block_generate_or_propagate,
+        luts_array->get_degree(1), luts_array->get_max_degree(1),
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_lut_does_block_generate_or_propagate);
     cuda_set_value_async<Torus>(streams[0], gpu_indexes[0],
@@ -1083,12 +1131,16 @@ template <typename Torus> struct int_overflowing_sub_memory {
 
     generate_device_accumulator_bivariate<Torus>(
         streams[0], gpu_indexes[0], luts_borrow_propagation_sum->get_lut(0, 0),
-        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+        luts_borrow_propagation_sum->get_degree(0),
+        luts_borrow_propagation_sum->get_max_degree(0), glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
         f_luts_borrow_propagation_sum);
 
     generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], message_acc->get_lut(0, 0), glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_message_acc);
+        streams[0], gpu_indexes[0], message_acc->get_lut(0, 0),
+        message_acc->get_degree(0), message_acc->get_max_degree(0),
+        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+        f_message_acc);
 
     luts_array->broadcast_lut(streams, gpu_indexes, 0);
     luts_borrow_propagation_sum->broadcast_lut(streams, gpu_indexes, 0);
@@ -1256,8 +1308,10 @@ template <typename Torus> struct int_seq_group_prop_memory {
       };
       auto seq_lut = lut_sequential_algorithm->get_lut(0, index);
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], seq_lut, glwe_dimension, polynomial_size,
-          message_modulus, carry_modulus, f_lut_sequential);
+          streams[0], gpu_indexes[0], seq_lut,
+          lut_sequential_algorithm->get_degree(index),
+          lut_sequential_algorithm->get_max_degree(index), glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus, f_lut_sequential);
       h_seq_lut_indexes[index] = index;
     }
     Torus *seq_lut_indexes = lut_sequential_algorithm->get_lut_indexes(0, 0);
@@ -1312,10 +1366,11 @@ template <typename Torus> struct int_hs_group_prop_memory {
         new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
                                  num_groups, allocate_gpu_memory);
 
-    auto hillis_steele_lut = lut_hillis_steele->get_lut(0, 0);
     generate_device_accumulator_bivariate<Torus>(
-        streams[0], gpu_indexes[0], hillis_steele_lut, glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_lut_hillis_steele);
+        streams[0], gpu_indexes[0], lut_hillis_steele->get_lut(0, 0),
+        lut_hillis_steele->get_degree(0), lut_hillis_steele->get_max_degree(0),
+        glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+        f_lut_hillis_steele);
 
     lut_hillis_steele->broadcast_lut(streams, gpu_indexes, 0);
   };
@@ -1383,10 +1438,12 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
         f_first_block_state, f_shift_block};
 
     auto first_block_lut = luts_array_first_step->get_lut(0, 0);
-
+    auto first_block_lut_degrees = luts_array_first_step->get_degree(0);
+    auto first_block_lut_max_degree = luts_array_first_step->get_max_degree(0);
     generate_many_lut_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], first_block_lut, glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_first_grouping_luts);
+        streams[0], gpu_indexes[0], first_block_lut, first_block_lut_degrees,
+        first_block_lut_max_degree, glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, f_first_grouping_luts);
 
     // luts for other blocks of the first grouping
     for (int lut_id = 1; lut_id < grouping_size; lut_id++) {
@@ -1404,9 +1461,12 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
       std::vector<std::function<Torus(Torus)>> f_grouping_luts = {
           f_state, f_shift_block};
       auto lut = luts_array_first_step->get_lut(0, lut_id);
+      auto lut_degrees = luts_array_first_step->get_degree(lut_id);
+      auto lut_max_degree = luts_array_first_step->get_max_degree(lut_id);
       generate_many_lut_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
-          message_modulus, carry_modulus, f_grouping_luts);
+          streams[0], gpu_indexes[0], lut, lut_degrees, lut_max_degree,
+          glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+          f_grouping_luts);
     }
 
     // luts for the rest of groupings (except for the last block)
@@ -1427,10 +1487,12 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
           f_state, f_shift_block};
 
       auto lut = luts_array_first_step->get_lut(0, lut_id);
-
+      auto lut_degrees = luts_array_first_step->get_degree(lut_id);
+      auto lut_max_degree = luts_array_first_step->get_max_degree(lut_id);
       generate_many_lut_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
-          message_modulus, carry_modulus, f_grouping_luts);
+          streams[0], gpu_indexes[0], lut, lut_degrees, lut_max_degree,
+          glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+          f_grouping_luts);
     }
 
     // For the last block we need to generate a new lut
@@ -1444,13 +1506,17 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
     uint32_t lut_id = num_luts_first_step - 1; // The last lut of the first step
 
     auto last_block_lut = luts_array_first_step->get_lut(0, lut_id);
+    auto last_block_lut_degrees = luts_array_first_step->get_degree(lut_id);
+    auto last_block_lut_max_degree =
+        luts_array_first_step->get_max_degree(lut_id);
 
     std::vector<std::function<Torus(Torus)>> f_last_grouping_luts = {
         f_last_block_state, f_shift_block};
 
     generate_many_lut_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], last_block_lut, glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_last_grouping_luts);
+        streams[0], gpu_indexes[0], last_block_lut, last_block_lut_degrees,
+        last_block_lut_max_degree, glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, f_last_grouping_luts);
 
     // Generate the indexes to switch between luts within the pbs
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
@@ -1604,10 +1670,13 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         }
       };
 
-      auto lut = luts_array_second_step->get_lut(0, lut_id);
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
-          message_modulus, carry_modulus, f_first_grouping_inner_propagation);
+          streams[0], gpu_indexes[0],
+          luts_array_second_step->get_lut(0, lut_id),
+          luts_array_second_step->get_degree(lut_id),
+          luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus,
+          f_first_grouping_inner_propagation);
     }
 
     auto f_first_grouping_outer_propagation =
@@ -1616,9 +1685,10 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     };
 
     int lut_id = grouping_size - 1;
-    auto lut_first_group_outer = luts_array_second_step->get_lut(0, lut_id);
     generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], lut_first_group_outer, glwe_dimension,
+        streams[0], gpu_indexes[0], luts_array_second_step->get_lut(0, lut_id),
+        luts_array_second_step->get_degree(lut_id),
+        luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
         polynomial_size, message_modulus, carry_modulus,
         f_first_grouping_outer_propagation);
 
@@ -1638,10 +1708,13 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         }
       };
 
-      auto lut = luts_array_second_step->get_lut(0, lut_id);
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
-          message_modulus, carry_modulus, f_other_groupings_inner_propagation);
+          streams[0], gpu_indexes[0],
+          luts_array_second_step->get_lut(0, lut_id),
+          luts_array_second_step->get_degree(lut_id),
+          luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus,
+          f_other_groupings_inner_propagation);
     }
 
     if (use_sequential_algorithm_to_resolver_group_carries) {
@@ -1657,10 +1730,13 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           }
         };
 
-        auto lut = luts_array_second_step->get_lut(0, lut_id);
         generate_device_accumulator<Torus>(
-            streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
-            message_modulus, carry_modulus, f_group_propagation);
+            streams[0], gpu_indexes[0],
+            luts_array_second_step->get_lut(0, lut_id),
+            luts_array_second_step->get_degree(lut_id),
+            luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
+            polynomial_size, message_modulus, carry_modulus,
+            f_group_propagation);
       }
     } else {
       uint32_t lut_id = 2 * grouping_size;
@@ -1672,10 +1748,12 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         }
       };
 
-      auto lut = luts_array_second_step->get_lut(0, lut_id);
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
-          message_modulus, carry_modulus, f_group_propagation);
+          streams[0], gpu_indexes[0],
+          luts_array_second_step->get_lut(0, lut_id),
+          luts_array_second_step->get_degree(lut_id),
+          luts_array_second_step->get_max_degree(lut_id), glwe_dimension,
+          polynomial_size, message_modulus, carry_modulus, f_group_propagation);
     }
 
     Torus *h_second_lut_indexes = (Torus *)malloc(lut_indexes_size);
@@ -1848,11 +1926,11 @@ template <typename Torus> struct int_sc_prop_memory {
       return (block >> 1) % message_modulus;
     };
 
-    auto extract_lut = lut_message_extract->get_lut(0, 0);
-
     generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], extract_lut, glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_message_extract);
+        streams[0], gpu_indexes[0], lut_message_extract->get_lut(0, 0),
+        lut_message_extract->get_degree(0),
+        lut_message_extract->get_max_degree(0), glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, f_message_extract);
 
     lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
 
@@ -1906,10 +1984,10 @@ template <typename Torus> struct int_sc_prop_memory {
         return output1 << 3 | output2 << 2;
       };
 
-      auto overflow_flag_prep_lut = lut_overflow_flag_prep->get_lut(0, 0);
-
       generate_device_accumulator_bivariate<Torus>(
-          streams[0], gpu_indexes[0], overflow_flag_prep_lut, glwe_dimension,
+          streams[0], gpu_indexes[0], lut_overflow_flag_prep->get_lut(0, 0),
+          lut_overflow_flag_prep->get_degree(0),
+          lut_overflow_flag_prep->get_max_degree(0), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_overflow_fp);
 
       lut_overflow_flag_prep->broadcast_lut(streams, gpu_indexes, 0);
@@ -1934,10 +2012,11 @@ template <typename Torus> struct int_sc_prop_memory {
           return does_overflow_if_carry_is_0;
         }
       };
-      auto overflow_flag_last = lut_message_extract->get_lut(0, 1);
 
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], overflow_flag_last, glwe_dimension,
+          streams[0], gpu_indexes[0], lut_message_extract->get_lut(0, 1),
+          lut_message_extract->get_degree(1),
+          lut_message_extract->get_max_degree(1), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_overflow_last);
 
       Torus *h_lut_indexes =
@@ -1961,10 +2040,11 @@ template <typename Torus> struct int_sc_prop_memory {
       auto f_carry_last = [](Torus block) -> Torus {
         return ((block >> 2) & 1);
       };
-      auto carry_flag_last = lut_message_extract->get_lut(0, 1);
 
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], carry_flag_last, glwe_dimension,
+          streams[0], gpu_indexes[0], lut_message_extract->get_lut(0, 1),
+          lut_message_extract->get_degree(1),
+          lut_message_extract->get_max_degree(1), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_carry_last);
 
       Torus *h_lut_indexes =
@@ -2100,10 +2180,13 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
         f_first_block_state, f_shift_block};
 
     auto first_block_lut = luts_array_first_step->get_lut(0, 0);
+    auto first_block_lut_degrees = luts_array_first_step->get_degree(0);
+    auto first_block_lut_max_degree = luts_array_first_step->get_max_degree(0);
 
     generate_many_lut_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], first_block_lut, glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_first_grouping_luts);
+        streams[0], gpu_indexes[0], first_block_lut, first_block_lut_degrees,
+        first_block_lut_max_degree, glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, f_first_grouping_luts);
 
     // luts for other blocks of the first grouping
     for (int lut_id = 1; lut_id < grouping_size; lut_id++) {
@@ -2121,9 +2204,12 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
       std::vector<std::function<Torus(Torus)>> f_grouping_luts = {
           f_state, f_shift_block};
       auto lut = luts_array_first_step->get_lut(0, lut_id);
+      auto lut_degrees = luts_array_first_step->get_degree(lut_id);
+      auto lut_max_degree = luts_array_first_step->get_max_degree(lut_id);
       generate_many_lut_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
-          message_modulus, carry_modulus, f_grouping_luts);
+          streams[0], gpu_indexes[0], lut, lut_degrees, lut_max_degree,
+          glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+          f_grouping_luts);
     }
 
     // luts for the rest of groupings (except for the last block)
@@ -2144,10 +2230,12 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
           f_state, f_shift_block};
 
       auto lut = luts_array_first_step->get_lut(0, lut_id);
-
+      auto lut_degrees = luts_array_first_step->get_degree(lut_id);
+      auto lut_max_degree = luts_array_first_step->get_max_degree(lut_id);
       generate_many_lut_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], lut, glwe_dimension, polynomial_size,
-          message_modulus, carry_modulus, f_grouping_luts);
+          streams[0], gpu_indexes[0], lut, lut_degrees, lut_max_degree,
+          glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+          f_grouping_luts);
     }
 
     auto f_last_block_state = [message_modulus](Torus block) -> Torus {
@@ -2160,13 +2248,17 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
     uint32_t lut_id = num_luts_first_step - 1; // The last lut of the first step
 
     auto last_block_lut = luts_array_first_step->get_lut(0, lut_id);
+    auto last_block_lut_degrees = luts_array_first_step->get_degree(lut_id);
+    auto last_block_lut_max_degree =
+        luts_array_first_step->get_max_degree(lut_id);
 
     std::vector<std::function<Torus(Torus)>> f_last_grouping_luts = {
         f_last_block_state, f_shift_block};
 
     generate_many_lut_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], last_block_lut, glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_last_grouping_luts);
+        streams[0], gpu_indexes[0], last_block_lut, last_block_lut_degrees,
+        last_block_lut_max_degree, glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, f_last_grouping_luts);
 
     // Generate the indexes to switch between luts within the pbs
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
@@ -2295,11 +2387,11 @@ template <typename Torus> struct int_borrow_prop_memory {
       return (block >> 1) % message_modulus;
     };
 
-    auto extract_lut = lut_message_extract->get_lut(0, 0);
-
     generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], extract_lut, glwe_dimension,
-        polynomial_size, message_modulus, carry_modulus, f_message_extract);
+        streams[0], gpu_indexes[0], lut_message_extract->get_lut(0, 0),
+        lut_message_extract->get_degree(0),
+        lut_message_extract->get_max_degree(0), glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, f_message_extract);
 
     lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
 
@@ -2312,11 +2404,11 @@ template <typename Torus> struct int_borrow_prop_memory {
         return ((block >> 2) & 1);
       };
 
-      auto borrow_flag_lut = lut_borrow_flag->get_lut(0, 0);
-
       generate_device_accumulator<Torus>(
-          streams[0], gpu_indexes[0], borrow_flag_lut, glwe_dimension,
-          polynomial_size, message_modulus, carry_modulus, f_borrow_flag);
+          streams[0], gpu_indexes[0], lut_borrow_flag->get_lut(0, 0),
+          lut_borrow_flag->get_degree(0), lut_borrow_flag->get_max_degree(0),
+          glwe_dimension, polynomial_size, message_modulus, carry_modulus,
+          f_borrow_flag);
 
       lut_borrow_flag->broadcast_lut(streams, gpu_indexes, 0);
     }
@@ -2472,8 +2564,10 @@ template <typename Torus> struct int_mul_memory {
                                    num_radix_blocks, allocate_gpu_memory);
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0], zero_out_predicate_lut->get_lut(0, 0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, zero_out_predicate_lut_f);
+          zero_out_predicate_lut->get_degree(0),
+          zero_out_predicate_lut->get_max_degree(0), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          zero_out_predicate_lut_f);
       zero_out_predicate_lut->broadcast_lut(streams, gpu_indexes, 0);
 
       zero_out_mem = new int_zero_out_if_buffer<Torus>(
@@ -2530,10 +2624,12 @@ template <typename Torus> struct int_mul_memory {
 
     // generate accumulators
     generate_device_accumulator_bivariate<Torus>(
-        streams[0], gpu_indexes[0], lsb_acc, glwe_dimension, polynomial_size,
+        streams[0], gpu_indexes[0], lsb_acc, luts_array->get_degree(0),
+        luts_array->get_max_degree(0), glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, lut_f_lsb);
     generate_device_accumulator_bivariate<Torus>(
-        streams[0], gpu_indexes[0], msb_acc, glwe_dimension, polynomial_size,
+        streams[0], gpu_indexes[0], msb_acc, luts_array->get_degree(1),
+        luts_array->get_max_degree(1), glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, lut_f_msb);
 
     // lut_indexes_vec for luts_array should be reinitialized
@@ -2675,8 +2771,10 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
         // right shift
         generate_device_accumulator_bivariate<Torus>(
             streams[0], gpu_indexes[0], cur_lut_bivariate->get_lut(0, 0),
-            params.glwe_dimension, params.polynomial_size,
-            params.message_modulus, params.carry_modulus, shift_lut_f);
+            cur_lut_bivariate->get_degree(0),
+            cur_lut_bivariate->get_max_degree(0), params.glwe_dimension,
+            params.polynomial_size, params.message_modulus,
+            params.carry_modulus, shift_lut_f);
         cur_lut_bivariate->broadcast_lut(streams, gpu_indexes, 0);
 
         lut_buffers_bivariate.push_back(cur_lut_bivariate);
@@ -2761,8 +2859,10 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
         // right shift
         generate_device_accumulator_bivariate<Torus>(
             streams[0], gpu_indexes[0], cur_lut_bivariate->get_lut(0, 0),
-            params.glwe_dimension, params.polynomial_size,
-            params.message_modulus, params.carry_modulus, shift_lut_f);
+            cur_lut_bivariate->get_degree(0),
+            cur_lut_bivariate->get_max_degree(0), params.glwe_dimension,
+            params.polynomial_size, params.message_modulus,
+            params.carry_modulus, shift_lut_f);
         cur_lut_bivariate->broadcast_lut(streams, gpu_indexes, 0);
 
         lut_buffers_bivariate.push_back(cur_lut_bivariate);
@@ -2866,6 +2966,8 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
         generate_device_accumulator<Torus>(
             streams[0], gpu_indexes[0],
             shift_last_block_lut_univariate->get_lut(0, 0),
+            shift_last_block_lut_univariate->get_degree(0),
+            shift_last_block_lut_univariate->get_max_degree(0),
             params.glwe_dimension, params.polynomial_size,
             params.message_modulus, params.carry_modulus, last_block_lut_f);
         shift_last_block_lut_univariate->broadcast_lut(streams, gpu_indexes, 0);
@@ -2888,9 +2990,11 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0],
-          padding_block_lut_univariate->get_lut(0, 0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          padding_block_lut_f);
+          padding_block_lut_univariate->get_lut(0, 0),
+          padding_block_lut_univariate->get_degree(0),
+          padding_block_lut_univariate->get_max_degree(0),
+          params.glwe_dimension, params.polynomial_size, params.message_modulus,
+          params.carry_modulus, padding_block_lut_f);
       padding_block_lut_univariate->broadcast_lut(streams, gpu_indexes, 0);
 
       lut_buffers_univariate.push_back(padding_block_lut_univariate);
@@ -2928,9 +3032,11 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
         generate_device_accumulator_bivariate<Torus>(
             streams[0], gpu_indexes[0],
-            shift_blocks_lut_bivariate->get_lut(0, 0), params.glwe_dimension,
-            params.polynomial_size, params.message_modulus,
-            params.carry_modulus, blocks_lut_f);
+            shift_blocks_lut_bivariate->get_lut(0, 0),
+            shift_blocks_lut_bivariate->get_degree(0),
+            shift_blocks_lut_bivariate->get_max_degree(0),
+            params.glwe_dimension, params.polynomial_size,
+            params.message_modulus, params.carry_modulus, blocks_lut_f);
         shift_blocks_lut_bivariate->broadcast_lut(streams, gpu_indexes, 0);
 
         lut_buffers_bivariate.push_back(shift_blocks_lut_bivariate);
@@ -3011,18 +3117,22 @@ template <typename Torus> struct int_cmux_buffer {
 
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0], predicate_lut->get_lut(0, 0),
+          predicate_lut->get_degree(0), predicate_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, inverted_lut_f);
 
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0], predicate_lut->get_lut(0, 1),
+          predicate_lut->get_degree(1), predicate_lut->get_max_degree(1),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, lut_f);
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], message_extract_lut->get_lut(0, 0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, message_extract_lut_f);
+          message_extract_lut->get_degree(0),
+          message_extract_lut->get_max_degree(0), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          message_extract_lut_f);
       Torus *h_lut_indexes =
           (Torus *)malloc(2 * num_radix_blocks * sizeof(Torus));
       for (int index = 0; index < 2 * num_radix_blocks; index++) {
@@ -3098,6 +3208,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], is_max_value->get_lut(0, 0),
+          is_max_value->get_degree(0), is_max_value->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, is_max_value_f);
 
@@ -3155,6 +3266,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
 
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0], operator_lut->get_lut(0, 0),
+          operator_lut->get_degree(0), operator_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, operator_f);
 
@@ -3172,6 +3284,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], is_non_zero_lut->get_lut(0, 0),
+          is_non_zero_lut->get_degree(0), is_non_zero_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, is_non_zero_lut_f);
 
@@ -3187,10 +3300,10 @@ template <typename Torus> struct int_comparison_eq_buffer {
           return operator_f(i, x);
         };
 
-        Torus *lut = scalar_comparison_luts->get_lut(0, i);
-
         generate_device_accumulator<Torus>(
-            streams[0], gpu_indexes[0], lut, params.glwe_dimension,
+            streams[0], gpu_indexes[0], scalar_comparison_luts->get_lut(0, i),
+            scalar_comparison_luts->get_degree(i),
+            scalar_comparison_luts->get_max_degree(i), params.glwe_dimension,
             params.polynomial_size, params.message_modulus,
             params.carry_modulus, lut_f);
       }
@@ -3260,8 +3373,10 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
           streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0], tree_inner_leaf_lut->get_lut(0, 0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, block_selector_f);
+          tree_inner_leaf_lut->get_degree(0),
+          tree_inner_leaf_lut->get_max_degree(0), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          block_selector_f);
 
       tree_inner_leaf_lut->broadcast_lut(streams, gpu_indexes, 0);
     }
@@ -3432,6 +3547,7 @@ template <typename Torus> struct int_comparison_buffer {
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], identity_lut->get_lut(0, 0),
+          identity_lut->get_degree(0), identity_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, identity_lut_f);
 
@@ -3448,6 +3564,7 @@ template <typename Torus> struct int_comparison_buffer {
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], is_zero_lut->get_lut(0, 0),
+          is_zero_lut->get_degree(0), is_zero_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, is_zero_f);
 
@@ -3526,6 +3643,7 @@ template <typename Torus> struct int_comparison_buffer {
 
         generate_device_accumulator_bivariate<Torus>(
             streams[0], gpu_indexes[0], signed_lut->get_lut(0, 0),
+            signed_lut->get_degree(0), signed_lut->get_max_degree(0),
             params.glwe_dimension, params.polynomial_size,
             params.message_modulus, params.carry_modulus, signed_lut_f);
 
@@ -3704,6 +3822,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
       for (int j = 0; j < 2; j++) {
         generate_device_accumulator<Torus>(
             streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
+            luts[j]->get_degree(0), luts[j]->get_max_degree(0),
             params.glwe_dimension, params.polynomial_size,
             params.message_modulus, params.carry_modulus, lut_f_masking);
         luts[j]->broadcast_lut(streams, gpu_indexes, 0);
@@ -3728,6 +3847,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     for (int j = 0; j < 2; j++) {
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], luts[j]->get_lut(0, 0),
+          luts[j]->get_degree(0), luts[j]->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, lut_f_message_extract);
       luts[j]->broadcast_lut(streams, gpu_indexes, 0);
@@ -3759,6 +3879,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     generate_device_accumulator_bivariate_with_factor<Torus>(
         streams[0], gpu_indexes[0],
         zero_out_if_overflow_did_not_happen[0]->get_lut(0, 0),
+        zero_out_if_overflow_did_not_happen[0]->get_degree(0),
+        zero_out_if_overflow_did_not_happen[0]->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, cur_lut_f, 2);
     zero_out_if_overflow_did_not_happen[0]->broadcast_lut(streams, gpu_indexes,
@@ -3766,6 +3888,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     generate_device_accumulator_bivariate_with_factor<Torus>(
         streams[0], gpu_indexes[0],
         zero_out_if_overflow_did_not_happen[1]->get_lut(0, 0),
+        zero_out_if_overflow_did_not_happen[1]->get_degree(0),
+        zero_out_if_overflow_did_not_happen[1]->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, cur_lut_f, 3);
     zero_out_if_overflow_did_not_happen[1]->broadcast_lut(streams, gpu_indexes,
@@ -3788,15 +3912,19 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     generate_device_accumulator_bivariate_with_factor<Torus>(
         streams[0], gpu_indexes[0],
-        zero_out_if_overflow_happened[0]->get_lut(0, 0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        overflow_happened_f, 2);
+        zero_out_if_overflow_happened[0]->get_lut(0, 0),
+        zero_out_if_overflow_happened[0]->get_degree(0),
+        zero_out_if_overflow_happened[0]->get_max_degree(0),
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, overflow_happened_f, 2);
     zero_out_if_overflow_happened[0]->broadcast_lut(streams, gpu_indexes, 0);
     generate_device_accumulator_bivariate_with_factor<Torus>(
         streams[0], gpu_indexes[0],
-        zero_out_if_overflow_happened[1]->get_lut(0, 0), params.glwe_dimension,
-        params.polynomial_size, params.message_modulus, params.carry_modulus,
-        overflow_happened_f, 3);
+        zero_out_if_overflow_happened[1]->get_lut(0, 0),
+        zero_out_if_overflow_happened[1]->get_degree(0),
+        zero_out_if_overflow_happened[1]->get_max_degree(0),
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, overflow_happened_f, 3);
     zero_out_if_overflow_happened[1]->broadcast_lut(streams, gpu_indexes, 0);
 
     // merge_overflow_flags_luts
@@ -3811,9 +3939,11 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0],
-          merge_overflow_flags_luts[i]->get_lut(0, 0), params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          lut_f_bit);
+          merge_overflow_flags_luts[i]->get_lut(0, 0),
+          merge_overflow_flags_luts[i]->get_degree(0),
+          merge_overflow_flags_luts[i]->get_max_degree(0),
+          params.glwe_dimension, params.polynomial_size, params.message_modulus,
+          params.carry_modulus, lut_f_bit);
       merge_overflow_flags_luts[i]->broadcast_lut(streams, gpu_indexes, 0);
     }
   }
@@ -4128,9 +4258,11 @@ template <typename Torus> struct int_last_block_inner_propagate_memory {
 
     generate_device_accumulator_bivariate<Torus>(
         streams[0], gpu_indexes[0],
-        last_block_inner_propagation_lut->get_lut(0, 0), params.glwe_dimension,
-        params.polynomial_size, message_modulus, params.carry_modulus,
-        f_last_block_inner_propagation_lut);
+        last_block_inner_propagation_lut->get_lut(0, 0),
+        last_block_inner_propagation_lut->get_degree(0),
+        last_block_inner_propagation_lut->get_max_degree(0),
+        params.glwe_dimension, params.polynomial_size, message_modulus,
+        params.carry_modulus, f_last_block_inner_propagation_lut);
     last_block_inner_propagation_lut->broadcast_lut(streams, gpu_indexes, 0);
   }
 
@@ -4189,8 +4321,10 @@ template <typename Torus> struct int_resolve_signed_overflow_memory {
 
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], resolve_overflow_lut->get_lut(0, 0),
-        params.glwe_dimension, params.polynomial_size, message_modulus,
-        params.carry_modulus, f_resolve_overflow_lut);
+        resolve_overflow_lut->get_degree(0),
+        resolve_overflow_lut->get_max_degree(0), params.glwe_dimension,
+        params.polynomial_size, message_modulus, params.carry_modulus,
+        f_resolve_overflow_lut);
     resolve_overflow_lut->broadcast_lut(streams, gpu_indexes, 0);
   }
 
@@ -4234,9 +4368,10 @@ template <typename Torus> struct int_bitop_buffer {
         };
 
         generate_device_accumulator_bivariate<Torus>(
-            streams[0], gpu_indexes[0], lut->get_lut(0, 0),
-            params.glwe_dimension, params.polynomial_size,
-            params.message_modulus, params.carry_modulus, lut_bivariate_f);
+            streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
+            lut->get_max_degree(0), params.glwe_dimension,
+            params.polynomial_size, params.message_modulus,
+            params.carry_modulus, lut_bivariate_f);
         lut->broadcast_lut(streams, gpu_indexes, 0);
       }
       break;
@@ -4247,7 +4382,6 @@ template <typename Torus> struct int_bitop_buffer {
                                      allocate_gpu_memory);
 
       for (int i = 0; i < params.message_modulus; i++) {
-        auto lut_block = lut->get_lut(0, i);
         auto rhs = i;
 
         auto lut_univariate_scalar_f = [op, rhs](Torus x) -> Torus {
@@ -4263,7 +4397,8 @@ template <typename Torus> struct int_bitop_buffer {
           }
         };
         generate_device_accumulator<Torus>(
-            streams[0], gpu_indexes[0], lut_block, params.glwe_dimension,
+            streams[0], gpu_indexes[0], lut->get_lut(0, i), lut->get_degree(i),
+            lut->get_max_degree(i), params.glwe_dimension,
             params.polynomial_size, params.message_modulus,
             params.carry_modulus, lut_univariate_scalar_f);
         lut->broadcast_lut(streams, gpu_indexes, 0);
@@ -4517,8 +4652,10 @@ template <typename Torus> struct int_div_rem_memory {
 
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0], compare_signed_bits_lut->get_lut(0, 0),
-          params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, f_compare_extracted_signed_bits);
+          compare_signed_bits_lut->get_degree(0),
+          compare_signed_bits_lut->get_max_degree(0), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          f_compare_extracted_signed_bits);
       compare_signed_bits_lut->broadcast_lut(streams, gpu_indexes, 0);
     }
   }
