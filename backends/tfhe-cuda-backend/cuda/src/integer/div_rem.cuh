@@ -285,7 +285,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
       // Shift the mask so that we will only keep bits we should
       uint32_t shifted_mask = full_message_mask >> shift_amount;
 
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, interesting_divisor.last_block(),
           interesting_divisor.last_block(), bsks, ksks, 1,
           mem_ptr->masking_luts_1[shifted_mask]);
@@ -314,7 +314,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
       // the estimated degree of the output is < msg_modulus
       shifted_mask = shifted_mask & full_message_mask;
 
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, divisor_ms_blocks.first_block(),
           divisor_ms_blocks.first_block(), bsks, ksks, 1,
           mem_ptr->masking_luts_2[shifted_mask]);
@@ -481,7 +481,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
     auto create_clean_version_of_merged_remainder =
         [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
             uint32_t gpu_count) {
-          integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
               cleaned_merged_interesting_remainder.data, bsks, ksks,
@@ -595,10 +595,10 @@ __host__ void host_unsigned_integer_div_rem_kb(
   for (uint j = 0; j < gpu_count; j++) {
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   }
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       mem_ptr->sub_streams_1, gpu_indexes, gpu_count, remainder, remainder,
       bsks, ksks, num_blocks, mem_ptr->message_extract_lut_1);
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       mem_ptr->sub_streams_2, gpu_indexes, gpu_count, quotient, quotient, bsks,
       ksks, num_blocks, mem_ptr->message_extract_lut_2);
   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {

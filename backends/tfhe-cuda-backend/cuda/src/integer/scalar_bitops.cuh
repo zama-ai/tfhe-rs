@@ -36,7 +36,7 @@ __host__ void host_integer_radix_scalar_bitop_kb(
                                  gpu_indexes[0]);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_input, bsks,
         ksks, num_clear_blocks, lut);
 

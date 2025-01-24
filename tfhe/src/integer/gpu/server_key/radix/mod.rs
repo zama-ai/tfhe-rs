@@ -920,6 +920,7 @@ impl CudaServerKey {
 
         let lwe_dimension = input.d_blocks.lwe_dimension();
         let lwe_size = lwe_dimension.to_lwe_size().0;
+        let num_output_blocks = output.d_blocks.lwe_ciphertext_count().0;
 
         let input_slice = input
             .d_blocks
@@ -928,62 +929,72 @@ impl CudaServerKey {
             .as_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
             .unwrap();
         let mut output_slice = output.d_blocks.0.d_vec.as_mut_slice(.., 0).unwrap();
+        let mut output_degrees = vec![0_u64; num_output_blocks];
+        let mut output_noise_levels = vec![0_u64; num_output_blocks];
 
         let num_ct_blocks = block_range.len() as u32;
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                apply_univariate_lut_kb_async(
-                    streams,
-                    &mut output_slice,
-                    &input_slice,
-                    lut.acc.as_ref(),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    num_ct_blocks,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                apply_univariate_lut_kb_async(
-                    streams,
-                    &mut output_slice,
-                    &input_slice,
-                    lut.acc.as_ref(),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    num_ct_blocks,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                );
-            }
-        };
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    apply_univariate_lut_kb_async(
+                        streams,
+                        &mut output_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &input_slice,
+                        lut.acc.as_ref(),
+                        lut.degree.0,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        num_ct_blocks,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    apply_univariate_lut_kb_async(
+                        streams,
+                        &mut output_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &input_slice,
+                        lut.acc.as_ref(),
+                        lut.degree.0,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        num_ct_blocks,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                    );
+                }
+            };
+        }
 
-        for info in output.info.blocks[block_range].iter_mut() {
-            info.degree = lut.degree;
-            info.noise_level = NoiseLevel::NOMINAL;
+        for (i, info) in output.info.blocks[block_range].iter_mut().enumerate() {
+            info.degree = Degree(output_degrees[i]);
+            info.noise_level = NoiseLevel(output_noise_levels[i]);
         }
     }
     /// Applies many lookup tables on the range of ciphertexts
@@ -1218,6 +1229,8 @@ impl CudaServerKey {
             .unwrap();
         let (padding_block, new_blocks) = output_slice.split_at_mut(lwe_size, 0);
         let mut padding_block = padding_block.unwrap();
+        let mut padding_block_degree = vec![0_u64; 1];
+        let mut padding_block_noise_level = vec![0_u64; 1];
         let mut new_blocks = new_blocks.unwrap();
 
         match &self.bootstrapping_key {
@@ -1225,8 +1238,11 @@ impl CudaServerKey {
                 apply_univariate_lut_kb_async(
                     streams,
                     &mut padding_block,
+                    &mut padding_block_degree,
+                    &mut padding_block_noise_level,
                     &last_block,
                     padding_block_creator_lut.acc.as_ref(),
+                    padding_block_creator_lut.degree.0,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key
@@ -1249,8 +1265,11 @@ impl CudaServerKey {
                 apply_univariate_lut_kb_async(
                     streams,
                     &mut padding_block,
+                    &mut padding_block_degree,
+                    &mut padding_block_noise_level,
                     &last_block,
                     padding_block_creator_lut.acc.as_ref(),
+                    padding_block_creator_lut.degree.0,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key
@@ -1283,9 +1302,11 @@ impl CudaServerKey {
             ciphertext_modulus: self.ciphertext_modulus,
         });
         let mut info = ct.as_ref().info.clone();
-        let last_block_info = ct.as_ref().info.blocks.last().unwrap();
+        let mut last_block_info = *ct.as_ref().info.blocks.last().unwrap();
+        last_block_info.degree = Degree(padding_block_degree[0]);
+        last_block_info.noise_level = NoiseLevel(padding_block_noise_level[0]);
         for _ in num_ct_blocks..new_num_ct_blocks {
-            info.blocks.push(*last_block_info);
+            info.blocks.push(last_block_info);
         }
 
         T::from(CudaRadixCiphertext::new(output_lwe_list, info))

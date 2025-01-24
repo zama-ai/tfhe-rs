@@ -529,22 +529,6 @@ impl CudaRadixCiphertextInfo {
         }
     }
 
-    pub(crate) fn after_aggregate_one_hot_vector(&self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .map(|left| CudaBlockInfo {
-                    degree: Degree::new(left.message_modulus.0 - 1),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        }
-    }
-
     pub(crate) fn after_ne(&self) -> Self {
         Self {
             blocks: self

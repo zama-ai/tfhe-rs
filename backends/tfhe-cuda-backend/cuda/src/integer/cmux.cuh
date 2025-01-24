@@ -24,7 +24,7 @@ __host__ void zero_out_if(cudaStream_t const *streams,
       predicate->lwe_indexes_in, params.big_lwe_dimension,
       params.message_modulus, num_radix_blocks);
 
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, tmp_lwe_array_input, bsks,
       ksks, num_radix_blocks, predicate);
 }
@@ -68,7 +68,7 @@ __host__ void legacy_host_integer_radix_cmux_kb(
                               mem_false, params.big_lwe_dimension,
                               num_radix_blocks);
 
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, added_cts, bsks, ksks,
       num_radix_blocks, mem_ptr->message_extract_lut);
 }
@@ -122,8 +122,7 @@ __host__ void host_integer_radix_cmux_kb(
                        mem_false);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, (Torus *)(lwe_array_out->ptr),
-      (Torus *)(added_cts->ptr), bsks, ksks, num_radix_blocks,
+      streams, gpu_indexes, gpu_count, lwe_array_out, added_cts, bsks, ksks,
       mem_ptr->message_extract_lut);
   delete mem_true;
   delete mem_false;
