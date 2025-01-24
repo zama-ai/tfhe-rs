@@ -250,6 +250,24 @@ pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     thread_count: ThreadCount(12),
 };
 
+pub const MULTI_BIT_2_2_3_PARAMS_U128: MultiBitTestParams<u128> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(888),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000006125031601933181,
+    )),
+    decomp_base_log: DecompositionBaseLog(21),
+    decomp_level_count: DecompositionLevelCount(1),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000003152931493498455,
+    )),
+    message_modulus_log: MessageModulusLog(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    grouping_factor: LweBskGroupingFactor(3),
+    thread_count: ThreadCount(12),
+};
+
 pub const MULTI_BIT_3_3_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     input_lwe_dimension: LweDimension(972),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
