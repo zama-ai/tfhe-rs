@@ -1,3 +1,5 @@
+use crate::core_crypto::gpu::get_number_of_gpus;
+use crate::integer::gpu::server_key::radix::tests_long_run::GpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
@@ -40,12 +42,31 @@ macro_rules! define_gpu_comparison_test_functions {
                 )
             }
 
+            fn [<multi_device_integer_default_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
+                let num_tests = 1;
+                let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::[<$comparison_name>]);
+                let num_gpus = get_number_of_gpus();
+                if num_gpus > 1 {
+                    test_default_function(
+                        param,
+                        num_tests,
+                        executor,
+                        |lhs, rhs| $clear_type::from(<$clear_type>::$comparison_name(&lhs, &rhs)),
+                    )
+                }
+            }
+
             create_gpu_parameterized_test!([<integer_unchecked_ $comparison_name _ $clear_type:lower>]{
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
                 PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
                 V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             });
             create_gpu_parameterized_test!([<integer_default_ $comparison_name _ $clear_type:lower>]{
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            });
+            create_gpu_parameterized_test!([<multi_device_integer_default_ $comparison_name _ $clear_type:lower>]{
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
                 PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
                 V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
