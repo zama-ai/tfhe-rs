@@ -10,12 +10,13 @@ use crate::core_crypto::commons::traits::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::ggsw_ciphertext::{
-    fourier_ggsw_level_matrix_size, GgswCiphertext,
+    fourier_ggsw_ciphertext_size, fourier_ggsw_level_matrix_size, GgswCiphertext,
 };
 use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertext, GlweCiphertextView};
 use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
 use crate::core_crypto::prelude::ContainerMut;
-use aligned_vec::CACHELINE_ALIGN;
+
+use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::fft128::f128;
 use tfhe_versionable::Versionize;
@@ -33,6 +34,39 @@ pub struct Fourier128GgswCiphertext<C: Container<Element = f64>> {
     glwe_size: GlweSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+}
+
+pub type Fourier128GgswCiphertextOwned = Fourier128GgswCiphertext<ABox<[f64]>>;
+
+impl Fourier128GgswCiphertext<ABox<[f64]>> {
+    pub fn new(
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        decomposition_base_log: DecompositionBaseLog,
+        decomposition_level_count: DecompositionLevelCount,
+    ) -> Self {
+        let container_len = fourier_ggsw_ciphertext_size(
+            glwe_size,
+            polynomial_size.to_fourier_polynomial_size(),
+            decomposition_level_count,
+        );
+
+        let boxed_re0 = avec![0.0f64; container_len].into_boxed_slice();
+        let boxed_re1 = avec![0.0f64; container_len].into_boxed_slice();
+        let boxed_im0 = avec![0.0f64; container_len].into_boxed_slice();
+        let boxed_im1 = avec![0.0f64; container_len].into_boxed_slice();
+
+        Fourier128GgswCiphertext::from_container(
+            boxed_re0,
+            boxed_re1,
+            boxed_im0,
+            boxed_im1,
+            polynomial_size,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        )
+    }
 }
 
 /// A matrix containing a single level of gadget decomposition, in the Fourier domain.
@@ -73,10 +107,11 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
         decomposition_level_count: DecompositionLevelCount,
     ) -> Self {
         assert_eq!(polynomial_size.0 % 2, 0);
-        let container_len = polynomial_size.to_fourier_polynomial_size().0
-            * glwe_size.0
-            * glwe_size.0
-            * decomposition_level_count.0;
+        let container_len = fourier_ggsw_ciphertext_size(
+            glwe_size,
+            polynomial_size.to_fourier_polynomial_size(),
+            decomposition_level_count,
+        );
         assert_eq!(data_re0.container_len(), container_len);
 
         Self {
