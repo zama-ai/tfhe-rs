@@ -1,5 +1,5 @@
 # Test unsigned integers on an RTXA6000 VM on hyperstack with the classical PBS
-name: TFHE Cuda Backend - Unsigned integer tests with classical PBS
+name: Cuda - Unsigned integer tests with classical PBS
 
 env:
   CARGO_TERM_COLOR: always

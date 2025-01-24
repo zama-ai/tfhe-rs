@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend on an H100 VM on hyperstack
-name: TFHE Cuda Backend - Fast tests on H100
+name: Cuda - Fast tests on H100
 
 env:
   CARGO_TERM_COLOR: always

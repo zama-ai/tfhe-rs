@@ -1,5 +1,5 @@
 # Signed integer GPU tests on an RTXA6000 VM on hyperstack with classical PBS
-name: TFHE Cuda Backend - Signed integer tests with classical PBS
+name: Cuda - Signed integer tests with classical PBS
 
 env:
   CARGO_TERM_COLOR: always
