@@ -1,5 +1,6 @@
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+use crate::integer::gpu::server_key::radix::tests_long_run::GpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
@@ -14,8 +15,10 @@ use crate::shortint::parameters::*;
 create_gpu_parameterized_test!(integer_unchecked_add);
 create_gpu_parameterized_test!(integer_unchecked_add_assign);
 create_gpu_parameterized_test!(integer_add);
+create_gpu_parameterized_test!(multi_device_integer_add);
 create_gpu_parameterized_test!(integer_sum_ciphertexts_vec);
 create_gpu_parameterized_test!(integer_default_overflowing_add);
+create_gpu_parameterized_test!(multi_device_integer_default_overflowing_add);
 
 fn integer_unchecked_add<P>(param: P)
 where
@@ -41,6 +44,17 @@ where
     default_add_test(param, executor);
 }
 
+fn multi_device_integer_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
+    let num_gpus = get_number_of_gpus();
+    if num_gpus > 1 {
+        default_add_test(param, executor);
+    }
+}
+
 fn integer_sum_ciphertexts_vec<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -64,4 +78,15 @@ where
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
     default_overflowing_add_test(param, executor);
+}
+
+fn multi_device_integer_default_overflowing_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
+    let num_gpus = get_number_of_gpus();
+    if num_gpus > 1 {
+        default_overflowing_add_test(param, executor);
+    }
 }
