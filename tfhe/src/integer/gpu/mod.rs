@@ -10,15 +10,14 @@ use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
     LweDimension, Numeric, PolynomialSize, UnsignedInteger,
 };
-use crate::integer::{ClientKey, RadixClientKey};
-use crate::shortint::{CarryModulus, MessageModulus};
-pub use server_key::CudaServerKey;
-use std::cmp::min;
-
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::server_key::radix_parallel::OutputFlag;
+use crate::integer::{ClientKey, RadixClientKey};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::{CarryModulus, MessageModulus};
+pub use server_key::CudaServerKey;
+use std::cmp::min;
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
 
@@ -78,18 +77,50 @@ fn prepare_cuda_radix_ffi(
     }
 }
 
+fn prepare_cuda_radix_ffi_from_slice<T: UnsignedInteger>(
+    input: &CudaSlice<T>,
+    degrees_vec: &mut Vec<u64>,
+    noise_levels_vec: &mut Vec<u64>,
+    num_radix_blocks: u32,
+    lwe_dimension: u32,
+) -> CudaRadixCiphertextFFI {
+    CudaRadixCiphertextFFI {
+        ptr: input.ptrs[0].cast_mut(),
+        degrees: degrees_vec.as_mut_ptr(),
+        noise_levels: noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks,
+        lwe_dimension,
+    }
+}
+
+fn prepare_cuda_radix_ffi_from_slice_mut<T: UnsignedInteger>(
+    input: &CudaSliceMut<T>,
+    degrees_vec: &mut Vec<u64>,
+    noise_levels_vec: &mut Vec<u64>,
+    num_radix_blocks: u32,
+    lwe_dimension: u32,
+) -> CudaRadixCiphertextFFI {
+    CudaRadixCiphertextFFI {
+        ptr: input.ptrs[0],
+        degrees: degrees_vec.as_mut_ptr(),
+        noise_levels: noise_levels_vec.as_mut_ptr(),
+        num_radix_blocks,
+        lwe_dimension,
+    }
+}
+
 unsafe fn update_noise_degree(
-    radix_lwe_left: &mut CudaRadixCiphertext,
-    radix_lwe_left_data: &CudaRadixCiphertextFFI,
+    radix_ct: &mut CudaRadixCiphertext,
+    cuda_ffi_radix_ct: &CudaRadixCiphertextFFI,
 ) {
-    radix_lwe_left
+    radix_ct
         .info
         .blocks
         .iter_mut()
         .enumerate()
         .for_each(|(i, b)| {
-            b.degree = Degree(*radix_lwe_left_data.degrees.wrapping_add(i));
-            b.noise_level = NoiseLevel(*radix_lwe_left_data.noise_levels.wrapping_add(i));
+            b.degree = Degree(*cuda_ffi_radix_ct.degrees.wrapping_add(i));
+            b.noise_level = NoiseLevel(*cuda_ffi_radix_ct.noise_levels.wrapping_add(i));
         });
 }
 pub fn gen_keys_gpu<P>(parameters_set: P, streams: &CudaStreams) -> (ClientKey, CudaServerKey)
@@ -552,8 +583,7 @@ pub unsafe fn unchecked_add_integer_radix_assign_async(
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
-    // Remove prepare_data function
-    let mut radix_lwe_left_data = prepare_cuda_radix_ffi(
+    let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
         radix_lwe_left,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
@@ -576,7 +606,7 @@ pub unsafe fn unchecked_add_integer_radix_assign_async(
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
-    let radix_lwe_right_data = prepare_cuda_radix_ffi(
+    let cuda_ffi_radix_lwe_right = prepare_cuda_radix_ffi(
         radix_lwe_right,
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
@@ -584,11 +614,11 @@ pub unsafe fn unchecked_add_integer_radix_assign_async(
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].0,
-        &mut radix_lwe_left_data,
-        &radix_lwe_left_data,
-        &radix_lwe_right_data,
+        &mut cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_lwe_right,
     );
-    update_noise_degree(radix_lwe_left, &radix_lwe_left_data);
+    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2232,7 +2262,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
-    let mut radix_lwe_out_data = prepare_cuda_radix_ffi(
+    let mut cuda_ffi_radix_lwe_out = prepare_cuda_radix_ffi(
         radix_lwe_out,
         &mut radix_lwe_out_degrees,
         &mut radix_lwe_out_noise_levels,
@@ -2249,7 +2279,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
-    let radix_lwe_true_data = prepare_cuda_radix_ffi(
+    let cuda_ffi_radix_lwe_true = prepare_cuda_radix_ffi(
         radix_lwe_true,
         &mut radix_lwe_true_degrees,
         &mut radix_lwe_true_noise_levels,
@@ -2266,7 +2296,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
-    let radix_lwe_false_data = prepare_cuda_radix_ffi(
+    let cuda_ffi_radix_lwe_false = prepare_cuda_radix_ffi(
         radix_lwe_false,
         &mut radix_lwe_false_degrees,
         &mut radix_lwe_false_noise_levels,
@@ -2287,7 +2317,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
-    let condition_data = prepare_cuda_radix_ffi(
+    let cuda_ffi_condition = prepare_cuda_radix_ffi(
         &radix_lwe_condition.0.ciphertext,
         &mut condition_degrees,
         &mut condition_noise_levels,
@@ -2327,10 +2357,10 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
             .collect::<Vec<u32>>()
             .as_ptr(),
         streams.len() as u32,
-        &mut radix_lwe_out_data,
-        &condition_data,
-        &radix_lwe_true_data,
-        &radix_lwe_false_data,
+        &mut cuda_ffi_radix_lwe_out,
+        &cuda_ffi_condition,
+        &cuda_ffi_radix_lwe_true,
+        &cuda_ffi_radix_lwe_false,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
@@ -2657,9 +2687,12 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
 ///   is required
 pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_output: &mut CudaSliceMut<T>,
-    radix_lwe_input: &CudaSlice<T>,
+    output: &mut CudaSliceMut<T>,
+    output_degrees: &mut Vec<u64>,
+    output_noise_levels: &mut Vec<u64>,
+    input: &CudaSlice<T>,
     input_lut: &[T],
+    lut_degree: u64,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     lwe_dimension: LweDimension,
@@ -2677,12 +2710,12 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input.gpu_index(0),
+        input.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_output.gpu_index(0),
+        output.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -2696,6 +2729,20 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
+        output,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
+    let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
+        input,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
     scratch_cuda_apply_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
         streams
@@ -2719,6 +2766,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        lut_degree,
         true,
     );
     cuda_apply_univariate_lut_kb_64(
@@ -2730,12 +2778,11 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
             .collect::<Vec<u32>>()
             .as_ptr(),
         streams.len() as u32,
-        radix_lwe_output.as_mut_c_ptr(0),
-        radix_lwe_input.as_c_ptr(0),
+        &mut cuda_ffi_output,
+        &cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_apply_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
@@ -3327,7 +3374,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut ct_degrees = ct.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut ct_noise_levels = ct.info.blocks.iter().map(|b| b.noise_level.0).collect();
-    let mut ct_data = prepare_cuda_radix_ffi(ct, &mut ct_degrees, &mut ct_noise_levels);
+    let mut cuda_ffi_ct = prepare_cuda_radix_ffi(ct, &mut ct_degrees, &mut ct_noise_levels);
     scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams
@@ -3363,7 +3410,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
             .collect::<Vec<u32>>()
             .as_ptr(),
         streams.len() as u32,
-        &mut ct_data,
+        &mut cuda_ffi_ct,
         mem_ptr,
         true,
         bootstrapping_key.ptr.as_ptr(),

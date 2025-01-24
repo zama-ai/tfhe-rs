@@ -213,7 +213,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       }
       auto lut_univariate_padding_block =
           mem->lut_buffers_univariate[num_bits_in_block - 1];
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
           mem->local_streams_1, gpu_indexes, gpu_count, padding_block,
           last_block_copy, bsks, ksks, 1, lut_univariate_padding_block);
       // Replace blocks 'pulled' from the left with the correct padding
@@ -227,7 +227,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       if (shift_within_block != 0) {
         auto lut_univariate_shift_last_block =
             mem->lut_buffers_univariate[shift_within_block - 1];
-        integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
             mem->local_streams_2, gpu_indexes, gpu_count, last_block,
             last_block_copy, bsks, ksks, 1, lut_univariate_shift_last_block);
       }

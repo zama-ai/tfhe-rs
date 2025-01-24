@@ -7,18 +7,18 @@ use tfhe_cuda_backend::cuda_bind::{cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_asy
 
 #[derive(Debug, Clone)]
 pub struct CudaSlice<'a, T: Numeric> {
-    ptrs: Vec<*const c_void>,
-    _lengths: Vec<usize>,
-    gpu_indexes: Vec<GpuIndex>,
+    pub(crate) ptrs: Vec<*const c_void>,
+    pub(crate) _lengths: Vec<usize>,
+    pub(crate) gpu_indexes: Vec<GpuIndex>,
     _phantom_1: PhantomData<T>,
     _phantom_2: PhantomData<&'a ()>,
 }
 
 #[derive(Debug)]
 pub struct CudaSliceMut<'a, T: Numeric> {
-    ptrs: Vec<*mut c_void>,
-    lengths: Vec<usize>,
-    gpu_indexes: Vec<GpuIndex>,
+    pub(crate) ptrs: Vec<*mut c_void>,
+    pub(crate) lengths: Vec<usize>,
+    pub(crate) gpu_indexes: Vec<GpuIndex>,
     _phantom_1: PhantomData<T>,
     _phantom_2: PhantomData<&'a mut ()>,
 }

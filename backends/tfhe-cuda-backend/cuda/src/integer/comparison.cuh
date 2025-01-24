@@ -148,12 +148,12 @@ __host__ void are_all_comparisons_block_true(
     // Applies the LUT
     if (remaining_blocks == 1) {
       // In the last iteration we copy the output to the final address
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, lwe_array_out, accumulator, bsks,
           ksks, 1, lut);
       return;
     } else {
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, tmp_out, accumulator, bsks, ksks,
           num_chunks, lut);
     }
@@ -219,12 +219,12 @@ __host__ void is_at_least_one_comparisons_block_true(
     // Applies the LUT
     if (remaining_blocks == 1) {
       // In the last iteration we copy the output to the final address
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, lwe_array_out, accumulator, bsks,
           ksks, 1, lut);
       return;
     } else {
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
           accumulator, bsks, ksks, num_chunks, lut);
     }
@@ -305,7 +305,7 @@ __host__ void host_compare_with_zero_equality(
     }
   }
 
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, sum, sum, bsks, ksks, num_sum_blocks,
       zero_comparison);
   are_all_comparisons_block_true<Torus>(streams, gpu_indexes, gpu_count,
@@ -371,7 +371,7 @@ __host__ void compare_radix_blocks_kb(
 
   // Apply LUT to compare to 0
   auto is_non_zero_lut = mem_ptr->eq_buffer->is_non_zero_lut;
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_out, bsks, ksks,
       num_radix_blocks, is_non_zero_lut);
 
@@ -422,7 +422,7 @@ __host__ void tree_sign_reduction(
     pack_blocks<Torus>(streams[0], gpu_indexes[0], y, x, big_lwe_dimension,
                        partial_block_count, 4);
 
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, x, y, bsks, ksks,
         partial_block_count >> 1, inner_tree_leaf);
 
@@ -468,7 +468,7 @@ __host__ void tree_sign_reduction(
   last_lut->broadcast_lut(streams, gpu_indexes, 0);
 
   // Last leaf
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, y, bsks, ksks, 1,
       last_lut);
 }
@@ -514,7 +514,7 @@ __host__ void host_integer_radix_difference_check_kb(
 
     // Clean noise
     auto identity_lut = mem_ptr->identity_lut;
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, packed_left, packed_left, bsks, ksks,
         2 * packed_num_radix_blocks, identity_lut);
 
@@ -552,11 +552,11 @@ __host__ void host_integer_radix_difference_check_kb(
           packed_left + packed_num_radix_blocks * big_lwe_size;
       Torus *last_right_block_before_sign_block =
           packed_right + packed_num_radix_blocks * big_lwe_size;
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, last_left_block_before_sign_block,
           lwe_array_left + (num_radix_blocks - 2) * big_lwe_size, bsks, ksks, 1,
           identity_lut);
-      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, last_right_block_before_sign_block,
           lwe_array_right + (num_radix_blocks - 2) * big_lwe_size, bsks, ksks,
           1, identity_lut);

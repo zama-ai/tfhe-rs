@@ -43,7 +43,7 @@ __host__ void scalar_compare_radix_blocks_kb(
 
   // Apply LUT to compare to 0
   auto sign_lut = mem_ptr->eq_buffer->is_non_zero_lut;
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, subtracted_blocks, bsks,
       ksks, num_radix_blocks, sign_lut);
 
@@ -116,7 +116,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
         message_modulus, carry_modulus, scalar_last_leaf_lut_f);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out,
         mem_ptr->tmp_lwe_array_out, bsks, ksks, 1, lut);
 
@@ -686,7 +686,7 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
                                  lsb_streams[0], gpu_indexes[0]);
     scalar_comparison_luts->broadcast_lut(lsb_streams, gpu_indexes, 0);
 
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
         lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out, packed_blocks,
         bsks, ksks, num_halved_lsb_radix_blocks, scalar_comparison_luts);
   }

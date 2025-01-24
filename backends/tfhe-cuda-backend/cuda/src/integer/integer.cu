@@ -184,7 +184,7 @@ void scratch_cuda_apply_univariate_lut_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory) {
+    uint64_t lut_degree, bool allocate_gpu_memory) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
@@ -195,7 +195,7 @@ void scratch_cuda_apply_univariate_lut_kb_64(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
-      allocate_gpu_memory);
+      lut_degree, allocate_gpu_memory);
 }
 
 void scratch_cuda_apply_many_univariate_lut_kb_64(
@@ -219,19 +219,16 @@ void scratch_cuda_apply_many_univariate_lut_kb_64(
       num_many_lut, allocate_gpu_memory);
 }
 
-void cuda_apply_univariate_lut_kb_64(void *const *streams,
-                                     uint32_t const *gpu_indexes,
-                                     uint32_t gpu_count, void *output_radix_lwe,
-                                     void const *input_radix_lwe,
-                                     int8_t *mem_ptr, void *const *ksks,
-                                     void *const *bsks, uint32_t num_blocks) {
+void cuda_apply_univariate_lut_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaRadixCiphertextFFI *output_radix_lwe,
+    CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
+    void *const *ksks, void *const *bsks) {
 
   host_apply_univariate_lut_kb<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(output_radix_lwe),
-      static_cast<const uint64_t *>(input_radix_lwe),
-      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks,
-      num_blocks);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, output_radix_lwe,
+      input_radix_lwe, (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks),
+      bsks);
 }
 
 void cleanup_cuda_apply_univariate_lut_kb_64(void *const *streams,

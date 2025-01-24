@@ -12,6 +12,7 @@ use crate::integer::gpu::{
     reverse_blocks_inplace_async, PBSType,
 };
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 
 impl CudaServerKey {
     /// This function takes a ciphertext in radix representation
@@ -73,6 +74,8 @@ impl CudaServerKey {
         let mut output_slice = tmp_radix
             .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
             .unwrap();
+        let mut output_degrees = vec![0_u64; num_ct_blocks];
+        let mut output_noise_levels = vec![0_u64; num_ct_blocks];
 
         let input_slice = ct
             .as_ref()
@@ -89,8 +92,11 @@ impl CudaServerKey {
                 apply_univariate_lut_kb_async(
                     streams,
                     &mut output_slice,
+                    &mut output_degrees,
+                    &mut output_noise_levels,
                     &input_slice,
                     lut.acc.as_ref(),
+                    lut.degree.0,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key
@@ -113,8 +119,11 @@ impl CudaServerKey {
                 apply_univariate_lut_kb_async(
                     streams,
                     &mut output_slice,
+                    &mut output_degrees,
+                    &mut output_noise_levels,
                     &input_slice,
                     lut.acc.as_ref(),
+                    lut.degree.0,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key
@@ -573,6 +582,8 @@ impl CudaServerKey {
             .d_vec
             .as_mut_slice(0..lwe_size * counter_num_blocks, 0)
             .unwrap();
+        let mut message_blocks_degrees = vec![0_u64; counter_num_blocks];
+        let mut message_blocks_noise_levels = vec![0_u64; counter_num_blocks];
         let result_slice = result
             .as_mut()
             .d_blocks
@@ -586,8 +597,11 @@ impl CudaServerKey {
                 apply_univariate_lut_kb_async(
                     streams,
                     &mut message_blocks_slice,
+                    &mut message_blocks_degrees,
+                    &mut message_blocks_noise_levels,
                     &result_slice,
                     lut_a.acc.as_ref(),
+                    lut_a.degree.0,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key
@@ -610,8 +624,11 @@ impl CudaServerKey {
                 apply_univariate_lut_kb_async(
                     streams,
                     &mut message_blocks_slice,
+                    &mut message_blocks_degrees,
+                    &mut message_blocks_noise_levels,
                     &result_slice,
                     lut_a.acc.as_ref(),
+                    lut_a.degree.0,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key
@@ -674,14 +691,19 @@ impl CudaServerKey {
             .d_vec
             .as_mut_slice(0..lwe_size * counter_num_blocks, 0)
             .unwrap();
+        let mut carry_blocks_degrees = vec![0_u64; counter_num_blocks];
+        let mut carry_blocks_noise_levels = vec![0_u64; counter_num_blocks];
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     apply_univariate_lut_kb_async(
                         streams,
                         &mut carry_blocks_slice,
+                        &mut carry_blocks_degrees,
+                        &mut carry_blocks_noise_levels,
                         &result_slice,
                         lut_b.acc.as_ref(),
+                        lut_b.degree.0,
                         &d_bsk.d_vec,
                         &self.key_switching_key.d_vec,
                         self.key_switching_key
@@ -704,8 +726,11 @@ impl CudaServerKey {
                     apply_univariate_lut_kb_async(
                         streams,
                         &mut carry_blocks_slice,
+                        &mut carry_blocks_degrees,
+                        &mut carry_blocks_noise_levels,
                         &result_slice,
                         lut_b.acc.as_ref(),
+                        lut_b.degree.0,
                         &d_multibit_bsk.d_vec,
                         &self.key_switching_key.d_vec,
                         self.key_switching_key
@@ -731,6 +756,10 @@ impl CudaServerKey {
 
         let mut new_item: CudaSignedRadixCiphertext =
             self.create_trivial_zero_radix_async(counter_num_blocks, streams);
+        for (i, b) in new_item.ciphertext.info.blocks.iter_mut().enumerate() {
+            b.degree = Degree(message_blocks_degrees[i]);
+            b.noise_level = NoiseLevel(message_blocks_noise_levels[i]);
+        }
         let mut dest_slice = new_item
             .as_mut()
             .d_blocks
@@ -751,6 +780,10 @@ impl CudaServerKey {
 
         let mut new_item: CudaSignedRadixCiphertext =
             self.create_trivial_zero_radix_async(counter_num_blocks, streams);
+        for (i, b) in new_item.ciphertext.info.blocks.iter_mut().enumerate() {
+            b.degree = Degree(carry_blocks_degrees[i]);
+            b.noise_level = NoiseLevel(carry_blocks_noise_levels[i]);
+        }
         let mut dest_slice = new_item
             .as_mut()
             .d_blocks

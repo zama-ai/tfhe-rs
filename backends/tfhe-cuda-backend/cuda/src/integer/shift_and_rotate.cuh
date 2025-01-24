@@ -151,7 +151,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
     // we have
     // control_bit|b|a
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, input_bits_a, mux_inputs, bsks, ksks,
         total_nb_bits, mux_lut);
   }
@@ -189,7 +189,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
     // To give back a clean ciphertext
     auto cleaning_lut = mem->cleaning_lut;
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_last_out, lwe_last_out, bsks, ksks,
         num_radix_blocks, cleaning_lut);
   }
