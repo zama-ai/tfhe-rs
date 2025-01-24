@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend on an AWS instance
-name: TFHE Cuda Backend - Full tests multi-GPU
+name: Cuda - Full tests multi-GPU
 
 env:
   CARGO_TERM_COLOR: always

@@ -1,5 +1,5 @@
 # Perfom tfhe-cuda-backend post-commit checks on an AWS instance
-name: TFHE Cuda Backend - Post-commit Checks
+name: Cuda - Post-commit Checks
 
 env:
   CARGO_TERM_COLOR: always

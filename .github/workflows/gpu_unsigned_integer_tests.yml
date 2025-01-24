@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend unsigned integer on an AWS instance
-name: TFHE Cuda Backend - Unsigned integer tests
+name: Cuda - Unsigned integer tests
 
 env:
   CARGO_TERM_COLOR: always

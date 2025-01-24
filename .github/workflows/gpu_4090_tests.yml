@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend on an RTX 4090 machine
-name: TFHE Cuda Backend - 4090 full tests
+name: Cuda - 4090 full tests
 
 env:
   CARGO_TERM_COLOR: always

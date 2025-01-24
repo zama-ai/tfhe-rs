@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend signed integer on an AWS instance
-name: TFHE Cuda Backend - Signed integer tests
+name: Cuda - Signed integer tests
 
 env:
   CARGO_TERM_COLOR: always

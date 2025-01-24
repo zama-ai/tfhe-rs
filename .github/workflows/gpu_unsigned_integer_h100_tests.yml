@@ -1,5 +1,5 @@
 # Test unsigned integers on an H100 VM on hyperstack
-name: TFHE Cuda Backend - Unsigned integer tests on H100
+name: Cuda - Unsigned integer tests on H100
 
 env:
   CARGO_TERM_COLOR: always
