@@ -901,7 +901,7 @@ mod cuda {
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+        let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params) in parameters.iter() {
             // Create the LweSecretKey
@@ -1022,7 +1022,7 @@ mod cuda {
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+        let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params, grouping_factor) in parameters.iter() {
             // Create the LweSecretKey
@@ -1144,7 +1144,7 @@ mod cuda {
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+        let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params) in parameters.iter() {
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1284,7 +1284,7 @@ mod cuda {
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+        let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params, grouping_factor) in parameters.iter() {
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(

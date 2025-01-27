@@ -582,7 +582,7 @@ pub(crate) mod test {
     #[test]
     fn oprf_compare_plain_ci_run_filter() {
         let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+        let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
         let (ck, gpu_sk) = gen_keys_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             &streams,
@@ -672,7 +672,7 @@ pub(crate) mod test {
 
         let p_value_limit: f64 = 0.000_01;
         let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+        let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
         let (ck, gpu_sk) = gen_keys_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             &streams,
