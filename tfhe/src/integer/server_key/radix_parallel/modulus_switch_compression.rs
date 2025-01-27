@@ -45,7 +45,7 @@ impl ServerKey {
     }
     /// Decompresses a signed compressed ciphertext
     /// This operation costs a PBS
-    ///     
+    ///
     /// See [`CompressedModulusSwitchedSignedRadixCiphertext#example`] for usage
     pub fn decompress_signed_parallelized(
         &self,
