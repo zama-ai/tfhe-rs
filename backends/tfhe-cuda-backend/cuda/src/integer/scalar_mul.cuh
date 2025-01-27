@@ -47,9 +47,6 @@ __host__ void host_integer_scalar_mul_radix(
     void *const *bsks, T *const *ksks, uint32_t input_lwe_dimension,
     uint32_t message_modulus, uint32_t num_radix_blocks, uint32_t num_scalars) {
 
-  if (num_radix_blocks == 0 | num_scalars == 0)
-    return;
-
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   uint32_t lwe_size = input_lwe_dimension + 1;
