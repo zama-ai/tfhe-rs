@@ -1,6 +1,6 @@
 //! This module defines KeySwitchingKey
 //!
-//! - [KeySwitchingKey] allows switching the keys of a ciphertext, from a cleitn key to another.
+//! - [KeySwitchingKey] allows switching the keys of a ciphertext, from a client key to another.
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
