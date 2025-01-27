@@ -215,6 +215,8 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
+  cudaSetDevice(gpu_index);
+
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
@@ -296,6 +298,7 @@ __host__ void execute_cg_external_product_loop(
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t lwe_offset, uint32_t num_many_lut,
     uint32_t lut_stride) {
+  cudaSetDevice(gpu_index);
 
   uint64_t full_sm =
       get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(
@@ -310,7 +313,6 @@ __host__ void execute_cg_external_product_loop(
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  cudaSetDevice(gpu_index);
 
   uint32_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
