@@ -28,7 +28,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
     let grouping_factor = params.grouping_factor;
 
     let gpu_index = 0;
-    let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
     let mut rsc = TestResources::new();
 

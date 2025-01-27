@@ -1,3 +1,4 @@
+use super::get_number_of_gpus;
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::{synchronize_device, CudaStreams};
 use crate::core_crypto::prelude::Numeric;
@@ -11,7 +12,40 @@ use tfhe_cuda_backend::cuda_bind::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct GpuIndex(pub u32);
+#[repr(transparent)]
+pub struct GpuIndex(u32);
+
+impl GpuIndex {
+    /// Tries to create a GpuIndex
+    ///
+    /// * Returns Some(index) if index is < to the number of Gpu detected (see [get_number_of_gpus])
+    pub fn try_new(index: u32) -> Option<Self> {
+        if index < get_number_of_gpus() {
+            Some(Self(index))
+        } else {
+            None
+        }
+    }
+
+    /// Creates a GpuIndex
+    ///
+    /// # Panics
+    ///
+    /// panics is index >=  to the number of Gpu detected
+    /// see [get_number_of_gpus])
+    pub fn new(index: u32) -> Self {
+        let num_gpus = get_number_of_gpus();
+        assert!(
+            index < num_gpus,
+            "Gpu index {index} is out of range ({num_gpus} GPUs detected)"
+        );
+        Self(index)
+    }
+
+    pub fn get(self) -> u32 {
+        self.0
+    }
+}
 
 /// A contiguous array type stored in the gpu memory.
 ///

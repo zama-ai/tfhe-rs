@@ -330,7 +330,7 @@ mod cuda {
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+        let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params) in parameters.iter() {
             let lwe_dimension = params.lwe_dimension.unwrap();
@@ -433,7 +433,7 @@ mod cuda {
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+        let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params) in parameters.iter() {
             let lwe_dimension = params.lwe_dimension.unwrap();

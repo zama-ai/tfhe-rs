@@ -68,7 +68,7 @@ where
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
     let gpu_index = 0;
-    let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -152,7 +152,7 @@ where
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
     let gpu_index = 0;
-    let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);

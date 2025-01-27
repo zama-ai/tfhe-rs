@@ -46,7 +46,7 @@ pub unsafe fn cuda_extract_lwe_samples_from_glwe_ciphertext_list_async<Scalar>(
     let nth_array: Vec<u32> = vec_nth.iter().map(|x| x.0 as u32).collect_vec();
     let gpu_indexes = &streams.gpu_indexes;
     unsafe {
-        let d_nth_array = CudaVec::from_cpu_async(&nth_array, streams, gpu_indexes[0].0);
+        let d_nth_array = CudaVec::from_cpu_async(&nth_array, streams, gpu_indexes[0].get());
         extract_lwe_samples_from_glwe_ciphertext_list_async(
             streams,
             &mut output_lwe_list.0.d_vec,
