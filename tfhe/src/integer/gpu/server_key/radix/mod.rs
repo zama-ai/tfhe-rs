@@ -24,7 +24,8 @@ use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::{fill_accumulator_no_encoding, fill_many_lut_accumulator};
 use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::server_key::{
-    generate_lookup_table, BivariateLookupTableOwned, LookupTableOwned, ManyLookupTableOwned,
+    generate_lookup_table, BivariateLookupTableOwned, LookupTableOwned, LookupTableSize,
+    ManyLookupTableOwned,
 };
 use crate::shortint::{PBSOrder, PaddingBit, ShortintEncoding};
 
@@ -782,9 +783,10 @@ impl CudaServerKey {
             }
         };
 
+        let size = LookupTableSize::new(glwe_size, polynomial_size);
+
         generate_lookup_table(
-            glwe_size,
-            polynomial_size,
+            size,
             self.ciphertext_modulus,
             self.message_modulus,
             self.carry_modulus,
