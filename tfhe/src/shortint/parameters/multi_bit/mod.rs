@@ -2,7 +2,8 @@ use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::entities::{
     LweCiphertextParameters, MsDecompressionType, MultiBitBootstrapKeyConformanceParams,
 };
-use crate::core_crypto::prelude::{AtomicPattern, DynamicDistribution, LweBskGroupingFactor};
+use crate::core_crypto::prelude::{DynamicDistribution, LweBskGroupingFactor};
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::{
     V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M64,

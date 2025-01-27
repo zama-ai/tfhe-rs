@@ -13,9 +13,10 @@ pub use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    AtomicPattern, GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams,
-    LweCiphertextCount, LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
+    GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams, LweCiphertextCount,
+    LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
 };
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::parameters::*;
 #[cfg(feature = "zk-pok")]
 use crate::zk::CompactPkeZkScheme;

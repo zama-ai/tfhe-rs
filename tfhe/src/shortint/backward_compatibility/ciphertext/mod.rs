@@ -1,8 +1,9 @@
 use std::convert::Infallible;
 
 use crate::core_crypto::prelude::{
-    AtomicPattern, CompressedModulusSwitchedLweCiphertext, LweCompactCiphertextListOwned,
+    CompressedModulusSwitchedLweCiphertext, LweCompactCiphertextListOwned,
 };
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::*;
 use crate::shortint::parameters::CompactCiphertextListExpansionKind;
 use crate::shortint::{CarryModulus, MessageModulus};

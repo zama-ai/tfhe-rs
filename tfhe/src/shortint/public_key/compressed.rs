@@ -1,6 +1,6 @@
 //! Module with the definition of the compressed PublicKey.
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::AtomicPattern;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::public_key::CompressedPublicKeyVersions;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
