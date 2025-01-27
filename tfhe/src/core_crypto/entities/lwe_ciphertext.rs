@@ -551,6 +551,12 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphert
     }
 }
 
+impl<T: UnsignedInteger + Clone, C: Container<Element = T>> LweCiphertext<C> {
+    pub fn to_owned_container(&self) -> LweCiphertext<Vec<T>> {
+        LweCiphertext::from_container(self.as_ref().to_owned(), self.ciphertext_modulus)
+    }
+}
+
 // This accessor is used to create invalid objects and test the conformance functions
 // But these functions should not be used in other contexts, hence the `#[cfg(test)]`
 #[cfg(test)]
