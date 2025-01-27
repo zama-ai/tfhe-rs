@@ -395,6 +395,102 @@ where
             stack,
         );
     }
+
+    pub fn bootstrap_return_noise<InputScalar, OutputScalar, ContLweOut, ContLweIn, ContAcc>(
+        &self,
+        lwe_out: &mut LweCiphertext<ContLweOut>,
+        lwe_in: &LweCiphertext<ContLweIn>,
+        accumulator: &GlweCiphertext<ContAcc>,
+        fft: Fft128View<'_>,
+        stack: PodStack<'_>,
+        debug_material: Option<(
+            &LweSecretKeyOwned<InputScalar>,
+            &GlweSecretKeyOwned<OutputScalar>,
+            &GlweCiphertextOwned<OutputScalar>,
+        )>,
+    ) -> Vec<Vec<OutputScalar>>
+    where
+        // CastInto required for PBS modulus switch which returns a usize
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+        ContLweOut: ContainerMut<Element = OutputScalar>,
+        ContLweIn: Container<Element = InputScalar>,
+        ContAcc: Container<Element = OutputScalar>,
+    {
+        #[allow(clippy::transmute_ptr_to_ptr)]
+        #[allow(clippy::missing_transmute_annotations)]
+        fn implementation<InputScalar, OutputScalar>(
+            this: Fourier128LweBootstrapKey<&[f64]>,
+            lwe_out: LweCiphertext<&mut [OutputScalar]>,
+            lwe_in: LweCiphertext<&[InputScalar]>,
+            accumulator: GlweCiphertext<&[OutputScalar]>,
+            fft: Fft128View<'_>,
+            stack: PodStack<'_>,
+            debug_material: Option<(
+                &LweSecretKeyOwned<InputScalar>,
+                &GlweSecretKeyOwned<OutputScalar>,
+                &GlweCiphertextOwned<OutputScalar>,
+            )>,
+        ) -> Vec<Vec<OutputScalar>>
+        where
+            // CastInto required for PBS modulus switch which returns a usize
+            InputScalar: UnsignedTorus + CastInto<usize>,
+            OutputScalar: UnsignedTorus,
+        {
+            // We type check dynamically with TypeId
+            #[allow(clippy::transmute_undefined_repr)]
+            if TypeId::of::<OutputScalar>() == TypeId::of::<u128>() {
+                let mut lwe_out: LweCiphertext<&mut [u128]> = unsafe { transmute(lwe_out) };
+                let accumulator: GlweCiphertext<&[u128]> = unsafe { transmute(accumulator) };
+
+                let debug_material = debug_material.map(|debug_material| {
+                    (
+                        debug_material.0,
+                        unsafe { transmute(debug_material.1) },
+                        unsafe { transmute(debug_material.2) },
+                    )
+                });
+
+                let result = this.bootstrap_u128_return_noise(
+                    &mut lwe_out,
+                    &lwe_in,
+                    &accumulator,
+                    fft,
+                    stack,
+                    debug_material,
+                );
+
+                return unsafe { transmute::<Vec<Vec<u128>>, Vec<Vec<OutputScalar>>>(result) };
+            }
+
+            // This is only ok for our testing/tools to make sure we don't make a mistake
+            panic!("This is not a u128 PBS, did you make a mistake?")
+
+            // let (local_accumulator_data, stack) =
+            //     stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
+            // let mut local_accumulator = GlweCiphertextMutView::from_container(
+            //     local_accumulator_data,
+            //     accumulator.polynomial_size(),
+            //     accumulator.ciphertext_modulus(),
+            // );
+            // this.blind_rotate_assign(&mut local_accumulator.as_mut_view(), &lwe_in, fft, stack);
+            // extract_lwe_sample_from_glwe_ciphertext(
+            //     &local_accumulator,
+            //     &mut lwe_out,
+            //     MonomialDegree(0),
+            // );
+        }
+
+        implementation(
+            self.as_view(),
+            lwe_out.as_mut_view(),
+            lwe_in.as_view(),
+            accumulator.as_view(),
+            fft,
+            stack,
+            debug_material,
+        )
+    }
 }
 
 impl<Scalar> FourierBootstrapKey<Scalar> for Fourier128LweBootstrapKeyOwned

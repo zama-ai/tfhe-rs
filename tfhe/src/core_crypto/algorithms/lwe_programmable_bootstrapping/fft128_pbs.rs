@@ -262,3 +262,55 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement<Scal
 ) -> Result<StackReq, SizeOverflow> {
     bootstrap_scratch_f128::<Scalar>(glwe_size, polynomial_size, fft)
 }
+
+pub fn programmable_bootstrap_f128_lwe_ciphertext_return_noise<
+    InputScalar,
+    OutputScalar,
+    InputCont,
+    OutputCont,
+    AccCont,
+    KeyCont,
+>(
+    input: &LweCiphertext<InputCont>,
+    output: &mut LweCiphertext<OutputCont>,
+    accumulator: &GlweCiphertext<AccCont>,
+    fourier_bsk: &Fourier128LweBootstrapKey<KeyCont>,
+    debug_material: Option<(
+        &LweSecretKeyOwned<InputScalar>,
+        &GlweSecretKeyOwned<OutputScalar>,
+        &GlweCiphertextOwned<OutputScalar>,
+    )>,
+) -> Vec<Vec<OutputScalar>>
+where
+    // CastInto required for PBS modulus switch which returns a usize
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
+    KeyCont: Container<Element = f64>,
+{
+    assert_eq!(
+        output.ciphertext_modulus(),
+        accumulator.ciphertext_modulus()
+    );
+
+    let mut buffers = ComputationBuffers::new();
+
+    let fft = Fft128::new(fourier_bsk.polynomial_size());
+    let fft = fft.as_view();
+
+    buffers.resize(
+        programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement::<OutputScalar>(
+            fourier_bsk.glwe_size(),
+            fourier_bsk.polynomial_size(),
+            fft,
+        )
+        .unwrap()
+        .unaligned_bytes_required(),
+    );
+
+    let stack = buffers.stack();
+
+    fourier_bsk.bootstrap_return_noise(output, input, accumulator, fft, stack, debug_material)
+}
