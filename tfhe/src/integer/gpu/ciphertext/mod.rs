@@ -9,6 +9,7 @@ use crate::core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::{IntegerCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
+use crate::GpuIndex;
 
 pub trait CudaIntegerRadixCiphertext: Sized {
     const IS_SIGNED: bool;
@@ -18,6 +19,17 @@ pub trait CudaIntegerRadixCiphertext: Sized {
 
     fn duplicate(&self, streams: &CudaStreams) -> Self {
         Self::from(self.as_ref().duplicate(streams))
+    }
+
+    /// Moves `self` to the gpu on which the CudaStreams is
+    ///
+    /// no-op if self is already on the correct gpu
+    fn move_to_stream(self, streams: &CudaStreams) -> Self {
+        if self.gpu_indexes() == streams.gpu_indexes() {
+            self
+        } else {
+            self.duplicate(streams)
+        }
     }
 
     fn into_inner(self) -> CudaRadixCiphertext;
@@ -47,6 +59,10 @@ pub trait CudaIntegerRadixCiphertext: Sized {
 
     fn is_equal(&self, other: &Self, streams: &CudaStreams) -> bool {
         self.as_ref().is_equal(other.as_ref(), streams)
+    }
+
+    fn gpu_indexes(&self) -> &[GpuIndex] {
+        &self.as_ref().d_blocks.0.d_vec.gpu_indexes
     }
 }
 

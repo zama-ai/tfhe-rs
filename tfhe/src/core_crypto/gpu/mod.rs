@@ -73,6 +73,10 @@ impl CudaStreams {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        &self.gpu_indexes
+    }
 }
 
 impl Drop for CudaStreams {
