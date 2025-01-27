@@ -459,25 +459,29 @@ pub mod gpu {
                             Tag::default(),
                         ))
                     } else {
-                        Err(crate::Error::new(format!(
+                        Err(crate::error!(
                             "Tried to expand a FheUint{} while a FheUint{} is stored in this slot",
                             Id::num_bits(),
                             stored_num_bits
-                        )))
+                        ))
                     }
                 }
                 DataKind::Signed(_) => {
                     let stored_num_bits = cuda_num_bits_of_blocks(&blocks) as usize;
-                    Err(crate::Error::new(format!(
+                    Err(crate::error!(
                         "Tried to expand a FheUint{} while a FheInt{} is stored in this slot",
                         Id::num_bits(),
                         stored_num_bits
-                    )))
+                    ))
                 }
-                DataKind::Boolean => Err(crate::Error::new(format!(
+                DataKind::Boolean => Err(crate::error!(
                     "Tried to expand a FheUint{} while a FheBool is stored in this slot",
                     Id::num_bits(),
-                ))),
+                )),
+                DataKind::String { .. } => Err(crate::error!(
+                    "Tried to expand a FheUint{} while a FheString is stored in this slot",
+                    Id::num_bits()
+                )),
             }
         }
     }
@@ -490,11 +494,11 @@ pub mod gpu {
             match kind {
                 DataKind::Unsigned(_) => {
                     let stored_num_bits = cuda_num_bits_of_blocks(&blocks) as usize;
-                    Err(crate::Error::new(format!(
+                    Err(crate::error!(
                         "Tried to expand a FheInt{} while a FheUint{} is stored in this slot",
                         Id::num_bits(),
                         stored_num_bits
-                    )))
+                    ))
                 }
                 DataKind::Signed(_) => {
                     let stored_num_bits = cuda_num_bits_of_blocks(&blocks) as usize;
@@ -507,17 +511,21 @@ pub mod gpu {
                             Tag::default(),
                         ))
                     } else {
-                        Err(crate::Error::new(format!(
+                        Err(crate::error!(
                             "Tried to expand a FheInt{} while a FheInt{} is stored in this slot",
                             Id::num_bits(),
                             stored_num_bits
-                        )))
+                        ))
                     }
                 }
-                DataKind::Boolean => Err(crate::Error::new(format!(
-                    "Tried to expand a FheUint{} while a FheBool is stored in this slot",
+                DataKind::Boolean => Err(crate::error!(
+                    "Tried to expand a FheInt{} while a FheBool is stored in this slot",
                     Id::num_bits(),
-                ))),
+                )),
+                DataKind::String { .. } => Err(crate::error!(
+                    "Tried to expand a FheInt{} while a FheString is stored in this slot",
+                    Id::num_bits()
+                )),
             }
         }
     }
@@ -530,15 +538,15 @@ pub mod gpu {
             match kind {
                 DataKind::Unsigned(_) => {
                     let stored_num_bits = cuda_num_bits_of_blocks(&blocks) as usize;
-                    Err(crate::Error::new(format!(
+                    Err(crate::error!(
                         "Tried to expand a FheBool while a FheUint{stored_num_bits} is stored in this slot",
-                    )))
+                    ))
                 }
                 DataKind::Signed(_) => {
                     let stored_num_bits = cuda_num_bits_of_blocks(&blocks) as usize;
-                    Err(crate::Error::new(format!(
+                    Err(crate::error!(
                         "Tried to expand a FheBool while a FheInt{stored_num_bits} is stored in this slot",
-                    )))
+                    ))
                 }
                 DataKind::Boolean => {
                     let mut boolean_block = CudaBooleanBlock::from_cuda_radix_ciphertext(blocks);
@@ -549,6 +557,9 @@ pub mod gpu {
                     // The expander will be responsible for setting the correct tag
                     Ok(Self::new(boolean_block, Tag::default()))
                 }
+                DataKind::String { .. } => Err(crate::error!(
+                    "Tried to expand a FheBool while a FheString is stored in this slot"
+                )),
             }
         }
     }

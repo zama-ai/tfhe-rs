@@ -264,7 +264,7 @@ impl CudaDecompressionKey {
                 streams.synchronize();
 
                 let degree = match kind {
-                    DataKind::Unsigned(_) | DataKind::Signed(_) => {
+                    DataKind::Unsigned(_) | DataKind::Signed(_) | DataKind::String { .. } => {
                         Degree::new(message_modulus.0 * carry_modulus.0 - 1)
                     }
                     DataKind::Boolean => Degree::new(1),

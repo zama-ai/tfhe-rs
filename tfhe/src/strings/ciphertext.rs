@@ -1,5 +1,7 @@
 use super::client_key::ClientKey;
 use super::server_key::ServerKey;
+use crate::integer::ciphertext::{Compactable, DataKind};
+use crate::integer::encryption::KnowsMessageModulus;
 use crate::integer::{
     ClientKey as IntegerClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext,
     ServerKey as IntegerServerKey,
@@ -52,6 +54,104 @@ impl ClearString {
 
     pub fn str(&self) -> &str {
         &self.str
+    }
+}
+
+impl Compactable for &ClearString {
+    fn compact_into(
+        self,
+        messages: &mut Vec<u64>,
+        message_modulus: MessageModulus,
+        num_blocks: Option<usize>,
+    ) -> crate::integer::ciphertext::DataKind {
+        let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
+
+        if let Some(n) = num_blocks {
+            assert!(
+                n as u32 % blocks_per_char == 0,
+                "Inconsistent num block would split the string inside a a character"
+            );
+        }
+
+        let n_chars = num_blocks.map_or(self.str.len(), |n_blocks| {
+            n_blocks / blocks_per_char as usize
+        });
+
+        for byte in &self.str.as_bytes()[..n_chars] {
+            let mut byte = u64::from(*byte);
+            for _ in 0..blocks_per_char {
+                messages.push(byte % message_modulus.0);
+                byte /= message_modulus.0;
+            }
+        }
+
+        DataKind::String {
+            n_chars: n_chars as u32,
+            padded: false,
+        }
+    }
+}
+
+impl crate::integer::ciphertext::CompactCiphertextListBuilder {
+    pub fn push_with_padding(
+        &mut self,
+        clear_string: &ClearString,
+        padding_count: u32,
+    ) -> &mut Self {
+        let message_modulus = self.pk.key.message_modulus();
+        let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
+        let _unpadded_kind = clear_string.compact_into(&mut self.messages, message_modulus, None);
+        let n_chars = clear_string.str.len();
+
+        for _ in 0..padding_count * blocks_per_char {
+            self.messages.push(0);
+        }
+
+        self.info.push(DataKind::String {
+            n_chars: n_chars as u32 + padding_count,
+            padded: padding_count != 0,
+        });
+        self
+    }
+}
+
+impl crate::integer::ciphertext::Expandable for FheString {
+    fn from_expanded_blocks(
+        mut blocks: Vec<crate::shortint::Ciphertext>,
+        kind: DataKind,
+    ) -> crate::Result<Self> {
+        match kind {
+            DataKind::String { n_chars, padded } => {
+                // todo checks all have same msg_mod
+                // todo sanitize
+                let n_blocks_per_chars = 7u32.div_ceil(blocks[0].message_modulus.0.ilog2());
+                let expected_num_blocks = n_chars * n_blocks_per_chars;
+                if expected_num_blocks != blocks.len() as u32 {
+                    return Err(crate::error!("Invalid number of blocks for a string of {n_chars} chars, expected {expected_num_blocks}, got {}", blocks.len()));
+                }
+
+                let mut chars = Vec::with_capacity(n_chars as usize);
+                for _ in 0..n_chars {
+                    let char: Vec<_> = blocks.drain(..n_blocks_per_chars as usize).collect();
+                    chars.push(FheAsciiChar {
+                        enc_char: RadixCiphertext::from(char),
+                    });
+                }
+                Ok(Self {
+                    enc_string: chars,
+                    padded,
+                })
+            }
+            DataKind::Unsigned(_) => Err(crate::Error::new(
+                "Tried to expand a string while a unsigned integer was stored".to_string(),
+            )),
+            DataKind::Signed(_) => Err(crate::Error::new(
+                "Tried to expand a string while a signed integer was stored".to_string(),
+            )),
+            DataKind::Boolean => Err(crate::Error::new(
+                "Tried to expand a string while a boolean was stored".to_string(),
+            )),
+        }
     }
 }
 
