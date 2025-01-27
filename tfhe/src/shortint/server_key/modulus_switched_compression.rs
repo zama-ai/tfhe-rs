@@ -145,6 +145,7 @@ impl ServerKey {
                         &mut ciphertext_buffers.buffer_lwe_after_pbs,
                         &acc.acc,
                         buffers,
+                        false,
                     );
                 }
                 ShortintBootstrappingKey::MultiBit {

@@ -214,6 +214,7 @@ impl DecompressionKey {
                 &mut output_br,
                 &decompression_rescale.acc,
                 buffers,
+                false,
             );
         });
 
