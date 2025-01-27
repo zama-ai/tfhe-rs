@@ -86,9 +86,11 @@ jobs:
   # Fail if the triggering actor is not part of Zama organization.
   # If pull_request_target is emitted and CI files have changed, skip this job. This would skip following jobs.
   check-user-permission:
-    needs: check-ci-files
+    needs: [ check-ci-files, should-run ]
     if: github.event_name != 'pull_request_target' ||
-      (github.event_name == 'pull_request_target' && needs.check-ci-files.outputs.ci_file_changed == 'false')
+      (github.event_name == 'pull_request_target' && 
+      needs.check-ci-files.outputs.ci_file_changed == 'false' &&
+      needs.should-run.outputs.integer_test == 'true')
     uses: ./.github/workflows/check_actor_permissions.yml
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
