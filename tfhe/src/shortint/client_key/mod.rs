@@ -7,8 +7,9 @@ use super::{PBSOrder, PaddingBit, ShortintEncoding};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
-    allocate_and_generate_new_binary_lwe_secret_key, decrypt_lwe_ciphertext, AtomicPattern,
+    allocate_and_generate_new_binary_lwe_secret_key, decrypt_lwe_ciphertext,
 };
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::client_key::ClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
@@ -250,8 +251,6 @@ impl ClientKey {
 
     #[cfg(test)]
     pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
-        use crate::core_crypto::prelude::AtomicPattern;
-
         let params = self.parameters;
 
         let lwe_size = params.encryption_lwe_dimension().to_lwe_size();

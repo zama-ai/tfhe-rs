@@ -1111,8 +1111,9 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::core_crypto::prelude::{AtomicPattern, UnsignedInteger};
+    use crate::core_crypto::prelude::UnsignedInteger;
     use crate::prelude::*;
+    use crate::shortint::atomic_pattern::AtomicPattern;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     use crate::shortint::{CiphertextModulus, PBSOrder};
     use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint8};

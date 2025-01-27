@@ -1,9 +1,10 @@
 use super::Ciphertext;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, AtomicPattern,
-    CiphertextModulus, CiphertextModulusLog, LweCiphertext, LweSize, Plaintext,
+    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, CiphertextModulus,
+    CiphertextModulusLog, LweCiphertext, LweSize, Plaintext,
 };
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;

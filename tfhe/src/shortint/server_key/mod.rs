@@ -39,7 +39,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::core_crypto::prelude::{AtomicPattern, ComputationBuffers};
+use crate::core_crypto::prelude::ComputationBuffers;
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
@@ -72,6 +72,7 @@ pub mod pbs_stats {
 #[cfg(feature = "pbs-stats")]
 pub use pbs_stats::*;
 
+use super::atomic_pattern::AtomicPattern;
 use super::backward_compatibility::server_key::{
     SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
 };

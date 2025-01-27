@@ -2,7 +2,7 @@ pub mod p_fail_2_minus_64;
 
 use super::{CiphertextModulus, PBSOrder};
 use crate::core_crypto::commons::parameters::{DynamicDistribution, LweDimension};
-use crate::core_crypto::prelude::AtomicPattern;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::parameters::compact_public_key_only::{
     CompactCiphertextListExpansionKindVersions, CompactPublicKeyEncryptionParametersVersions,
 };

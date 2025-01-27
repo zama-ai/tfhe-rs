@@ -4,7 +4,8 @@ use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
 use crate::core_crypto::prelude::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
-use crate::core_crypto::prelude::{AtomicPattern, LweCiphertextParameters};
+use crate::core_crypto::prelude::LweCiphertextParameters;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::ciphertext::{
     CompressedModulusSwitchedCiphertextVersions,
     InternalCompressedModulusSwitchedCiphertextVersions,
@@ -29,9 +30,9 @@ use crate::shortint::{CarryModulus, MessageModulus};
 /// let ctxt = cks.unchecked_encrypt(clear);
 ///
 /// // Can be serialized in a smaller buffer
-/// let compressed_ct = sks.switch_modulus_and_compress(&ctxt);
+/// let compressed_ct = sks.try_switch_modulus_and_compress(&ctxt).unwrap();
 ///
-/// let decompressed_ct = sks.decompress(&compressed_ct);
+/// let decompressed_ct = sks.try_decompress(&compressed_ct).unwrap();
 ///
 /// let dec = cks.decrypt(&decompressed_ct);
 ///
