@@ -1,11 +1,13 @@
 //! In this module, we store the hidden (to the end-user) internal state/keys that are needed to
 //! perform operations.
 #[cfg(feature = "gpu")]
+use crate::core_crypto::gpu::vec::GpuIndex;
+#[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::errors::{UninitializedServerKey, UnwrapResultExt};
 use crate::high_level_api::keys::{InternalServerKey, ServerKey};
 #[cfg(feature = "gpu")]
-use crate::integer::gpu::CudaServerKey;
+use crate::high_level_api::CudaServerKey;
 use std::cell::RefCell;
 
 /// We store the internal keys as thread local, meaning each thread has its own set of keys.
@@ -62,13 +64,24 @@ thread_local! {
 /// th1.join().unwrap();
 /// ```
 pub fn set_server_key<T: Into<InternalServerKey>>(keys: T) {
-    INTERNAL_KEYS.with(|internal_keys| internal_keys.replace_with(|_old| Some(keys.into())));
+    let _old = replace_server_key(Some(keys));
 }
 
 pub fn unset_server_key() {
-    INTERNAL_KEYS.with(|internal_keys| {
-        let _ = internal_keys.replace_with(|_old| None);
-    })
+    let _old = INTERNAL_KEYS.take();
+}
+
+fn replace_server_key(new_one: Option<impl Into<InternalServerKey>>) -> Option<InternalServerKey> {
+    let keys = new_one.map(Into::into);
+    #[cfg(feature = "gpu")]
+    if let Some(InternalServerKey::Cuda(cuda_key)) = &keys {
+        gpu::CUDA_STREAMS.with_borrow_mut(|current_streams| {
+            if current_streams.gpu_indexes() != cuda_key.gpu_indexes() {
+                *current_streams = cuda_key.build_streams();
+            }
+        });
+    }
+    INTERNAL_KEYS.replace(keys)
 }
 
 pub fn with_server_key_as_context<T, F>(keys: ServerKey, f: F) -> T
@@ -173,7 +186,7 @@ where
             .ok_or(UninitializedServerKey)
             .unwrap_display();
         match key {
-            InternalServerKey::Cuda(key) => func(&key.key.key),
+            InternalServerKey::Cuda(key) => func(key),
             InternalServerKey::Cpu(_) => {
                 panic!("Cuda key requested but only cpu key is available")
             }
@@ -182,16 +195,114 @@ where
 }
 
 #[cfg(feature = "gpu")]
-thread_local! {
-    static CUDA_STREAMS: std::cell::OnceCell<CudaStreams> = std::cell::OnceCell::from(CudaStreams::new_multi_gpu());
-}
+pub(in crate::high_level_api) use gpu::{
+    with_thread_local_cuda_streams, with_thread_local_cuda_streams_for_gpu_indexes,
+};
 
 #[cfg(feature = "gpu")]
-pub(in crate::high_level_api) fn with_thread_local_cuda_streams<
-    R,
-    F: for<'a> FnOnce(&'a CudaStreams) -> R,
->(
-    func: F,
-) -> R {
-    CUDA_STREAMS.with(|cell| func(cell.get().unwrap()))
+pub use gpu::CudaGpuChoice;
+
+#[cfg(feature = "gpu")]
+mod gpu {
+    use crate::core_crypto::gpu::get_number_of_gpus;
+
+    use super::*;
+    use std::cell::LazyCell;
+
+    thread_local! {
+        pub(crate) static CUDA_STREAMS: RefCell<CudaStreams> = RefCell::new(CudaStreams::new_multi_gpu());
+    }
+
+    pub(in crate::high_level_api) fn with_thread_local_cuda_streams<
+        R,
+        F: for<'a> FnOnce(&'a CudaStreams) -> R,
+    >(
+        func: F,
+    ) -> R {
+        CUDA_STREAMS.with(|cell| func(&cell.borrow()))
+    }
+
+    struct CudaStreamPool {
+        multi: LazyCell<CudaStreams>,
+        single: Vec<LazyCell<CudaStreams, Box<dyn Fn() -> CudaStreams>>>,
+    }
+
+    impl CudaStreamPool {
+        fn new() -> Self {
+            Self {
+                multi: LazyCell::new(CudaStreams::new_multi_gpu),
+                single: (0..get_number_of_gpus() as u32)
+                    .map(|index| {
+                        let ctor = Box::new(move || CudaStreams::new_single_gpu(GpuIndex(index)));
+                        LazyCell::new(ctor as Box<dyn Fn() -> CudaStreams>)
+                    })
+                    .collect(),
+            }
+        }
+    }
+
+    impl<'a> std::ops::Index<&'a [GpuIndex]> for CudaStreamPool {
+        type Output = CudaStreams;
+
+        fn index(&self, indexes: &'a [GpuIndex]) -> &Self::Output {
+            match indexes.len() {
+                0 => panic!("Internal error: Gpu indexes must not be empty"),
+                1 => &self.single[indexes[0].0 as usize],
+                _ => &self.multi,
+            }
+        }
+    }
+
+    impl std::ops::Index<CudaGpuChoice> for CudaStreamPool {
+        type Output = CudaStreams;
+
+        fn index(&self, choice: CudaGpuChoice) -> &Self::Output {
+            match choice {
+                CudaGpuChoice::Multi => &self.multi,
+                CudaGpuChoice::Single(index) => &self.single[index.0 as usize],
+            }
+        }
+    }
+
+    pub(in crate::high_level_api) fn with_thread_local_cuda_streams_for_gpu_indexes<
+        R,
+        F: for<'a> FnOnce(&'a CudaStreams) -> R,
+    >(
+        gpu_indexes: &[GpuIndex],
+        func: F,
+    ) -> R {
+        thread_local! {
+            static POOL: RefCell<CudaStreamPool> = RefCell::new(CudaStreamPool::new());
+        }
+        POOL.with_borrow(|stream_pool| {
+            let stream = &stream_pool[gpu_indexes];
+            func(stream)
+        })
+    }
+    #[derive(Copy, Clone)]
+    pub enum CudaGpuChoice {
+        Single(GpuIndex),
+        Multi,
+    }
+
+    impl From<GpuIndex> for CudaGpuChoice {
+        fn from(value: GpuIndex) -> Self {
+            Self::Single(value)
+        }
+    }
+
+    impl CudaGpuChoice {
+        pub(in crate::high_level_api) fn build_streams(self) -> CudaStreams {
+            match self {
+                Self::Single(idx) => CudaStreams::new_single_gpu(idx),
+                Self::Multi => CudaStreams::new_multi_gpu(),
+            }
+        }
+    }
+
+    impl Default for CudaGpuChoice {
+        fn default() -> Self {
+            Self::Multi
+        }
+    }
 }
