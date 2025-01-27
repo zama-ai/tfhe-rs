@@ -639,6 +639,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         &mut correct_key_ct.ct,
                                         &acc.acc,
                                         buffers,
+                                        true,
                                     );
 
                                     // Update degree depending on the LUT used (as this is a PBS and
@@ -693,6 +694,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         &mut correct_key_ct.ct,
                                         &acc.acc,
                                         buffers,
+                                        true,
                                     );
                                     // Update degree and noise as it's a raw PBS
                                     correct_key_ct.degree = acc.degree;
@@ -752,6 +754,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         &mut correct_key_ct.ct,
                                         &acc.acc,
                                         buffers,
+                                        true,
                                     );
                                     if using_user_provided_functions {
                                         correct_key_ct.degree = acc.degree;
