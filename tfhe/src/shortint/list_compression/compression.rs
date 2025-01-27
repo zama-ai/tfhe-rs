@@ -10,6 +10,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
     apply_programmable_bootstrap, generate_lookup_table_with_encoding, unchecked_scalar_mul_assign,
+    ShortintBootstrappingKey,
 };
 use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
@@ -201,6 +202,18 @@ impl DecompressionKey {
             ciphertext_modulus,
         );
 
+        match &self.blind_rotate_key {
+            ShortintBootstrappingKey::Classic {
+                bsk: _,
+                modulus_switch_noise_reduction_key,
+            } => {
+                assert!(modulus_switch_noise_reduction_key.is_none());
+            }
+            ShortintBootstrappingKey::MultiBit { .. } => {
+                panic!("Decompression can't use a multi bit PBS")
+            }
+        }
+
         ShortintEngine::with_thread_local_mut(|engine| {
             let (_ciphertext_buffers, buffers) = engine.get_buffers_no_sk(
                 self.blind_rotate_key.input_lwe_dimension(),
@@ -214,6 +227,7 @@ impl DecompressionKey {
                 &mut output_br,
                 &decompression_rescale.acc,
                 buffers,
+                false,
             );
         });
 
