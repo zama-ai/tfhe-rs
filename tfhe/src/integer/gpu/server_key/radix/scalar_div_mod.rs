@@ -105,24 +105,6 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable,
     {
-        let res = unsafe { self.unchecked_scalar_div_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_scalar_div_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        Scalar: Reciprocable,
-    {
         let numerator_bits = numerator
             .as_ref()
             .info
@@ -148,7 +130,7 @@ impl CudaServerKey {
 
         if MiniUnsignedInteger::is_power_of_two(divisor) {
             // Even in FHE, shifting is faster than multiplying / dividing
-            return self.unchecked_scalar_right_shift_async(
+            return self.unchecked_scalar_right_shift(
                 numerator,
                 MiniUnsignedInteger::ilog2(divisor) as u64,
                 streams,
@@ -157,7 +139,7 @@ impl CudaServerKey {
 
         let log2_divisor = MiniUnsignedInteger::ceil_ilog2(divisor);
         if log2_divisor > numerator_bits {
-            return self.create_trivial_zero_radix_async(
+            return self.create_trivial_zero_radix(
                 numerator.as_ref().d_blocks.lwe_ciphertext_count().0,
                 streams,
             );
@@ -191,7 +173,7 @@ impl CudaServerKey {
 
             let inverse = chosen_multiplier.multiplier
                 - (Scalar::DoublePrecision::ONE << numerator_bits as usize);
-            let t1 = self.scalar_mul_high_async(numerator, inverse, streams);
+            let t1 = unsafe { self.scalar_mul_high_async(numerator, inverse, streams) };
 
             // Compute: quotient = (t1 + ((numerator - t1) >> 1)) >> sh_post -1)
             assert_eq!(
@@ -199,13 +181,13 @@ impl CudaServerKey {
                 numerator.as_ref().d_blocks.lwe_ciphertext_count().0
             );
             // Due to the use of a shifts, we can't use unchecked_add/sub
-            let mut quotient = self.sub_async(numerator, &t1, streams);
-            self.unchecked_scalar_right_shift_assign_async(&mut quotient, 1, streams);
+            let mut quotient = self.sub(numerator, &t1, streams);
+            self.unchecked_scalar_right_shift_assign(&mut quotient, 1, streams);
 
-            self.add_assign_async(&mut quotient, &t1, streams);
+            self.add_assign(&mut quotient, &t1, streams);
             assert!(chosen_multiplier.shift_post > 0);
 
-            self.unchecked_scalar_right_shift_assign_async(
+            self.unchecked_scalar_right_shift_assign(
                 &mut quotient,
                 chosen_multiplier.shift_post as u64 - 1,
                 streams,
@@ -213,11 +195,12 @@ impl CudaServerKey {
 
             quotient
         } else {
-            let shifted_n = self.unchecked_scalar_right_shift_async(numerator, shift_pre, streams);
-            let mut quotient =
-                self.scalar_mul_high_async(&shifted_n, chosen_multiplier.multiplier, streams);
+            let shifted_n = self.unchecked_scalar_right_shift(numerator, shift_pre, streams);
+            let mut quotient = unsafe {
+                self.scalar_mul_high_async(&shifted_n, chosen_multiplier.multiplier, streams)
+            };
 
-            self.unchecked_scalar_right_shift_assign_async(
+            self.unchecked_scalar_right_shift_assign(
                 &mut quotient,
                 chosen_multiplier.shift_post as u64,
                 streams,
@@ -273,34 +256,16 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable,
     {
-        let res = unsafe { self.unchecked_scalar_div_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn scalar_div_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        Scalar: Reciprocable,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
-        self.unchecked_scalar_div_async(numerator, divisor, streams)
+        self.unchecked_scalar_div(numerator, divisor, streams)
     }
 
     pub fn unchecked_scalar_div_rem<Scalar>(
@@ -315,40 +280,14 @@ impl CudaServerKey {
         let quotient = self.unchecked_scalar_div(numerator, divisor, streams);
         let remainder = if MiniUnsignedInteger::is_power_of_two(divisor) {
             // unchecked_scalar_div would have panicked if divisor was zero
-            self.scalar_bitand(numerator, divisor - Scalar::ONE, streams)
-        } else {
-            // remainder = numerator - (quotient * divisor)
-            let tmp = self.unchecked_scalar_mul(&quotient, divisor, streams);
-            self.sub(numerator, &tmp, streams)
-        };
-
-        (quotient, remainder)
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_scalar_div_rem_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext)
-    where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-    {
-        let quotient = self.unchecked_scalar_div_async(numerator, divisor, streams);
-        let remainder = if MiniUnsignedInteger::is_power_of_two(divisor) {
-            // unchecked_scalar_div would have panicked if divisor was zero
-            let mut tmp = numerator.duplicate_async(streams);
-            self.scalar_bitand_assign_async(&mut tmp, divisor - Scalar::ONE, streams);
+            let mut tmp = numerator.duplicate(streams);
+            self.scalar_bitand_assign(&mut tmp, divisor - Scalar::ONE, streams);
             tmp
         } else {
             // remainder = numerator - (quotient * divisor)
-            let mut tmp = quotient.duplicate_async(streams);
-            self.unchecked_scalar_mul_assign_async(&mut tmp, divisor, streams);
-            self.sub_async(numerator, &tmp, streams)
+            let mut tmp = quotient.duplicate(streams);
+            self.unchecked_scalar_mul_assign(&mut tmp, divisor, streams);
+            self.sub(numerator, &tmp, streams)
         };
 
         (quotient, remainder)
@@ -402,34 +341,16 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let res = unsafe { self.unchecked_scalar_div_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn scalar_div_rem_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext)
-    where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
-        self.unchecked_scalar_div_rem_async(numerator, divisor, streams)
+        self.unchecked_scalar_div_rem(numerator, divisor, streams)
     }
 
     pub fn unchecked_scalar_rem<Scalar>(
@@ -441,32 +362,14 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let res = unsafe { self.unchecked_scalar_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_scalar_rem_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-    {
         if MiniUnsignedInteger::is_power_of_two(divisor) {
             // The remainder is simply the bits that would get 'shifted out'
-            let mut tmp = numerator.duplicate_async(streams);
-            self.scalar_bitand_assign_async(&mut tmp, divisor - Scalar::ONE, streams);
+            let mut tmp = numerator.duplicate(streams);
+            self.scalar_bitand_assign(&mut tmp, divisor - Scalar::ONE, streams);
             return tmp;
         }
 
-        let (_, remainder) = self.unchecked_scalar_div_rem_async(numerator, divisor, streams);
+        let (_, remainder) = self.unchecked_scalar_div_rem(numerator, divisor, streams);
         remainder
     }
 
@@ -513,56 +416,19 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let res = unsafe { self.unchecked_scalar_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn scalar_rem_async<Scalar>(
-        &self,
-        numerator: &CudaUnsignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
-        self.unchecked_scalar_rem_async(numerator, divisor, streams)
+        self.unchecked_scalar_rem(numerator, divisor, streams)
     }
 
     pub fn unchecked_signed_scalar_div<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaSignedRadixCiphertext
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
-        let res = unsafe { self.unchecked_signed_scalar_div_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_signed_scalar_div_async<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
         divisor: Scalar,
@@ -592,9 +458,9 @@ impl CudaServerKey {
             // Strangely, the paper says: Issue q = d;
             return if divisor < Scalar::ZERO {
                 // quotient = -quotient;
-                self.neg_async(numerator, streams)
+                self.neg(numerator, streams)
             } else {
-                numerator.duplicate_async(streams)
+                numerator.duplicate(streams)
             };
         }
 
@@ -602,7 +468,7 @@ impl CudaServerKey {
             choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
 
         if chosen_multiplier.l >= numerator_bits {
-            return self.create_trivial_zero_radix_async(
+            return self.create_trivial_zero_radix(
                 numerator.ciphertext.d_blocks.lwe_ciphertext_count().0,
                 streams,
             );
@@ -614,18 +480,20 @@ impl CudaServerKey {
             let l = chosen_multiplier.l;
 
             // SRA(n, l − 1)
-            let mut tmp = self.unchecked_scalar_right_shift_async(numerator, l - 1, streams);
+            let mut tmp = self.unchecked_scalar_right_shift(numerator, l - 1, streams);
 
             // SRL(SRA(n, l − 1), N − l)
-            self.unchecked_scalar_right_shift_logical_assign_async(
-                &mut tmp,
-                (numerator_bits - l) as usize,
-                streams,
-            );
+            unsafe {
+                self.unchecked_scalar_right_shift_logical_assign_async(
+                    &mut tmp,
+                    (numerator_bits - l) as usize,
+                    streams,
+                )
+            };
             // n + SRL(SRA(n, l − 1), N − l)
-            self.add_assign_async(&mut tmp, numerator, streams);
+            self.add_assign(&mut tmp, numerator, streams);
             // SRA(n + SRL(SRA(n, l − 1), N − l), l);
-            quotient = self.unchecked_scalar_right_shift_async(&tmp, l, streams);
+            quotient = self.unchecked_scalar_right_shift(&tmp, l, streams);
         } else if chosen_multiplier.multiplier
             < (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1))
         {
@@ -638,14 +506,16 @@ impl CudaServerKey {
             let (mut tmp, xsign) = rayon::join(
                 move || {
                     // MULSH(m, n)
-                    let mut tmp = self.signed_scalar_mul_high_async(
-                        numerator,
-                        chosen_multiplier.multiplier,
-                        streams,
-                    );
+                    let mut tmp = unsafe {
+                        self.signed_scalar_mul_high_async(
+                            numerator,
+                            chosen_multiplier.multiplier,
+                            streams,
+                        )
+                    };
 
                     // SRA(MULSH(m, n), shpost)
-                    self.unchecked_scalar_right_shift_assign_async(
+                    self.unchecked_scalar_right_shift_assign(
                         &mut tmp,
                         chosen_multiplier.shift_post,
                         streams,
@@ -655,11 +525,11 @@ impl CudaServerKey {
                 || {
                     // XSIGN is: -1 if x < 0 { -1 } else { 0 }
                     // It is equivalent to SRA(x, N − 1)
-                    self.unchecked_scalar_right_shift_async(numerator, numerator_bits - 1, streams)
+                    self.unchecked_scalar_right_shift(numerator, numerator_bits - 1, streams)
                 },
             );
 
-            self.sub_assign_async(&mut tmp, &xsign, streams);
+            self.sub_assign(&mut tmp, &xsign, streams);
             quotient = tmp;
         } else {
             // Issue q = SRA(n + MULSH(m − 2^N , n), shpost) − XSIGN(n);
@@ -676,13 +546,14 @@ impl CudaServerKey {
                     let cst = Scalar::DoublePrecision::cast_from(cst);
 
                     // MULSH(m - 2^N, n)
-                    let mut tmp = self.signed_scalar_mul_high_async(numerator, cst, streams);
+                    let mut tmp =
+                        unsafe { self.signed_scalar_mul_high_async(numerator, cst, streams) };
 
                     // n + MULSH(m − 2^N , n)
-                    self.add_assign_async(&mut tmp, numerator, streams);
+                    self.add_assign(&mut tmp, numerator, streams);
 
                     // SRA(n + MULSH(m - 2^N, n), shpost)
-                    tmp = self.unchecked_scalar_right_shift_async(
+                    tmp = self.unchecked_scalar_right_shift(
                         &tmp,
                         chosen_multiplier.shift_post,
                         streams,
@@ -693,16 +564,16 @@ impl CudaServerKey {
                 || {
                     // XSIGN is: -1 if x < 0 { -1 } else { 0 }
                     // It is equivalent to SRA(x, N − 1)
-                    self.unchecked_scalar_right_shift_async(numerator, numerator_bits - 1, streams)
+                    self.unchecked_scalar_right_shift(numerator, numerator_bits - 1, streams)
                 },
             );
 
-            self.sub_assign_async(&mut tmp, &xsign, streams);
+            self.sub_assign(&mut tmp, &xsign, streams);
             quotient = tmp;
         }
 
         if divisor < Scalar::ZERO {
-            self.neg_async(&quotient, streams)
+            self.neg(&quotient, streams)
         } else {
             quotient
         }
@@ -752,35 +623,16 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        let res = unsafe { self.signed_scalar_div_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn signed_scalar_div_async<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaSignedRadixCiphertext
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
-        self.unchecked_signed_scalar_div_async(numerator, divisor, streams)
+        self.unchecked_signed_scalar_div(numerator, divisor, streams)
     }
 
     pub fn unchecked_signed_scalar_div_rem<Scalar>(
@@ -793,32 +645,12 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        let res =
-            unsafe { self.unchecked_signed_scalar_div_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_signed_scalar_div_rem_async<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> (CudaSignedRadixCiphertext, CudaSignedRadixCiphertext)
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
-        let quotient = self.unchecked_signed_scalar_div_async(numerator, divisor, streams);
+        let quotient = self.unchecked_signed_scalar_div(numerator, divisor, streams);
 
         // remainder = numerator - (quotient * divisor)
-        let mut tmp = quotient.duplicate_async(streams);
-        self.unchecked_scalar_mul_assign_async(&mut tmp, divisor, streams);
-        let remainder = self.sub_async(numerator, &tmp, streams);
+        let mut tmp = quotient.duplicate(streams);
+        self.unchecked_scalar_mul_assign(&mut tmp, divisor, streams);
+        let remainder = self.sub(numerator, &tmp, streams);
 
         (quotient, remainder)
     }
@@ -870,35 +702,16 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        let res = unsafe { self.signed_scalar_div_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn signed_scalar_div_rem_async<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> (CudaSignedRadixCiphertext, CudaSignedRadixCiphertext)
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
-        self.unchecked_signed_scalar_div_rem_async(numerator, divisor, streams)
+        self.unchecked_signed_scalar_div_rem(numerator, divisor, streams)
     }
 
     pub fn unchecked_signed_scalar_rem<Scalar>(
@@ -911,29 +724,7 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        let remainder =
-            unsafe { self.unchecked_signed_scalar_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-
-        remainder
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn unchecked_signed_scalar_rem_async<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaSignedRadixCiphertext
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
-        let (_, remainder) =
-            self.unchecked_signed_scalar_div_rem_async(numerator, divisor, streams);
+        let (_, remainder) = self.unchecked_signed_scalar_div_rem(numerator, divisor, streams);
 
         remainder
     }
@@ -982,34 +773,15 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        let res = unsafe { self.signed_scalar_rem_async(numerator, divisor, streams) };
-        streams.synchronize();
-        res
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronized
-    pub unsafe fn signed_scalar_rem_async<Scalar>(
-        &self,
-        numerator: &CudaSignedRadixCiphertext,
-        divisor: Scalar,
-        streams: &CudaStreams,
-    ) -> CudaSignedRadixCiphertext
-    where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
-    {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
             numerator
         } else {
-            tmp_numerator = numerator.duplicate_async(streams);
+            tmp_numerator = numerator.duplicate(streams);
             self.full_propagate_assign(&mut tmp_numerator, streams);
             &tmp_numerator
         };
 
-        self.unchecked_signed_scalar_rem_async(numerator, divisor, streams)
+        self.unchecked_signed_scalar_rem(numerator, divisor, streams)
     }
 }

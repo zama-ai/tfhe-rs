@@ -174,6 +174,20 @@ impl CudaServerKey {
         result
     }
 
+    pub fn unchecked_scalar_right_shift_assign<Scalar, T>(
+        &self,
+        ct: &mut T,
+        shift: Scalar,
+        streams: &CudaStreams,
+    ) where
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
+        T: CudaIntegerRadixCiphertext,
+    {
+        unsafe { self.unchecked_scalar_right_shift_assign_async(ct, shift, streams) };
+        streams.synchronize();
+    }
+
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
