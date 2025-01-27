@@ -79,7 +79,9 @@ impl CudaServerKey {
             return;
         }
 
-        if scalar == Scalar::ONE {
+        let ciphertext = ct.as_mut();
+        let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0;
+        if scalar == Scalar::ONE || num_blocks == 0 {
             return;
         }
 
@@ -89,8 +91,6 @@ impl CudaServerKey {
             self.unchecked_scalar_left_shift_assign_async(ct, scalar.ilog2() as u64, streams);
             return;
         }
-        let ciphertext = ct.as_mut();
-        let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0;
         let msg_bits = self.message_modulus.0.ilog2() as usize;
         let decomposer = BlockDecomposer::with_early_stop_at_zero(scalar, 1).iter_as::<u8>();
 
@@ -106,6 +106,9 @@ impl CudaServerKey {
         let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(scalar, 1)
             .iter_as::<u64>()
             .collect::<Vec<_>>();
+        if decomposed_scalar.is_empty() {
+            return;
+        }
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {

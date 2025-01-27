@@ -4454,9 +4454,16 @@ template <typename Torus> struct int_scalar_mul_buffer {
                         num_ciphertext_bits * num_radix_blocks * lwe_size_bytes,
                         streams[0], gpu_indexes[0]);
 
-      logical_scalar_shift_buffer = new int_logical_scalar_shift_buffer<Torus>(
-          streams, gpu_indexes, gpu_count, LEFT_SHIFT, params, num_radix_blocks,
-          allocate_gpu_memory, all_shifted_buffer);
+      if (num_ciphertext_bits * num_radix_blocks >= num_radix_blocks + 2)
+        logical_scalar_shift_buffer =
+            new int_logical_scalar_shift_buffer<Torus>(
+                streams, gpu_indexes, gpu_count, LEFT_SHIFT, params,
+                num_radix_blocks, allocate_gpu_memory, all_shifted_buffer);
+      else
+        logical_scalar_shift_buffer =
+            new int_logical_scalar_shift_buffer<Torus>(
+                streams, gpu_indexes, gpu_count, LEFT_SHIFT, params,
+                num_radix_blocks, allocate_gpu_memory);
 
       sum_ciphertexts_vec_mem = new int_sum_ciphertexts_vec_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, num_radix_blocks,
