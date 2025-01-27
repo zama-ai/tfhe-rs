@@ -30,7 +30,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
       - name: Check User Permission
-        if: (inputs.username != 'dependabot' || inputs.username != 'cla-bot') &&
+        if: (inputs.username != 'dependabot[bot]' || inputs.username != 'cla-bot[bot]') &&
           steps.check-access.outputs.require-result == 'false'
         run: |
           echo "${{ inputs.username }} does not have permissions on this repo."
