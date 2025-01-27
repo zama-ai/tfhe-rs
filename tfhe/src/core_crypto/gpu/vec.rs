@@ -5,13 +5,37 @@ use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use tfhe_cuda_backend::cuda_bind::{
-    cuda_drop, cuda_malloc, cuda_malloc_async, cuda_memcpy_async_gpu_to_gpu,
-    cuda_memcpy_async_to_cpu, cuda_memcpy_async_to_gpu, cuda_memcpy_gpu_to_gpu, cuda_memset_async,
-    cuda_synchronize_device,
+    cuda_drop, cuda_get_number_of_gpus, cuda_malloc, cuda_malloc_async,
+    cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_async_to_cpu, cuda_memcpy_async_to_gpu,
+    cuda_memcpy_gpu_to_gpu, cuda_memset_async, cuda_synchronize_device,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GpuIndex(pub u32);
+
+impl GpuIndex {
+    pub fn num_gpus() -> u32 {
+        unsafe { cuda_get_number_of_gpus() as u32 }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.0 < Self::num_gpus()
+    }
+
+    pub fn validate(self) -> crate::Result<Self> {
+        let num_gpus = unsafe { cuda_get_number_of_gpus() as u32 };
+        if self.0 < num_gpus {
+            Ok(self)
+        } else {
+            let message = if num_gpus > 1 {
+                format!("{self:?} is invalid, there are {num_gpus} GPUs")
+            } else {
+                format!("{self:?} is invalid, there is {num_gpus} GPU")
+            };
+            Err(crate::Error::new(message))
+        }
+    }
+}
 
 /// A contiguous array type stored in the gpu memory.
 ///
