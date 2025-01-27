@@ -3,10 +3,14 @@ use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::{unchecked_cmux_integer_radix_kb, CudaServerKey, PBSType};
+use crate::integer::gpu::{unchecked_cmux_integer_radix_kb_async, CudaServerKey, PBSType};
 
 impl CudaServerKey {
-    pub fn unchecked_if_then_else<T: CudaIntegerRadixCiphertext>(
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_if_then_else_async<T: CudaIntegerRadixCiphertext>(
         &self,
         condition: &CudaBooleanBlock,
         true_ct: &T,
@@ -20,7 +24,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    unchecked_cmux_integer_radix_kb(
+                    unchecked_cmux_integer_radix_kb_async(
                         stream,
                         result.as_mut(),
                         condition,
@@ -48,7 +52,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    unchecked_cmux_integer_radix_kb(
+                    unchecked_cmux_integer_radix_kb_async(
                         stream,
                         result.as_mut(),
                         condition,
@@ -82,6 +86,19 @@ impl CudaServerKey {
         result
     }
 
+    pub fn unchecked_if_then_else<T: CudaIntegerRadixCiphertext>(
+        &self,
+        condition: &CudaBooleanBlock,
+        true_ct: &T,
+        false_ct: &T,
+        stream: &CudaStreams,
+    ) -> T {
+        let result =
+            unsafe { self.unchecked_if_then_else_async(condition, true_ct, false_ct, stream) };
+        stream.synchronize();
+        result
+    }
+
     pub fn if_then_else<T: CudaIntegerRadixCiphertext>(
         &self,
         condition: &CudaBooleanBlock,
@@ -92,20 +109,24 @@ impl CudaServerKey {
         let mut tmp_true_ct;
         let mut tmp_false_ct;
 
-        let true_ct = if true_ct.block_carries_are_empty() {
-            true_ct
-        } else {
-            tmp_true_ct = true_ct.duplicate(stream);
-            self.full_propagate_assign(&mut tmp_true_ct, stream);
-            &tmp_true_ct
+        let true_ct = unsafe {
+            if true_ct.block_carries_are_empty() {
+                true_ct
+            } else {
+                tmp_true_ct = true_ct.duplicate_async(stream);
+                self.full_propagate_assign_async(&mut tmp_true_ct, stream);
+                &tmp_true_ct
+            }
         };
 
-        let false_ct = if false_ct.block_carries_are_empty() {
-            false_ct
-        } else {
-            tmp_false_ct = false_ct.duplicate(stream);
-            self.full_propagate_assign(&mut tmp_false_ct, stream);
-            &tmp_false_ct
+        let false_ct = unsafe {
+            if false_ct.block_carries_are_empty() {
+                false_ct
+            } else {
+                tmp_false_ct = false_ct.duplicate_async(stream);
+                self.full_propagate_assign_async(&mut tmp_false_ct, stream);
+                &tmp_false_ct
+            }
         };
 
         self.unchecked_if_then_else(condition, true_ct, false_ct, stream)
