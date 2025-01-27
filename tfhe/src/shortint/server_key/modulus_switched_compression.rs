@@ -1,7 +1,7 @@
 use super::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
 use super::{
-    extract_lwe_sample_from_glwe_ciphertext, multi_bit_deterministic_blind_rotate_assign,
-    GlweCiphertext, ShortintBootstrappingKey,
+    apply_programmable_bootstrap_no_ms_noise_reduction, extract_lwe_sample_from_glwe_ciphertext,
+    multi_bit_deterministic_blind_rotate_assign, GlweCiphertext, ShortintBootstrappingKey,
 };
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
@@ -10,7 +10,7 @@ use crate::shortint::ciphertext::{
     CompressedModulusSwitchedCiphertext, InternalCompressedModulusSwitchedCiphertext, NoiseLevel,
 };
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
+use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::{Ciphertext, PBSOrder, ServerKey};
 
 impl ServerKey {
@@ -139,7 +139,7 @@ impl ServerKey {
                             panic!("Compression was done targeting a MultiBit bootstrap decompression, cannot decompress with a Classic bootstrapping key")
                         }
                     };
-                    apply_programmable_bootstrap(
+                    apply_programmable_bootstrap_no_ms_noise_reduction(
                         &self.bootstrapping_key,
                         &ct,
                         &mut ciphertext_buffers.buffer_lwe_after_pbs,
