@@ -856,7 +856,7 @@ impl ServerKey {
         });
 
         ct.degree = acc.degree;
-        ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
+        ct.set_noise_level_to_nominal();
     }
 
     /// Compute a keyswitch and programmable bootstrap applying several functions on an input
@@ -1337,7 +1337,7 @@ impl ServerKey {
             );
 
             output_shortint_ct.degree = *output_degree;
-            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
+            output_shortint_ct.set_noise_level_to_nominal();
             outputs.push(output_shortint_ct);
         }
 
@@ -1388,7 +1388,7 @@ impl ServerKey {
             );
 
             output_shortint_ct.degree = *output_degree;
-            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
+            output_shortint_ct.set_noise_level_to_nominal();
             outputs.push(output_shortint_ct);
         }
 

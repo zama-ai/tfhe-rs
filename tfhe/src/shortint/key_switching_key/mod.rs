@@ -649,10 +649,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         correct_key_ct.degree = degree_after_keyswitch;
                                     }
                                     // Update the noise as well
-                                    correct_key_ct.set_noise_level(
-                                        NoiseLevel::NOMINAL,
-                                        self.dest_server_key.max_noise_level,
-                                    );
+                                    correct_key_ct.set_noise_level_to_nominal();
                                 });
                             });
                     }
@@ -696,10 +693,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                     );
                                     // Update degree and noise as it's a raw PBS
                                     correct_key_ct.degree = acc.degree;
-                                    correct_key_ct.set_noise_level(
-                                        NoiseLevel::NOMINAL,
-                                        self.dest_server_key.max_noise_level,
-                                    );
+                                    correct_key_ct.set_noise_level_to_nominal();
                                 });
                             });
                     }
@@ -761,10 +755,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         );
                                         correct_key_ct.degree = new_degree;
                                     }
-                                    correct_key_ct.set_noise_level(
-                                        NoiseLevel::NOMINAL,
-                                        self.dest_server_key.max_noise_level,
-                                    );
+                                    correct_key_ct.set_noise_level_to_nominal();
                                 });
                             });
                     }
