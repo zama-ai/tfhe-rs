@@ -260,7 +260,7 @@ impl CudaServerKey {
             for ct in lhs.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_lhs.push(temp_ct);
             }
@@ -275,7 +275,7 @@ impl CudaServerKey {
             for ct in rhs.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_rhs.push(temp_ct);
             }
@@ -411,7 +411,7 @@ impl CudaServerKey {
             for ct in lhs.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_lhs.push(temp_ct);
             }
@@ -426,7 +426,7 @@ impl CudaServerKey {
             for ct in rhs.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_rhs.push(temp_ct);
             }

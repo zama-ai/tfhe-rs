@@ -525,7 +525,7 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_add_integer_radix_assign(
+pub unsafe fn unchecked_add_integer_radix_assign_async(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
@@ -589,7 +589,6 @@ pub unsafe fn unchecked_add_integer_radix_assign(
         &radix_lwe_right_data,
     );
     update_noise_degree(radix_lwe_left, &radix_lwe_left_data);
-    streams.synchronize();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2163,7 +2162,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_cmux_integer_radix_kb<T: UnsignedInteger, B: Numeric>(
+pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_condition: &CudaBooleanBlock,
@@ -2347,7 +2346,6 @@ pub unsafe fn unchecked_cmux_integer_radix_kb<T: UnsignedInteger, B: Numeric>(
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    streams.synchronize()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3302,7 +3300,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_signed_abs_radix_kb_assign<T: UnsignedInteger, B: Numeric>(
+pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     ct: &mut CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
@@ -3382,7 +3380,6 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign<T: UnsignedInteger, B: Numeri
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    streams.synchronize()
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -250,7 +250,7 @@ impl CudaServerKey {
             self.unchecked_match_value(ct, matches, streams)
         } else {
             let mut clone = ct.duplicate(streams);
-            self.full_propagate_assign(&mut clone, streams);
+            unsafe { self.full_propagate_assign_async(&mut clone, streams) };
             self.unchecked_match_value(&clone, matches, streams)
         }
     }
@@ -364,7 +364,7 @@ impl CudaServerKey {
             self.unchecked_match_value_or(ct, matches, or_value, streams)
         } else {
             let mut clone = ct.duplicate(streams);
-            self.full_propagate_assign(&mut clone, streams);
+            unsafe { self.full_propagate_assign_async(&mut clone, streams) };
             self.unchecked_match_value_or(&clone, matches, or_value, streams)
         }
     }
@@ -444,7 +444,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -458,7 +458,7 @@ impl CudaServerKey {
             value
         } else {
             tmp_value = value.duplicate(streams);
-            self.full_propagate_assign(&mut tmp_value, streams);
+            unsafe { self.full_propagate_assign_async(&mut tmp_value, streams) };
             &tmp_value
         };
 
@@ -544,7 +544,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -632,7 +632,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_ct = ct.duplicate(streams);
-            self.full_propagate_assign(&mut tmp_ct, streams);
+            unsafe { self.full_propagate_assign_async(&mut tmp_ct, streams) };
             &tmp_ct
         };
         self.unchecked_is_in_clears(ct, clears, streams)
@@ -732,7 +732,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_ct = ct.duplicate(streams);
-            self.full_propagate_assign(&mut tmp_ct, streams);
+            unsafe { self.full_propagate_assign_async(&mut tmp_ct, streams) };
             streams.synchronize();
             &tmp_ct
         };
@@ -859,7 +859,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp_ct = ct.duplicate(streams);
-            self.full_propagate_assign(&mut tmp_ct, streams);
+            unsafe { self.full_propagate_assign_async(&mut tmp_ct, streams) };
             streams.synchronize();
             &tmp_ct
         };
@@ -964,7 +964,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -978,7 +978,7 @@ impl CudaServerKey {
             value
         } else {
             tmp_value = value.duplicate(streams);
-            self.full_propagate_assign(&mut tmp_value, streams);
+            unsafe { self.full_propagate_assign_async(&mut tmp_value, streams) };
             &tmp_value
         };
         self.unchecked_index_of(cts, value, streams)
@@ -1082,7 +1082,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -1211,7 +1211,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -1343,7 +1343,7 @@ impl CudaServerKey {
             for ct in cts.iter() {
                 let mut temp_ct = ct.duplicate(streams);
                 if !temp_ct.block_carries_are_empty() {
-                    self.full_propagate_assign(&mut temp_ct, streams);
+                    unsafe { self.full_propagate_assign_async(&mut temp_ct, streams) };
                 }
                 tmp_cts.push(temp_ct);
             }
@@ -1357,7 +1357,7 @@ impl CudaServerKey {
             value
         } else {
             tmp_value = value.duplicate(streams);
-            self.full_propagate_assign(&mut tmp_value, streams);
+            unsafe { self.full_propagate_assign_async(&mut tmp_value, streams) };
             &tmp_value
         };
         self.unchecked_first_index_of(cts, value, streams)
@@ -1606,11 +1606,13 @@ impl CudaServerKey {
         for chunk_idx in 0..(num_chunks - 1) {
             for ct_idx in 0..chunk_size {
                 let one_hot_idx = chunk_idx * chunk_size + ct_idx;
-                self.unchecked_add_assign(
-                    &mut aggregated_vector,
-                    &one_hot_vector[one_hot_idx],
-                    streams,
-                );
+                unsafe {
+                    self.unchecked_add_assign_async(
+                        &mut aggregated_vector,
+                        &one_hot_vector[one_hot_idx],
+                        streams,
+                    )
+                };
             }
             let mut temp = aggregated_vector.duplicate(streams);
             let mut aggregated_mut_slice = aggregated_vector
@@ -1684,11 +1686,13 @@ impl CudaServerKey {
         let last_chunk_size = one_hot_vector.len() - (num_chunks - 1) * chunk_size;
         for ct_idx in 0..last_chunk_size {
             let one_hot_idx = (num_chunks - 1) * chunk_size + ct_idx;
-            self.unchecked_add_assign(
-                &mut aggregated_vector,
-                &one_hot_vector[one_hot_idx],
-                streams,
-            );
+            unsafe {
+                self.unchecked_add_assign_async(
+                    &mut aggregated_vector,
+                    &one_hot_vector[one_hot_idx],
+                    streams,
+                )
+            };
         }
 
         let message_extract_lut =

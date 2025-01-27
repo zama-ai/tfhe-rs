@@ -136,19 +136,19 @@ impl CudaServerKey {
             (true, true) => (numerator, divisor),
             (true, false) => {
                 tmp_divisor = divisor.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_divisor, streams);
+                unsafe { self.full_propagate_assign_async(&mut tmp_divisor, streams) };
                 (numerator, &tmp_divisor)
             }
             (false, true) => {
                 tmp_numerator = numerator.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_numerator, streams);
+                unsafe { self.full_propagate_assign_async(&mut tmp_numerator, streams) };
                 (&tmp_numerator, divisor)
             }
             (false, false) => {
                 tmp_divisor = divisor.duplicate(streams);
                 tmp_numerator = numerator.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_numerator, streams);
-                self.full_propagate_assign(&mut tmp_divisor, streams);
+                unsafe { self.full_propagate_assign_async(&mut tmp_numerator, streams) };
+                unsafe { self.full_propagate_assign_async(&mut tmp_divisor, streams) };
                 (&tmp_numerator, &tmp_divisor)
             }
         };
@@ -176,19 +176,19 @@ impl CudaServerKey {
             (true, true) => (numerator, divisor),
             (true, false) => {
                 tmp_divisor = divisor.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_divisor, streams);
+                unsafe { self.full_propagate_assign_async(&mut tmp_divisor, streams) };
                 (numerator, &tmp_divisor)
             }
             (false, true) => {
                 tmp_numerator = numerator.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_numerator, streams);
+                unsafe { self.full_propagate_assign_async(&mut tmp_numerator, streams) };
                 (&tmp_numerator, divisor)
             }
             (false, false) => {
                 tmp_divisor = divisor.duplicate(streams);
                 tmp_numerator = numerator.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_numerator, streams);
-                self.full_propagate_assign(&mut tmp_divisor, streams);
+                unsafe { self.full_propagate_assign_async(&mut tmp_numerator, streams) };
+                unsafe { self.full_propagate_assign_async(&mut tmp_divisor, streams) };
                 (&tmp_numerator, &tmp_divisor)
             }
         };

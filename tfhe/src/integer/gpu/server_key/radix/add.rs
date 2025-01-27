@@ -7,7 +7,7 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
-    unchecked_add_integer_radix_assign,
+    unchecked_add_integer_radix_assign_async,
     unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
@@ -70,7 +70,7 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> T {
-        let mut result = ct_left.duplicate(streams);
+        let mut result = unsafe { ct_left.duplicate_async(streams) };
         self.add_assign(&mut result, ct_right, streams);
         result
     }
@@ -94,18 +94,18 @@ impl CudaServerKey {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
                 tmp_rhs = ct_right.duplicate_async(streams);
-                self.full_propagate_assign(&mut tmp_rhs, streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                self.full_propagate_assign(ct_left, streams);
+                self.full_propagate_assign_async(ct_left, streams);
                 (ct_left, ct_right)
             }
             (false, false) => {
                 tmp_rhs = ct_right.duplicate_async(streams);
 
-                self.full_propagate_assign(ct_left, streams);
-                self.full_propagate_assign(&mut tmp_rhs, streams);
+                self.full_propagate_assign_async(ct_left, streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
         };
@@ -179,7 +179,7 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub fn unchecked_add_assign<T: CudaIntegerRadixCiphertext>(
+    pub unsafe fn unchecked_add_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -204,10 +204,21 @@ impl CudaServerKey {
         );
 
         unsafe {
-            unchecked_add_integer_radix_assign(streams, ciphertext_left, ciphertext_right);
+            unchecked_add_integer_radix_assign_async(streams, ciphertext_left, ciphertext_right);
         }
     }
 
+    pub fn unchecked_add_assign<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &mut T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) {
+        unsafe {
+            self.unchecked_add_assign_async(ct_left, ct_right, streams);
+        }
+        streams.synchronize();
+    }
     /// # Safety
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
@@ -396,7 +407,7 @@ impl CudaServerKey {
             .iter_mut()
             .filter(|ct| !ct.block_carries_are_empty())
             .for_each(|ct| {
-                self.full_propagate_assign(&mut *ct, streams);
+                self.full_propagate_assign_async(&mut *ct, streams);
             });
 
         Some(self.unchecked_sum_ciphertexts_async(&ciphertexts, streams))
@@ -456,14 +467,14 @@ impl CudaServerKey {
             (true, false) => {
                 unsafe {
                     tmp_rhs = ct_right.duplicate_async(stream);
-                    self.full_propagate_assign(&mut tmp_rhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
                 }
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
                 unsafe {
                     tmp_lhs = ct_left.duplicate_async(stream);
-                    self.full_propagate_assign(&mut tmp_lhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 }
                 (&tmp_lhs, ct_right)
             }
@@ -472,8 +483,8 @@ impl CudaServerKey {
                     tmp_lhs = ct_left.duplicate_async(stream);
                     tmp_rhs = ct_right.duplicate_async(stream);
 
-                    self.full_propagate_assign(&mut tmp_lhs, stream);
-                    self.full_propagate_assign(&mut tmp_rhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
                 }
 
                 (&tmp_lhs, &tmp_rhs)
@@ -643,14 +654,14 @@ impl CudaServerKey {
             (true, false) => {
                 unsafe {
                     tmp_rhs = ct_right.duplicate_async(stream);
-                    self.full_propagate_assign(&mut tmp_rhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
                 }
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
                 unsafe {
                     tmp_lhs = ct_left.duplicate_async(stream);
-                    self.full_propagate_assign(&mut tmp_lhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 }
                 (&tmp_lhs, ct_right)
             }
@@ -659,8 +670,8 @@ impl CudaServerKey {
                     tmp_lhs = ct_left.duplicate_async(stream);
                     tmp_rhs = ct_right.duplicate_async(stream);
 
-                    self.full_propagate_assign(&mut tmp_lhs, stream);
-                    self.full_propagate_assign(&mut tmp_rhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
                 }
 
                 (&tmp_lhs, &tmp_rhs)

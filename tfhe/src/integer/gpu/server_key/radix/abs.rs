@@ -2,14 +2,14 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
-use crate::integer::gpu::{unchecked_signed_abs_radix_kb_assign, PBSType};
+use crate::integer::gpu::{unchecked_signed_abs_radix_kb_assign_async, PBSType};
 
 impl CudaServerKey {
     /// # Safety
     ///
     /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
     ///   synchronization is required
-    pub fn unchecked_abs_assign<T>(&self, ct: &mut T, streams: &CudaStreams)
+    pub unsafe fn unchecked_abs_assign_async<T>(&self, ct: &mut T, streams: &CudaStreams)
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -18,7 +18,7 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    unchecked_signed_abs_radix_kb_assign(
+                    unchecked_signed_abs_radix_kb_assign_async(
                         streams,
                         ct.as_mut(),
                         &d_bsk.d_vec,
@@ -43,7 +43,7 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    unchecked_signed_abs_radix_kb_assign(
+                    unchecked_signed_abs_radix_kb_assign_async(
                         streams,
                         ct.as_mut(),
                         &d_multibit_bsk.d_vec,
@@ -74,10 +74,11 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut res = ct.duplicate(streams);
+        let mut res = unsafe { ct.duplicate_async(streams) };
         if T::IS_SIGNED {
-            self.unchecked_abs_assign(&mut res, streams);
+            unsafe { self.unchecked_abs_assign_async(&mut res, streams) };
         }
+        streams.synchronize();
         res
     }
 
@@ -131,13 +132,14 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut res = ct.duplicate(streams);
+        let mut res = unsafe { ct.duplicate_async(streams) };
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign(&mut res, streams);
+            unsafe { self.full_propagate_assign_async(&mut res, streams) };
         };
         if T::IS_SIGNED {
-            self.unchecked_abs_assign(&mut res, streams);
+            unsafe { self.unchecked_abs_assign_async(&mut res, streams) };
         }
+        streams.synchronize();
         res
     }
 }

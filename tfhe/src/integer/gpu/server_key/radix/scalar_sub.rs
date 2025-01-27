@@ -155,7 +155,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign(ct, streams);
+            self.full_propagate_assign_async(ct, streams);
         };
 
         self.unchecked_scalar_sub_assign_async(ct, scalar, streams);
@@ -221,7 +221,7 @@ impl CudaServerKey {
         unsafe {
             tmp_lhs = ct_left.duplicate_async(streams);
             if !tmp_lhs.block_carries_are_empty() {
-                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign_async(&mut tmp_lhs, streams);
             }
         }
 

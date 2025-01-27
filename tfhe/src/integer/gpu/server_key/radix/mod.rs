@@ -386,7 +386,7 @@ impl CudaServerKey {
         carry_out
     }
 
-    pub(crate) fn full_propagate_assign<T: CudaIntegerRadixCiphertext>(
+    pub(crate) unsafe fn full_propagate_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
         streams: &CudaStreams,
@@ -445,7 +445,6 @@ impl CudaServerKey {
                 NoiseLevel::NOMINAL
             };
         });
-        streams.synchronize();
     }
 
     /// Prepend trivial zero LSB blocks to an existing [`CudaUnsignedRadixCiphertext`] or
@@ -1353,7 +1352,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !source.block_carries_are_empty() {
-            self.full_propagate_assign(&mut source, streams);
+            self.full_propagate_assign_async(&mut source, streams);
         }
         let current_num_blocks = source.as_ref().info.blocks.len();
         if T::IS_SIGNED {
@@ -1459,7 +1458,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if !source.block_carries_are_empty() {
-            self.full_propagate_assign(&mut source, streams);
+            self.full_propagate_assign_async(&mut source, streams);
         }
 
         let current_num_blocks = source.as_ref().info.blocks.len();

@@ -847,7 +847,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate_async(streams);
-            self.full_propagate_assign(&mut tmp, streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
         self.unchecked_trailing_zeros_async(ct, streams)
@@ -920,7 +920,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate_async(streams);
-            self.full_propagate_assign(&mut tmp, streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
         self.unchecked_trailing_ones_async(ct, streams)
@@ -993,7 +993,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate_async(streams);
-            self.full_propagate_assign(&mut tmp, streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
         self.unchecked_leading_zeros_async(ct, streams)
@@ -1066,7 +1066,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate_async(streams);
-            self.full_propagate_assign(&mut tmp, streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
         self.unchecked_leading_ones_async(ct, streams)
@@ -1132,7 +1132,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate_async(streams);
-            self.full_propagate_assign(&mut tmp, streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
 
@@ -1207,7 +1207,7 @@ impl CudaServerKey {
             ct
         } else {
             tmp = ct.duplicate_async(streams);
-            self.full_propagate_assign(&mut tmp, streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
 
