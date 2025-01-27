@@ -9,7 +9,8 @@ use crate::shortint::ciphertext::CompressedCiphertextList;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
-    apply_programmable_bootstrap, generate_lookup_table_with_encoding, unchecked_scalar_mul_assign,
+    apply_programmable_bootstrap, generate_lookup_table_with_output_encoding,
+    unchecked_scalar_mul_assign, LookupTableSize,
 };
 use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
@@ -153,10 +154,10 @@ impl DecompressionKey {
         let compression_cleartext_modulus = encryption_cleartext_modulus / packed.message_modulus.0;
         let effective_compression_message_modulus = MessageModulus(compression_cleartext_modulus);
         let effective_compression_carry_modulus = CarryModulus(1);
+        let lut_size = LookupTableSize::new(self.out_glwe_size(), self.out_polynomial_size());
 
-        let decompression_rescale = generate_lookup_table_with_encoding(
-            self.out_glwe_size(),
-            self.out_polynomial_size(),
+        let decompression_rescale = generate_lookup_table_with_output_encoding(
+            lut_size,
             packed.ciphertext_modulus,
             // Input moduli are the effective compression ones
             effective_compression_message_modulus,

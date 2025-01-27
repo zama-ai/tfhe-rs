@@ -403,6 +403,30 @@ pub struct ServerKey {
     pub pbs_order: PBSOrder,
 }
 
+/// Represents the number of elements in a [`LookupTable`] represented by a Glwe ciphertext
+#[derive(Copy, Clone, Debug)]
+pub struct LookupTableSize {
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+}
+
+impl LookupTableSize {
+    pub fn new(glwe_size: GlweSize, polynomial_size: PolynomialSize) -> Self {
+        Self {
+            glwe_size,
+            polynomial_size,
+        }
+    }
+
+    pub fn glwe_size(&self) -> GlweSize {
+        self.glwe_size
+    }
+
+    pub fn polynomial_size(&self) -> PolynomialSize {
+        self.polynomial_size
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
 pub struct LookupTable<C: Container<Element = u64>> {
@@ -627,9 +651,12 @@ impl ServerKey {
     where
         F: Fn(u64) -> u64,
     {
-        generate_lookup_table(
+        let size = LookupTableSize::new(
             self.bootstrapping_key.glwe_size(),
             self.bootstrapping_key.polynomial_size(),
+        );
+        generate_lookup_table(
+            size,
             self.ciphertext_modulus,
             self.message_modulus,
             self.carry_modulus,
@@ -1548,8 +1575,7 @@ pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
 }
 
 pub fn generate_lookup_table<F>(
-    glwe_size: GlweSize,
-    polynomial_size: PolynomialSize,
+    size: LookupTableSize,
     ciphertext_modulus: CiphertextModulus,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -1558,9 +1584,8 @@ pub fn generate_lookup_table<F>(
 where
     F: Fn(u64) -> u64,
 {
-    generate_lookup_table_with_encoding(
-        glwe_size,
-        polynomial_size,
+    generate_lookup_table_with_output_encoding(
+        size,
         ciphertext_modulus,
         message_modulus,
         carry_modulus,
@@ -1570,6 +1595,8 @@ where
     )
 }
 
+/// Generate a LUT where the output encoding might be different than the input one
+///
 /// Caller needs to ensure that the operation applied is coherent from an encoding perspective.
 ///
 /// For example:
@@ -1585,10 +1612,8 @@ where
 /// The reason is the identity function is computed in the input space but the scaling is done in
 /// the output space, as there are more bits in the output space, the delta is smaller hence the
 /// apparent "division" happening.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn generate_lookup_table_with_encoding<F>(
-    glwe_size: GlweSize,
-    polynomial_size: PolynomialSize,
+pub(crate) fn generate_lookup_table_with_output_encoding<F>(
+    size: LookupTableSize,
     ciphertext_modulus: CiphertextModulus,
     input_message_modulus: MessageModulus,
     input_carry_modulus: CarryModulus,
@@ -1599,11 +1624,11 @@ pub(crate) fn generate_lookup_table_with_encoding<F>(
 where
     F: Fn(u64) -> u64,
 {
-    let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, ciphertext_modulus);
+    let mut acc = GlweCiphertext::new(0, size.glwe_size, size.polynomial_size, ciphertext_modulus);
     let max_value = fill_accumulator_with_encoding(
         &mut acc,
-        polynomial_size,
-        glwe_size,
+        size.polynomial_size(),
+        size.glwe_size(),
         input_message_modulus,
         input_carry_modulus,
         output_message_modulus,
