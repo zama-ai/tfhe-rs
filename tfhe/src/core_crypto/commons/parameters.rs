@@ -60,7 +60,7 @@ pub struct GgswCiphertextCount(pub usize);
 pub struct LweSize(pub usize);
 
 impl LweSize {
-    /// Return the associated [`LweDimension`, Versionize].
+    /// Return the associated [`LweDimension`].
     pub fn to_lwe_dimension(&self) -> LweDimension {
         LweDimension(self.0 - 1)
     }
