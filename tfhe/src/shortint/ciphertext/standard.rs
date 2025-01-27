@@ -154,6 +154,10 @@ impl Ciphertext {
         self.noise_level = noise_level;
     }
 
+    pub fn set_noise_level_to_nominal(&mut self) {
+        self.noise_level = NoiseLevel::NOMINAL;
+    }
+
     /// Decrypts a trivial ciphertext
     ///
     /// Trivial ciphertexts are ciphertexts which are not encrypted
