@@ -7,7 +7,9 @@ use crate::core_crypto::prelude::{
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;
-use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
+use crate::shortint::server_key::{
+    apply_programmable_bootstrap_no_ms_noise_reduction, LookupTableOwned,
+};
 use crate::shortint::{PBSOrder, ServerKey};
 use tfhe_csprng::seeders::Seed;
 
@@ -146,7 +148,7 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             let (_, buffers) = engine.get_buffers(self);
 
-            apply_programmable_bootstrap(
+            apply_programmable_bootstrap_no_ms_noise_reduction(
                 &self.bootstrapping_key,
                 &seeded,
                 &mut ct,
