@@ -5,7 +5,7 @@ use super::standard::Ciphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::traits::ContiguousEntityContainer;
 use crate::core_crypto::entities::*;
-use crate::shortint::atomic_pattern::AtomicPattern;
+use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternOperations};
 use crate::shortint::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 pub use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
@@ -119,8 +119,7 @@ impl CompactCiphertextList {
                     None => &vec![None; output_lwe_ciphertext_list.lwe_ciphertext_count().0],
                 };
 
-                let atomic_pattern =
-                    AtomicPattern::Classical(casting_key.dest_server_key.pbs_order);
+                let atomic_pattern = casting_key.dest_server_key.atomic_pattern.atomic_pattern();
 
                 let res = output_lwe_ciphertext_list
                     .par_iter()

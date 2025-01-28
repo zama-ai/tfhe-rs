@@ -1,18 +1,22 @@
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::NotVersioned;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
-    extract_lwe_sample_from_glwe_ciphertext, keyswitch_lwe_ciphertext, LweCiphertext,
-    LweKeyswitchKeyOwned, MonomialDegree, UnsignedInteger,
+    extract_lwe_sample_from_glwe_ciphertext, keyswitch_lwe_ciphertext,
+    KeyswitchKeyConformanceParams, LweCiphertext, LweDimension, LweKeyswitchKeyOwned,
+    MonomialDegree, MsDecompressionType, UnsignedInteger,
 };
 
 use super::engine::ShortintEngine;
-use super::prelude::LweDimension;
 use super::server_key::{
     apply_blind_rotate, apply_programmable_bootstrap, LookupTableOwned, LookupTableSize,
-    ManyLookupTableOwned, ShortintBootstrappingKey,
+    ManyLookupTableOwned, PBSConformanceParameters, ShortintBootstrappingKey,
 };
-use super::{Ciphertext, PBSOrder};
+use super::{
+    CarryModulus, Ciphertext, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice,
+    MaxNoiseLevel, MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters,
+};
 
 // TODO: doc comment
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, NotVersioned)]
@@ -23,6 +27,10 @@ pub enum AtomicPattern {
 pub trait AtomicPatternOperations {
     fn ciphertext_lwe_dimension(&self) -> LweDimension;
 
+    fn ciphertext_modulus(&self) -> CiphertextModulus;
+
+    fn ciphertext_decompression_method(&self) -> MsDecompressionType;
+
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned);
 
     fn apply_many_lookup_table(
@@ -32,6 +40,52 @@ pub trait AtomicPatternOperations {
     ) -> Vec<Ciphertext>;
 
     fn lookup_table_size(&self) -> LookupTableSize;
+
+    fn atomic_pattern(&self) -> AtomicPattern;
+
+    fn deterministic_execution(&self) -> bool;
+}
+
+pub trait AtomicPatternMutOperations: AtomicPatternOperations {
+    fn set_deterministic_execution(&mut self, new_deterministic_execution: bool);
+}
+
+impl<T: AtomicPatternOperations> AtomicPatternOperations for &T {
+    fn ciphertext_lwe_dimension(&self) -> LweDimension {
+        (*self).ciphertext_lwe_dimension()
+    }
+
+    fn ciphertext_modulus(&self) -> CiphertextModulus {
+        (*self).ciphertext_modulus()
+    }
+
+    fn ciphertext_decompression_method(&self) -> MsDecompressionType {
+        (*self).ciphertext_decompression_method()
+    }
+
+    fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
+        (*self).apply_lookup_table_assign(ct, acc)
+    }
+
+    fn apply_many_lookup_table(
+        &self,
+        ct: &Ciphertext,
+        lut: &ManyLookupTableOwned,
+    ) -> Vec<Ciphertext> {
+        (*self).apply_many_lookup_table(ct, lut)
+    }
+
+    fn lookup_table_size(&self) -> LookupTableSize {
+        (*self).lookup_table_size()
+    }
+
+    fn atomic_pattern(&self) -> AtomicPattern {
+        (*self).atomic_pattern()
+    }
+
+    fn deterministic_execution(&self) -> bool {
+        (*self).deterministic_execution()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, NotVersioned)] // TODO: Versionize
@@ -44,8 +98,66 @@ where
     pub pbs_order: PBSOrder,
 }
 
+impl ParameterSetConformant for ClassicalAtomicPatternServerKey<u64> {
+    type ParameterSet = PBSParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+            pbs_order,
+        } = self;
+
+        let params: PBSConformanceParameters = parameter_set.into();
+
+        let pbs_key_ok = bootstrapping_key.is_conformant(&params);
+
+        let param: KeyswitchKeyConformanceParams = parameter_set.into();
+
+        let ks_key_ok = key_switching_key.is_conformant(&param);
+
+        let pbs_order_ok = matches!(
+            (*pbs_order, parameter_set.encryption_key_choice()),
+            (PBSOrder::KeyswitchBootstrap, EncryptionKeyChoice::Big)
+                | (PBSOrder::BootstrapKeyswitch, EncryptionKeyChoice::Small)
+        );
+
+        pbs_key_ok && ks_key_ok && pbs_order_ok
+    }
+}
+
 impl<KeyswitchScalar: UnsignedInteger> ClassicalAtomicPatternServerKey<KeyswitchScalar> {
-    fn intermediate_lwe_dimension(&self) -> LweDimension {
+    pub fn from_raw_parts(
+        key_switching_key: LweKeyswitchKeyOwned<KeyswitchScalar>,
+        bootstrapping_key: ShortintBootstrappingKey,
+        pbs_order: PBSOrder,
+    ) -> Self {
+        assert_eq!(
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension(),
+            "Mismatch between the input LweKeyswitchKey LweDimension ({:?}) \
+            and the ShortintBootstrappingKey output LweDimension ({:?})",
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension()
+        );
+
+        assert_eq!(
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension(),
+            "Mismatch between the output LweKeyswitchKey LweDimension ({:?}) \
+            and the ShortintBootstrappingKey input LweDimension ({:?})",
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension()
+        );
+
+        Self {
+            key_switching_key,
+            bootstrapping_key,
+            pbs_order,
+        }
+    }
+
+    pub fn intermediate_lwe_dimension(&self) -> LweDimension {
         match self.pbs_order {
             PBSOrder::KeyswitchBootstrap => self.key_switching_key.output_key_lwe_dimension(),
             PBSOrder::BootstrapKeyswitch => self.key_switching_key.input_key_lwe_dimension(),
@@ -54,9 +166,33 @@ impl<KeyswitchScalar: UnsignedInteger> ClassicalAtomicPatternServerKey<Keyswitch
 }
 
 impl AtomicPatternOperations for ClassicalAtomicPatternServerKey<u64> {
+    fn ciphertext_lwe_dimension(&self) -> LweDimension {
+        match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => self.key_switching_key.input_key_lwe_dimension(),
+            PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_dimension(),
+        }
+    }
+
+    fn ciphertext_modulus(&self) -> CiphertextModulus {
+        self.key_switching_key.ciphertext_modulus()
+    }
+
+    fn ciphertext_decompression_method(&self) -> MsDecompressionType {
+        match &self.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(_) => MsDecompressionType::ClassicPbs,
+            ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
+                MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
+            }
+        }
+    }
+
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers): (LweCiphertext<Vec<u64>>, _) = todo!();
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                self.intermediate_lwe_dimension(),
+                CiphertextModulus::new_native(),
+            );
+
             match self.pbs_order {
                 PBSOrder::KeyswitchBootstrap => {
                     keyswitch_lwe_ciphertext(
@@ -92,10 +228,14 @@ impl AtomicPatternOperations for ClassicalAtomicPatternServerKey<u64> {
         });
     }
 
-    fn ciphertext_lwe_dimension(&self) -> LweDimension {
+    fn apply_many_lookup_table(
+        &self,
+        ct: &Ciphertext,
+        acc: &ManyLookupTableOwned,
+    ) -> Vec<Ciphertext> {
         match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.key_switching_key.input_key_lwe_dimension(),
-            PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_dimension(),
+            PBSOrder::KeyswitchBootstrap => self.keyswitch_programmable_bootstrap_many_lut(ct, acc),
+            PBSOrder::BootstrapKeyswitch => self.programmable_bootstrap_keyswitch_many_lut(ct, acc),
         }
     }
 
@@ -106,15 +246,19 @@ impl AtomicPatternOperations for ClassicalAtomicPatternServerKey<u64> {
         )
     }
 
-    fn apply_many_lookup_table(
-        &self,
-        ct: &Ciphertext,
-        acc: &ManyLookupTableOwned,
-    ) -> Vec<Ciphertext> {
-        match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.keyswitch_programmable_bootstrap_many_lut(ct, acc),
-            PBSOrder::BootstrapKeyswitch => self.programmable_bootstrap_keyswitch_many_lut(ct, acc),
-        }
+    fn atomic_pattern(&self) -> AtomicPattern {
+        AtomicPattern::Classical(self.pbs_order)
+    }
+
+    fn deterministic_execution(&self) -> bool {
+        self.bootstrapping_key.deterministic_pbs_execution()
+    }
+}
+
+impl AtomicPatternMutOperations for ClassicalAtomicPatternServerKey<u64> {
+    fn set_deterministic_execution(&mut self, new_deterministic_execution: bool) {
+        self.bootstrapping_key
+            .set_deterministic_pbs_execution(new_deterministic_execution)
     }
 }
 
@@ -128,7 +272,10 @@ impl ClassicalAtomicPatternServerKey<u64> {
 
         ShortintEngine::with_thread_local_mut(|engine| {
             // Compute the programmable bootstrapping with fixed test polynomial
-            let (mut ciphertext_buffer, buffers): (LweCiphertext<Vec<u64>>, _) = todo!();
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                self.intermediate_lwe_dimension(),
+                CiphertextModulus::new_native(),
+            );
 
             // Compute a key switch
             keyswitch_lwe_ciphertext(&self.key_switching_key, &ct.ct, &mut ciphertext_buffer);
@@ -223,6 +370,20 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
         }
     }
 
+    fn ciphertext_modulus(&self) -> CiphertextModulus {
+        match self {
+            Self::Classical(ap) => ap.ciphertext_modulus(),
+            Self::KeySwitch32(_) => todo!(),
+        }
+    }
+
+    fn ciphertext_decompression_method(&self) -> MsDecompressionType {
+        match self {
+            Self::Classical(ap) => ap.ciphertext_decompression_method(),
+            Self::KeySwitch32(_) => todo!(),
+        }
+    }
+
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         match self {
             Self::Classical(ap) => ap.apply_lookup_table_assign(ct, acc),
@@ -247,13 +408,104 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
             Self::KeySwitch32(_) => todo!(),
         }
     }
+
+    fn atomic_pattern(&self) -> AtomicPattern {
+        match self {
+            Self::Classical(ap) => ap.atomic_pattern(),
+            Self::KeySwitch32(_) => todo!(),
+        }
+    }
+
+    fn deterministic_execution(&self) -> bool {
+        match self {
+            Self::Classical(ap) => ap.deterministic_execution(),
+            Self::KeySwitch32(_) => todo!(),
+        }
+    }
 }
 
-impl From<&ServerKeyAtomicPattern> for AtomicPattern {
-    fn from(value: &ServerKeyAtomicPattern) -> Self {
-        match value {
-            ServerKeyAtomicPattern::Classical(ap) => Self::Classical(ap.pbs_order),
-            ServerKeyAtomicPattern::KeySwitch32(_) => todo!(),
+impl AtomicPatternMutOperations for ServerKeyAtomicPattern {
+    fn set_deterministic_execution(&mut self, new_deterministic_execution: bool) {
+        match self {
+            Self::Classical(ap) => ap.set_deterministic_execution(new_deterministic_execution),
+            Self::KeySwitch32(_) => todo!(),
         }
+    }
+}
+
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, NotVersioned)]
+pub enum AtomicPatternParameters {
+    Classical(PBSParameters),
+}
+
+impl From<ClassicPBSParameters> for AtomicPatternParameters {
+    fn from(value: ClassicPBSParameters) -> Self {
+        Self::Classical(PBSParameters::PBS(value))
+    }
+}
+
+impl From<MultiBitPBSParameters> for AtomicPatternParameters {
+    fn from(value: MultiBitPBSParameters) -> Self {
+        Self::Classical(PBSParameters::MultiBitPBS(value))
+    }
+}
+
+// TODO: make this more generic
+impl From<AtomicPatternParameters> for PBSParameters {
+    fn from(value: AtomicPatternParameters) -> Self {
+        match value {
+            AtomicPatternParameters::Classical(pbsparameters) => pbsparameters,
+        }
+    }
+}
+
+impl AtomicPatternParameters {
+    pub fn message_modulus(&self) -> MessageModulus {
+        match self {
+            Self::Classical(pbsparameters) => pbsparameters.message_modulus(),
+        }
+    }
+
+    pub fn carry_modulus(&self) -> CarryModulus {
+        match self {
+            Self::Classical(pbsparameters) => pbsparameters.carry_modulus(),
+        }
+    }
+
+    pub fn max_noise_level(&self) -> MaxNoiseLevel {
+        match self {
+            Self::Classical(pbsparameters) => pbsparameters.max_noise_level(),
+        }
+    }
+
+    pub fn ciphertext_modulus(&self) -> CiphertextModulus {
+        match self {
+            Self::Classical(pbsparameters) => pbsparameters.ciphertext_modulus(),
+        }
+    }
+}
+
+impl ParameterSetConformant for ServerKeyAtomicPattern {
+    type ParameterSet = AtomicPatternParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        match (self, parameter_set) {
+            (Self::Classical(ap), AtomicPatternParameters::Classical(params)) => {
+                ap.is_conformant(params)
+            }
+            _ => false,
+        }
+    }
+}
+
+impl From<ClassicalAtomicPatternServerKey<u64>> for ServerKeyAtomicPattern {
+    fn from(value: ClassicalAtomicPatternServerKey<u64>) -> Self {
+        Self::Classical(value)
+    }
+}
+
+impl From<ClassicalAtomicPatternServerKey<u32>> for ServerKeyAtomicPattern {
+    fn from(value: ClassicalAtomicPatternServerKey<u32>) -> Self {
+        Self::KeySwitch32(value)
     }
 }

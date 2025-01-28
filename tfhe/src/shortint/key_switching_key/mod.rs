@@ -7,6 +7,7 @@ use crate::core_crypto::prelude::{
     keyswitch_lwe_ciphertext, Cleartext, KeyswitchKeyConformanceParams, LweKeyswitchKeyOwned,
     SeededLweKeyswitchKeyOwned,
 };
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
@@ -24,6 +25,7 @@ use super::backward_compatibility::key_switching_key::{
     CompressedKeySwitchingKeyMaterialVersions, CompressedKeySwitchingKeyVersions,
     KeySwitchingKeyMaterialVersions, KeySwitchingKeyVersions,
 };
+use super::server_key::{ClassicalServerKey, ClassicalServerKeyView};
 
 #[cfg(test)]
 mod test;
@@ -71,7 +73,7 @@ impl KeySwitchingKeyMaterial {
 // It is a bit of a hack, but at this point it seems ok
 pub(crate) struct KeySwitchingKeyBuildHelper<'keys> {
     pub(crate) key_switching_key_material: KeySwitchingKeyMaterial,
-    pub(crate) dest_server_key: &'keys ServerKey,
+    pub(crate) dest_server_key: ClassicalServerKeyView<'keys>,
     pub(crate) src_server_key: Option<&'keys ServerKey>,
 }
 
@@ -83,7 +85,7 @@ pub(crate) struct KeySwitchingKeyBuildHelper<'keys> {
 #[versionize(KeySwitchingKeyVersions)]
 pub struct KeySwitchingKey {
     pub(crate) key_switching_key_material: KeySwitchingKeyMaterial,
-    pub(crate) dest_server_key: ServerKey,
+    pub(crate) dest_server_key: ClassicalServerKey,
     pub(crate) src_server_key: Option<ServerKey>,
 }
 
@@ -97,7 +99,7 @@ impl From<KeySwitchingKeyBuildHelper<'_>> for KeySwitchingKey {
 
         Self {
             key_switching_key_material,
-            dest_server_key: dest_server_key.to_owned(),
+            dest_server_key: dest_server_key.into_owned(),
             src_server_key: src_server_key.map(ToOwned::to_owned),
         }
     }
@@ -113,7 +115,7 @@ pub struct KeySwitchingKeyMaterialView<'key> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct KeySwitchingKeyView<'keys> {
     pub(crate) key_switching_key_material: KeySwitchingKeyMaterialView<'keys>,
-    pub(crate) dest_server_key: &'keys ServerKey,
+    pub(crate) dest_server_key: ClassicalServerKeyView<'keys>,
     pub(crate) src_server_key: Option<&'keys ServerKey>,
 }
 
@@ -151,6 +153,13 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
                 without providing a source ServerKey, this is not supported"
             );
         }
+        let dest_server_key = output_key_pair.1.as_view().try_into().unwrap_or_else(|_| {
+            panic!(
+                "Trying to build a shortint::KeySwitchingKey with an unsupported atomic \
+                 pattern: {:?}",
+                output_key_pair.1.atomic_pattern.atomic_pattern()
+            )
+        });
 
         let nb_bits_input: i8 = full_message_modulus_input.ilog2().try_into().unwrap();
         let nb_bits_output: i8 = full_message_modulus_output.ilog2().try_into().unwrap();
@@ -162,7 +171,7 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
                 cast_rshift: nb_bits_output - nb_bits_input,
                 destination_key: params.destination_key,
             },
-            dest_server_key: output_key_pair.1,
+            dest_server_key,
             src_server_key: input_key_pair.1,
         }
     }
@@ -213,13 +222,19 @@ impl KeySwitchingKey {
 
         KeySwitchingKeyView {
             key_switching_key_material: key_switching_key_material.as_view(),
-            dest_server_key,
+            dest_server_key: dest_server_key.as_view(),
             src_server_key: src_server_key.as_ref(),
         }
     }
 
     /// Deconstruct a [`KeySwitchingKey`] into its constituents.
-    pub fn into_raw_parts(self) -> (KeySwitchingKeyMaterial, ServerKey, Option<ServerKey>) {
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        KeySwitchingKeyMaterial,
+        ClassicalServerKey,
+        Option<ServerKey>,
+    ) {
         let Self {
             key_switching_key_material,
             dest_server_key,
@@ -248,6 +263,14 @@ impl KeySwitchingKey {
         dest_server_key: ServerKey,
         src_server_key: Option<ServerKey>,
     ) -> Self {
+        let ap = dest_server_key.atomic_pattern.atomic_pattern();
+        let dest_server_key: ClassicalServerKey = dest_server_key.try_into().unwrap_or_else(|_| {
+            panic!(
+                "Trying to build a shortint::KeySwitchingKey with an unsupported atomic \
+                 pattern: {ap:?}"
+            )
+        });
+
         match src_server_key {
             Some(ref src_server_key) => {
                 let src_lwe_dimension = src_server_key.ciphertext_lwe_dimension();
@@ -279,10 +302,7 @@ impl KeySwitchingKey {
             ),
         }
 
-        let dst_lwe_dimension = match key_switching_key_material.destination_key {
-            EncryptionKeyChoice::Big => dest_server_key.bootstrapping_key.output_lwe_dimension(),
-            EncryptionKeyChoice::Small => dest_server_key.bootstrapping_key.input_lwe_dimension(),
-        };
+        let dst_lwe_dimension = dest_server_key.atomic_pattern.ciphertext_lwe_dimension();
 
         assert_eq!(
             dst_lwe_dimension,
@@ -358,7 +378,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
         self,
     ) -> (
         KeySwitchingKeyMaterialView<'keys>,
-        &'keys ServerKey,
+        ClassicalServerKeyView<'keys>,
         Option<&'keys ServerKey>,
     ) {
         let Self {
@@ -389,6 +409,15 @@ impl<'keys> KeySwitchingKeyView<'keys> {
         dest_server_key: &'keys ServerKey,
         src_server_key: Option<&'keys ServerKey>,
     ) -> Self {
+        let dest_server_key: ClassicalServerKeyView =
+            dest_server_key.as_view().try_into().unwrap_or_else(|_| {
+                panic!(
+                    "Trying to build a shortint::KeySwitchingKey with an unsupported atomic \
+                     pattern: {:?}",
+                    dest_server_key.atomic_pattern.atomic_pattern()
+                )
+            });
+
         match src_server_key {
             Some(src_server_key) => {
                 let src_lwe_dimension = src_server_key.ciphertext_lwe_dimension();
@@ -420,10 +449,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
             ),
         }
 
-        let dst_lwe_dimension = match key_switching_key_material.destination_key {
-            EncryptionKeyChoice::Big => dest_server_key.bootstrapping_key.output_lwe_dimension(),
-            EncryptionKeyChoice::Small => dest_server_key.bootstrapping_key.input_lwe_dimension(),
-        };
+        let dst_lwe_dimension = dest_server_key.atomic_pattern.ciphertext_lwe_dimension();
 
         assert_eq!(
             dst_lwe_dimension,
@@ -504,18 +530,11 @@ impl<'keys> KeySwitchingKeyView<'keys> {
         input_ct: &Ciphertext,
         functions: Option<&[&(dyn Fn(u64) -> u64 + Sync)]>,
     ) -> Vec<Ciphertext> {
-        let output_lwe_size = match self.key_switching_key_material.destination_key {
-            EncryptionKeyChoice::Big => self
-                .dest_server_key
-                .bootstrapping_key
-                .output_lwe_dimension()
-                .to_lwe_size(),
-            EncryptionKeyChoice::Small => self
-                .dest_server_key
-                .bootstrapping_key
-                .input_lwe_dimension()
-                .to_lwe_size(),
-        };
+        let output_lwe_size = self
+            .dest_server_key
+            .atomic_pattern
+            .ciphertext_lwe_dimension()
+            .to_lwe_size();
         let mut keyswitched = self
             .dest_server_key
             .unchecked_create_trivial_with_lwe_size(Cleartext(0), output_lwe_size);
@@ -567,7 +586,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
         let res = {
             let destination_pbs_order: PBSOrder =
                 self.key_switching_key_material.destination_key.into();
-            if destination_pbs_order == self.dest_server_key.pbs_order {
+            if destination_pbs_order == self.dest_server_key.atomic_pattern.pbs_order {
                 CastCiphertext::CorrectKey(keyswitched)
             } else {
                 // We are arriving under the wrong key for the dest_server_key
@@ -583,7 +602,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                         );
 
                         keyswitch_lwe_ciphertext(
-                            &self.dest_server_key.key_switching_key,
+                            &self.dest_server_key.atomic_pattern.key_switching_key,
                             &wrong_key_ct.ct,
                             &mut correct_key_ct.ct,
                         );
@@ -634,7 +653,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                     let buffers = engine.get_computation_buffers();
                                     let acc = self.dest_server_key.generate_lookup_table(function);
                                     apply_programmable_bootstrap(
-                                        &self.dest_server_key.bootstrapping_key,
+                                        &self.dest_server_key.atomic_pattern.bootstrapping_key,
                                         &wrong_key_ct.ct,
                                         &mut correct_key_ct.ct,
                                         &acc.acc,
@@ -685,7 +704,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         function(n >> cast_rshift)
                                     });
                                     apply_programmable_bootstrap(
-                                        &self.dest_server_key.bootstrapping_key,
+                                        &self.dest_server_key.atomic_pattern.bootstrapping_key,
                                         &wrong_key_ct.ct,
                                         &mut correct_key_ct.ct,
                                         &acc.acc,
@@ -741,7 +760,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                     let buffers = engine.get_computation_buffers();
                                     let acc = self.dest_server_key.generate_lookup_table(function);
                                     apply_programmable_bootstrap(
-                                        &self.dest_server_key.bootstrapping_key,
+                                        &self.dest_server_key.atomic_pattern.bootstrapping_key,
                                         &wrong_key_ct.ct,
                                         &mut correct_key_ct.ct,
                                         &acc.acc,
@@ -892,7 +911,8 @@ impl CompressedKeySwitchingKey {
     pub fn decompress(&self) -> KeySwitchingKey {
         KeySwitchingKey {
             key_switching_key_material: self.key_switching_key_material.decompress(),
-            dest_server_key: self.dest_server_key.decompress(),
+            // CompressedServerKey are only supported for the Classical AP
+            dest_server_key: self.dest_server_key.decompress().try_into().unwrap(),
             src_server_key: self
                 .src_server_key
                 .as_ref()

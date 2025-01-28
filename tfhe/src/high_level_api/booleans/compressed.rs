@@ -8,6 +8,7 @@ use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
 use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
+use crate::shortint::server_key::ClassicalServerKeyView;
 use crate::shortint::CompressedCiphertext;
 use crate::{ClientKey, FheBool, FheBoolConformanceParams, Tag};
 use serde::{Deserialize, Serialize};
@@ -73,7 +74,15 @@ impl CompressedFheBool {
         let ciphertext = BooleanBlock::new_unchecked(match &self.inner {
             InnerCompressedFheBool::Seeded(seeded) => seeded.decompress(),
             InnerCompressedFheBool::ModulusSwitched(modulus_switched) => {
-                with_cpu_internal_keys(|sk| sk.pbs_key().key.decompress(modulus_switched))
+                with_cpu_internal_keys(|sk| {
+                    let shortint_key: ClassicalServerKeyView<'_> = sk
+                        .pbs_key()
+                        .key
+                        .as_view()
+                        .try_into()
+                        .expect("Decompression is not supported by this server key");
+                    shortint_key.decompress(modulus_switched)
+                })
             }
         });
         let mut ciphertext = FheBool::new(ciphertext, self.tag.clone());
@@ -113,10 +122,15 @@ impl Named for CompressedFheBool {
 impl FheBool {
     pub fn compress(&self) -> CompressedFheBool {
         with_cpu_internal_keys(|sk| {
+            let shortint_key: ClassicalServerKeyView<'_> = sk
+                .pbs_key()
+                .key
+                .as_view()
+                .try_into()
+                .expect("Compression is not supported by this server key");
+
             let inner = InnerCompressedFheBool::ModulusSwitched(
-                sk.pbs_key()
-                    .key
-                    .switch_modulus_and_compress(&self.ciphertext.on_cpu().0),
+                shortint_key.switch_modulus_and_compress(&self.ciphertext.on_cpu().0),
             );
 
             CompressedFheBool {

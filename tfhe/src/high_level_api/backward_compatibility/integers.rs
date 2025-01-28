@@ -15,7 +15,8 @@ use crate::integer::ciphertext::{
     CompressedSignedRadixCiphertext as IntegerCompressedSignedRadixCiphertext,
 };
 use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::server_key::{ClassicalServerKeyView, UnsupportedOperation};
+use crate::shortint::Ciphertext;
 use crate::Tag;
 use serde::{Deserialize, Serialize};
 
@@ -35,7 +36,7 @@ pub(crate) enum UnsignedRadixCiphertextVersionedOwned {
 
 // This method was used to decompress a ciphertext in tfhe-rs < 0.7
 fn old_sk_decompress(
-    sk: &ServerKey,
+    sk: ClassicalServerKeyView<'_>,
     compressed_ct: &CompressedModulusSwitchedCiphertext,
 ) -> Ciphertext {
     let acc = sk.generate_lookup_table(|a| a);
@@ -54,7 +55,7 @@ pub enum CompressedSignedRadixCiphertextV0 {
 }
 
 impl Upgrade<CompressedSignedRadixCiphertext> for CompressedSignedRadixCiphertextV0 {
-    type Error = Infallible;
+    type Error = UnsupportedOperation;
 
     fn upgrade(self) -> Result<CompressedSignedRadixCiphertext, Self::Error> {
         match self {
@@ -63,16 +64,18 @@ impl Upgrade<CompressedSignedRadixCiphertext> for CompressedSignedRadixCiphertex
             // Upgrade by decompressing and recompressing with the new scheme
             Self::ModulusSwitched(ct) => {
                 let upgraded = with_cpu_internal_keys(|sk| {
+                    let key = sk.key.key.key.as_view().try_into()?;
                     let blocks = ct
                         .blocks
                         .par_iter()
-                        .map(|a| old_sk_decompress(&sk.key.key.key, a))
+                        .map(|a| old_sk_decompress(key, a))
                         .collect();
 
                     let radix = BaseSignedRadixCiphertext { blocks };
-                    sk.pbs_key()
-                        .switch_modulus_and_compress_signed_parallelized(&radix)
-                });
+                    Ok(sk
+                        .pbs_key()
+                        .switch_modulus_and_compress_signed_parallelized(&radix))
+                })?;
                 Ok(CompressedSignedRadixCiphertext::ModulusSwitched(upgraded))
             }
         }
@@ -92,7 +95,7 @@ pub enum CompressedRadixCiphertextV0 {
 }
 
 impl Upgrade<CompressedRadixCiphertext> for CompressedRadixCiphertextV0 {
-    type Error = Infallible;
+    type Error = UnsupportedOperation;
 
     fn upgrade(self) -> Result<CompressedRadixCiphertext, Self::Error> {
         match self {
@@ -101,16 +104,18 @@ impl Upgrade<CompressedRadixCiphertext> for CompressedRadixCiphertextV0 {
             // Upgrade by decompressing and recompressing with the new scheme
             Self::ModulusSwitched(ct) => {
                 let upgraded = with_cpu_internal_keys(|sk| {
+                    let key = sk.key.key.key.as_view().try_into()?;
                     let blocks = ct
                         .blocks
                         .par_iter()
-                        .map(|a| old_sk_decompress(&sk.key.key.key, a))
+                        .map(|a| old_sk_decompress(key, a))
                         .collect();
 
                     let radix = BaseRadixCiphertext { blocks };
-                    sk.pbs_key()
-                        .switch_modulus_and_compress_parallelized(&radix)
-                });
+                    Ok(sk
+                        .pbs_key()
+                        .switch_modulus_and_compress_parallelized(&radix))
+                })?;
                 Ok(CompressedRadixCiphertext::ModulusSwitched(upgraded))
             }
         }

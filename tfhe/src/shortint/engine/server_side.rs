@@ -6,6 +6,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::Container;
 use crate::core_crypto::entities::*;
+use crate::shortint::atomic_pattern::ClassicalAtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
@@ -81,16 +82,20 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
+        let atomic_pattern = ClassicalAtomicPatternServerKey::from_raw_parts(
+            key_switching_key,
+            bootstrapping_key_base,
+            pbs_params_base.encryption_key_choice().into(),
+        );
+
         // Pack the keys in the server key set:
         ServerKey {
-            key_switching_key,
-            bootstrapping_key: bootstrapping_key_base,
+            atomic_pattern: atomic_pattern.into(),
             message_modulus: cks.parameters.message_modulus(),
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
             max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
-            pbs_order: cks.parameters.encryption_key_choice().into(),
         }
     }
 
