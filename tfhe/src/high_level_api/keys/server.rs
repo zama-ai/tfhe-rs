@@ -397,7 +397,7 @@ mod test {
     use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs;
     use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::{ClassicPBSParameters, PBSParameters};
+    use crate::shortint::ClassicPBSParameters;
     use crate::{ClientKey, CompressedServerKey, ConfigBuilder, ServerKey};
 
     #[test]
@@ -410,7 +410,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
 
             let conformance_params = IntegerServerKeyConformanceParams {
                 sk_param,
@@ -429,7 +429,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
 
             let conformance_params = IntegerServerKeyConformanceParams {
                 sk_param,
@@ -452,7 +452,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
 
             let conformance_params = IntegerServerKeyConformanceParams {
                 sk_param,
@@ -486,7 +486,7 @@ mod test {
 
                 modifier(&mut sk_param);
 
-                let sk_param = PBSParameters::PBS(sk_param);
+                let sk_param = sk_param.into();
 
                 let conformance_params = IntegerServerKeyConformanceParams {
                     sk_param,
@@ -510,7 +510,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
 
             cpk_params.encryption_lwe_dimension.0 += 1;
 
@@ -534,7 +534,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
 
             let conformance_params = IntegerServerKeyConformanceParams {
                 sk_param,
@@ -554,7 +554,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
 
             let conformance_params = IntegerServerKeyConformanceParams {
                 sk_param,
@@ -577,7 +577,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
 
             let conformance_params = IntegerServerKeyConformanceParams {
                 sk_param,
@@ -611,7 +611,7 @@ mod test {
 
                 modifier(&mut sk_param);
 
-                let sk_param = PBSParameters::PBS(sk_param);
+                let sk_param = sk_param.into();
 
                 let conformance_params = IntegerServerKeyConformanceParams {
                     sk_param,
@@ -635,7 +635,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
 
             cpk_params.encryption_lwe_dimension.0 += 1;
 

@@ -2,6 +2,7 @@ use super::NB_TESTS;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
+use crate::shortint::server_key::ClassicalServerKeyView;
 use rand::Rng;
 
 // Remove multi bit PBS parameters as
@@ -25,11 +26,12 @@ where
         let clear = rng.gen::<u64>() % modulus_sup;
 
         let ctxt = cks.unchecked_encrypt(clear);
+        let classical_sks = ClassicalServerKeyView::try_from(sks.as_view()).unwrap();
 
-        let compressed_ct = sks.switch_modulus_and_compress(&ctxt);
+        let compressed_ct = classical_sks.switch_modulus_and_compress(&ctxt);
 
         {
-            let decompressed_ct = sks.decompress(&compressed_ct);
+            let decompressed_ct = classical_sks.decompress(&compressed_ct);
 
             let dec = cks.decrypt_message_and_carry(&decompressed_ct);
 
@@ -45,7 +47,7 @@ where
             let lookup_table = sks.generate_msg_lookup_table(|a| a + 1, ctxt.message_modulus);
 
             let decompressed_ct =
-                sks.decompress_and_apply_lookup_table(&compressed_ct, &lookup_table);
+                classical_sks.decompress_and_apply_lookup_table(&compressed_ct, &lookup_table);
 
             let dec = cks.decrypt(&decompressed_ct);
 

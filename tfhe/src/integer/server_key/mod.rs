@@ -12,6 +12,7 @@ use super::backward_compatibility::server_key::{CompressedServerKeyVersions, Ser
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::client_key::ClientKey;
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
 /// Error returned when the carry buffer is full.
 pub use crate::shortint::CheckError;
@@ -195,12 +196,12 @@ impl ServerKey {
     }
 
     pub fn deterministic_pbs_execution(&self) -> bool {
-        self.key.deterministic_pbs_execution()
+        self.key.deterministic_execution()
     }
 
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         self.key
-            .set_deterministic_pbs_execution(new_deterministic_execution);
+            .set_deterministic_execution(new_deterministic_execution);
     }
 
     pub fn message_modulus(&self) -> MessageModulus {
@@ -298,7 +299,7 @@ impl CompressedServerKey {
 }
 
 impl ParameterSetConformant for ServerKey {
-    type ParameterSet = PBSParameters;
+    type ParameterSet = AtomicPatternParameters;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
