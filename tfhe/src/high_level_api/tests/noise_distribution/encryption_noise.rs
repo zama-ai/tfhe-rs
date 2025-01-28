@@ -12,7 +12,9 @@ use shortint::ClassicPBSParameters;
 use crate::core_crypto::algorithms::lwe_encryption::decrypt_lwe_ciphertext;
 use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::commons::math::random::DynamicDistribution;
-use crate::core_crypto::commons::test_tools::{variance, variance_confidence_interval};
+use crate::core_crypto::commons::test_tools::{
+    arithmetic_mean, normal_distribution_variance_confidence_interval, variance,
+};
 use crate::prelude::*;
 use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -20,6 +22,8 @@ use crate::shortint::parameters::compact_public_key_only::CompactCiphertextListE
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::ShortintParameterSet;
 use crate::*;
+
+use statrs::distribution::{ContinuousCDF, Normal};
 
 #[test]
 fn test_noise_check_secret_key_encryption_noise_tuniform() {
@@ -96,9 +100,37 @@ fn test_noise_check_secret_key_encryption_noise_tuniform() {
         noise_samples.push(signed_noise as f64 / modulus_as_f64);
     }
 
+    let noise_samples_squared: Vec<_> = noise_samples.iter().map(|x| x.powi(2)).collect();
+    let mean_noise_squared = arithmetic_mean(&noise_samples_squared);
+    let var_noise_squared = variance(&noise_samples_squared);
+
+    let tuniform_variance_estimate = mean_noise_squared * NB_TEST as f64 / (NB_TEST as f64 - 1.0);
+    // Noise squared / sqrt(NB_TEST) is distributed as a Normal Law with variance var_noise_squared
+    // / N
+
+    let rescaled_var = var_noise_squared.0 / NB_TEST as f64;
+    let rescaled_std_dev = rescaled_var.sqrt();
+
+    let normal_law = Normal::new(0.0, 1.0).unwrap();
+    let z = normal_law.inverse_cdf(0.95);
+    println!("z={z}");
+    println!("tuniform_variance_estimate={tuniform_variance_estimate}");
+
+    let lower_bound = tuniform_variance_estimate - z * rescaled_std_dev;
+    let upper_bound = tuniform_variance_estimate + z * rescaled_std_dev;
+
+    println!("lower_bound = {lower_bound}");
+    println!("upper_bound = {upper_bound}");
+
+    assert!(lower_bound <= expected_variance.0);
+    assert!(expected_variance.0 <= upper_bound);
+
     let measured_variance = variance(&noise_samples);
-    let measured_confidence_interval =
-        variance_confidence_interval(noise_samples.len() as f64, measured_variance, 0.999);
+    let measured_confidence_interval = normal_distribution_variance_confidence_interval(
+        noise_samples.len() as f64,
+        measured_variance,
+        0.99,
+    );
 
     // For --no-capture inspection
     println!("measured_variance={measured_variance:?}");
@@ -208,8 +240,11 @@ fn noise_check_compact_public_key_encryption_noise_tuniform(
     }
 
     let measured_variance = variance(&noise_samples);
-    let measured_confidence_interval =
-        variance_confidence_interval(noise_samples.len() as f64, measured_variance, 0.999);
+    let measured_confidence_interval = normal_distribution_variance_confidence_interval(
+        noise_samples.len() as f64,
+        measured_variance,
+        0.999,
+    );
 
     // For --no-capture inspection
     println!("measured_variance={measured_variance:?}");

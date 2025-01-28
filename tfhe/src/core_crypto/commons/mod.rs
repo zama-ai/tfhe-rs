@@ -78,8 +78,20 @@ pub mod test_tools {
         }
     }
 
+    /// Can apply to any distribution as long as the samples are idependant and identically
+    /// distributed.
+    ///
+    /// As this construction relies on the Central Limit Theorem you must ensure that you have
+    /// enough samples for the Central Limit Theorem to apply. Some accepted values can be as low as
+    /// 30 or 50, though if you can afford it, to have tighter intervals and to have a better
+    /// convergence for the CLT you should try to gather more samples.
+    pub fn any_distribution_variance_confidence_interval() {
+        todo!()
+    }
+
     /// Note that the confidence_level is the probability to be in the interval to be computed.
-    pub fn variance_confidence_interval(
+    /// Applies only to samples known to come from a normal distribution
+    pub fn normal_distribution_variance_confidence_interval(
         sample_count: f64,
         measured_variance: Variance,
         confidence_level: f64,
@@ -423,8 +435,11 @@ pub mod test_tools {
 
         let confidence_level = 0.95;
 
-        let confidence_interval =
-            variance_confidence_interval(20., measured_variance, confidence_level);
+        let confidence_interval = normal_distribution_variance_confidence_interval(
+            20.,
+            measured_variance,
+            confidence_level,
+        );
 
         let lower_bound = confidence_interval.lower_bound();
         let upper_bound = confidence_interval.upper_bound();
