@@ -861,7 +861,7 @@ impl ServerKey {
                         &mut ct.ct,
                         &acc.acc,
                         buffers,
-                        true,
+                        ModulusSwitchNoiseReduction::Enable,
                     );
                 }
                 PBSOrder::BootstrapKeyswitch => {
@@ -871,7 +871,7 @@ impl ServerKey {
                         &mut ciphertext_buffers.buffer_lwe_after_pbs,
                         &acc.acc,
                         buffers,
-                        true,
+                        ModulusSwitchNoiseReduction::Enable,
                     );
 
                     keyswitch_lwe_ciphertext(
@@ -1351,7 +1351,7 @@ impl ServerKey {
                 &ciphertext_buffers.buffer_lwe_after_ks.as_view(),
                 &mut acc,
                 buffers,
-                true,
+                ModulusSwitchNoiseReduction::Enable,
             );
         });
 
@@ -1392,7 +1392,13 @@ impl ServerKey {
             // Compute the programmable bootstrapping with fixed test polynomial
             let (_, buffers) = engine.get_buffers(self);
 
-            apply_blind_rotate(&self.bootstrapping_key, &ct.ct, &mut acc, buffers, true);
+            apply_blind_rotate(
+                &self.bootstrapping_key,
+                &ct.ct,
+                &mut acc,
+                buffers,
+                ModulusSwitchNoiseReduction::Enable,
+            );
         });
 
         // The accumulator has been rotated, we can now proceed with the various sample extractions
@@ -1521,7 +1527,7 @@ pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
     in_buffer: &LweCiphertext<InputCont>,
     acc: &mut GlweCiphertext<OutputCont>,
     buffers: &mut ComputationBuffers,
-    enable_modulus_switch_noise_reduction: bool,
+    enable_modulus_switch_noise_reduction: ModulusSwitchNoiseReduction,
 ) where
     InputCont: Container<Element = u64>,
     OutputCont: ContainerMut<Element = u64>,
@@ -1540,7 +1546,7 @@ pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
                 ciphertext_modulus,
             );
 
-            if enable_modulus_switch_noise_reduction {
+            if enable_modulus_switch_noise_reduction == ModulusSwitchNoiseReduction::Enable {
                 if let Some(modulus_switch_noise_reduction_key) =
                     &modulus_switch_noise_reduction_key
                 {
@@ -1588,13 +1594,19 @@ pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
     };
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum ModulusSwitchNoiseReduction {
+    Enable,
+    Disable,
+}
+
 pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
     bootstrapping_key: &ShortintBootstrappingKey,
     in_buffer: &LweCiphertext<InputCont>,
     out_buffer: &mut LweCiphertext<OutputCont>,
     acc: &GlweCiphertext<Vec<u64>>,
     buffers: &mut ComputationBuffers,
-    enable_modulus_switch_noise_reduction: bool,
+    modulus_switch_noise_reduction: ModulusSwitchNoiseReduction,
 ) where
     InputCont: Container<Element = u64>,
     OutputCont: ContainerMut<Element = u64>,
@@ -1606,7 +1618,7 @@ pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
         in_buffer,
         &mut glwe_out,
         buffers,
-        enable_modulus_switch_noise_reduction,
+        modulus_switch_noise_reduction,
     );
 
     extract_lwe_sample_from_glwe_ciphertext(&glwe_out, out_buffer, MonomialDegree(0));

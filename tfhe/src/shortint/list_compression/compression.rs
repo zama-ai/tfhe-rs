@@ -10,6 +10,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
     apply_programmable_bootstrap, generate_lookup_table_with_encoding, unchecked_scalar_mul_assign,
+    ModulusSwitchNoiseReduction,
 };
 use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
@@ -214,7 +215,7 @@ impl DecompressionKey {
                 &mut output_br,
                 &decompression_rescale.acc,
                 buffers,
-                false,
+                ModulusSwitchNoiseReduction::Disable,
             );
         });
 
