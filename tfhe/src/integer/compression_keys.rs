@@ -1,6 +1,7 @@
 use super::ClientKey;
 use crate::conformance::ParameterSetConformant;
 use crate::integer::backward_compatibility::list_compression::*;
+use crate::named::Named;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -32,6 +33,26 @@ pub struct CompressedCompressionKey {
 #[versionize(CompressedDecompressionKeyVersions)]
 pub struct CompressedDecompressionKey {
     pub(crate) key: crate::shortint::list_compression::CompressedDecompressionKey,
+}
+
+impl Named for CompressionPrivateKeys {
+    const NAME: &'static str = "high_level_api::CompressionPrivateKeys";
+}
+
+impl Named for CompressionKey {
+    const NAME: &'static str = "high_level_api::CompressionKey";
+}
+
+impl Named for DecompressionKey {
+    const NAME: &'static str = "high_level_api::DecompressionKey";
+}
+
+impl Named for CompressedCompressionKey {
+    const NAME: &'static str = "high_level_api::CompressedCompressionKey";
+}
+
+impl Named for CompressedDecompressionKey {
+    const NAME: &'static str = "high_level_api::CompressedDecompressionKey";
 }
 
 impl CompressedCompressionKey {
