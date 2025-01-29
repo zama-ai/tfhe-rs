@@ -89,6 +89,11 @@ where
     C2: Container<Element = Scalar>,
 {
     assert_eq!(lwe.lwe_size(), encryptions_of_zero.lwe_size());
+    assert_eq!(
+        lwe.ciphertext_modulus(),
+        encryptions_of_zero.ciphertext_modulus()
+    );
+
     assert_ne!(encryptions_of_zero.lwe_ciphertext_count().0, 0);
 
     let mut best_index = 0;
