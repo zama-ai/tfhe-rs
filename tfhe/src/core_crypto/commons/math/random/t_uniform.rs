@@ -70,6 +70,22 @@ impl<T: UnsignedInteger> TUniform<T> {
     pub fn max_value_inclusive(&self) -> T::Signed {
         T::Signed::ONE << self.bound_log2 as usize
     }
+
+    // TODO: return the ModularVariance? Essentially the first part of the formula corresponds to
+    // what older iterations of the lib called ModularVariance, this struct does not currently have
+    // the DispersionParameter trait implemented, so here for convenience we compute the Variance
+    // directly by dividing the ModularVariance by the modulus squared to be in the Torus domain.
+    #[cfg(test)]
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub(crate) fn variance(
+        &self,
+        modulus: f64,
+    ) -> crate::core_crypto::commons::dispersion::Variance {
+        // (2^{2 * b + 1} + 1) / 6
+        crate::core_crypto::commons::dispersion::Variance(
+            ((2.0f64.powi(2 * (self.bound_log2 as i32) + 1) + 1.0f64) / 6.0f64) * modulus.powi(-2),
+        )
+    }
 }
 
 macro_rules! implement_t_uniform_uint {
