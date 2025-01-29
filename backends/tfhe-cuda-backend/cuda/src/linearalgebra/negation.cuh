@@ -26,7 +26,7 @@ __host__ void host_negation(cudaStream_t stream, uint32_t gpu_index, T *output,
                             T const *input, const uint32_t input_lwe_dimension,
                             const uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;

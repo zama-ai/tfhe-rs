@@ -2,8 +2,12 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 
-cudaEvent_t cuda_create_event(uint32_t gpu_index) {
+void cuda_set_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
+}
+
+cudaEvent_t cuda_create_event(uint32_t gpu_index) {
+  cuda_set_device(gpu_index);
   cudaEvent_t event;
   check_cuda_error(cudaEventCreate(&event));
   return event;
@@ -11,24 +15,24 @@ cudaEvent_t cuda_create_event(uint32_t gpu_index) {
 
 void cuda_event_record(cudaEvent_t event, cudaStream_t stream,
                        uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(cudaEventRecord(event, stream));
 }
 
 void cuda_stream_wait_event(cudaStream_t stream, cudaEvent_t event,
                             uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(cudaStreamWaitEvent(stream, event, 0));
 }
 
 void cuda_event_destroy(cudaEvent_t event, uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(cudaEventDestroy(event));
 }
 
 /// Unsafe function to create a CUDA stream, must check first that GPU exists
 cudaStream_t cuda_create_stream(uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   cudaStream_t stream;
   check_cuda_error(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
   return stream;
@@ -36,12 +40,12 @@ cudaStream_t cuda_create_stream(uint32_t gpu_index) {
 
 /// Unsafe function to destroy CUDA stream, must check first the GPU exists
 void cuda_destroy_stream(cudaStream_t stream, uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(cudaStreamDestroy(stream));
 }
 
 void cuda_synchronize_stream(cudaStream_t stream, uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(cudaStreamSynchronize(stream));
 }
 
@@ -59,7 +63,7 @@ uint32_t cuda_is_available() { return cudaSetDevice(0) == cudaSuccess; }
 /// or if there's not enough memory. A safe wrapper around it must call
 /// cuda_check_valid_malloc() first
 void *cuda_malloc(uint64_t size, uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   void *ptr;
   check_cuda_error(cudaMalloc((void **)&ptr, size));
 
@@ -70,7 +74,7 @@ void *cuda_malloc(uint64_t size, uint32_t gpu_index) {
 /// asynchronously.
 void *cuda_malloc_async(uint64_t size, cudaStream_t stream,
                         uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   void *ptr;
 
 #ifndef CUDART_VERSION
@@ -93,7 +97,7 @@ void *cuda_malloc_async(uint64_t size, cudaStream_t stream,
 
 /// Check that allocation is valid
 void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   size_t total_mem, free_mem;
   check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
   if (size > free_mem) {
@@ -141,7 +145,7 @@ void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
     PANIC("Cuda error: invalid device pointer in async copy to GPU.")
   }
 
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(
       cudaMemcpyAsync(dest, src, size, cudaMemcpyHostToDevice, stream));
 }
@@ -161,7 +165,7 @@ void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
   if (attr_src.type != cudaMemoryTypeDevice) {
     PANIC("Cuda error: invalid src device pointer in copy from GPU to GPU.")
   }
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   if (attr_src.device == attr_dest.device) {
     check_cuda_error(
         cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToDevice, stream));
@@ -186,7 +190,7 @@ void cuda_memcpy_gpu_to_gpu(void *dest, void *src, uint64_t size,
   if (attr_src.type != cudaMemoryTypeDevice) {
     PANIC("Cuda error: invalid src device pointer in copy from GPU to GPU.")
   }
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   if (attr_src.device == attr_dest.device) {
     check_cuda_error(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToDevice));
   } else {
@@ -197,7 +201,7 @@ void cuda_memcpy_gpu_to_gpu(void *dest, void *src, uint64_t size,
 
 /// Synchronizes device
 void cuda_synchronize_device(uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(cudaDeviceSynchronize());
 }
 
@@ -210,7 +214,7 @@ void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
   if (attr.device != gpu_index && attr.type != cudaMemoryTypeDevice) {
     PANIC("Cuda error: invalid dest device pointer in cuda memset.")
   }
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(cudaMemsetAsync(dest, val, size, stream));
 }
 
@@ -230,7 +234,7 @@ void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
     if (attr.type != cudaMemoryTypeDevice) {
       PANIC("Cuda error: invalid dest device pointer in cuda set value.")
     }
-    check_cuda_error(cudaSetDevice(gpu_index));
+    cuda_set_device(gpu_index);
     int block_size = 256;
     int num_blocks = (n + block_size - 1) / block_size;
 
@@ -260,7 +264,7 @@ void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
     PANIC("Cuda error: invalid src device pointer in copy to CPU async.")
   }
 
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(
       cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToHost, stream));
 }
@@ -274,14 +278,14 @@ int cuda_get_number_of_gpus() {
 
 /// Drop a cuda array
 void cuda_drop(void *ptr, uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
   check_cuda_error(cudaFree(ptr));
 }
 
 /// Drop a cuda array asynchronously, if supported on the device
 void cuda_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index) {
 
-  check_cuda_error(cudaSetDevice(gpu_index));
+  cuda_set_device(gpu_index);
 #ifndef CUDART_VERSION
 #error CUDART_VERSION Undefined!
 #elif (CUDART_VERSION >= 11020)

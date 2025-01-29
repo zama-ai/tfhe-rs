@@ -59,7 +59,7 @@ __host__ void host_integer_radix_negation(
     uint32_t gpu_count, Torus *output, Torus const *input,
     uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
     uint64_t message_modulus, uint64_t carry_modulus) {
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
 
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask

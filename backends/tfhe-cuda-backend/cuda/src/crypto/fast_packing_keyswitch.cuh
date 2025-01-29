@@ -261,7 +261,7 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
 
   // Optimization of packing keyswitch when packing many LWEs
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   check_cuda_error(cudaGetLastError());
 
   int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;

@@ -78,7 +78,7 @@ host_radix_blocks_rotate_right(cudaStream_t const *streams,
     PANIC("Cuda error (blocks_rotate_right): the source and destination "
           "pointers should be different");
   }
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
   radix_blocks_rotate_right<Torus><<<blocks_count, 1024, 0, streams[0]>>>(
       dst, src, value, blocks_count, lwe_size);
   check_cuda_error(cudaGetLastError());
@@ -96,7 +96,7 @@ host_radix_blocks_rotate_left(cudaStream_t const *streams,
     PANIC("Cuda error (blocks_rotate_left): the source and destination "
           "pointers should be different");
   }
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
   radix_blocks_rotate_left<Torus><<<blocks_count, 1024, 0, streams[0]>>>(
       dst, src, value, blocks_count, lwe_size);
   check_cuda_error(cudaGetLastError());
@@ -125,7 +125,7 @@ __host__ void
 host_radix_blocks_reverse_inplace(cudaStream_t const *streams,
                                   uint32_t const *gpu_indexes, Torus *src,
                                   uint32_t blocks_count, uint32_t lwe_size) {
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
   int num_blocks = blocks_count / 2, num_threads = 1024;
   radix_blocks_reverse_lwe_inplace<Torus>
       <<<num_blocks, num_threads, 0, streams[0]>>>(src, blocks_count, lwe_size);
@@ -163,7 +163,7 @@ template <typename Torus>
 __host__ void host_radix_cumulative_sum_in_groups(
     cudaStream_t stream, uint32_t gpu_index, Torus *dest, Torus *src,
     uint32_t radix_blocks_count, uint32_t lwe_size, uint32_t group_size) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // Each CUDA block is responsible for a single group
   int num_blocks = (radix_blocks_count + group_size - 1) / group_size,
       num_threads = 512;
@@ -219,7 +219,7 @@ __host__ void host_radix_split_simulators_and_grouping_pgns(
     cudaStream_t stream, uint32_t gpu_index, Torus *simulators,
     Torus *grouping_pgns, Torus *src, uint32_t radix_blocks_count,
     uint32_t lwe_size, uint32_t group_size, Torus delta) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // Each CUDA block is responsible for a single group
   int num_blocks = radix_blocks_count, num_threads = 512;
   radix_split_simulators_and_grouping_pgns<Torus>
@@ -255,7 +255,7 @@ __host__ void host_radix_sum_in_groups(cudaStream_t stream, uint32_t gpu_index,
                                        Torus *dest, Torus *src1, Torus *src2,
                                        uint32_t radix_blocks_count,
                                        uint32_t lwe_size, uint32_t group_size) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   int num_blocks = radix_blocks_count, num_threads = 512;
   radix_sum_in_groups<Torus><<<num_blocks, num_threads, 0, stream>>>(
@@ -297,7 +297,7 @@ pack_bivariate_blocks(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                       uint32_t lwe_dimension, uint32_t shift,
                       uint32_t num_radix_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
   // Left message is shifted
   int num_blocks = 0, num_threads = 0;
   int num_entries = num_radix_blocks * (lwe_dimension + 1);
@@ -341,7 +341,7 @@ __host__ void pack_bivariate_blocks_with_single_block(
     Torus const *lwe_array_1, Torus const *lwe_2, Torus const *lwe_indexes_in,
     uint32_t lwe_dimension, uint32_t shift, uint32_t num_radix_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
   // Left message is shifted
   int num_blocks = 0, num_threads = 0;
   int num_entries = num_radix_blocks * (lwe_dimension + 1);
@@ -1361,7 +1361,7 @@ __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
                           uint32_t factor) {
   if (num_radix_blocks == 0)
     return;
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 1024, num_blocks, num_threads);
@@ -1392,7 +1392,7 @@ create_trivial_radix(cudaStream_t stream, uint32_t gpu_index,
                      uint32_t num_scalar_blocks, Torus message_modulus,
                      Torus carry_modulus) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   size_t radix_size = (lwe_dimension + 1) * num_radix_blocks;
   cuda_memset_async(lwe_array_out, 0, radix_size * sizeof(Torus), stream,
                     gpu_index);

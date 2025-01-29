@@ -27,6 +27,8 @@ inline void cuda_error(cudaError_t code, const char *file, int line) {
     std::abort();                                                              \
   }
 
+void cuda_set_device(uint32_t gpu_index);
+
 cudaEvent_t cuda_create_event(uint32_t gpu_index);
 
 void cuda_event_record(cudaEvent_t event, cudaStream_t stream,

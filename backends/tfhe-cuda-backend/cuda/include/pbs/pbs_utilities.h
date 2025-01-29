@@ -77,7 +77,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
              uint32_t polynomial_size, uint32_t level_count,
              uint32_t input_lwe_ciphertext_count, PBS_VARIANT pbs_variant,
              bool allocate_gpu_memory) {
-    cudaSetDevice(gpu_index);
+    cuda_set_device(gpu_index);
     this->pbs_variant = pbs_variant;
 
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);

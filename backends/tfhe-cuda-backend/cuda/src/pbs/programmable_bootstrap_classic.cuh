@@ -373,7 +373,7 @@ __host__ void execute_step_one(
     uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm) {
 
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
   dim3 grid(level_count, glwe_dimension + 1, input_lwe_ciphertext_count);
 
@@ -415,7 +415,7 @@ __host__ void execute_step_two(
     uint32_t num_many_lut, uint32_t lut_stride) {
 
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);
 
@@ -456,7 +456,7 @@ __host__ void host_programmable_bootstrap(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_many_lut, uint32_t lut_stride) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
