@@ -12,7 +12,7 @@ __host__ void zero_out_if(cudaStream_t const *streams,
                           int_zero_out_if_buffer<Torus> *mem_ptr,
                           int_radix_lut<Torus> *predicate, void *const *bsks,
                           Torus *const *ksks, uint32_t num_radix_blocks) {
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
   auto params = mem_ptr->params;
 
   // We can't use integer_radix_apply_bivariate_lookup_table_kb since the

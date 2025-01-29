@@ -11,7 +11,7 @@ void cuda_convert_lwe_ciphertext_vector_to_gpu(cudaStream_t stream,
                                                uint32_t gpu_index, T *dest,
                                                T *src, uint32_t number_of_cts,
                                                uint32_t lwe_dimension) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   uint64_t size = number_of_cts * (lwe_dimension + 1) * sizeof(T);
   cuda_memcpy_async_to_gpu(dest, src, size, stream, gpu_index);
 }
@@ -21,7 +21,7 @@ void cuda_convert_lwe_ciphertext_vector_to_cpu(cudaStream_t stream,
                                                uint32_t gpu_index, T *dest,
                                                T *src, uint32_t number_of_cts,
                                                uint32_t lwe_dimension) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   uint64_t size = number_of_cts * (lwe_dimension + 1) * sizeof(T);
   cuda_memcpy_async_to_cpu(dest, src, size, stream, gpu_index);
 }
@@ -55,7 +55,7 @@ __host__ void host_sample_extract(cudaStream_t stream, uint32_t gpu_index,
                                   Torus const *glwe_array_in,
                                   uint32_t const *nth_array, uint32_t num_nths,
                                   uint32_t glwe_dimension) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   dim3 grid(num_nths);
   dim3 thds(params::degree / params::opt);

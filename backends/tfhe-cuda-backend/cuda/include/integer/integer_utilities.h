@@ -171,7 +171,7 @@ template <typename Torus> struct int_radix_lut {
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
-      cudaSetDevice(i);
+      cuda_set_device(i);
       int8_t *gpu_pbs_buffer;
       auto num_blocks_on_gpu =
           get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
@@ -361,7 +361,7 @@ template <typename Torus> struct int_radix_lut {
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
-      cudaSetDevice(i);
+      cuda_set_device(i);
       int8_t *gpu_pbs_buffer;
       auto num_blocks_on_gpu =
           get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);

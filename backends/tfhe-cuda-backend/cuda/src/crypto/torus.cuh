@@ -110,7 +110,7 @@ template <typename Torus>
 __host__ void host_modulus_switch_inplace(cudaStream_t stream,
                                           uint32_t gpu_index, Torus *array,
                                           int size, uint32_t log_modulus) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   int num_threads = 0, num_blocks = 0;
   getNumBlocksAndThreads(size, 1024, num_blocks, num_threads);

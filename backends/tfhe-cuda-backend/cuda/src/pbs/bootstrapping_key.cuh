@@ -78,7 +78,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
                                                  double2 *dest, ST const *src,
                                                  uint32_t polynomial_size,
                                                  uint32_t total_polynomials) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   int shared_memory_size = sizeof(double) * polynomial_size;
 
   // Here the buffer size is the size of double2 times the number of polynomials

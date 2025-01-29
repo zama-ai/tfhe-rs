@@ -450,7 +450,7 @@ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
 
   int max_blocks_per_sm;
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   if (max_shared_memory < full_sm_keybundle)
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_blocks_per_sm,

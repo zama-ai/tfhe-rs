@@ -29,7 +29,7 @@ __host__ void host_integer_radix_scalar_addition_inplace(
     uint32_t gpu_count, Torus *lwe_array, Torus const *scalar_input,
     uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus) {
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;
@@ -68,7 +68,7 @@ __host__ void host_integer_radix_add_scalar_one_inplace(
     uint32_t gpu_count, Torus *lwe_array, uint32_t lwe_dimension,
     uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
     uint32_t carry_modulus) {
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;
@@ -108,7 +108,7 @@ __host__ void host_integer_radix_scalar_subtraction_inplace(
     uint32_t gpu_count, Torus *lwe_array, Torus *scalar_input,
     uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus) {
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;

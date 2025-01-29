@@ -312,7 +312,7 @@ __host__ void host_programmable_bootstrap_amortized(
   uint64_t DM_FULL = SM_FULL;
 
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   // Create a 1-dimensional grid of threads
   // where each block handles 1 sample and each thread

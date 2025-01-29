@@ -247,7 +247,7 @@ __host__ void host_programmable_bootstrap_cg(
           polynomial_size);
 
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   uint64_t full_dm = full_sm;
 

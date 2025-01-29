@@ -388,7 +388,7 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   uint64_t full_sm_keybundle =
@@ -496,7 +496,7 @@ __host__ void execute_compute_keybundle(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   uint32_t chunk_size =
@@ -545,7 +545,7 @@ execute_step_one(cudaStream_t stream, uint32_t gpu_index,
                  uint32_t lwe_dimension, uint32_t glwe_dimension,
                  uint32_t polynomial_size, uint32_t base_log,
                  uint32_t level_count, uint32_t j, uint32_t lwe_offset) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   uint64_t full_sm_accumulate_step_one =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<Torus>(
@@ -601,7 +601,7 @@ execute_step_two(cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
                  uint32_t polynomial_size, int32_t grouping_factor,
                  uint32_t level_count, uint32_t j, uint32_t lwe_offset,
                  uint32_t num_many_lut, uint32_t lut_stride) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   uint64_t full_sm_accumulate_step_two =

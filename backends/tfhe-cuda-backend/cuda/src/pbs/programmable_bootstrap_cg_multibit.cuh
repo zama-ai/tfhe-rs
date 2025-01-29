@@ -215,7 +215,7 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
@@ -298,7 +298,7 @@ __host__ void execute_cg_external_product_loop(
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t lwe_offset, uint32_t num_many_lut,
     uint32_t lut_stride) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   uint64_t full_sm =
       get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(

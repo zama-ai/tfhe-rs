@@ -50,7 +50,7 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
   if (array_in == array_out)
     PANIC("Cuda error: Input and output must be different");
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   auto compression_params = mem_ptr->compression_params;
 
   auto log_modulus = mem_ptr->storage_log_modulus;
@@ -185,7 +185,7 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   if (array_in == glwe_array_out)
     PANIC("Cuda error: Input and output must be different");
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   auto compression_params = mem_ptr->compression_params;
 
