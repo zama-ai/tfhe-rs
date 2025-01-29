@@ -140,7 +140,7 @@ void programmable_bootstrap_multibit_setup(
     DynamicDistribution glwe_noise_distribution, int pbs_base_log,
     int pbs_level, int message_modulus, int carry_modulus, int *payload_modulus,
     uint64_t *delta, int number_of_inputs, int repetitions, int samples) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   *payload_modulus = message_modulus * carry_modulus;
   // Value of the shift we multiply our messages by

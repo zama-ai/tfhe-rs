@@ -51,7 +51,7 @@ __host__ void host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index,
                                       const uint32_t lwe_dimension,
                                       const uint32_t lwe_ciphertext_count) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = lwe_ciphertext_count;
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
@@ -72,7 +72,7 @@ __host__ void host_addition_plaintext_scalar(
     const T plaintext_input, const uint32_t lwe_dimension,
     const uint32_t lwe_ciphertext_count) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = lwe_ciphertext_count;
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
@@ -106,7 +106,7 @@ __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index,
                             CudaRadixCiphertextFFI const *input_1,
                             CudaRadixCiphertextFFI const *input_2) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = output->lwe_dimension + 1;
@@ -136,7 +136,7 @@ __host__ void legacy_host_addition(cudaStream_t stream, uint32_t gpu_index,
                                    const uint32_t input_lwe_dimension,
                                    const uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
@@ -172,7 +172,7 @@ __host__ void host_pack_for_overflowing_ops(cudaStream_t stream,
                                             uint32_t input_lwe_ciphertext_count,
                                             uint32_t message_modulus) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
@@ -210,7 +210,7 @@ __host__ void host_subtraction(cudaStream_t stream, uint32_t gpu_index,
                                uint32_t input_lwe_dimension,
                                uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
@@ -248,7 +248,7 @@ __host__ void host_subtraction_plaintext(cudaStream_t stream,
                                          uint32_t input_lwe_dimension,
                                          uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = input_lwe_ciphertext_count;
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
@@ -294,7 +294,7 @@ __host__ void host_unchecked_sub_with_correcting_term(
     uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
     uint32_t carry_modulus, uint32_t degree) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;

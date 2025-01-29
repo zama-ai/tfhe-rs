@@ -96,7 +96,7 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
                                  uint32_t total_polynomials) {
 
   auto stream = static_cast<cudaStream_t>(stream_v);
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   auto input1 = (double2 *)_input1;
   auto input2 = (double2 *)_input2;
   auto output = (double2 *)_output;

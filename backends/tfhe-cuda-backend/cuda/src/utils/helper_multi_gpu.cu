@@ -21,7 +21,7 @@ int32_t cuda_setup_multi_gpu() {
         check_cuda_error(
             cudaDeviceCanAccessPeer(&has_peer_access_to_device_0, i, 0));
         if (has_peer_access_to_device_0) {
-          check_cuda_error(cudaSetDevice(i));
+          cuda_set_device(i);
           check_cuda_error(cudaDeviceEnablePeerAccess(0, 0));
         }
         num_used_gpus += 1;

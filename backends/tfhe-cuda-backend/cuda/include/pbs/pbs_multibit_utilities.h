@@ -114,7 +114,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
              uint32_t polynomial_size, uint32_t level_count,
              uint32_t input_lwe_ciphertext_count, uint32_t lwe_chunk_size,
              PBS_VARIANT pbs_variant, bool allocate_gpu_memory) {
-    cudaSetDevice(gpu_index);
+    cuda_set_device(gpu_index);
 
     this->pbs_variant = pbs_variant;
     this->lwe_chunk_size = lwe_chunk_size;

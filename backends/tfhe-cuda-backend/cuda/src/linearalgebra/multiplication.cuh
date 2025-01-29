@@ -34,7 +34,7 @@ __host__ void host_cleartext_vec_multiplication(
     T const *cleartext_input, const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
@@ -70,7 +70,7 @@ host_cleartext_multiplication(cudaStream_t stream, uint32_t gpu_index,
                               uint32_t input_lwe_dimension,
                               uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;

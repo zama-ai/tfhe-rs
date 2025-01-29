@@ -201,7 +201,7 @@ __host__ void scratch_programmable_bootstrap_tbc(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool supports_dsm =
@@ -264,7 +264,7 @@ __host__ void host_programmable_bootstrap_tbc(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_many_lut, uint32_t lut_stride) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto supports_dsm =

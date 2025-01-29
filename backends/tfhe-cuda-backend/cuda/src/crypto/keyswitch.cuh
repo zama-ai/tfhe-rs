@@ -105,7 +105,7 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples) {
 
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   constexpr int num_threads_y = 32;
   int num_blocks, num_threads_x;
@@ -160,7 +160,7 @@ __host__ void scratch_packing_keyswitch_lwe_list_to_glwe(
     cudaStream_t stream, uint32_t gpu_index, int8_t **fp_ks_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t num_lwes, bool allocate_gpu_memory) {
-  cudaSetDevice(gpu_index);
+  cuda_set_device(gpu_index);
 
   int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
 

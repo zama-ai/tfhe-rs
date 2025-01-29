@@ -130,7 +130,7 @@ __host__ void host_integer_small_scalar_mul_radix(
     uint32_t gpu_count, T *output_lwe_array, T *input_lwe_array, T scalar,
     uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(gpu_indexes[0]);
+  cuda_set_device(gpu_indexes[0]);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
