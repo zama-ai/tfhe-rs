@@ -12,7 +12,7 @@ use crate::core_crypto::prelude::{
 #[derive(Debug)]
 pub struct CudaLweMultiBitBootstrapKey {
     // Pointers to GPU data
-    pub(crate) d_vec: CudaVec<u64>,
+    pub d_vec: CudaVec<u64>,
     // Lwe dimension
     pub(crate) input_lwe_dimension: LweDimension,
     // Glwe dimension

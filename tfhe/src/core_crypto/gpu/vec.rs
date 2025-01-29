@@ -345,7 +345,7 @@ impl<T: Numeric> CudaVec<T> {
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]
-    pub(crate) fn as_mut_c_ptr(&mut self, index: u32) -> *mut c_void {
+    pub fn as_mut_c_ptr(&mut self, index: u32) -> *mut c_void {
         self.ptr[index as usize]
     }
 
@@ -353,7 +353,7 @@ impl<T: Numeric> CudaVec<T> {
         self.ptr[index as usize]
     }
 
-    pub(crate) fn as_c_ptr(&self, index: u32) -> *const c_void {
+    pub fn as_c_ptr(&self, index: u32) -> *const c_void {
         self.ptr[index as usize].cast_const()
     }
 

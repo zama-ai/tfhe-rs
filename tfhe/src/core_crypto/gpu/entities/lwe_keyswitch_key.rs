@@ -12,7 +12,7 @@ use crate::core_crypto::prelude::{
 
 #[allow(dead_code)]
 pub struct CudaLweKeyswitchKey<T: UnsignedInteger> {
-    pub(crate) d_vec: CudaVec<T>,
+    pub d_vec: CudaVec<T>,
     input_lwe_size: LweSize,
     output_lwe_size: LweSize,
     decomp_base_log: DecompositionBaseLog,

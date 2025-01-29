@@ -8,7 +8,7 @@ use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
 
 /// A structure representing a vector of LWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Debug)]
-pub struct CudaLweCiphertextList<T: UnsignedInteger>(pub(crate) CudaLweList<T>);
+pub struct CudaLweCiphertextList<T: UnsignedInteger>(pub CudaLweList<T>);
 
 #[allow(dead_code)]
 impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
