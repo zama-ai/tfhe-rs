@@ -13,7 +13,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{
     EncryptionKeyChoice, NoiseLevel, PBSOrder, ShortintKeySwitchingParameters,
 };
-use crate::shortint::server_key::apply_programmable_bootstrap;
+use crate::shortint::server_key::{apply_programmable_bootstrap, ModulusSwitchNoiseReduction};
 use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, MaxNoiseLevel, ServerKey};
 use core::cmp::Ordering;
 use rayon::prelude::*;
@@ -639,7 +639,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         &mut correct_key_ct.ct,
                                         &acc.acc,
                                         buffers,
-                                        true,
+                                        ModulusSwitchNoiseReduction::Enable,
                                     );
 
                                     // Update degree depending on the LUT used (as this is a PBS and
@@ -694,7 +694,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         &mut correct_key_ct.ct,
                                         &acc.acc,
                                         buffers,
-                                        true,
+                                        ModulusSwitchNoiseReduction::Enable,
                                     );
                                     // Update degree and noise as it's a raw PBS
                                     correct_key_ct.degree = acc.degree;
@@ -754,7 +754,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         &mut correct_key_ct.ct,
                                         &acc.acc,
                                         buffers,
-                                        true,
+                                        ModulusSwitchNoiseReduction::Enable,
                                     );
                                     if using_user_provided_functions {
                                         correct_key_ct.degree = acc.degree;

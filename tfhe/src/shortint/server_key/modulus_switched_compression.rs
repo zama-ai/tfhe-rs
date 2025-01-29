@@ -1,7 +1,7 @@
 use super::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
 use super::{
     extract_lwe_sample_from_glwe_ciphertext, multi_bit_deterministic_blind_rotate_assign,
-    GlweCiphertext, ShortintBootstrappingKey,
+    GlweCiphertext, ModulusSwitchNoiseReduction, ShortintBootstrappingKey,
 };
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
@@ -145,7 +145,7 @@ impl ServerKey {
                         &mut ciphertext_buffers.buffer_lwe_after_pbs,
                         &acc.acc,
                         buffers,
-                        false,
+                        ModulusSwitchNoiseReduction::Disable,
                     );
                 }
                 ShortintBootstrappingKey::MultiBit {

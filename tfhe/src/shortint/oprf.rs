@@ -7,7 +7,9 @@ use crate::core_crypto::prelude::{
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;
-use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
+use crate::shortint::server_key::{
+    apply_programmable_bootstrap, LookupTableOwned, ModulusSwitchNoiseReduction,
+};
 use crate::shortint::{PBSOrder, ServerKey};
 use tfhe_csprng::seeders::Seed;
 
@@ -152,7 +154,7 @@ impl ServerKey {
                 &mut ct,
                 &acc.acc,
                 buffers,
-                false,
+                ModulusSwitchNoiseReduction::Disable,
             );
         });
 
