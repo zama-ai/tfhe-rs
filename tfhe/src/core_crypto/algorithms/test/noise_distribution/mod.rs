@@ -1,6 +1,6 @@
 use super::*;
 
-mod lwe_encryption_noise;
+pub(crate) mod lwe_encryption_noise;
 mod lwe_hpu_noise;
 mod lwe_keyswitch_noise;
 // We are having crashes on aarch64 at the moment, problem is the code paths are not the same

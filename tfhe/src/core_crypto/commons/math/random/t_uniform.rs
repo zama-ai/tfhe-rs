@@ -1,6 +1,7 @@
 use crate::core_crypto::backward_compatibility::commons::math::random::TUniformVersions;
 
 use super::*;
+use crate::core_crypto::commons::dispersion::Variance;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -69,6 +70,13 @@ impl<T: UnsignedInteger> TUniform<T> {
 
     pub fn max_value_inclusive(&self) -> T::Signed {
         T::Signed::ONE << self.bound_log2 as usize
+    }
+
+    pub fn variance(&self, modulus: f64) -> Variance {
+        // (2^{2 * b + 1} + 1) / 6
+        Variance(
+            ((2.0f64.powi(2 * (self.bound_log2 as i32) + 1) + 1.0f64) / 6.0f64) * modulus.powi(-2),
+        )
     }
 }
 
