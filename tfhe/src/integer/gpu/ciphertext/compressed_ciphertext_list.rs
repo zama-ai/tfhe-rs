@@ -1,6 +1,7 @@
 use crate::core_crypto::entities::packed_integers::PackedIntegers;
 use crate::core_crypto::entities::GlweCiphertextList;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
@@ -66,6 +67,9 @@ pub struct CudaCompressedCiphertextList {
 }
 
 impl CudaCompressedCiphertextList {
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        &self.packed_list.glwe_ciphertext_list.0.d_vec.gpu_indexes
+    }
     pub fn len(&self) -> usize {
         self.info.len()
     }
@@ -226,6 +230,13 @@ impl CudaCompressedCiphertextList {
 
         CompressedCiphertextList {
             packed_list,
+            info: self.info.clone(),
+        }
+    }
+
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self {
+            packed_list: self.packed_list.duplicate(streams),
             info: self.info.clone(),
         }
     }
