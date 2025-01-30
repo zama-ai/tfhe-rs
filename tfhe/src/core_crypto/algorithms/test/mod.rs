@@ -26,7 +26,7 @@ mod lwe_private_functional_packing_keyswitch;
 pub(crate) mod lwe_programmable_bootstrapping;
 mod modulus_switch_compression;
 mod modulus_switch_noise_reduction;
-mod noise_distribution;
+pub(crate) mod noise_distribution;
 
 pub struct TestResources {
     pub seeder: Box<dyn Seeder>,
