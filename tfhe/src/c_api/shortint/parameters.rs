@@ -2,9 +2,12 @@ pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
+use crate::core_crypto::commons::parameters::{NoiseEstimationMeasureBound, RSigmaFactor};
+use crate::core_crypto::prelude::LweCiphertextCount;
 pub use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::*;
+use crate::shortint::server_key::ModulusSwitchNoiseReductionParams as RustModulusSwitchNoiseReductionParams;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -18,6 +21,112 @@ impl From<ShortintEncryptionKeyChoice> for EncryptionKeyChoice {
         match value {
             ShortintEncryptionKeyChoice::ShortintEncryptionKeyChoiceBig => Self::Big,
             ShortintEncryptionKeyChoice::ShortintEncryptionKeyChoiceSmall => Self::Small,
+        }
+    }
+}
+
+#[repr(u64)]
+#[derive(Clone, Copy)]
+pub enum OptionTag {
+    None = 0,
+    Some = 1,
+}
+
+impl TryFrom<u64> for OptionTag {
+    type Error = &'static str;
+
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::None),
+            1 => Ok(Self::Some),
+            _ => Err("Invalid value for OptionTag"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ModulusSwitchNoiseReductionParams {
+    pub modulus_switch_zeros_count: u32,
+    pub ms_bound: f64,
+    pub ms_r_sigma_factor: f64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ModulusSwitchNoiseReductionParamsOption {
+    pub tag: u64,
+    pub modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
+}
+
+impl ModulusSwitchNoiseReductionParamsOption {
+    pub const fn new_none() -> Self {
+        Self {
+            tag: 0,
+            modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: 0,
+                ms_bound: 0.0,
+                ms_r_sigma_factor: 0.0,
+            },
+        }
+    }
+
+    pub const fn new_some(
+        modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
+    ) -> Self {
+        Self {
+            tag: 1,
+            modulus_switch_noise_reduction_params,
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn modulus_switch_noise_reduction_params_option_none(
+) -> ModulusSwitchNoiseReductionParamsOption {
+    ModulusSwitchNoiseReductionParamsOption::new_none()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn modulus_switch_noise_reduction_params_option_some(
+    modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
+) -> ModulusSwitchNoiseReductionParamsOption {
+    ModulusSwitchNoiseReductionParamsOption::new_some(modulus_switch_noise_reduction_params)
+}
+
+impl From<ModulusSwitchNoiseReductionParams> for RustModulusSwitchNoiseReductionParams {
+    fn from(value: ModulusSwitchNoiseReductionParams) -> Self {
+        Self {
+            modulus_switch_zeros_count: LweCiphertextCount(
+                value.modulus_switch_zeros_count as usize,
+            ),
+            ms_bound: NoiseEstimationMeasureBound(value.ms_bound),
+            ms_r_sigma_factor: RSigmaFactor(value.ms_r_sigma_factor),
+        }
+    }
+}
+
+impl TryFrom<ModulusSwitchNoiseReductionParamsOption>
+    for Option<RustModulusSwitchNoiseReductionParams>
+{
+    type Error = &'static str;
+
+    fn try_from(value: ModulusSwitchNoiseReductionParamsOption) -> Result<Self, Self::Error> {
+        let tag: OptionTag = value.tag.try_into()?;
+
+        match tag {
+            OptionTag::None => Ok(None),
+            OptionTag::Some => Ok(Some(value.modulus_switch_noise_reduction_params.into())),
+        }
+    }
+}
+
+impl RustModulusSwitchNoiseReductionParams {
+    pub const fn convert_to_c(&self) -> ModulusSwitchNoiseReductionParams {
+        ModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count: self.modulus_switch_zeros_count.0 as u32,
+            ms_bound: self.ms_bound.0,
+            ms_r_sigma_factor: self.ms_r_sigma_factor.0,
         }
     }
 }
@@ -40,6 +149,7 @@ pub struct ShortintPBSParameters {
     pub log2_p_fail: f64,
     pub modulus_power_of_2_exponent: usize,
     pub encryption_key_choice: ShortintEncryptionKeyChoice,
+    pub modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParamsOption,
 }
 
 impl TryFrom<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
@@ -64,7 +174,9 @@ impl TryFrom<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
             max_noise_level: MaxNoiseLevel::new(c_params.max_noise_level),
             log2_p_fail: c_params.log2_p_fail,
             encryption_key_choice: c_params.encryption_key_choice.into(),
-            modulus_switch_noise_reduction_params: None,
+            modulus_switch_noise_reduction_params: c_params
+                .modulus_switch_noise_reduction_params
+                .try_into()?,
         })
     }
 }
@@ -100,24 +212,51 @@ const fn convert_modulus(rust_modulus: crate::shortint::CiphertextModulus) -> us
 
 impl ShortintPBSParameters {
     const fn convert(rust_params: crate::shortint::ClassicPBSParameters) -> Self {
+        let crate::shortint::ClassicPBSParameters {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            ciphertext_modulus,
+            encryption_key_choice,
+            modulus_switch_noise_reduction_params,
+        } = rust_params;
+
+        let modulus_switch_noise_reduction_params = match modulus_switch_noise_reduction_params {
+            Some(modulus_switch_noise_reduction_params) => {
+                ModulusSwitchNoiseReductionParamsOption::new_some(
+                    modulus_switch_noise_reduction_params.convert_to_c(),
+                )
+            }
+            None => ModulusSwitchNoiseReductionParamsOption::new_none(),
+        };
+
         Self {
-            lwe_dimension: rust_params.lwe_dimension.0,
-            glwe_dimension: rust_params.glwe_dimension.0,
-            polynomial_size: rust_params.polynomial_size.0,
-            lwe_noise_distribution: rust_params.lwe_noise_distribution.convert_to_c(),
-            glwe_noise_distribution: rust_params.glwe_noise_distribution.convert_to_c(),
-            pbs_base_log: rust_params.pbs_base_log.0,
-            pbs_level: rust_params.pbs_level.0,
-            ks_base_log: rust_params.ks_base_log.0,
-            ks_level: rust_params.ks_level.0,
-            message_modulus: rust_params.message_modulus.0,
-            carry_modulus: rust_params.carry_modulus.0,
-            max_noise_level: rust_params.max_noise_level.get(),
-            log2_p_fail: rust_params.log2_p_fail,
-            modulus_power_of_2_exponent: convert_modulus(rust_params.ciphertext_modulus),
-            encryption_key_choice: ShortintEncryptionKeyChoice::convert(
-                rust_params.encryption_key_choice,
-            ),
+            lwe_dimension: lwe_dimension.0,
+            glwe_dimension: glwe_dimension.0,
+            polynomial_size: polynomial_size.0,
+            lwe_noise_distribution: lwe_noise_distribution.convert_to_c(),
+            glwe_noise_distribution: glwe_noise_distribution.convert_to_c(),
+            pbs_base_log: pbs_base_log.0,
+            pbs_level: pbs_level.0,
+            ks_base_log: ks_base_log.0,
+            ks_level: ks_level.0,
+            message_modulus: message_modulus.0,
+            carry_modulus: carry_modulus.0,
+            max_noise_level: max_noise_level.get(),
+            log2_p_fail,
+            modulus_power_of_2_exponent: convert_modulus(ciphertext_modulus),
+            encryption_key_choice: ShortintEncryptionKeyChoice::convert(encryption_key_choice),
+            modulus_switch_noise_reduction_params,
         }
     }
 }
