@@ -1121,7 +1121,7 @@ where
     )
 }
 
-pub fn karatsuba_programmable_bootstrap_lwe_ciphertext<
+pub fn karatsuba_programmable_bootstrap_lwe_ciphertext_return_noise<
     InputScalar,
     OutputScalar,
     InputCont,

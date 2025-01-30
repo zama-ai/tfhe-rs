@@ -14,6 +14,7 @@ pub fn pbs_variance_132_bits_security_gaussian_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_gaussian_fft_mul_impl(
@@ -22,6 +23,7 @@ pub fn pbs_variance_132_bits_security_gaussian_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -37,11 +39,12 @@ pub fn pbs_variance_132_bits_security_gaussian_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     input_lwe_dimension
         * (0.00812383963561811
-            * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+            * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
             * decomposition_base.powf(2.0)
             * decomposition_level_count.powf(1.16546250805694)
             * modulus.powf(-2.0)
@@ -76,6 +79,7 @@ pub fn pbs_variance_132_bits_security_tuniform_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_tuniform_fft_mul_impl(
@@ -84,6 +88,7 @@ pub fn pbs_variance_132_bits_security_tuniform_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -98,11 +103,12 @@ pub fn pbs_variance_132_bits_security_tuniform_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     input_lwe_dimension
         * (0.00812383963561811
-            * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+            * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
             * decomposition_base.powf(2.0)
             * decomposition_level_count.powf(1.16546250805694)
             * modulus.powf(-2.0)
