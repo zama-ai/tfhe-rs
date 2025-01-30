@@ -137,4 +137,8 @@ impl<T: UnsignedInteger> CudaGlweCiphertextList<T> {
     pub(crate) fn ciphertext_modulus(&self) -> CiphertextModulus<T> {
         self.0.ciphertext_modulus
     }
+
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self(self.0.duplicate(streams))
+    }
 }

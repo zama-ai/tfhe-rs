@@ -729,6 +729,24 @@ pub struct CudaGlweList<T: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<T>,
 }
 
+impl<T: UnsignedInteger> CudaGlweList<T> {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let d_vec = unsafe {
+            let mut d_vec = CudaVec::new_async(self.d_vec.len(), streams, 0);
+            d_vec.copy_from_gpu_async(&self.d_vec, streams, 0);
+            d_vec
+        };
+        streams.synchronize();
+
+        Self {
+            d_vec,
+            glwe_ciphertext_count: self.glwe_ciphertext_count,
+            glwe_dimension: self.glwe_dimension,
+            polynomial_size: self.polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
+    }
+}
 /// Get the number of GPUs on the machine
 pub fn get_number_of_gpus() -> i32 {
     unsafe { cuda_get_number_of_gpus() }

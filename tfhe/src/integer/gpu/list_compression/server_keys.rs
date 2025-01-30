@@ -47,6 +47,20 @@ pub struct CudaPackedGlweCiphertext {
     pub initial_len: usize,
 }
 
+impl CudaPackedGlweCiphertext {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self {
+            glwe_ciphertext_list: self.glwe_ciphertext_list.duplicate(streams),
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            bodies_count: self.bodies_count,
+            storage_log_modulus: self.storage_log_modulus,
+            lwe_per_glwe: self.lwe_per_glwe,
+            initial_len: self.initial_len,
+        }
+    }
+}
+
 impl Clone for CudaPackedGlweCiphertext {
     fn clone(&self) -> Self {
         Self {
