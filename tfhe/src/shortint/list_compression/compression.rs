@@ -133,13 +133,13 @@ impl DecompressionKey {
         packed: &CompressedCiphertextList,
         index: usize,
     ) -> Result<Ciphertext, crate::Error> {
-        if packed.message_modulus.0 != packed.carry_modulus.0 {
-            return Err(crate::Error::new(format!(
-                "Tried to unpack values from a list where message modulus \
-                ({:?}) is != carry modulus ({:?}), this is not supported.",
-                packed.message_modulus, packed.carry_modulus,
-            )));
-        }
+        // if packed.message_modulus.0 != packed.carry_modulus.0 {
+        //     return Err(crate::Error::new(format!(
+        //         "Tried to unpack values from a list where message modulus \
+        //         ({:?}) is != carry modulus ({:?}), this is not supported.",
+        //         packed.message_modulus, packed.carry_modulus,
+        //     )));
+        // }
 
         if index >= packed.count.0 {
             return Err(crate::Error::new(format!(
