@@ -314,38 +314,36 @@ impl CompactPublicKey {
 
         let encryption_noise_distribution = self.parameters.encryption_noise_distribution;
 
+        let mut engine = ShortintEngine::new();
+
         // No parallelism allowed
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         {
             use crate::core_crypto::prelude::encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
-            ShortintEngine::with_thread_local_mut(|engine| {
-                encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
-                    &self.key,
-                    &mut ct_list,
-                    &plaintext_list,
-                    encryption_noise_distribution,
-                    encryption_noise_distribution,
-                    &mut engine.secret_generator,
-                    &mut engine.encryption_generator,
-                );
-            });
+            encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+                &self.key,
+                &mut ct_list,
+                &plaintext_list,
+                encryption_noise_distribution,
+                encryption_noise_distribution,
+                &mut engine.secret_generator,
+                &mut engine.encryption_generator,
+            );
         }
 
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         {
             use crate::core_crypto::prelude::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
-            ShortintEngine::with_thread_local_mut(|engine| {
-                par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
-                    &self.key,
-                    &mut ct_list,
-                    &plaintext_list,
-                    encryption_noise_distribution,
-                    encryption_noise_distribution,
-                    &mut engine.secret_generator,
-                    &mut engine.encryption_generator,
-                );
-            });
+            par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+                &self.key,
+                &mut ct_list,
+                &plaintext_list,
+                encryption_noise_distribution,
+                encryption_noise_distribution,
+                &mut engine.secret_generator,
+                &mut engine.encryption_generator,
+            );
         }
 
         let message_modulus = self.parameters.message_modulus;
