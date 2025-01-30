@@ -1,7 +1,7 @@
 use super::super::test::TestResources;
 use super::*;
 use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::commons::test_tools::{check_both_ratio_under, mean, variance};
+use crate::core_crypto::commons::test_tools::{check_both_ratio_under, arithmetic_mean, variance};
 use crate::core_crypto::prelude::modulus_switch_noise_reduction::*;
 use crate::core_crypto::prelude::{
     allocate_and_encrypt_new_lwe_ciphertext, allocate_and_generate_new_binary_lwe_secret_key,
@@ -436,19 +436,23 @@ fn check_noise_improve_modulus_switch_noise(
         .unzip();
 
     println!(
-        "mean(&ms_errors)                     {}2^{:.2}",
-        if mean(&ms_errors) > 0_f64 { "+" } else { "-" },
-        mean(&ms_errors).abs().log2()
-    );
-
-    println!(
-        "mean(&ms_errors_improved)            {}2^{:.2}",
-        if mean(&ms_errors_improved) > 0_f64 {
+        "arithmetic_mean(&ms_errors)                     {}2^{:.2}",
+        if arithmetic_mean(&ms_errors) > 0_f64 {
             "+"
         } else {
             "-"
         },
-        mean(&ms_errors_improved).abs().log2()
+        arithmetic_mean(&ms_errors).abs().log2()
+    );
+
+    println!(
+        "arithmetic_mean(&ms_errors_improved)            {}2^{:.2}",
+        if arithmetic_mean(&ms_errors_improved) > 0_f64 {
+            "+"
+        } else {
+            "-"
+        },
+        arithmetic_mean(&ms_errors_improved).abs().log2()
     );
 
     let base_variance = variance(&ms_errors).0;
