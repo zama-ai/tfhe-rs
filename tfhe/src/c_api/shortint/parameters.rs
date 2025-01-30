@@ -155,10 +155,16 @@ impl ShortintCompactCiphertextListCastingParameters {
     const fn convert(
         rust_params: crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
     ) -> Self {
+        let crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters {
+            ks_base_log,
+            ks_level,
+            destination_key,
+        } = rust_params;
+
         Self {
-            ks_base_log: rust_params.ks_base_log.0,
-            ks_level: rust_params.ks_level.0,
-            destination_key: ShortintEncryptionKeyChoice::convert(rust_params.destination_key),
+            ks_base_log: ks_base_log.0,
+            ks_level: ks_level.0,
+            destination_key: ShortintEncryptionKeyChoice::convert(destination_key),
         }
     }
 }
@@ -249,25 +255,31 @@ impl TryFrom<ShortintCompactPublicKeyEncryptionParameters>
 
 impl ShortintCompactPublicKeyEncryptionParameters {
     const fn convert(
-        rust_params: (
+        (compact_pke_params, casting_parameters): (
             crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
             crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
         ),
     ) -> Self {
-        let compact_pke_params = rust_params.0;
-        let casting_parameters = rust_params.1;
+        let CompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension,
+            encryption_noise_distribution,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            expansion_kind: _,
+            zk_scheme,
+        } = compact_pke_params;
+
         Self {
-            encryption_lwe_dimension: compact_pke_params.encryption_lwe_dimension.0,
-            encryption_noise_distribution: compact_pke_params
-                .encryption_noise_distribution
-                .convert_to_c(),
-            message_modulus: compact_pke_params.message_modulus.0,
-            carry_modulus: compact_pke_params.carry_modulus.0,
-            modulus_power_of_2_exponent: convert_modulus(compact_pke_params.ciphertext_modulus),
+            encryption_lwe_dimension: encryption_lwe_dimension.0,
+            encryption_noise_distribution: encryption_noise_distribution.convert_to_c(),
+            message_modulus: message_modulus.0,
+            carry_modulus: carry_modulus.0,
+            modulus_power_of_2_exponent: convert_modulus(ciphertext_modulus),
             casting_parameters: ShortintCompactCiphertextListCastingParameters::convert(
                 casting_parameters,
             ),
-            zk_scheme: SupportedCompactPkeZkScheme::convert(compact_pke_params.zk_scheme),
+            zk_scheme: SupportedCompactPkeZkScheme::convert(zk_scheme),
         }
     }
 }
