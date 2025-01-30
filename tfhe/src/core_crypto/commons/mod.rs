@@ -182,6 +182,12 @@ pub mod test_tools {
     ) -> VarianceConfidenceInterval {
         assert!(probability_to_be_in_the_interval >= 0.0);
         assert!(probability_to_be_in_the_interval <= 1.0);
+
+        assert!(
+            sample_count <= 775030.,
+            "variance_confidence_interval cannot handle sample count > 775030",
+        );
+
         let alpha = 1.0 - probability_to_be_in_the_interval;
         let degrees_of_freedom = sample_count - 1.0;
         let chi2 = ChiSquared::new(degrees_of_freedom).unwrap();
@@ -193,7 +199,11 @@ pub mod test_tools {
         let lower_bound = Variance(degrees_of_freedom * measured_variance.0 / chi2_upper);
         let upper_bound = Variance(degrees_of_freedom * measured_variance.0 / chi2_lower);
 
-        assert!(lower_bound <= upper_bound);
+        assert!(
+            lower_bound <= upper_bound,
+            "Lower bound is {lower_bound:?}, upper bound is {upper_bound:?}\
+            This is inconsistent aborting"
+        );
 
         VarianceConfidenceInterval {
             lower_bound,
@@ -510,5 +520,70 @@ pub mod test_tools {
             equivalent_pfail_gaussian_noise(5, 2.0f64.powi(-64), 7),
             0.022089612797217772
         );
+    }
+
+    #[test]
+    #[allow(clippy::while_float)]
+    fn chi2_limit() {
+        let probability_to_be_in_the_interval = 0.99f64;
+        let alpha = 1.0f64 - probability_to_be_in_the_interval;
+
+        let mut df_low = 1.0f64;
+        let mut df_high = 1000000.0f64 - 1.0;
+
+        let mut prev_df = 0.0;
+
+        while df_high - df_low >= 1.0 {
+            let df = ((df_high + df_low) / 2.0).ceil();
+            if df == prev_df {
+                break;
+            }
+
+            prev_df = df;
+            println!("testing df={df}");
+            let chi2 = ChiSquared::new(df).unwrap();
+            let chi2_lower = chi2.inverse_cdf(alpha / 2.0);
+            let chi2_upper = chi2.inverse_cdf(1.0 - alpha / 2.0);
+
+            println!("chi2_lower={chi2_lower}");
+            println!("chi2_upper={chi2_upper}");
+            println!("chi2_lower_log10={}", chi2_lower.log10());
+            println!("chi2_upper_log10={}", chi2_upper.log10());
+
+            if chi2_lower.is_nan()
+                || chi2_lower.is_infinite()
+                || chi2_upper.is_nan()
+                || chi2_upper.is_infinite()
+            {
+                println!("Nan");
+                df_high = df;
+            } else {
+                println!("OK");
+                df_low = df;
+            }
+        }
+    }
+
+    #[test]
+    fn chi2_gaussian_equivalency() {
+        let probability_to_be_in_the_interval = 0.99f64;
+        let alpha = 1.0f64 - probability_to_be_in_the_interval;
+
+        let df = 775029f64;
+
+        let chi2 = ChiSquared::new(df).unwrap();
+        let chi2_lower = chi2.inverse_cdf(alpha / 2.0);
+        let chi2_upper = chi2.inverse_cdf(1.0 - alpha / 2.0);
+
+        let equiv_var = 2.0 * df;
+        let equivalent_gaussian = statrs::distribution::Normal::new(df, equiv_var.sqrt()).unwrap();
+        let norm_lower = equivalent_gaussian.inverse_cdf(alpha / 2.0);
+        let norm_upper = equivalent_gaussian.inverse_cdf(1.0 - alpha / 2.0);
+
+        println!("chi2_lower={chi2_lower}");
+        println!("chi2_upper={chi2_upper}");
+
+        println!("norm_lower={norm_lower}");
+        println!("norm_upper={norm_upper}");
     }
 }
