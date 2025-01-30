@@ -54,19 +54,19 @@ impl ClientKey {
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
-        let params = &private_compression_key.params;
+        let params = private_compression_key.params;
 
-        let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_lwe_packing_keyswitch_key(
-                &self.large_lwe_secret_key(),
-                &private_compression_key.post_packing_ks_key,
-                params.packing_ks_base_log,
-                params.packing_ks_level,
-                params.packing_ks_key_noise_distribution,
-                self.parameters.ciphertext_modulus(),
-                &mut engine.encryption_generator,
-            )
-        });
+        let mut engine = ShortintEngine::new();
+
+        let packing_key_switching_key = allocate_and_generate_new_lwe_packing_keyswitch_key(
+            &self.large_lwe_secret_key(),
+            &private_compression_key.post_packing_ks_key,
+            params.packing_ks_base_log,
+            params.packing_ks_level,
+            params.packing_ks_key_noise_distribution,
+            self.parameters.ciphertext_modulus(),
+            &mut engine.encryption_generator,
+        );
 
         assert!(
             private_compression_key.params.storage_log_modulus.0
@@ -83,20 +83,19 @@ impl ClientKey {
             storage_log_modulus: private_compression_key.params.storage_log_modulus,
         };
 
-        let blind_rotate_key =
-            ShortintEngine::with_thread_local_mut(|engine| ShortintBootstrappingKey::Classic {
-                bsk: engine.new_classic_bootstrapping_key(
-                    &private_compression_key
-                        .post_packing_ks_key
-                        .as_lwe_secret_key(),
-                    &self.glwe_secret_key,
-                    self.parameters.glwe_noise_distribution(),
-                    private_compression_key.params.br_base_log,
-                    private_compression_key.params.br_level,
-                    self.parameters.ciphertext_modulus(),
-                ),
-                modulus_switch_noise_reduction_key: None,
-            });
+        let blind_rotate_key = ShortintBootstrappingKey::Classic {
+            bsk: engine.new_classic_bootstrapping_key(
+                &private_compression_key
+                    .post_packing_ks_key
+                    .as_lwe_secret_key(),
+                &self.glwe_secret_key,
+                self.parameters.glwe_noise_distribution(),
+                private_compression_key.params.br_base_log,
+                private_compression_key.params.br_level,
+                self.parameters.ciphertext_modulus(),
+            ),
+            modulus_switch_noise_reduction_key: None,
+        };
 
         let glwe_decompression_key = DecompressionKey {
             blind_rotate_key,
