@@ -88,7 +88,7 @@ create_parameterized_test!(lwe_encrypt_decrypt_noise_distribution_custom_mod {
     TEST_PARAMS_3_BITS_63_U64
 });
 
-fn lwe_compact_public_key_encryption_expected_variance(
+pub(crate) fn lwe_compact_public_key_encryption_expected_variance(
     input_noise: impl DispersionParameter,
     lwe_dimension: LweDimension,
 ) -> Variance {
