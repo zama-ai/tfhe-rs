@@ -2,6 +2,35 @@ use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, EncryptionKeyChoice,
     ShortintKeySwitchingParameters,
 };
+
+pub const V1_0_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
+    ks_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(24),
+    destination_key: EncryptionKeyChoice::Big,
+};
+
+pub const V1_0_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
+    ks_level: DecompositionLevelCount(4),
+    ks_base_log: DecompositionBaseLog(4),
+    destination_key: EncryptionKeyChoice::Small,
+};
+
+pub const V1_0_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1:
+    ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
+    ks_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(24),
+    destination_key: EncryptionKeyChoice::Big,
+};
+
+pub const V1_0_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1:
+    ShortintKeySwitchingParameters = ShortintKeySwitchingParameters {
+    ks_level: DecompositionLevelCount(4),
+    ks_base_log: DecompositionBaseLog(4),
+    destination_key: EncryptionKeyChoice::Small,
+};
+
 pub const V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS: ShortintKeySwitchingParameters =
     ShortintKeySwitchingParameters {
         ks_level: DecompositionLevelCount(5),
