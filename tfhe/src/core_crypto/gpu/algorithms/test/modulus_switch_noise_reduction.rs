@@ -1,5 +1,5 @@
 use super::super::test::TestResources;
-use crate::core_crypto::commons::test_tools::{check_both_ratio_under, mean, variance};
+use crate::core_crypto::commons::test_tools::{arithmetic_mean, check_both_ratio_under, variance};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::{CudaStreams, CudaVec};
 use crate::core_crypto::prelude::*;
@@ -209,19 +209,23 @@ fn check_noise_improve_modulus_switch_noise(
         .unzip();
 
     println!(
-        "mean(&ms_errors)                     {}2^{:.2}",
-        if mean(&ms_errors) > 0_f64 { "+" } else { "-" },
-        mean(&ms_errors).abs().log2()
-    );
-
-    println!(
-        "mean(&ms_errors_improved)            {}2^{:.2}",
-        if mean(&ms_errors_improved) > 0_f64 {
+        "arithmetic_mean(&ms_errors)                     {}2^{:.2}",
+        if arithmetic_mean(&ms_errors) > 0_f64 {
             "+"
         } else {
             "-"
         },
-        mean(&ms_errors_improved).abs().log2()
+        arithmetic_mean(&ms_errors).abs().log2()
+    );
+
+    println!(
+        "arithmetic_mean(&ms_errors_improved)            {}2^{:.2}",
+        if arithmetic_mean(&ms_errors_improved) > 0_f64 {
+            "+"
+        } else {
+            "-"
+        },
+        arithmetic_mean(&ms_errors_improved).abs().log2()
     );
 
     let base_variance = variance(&ms_errors).0;

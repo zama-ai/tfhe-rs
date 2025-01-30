@@ -26,12 +26,13 @@ pub mod traits;
 #[cfg(test)]
 pub mod test_tools {
     use rand::Rng;
+    use statrs::distribution::{ChiSquared, ContinuousCDF, Normal};
 
     pub use crate::core_crypto::algorithms::misc::{
         modular_distance, modular_distance_custom_mod, torus_modular_diff,
     };
     use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-    use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
+    use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev, Variance};
     use crate::core_crypto::commons::generators::{
         EncryptionRandomGenerator, SecretRandomGenerator,
     };
@@ -50,21 +51,166 @@ pub mod test_tools {
         a / b < max_ratio && b / a < max_ratio
     }
 
-    pub fn mean(samples: &[f64]) -> f64 {
-        let num_samples = samples.len();
+    pub fn arithmetic_mean(samples: &[f64]) -> f64 {
+        let sample_count = samples.len();
 
-        samples.iter().sum::<f64>() / (num_samples as f64)
+        samples.iter().sum::<f64>() / (sample_count as f64)
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct MeanConfidenceInterval {
+        lower_bound: f64,
+        upper_bound: f64,
+    }
+
+    impl MeanConfidenceInterval {
+        pub fn mean_is_in_interval(&self, mean_to_check: f64) -> bool {
+            self.lower_bound <= mean_to_check && self.upper_bound >= mean_to_check
+        }
+
+        pub fn lower_bound(&self) -> f64 {
+            self.lower_bound
+        }
+
+        pub fn upper_bound(&self) -> f64 {
+            self.upper_bound
+        }
+    }
+
+    pub fn mean_confidence_interval(
+        sample_count: f64,
+        measured_mean: f64,
+        measured_std_dev: StandardDev,
+        probability_to_be_in_the_interval: f64,
+    ) -> MeanConfidenceInterval {
+        let standard_score = core::f64::consts::SQRT_2
+            * statrs::function::erf::erfc_inv(1.0 - probability_to_be_in_the_interval);
+        let interval_delta = standard_score * measured_std_dev.0 / f64::sqrt(sample_count);
+
+        let lower_bound = measured_mean - interval_delta;
+        let upper_bound = measured_mean + interval_delta;
+
+        assert!(lower_bound <= upper_bound);
+
+        MeanConfidenceInterval {
+            lower_bound,
+            upper_bound,
+        }
+    }
+
+    /// Return a MeanConfidenceInterval when you cannot evaluate the standard deviation of a random
+    /// variable
+    pub fn clopper_pearson_exact_confidence_interval(
+        sample_count: f64,
+        measured_fails: f64,
+        confidence_level: f64,
+    ) -> MeanConfidenceInterval {
+        // import scipy.stats as stats
+        // import math
+        //
+        // # Parameters
+        // n_tests = 10000  # Number of trials
+        // p_fail = 2**-5.5  # Theoretical probability of failure
+        // alpha = 0.01  # Significance level (1 - confidence level)
+        //
+        // # /!\ to be replaced by the experimental number of failures
+        // observed_failures = round(n_tests * p_fail)
+        //
+        // # Clopper-Pearson Exact Confidence Interval
+        // lower_bound = stats.beta.ppf(alpha / 2, observed_failures, n_tests - observed_failures +
+        // 1) upper_bound = stats.beta.ppf(1 - alpha / 2, observed_failures + 1, n_tests -
+        // observed_failures)
+        //
+        // print("Observed number of failures (k):", observed_failures)
+        // print(f"Confidence Interval ({(1-alpha)*100}%): [2^{round(math.log2(lower_bound),3)},
+        // 2^{round(math.log2(upper_bound),3)}]")
+
+        let alpha = 1.0 - confidence_level;
+        let beta_distribution_lower_bound =
+            statrs::distribution::Beta::new(measured_fails, sample_count - measured_fails + 1.0)
+                .unwrap();
+        let beta_distribution_upper_bound =
+            statrs::distribution::Beta::new(measured_fails + 1.0, sample_count - measured_fails)
+                .unwrap();
+
+        let lower_bound = beta_distribution_lower_bound.inverse_cdf(alpha / 2.0);
+        let upper_bound = beta_distribution_upper_bound.inverse_cdf(1.0 - alpha / 2.0);
+
+        assert!(lower_bound <= upper_bound);
+
+        MeanConfidenceInterval {
+            lower_bound,
+            upper_bound,
+        }
     }
 
     pub fn variance(samples: &[f64]) -> Variance {
-        let num_samples = samples.len();
+        let sample_count = samples.len();
 
-        let mean = mean(samples);
+        let mean = arithmetic_mean(samples);
 
         let sum_squared_deviations_to_the_mean =
             samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>();
 
-        Variance(sum_squared_deviations_to_the_mean / ((num_samples - 1) as f64))
+        Variance(sum_squared_deviations_to_the_mean / ((sample_count - 1) as f64))
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct VarianceConfidenceInterval {
+        lower_bound: Variance,
+        upper_bound: Variance,
+    }
+
+    impl VarianceConfidenceInterval {
+        pub fn variance_is_in_interval(&self, variance_to_check: Variance) -> bool {
+            self.lower_bound <= variance_to_check && self.upper_bound >= variance_to_check
+        }
+
+        pub fn lower_bound(&self) -> Variance {
+            self.lower_bound
+        }
+
+        pub fn upper_bound(&self) -> Variance {
+            self.upper_bound
+        }
+    }
+
+    pub fn variance_confidence_interval(
+        sample_count: f64,
+        measured_variance: Variance,
+        probability_to_be_in_the_interval: f64,
+    ) -> VarianceConfidenceInterval {
+        assert!(probability_to_be_in_the_interval >= 0.0);
+        assert!(probability_to_be_in_the_interval <= 1.0);
+
+        // We have f64 arithmetic errors sightly farther away, so to protect ourselves, limit to
+        // 125000
+        assert!(
+            sample_count <= 125000.,
+            "variance_confidence_interval cannot handle sample count > 125000",
+        );
+
+        let alpha = 1.0 - probability_to_be_in_the_interval;
+        let degrees_of_freedom = sample_count - 1.0;
+        let chi2 = ChiSquared::new(degrees_of_freedom).unwrap();
+        let chi2_lower = chi2.inverse_cdf(alpha / 2.0);
+        let chi2_upper = chi2.inverse_cdf(1.0 - alpha / 2.0);
+
+        // Lower bound is divided by Chi_right^2 so by chi2_upper, upper bound divided by Chi_left^2
+        // so chi2_lower
+        let lower_bound = Variance(degrees_of_freedom * measured_variance.0 / chi2_upper);
+        let upper_bound = Variance(degrees_of_freedom * measured_variance.0 / chi2_lower);
+
+        assert!(
+            lower_bound <= upper_bound,
+            "Lower bound is {lower_bound:?}, upper bound is {upper_bound:?}\
+            This is inconsistent aborting"
+        );
+
+        VarianceConfidenceInterval {
+            lower_bound,
+            upper_bound,
+        }
     }
 
     pub fn new_random_generator() -> RandomGenerator<DefaultRandomGenerator> {
@@ -122,35 +268,44 @@ pub mod test_tools {
         pub null_hypothesis_is_valid: bool,
     }
 
+    pub fn equivalent_pfail_gaussian_noise(
+        original_precision_with_padding: u32,
+        original_pfail: f64,
+        new_precision_with_padding: u32,
+    ) -> f64 {
+        let original_precision_with_padding_and_noise_gap =
+            original_precision_with_padding as f64 + 1.0;
+        let new_precision_with_padding_and_noise_gap = new_precision_with_padding as f64 + 1.0;
+
+        let z_original_pfail =
+            core::f64::consts::SQRT_2 * statrs::function::erf::erfc_inv(original_pfail);
+
+        let precision_diff = new_precision_with_padding_and_noise_gap
+            - original_precision_with_padding_and_noise_gap;
+
+        let z_new_pfail = z_original_pfail / 2.0f64.powf(precision_diff);
+
+        statrs::function::erf::erfc(z_new_pfail / core::f64::consts::SQRT_2)
+    }
+
+    /// Normal law CDF
+    fn phi(x: f64) -> f64 {
+        let normal_law = Normal::new(0.0, 1.0).unwrap();
+        normal_law.cdf(x)
+    }
+
+    /// (Normal law CDF)^{-1}
+    fn phi_inv(x: f64) -> f64 {
+        let normal_law = Normal::new(0.0, 1.0).unwrap();
+        normal_law.inverse_cdf(x)
+    }
+
     /// Based on Shapiro-Francia normality test
     pub fn normality_test_f64(samples: &[f64], alpha: f64) -> NormalityTestResult {
         assert!(
             samples.len() <= 5000,
             "normality_test_f64 produces a relevant pvalue for less than 5000 samples"
         );
-
-        // From "A handy approximation for the error function and its inverse" by Sergei Winitzki
-        fn erf_inv(x: f64) -> f64 {
-            let sign = if x < 0.0 { -1.0 } else { 1.0 };
-            // 1 - x**2
-            let one_minus_x_2 = (1.0 - x) * (1.0 + x);
-            // ln(1 - x**2)
-            let log_term = f64::ln(one_minus_x_2);
-            let a = 0.147;
-            let term_1 = 2.0 / (std::f64::consts::PI * a) + 0.5 * log_term;
-            let term_2 = 1.0 / a * log_term;
-
-            sign * f64::sqrt(-term_1 + f64::sqrt(term_1 * term_1 - term_2))
-        }
-
-        // Normal law CDF
-        fn phi(x: f64) -> f64 {
-            0.5 * (1.0 + libm::erf(x / f64::sqrt(2.0)))
-        }
-
-        fn phi_inv(x: f64) -> f64 {
-            f64::sqrt(2.0) * erf_inv(2.0 * x - 1.0)
-        }
 
         let n = samples.len();
         let n_f64 = n as f64;
@@ -359,5 +514,56 @@ pub mod test_tools {
             let distance = torus_modular_diff(seven_eighth, one_eighth, q);
             assert_eq!(distance, -0.25);
         }
+    }
+
+    #[test]
+    fn test_equivalent_pfail() {
+        // What is the pfail when having 5 bits of precision (including padding) and an original
+        // pfail of 2^-64 and switching to 7 bits of precision (including padding)
+        assert_eq!(
+            equivalent_pfail_gaussian_noise(5, 2.0f64.powi(-128), 7),
+            0.0010485821554304582
+        );
+    }
+
+    #[test]
+    fn test_confidence_interval() {
+        // https://stats.libretexts.org/Bookshelves/Introductory_Statistics/
+        // Inferential_Statistics_and_Probability_-_A_Holistic_Approach_(Geraghty)/
+        // 09%3A_Point_Estimation_and_Confidence_Intervals/9.03%3A_Confidence_Intervals
+
+        // In performance measurement of investments, standard deviation is a measure of volatility
+        // or risk. Twenty monthly returns from a mutual fund show an average monthly return of
+        // 1 percent and a sample standard deviation of 5 percent.
+        // Find a 95% confidence interval for the monthly standard deviation of the mutual fund.
+
+        // The Chi‐square distribution will have 20‐1 =19 degrees of freedom. Using technology,
+        // we find that the two critical values are  chi2_left=8.90655
+        // and   chi2_right=32.8523
+        // Formula for confidence interval for sigma
+        // is:  sqrt(19 * 5^2 / 32.8523) sqrt(19 * 5^2 / 8.90655) = (3.8,7.3)
+
+        // One can say with 95% confidence that the standard deviation for this mutual fund is
+        // between 3.8 and 7.3 percent per month.
+
+        let measured_std_dev = StandardDev(0.05);
+        let measured_variance = measured_std_dev.get_variance();
+
+        let confidence_level = 0.95;
+
+        let confidence_interval =
+            variance_confidence_interval(20., measured_variance, confidence_level);
+
+        let lower_bound = confidence_interval.lower_bound();
+        let upper_bound = confidence_interval.upper_bound();
+
+        let approx_expected_lower_bound = StandardDev(0.038).get_variance();
+        let approx_expected_upper_bound = StandardDev(0.073).get_variance();
+
+        let lower_bound_abs_diff = (lower_bound.0 - approx_expected_lower_bound.0).abs();
+        let upper_bound_abs_diff = (upper_bound.0 - approx_expected_upper_bound.0).abs();
+
+        assert!(lower_bound_abs_diff / approx_expected_lower_bound.0 < 0.01);
+        assert!(upper_bound_abs_diff / approx_expected_upper_bound.0 < 0.01);
     }
 }
