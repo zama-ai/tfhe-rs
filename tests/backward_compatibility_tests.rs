@@ -1,5 +1,5 @@
 //! Tests breaking change in serialized data by trying to load historical data stored in https://github.com/zama-ai/tfhe-backward-compat-data.
-//! For each tfhe-rs module, there is a folder with some serialized messages and a [ron](https://github.com/ron-rs/ron)
+//! For each tfhe-rs modules, there is a folder with some serialized messages and a [ron](https://github.com/ron-rs/ron)
 //! file. The ron file stores some metadata that are parsed in this test. These metadata tell us
 //! what to test for each message.
 
