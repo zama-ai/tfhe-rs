@@ -105,6 +105,12 @@ __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index,
                             CudaRadixCiphertextFFI *output,
                             CudaRadixCiphertextFFI const *input_1,
                             CudaRadixCiphertextFFI const *input_2) {
+  if (output->num_radix_blocks != input_1->num_radix_blocks ||
+      output->num_radix_blocks != input_2->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  if (output->lwe_dimension != input_1->lwe_dimension ||
+      output->lwe_dimension != input_2->lwe_dimension)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
 
   cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body

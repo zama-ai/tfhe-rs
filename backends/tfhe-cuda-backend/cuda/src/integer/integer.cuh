@@ -772,7 +772,7 @@ uint64_t generate_lookup_table_with_encoding(
     int index = i * box_size;
     for (int j = index; j < index + box_size; j++) {
       auto f_eval = f(i);
-      degree = max(degree, f_eval);
+      degree = std::max(degree, f_eval);
       body[j] = f_eval * output_delta;
     }
   }
