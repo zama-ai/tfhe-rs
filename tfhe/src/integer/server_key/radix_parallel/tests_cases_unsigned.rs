@@ -23,14 +23,14 @@ pub(crate) const NB_CTXT: usize = 2;
 pub(crate) trait FunctionExecutor<TestInput, TestOutput> {
     /// Setups the executor
     ///
-    /// Implementors are expected to be fully functional after this
+    /// Implementers are expected to be fully functional after this
     /// function has been called.
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>);
 
     /// Executes the function
     ///
     /// The function receives some inputs and return some output.
-    /// Implementors may have to do more than just calling the function
+    /// Implementers may have to do more than just calling the function
     /// that is being tested (for example input/output may need to be converted)
     ///
     /// Look at the test case function to know what are the expected inputs and outputs.
