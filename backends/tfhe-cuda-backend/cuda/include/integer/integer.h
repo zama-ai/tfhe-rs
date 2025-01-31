@@ -140,8 +140,8 @@ void cleanup_cuda_integer_mult(void *const *streams,
 
 void cuda_negate_integer_radix_ciphertext_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_array_in, uint32_t lwe_dimension,
-    uint32_t lwe_ciphertext_count, uint32_t message_modulus,
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, uint32_t message_modulus,
     uint32_t carry_modulus);
 
 void cuda_scalar_addition_integer_radix_ciphertext_64_inplace(

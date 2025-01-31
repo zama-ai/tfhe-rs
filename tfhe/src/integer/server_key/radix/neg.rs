@@ -2,7 +2,7 @@ use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
-#[cfg(any(test, feature = "gpu"))]
+#[cfg(test)]
 use crate::shortint::MessageModulus;
 
 /// Iterator that returns the new degree of blocks
@@ -10,13 +10,13 @@ use crate::shortint::MessageModulus;
 ///
 /// It takes as input an iterator that returns the degree of the blocks
 /// before negation as well as their message modulus.
-#[cfg(any(test, feature = "gpu"))]
+#[cfg(test)]
 pub(crate) struct NegatedDegreeIter<I> {
     iter: I,
     z_b: u64,
 }
 
-#[cfg(any(test, feature = "gpu"))]
+#[cfg(test)]
 impl<I> NegatedDegreeIter<I>
 where
     I: Iterator<Item = (Degree, MessageModulus)>,
@@ -26,7 +26,7 @@ where
     }
 }
 
-#[cfg(any(test, feature = "gpu"))]
+#[cfg(test)]
 impl<I> Iterator for NegatedDegreeIter<I>
 where
     I: Iterator<Item = (Degree, MessageModulus)>,
