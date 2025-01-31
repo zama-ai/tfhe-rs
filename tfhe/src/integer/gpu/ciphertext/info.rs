@@ -1,5 +1,4 @@
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::server_key::radix::neg::NegatedDegreeIter;
 use crate::integer::server_key::TwosComplementNegation;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
@@ -70,29 +69,6 @@ impl CudaRadixCiphertextInfo {
         .iter_as::<u8>()
         .chain(std::iter::repeat(pad_block));
         Some(decomposer)
-    }
-
-    pub(crate) fn after_neg(&self) -> Self {
-        let new_degrees_iter = NegatedDegreeIter::new(
-            self.blocks
-                .iter()
-                .map(|block| (block.degree, block.message_modulus)),
-        );
-
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .zip(new_degrees_iter)
-                .map(|(left, d)| CudaBlockInfo {
-                    degree: d,
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: left.noise_level,
-                })
-                .collect(),
-        }
     }
 
     pub(crate) fn after_mul(&self) -> Self {

@@ -3638,3 +3638,79 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
+
+#[allow(clippy::too_many_arguments)]
+/// Assign negation of a vector of LWE ciphertexts representing an integer
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn unchecked_negate_integer_radix_async(
+    streams: &CudaStreams,
+    radix_lwe_out: &mut CudaRadixCiphertext,
+    radix_lwe_in: &CudaRadixCiphertext,
+    message_modulus: u32,
+    carry_modulus: u32,
+) {
+    let mut radix_lwe_out_degrees = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_out_noise_levels = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_out = prepare_cuda_radix_ffi(
+        radix_lwe_out,
+        &mut radix_lwe_out_degrees,
+        &mut radix_lwe_out_noise_levels,
+    );
+    let mut radix_lwe_in_degrees = radix_lwe_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_in_noise_levels = radix_lwe_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_lwe_in = prepare_cuda_radix_ffi(
+        radix_lwe_in,
+        &mut radix_lwe_in_degrees,
+        &mut radix_lwe_in_noise_levels,
+    );
+
+    cuda_negate_integer_radix_ciphertext_64(
+        streams.ptr.as_ptr(),
+        streams
+            .gpu_indexes
+            .iter()
+            .map(|i| i.0)
+            .collect::<Vec<u32>>()
+            .as_ptr(),
+        streams.len() as u32,
+        &mut cuda_ffi_radix_lwe_out,
+        &cuda_ffi_radix_lwe_in,
+        message_modulus,
+        carry_modulus,
+    );
+
+    radix_lwe_out
+        .info
+        .blocks
+        .iter_mut()
+        .zip(radix_lwe_out_degrees.iter())
+        .zip(radix_lwe_out_noise_levels.iter())
+        .for_each(|((block, degree), noise)| {
+            block.degree = Degree(*degree);
+            block.noise_level = NoiseLevel(*noise);
+        });
+}

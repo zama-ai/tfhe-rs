@@ -54,7 +54,64 @@ device_integer_radix_negation(Torus *output, Torus const *input,
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_negation(
+__host__ void
+host_integer_radix_negation(cudaStream_t const *streams,
+                            uint32_t const *gpu_indexes, uint32_t gpu_count,
+                            CudaRadixCiphertextFFI *lwe_array_out,
+                            CudaRadixCiphertextFFI const *lwe_array_in,
+                            uint64_t message_modulus, uint64_t carry_modulus) {
+  cuda_set_device(gpu_indexes[0]);
+
+  if (lwe_array_out->num_radix_blocks != lwe_array_in->num_radix_blocks)
+    PANIC("Cuda error: lwe_array_in and lwe_array_out num radix blocks must be "
+          "the same")
+
+  if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
+    PANIC("Cuda error: lwe_array_in and lwe_array_out lwe_dimension must be "
+          "the same")
+
+  auto num_radix_blocks = lwe_array_out->num_radix_blocks;
+  auto lwe_dimension = lwe_array_out->lwe_dimension;
+  // lwe_size includes the presence of the body
+  // whereas lwe_dimension is the number of elements in the mask
+  int lwe_size = lwe_dimension + 1;
+  // Create a 1-dimensional grid of threads
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  // Value of the shift we multiply our messages by
+  // If message_modulus and carry_modulus are always powers of 2 we can simplify
+  // this
+  uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
+
+  device_integer_radix_negation<Torus><<<grid, thds, 0, streams[0]>>>(
+      static_cast<Torus *>(lwe_array_out->ptr),
+      static_cast<Torus *>(lwe_array_in->ptr), num_radix_blocks, lwe_dimension,
+      message_modulus, delta);
+  check_cuda_error(cudaGetLastError());
+
+  uint8_t zb = 0;
+  for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
+    auto input_degree = lwe_array_in->degrees[i];
+
+    if (zb != 0) {
+      input_degree += static_cast<uint64_t>(zb);
+    }
+    Torus z =
+        std::max(static_cast<Torus>(1),
+                 static_cast<Torus>(ceil(input_degree / message_modulus))) *
+        message_modulus;
+
+    lwe_array_out->degrees[i] = z - static_cast<uint64_t>(zb);
+    lwe_array_out->noise_levels[i] = lwe_array_in->noise_levels[i];
+    zb = z / message_modulus;
+  }
+}
+template <typename Torus>
+__host__ void legacy_host_integer_radix_negation(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *output, Torus const *input,
     uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,

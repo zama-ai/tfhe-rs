@@ -385,10 +385,8 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_dimension: u32,
-        lwe_ciphertext_count: u32,
+        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_in: *const CudaRadixCiphertextFFI,
         message_modulus: u32,
         carry_modulus: u32,
     );

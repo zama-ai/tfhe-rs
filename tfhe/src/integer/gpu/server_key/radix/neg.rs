@@ -1,6 +1,7 @@
-use crate::core_crypto::gpu::{negate_integer_radix_async, CudaStreams};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::gpu::unchecked_negate_integer_radix_async;
 use crate::integer::server_key::radix_parallel::OutputFlag;
 
 impl CudaServerKey {
@@ -63,22 +64,17 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T {
         let mut ciphertext_out = ctxt.duplicate_async(streams);
-        let lwe_dimension = ctxt.as_ref().d_blocks.lwe_dimension();
-        let lwe_ciphertext_count = ctxt.as_ref().d_blocks.lwe_ciphertext_count();
 
         let info = ctxt.as_ref().info.blocks.first().unwrap();
 
-        negate_integer_radix_async(
+        unchecked_negate_integer_radix_async(
             streams,
-            &mut ciphertext_out.as_mut().d_blocks.0.d_vec,
-            &ctxt.as_ref().d_blocks.0.d_vec,
-            lwe_dimension,
-            lwe_ciphertext_count.0 as u32,
+            ciphertext_out.as_mut(),
+            ctxt.as_ref(),
             info.message_modulus.0 as u32,
             info.carry_modulus.0 as u32,
         );
 
-        ciphertext_out.as_mut().info = ctxt.as_ref().info.after_neg();
         ciphertext_out
     }
 
