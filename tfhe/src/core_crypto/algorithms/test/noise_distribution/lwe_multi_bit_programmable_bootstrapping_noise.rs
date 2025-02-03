@@ -6,9 +6,8 @@ use crate::core_crypto::commons::noise_formulas::secure_noise::*;
 use crate::core_crypto::commons::test_tools::variance;
 use npyz::{DType, WriterBuilder};
 use rayon::prelude::*;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::fs::File;
 use std::mem::discriminant;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
@@ -16,7 +15,7 @@ use std::mem::discriminant;
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 const NB_TESTS: usize = 500;
-const EXP_NAME: &str = "fft-with-gap";   // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
+const EXP_NAME: &str = "fft-with-gap"; // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
 
 fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
     params: &MultiBitTestParams<u64>,
@@ -54,14 +53,20 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
         ciphertext_modulus.get_custom_modulus() as f64
     };
 
-    let (expected_variance_kara,expected_variance_fft) = noise_prediction_kara_fft(params);
+    let (expected_variance_kara, expected_variance_fft) = noise_prediction_kara_fft(params);
 
     // 3 sigma                            > half   interval size (msg-mod    +    padding bit)
-    if 3.0*expected_variance_fft.0.sqrt() > 0.5 / (2usize.pow(message_modulus_log.0 as u32 + 1) as f64) {return;}
+    if 3.0 * expected_variance_fft.0.sqrt()
+        > 0.5 / (2usize.pow(message_modulus_log.0 as u32 + 1) as f64)
+    {
+        return;
+    }
 
     // output predicted noises to JSON
     export_noise_predictions(params);
-    if !run_measurements {return;}
+    if !run_measurements {
+        return;
+    }
 
     let mut rsc = {
         let mut deterministic_seeder = Box::new(
@@ -94,8 +99,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
         &mut rsc.secret_random_generator,
     );
     // shall not play any role
-    //~ // rewrite with fixed Hamming weight secret (n.b., with odd dimension, this is not exactly 1/2 !!)
-    //~ input_lwe_secret_key.as_mut().fill(0);
+    //~ // rewrite with fixed Hamming weight secret (n.b., with odd dimension, this is not exactly
+    //~ 1/2 !!) input_lwe_secret_key.as_mut().fill(0);
     //~ input_lwe_secret_key.as_mut()[..lwe_dimension/2].fill(1);
 
     // generate pseudo-random secret
@@ -105,8 +110,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
         &mut rsc.secret_random_generator,
     );
     // shall not play any role either
-    //~ // rewrite with fixed Hamming weight secret (n.b., with odd dimension, this is not exactly 1/2 !!)
-    //~ let output_glwe_secret_key_len = output_glwe_secret_key.as_ref().len();
+    //~ // rewrite with fixed Hamming weight secret (n.b., with odd dimension, this is not exactly
+    //~ 1/2 !!) let output_glwe_secret_key_len = output_glwe_secret_key.as_ref().len();
     //~ output_glwe_secret_key.as_mut().fill(0);
     //~ output_glwe_secret_key.as_mut()[..output_glwe_secret_key_len/2].fill(1);
 
@@ -351,8 +356,13 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
             .flatten()
             .collect();
 
-        noise_samples_kara.extend(current_run_samples_kara_fft.clone().into_iter().map(|s|{s.0}));
-        noise_samples_fft.extend(current_run_samples_kara_fft.into_iter().map(|s|{s.1}));
+        noise_samples_kara.extend(
+            current_run_samples_kara_fft
+                .clone()
+                .into_iter()
+                .map(|s| s.0),
+        );
+        noise_samples_fft.extend(current_run_samples_kara_fft.into_iter().map(|s| s.1));
     }
 
     let measured_variance_fft = variance(&noise_samples_fft);
@@ -372,24 +382,24 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
 
     //TODO uncomment, at some point
     //~ if measured_variance_fft.0 < expected_variance_fft.0 {
-        //~ // We are in the clear as long as we have at least the noise for security
-        //~ assert!(
-            //~ measured_variance_fft.0 >= minimal_variance.0,
-            //~ "Found insecure variance after PBS\n\
-            //~ measure_variance={measured_variance_fft:?}\n\
-            //~ minimal_variance={minimal_variance:?}"
-        //~ );
+    //~ // We are in the clear as long as we have at least the noise for security
+    //~ assert!(
+    //~ measured_variance_fft.0 >= minimal_variance.0,
+    //~ "Found insecure variance after PBS\n\
+    //~ measure_variance={measured_variance_fft:?}\n\
+    //~ minimal_variance={minimal_variance:?}"
+    //~ );
     //~ } else {
-        //~ // Check we are not too far from the expected variance if we are bigger
-        //~ let var_abs_diff = (expected_variance_fft.0 - measured_variance_fft.0).abs();
-        //~ let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance_fft.0;
-        //~ assert!(
-            //~ var_abs_diff < tolerance_threshold,
-            //~ "Absolute difference for variance: {var_abs_diff}, \
-            //~ tolerance threshold: {tolerance_threshold}, \
-            //~ got variance: {measured_variance_fft:?}, \
-            //~ expected variance w/ FFT: {expected_variance_fft:?}"
-        //~ );
+    //~ // Check we are not too far from the expected variance if we are bigger
+    //~ let var_abs_diff = (expected_variance_fft.0 - measured_variance_fft.0).abs();
+    //~ let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance_fft.0;
+    //~ assert!(
+    //~ var_abs_diff < tolerance_threshold,
+    //~ "Absolute difference for variance: {var_abs_diff}, \
+    //~ tolerance threshold: {tolerance_threshold}, \
+    //~ got variance: {measured_variance_fft:?}, \
+    //~ expected variance w/ FFT: {expected_variance_fft:?}"
+    //~ );
     //~ }
 }
 
@@ -402,13 +412,22 @@ fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
     } else {
         panic!("Unknown distribution: {}", params.lwe_noise_distribution)
     };
-    let filename_exp_var = format!("./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json", params.grouping_factor.0, params.pbs_base_log.0, params.pbs_level.0, params.glwe_dimension.0, params.polynomial_size.0);
+    let filename_exp_var = format!(
+        "./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json",
+        params.grouping_factor.0,
+        params.pbs_base_log.0,
+        params.pbs_level.0,
+        params.glwe_dimension.0,
+        params.polynomial_size.0
+    );
     let mut file_exp_var = File::create(&filename_exp_var).unwrap();
 
-    let (expected_variance_kara,expected_variance_fft) = noise_prediction_kara_fft(params);
+    let (expected_variance_kara, expected_variance_fft) = noise_prediction_kara_fft(params);
 
-    file_exp_var.write_all(
-        format!(r#"{{
+    file_exp_var
+        .write_all(
+            format!(
+                r#"{{
     "lwe_dimension": {},
     "grouping_factor": {},
     "log_base": {},
@@ -419,21 +438,23 @@ fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
     "expected_variance_kara": {},
     "expected_variance_fft": {}
 }}"#,
-            params.lwe_dimension.0,
-            params.grouping_factor.0,
-            params.pbs_base_log.0,
-            params.pbs_level.0,
-            params.glwe_dimension.0,
-            params.polynomial_size.0,
-            distro,
-            expected_variance_kara.0,
-            expected_variance_fft.0,
-        ).as_bytes()
-    ).unwrap();
+                params.lwe_dimension.0,
+                params.grouping_factor.0,
+                params.pbs_base_log.0,
+                params.pbs_level.0,
+                params.glwe_dimension.0,
+                params.polynomial_size.0,
+                distro,
+                expected_variance_kara.0,
+                expected_variance_fft.0,
+            )
+            .as_bytes(),
+        )
+        .unwrap();
 }
 
 //TODO make this somehow a bit more compact
-fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance,Variance) {
+fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance, Variance) {
     type Scalar = u64;
     let modulus_as_f64 = if params.ciphertext_modulus.is_native_modulus() {
         2.0f64.powi(Scalar::BITS as i32)
@@ -558,12 +579,13 @@ fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance,Vari
             }
         } else {
             panic!("Unknown distribution: {:?}", params.lwe_noise_distribution)
-        }
+        },
     );
 }
 
 #[test]
-fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u64_132_bits() {
+fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u64_132_bits(
+) {
     test_impl(true);
 }
 
@@ -574,27 +596,39 @@ fn test_export_multi_bit_noise_predictions() {
 
 fn test_impl(run_measurements: bool) {
     //TODO FIXME: params need to be updated, cf. mod.rs where they are defined
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ return;
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
-    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
-    //~ return;
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_4_BITS_NATIVE_U64_132_BITS_TUNIFORM);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_4_6_BITS_NATIVE_U64_132_BITS_TUNIFORM); return;
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_2_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN);
+    //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
+    //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN); return;
 
-    for gf in [2,3,4] {
-    for logbase in 5..=30 {
-    for level in 1..=6 {
-        if logbase * level > 36 {continue;}   // also used: logbase * level < 15
-        //~ for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
-        for (k,logN) in [(4,9),(2,10),(1,11),(3,10),(2,11),(1,12),(1,13),].iter() {
+    for gf in [2, 3, 4] {
+        for logbase in 5..=30 {
+            for level in 1..=6 {
+                if logbase * level > 36 {
+                    continue;
+                } // also used: logbase * level < 15
+                  //~ for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
+                for (k,logN) in [(4,9),(2,10),(1,11),(3,10),(2,11),(1,12),(1,13),].iter() {
             //~ // skip those not interesting                                                             1 is here to make a margin
             //~ if ((logbase*(level+1)) as f64) < 53_f64 - *logN as f64 - (((k+1)*level) as f64).log2() - 1_f64 || logbase * level > 36 {
                 //~ println!("Early-discarded: l={level}, logB={logbase}, (k,N)=({k},{})", 1<<*logN);
@@ -644,7 +678,7 @@ fn test_impl(run_measurements: bool) {
             //~ };
             //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&tuniform_params, &run_measurements);
         }
-    }
-    }
+            }
+        }
     }
 }

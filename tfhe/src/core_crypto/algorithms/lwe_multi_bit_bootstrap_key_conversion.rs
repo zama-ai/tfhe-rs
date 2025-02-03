@@ -10,7 +10,7 @@ use crate::core_crypto::fft_impl::fft64::math::fft::{
     par_convert_polynomials_list_to_fourier, Fft, FftView,
 };
 
-use dyn_stack::{PodStack,ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 use rayon::prelude::*;
 use tfhe_fft::c64;
 

@@ -55,25 +55,25 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
                 * (0.0208333333333333 * modulus.powf(-2.0)
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (
-                0.00161646632509532
+            + (0.00161646632509532
+                * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                * decomposition_base.powf(2.0)
+                * decomposition_level_count.powf(1.77234652499817)
+                * modulus.powf(-2.0)
+                * output_glwe_dimension
+                * output_polynomial_size.powf(2.82385461667286)
+                * (output_glwe_dimension + 1.0).powf(1.77234652499817))
+            .min(
+                (0.0359920092044659
                     * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
                     * decomposition_base.powf(2.0)
-                    * decomposition_level_count.powf(1.77234652499817)
+                    * decomposition_level_count.powf(1.13417603503624)
                     * modulus.powf(-2.0)
                     * output_glwe_dimension
-                    * output_polynomial_size.powf(2.82385461667286)
-                    * (output_glwe_dimension + 1.0).powf(1.77234652499817))
-                .min((
-                    0.0359920092044659
-                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
-                        * decomposition_base.powf(2.0)
-                        * decomposition_level_count.powf(1.13417603503624)
-                        * modulus.powf(-2.0)
-                        * output_glwe_dimension
-                        * output_polynomial_size.powf(2.19997688457614)
-                        * (output_glwe_dimension + 1.0).powf(1.13417603503624))
-                .max(0.00161646632509532
+                    * output_polynomial_size.powf(2.19997688457614)
+                    * (output_glwe_dimension + 1.0).powf(1.13417603503624))
+                .max(
+                    0.00161646632509532
                         * (2.0
                             * (58.0
                                 - 1.44269504088896
@@ -89,7 +89,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
                         * output_glwe_dimension
                         * output_polynomial_size.powf(2.82385461667286)
                         * (output_glwe_dimension + 1.0).powf(1.77234652499817),
-                )
+                ),
             )
             + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
 }
@@ -145,25 +145,25 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
                 * (0.0208333333333333 * modulus.powf(-2.0)
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (
-                0.00199266437277764
+            + (0.00199266437277764
+                * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                * decomposition_base.powf(2.0)
+                * decomposition_level_count.powf(1.56465014441664)
+                * modulus.powf(-2.0)
+                * output_glwe_dimension
+                * output_polynomial_size.powf(2.95465822637966)
+                * (output_glwe_dimension + 1.0).powf(1.56465014441664))
+            .min(
+                (0.0871692998932619
                     * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
                     * decomposition_base.powf(2.0)
-                    * decomposition_level_count.powf(1.56465014441664)
+                    * decomposition_level_count.powf(1.10016173309229)
                     * modulus.powf(-2.0)
                     * output_glwe_dimension
-                    * output_polynomial_size.powf(2.95465822637966)
-                    * (output_glwe_dimension + 1.0).powf(1.56465014441664))
-            .min((
-                    0.0871692998932619
-                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
-                        * decomposition_base.powf(2.0)
-                        * decomposition_level_count.powf(1.10016173309229)
-                        * modulus.powf(-2.0)
-                        * output_glwe_dimension
-                        * output_polynomial_size.powf(2.18609670373585)
-                        * (output_glwe_dimension + 1.0).powf(1.10016173309229))
-                .max(0.00199266437277764
+                    * output_polynomial_size.powf(2.18609670373585)
+                    * (output_glwe_dimension + 1.0).powf(1.10016173309229))
+                .max(
+                    0.00199266437277764
                         * (2.0
                             * (58.0
                                 - 1.44269504088896
@@ -179,7 +179,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
                         * output_glwe_dimension
                         * output_polynomial_size.powf(2.95465822637966)
                         * (output_glwe_dimension + 1.0).powf(1.56465014441664),
-                )
+                ),
             )
             + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
 }
@@ -235,25 +235,25 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
                 * (0.0208333333333333 * modulus.powf(-2.0)
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (
-                0.00783734686643254
+            + (0.00783734686643254
+                * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                * decomposition_base.powf(2.0)
+                * decomposition_level_count.powf(1.4448158032271)
+                * modulus.powf(-2.0)
+                * output_glwe_dimension
+                * output_polynomial_size.powf(2.8850256339231)
+                * (output_glwe_dimension + 1.0).powf(1.4448158032271))
+            .min(
+                (0.219460209700405
                     * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
                     * decomposition_base.powf(2.0)
-                    * decomposition_level_count.powf(1.4448158032271)
+                    * decomposition_level_count.powf(1.12084795039463)
                     * modulus.powf(-2.0)
                     * output_glwe_dimension
-                    * output_polynomial_size.powf(2.8850256339231)
-                    * (output_glwe_dimension + 1.0).powf(1.4448158032271))
-            .min((
-                    0.219460209700405
-                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
-                        * decomposition_base.powf(2.0)
-                        * decomposition_level_count.powf(1.12084795039463)
-                        * modulus.powf(-2.0)
-                        * output_glwe_dimension
-                        * output_polynomial_size.powf(2.16541303875524)
-                        * (output_glwe_dimension + 1.0).powf(1.12084795039463))
-                .max(0.00783734686643254
+                    * output_polynomial_size.powf(2.16541303875524)
+                    * (output_glwe_dimension + 1.0).powf(1.12084795039463))
+                .max(
+                    0.00783734686643254
                         * (2.0
                             * (58.0
                                 - 1.44269504088896

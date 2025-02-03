@@ -1,40 +1,40 @@
 use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::commons::math::random::Seed;
+use crate::core_crypto::commons::math::random::{RandomGenerable, Seed};
 use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::*;
 use crate::core_crypto::commons::noise_formulas::secure_noise::*;
-use crate::core_crypto::commons::test_tools::variance;
 use crate::core_crypto::commons::numeric;
-use crate::core_crypto::commons::math::random::RandomGenerable;
+use crate::core_crypto::commons::test_tools::variance;
 use crate::core_crypto::prelude::UnsignedInteger;
 use npyz::{DType, WriterBuilder};
 use rayon::prelude::*;
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::fs::File;
-use std::mem::discriminant;
-use std::any::TypeId;
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::any::TypeId;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::mem::discriminant;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 const NB_TESTS: usize = 500;
-const EXP_NAME: &str = "fft-with-gap";   // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
+const EXP_NAME: &str = "fft-with-gap"; // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
 
 #[derive(Clone, Copy, Debug)]
 enum FourierBsk {
-    f64(FourierLweBootstrapKey),
-    f128(Fourier128LweBootstrapKey),
+    F64(FourierLweBootstrapKey),
+    F128(Fourier128LweBootstrapKey),
 }
 
-fn lwe_encrypt_pbs_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned>(
+fn lwe_encrypt_pbs_decrypt_custom_mod<
+    Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
+>(
     params: &ClassicTestParams<Scalar>,
     run_measurements: &bool,
-)
-where usize: numeric::CastFrom<Scalar>
+) where
+    usize: numeric::CastFrom<Scalar>,
 {
     let lwe_dimension = params.lwe_dimension;
     let lwe_noise_distribution = params.lwe_noise_distribution;
@@ -68,7 +68,9 @@ where usize: numeric::CastFrom<Scalar>
 
     // output predicted noises to JSON
     export_noise_predictions::<Scalar>(params);
-    if !run_measurements {return;}
+    if !run_measurements {
+        return;
+    }
 
     let mut rsc = {
         let mut deterministic_seeder = Box::new(
@@ -126,7 +128,6 @@ where usize: numeric::CastFrom<Scalar>
             ciphertext_modulus
         ));
 
-
         let mut fbsk: FourierBsk = if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
             FourierLweBootstrapKey::new(
                 bsk.input_lwe_dimension(),
@@ -144,7 +145,10 @@ where usize: numeric::CastFrom<Scalar>
                 bsk.decomposition_level_count(),
             )
         } else {
-            panic!("Unexpected bit-len of ciphertext modulus: {:?}", Scalar::BITS);
+            panic!(
+                "Unexpected bit-len of ciphertext modulus: {:?}",
+                Scalar::BITS
+            );
         };
 
         if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
@@ -152,7 +156,10 @@ where usize: numeric::CastFrom<Scalar>
         } else if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
             convert_standard_lwe_bootstrap_key_to_fourier_128(&bsk, &mut fbsk);
         } else {
-            panic!("Unexpected bit-len of ciphertext modulus: {:?}", Scalar::BITS);
+            panic!(
+                "Unexpected bit-len of ciphertext modulus: {:?}",
+                Scalar::BITS
+            );
         }
 
         (bsk, fbsk)
@@ -385,8 +392,13 @@ where usize: numeric::CastFrom<Scalar>
             .flatten()
             .collect();
 
-        noise_samples_kara.extend(current_run_samples_kara_fft.clone().into_iter().map(|s|{s.0}));
-        noise_samples_fft.extend(current_run_samples_kara_fft.into_iter().map(|s|{s.1}));
+        noise_samples_kara.extend(
+            current_run_samples_kara_fft
+                .clone()
+                .into_iter()
+                .map(|s| s.0),
+        );
+        noise_samples_fft.extend(current_run_samples_kara_fft.into_iter().map(|s| s.1));
     }
 
     println!("Finished parameters {params:?}");
@@ -398,32 +410,36 @@ where usize: numeric::CastFrom<Scalar>
     //TODO add TUniform?
     //TODO uncomment, at some point
     //~ let minimal_variance = minimal_lwe_variance_for_132_bits_security_gaussian(
-        //~ fbsk.output_lwe_dimension(),
-        //~ modulus_as_f64,
+    //~ fbsk.output_lwe_dimension(),
+    //~ modulus_as_f64,
     //~ );
     //~ if measured_variance_fft.0 < expected_variance_fft.0 {
-        //~ // We are in the clear as long as we have at least the noise for security
-        //~ assert!(
-            //~ measured_variance_fft.0 >= minimal_variance.0,
-            //~ "Found insecure variance after PBS\n\
-            //~ measure_variance={measured_variance_fft:?}\n\
-            //~ minimal_variance={minimal_variance:?}"
-        //~ );
+    //~ // We are in the clear as long as we have at least the noise for security
+    //~ assert!(
+    //~ measured_variance_fft.0 >= minimal_variance.0,
+    //~ "Found insecure variance after PBS\n\
+    //~ measure_variance={measured_variance_fft:?}\n\
+    //~ minimal_variance={minimal_variance:?}"
+    //~ );
     //~ } else {
-        //~ // Check we are not too far from the expected variance if we are bigger
-        //~ let var_abs_diff = (expected_variance_fft.0 - measured_variance_fft.0).abs();
-        //~ let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance_fft.0;
-        //~ assert!(
-            //~ var_abs_diff < tolerance_threshold,
-            //~ "Absolute difference for variance: {var_abs_diff}, \
-            //~ tolerance threshold: {tolerance_threshold}, \
-            //~ got variance: {measured_variance_fft:?}, \
-            //~ expected variance w/ FFT: {expected_variance_fft:?}"
-        //~ );
+    //~ // Check we are not too far from the expected variance if we are bigger
+    //~ let var_abs_diff = (expected_variance_fft.0 - measured_variance_fft.0).abs();
+    //~ let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance_fft.0;
+    //~ assert!(
+    //~ var_abs_diff < tolerance_threshold,
+    //~ "Absolute difference for variance: {var_abs_diff}, \
+    //~ tolerance threshold: {tolerance_threshold}, \
+    //~ got variance: {measured_variance_fft:?}, \
+    //~ expected variance w/ FFT: {expected_variance_fft:?}"
+    //~ );
     //~ }
 }
 
-fn export_noise_predictions<Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned>(params: &ClassicTestParams<Scalar>) {
+fn export_noise_predictions<
+    Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
+>(
+    params: &ClassicTestParams<Scalar>,
+) {
     // output predicted noises to JSON
     let distro: &str = if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
         "GAUSSIAN"
@@ -432,13 +448,22 @@ fn export_noise_predictions<Scalar: UnsignedTorus + Sync + Send + CastFrom<usize
     } else {
         panic!("Unknown distribution: {}", params.lwe_noise_distribution)
     };
-    let filename_exp_var = format!("./results/{EXP_NAME}/expected-variances-gf=1-logB={}-l={}-k={}-N={}-distro={distro}.json", params.pbs_base_log.0, params.pbs_level.0, params.glwe_dimension.0, params.polynomial_size.0);
+    let filename_exp_var = format!(
+        "./results/{EXP_NAME}/expected-variances-gf=1-logB={}-l={}-k={}-N={}-distro={distro}.json",
+        params.pbs_base_log.0,
+        params.pbs_level.0,
+        params.glwe_dimension.0,
+        params.polynomial_size.0
+    );
     let mut file_exp_var = File::create(&filename_exp_var).unwrap();
 
-    let (expected_variance_kara,expected_variance_fft) = noise_prediction_kara_fft::<Scalar>(params);
+    let (expected_variance_kara, expected_variance_fft) =
+        noise_prediction_kara_fft::<Scalar>(params);
 
-    file_exp_var.write_all(
-        format!(r#"{{
+    file_exp_var
+        .write_all(
+            format!(
+                r#"{{
     "lwe_dimension": {},
     "log_base": {},
     "level": {},
@@ -448,20 +473,26 @@ fn export_noise_predictions<Scalar: UnsignedTorus + Sync + Send + CastFrom<usize
     "expected_variance_kara": {},
     "expected_variance_fft": {}
 }}"#,
-            params.lwe_dimension.0,
-            params.pbs_base_log.0,
-            params.pbs_level.0,
-            params.glwe_dimension.0,
-            params.polynomial_size.0,
-            distro,
-            expected_variance_kara.0,
-            expected_variance_fft.0,
-        ).as_bytes()
-    ).unwrap();
+                params.lwe_dimension.0,
+                params.pbs_base_log.0,
+                params.pbs_level.0,
+                params.glwe_dimension.0,
+                params.polynomial_size.0,
+                distro,
+                expected_variance_kara.0,
+                expected_variance_fft.0,
+            )
+            .as_bytes(),
+        )
+        .unwrap();
 }
 
 //TODO make this somehow a bit more compact
-fn noise_prediction_kara_fft<Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned>(params: &ClassicTestParams<Scalar>) -> (Variance,Variance) {
+fn noise_prediction_kara_fft<
+    Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
+>(
+    params: &ClassicTestParams<Scalar>,
+) -> (Variance, Variance) {
     if !params.ciphertext_modulus.is_native_modulus() {
         panic!("With FFT, only native modulus is supported.")
     }
@@ -469,9 +500,13 @@ fn noise_prediction_kara_fft<Scalar: UnsignedTorus + Sync + Send + CastFrom<usiz
     let mantissa_size_as_f64 = if Scalar::BITS == 64 {
         53_f64
     } else if Scalar::BITS == 128 {
-        104_f64 //TODO check this (also make sure Sarah's impl is used, not the quadruple type, mantissa size of which is 112+1
+        104_f64 //TODO check this (also make sure Sarah's impl is used, not the quadruple type,
+                // mantissa size of which is 112+1
     } else {
-        panic!("Unexpected bit-len of ciphertext modulus: {:?}", Scalar::BITS)
+        panic!(
+            "Unexpected bit-len of ciphertext modulus: {:?}",
+            Scalar::BITS
+        )
     };
     return (
         if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
@@ -517,32 +552,46 @@ fn noise_prediction_kara_fft<Scalar: UnsignedTorus + Sync + Send + CastFrom<usiz
             )
         } else {
             panic!("Unknown distribution: {:?}", params.lwe_noise_distribution)
-        }
+        },
     );
 }
 
 #[test]
-fn test_lwe_encrypt_pbs_decrypt_custom_mod_noise_test_params_4_bits_native_u64_132_bits() {test_impl::<u64>(true);}
+fn test_lwe_encrypt_pbs_decrypt_custom_mod_noise_test_params_4_bits_native_u64_132_bits() {
+    test_impl::<u64>(true);
+}
 #[test]
-fn test_lwe_encrypt_pbs_decrypt_custom_mod_noise_test_params_4_bits_native_u128_132_bits() {test_impl::<u128>(true);}
+fn test_lwe_encrypt_pbs_decrypt_custom_mod_noise_test_params_4_bits_native_u128_132_bits() {
+    test_impl::<u128>(true);
+}
 
 #[test]
-fn test_export_noise_predictions_native_u64_132_bits() {test_impl::<u64>(false);}
+fn test_export_noise_predictions_native_u64_132_bits() {
+    test_impl::<u64>(false);
+}
 #[test]
-fn test_export_noise_predictions_native_u128_132_bits() {test_impl::<u128>(false);}
+fn test_export_noise_predictions_native_u128_132_bits() {
+    test_impl::<u128>(false);
+}
 
-fn test_impl<Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned>(run_measurements: bool) {
+fn test_impl<
+    Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
+>(
+    run_measurements: bool,
+) {
     //TODO FIXME: params need to be updated, cf. mod.rs where they are defined
-    //~ lwe_encrypt_pbs_decrypt_custom_mod<Scalar>(&NOISE_TEST_PARAMS_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
-    //~ return;
+    //~ lwe_encrypt_pbs_decrypt_custom_mod<Scalar>(&
+    //~ NOISE_TEST_PARAMS_2_BITS_NATIVE_U64_132_BITS_TUNIFORM); return;
     let modulus_as_f64 = 2.0f64.powi(Scalar::BITS as i32);
     let msg_mod_log = 4;
 
     for logbase in 5..=30 {
-    for level in 1..=6 {
-        if logbase * level > 36 {continue;}   // also used: logbase * level < 15
-        //~ for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
-        for (k,logN) in [(4,9),(2,10),(1,11),(3,10),(2,11),(1,12),(1,13),].iter() {
+        for level in 1..=6 {
+            if logbase * level > 36 {
+                continue;
+            } // also used: logbase * level < 15
+              //~ for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
+            for (k,logN) in [(4,9),(2,10),(1,11),(3,10),(2,11),(1,12),(1,13),].iter() {
             //~ // skip those not interesting                                                             1 is here to make a margin
             //~ if ((logbase*(level+1)) as f64) < 53_f64 - *logN as f64 - (((k+1)*level) as f64).log2() - 1_f64 || logbase * level > 36 {
                 //~ println!("Early-discarded: l={level}, logB={logbase}, (k,N)=({k},{})", 1<<*logN);
@@ -610,6 +659,6 @@ fn test_impl<Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<us
             //~ };
             //~ lwe_encrypt_pbs_decrypt_custom_mod<Scalar>(&tuniform_params, &run_measurements);
         }
-    }
+        }
     }
 }
