@@ -2376,6 +2376,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
 
 #[allow(clippy::too_many_arguments)]
