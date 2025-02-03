@@ -531,10 +531,10 @@ test_float_sigmoid:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::test_float_sigmoid" -- --exact --nocapture
 
-.PHONY: test_float_long_run # Run floating points long run test
-test_float_long_run:
+.PHONY: test_float_depth_test # Run floating points depth test
+test_float_depth_test:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::float_long_run_details_parallelized" -- --exact --nocapture
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::depth_test_parallelized" -- --exact --nocapture
 
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain

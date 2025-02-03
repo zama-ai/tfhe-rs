@@ -63,7 +63,7 @@ At the root of the project (i.e., in the TFHE-rs folder), enter the following co
 - ```make test_float_relu```: Runs a 32-bit floating-point relu with a random input.
 - ```make test_float_sigmoid```: Runs a 32-bit floating-point sigmoid with a random input.
 - ```make test_float```: Runs all previous tests for operations on 32-bit floating-points.
-- ```make test_float_long_run```: This command runs the following experiment:
+- ```make test_float_depth_test```: This command runs the following experiment:
   - **Step 1**: Create 3 blocks, each composed of a clear 32-bit floating point, a clear 64-bit floating point, and a 32-bit homomorphic floating point.
   - **Step 2**: Choose two blocks randomly among the 3 blocks and randomly select a parallelized operation (addition, subtraction, or multiplication).
   - **Step 3**: Compute the selected operation between the two selected blocks and store the result randomly in one of the two selected blocks.  
@@ -74,7 +74,22 @@ At the root of the project (i.e., in the TFHE-rs folder), enter the following co
 
 The tests are located in the file *tfhe/concrete-float/src/server_key/tests.rs*.
 
+Due to the representation being close to, but not exactly the same as, a given representation, the obtained result is not identical to the one obtained in clear.
+To consider a test as "passed", we accept a difference of less than 0.1% compared to the 64-bit floating-point clear results.
 Note that using 8 or 16-bit homomorphic floating points might return errors due to a lack of precision and due to the comparisons with clear 64-bit floating points.
+
+In each test, the different results are presented in the following format:
+``` 
+--------------------
+"Name":
+
+Result       : 
+Clear 32-bits: 
+Clear 64-bits: 
+
+--------------------
+```
+where ```name``` stands for the name of the ciphertext or the name of the operation, result always corresponds to the decryption of a homomorphic floating point, and Clear ``` 32-bits```  and Clear ``` 64-bits``` correspond to the clear floating-point witness.
 
 All tests in *tfhe/concrete-float/src/server_key/tests.rs* are conducted for 32-bit floating-point precision, as it provides the best ratio between execution time and precision.  
 To change the parameter set used, the parameters in the following ``` const ``` must be uncommented (lines 79 to 87 in the file *tfhe/concrete-float/src/server_key/tests.rs*).

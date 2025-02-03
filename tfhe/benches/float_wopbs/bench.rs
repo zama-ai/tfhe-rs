@@ -56,7 +56,7 @@ pub fn float_wopbs_mut_eval(c: &mut Criterion) {
         let mut ct_1 = cks.encrypt(msg_1, e_min, *bit_mantissa, *bit_exponent);
 
         let lut = sks.create_lut(&mut ct_1, |x| x);
-        let bench_id = format!("8 bits float wopbs lut eval::{}", name_param.0);
+        let bench_id = format!("8-bit floats WoP-PBS lut eval::{}", name_param.0);
         c.bench_function(&bench_id, |b| {
             b.iter(|| {
                 sks.wop_pbs(&sks, &mut ct_1, &lut);
@@ -80,7 +80,7 @@ pub fn float_wopbs_bivariate(c: &mut Criterion) {
         let mut ct_2 = cks.encrypt(msg_2, e_min, *bit_mantissa, *bit_exponent);
 
         let lut = sks.create_bivariate_lut(&mut ct_1, |x, y| y * x);
-        let bench_id = format!("8 bits float wopbs bivariate::{}", name_param.0);
+        let bench_id = format!("8-bit floats WoP-PBS bivariate::{}", name_param.0);
         c.bench_function(&bench_id, |b| {
             b.iter(|| {
                 sks.wop_pbs_bivariate(&sks, &mut ct_1, &mut ct_2, &lut);

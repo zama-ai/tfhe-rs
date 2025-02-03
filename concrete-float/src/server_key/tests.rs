@@ -137,8 +137,8 @@ pub fn test_float_mul() {
         print_res(&cks, &res, "Multiplication", (msg2 * msg1) as f32, msg2 * msg1);
 
         let res = cks.decrypt(&res);
-        assert!(res.abs() < ((msg1 * msg2) * 1.01).abs());
-        assert!(res.abs() > ((msg1 * msg2) * 0.99).abs());
+        assert!(res.abs() < ((msg1 * msg2) * 1.001).abs());
+        assert!(res.abs() > ((msg1 * msg2) * 0.999).abs());
     }
 }
 
@@ -171,8 +171,8 @@ pub fn test_float_div() {
         sks.clean_degree(&mut res);
         let res = cks.decrypt(&res);
 
-        assert!(res.abs() < ((msg1 / msg2) * 1.01).abs());
-        assert!(res.abs() > ((msg1 / msg2) * 0.99).abs());
+        assert!(res.abs() < ((msg1 / msg2) * 1.001).abs());
+        assert!(res.abs() > ((msg1 / msg2) * 0.999).abs());
     }
 }
 
@@ -221,11 +221,12 @@ pub fn float_cos() {
 
         let res = sks.sub_total_parallelized(&res, &ct1_square_time_one_div_by_2);
         println!("Cosine, exact result  : {:?}", msg1.cos());
-        print_res(&cks, &res, "Cosine approximation", (1. + msg1 * msg1 * msg1 * msg1 / 24. - msg1 * msg1 / 2.) as f32, 1. + msg1 * msg1 * msg1 * msg1 / 24. - msg1 * msg1 / 2.);
+        let approximation = 1. + msg1 * msg1 * msg1 * msg1 / 24. - msg1 * msg1 / 2.;
+        print_res(&cks, &res, "Cosine approximation", approximation as f32, approximation);
 
         let res = cks.decrypt(&res);
-        assert!(res < (msg1.cos() * 1.01).abs());
-        assert!(res > (msg1.cos() * 0.99).abs());
+        assert!(res < (approximation * 1.001).abs());
+        assert!(res > (approximation * 0.999).abs());
     }
 }
 
@@ -275,11 +276,12 @@ pub fn float_sin() {
         let res = sks.sub_total_parallelized(&res, &ct1_cube_time_one_div_by_6);
 
         println!("Sine, exact result  : {:?}", msg1.sin());
-        print_res(&cks, &res, "Sine approximation", ((msg1 + (msg1 * msg1 * msg1 * msg1 * msg1 / 120.)) - (msg1 * msg1 * msg1 / 6.)) as f32, msg1 + msg1 * msg1 * msg1 * msg1 * msg1 / 120. - msg1 * msg1 * msg1 / 6.);
+        let approximation = msg1 + msg1 * msg1 * msg1 * msg1 * msg1 / 120. - msg1 * msg1 * msg1 / 6.;
+        print_res(&cks, &res, "Sine approximation", approximation as f32, approximation);
 
         let res = cks.decrypt(&res);
-        assert!(res < (msg1.sin() * 1.01).abs());
-        assert!(res > (msg1.sin() * 0.99).abs());
+        assert!(res < (approximation * 1.001).abs());
+        assert!(res > (approximation * 0.999).abs());
     }
 }
 
@@ -312,8 +314,8 @@ pub fn test_float_add() {
         print_res(&cks, &res, "Addition", (msg1 + msg2) as f32, msg1 + msg2);
 
         let res = cks.decrypt(&res);
-        assert!(res.abs() < ((msg1 + msg2) * 1.01).abs());
-        assert!(res.abs() > ((msg1 + msg2) * 0.99).abs());
+        assert!(res.abs() < ((msg1 + msg2) * 1.001).abs());
+        assert!(res.abs() > ((msg1 + msg2) * 0.999).abs());
     }
 }
 
@@ -347,13 +349,13 @@ pub fn test_float_sub() {
         print_res(&cks, &res, "Subtraction", (msg1 - msg2) as f32, msg1 - msg2);
 
         let res = cks.decrypt(&res);
-        assert!(res.abs() < ((msg1 - msg2) * 1.01).abs());
-        assert!(res.abs() > ((msg1 - msg2) * 0.99).abs());
+        assert!(res.abs() < ((msg1 - msg2) * 1.001).abs());
+        assert!(res.abs() > ((msg1 - msg2) * 0.999).abs());
     }
 }
 
 #[test]
-pub fn float_long_run_details_parallelized() {
+pub fn depth_test_parallelized() {
     let mut rng = rand::thread_rng();
     for (name_parameters, param) in PARAMS {
         let (cks, sks) = gen_keys(
@@ -615,8 +617,8 @@ pub fn float_long_run_details_parallelized() {
             //println!("Ope  : {:?}", vec_nb_operation[i]);
 
             let res = cks.decrypt(&vec_hom_float[i]);
-            assert!(res.abs() < (vec_float_64[i] * 1.01).abs());
-            assert!(res.abs() > (vec_float_64[i] * 0.99).abs());
+            assert!(res.abs() < (vec_float_64[i] * 1.001).abs());
+            assert!(res.abs() > (vec_float_64[i] * 0.999).abs());
             //println!("------");
         }
         //println!("Info :");
@@ -680,8 +682,8 @@ pub fn float_same_as_ls_22_32() {
     print_res(&cks, &res, "res mul", witness32, witness64);
     let res = cks.decrypt(&res);
 
-    assert!(res.abs() < ((witness32 * 1.01 as f32) as f64).abs());
-    assert!(res.abs() > ((witness32 * 0.99 as f32) as f64).abs());
+    assert!(res.abs() < ((witness32 * 1.001 as f32) as f64).abs());
+    assert!(res.abs() > ((witness32 * 0.999 as f32) as f64).abs());
 }
 
 #[test]
@@ -739,8 +741,8 @@ pub fn float_same_as_ls_22_64() {
     print_res(&cks, &res, "res mul", witness32, witness64);
     let res = cks.decrypt(&res);
 
-    assert!(res.abs() < (witness64 * 1.01).abs());
-    assert!(res.abs() > (witness64 * 0.99).abs());
+    assert!(res.abs() < (witness64 * 1.001).abs());
+    assert!(res.abs() > (witness64 * 0.999).abs());
 }
 
 #[test]
@@ -792,8 +794,8 @@ pub fn test_float_sigmoid() {
         print_res(&cks, &res, "approx sigmoid", 1.0_f32.min(msg as f32), msg.min(1.));
         let res = cks.decrypt(&res);
 
-        assert!(res > msg.min(1.) * 0.9);
-        assert!(res < msg.min(1.) * 1.1);
+        assert!(res > msg.min(1.) * 0.999);
+        assert!(res < msg.min(1.) * 1.001);
     }
 }
 
