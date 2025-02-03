@@ -241,16 +241,15 @@ void cleanup_cuda_apply_univariate_lut_kb_64(void *const *streams,
 
 void cuda_apply_many_univariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *output_radix_lwe, void const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t num_blocks,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+    CudaRadixCiphertextFFI *output_radix_lwe,
+    CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
+    void *const *ksks, void *const *bsks, uint32_t num_many_lut,
+    uint32_t lut_stride) {
 
   host_apply_many_univariate_lut_kb<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(output_radix_lwe),
-      static_cast<const uint64_t *>(input_radix_lwe),
-      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks, num_blocks,
-      num_many_lut, lut_stride);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, output_radix_lwe,
+      input_radix_lwe, (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks),
+      bsks, num_many_lut, lut_stride);
 }
 
 void scratch_cuda_apply_bivariate_lut_kb_64(
