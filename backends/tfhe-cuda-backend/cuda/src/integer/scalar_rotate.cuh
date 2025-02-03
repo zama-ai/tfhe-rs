@@ -77,7 +77,7 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
         giver_blocks, bsks, ksks, num_blocks, lut_bivariate,
         lut_bivariate->params.message_modulus);
@@ -104,7 +104,7 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
         giver_blocks, bsks, ksks, num_blocks, lut_bivariate,
         lut_bivariate->params.message_modulus);

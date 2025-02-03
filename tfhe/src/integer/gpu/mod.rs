@@ -2807,6 +2807,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
     radix_lwe_output: &mut CudaSliceMut<T>,
     radix_lwe_input: &CudaSlice<T>,
     input_lut: &[T],
+    lut_degree: u64,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     lwe_dimension: LweDimension,
@@ -2869,6 +2870,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         carry_modulus.0 as u32,
         pbs_type as u32,
         num_many_lut,
+        lut_degree,
         true,
     );
     cuda_apply_many_univariate_lut_kb_64(
@@ -2909,10 +2911,13 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
 ///   is required
 pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_output: &mut CudaSliceMut<T>,
-    radix_lwe_input_1: &CudaVec<T>,
-    radix_lwe_input_2: &CudaVec<T>,
+    output: &mut CudaSliceMut<T>,
+    output_degrees: &mut Vec<u64>,
+    output_noise_levels: &mut Vec<u64>,
+    input_1: &CudaSlice<T>,
+    input_2: &CudaSlice<T>,
     input_lut: &[T],
+    lut_degree: u64,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     lwe_dimension: LweDimension,
@@ -2931,17 +2936,17 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input_1.gpu_index(0),
+        input_1.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input_2.gpu_index(0),
+        input_2.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_output.gpu_index(0),
+        output.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -2955,6 +2960,27 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
+        output,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
+    let cuda_ffi_input_1 = prepare_cuda_radix_ffi_from_slice(
+        input_1,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
+    let cuda_ffi_input_2 = prepare_cuda_radix_ffi_from_slice(
+        input_2,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
     scratch_cuda_apply_bivariate_lut_kb_64(
         streams.ptr.as_ptr(),
         streams
@@ -2978,6 +3004,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        lut_degree,
         true,
     );
     cuda_apply_bivariate_lut_kb_64(
@@ -2989,13 +3016,12 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
             .collect::<Vec<u32>>()
             .as_ptr(),
         streams.len() as u32,
-        radix_lwe_output.as_mut_c_ptr(0),
-        radix_lwe_input_1.as_c_ptr(0),
-        radix_lwe_input_2.as_c_ptr(0),
+        &mut cuda_ffi_output,
+        &cuda_ffi_input_1,
+        &cuda_ffi_input_2,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
-        num_blocks,
         shift,
     );
     cleanup_cuda_apply_bivariate_lut_kb_64(
@@ -3108,6 +3134,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
     radix_lwe_output: &mut CudaSliceMut<T>,
     generates_or_propagates: &mut CudaSliceMut<T>,
     input_lut: &[T],
+    lut_degree: u64,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     lwe_dimension: LweDimension,
@@ -3168,6 +3195,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        lut_degree,
         true,
     );
 

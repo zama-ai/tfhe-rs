@@ -547,7 +547,7 @@ __host__ void host_integer_mult_radix_kb(
       vector_lsb_rhs, vector_msb_rhs, num_blocks);
   check_cuda_error(cudaGetLastError());
 
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, block_mul_res, block_mul_res,
       vector_result_sb, bsks, ksks, total_block_count, luts_array,
       luts_array->params.message_modulus);

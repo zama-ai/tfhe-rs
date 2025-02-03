@@ -209,6 +209,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         num_many_lut: u32,
+        lut_degree: u64,
         allocate_gpu_memory: bool,
     );
 }
@@ -251,6 +252,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        lut_degree: u64,
         allocate_gpu_memory: bool,
     );
 }
@@ -259,13 +261,12 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        output_radix_lwe: *mut ffi::c_void,
-        input_radix_lwe_1: *const ffi::c_void,
-        input_radix_lwe_2: *const ffi::c_void,
+        output_radix_lwe: *mut CudaRadixCiphertextFFI,
+        input_radix_lwe_1: *const CudaRadixCiphertextFFI,
+        input_radix_lwe_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,
-        num_blocks: u32,
         shift: u32,
     );
 }
@@ -1051,6 +1052,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        lut_degree: u64,
         allocate_gpu_memory: bool,
     );
 }

@@ -20,7 +20,7 @@ __host__ void host_integer_radix_bitop_kb(
 
   auto lut = mem_ptr->lut;
 
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_1, lwe_array_2,
       bsks, ksks, num_radix_blocks, lut, lut->params.message_modulus);
 }

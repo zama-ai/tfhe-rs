@@ -75,7 +75,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     size_t partial_block_count = num_blocks - rotations;
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, partial_current_blocks,
         partial_current_blocks, partial_previous_blocks, bsks, ksks,
         partial_block_count, lut_bivariate,
@@ -106,7 +106,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     size_t partial_block_count = num_blocks - rotations;
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, partial_current_blocks,
         partial_current_blocks, partial_next_blocks, bsks, ksks,
         partial_block_count, lut_bivariate,
@@ -200,7 +200,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
         size_t partial_block_count = num_blocks - rotations;
         auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
-        integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
             streams, gpu_indexes, gpu_count, partial_current_blocks,
             partial_current_blocks, partial_next_blocks, bsks, ksks,
             partial_block_count, lut_bivariate,

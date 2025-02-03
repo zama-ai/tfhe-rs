@@ -51,7 +51,7 @@ __host__ void legacy_host_integer_radix_cmux_kb(
         (Torus *)(mem_ptr->condition_array->ptr) + i * lwe_size, lwe_condition,
         lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
   }
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, (Torus *)(mem_ptr->buffer_out->ptr),
       (Torus *)(mem_ptr->buffer_in->ptr),
       (Torus *)(mem_ptr->condition_array->ptr), bsks, ksks,
@@ -102,10 +102,9 @@ __host__ void host_integer_radix_cmux_kb(
         gpu_indexes[0]);
   }
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, (Torus *)(mem_ptr->buffer_out->ptr),
-      (Torus *)(mem_ptr->buffer_in->ptr),
-      (Torus *)(mem_ptr->condition_array->ptr), bsks, ksks,
-      2 * num_radix_blocks, mem_ptr->predicate_lut, params.message_modulus);
+      streams, gpu_indexes, gpu_count, mem_ptr->buffer_out, mem_ptr->buffer_in,
+      mem_ptr->condition_array, bsks, ksks, mem_ptr->predicate_lut,
+      params.message_modulus);
 
   // If the condition was true, true_ct will have kept its value and false_ct
   // will be 0 If the condition was false, true_ct will be 0 and false_ct will

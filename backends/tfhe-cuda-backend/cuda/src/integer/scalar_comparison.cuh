@@ -200,7 +200,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
         message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_lsb_out,
         lwe_array_msb_out, bsks, ksks, 1, lut, lut->params.message_modulus);
 
@@ -336,7 +336,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
         message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, are_all_msb_zeros,
         sign_block, bsks, ksks, 1, lut, lut->params.message_modulus);
 
@@ -432,7 +432,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     signed_msb_lut->broadcast_lut(streams, gpu_indexes, 0);
 
     Torus const *sign_block = msb + (num_msb_radix_blocks - 1) * big_lwe_size;
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         msb_streams, gpu_indexes, gpu_count, lwe_array_msb_out, sign_block,
         are_all_msb_zeros, bsks, ksks, 1, signed_msb_lut,
         signed_msb_lut->params.message_modulus);
@@ -492,7 +492,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
         msb_streams[0], gpu_indexes[0], trivial_sign_block, scalar_sign_block,
         big_lwe_dimension, 1, 1, message_modulus, carry_modulus);
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         msb_streams, gpu_indexes, gpu_count, lwe_array_sign_out,
         encrypted_sign_block, trivial_sign_block, bsks, ksks, 1,
         mem_ptr->signed_lut, mem_ptr->signed_lut->params.message_modulus);

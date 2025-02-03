@@ -324,7 +324,7 @@ __host__ void host_integer_radix_equality_check_kb(
 
   // Applies the LUT for the comparison operation
   auto comparisons = mem_ptr->tmp_block_comparisons;
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+  legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, comparisons, lwe_array_1, lwe_array_2,
       bsks, ksks, num_radix_blocks, eq_buffer->operator_lut,
       eq_buffer->operator_lut->params.message_modulus);
@@ -566,7 +566,7 @@ __host__ void host_integer_radix_difference_check_kb(
           last_left_block_before_sign_block, last_right_block_before_sign_block,
           mem_ptr, bsks, ksks, 1);
       // Compare the sign block separately
-      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count,
           comparisons + (packed_num_radix_blocks + 1) * big_lwe_size,
           lwe_array_left + (num_radix_blocks - 1) * big_lwe_size,
@@ -579,7 +579,7 @@ __host__ void host_integer_radix_difference_check_kb(
           streams, gpu_indexes, gpu_count, comparisons, lwe_array_left,
           lwe_array_right, mem_ptr, bsks, ksks, num_radix_blocks - 1);
       // Compare the sign block separately
-      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count,
           comparisons + (num_radix_blocks - 1) * big_lwe_size,
           lwe_array_left + (num_radix_blocks - 1) * big_lwe_size,
