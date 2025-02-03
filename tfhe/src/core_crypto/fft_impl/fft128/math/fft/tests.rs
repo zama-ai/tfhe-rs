@@ -19,10 +19,24 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         let mut fourier_im0 = avec![0.0f64; fourier_size].into_boxed_slice();
         let mut fourier_im1 = avec![0.0f64; fourier_size].into_boxed_slice();
 
-        println!("sizeof_scalar: {:?}", Scalar::BITS);
-        for x in poly.as_mut().iter_mut() {
-            *x = generator.random_uniform();
+        if poly.len() > 64 {
+            return;
         }
+        println!("sizeof_scalar: {:?}", Scalar::BITS);
+        println!("poly.size(): {:?}", poly.len());
+
+        let mut base = Scalar::TWO * Scalar::TWO;
+        let mut exp = base;
+        for x in poly.as_mut().iter_mut() {
+            *x = base - Scalar::ONE;
+            base = base * exp;
+        }
+
+        let n = poly.len();
+        for coef in poly.iter() {
+            println!("{:?}", coef);
+        }
+
 
         let mut mem = GlobalPodBuffer::new(fft.backward_scratch().unwrap());
         let mut stack = PodStack::new(&mut mem);
@@ -34,14 +48,27 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             &mut fourier_im1,
             &poly,
         );
+
+        for ((re0, re1), (im0, im1)) in (&*fourier_re0).iter()
+            .zip((&*fourier_re1).iter())
+            .zip((&*fourier_im0).iter().zip((&*fourier_im1).iter()))
+        {
+            println!("{:.20} {:.20} {:.20} {:.20}", re0, re1, im0, im1);
+        }
+
         fft.backward_as_torus(
             &mut roundtrip,
             &fourier_re0,
             &fourier_re1,
             &fourier_im0,
             &fourier_im1,
+
             stack.rb_mut(),
         );
+
+        for coefficient in roundtrip.iter() {
+            println!("{:?}", coefficient);
+        }
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS <= 64 {

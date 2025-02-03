@@ -1,0 +1,5 @@
+    Finished `bench` profile [optimized] target(s) in 0.10s
+     Running benches/integer/bench.rs (target/release/deps/integer_bench-f3741775ea815609)
+Benchmarking integer::cuda::div_rem/integer::cuda::div_rem::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS:...
+Benchmarking integer::cuda::div_rem/integer::cuda::div_rem::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS:...: Warming up for 3.0000 s
+Benchmarking integer::cuda::div_rem/integer::cuda::div_rem::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS:...: Collecting 15 samples in estimated 100.21 s (240 iterations)

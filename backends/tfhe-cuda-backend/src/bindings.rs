@@ -1239,7 +1239,7 @@ extern "C" {
     );
 }
 extern "C" {
-    pub fn fourier_transform_forward_f128(
+    pub fn cuda_fourier_transform_forward_as_torus_f128_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         re0: *mut ffi::c_void,
@@ -1248,6 +1248,33 @@ extern "C" {
         im1: *mut ffi::c_void,
         standard: *const ffi::c_void,
         N: u32,
+        number_of_samples: u32,
+    );
+}
+extern "C" {
+    pub fn cuda_fourier_transform_forward_as_integer_f128_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        re0: *mut ffi::c_void,
+        re1: *mut ffi::c_void,
+        im0: *mut ffi::c_void,
+        im1: *mut ffi::c_void,
+        standard: *const ffi::c_void,
+        N: u32,
+        number_of_samples: u32,
+    );
+}
+extern "C" {
+    pub fn cuda_fourier_transform_backward_as_torus_f128_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        standard: *mut ffi::c_void,
+        re0: *const ffi::c_void,
+        re1: *const ffi::c_void,
+        im0: *const ffi::c_void,
+        im1: *const ffi::c_void,
+        N: u32,
+        number_of_samples: u32,
     );
 }
 extern "C" {

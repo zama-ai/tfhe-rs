@@ -30,11 +30,24 @@ struct alignas(16) f128 {
   // Two-product
   __host__ __device__ __forceinline__ static f128 two_prod(double a, double b) {
     double p = a * b;
+
+
 #ifdef __CUDA_ARCH__
-    return f128(p, __fma_rn(a, b, -p));
+    double p2 =  __fma_rn(a, b, -p);
 #else
-    return f128(p, fma(a, b, -p));
+    double p2 =  fma(a, b, -p);
 #endif
+
+//#ifdef __CUDA_ARCH__
+//    if (threadIdx.x == 0 && blockIdx.x == 0) {
+//      printf("two_prod\n");
+//      printf("a: %.15f\n", a);
+//      printf("b: %.15f\n", b);
+//      printf("p: %.15f\n", p);
+//      printf("p2: %.15f\n", p2);
+//    }
+//#endif
+    return f128(p, p2);
   }
 
   __host__ __device__ __forceinline__ static f128 two_diff(double a, double b) {
@@ -59,13 +72,9 @@ struct alignas(16) f128 {
   // Addition with estimate
   __host__ __device__ static f128 add_estimate(const f128 &a, const f128 &b) {
     auto se = two_sum(a.hi, b.hi);
-    double hi = se.hi;
-    double lo = se.lo + a.lo + b.lo;
+    se.lo += (a.lo + b.lo);
 
-    hi = hi + lo;
-    lo = lo - (hi - se.hi);
-
-    return f128(hi, lo);
+    return quick_two_sum(se.hi, se.lo);
   }
 
   // Subtraction with estimate
@@ -86,15 +95,32 @@ struct alignas(16) f128 {
 
   // Multiplication
   __host__ __device__ static f128 mul(const f128 &a, const f128 &b) {
-    double hi, lo;
     auto p = two_prod(a.hi, b.hi);
-    hi = p.hi;
-    lo = p.lo + (a.hi * b.lo + a.lo * b.hi);
-
-    hi = hi + lo;
-    lo = lo - (hi - p.hi);
-
-    return f128(hi, lo);
+//#ifdef __CUDA_ARCH__
+//    if (threadIdx.x == 0 && blockIdx.x == 0) {
+//      printf("f128_mul\n");
+//      printf("a: %.5f %.5f\n", a.hi, a.lo);
+//      printf("b: %.5f %.5f\n", b.hi, b.lo);
+//      printf("p1: %.5f\n", p.hi);
+//      printf("p2: %.5f\n", p.lo);
+//    }
+//#endif
+    p.lo += (a.hi * b.lo + a.lo * b.hi);
+//#ifdef __CUDA_ARCH__
+//    if (threadIdx.x == 0 && blockIdx.x == 0) {
+//      printf("a.0 * b.1: %.5f\n", a.hi * b.lo);
+//      printf("a.1 * b.0: %.5f\n", a.lo * b.hi);
+//      printf("p2: %.5f\n", p.lo);
+//    }
+//#endif
+    p = quick_two_sum(p.hi, p.lo);
+//#ifdef __CUDA_ARCH__
+//    if (threadIdx.x == 0 && blockIdx.x == 0) {
+//      printf("p1: %.5f\n", p.hi);
+//      printf("p2: %.5f\n", p.lo);
+//    }
+//#endif
+    return p;
   }
 
   __host__ __device__ static void
@@ -105,6 +131,21 @@ struct alignas(16) f128 {
     auto a_im_x_b_re = mul(a_im, b_re);
     auto a_im_x_b_im = mul(a_im, b_im);
 
+//#ifdef __CUDA_ARCH__
+//    //__syncthreads();
+//    if (threadIdx.x == 0 && blockIdx.x == 0) {
+//      printf("a_re: %.5f %.5f\n", a_re.hi, a_re.lo);
+//      printf("a_im: %.5f %.5f\n", a_im.hi, a_im.lo);
+//      printf("b_re: %.5f %.5f\n", b_re.hi, b_re.lo);
+//      printf("b_im: %.5f %.5f\n", b_im.hi, b_im.lo);
+//
+//      printf("a_re_x_b_re: %.5f %.5f\n", a_re_x_b_re.hi, a_re_x_b_re.lo);
+//      printf("a_re_x_b_im: %.5f %.5f\n", a_re_x_b_im.hi, a_re_x_b_im.lo);
+//      printf("a_im_x_b_re: %.5f %.5f\n", a_im_x_b_re.hi, a_im_x_b_re.lo);
+//      printf("a_im_x_b_im: %.5f %.5f\n", a_im_x_b_im.hi, a_im_x_b_im.lo);
+//    }
+//#endif
+    //__syncthreads();
     c_re = add_estimate(a_re_x_b_re, a_im_x_b_im);
     c_im = sub_estimate(a_im_x_b_re, a_re_x_b_im);
   }
@@ -210,15 +251,13 @@ struct f128x2 {
 };
 
 __host__ __device__ inline uint64_t double_to_bits(double d) {
-  uint64_t bits;
-  std::memcpy(&bits, &d, sizeof(bits));
+  uint64_t bits =  *reinterpret_cast<uint64_t*> (&d);
   return bits;
 }
 
 __host__ __device__ inline double bits_to_double(uint64_t bits)
 {
-  double d;
-  std::memcpy(&d, &bits, sizeof(d));
+  double d =  *reinterpret_cast<double *> (&bits);
   return d;
 }
 
@@ -302,7 +341,7 @@ __host__ __device__ double i128_to_f64(__int128_t const x) {
 }
 __host__ __device__ f128 u128_to_signed_to_f128(__uint128_t x) {
   const double first_approx = i128_to_f64(x);
-  const uint64_t sign_bit = double_to_bits(first_approx) * (1ull << 64);
+  const uint64_t sign_bit = double_to_bits(first_approx) & (1ull << 63);
   const __uint128_t first_approx_roundtrip =
       f64_to_u128((first_approx < 0) ? -first_approx : first_approx);
   const __uint128_t first_approx_roundtrip_signed = (sign_bit == (1ull << 63))
@@ -313,4 +352,25 @@ __host__ __device__ f128 u128_to_signed_to_f128(__uint128_t x) {
 
   return f128(first_approx, correction);
 };
+
+#include <string>
+#include <algorithm>
+// Convert __uint128_t to decimal string
+std::string to_string_128(__uint128_t value) {
+  if (value == 0)
+    return "0";
+
+  std::string result;
+  // Repeatedly divide by 10 and build the number in reverse
+  while (value > 0) {
+    unsigned digit = static_cast<unsigned>(value % 10);
+    result.push_back(static_cast<char>('0' + digit));
+    value /= 10;
+  }
+
+  // The digits are in reverse order, so reverse them
+  std::reverse(result.begin(), result.end());
+  return result;
+}// TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
+
 #endif

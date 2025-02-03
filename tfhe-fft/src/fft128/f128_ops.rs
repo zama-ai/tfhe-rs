@@ -35,8 +35,14 @@ fn two_diff(a: f64, b: f64) -> (f64, f64) {
 
 #[inline(always)]
 fn two_prod(a: f64, b: f64) -> (f64, f64) {
+    // println!("two_prod");
+    // println!("a: {:?}", a);
+    // println!("b: {:?}", b);
     let p = a * b;
-    (p, f64::mul_add(a, b, -p))
+    // println!("p: {:?}", p);
+    let  p2 = f64::mul_add(a, b, -p);
+    // println!("p2: {:?}", p2);
+    (p, p2)
 }
 
 use core::{
@@ -393,9 +399,21 @@ impl f128 {
     /// Multiplies `a` and `b` and returns the result.
     #[inline(always)]
     pub fn mul_f128_f128(a: f128, b: f128) -> Self {
+        // println!("mul_f128_f128");
+        // println!("a: {:?}", a);
+        // println!("b: {:?}", b);
         let (p1, p2) = two_prod(a.0, b.0);
+        // println!("p1: {:?}", p1);
+        // println!("p2: {:?}", p2);
         let p2 = p2 + (a.0 * b.1 + a.1 * b.0);
+        // println!("p2: {:?}", p2);
+
+        // println!("a.0 * b.1: {:?}", a.0 * b.1);
+        // println!("a.1 * b.0: {:?}", a.1 * b.0);
+
         let (p1, p2) = quick_two_sum(p1, p2);
+        // println!("p1: {:?}", p1);
+        // println!("p2: {:?}", p2);
         Self(p1, p2)
     }
 

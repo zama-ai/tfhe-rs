@@ -183,6 +183,7 @@ impl FftSimdF128 for Scalar {
 
     #[inline(always)]
     fn mul(self, a: (Self::Reg, Self::Reg), b: (Self::Reg, Self::Reg)) -> (Self::Reg, Self::Reg) {
+        println!("mul for scalar");
         let f128(o0, o1) = f128(a.0, a.1) * f128(b.0, b.1);
         (o0, o1)
     }
@@ -316,10 +317,21 @@ trait FftSimdF128Ext: FftSimdF128 {
         b_re: (Self::Reg, Self::Reg),
         b_im: (Self::Reg, Self::Reg),
     ) -> ((Self::Reg, Self::Reg), (Self::Reg, Self::Reg)) {
+        println!("fftSimdF123::cplx_mul");
         let a_re_x_b_re = self.mul(a_re, b_re);
         let a_re_x_b_im = self.mul(a_re, b_im);
         let a_im_x_b_re = self.mul(a_im, b_re);
         let a_im_x_b_im = self.mul(a_im, b_im);
+
+        println!("a_re: {:?}", a_re);
+        println!("a_im: {:?}", a_im);
+        println!("b_re: {:?}", b_re);
+        println!("b_im: {:?}", b_im);
+
+        println!("a_re_x_b_re: {:?}", a_re_x_b_re);
+        println!("a_re_x_b_im: {:?}", a_re_x_b_im);
+        println!("a_im_x_b_re: {:?}", a_im_x_b_re);
+        println!("a_im_x_b_im: {:?}", a_im_x_b_im);
 
         (
             self.sub(a_re_x_b_re, a_im_x_b_im),
@@ -390,6 +402,7 @@ pub fn negacyclic_fwd_fft_scalar(
             {
                 let (z0_re, z0_im) = ((*z0_re0, *z0_re1), (*z0_im0, *z0_im1));
                 let (z1_re, z1_im) = ((*z1_re0, *z1_re1), (*z1_im0, *z1_im1));
+                println!("{:?} {:?}", w1_re, w1_im);
                 let (z1w_re, z1w_im) = simd.cplx_mul(z1_re, z1_im, w1_re, w1_im);
 
                 ((*z0_re0, *z0_re1), (*z0_im0, *z0_im1)) =
@@ -398,6 +411,8 @@ pub fn negacyclic_fwd_fft_scalar(
                     simd.cplx_sub(z0_re, z0_im, z1w_re, z1w_im);
             }
         }
+
+        // break;
 
         m *= 2;
     }
@@ -1050,22 +1065,22 @@ pub fn negacyclic_fwd_fft(
     twid_im0: &[f64],
     twid_im1: &[f64],
 ) {
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(feature = "nightly")]
-        if let Some(simd) = V4::try_new() {
-            return negacyclic_fwd_fft_avx512(
-                simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
-                twid_im1,
-            );
-        }
-        if let Some(simd) = V3::try_new() {
-            return negacyclic_fwd_fft_avxfma(
-                simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
-                twid_im1,
-            );
-        }
-    }
+    // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    // {
+    //     #[cfg(feature = "nightly")]
+    //     if let Some(simd) = V4::try_new() {
+    //         return negacyclic_fwd_fft_avx512(
+    //             simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
+    //             twid_im1,
+    //         );
+    //     }
+    //     if let Some(simd) = V3::try_new() {
+    //         return negacyclic_fwd_fft_avxfma(
+    //             simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
+    //             twid_im1,
+    //         );
+    //     }
+    // }
     negacyclic_fwd_fft_scalar(
         data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0, twid_im1,
     )

@@ -97,7 +97,7 @@ bool cuda_check_support_thread_block_clusters() {
 }
 
 /// Copy memory to the GPU asynchronously
-void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
+void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index) {
   if (size == 0)
     return;

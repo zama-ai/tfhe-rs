@@ -631,7 +631,7 @@ pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector<T: UnsignedInteger>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn fourier_transform_forward_f128_async<T: UnsignedInteger>(
+pub unsafe fn fourier_transform_forward_as_integer_f128_async<T: UnsignedInteger>(
     streams: &CudaStreams,
     re0: &mut [f64],
     re1: &mut [f64],
@@ -639,8 +639,10 @@ pub unsafe fn fourier_transform_forward_f128_async<T: UnsignedInteger>(
     im1: &mut [f64],
     standard: &[T],
     fft_size: u32,
+    number_of_samples: u32,
 ) {
-    fourier_transform_forward_f128(
+    println!("before cuda api: {:?}", re0);
+    cuda_fourier_transform_forward_as_integer_f128_async(
         streams.ptr[0],
         streams.gpu_indexes[0],
         re0.as_mut_ptr() as *mut c_void,
@@ -649,8 +651,35 @@ pub unsafe fn fourier_transform_forward_f128_async<T: UnsignedInteger>(
         im1.as_mut_ptr() as *mut c_void,
         standard.as_ptr() as *const c_void,
         fft_size,
+        number_of_samples,
     );
 }
+
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn fourier_transform_forward_as_torus_f128_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    re0: &mut [f64],
+    re1: &mut [f64],
+    im0: &mut [f64],
+    im1: &mut [f64],
+    standard: &[T],
+    fft_size: u32,
+    number_of_samples: u32,
+) {
+    println!("before cuda api: {:?}", re0);
+    cuda_fourier_transform_forward_as_torus_f128_async(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        re0.as_mut_ptr() as *mut c_void,
+        re1.as_mut_ptr() as *mut c_void,
+        im0.as_mut_ptr() as *mut c_void,
+        im1.as_mut_ptr() as *mut c_void,
+        standard.as_ptr() as *const c_void,
+        fft_size,
+        number_of_samples,
+    );
+}
+
 #[derive(Debug)]
 pub struct CudaLweList<T: UnsignedInteger> {
     // Pointer to GPU data

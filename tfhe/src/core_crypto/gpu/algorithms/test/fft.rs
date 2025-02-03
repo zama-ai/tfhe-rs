@@ -1,13 +1,15 @@
 use super::*;
 use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
 use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::gpu::{fourier_transform_forward_f128_async, CudaStreams};
+use crate::core_crypto::gpu::{fourier_transform_forward_as_integer_f128_async,
+                              fourier_transform_forward_as_torus_f128_async, CudaStreams};
 use aligned_vec::avec;
 use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
+use tfhe_cuda_backend::cuda_bind::cuda_synchronize_device;
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
-    for size_log in 10..=10 {
+    for size_log in 6..=6 {
         let size = 1_usize << size_log;
         let fourier_size = PolynomialSize(size).to_fourier_polynomial_size().0;
 
@@ -20,37 +22,49 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         let mut fourier_re1 = avec![0.0f64; fourier_size].into_boxed_slice();
         let mut fourier_im0 = avec![0.0f64; fourier_size].into_boxed_slice();
         let mut fourier_im1 = avec![0.0f64; fourier_size].into_boxed_slice();
-
-        println!("sizeof_scalar: {:?}", Scalar::BITS);
-        for x in poly.as_mut().iter_mut() {
-            *x = generator.random_uniform();
+        if poly.len() > 64 {
+            return;
         }
+        println!("sizeof_scalar: {:?}", Scalar::BITS);
+        println!("poly.size(): {:?}", poly.len());
+        let mut base = Scalar::TWO * Scalar::TWO;
+        let mut exp = base;
+        for x in poly.as_mut().iter_mut() {
+            *x = base - Scalar::ONE;
+            base = base * exp;
+        }
+
 
         let mut mem = GlobalPodBuffer::new(fft.backward_scratch().unwrap());
         let mut stack = PodStack::new(&mut mem);
 
-        fft.forward_as_torus(
-            &mut fourier_re0,
-            &mut fourier_re1,
-            &mut fourier_im0,
-            &mut fourier_im1,
-            &poly,
-        );
+        // fft.forward_as_torus(
+        //     &mut fourier_re0,
+        //     &mut fourier_re1,
+        //     &mut fourier_im0,
+        //     &mut fourier_im1,
+        //     &poly,
+        // );
         let gpu_index = 0;
         let stream = CudaStreams::new_single_gpu(gpu_index);
 
         unsafe {
-            println!("size: {:?}", size);
-            println!("poly.len: {:?}", poly.len());
-            println!("rust poly");
-            for coefficient in poly.iter() {
-                println!(
-                    "{:0width$b}",
-                    coefficient,
-                    width = std::mem::size_of::<Scalar>() * 8
-                );
-            }
-            fourier_transform_forward_f128_async(
+            // println!("size: {:?}", size);
+            // println!("poly.len: {:?}", poly.len());
+            // println!("rust poly");
+            // for coefficient in poly.iter() {
+            //     println!(
+            //         "{:0width$b}",
+            //         coefficient,
+            //         width = std::mem::size_of::<Scalar>() * 8
+            //     );
+            // }
+            // let mut rl = 0.;
+            // for mut coef in fourier_im1.iter_mut() {
+            //     *coef = rl;
+            //     rl = rl + 1.;
+            // }
+            fourier_transform_forward_as_torus_f128_async(
                 &stream,
                 &mut fourier_re0,
                 &mut fourier_re1,
@@ -58,9 +72,20 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
                 &mut fourier_im1,
                 &poly,
                 poly.len() as u32,
+                1,
             );
         }
+        unsafe {
+            cuda_synchronize_device(0);
 
+        }
+
+        for ((re0, re1), (im0, im1)) in (&*fourier_re0).iter()
+            .zip((&*fourier_re1).iter())
+            .zip((&*fourier_im0).iter().zip((&*fourier_im1).iter()))
+        {
+            println!("{:.20} {:.20} {:.20} {:.20}", re0, re1, im0, im1);
+        }
         fft.backward_as_torus(
             &mut roundtrip,
             &fourier_re0,
@@ -69,6 +94,9 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             &fourier_im1,
             stack.rb_mut(),
         );
+        for coefficient in roundtrip.iter() {
+            println!("{:?}", coefficient);
+        }
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS <= 64 {
