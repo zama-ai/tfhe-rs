@@ -734,8 +734,8 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
 ///   is required
 pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaVec<T>,
-    radix_lwe_right: &CudaVec<T>,
+    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_lwe_right: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -755,12 +755,12 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(0),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_right.gpu_index(0),
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -774,6 +774,46 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut radix_lwe_left_degrees = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_left_noise_levels = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
+        radix_lwe_left,
+        &mut radix_lwe_left_degrees,
+        &mut radix_lwe_left_noise_levels,
+    );
+    // Here even though the input is not modified, data is passed as mutable.
+    // This avoids having to create two structs for the CudaRadixCiphertext pointers,
+    // one const and the other mutable.
+    // Having two structs on the Cuda side complicates things as we need to be sure we pass the
+    // Const structure as input instead of the mutable structure, which leads to complicated
+    // data manipulation on the C++ side to change mutability of data.
+    let mut radix_lwe_right_degrees = radix_lwe_right
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_right_noise_levels = radix_lwe_right
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_lwe_right = prepare_cuda_radix_ffi(
+        radix_lwe_right,
+        &mut radix_lwe_right_degrees,
+        &mut radix_lwe_right_noise_levels,
+    );
     scratch_cuda_integer_radix_bitop_kb_64(
         streams.ptr.as_ptr(),
         streams
@@ -809,13 +849,12 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
             .collect::<Vec<u32>>()
             .as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(0),
-        radix_lwe_left.as_c_ptr(0),
-        radix_lwe_right.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_lwe_right,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_integer_bitop(
         streams.ptr.as_ptr(),
@@ -828,6 +867,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]

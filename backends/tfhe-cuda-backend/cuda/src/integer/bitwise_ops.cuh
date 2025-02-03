@@ -14,15 +14,50 @@
 template <typename Torus>
 __host__ void host_integer_radix_bitop_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_array_1,
-    Torus const *lwe_array_2, int_bitop_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks) {
+    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_1,
+    CudaRadixCiphertextFFI const *lwe_array_2, int_bitop_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks) {
 
   auto lut = mem_ptr->lut;
 
-  legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_1, lwe_array_2,
-      bsks, ksks, num_radix_blocks, lut, lut->params.message_modulus);
+      bsks, ksks, lut, lut->params.message_modulus);
+
+  if (mem_ptr->op == BITOP_TYPE::BITAND) {
+    for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
+      lwe_array_out->degrees[i] =
+          std::min(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
+    }
+  } else if (mem_ptr->op == BITOP_TYPE::BITOR) {
+    for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
+      auto max = std::max(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
+      auto min = std::min(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
+      auto result = max;
+
+      for (uint j = 0; j < min + 1; j++) {
+        if (max | j > result) {
+          result = max | j;
+        }
+      }
+      lwe_array_out->degrees[i] = result;
+    }
+  } else if (mem_ptr->op == BITXOR) {
+    for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
+      auto max = std::max(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
+      auto min = std::min(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
+      auto result = max;
+
+      // Try every possibility to find the worst case
+      for (uint j = 0; j < min + 1; j++) {
+        if (max ^ j > result) {
+          result = max ^ j;
+        }
+      }
+      lwe_array_out->degrees[i] = result;
+    }
+  }
 }
 
 template <typename Torus>

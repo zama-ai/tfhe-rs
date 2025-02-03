@@ -60,9 +60,10 @@ __host__ void legacy_host_integer_abs_kb_async(
       streams, gpu_indexes, gpu_count, ct, nullptr, nullptr, mem_ptr->scp_mem,
       bsks, ksks, num_blocks, requested_flag, uses_carry);
 
-  host_integer_radix_bitop_kb<Torus>(streams, gpu_indexes, gpu_count, ct, mask,
-                                     ct, mem_ptr->bitxor_mem, bsks, ksks,
-                                     num_blocks);
+  // legacy bitop
+  legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, ct, mask, ct, bsks, ksks, num_blocks,
+      mem_ptr->bitxor_mem->lut, mem_ptr->bitxor_mem->params.message_modulus);
 }
 
 template <typename Torus>
@@ -96,10 +97,8 @@ host_integer_abs_kb(cudaStream_t const *streams, uint32_t const *gpu_indexes,
       mem_ptr->scp_mem, bsks, ksks, ct->num_radix_blocks, requested_flag,
       uses_carry);
 
-  host_integer_radix_bitop_kb<Torus>(streams, gpu_indexes, gpu_count,
-                                     (Torus *)(ct->ptr), (Torus *)(mask->ptr),
-                                     (Torus *)(ct->ptr), mem_ptr->bitxor_mem,
-                                     bsks, ksks, ct->num_radix_blocks);
+  host_integer_radix_bitop_kb<Torus>(streams, gpu_indexes, gpu_count, ct, mask,
+                                     ct, mem_ptr->bitxor_mem, bsks, ksks);
 }
 
 #endif // TFHE_RS_ABS_CUH
