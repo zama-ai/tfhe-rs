@@ -2804,8 +2804,10 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 ///   is required
 pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_output: &mut CudaSliceMut<T>,
-    radix_lwe_input: &CudaSlice<T>,
+    output: &mut CudaSliceMut<T>,
+    output_degrees: &mut Vec<u64>,
+    output_noise_levels: &mut Vec<u64>,
+    input: &CudaSlice<T>,
     input_lut: &[T],
     lut_degree: u64,
     bootstrapping_key: &CudaVec<B>,
@@ -2827,12 +2829,12 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input.gpu_index(0),
+        input.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_output.gpu_index(0),
+        output.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -2846,6 +2848,20 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
+        output,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
+    let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
+        input,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
     scratch_cuda_apply_many_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
         streams
@@ -2882,12 +2898,11 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
             .collect::<Vec<u32>>()
             .as_ptr(),
         streams.len() as u32,
-        radix_lwe_output.as_mut_c_ptr(0),
-        radix_lwe_input.as_c_ptr(0),
+        &mut cuda_ffi_output,
+        &cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
-        num_blocks,
         num_many_lut,
         lut_stride,
     );

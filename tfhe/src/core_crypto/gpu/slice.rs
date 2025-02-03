@@ -45,9 +45,6 @@ where
     ///
     /// The caller must ensure that the slice outlives the pointer this function returns,
     /// or else it will end up pointing to garbage.
-    pub(crate) unsafe fn as_c_ptr(&self, index: usize) -> *const c_void {
-        self.ptrs[index]
-    }
     pub(crate) fn gpu_index(&self, index: usize) -> GpuIndex {
         self.gpu_indexes[index]
     }

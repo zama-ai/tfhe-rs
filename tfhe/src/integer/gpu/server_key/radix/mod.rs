@@ -1224,12 +1224,16 @@ impl CudaServerKey {
         let mut output_slice = output_radixes
             .as_mut_slice(0..total_radixes_size, 0)
             .unwrap();
+        let mut output_degrees = vec![0_u64; num_ct_blocks * function_count];
+        let mut output_noise_levels = vec![0_u64; num_ct_blocks * function_count];
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 apply_many_univariate_lut_kb_async(
                     streams,
                     &mut output_slice,
+                    &mut output_degrees,
+                    &mut output_noise_levels,
                     &input_slice,
                     lut.acc.as_ref(),
                     lut.input_max_degree.0,
@@ -1257,6 +1261,8 @@ impl CudaServerKey {
                 apply_many_univariate_lut_kb_async(
                     streams,
                     &mut output_slice,
+                    &mut output_degrees,
+                    &mut output_noise_levels,
                     &input_slice,
                     lut.acc.as_ref(),
                     lut.input_max_degree.0,
