@@ -4359,11 +4359,12 @@ template <typename Torus> struct int_bitop_buffer {
 
   int_radix_params params;
   int_radix_lut<Torus> *lut;
+  BITOP_TYPE op;
 
   int_bitop_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                    uint32_t gpu_count, BITOP_TYPE op, int_radix_params params,
                    uint32_t num_radix_blocks, bool allocate_gpu_memory) {
-
+    this->op = op;
     this->params = params;
 
     switch (op) {

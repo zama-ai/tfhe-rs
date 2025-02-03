@@ -296,56 +296,6 @@ impl CudaRadixCiphertextInfo {
         }
     }
 
-    pub(crate) fn after_bitand(&self, other: &Self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .zip(&other.blocks)
-                .map(|(left, right)| CudaBlockInfo {
-                    degree: left.degree.after_bitand(right.degree),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        }
-    }
-
-    pub(crate) fn after_bitor(&self, other: &Self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .zip(&other.blocks)
-                .map(|(left, right)| CudaBlockInfo {
-                    degree: left.degree.after_bitor(right.degree),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        }
-    }
-
-    pub(crate) fn after_bitxor(&self, other: &Self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .zip(&other.blocks)
-                .map(|(left, right)| CudaBlockInfo {
-                    degree: left.degree.after_bitxor(right.degree),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        }
-    }
     pub(crate) fn after_bitnot(&self) -> Self {
         Self {
             blocks: self

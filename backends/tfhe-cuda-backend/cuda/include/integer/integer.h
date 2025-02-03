@@ -243,9 +243,10 @@ void scratch_cuda_integer_radix_bitop_kb_64(
 
 void cuda_bitop_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_array_1, void const *lwe_array_2,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t lwe_ciphertext_count);
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_1,
+    CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks);
 
 void cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,

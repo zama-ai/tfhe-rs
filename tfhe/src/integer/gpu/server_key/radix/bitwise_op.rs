@@ -187,8 +187,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_bitop_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct_left.as_mut().d_blocks.0.d_vec,
-                    &ct_right.as_ref().d_blocks.0.d_vec,
+                    ct_left.as_mut(),
+                    ct_right.as_ref(),
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -214,8 +214,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_bitop_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct_left.as_mut().d_blocks.0.d_vec,
-                    &ct_right.as_ref().d_blocks.0.d_vec,
+                    ct_left.as_mut(),
+                    ct_right.as_ref(),
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -249,7 +249,6 @@ impl CudaServerKey {
     ) {
         unsafe {
             self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::And, streams);
-            ct_left.as_mut().info = ct_left.as_ref().info.after_bitand(&ct_right.as_ref().info);
         }
         streams.synchronize();
     }
@@ -317,7 +316,6 @@ impl CudaServerKey {
     ) {
         unsafe {
             self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Or, streams);
-            ct_left.as_mut().info = ct_left.as_ref().info.after_bitor(&ct_right.as_ref().info);
         }
         streams.synchronize();
     }
@@ -385,7 +383,6 @@ impl CudaServerKey {
     ) {
         unsafe {
             self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Xor, streams);
-            ct_left.as_mut().info = ct_left.as_ref().info.after_bitxor(&ct_right.as_ref().info);
         }
         streams.synchronize();
     }
