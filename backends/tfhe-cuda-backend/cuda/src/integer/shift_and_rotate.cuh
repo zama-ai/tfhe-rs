@@ -172,7 +172,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   lwe_last_out = lwe_array;
   for (int i = bits_per_block - 2; i >= 0; i--) {
 
-    host_integer_small_scalar_mul_radix<Torus>(
+    host_legacy_integer_small_scalar_mul_radix<Torus>(
         streams, gpu_indexes, gpu_count, lwe_last_out, lwe_last_out, 2,
         big_lwe_dimension, num_radix_blocks);
 

@@ -122,7 +122,7 @@ __host__ void host_integer_scalar_mul_radix(
 
 // Small scalar_mul is used in shift/rotate
 template <typename T>
-__host__ void host_integer_small_scalar_mul_radix(
+__host__ void host_legacy_integer_small_scalar_mul_radix(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, T *output_lwe_array, T *input_lwe_array, T scalar,
     uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count) {
@@ -142,5 +142,43 @@ __host__ void host_integer_small_scalar_mul_radix(
       output_lwe_array, input_lwe_array, scalar, input_lwe_dimension,
       input_lwe_ciphertext_count);
   check_cuda_error(cudaGetLastError());
+}
+
+// Small scalar_mul is used in shift/rotate
+template <typename T>
+__host__ void host_integer_small_scalar_mul_radix(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *output_lwe_array,
+    CudaRadixCiphertextFFI *input_lwe_array, T scalar) {
+
+  if (output_lwe_array->num_radix_blocks != input_lwe_array->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  if (output_lwe_array->lwe_dimension != input_lwe_array->lwe_dimension)
+    PANIC("Cuda error: input and output lwe_dimension must be the same")
+
+  cuda_set_device(gpu_indexes[0]);
+  auto lwe_dimension = input_lwe_array->lwe_dimension;
+  auto num_radix_blocks = input_lwe_array->num_radix_blocks;
+
+  // lwe_size includes the presence of the body
+  // whereas lwe_dimension is the number of elements in the mask
+  int lwe_size = lwe_dimension + 1;
+  // Create a 1-dimensional grid of threads
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = num_radix_blocks * lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  device_small_scalar_radix_multiplication<<<grid, thds, 0, streams[0]>>>(
+      (T *)output_lwe_array->ptr, (T *)input_lwe_array->ptr, scalar,
+      lwe_dimension, num_radix_blocks);
+  check_cuda_error(cudaGetLastError());
+
+  for (int i = 0; i < num_radix_blocks; i++) {
+    output_lwe_array->noise_levels[i] =
+        input_lwe_array->noise_levels[i] * scalar;
+    output_lwe_array->degrees[i] = input_lwe_array->degrees[i] * scalar;
+  }
 }
 #endif
