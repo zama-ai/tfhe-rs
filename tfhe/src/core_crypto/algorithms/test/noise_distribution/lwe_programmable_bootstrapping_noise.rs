@@ -14,6 +14,7 @@ use std::any::TypeId;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::mem::discriminant;
+use std::path::PathBuf;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
@@ -22,10 +23,10 @@ const RELATIVE_TOLERANCE: f64 = 0.0625;
 const NB_TESTS: usize = 500;
 const EXP_NAME: &str = "fft-with-gap"; // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 enum FourierBsk {
-    F64(FourierLweBootstrapKey),
-    F128(Fourier128LweBootstrapKey),
+    F64(FourierLweBootstrapKeyOwned),
+    F128(Fourier128LweBootstrapKeyOwned),
 }
 
 fn lwe_encrypt_pbs_decrypt_custom_mod<
@@ -128,39 +129,31 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
             ciphertext_modulus
         ));
 
-        let mut fbsk: FourierBsk = if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
-            FourierLweBootstrapKey::new(
+        let fbsk: FourierBsk = if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
+            let mut inner_fbsk = Fourier128LweBootstrapKey::new(
                 bsk.input_lwe_dimension(),
                 bsk.glwe_size(),
                 bsk.polynomial_size(),
                 bsk.decomposition_base_log(),
                 bsk.decomposition_level_count(),
-            )
-        } else if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
-            Fourier128LweBootstrapKey::new(
-                bsk.input_lwe_dimension(),
-                bsk.glwe_size(),
-                bsk.polynomial_size(),
-                bsk.decomposition_base_log(),
-                bsk.decomposition_level_count(),
-            )
-        } else {
-            panic!(
-                "Unexpected bit-len of ciphertext modulus: {:?}",
-                Scalar::BITS
             );
-        };
 
-        if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
-            par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
-        } else if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
-            convert_standard_lwe_bootstrap_key_to_fourier_128(&bsk, &mut fbsk);
+            convert_standard_lwe_bootstrap_key_to_fourier_128(&bsk, &mut inner_fbsk);
+
+            FourierBsk::F128(inner_fbsk)
         } else {
-            panic!(
-                "Unexpected bit-len of ciphertext modulus: {:?}",
-                Scalar::BITS
+            let mut inner_fbsk = FourierLweBootstrapKey::new(
+                bsk.input_lwe_dimension(),
+                bsk.glwe_size(),
+                bsk.polynomial_size(),
+                bsk.decomposition_base_log(),
+                bsk.decomposition_level_count(),
             );
-        }
+
+            par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut inner_fbsk);
+
+            FourierBsk::F64(inner_fbsk)
+        };
 
         (bsk, fbsk)
     };
@@ -187,7 +180,10 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
         &mut rsc.encryption_random_generator,
     );
 
-    let mut sanity_plain = PlaintextList::new(0, PlaintextCount(accumulator.polynomial_size().0));
+    let mut sanity_plain = PlaintextList::new(
+        Scalar::ZERO,
+        PlaintextCount(accumulator.polynomial_size().0),
+    );
 
     decrypt_glwe_ciphertext(&output_glwe_secret_key, &accumulator, &mut sanity_plain);
 
@@ -247,6 +243,9 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
 
                 let filename_kara = format!("./results/{EXP_NAME}/samples/kara-id={thread_id}-gf=1-logB={}-l={}-k={}-N={}-distro={}-logQ={}.npy", pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0, distro, Scalar::BITS);
 
+                let mut filename_kara_path: PathBuf = filename_kara.as_str().into();
+                let filename_kara_parent = filename_kara_path.parent().unwrap();
+                std::fs::create_dir_all(&filename_kara_parent).unwrap();
                 let mut file = OpenOptions::new()
                     .create(true)
                     .write(true)
@@ -255,8 +254,7 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
 
                 let mut writer = {
                     npyz::WriteOptions::new()
-                        // 8 == number of bytes
-                        .dtype(DType::new_scalar("<i8".parse().unwrap()))
+                        .dtype(DType::new_scalar(">f8".parse().unwrap()))
                         .shape(&[
                             karatsuba_noise.len() as u64,
                             //~ karatsuba_noise[0].len() as u64,
@@ -271,7 +269,8 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
                     //~ for col in row.iter().copied() {
                         //~ writer.push(&(col as i64)).unwrap();
                     //~ }
-                    writer.push(&(row[0] as i64)).unwrap();   // essentially SE
+                    let noise_as_float: f64 = row[0].into_signed().cast_into() / modulus_as_f64;
+                    writer.push(&(noise_as_float)).unwrap();   // essentially SE
                 }
 
                 let last_ext_prod_karatsuba_noise = karatsuba_noise.last().unwrap();
@@ -288,8 +287,8 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
                 );
 
                 // different FFT functions for u64 & u128
-                let fft_noise = if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
-                    programmable_bootstrap_f128_lwe_ciphertext_return_noise(
+                let fft_noise = match &fbsk {
+                    FourierBsk::F64(fbsk) => programmable_bootstrap_lwe_ciphertext_return_noise(
                         &lwe_ciphertext_in,
                         &mut fft_out_ct,
                         &accumulator,
@@ -299,9 +298,8 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
                             &output_glwe_secret_key,
                             &reference_accumulator,
                         )),
-                    )
-                } else if TypeId::of::<Scalar>() == TypeId::of::<u64>() {
-                    programmable_bootstrap_lwe_ciphertext_return_noise(
+                    ),
+                    FourierBsk::F128(fbsk) => programmable_bootstrap_f128_lwe_ciphertext_return_noise(
                         &lwe_ciphertext_in,
                         &mut fft_out_ct,
                         &accumulator,
@@ -311,13 +309,14 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
                             &output_glwe_secret_key,
                             &reference_accumulator,
                         )),
-                    )
-                } else {
-                    panic!("Unexpected bit-len of ciphertext modulus: {:?}", Scalar::BITS);
+                    ),
                 };
 
                 let filename_fft = format!("./results/{EXP_NAME}/samples/fft-id={thread_id}-gf=1-logB={}-l={}-k={}-N={}-distro={}-logQ={}.npy", pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0, distro, Scalar::BITS);
 
+                let mut filename_fft_path: PathBuf = filename_fft.as_str().into();
+                let filename_fft_parent = filename_fft_path.parent().unwrap();
+                std::fs::create_dir_all(&filename_fft_parent).unwrap();
                 let mut file = OpenOptions::new()
                     .create(true)
                     .write(true)
@@ -326,8 +325,7 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
 
                 let mut writer = {
                     npyz::WriteOptions::new()
-                        // 8 == number of bytes
-                        .dtype(DType::new_scalar("<i8".parse().unwrap()))
+                        .dtype(DType::new_scalar(">f8".parse().unwrap()))
                         .shape(&[
                             fft_noise.len() as u64,
                             //~ fft_noise[0].len() as u64,
@@ -342,7 +340,8 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
                     //~ for col in row.iter().copied() {
                         //~ writer.push(&(col as i64)).unwrap();
                     //~ }
-                    writer.push(&(row[0] as i64)).unwrap();   // essentially SE
+                    let noise_as_float: f64 = row[0].into_signed().cast_into() / modulus_as_f64;
+                    writer.push(&(noise_as_float)).unwrap();   // essentially SE
                 }
 
                 let last_ext_prod_fft_noise = fft_noise.last().unwrap();
@@ -448,12 +447,18 @@ fn export_noise_predictions<
     } else {
         panic!("Unknown distribution: {}", params.lwe_noise_distribution)
     };
+    let log_q = if params.ciphertext_modulus.is_native_modulus() {
+        Scalar::BITS as u32
+    } else {
+        params.ciphertext_modulus.get_custom_modulus().ilog2()
+    };
     let filename_exp_var = format!(
-        "./results/{EXP_NAME}/expected-variances-gf=1-logB={}-l={}-k={}-N={}-distro={distro}.json",
+        "./results/{EXP_NAME}/expected-variances-gf=1-logB={}-l={}-k={}-N={}-distro={distro}-logQ={}.json",
         params.pbs_base_log.0,
         params.pbs_level.0,
         params.glwe_dimension.0,
-        params.polynomial_size.0
+        params.polynomial_size.0,
+        log_q,
     );
     let mut file_exp_var = File::create(&filename_exp_var).unwrap();
 
@@ -578,7 +583,9 @@ fn test_impl<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
 >(
     run_measurements: bool,
-) {
+) where
+    usize: CastFrom<Scalar>,
+{
     //TODO FIXME: params need to be updated, cf. mod.rs where they are defined
     //~ lwe_encrypt_pbs_decrypt_custom_mod<Scalar>(&
     //~ NOISE_TEST_PARAMS_2_BITS_NATIVE_U64_132_BITS_TUNIFORM); return;
