@@ -205,7 +205,7 @@ void scratch_cuda_apply_many_univariate_lut_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    uint32_t num_many_lut, bool allocate_gpu_memory) {
+    uint32_t num_many_lut, uint64_t lut_degree, bool allocate_gpu_memory) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
@@ -216,7 +216,7 @@ void scratch_cuda_apply_many_univariate_lut_kb_64(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
-      num_many_lut, allocate_gpu_memory);
+      num_many_lut, lut_degree, allocate_gpu_memory);
 }
 
 void cuda_apply_univariate_lut_kb_64(
@@ -260,7 +260,7 @@ void scratch_cuda_apply_bivariate_lut_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory) {
+    uint64_t lut_degree, bool allocate_gpu_memory) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
@@ -271,22 +271,20 @@ void scratch_cuda_apply_bivariate_lut_kb_64(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
-      allocate_gpu_memory);
+      lut_degree, allocate_gpu_memory);
 }
 
 void cuda_apply_bivariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *output_radix_lwe, void const *input_radix_lwe_1,
-    void const *input_radix_lwe_2, int8_t *mem_ptr, void *const *ksks,
-    void *const *bsks, uint32_t num_blocks, uint32_t shift) {
+    CudaRadixCiphertextFFI *output_radix_lwe,
+    CudaRadixCiphertextFFI const *input_radix_lwe_1,
+    CudaRadixCiphertextFFI const *input_radix_lwe_2, int8_t *mem_ptr,
+    void *const *ksks, void *const *bsks, uint32_t shift) {
 
   host_apply_bivariate_lut_kb<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(output_radix_lwe),
-      static_cast<const uint64_t *>(input_radix_lwe_1),
-      static_cast<const uint64_t *>(input_radix_lwe_2),
-      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks, num_blocks,
-      shift);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, output_radix_lwe,
+      input_radix_lwe_1, input_radix_lwe_2, (int_radix_lut<uint64_t> *)mem_ptr,
+      (uint64_t **)(ksks), bsks, shift);
 }
 
 void cleanup_cuda_apply_bivariate_lut_kb_64(void *const *streams,
@@ -304,7 +302,7 @@ void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory) {
+    uint64_t lut_degree, bool allocate_gpu_memory) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
@@ -315,7 +313,7 @@ void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
-      allocate_gpu_memory);
+      lut_degree, allocate_gpu_memory);
 }
 
 void cuda_integer_compute_prefix_sum_hillis_steele_64(

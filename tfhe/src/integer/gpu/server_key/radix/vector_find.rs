@@ -1802,6 +1802,7 @@ impl CudaServerKey {
                             &mut slice_out,
                             &mut slice_in,
                             lut_fn.acc.acc.as_ref(),
+                            lut_fn.acc.degree.0,
                             &d_bsk.d_vec,
                             &self.key_switching_key.d_vec,
                             self.key_switching_key
@@ -1827,6 +1828,7 @@ impl CudaServerKey {
                             &mut slice_out,
                             &mut slice_in,
                             lut_fn.acc.acc.as_ref(),
+                            lut_fn.acc.degree.0,
                             &d_multibit_bsk.d_vec,
                             &self.key_switching_key.d_vec,
                             self.key_switching_key

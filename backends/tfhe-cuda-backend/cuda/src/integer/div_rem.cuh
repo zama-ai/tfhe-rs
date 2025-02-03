@@ -521,7 +521,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
     auto conditionally_zero_out_merged_interesting_remainder =
         [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
             uint32_t gpu_count) {
-          integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+          legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
               cleaned_merged_interesting_remainder.data,
@@ -534,7 +534,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
     auto conditionally_zero_out_merged_new_remainder =
         [&](cudaStream_t const *streams, uint32_t const *gpu_indexes,
             uint32_t gpu_count) {
-          integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+          legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count, new_remainder.data,
               new_remainder.data, overflow_sum_radix.data, bsks, ksks,
               new_remainder.len,
@@ -544,7 +544,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
     auto set_quotient_bit = [&](cudaStream_t const *streams,
                                 uint32_t const *gpu_indexes,
                                 uint32_t gpu_count) {
-      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+      legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, did_not_overflow.data,
           subtraction_overflowed.data,
           at_least_one_upper_block_is_non_zero.data, bsks, ksks, 1,
@@ -654,7 +654,7 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
         positive_numerator.data, positive_divisor.data, bsks, ksks,
         int_mem_ptr->unsigned_mem, num_blocks);
 
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         int_mem_ptr->sub_streams_2, gpu_indexes, gpu_count,
         int_mem_ptr->sign_bits_are_different,
         &numerator[big_lwe_size * (num_blocks - 1)],

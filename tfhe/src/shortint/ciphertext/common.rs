@@ -114,7 +114,7 @@ impl std::ops::Mul<u64> for NoiseLevel {
 /// Maximum value that the degree can reach.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(MaxDegreeVersions)]
-pub struct MaxDegree(u64);
+pub struct MaxDegree(pub(crate) u64);
 
 impl MaxDegree {
     pub fn new(value: u64) -> Self {

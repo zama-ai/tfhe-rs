@@ -14,8 +14,8 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    add_and_propagate_single_carry_assign_async, apply_many_univariate_lut_kb_async,
-    apply_univariate_lut_kb_async, full_propagate_assign_async,
+    add_and_propagate_single_carry_assign_async, apply_bivariate_lut_kb_async,
+    apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async, full_propagate_assign_async,
     propagate_single_carry_assign_async, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
@@ -997,6 +997,126 @@ impl CudaServerKey {
             info.noise_level = NoiseLevel(output_noise_levels[i]);
         }
     }
+
+    /// Applies the bivariate lookup table on the range of ciphertexts
+    ///
+    /// The output must have exactly block_range.len() blocks
+    ///
+    /// # Safety
+    ///
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    pub(crate) unsafe fn apply_bivariate_lookup_table_async(
+        &self,
+        output: &mut CudaRadixCiphertext,
+        input_1: &CudaRadixCiphertext,
+        input_2: &CudaRadixCiphertext,
+        lut: &BivariateLookupTableOwned,
+        block_range: std::ops::Range<usize>,
+        streams: &CudaStreams,
+    ) {
+        if block_range.is_empty() {
+            return;
+        }
+
+        assert_eq!(
+            input_1.d_blocks.lwe_dimension(),
+            output.d_blocks.lwe_dimension()
+        );
+        assert_eq!(
+            input_2.d_blocks.lwe_dimension(),
+            output.d_blocks.lwe_dimension()
+        );
+
+        let lwe_dimension = input_1.d_blocks.lwe_dimension();
+        let lwe_size = lwe_dimension.to_lwe_size().0;
+        let num_output_blocks = output.d_blocks.lwe_ciphertext_count().0;
+
+        let input_slice_1 = input_1
+            .d_blocks
+            .0
+            .d_vec
+            .as_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
+            .unwrap();
+        let input_slice_2 = input_2
+            .d_blocks
+            .0
+            .d_vec
+            .as_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
+            .unwrap();
+        let mut output_slice = output.d_blocks.0.d_vec.as_mut_slice(.., 0).unwrap();
+        let mut output_degrees = vec![0_u64; num_output_blocks];
+        let mut output_noise_levels = vec![0_u64; num_output_blocks];
+
+        let num_ct_blocks = block_range.len() as u32;
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    apply_bivariate_lut_kb_async(
+                        streams,
+                        &mut output_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &input_slice_1,
+                        &input_slice_2,
+                        lut.acc.acc.as_ref(),
+                        lut.acc.degree.0,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        num_ct_blocks,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        self.message_modulus.0 as u32,
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    apply_bivariate_lut_kb_async(
+                        streams,
+                        &mut output_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &input_slice_1,
+                        &input_slice_2,
+                        lut.acc.acc.as_ref(),
+                        lut.acc.degree.0,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        num_ct_blocks,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        self.message_modulus.0 as u32,
+                    );
+                }
+            };
+        }
+
+        for (i, info) in output.info.blocks[block_range].iter_mut().enumerate() {
+            info.degree = Degree(output_degrees[i]);
+            info.noise_level = NoiseLevel(output_noise_levels[i]);
+        }
+    }
     /// Applies many lookup tables on the range of ciphertexts
     ///
     /// # Example
@@ -1112,6 +1232,7 @@ impl CudaServerKey {
                     &mut output_slice,
                     &input_slice,
                     lut.acc.as_ref(),
+                    lut.input_max_degree.0,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key
@@ -1138,6 +1259,7 @@ impl CudaServerKey {
                     &mut output_slice,
                     &input_slice,
                     lut.acc.as_ref(),
+                    lut.input_max_degree.0,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key

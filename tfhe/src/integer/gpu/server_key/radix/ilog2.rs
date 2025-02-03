@@ -193,6 +193,7 @@ impl CudaServerKey {
                         .unwrap(),
                     &mut generates_or_propagates,
                     sum_lut.acc.acc.as_ref(),
+                    sum_lut.acc.degree.0,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key
@@ -222,6 +223,7 @@ impl CudaServerKey {
                         .unwrap(),
                     &mut generates_or_propagates,
                     sum_lut.acc.acc.as_ref(),
+                    sum_lut.acc.degree.0,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.key_switching_key

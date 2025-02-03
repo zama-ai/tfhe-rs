@@ -1,13 +1,13 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::{
     CudaBlockInfo, CudaRadixCiphertext, CudaRadixCiphertextInfo,
 };
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
-use crate::integer::gpu::{apply_bivariate_lut_kb_async, PBSType};
+use crate::integer::gpu::server_key::CudaServerKey;
+use crate::shortint::ciphertext::Degree;
+use crate::shortint::parameters::NoiseLevel;
 
 impl CudaServerKey {
     #[allow(clippy::unused_self)]
@@ -84,85 +84,73 @@ impl CudaServerKey {
 
         let block_equality_lut = self.generate_lookup_table_bivariate(|l, r| u64::from(l == r));
 
-        let packed_lhs = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
+        let packed_lhs_list = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
             lhs.iter().map(|ciphertext| &ciphertext.as_ref().d_blocks),
             streams,
         );
-        let packed_rhs = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
+        let packed_rhs_list = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
             rhs.iter().map(|ciphertext| &ciphertext.as_ref().d_blocks),
             streams,
         );
+        let num_radix_blocks = packed_rhs_list.lwe_ciphertext_count().0;
+        let block_info = CudaBlockInfo {
+            degree: Degree(0),
+            message_modulus: lhs
+                .first()
+                .unwrap()
+                .as_ref()
+                .info
+                .blocks
+                .first()
+                .unwrap()
+                .message_modulus,
+            carry_modulus: lhs
+                .first()
+                .unwrap()
+                .as_ref()
+                .info
+                .blocks
+                .first()
+                .unwrap()
+                .carry_modulus,
+            pbs_order: lhs
+                .first()
+                .unwrap()
+                .as_ref()
+                .info
+                .blocks
+                .first()
+                .unwrap()
+                .pbs_order,
+            noise_level: NoiseLevel::ZERO,
+        };
+        let info = CudaRadixCiphertextInfo {
+            blocks: vec![block_info; num_radix_blocks],
+        };
 
-        let num_radix_blocks = packed_rhs.lwe_ciphertext_count().0;
-        let lwe_size = lhs[0].as_ref().d_blocks.0.lwe_dimension.to_lwe_size().0;
+        let packed_lhs = CudaRadixCiphertext {
+            d_blocks: packed_lhs_list,
+            info: info.clone(),
+        };
+        let packed_rhs = CudaRadixCiphertext {
+            d_blocks: packed_rhs_list,
+            info,
+        };
+
         let mut comparison_blocks: CudaUnsignedRadixCiphertext =
             self.create_trivial_radix(0, num_radix_blocks, streams);
 
-        let mut comparisons_slice = comparison_blocks
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..lwe_size * num_radix_blocks, 0)
-            .unwrap();
-
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    apply_bivariate_lut_kb_async(
-                        streams,
-                        &mut comparisons_slice,
-                        &packed_lhs.0.d_vec,
-                        &packed_rhs.0.d_vec,
-                        block_equality_lut.acc.acc.as_ref(),
-                        &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        num_radix_blocks as u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
-                        self.message_modulus.0 as u32,
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    apply_bivariate_lut_kb_async(
-                        streams,
-                        &mut comparisons_slice,
-                        &packed_lhs.0.d_vec,
-                        &packed_rhs.0.d_vec,
-                        block_equality_lut.acc.acc.as_ref(),
-                        &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        num_radix_blocks as u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
-                        self.message_modulus.0 as u32,
-                    );
-                }
-            }
+            self.apply_bivariate_lookup_table_async(
+                comparison_blocks.as_mut(),
+                &packed_lhs,
+                &packed_rhs,
+                &block_equality_lut,
+                0..num_radix_blocks,
+                streams,
+            );
+            streams.synchronize();
         }
-
         self.unchecked_are_all_comparisons_block_true(&comparison_blocks, streams)
     }
 
