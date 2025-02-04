@@ -20,15 +20,10 @@ __host__ void host_integer_radix_bitop_kb(
     void *const *bsks, Torus *const *ksks) {
 
   auto lut = mem_ptr->lut;
-
-  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_1, lwe_array_2,
-      bsks, ksks, lut, lut->params.message_modulus);
-
+  uint64_t degrees[lwe_array_1->num_radix_blocks];
   if (mem_ptr->op == BITOP_TYPE::BITAND) {
     for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-      lwe_array_out->degrees[i] =
-          std::min(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
+      degrees[i] = std::min(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
     }
   } else if (mem_ptr->op == BITOP_TYPE::BITOR) {
     for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
@@ -41,7 +36,7 @@ __host__ void host_integer_radix_bitop_kb(
           result = max | j;
         }
       }
-      lwe_array_out->degrees[i] = result;
+      degrees[i] = result;
     }
   } else if (mem_ptr->op == BITXOR) {
     for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
@@ -55,9 +50,16 @@ __host__ void host_integer_radix_bitop_kb(
           result = max ^ j;
         }
       }
-      lwe_array_out->degrees[i] = result;
+      degrees[i] = result;
     }
   }
+
+  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_1, lwe_array_2,
+      bsks, ksks, lut, lut->params.message_modulus);
+
+  memcpy(lwe_array_out->degrees, degrees,
+         lwe_array_out->num_radix_blocks * sizeof(uint64_t));
 }
 
 template <typename Torus>

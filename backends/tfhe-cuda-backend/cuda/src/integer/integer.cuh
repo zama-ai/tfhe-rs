@@ -353,12 +353,15 @@ __host__ void pack_bivariate_blocks_with_single_block(
   check_cuda_error(cudaGetLastError());
 }
 
+/// num_radix_blocks corresponds to the number of blocks on which to apply the
+/// LUT In scalar bitops we use a number of blocks that may be lower or equal to
+/// the input and output numbers of blocks
 template <typename Torus>
 __host__ void integer_radix_apply_univariate_lookup_table_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, void *const *bsks,
-    Torus *const *ksks, int_radix_lut<Torus> *lut) {
+    Torus *const *ksks, int_radix_lut<Torus> *lut, uint32_t num_radix_blocks) {
   // apply_lookup_table
   auto params = lut->params;
   auto pbs_type = params.pbs_type;
@@ -378,11 +381,15 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
           "lwe dimension")
+  if (num_radix_blocks > lwe_array_out->num_radix_blocks ||
+      num_radix_blocks > lwe_array_in->num_radix_blocks)
+    PANIC("Cuda error: num radix blocks on which lut is applied should be "
+          "smaller or equal"
+          " to the number of input and output radix blocks")
 
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
-  uint32_t num_radix_blocks = lwe_array_in->num_radix_blocks;
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
   std::vector<Torus *> lwe_array_in_vec = lut->lwe_array_in_vec;
@@ -452,7 +459,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   cuda_memcpy_async_to_cpu(&lut_indexes, lut->get_lut_indexes(0, 0),
                            lut->num_blocks * sizeof(Torus), streams[0],
                            gpu_indexes[0]);
-  for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
+  for (uint i = 0; i < num_radix_blocks; i++) {
     lwe_array_out->degrees[i] = lut->degrees[lut_indexes[i]];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
@@ -1888,7 +1895,7 @@ void host_apply_univariate_lut_kb(cudaStream_t const *streams,
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, radix_lwe_in, bsks, ksks,
-      mem);
+      mem, radix_lwe_out->num_radix_blocks);
 }
 
 template <typename Torus>

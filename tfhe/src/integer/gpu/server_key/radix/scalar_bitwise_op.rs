@@ -37,7 +37,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_bitop_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     &clear_blocks,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -64,7 +64,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_scalar_bitop_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     &clear_blocks,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -117,7 +117,6 @@ impl CudaServerKey {
     {
         unsafe {
             self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarAnd, streams);
-            ct.as_mut().info = ct.as_ref().info.after_scalar_bitand(rhs);
         }
         streams.synchronize();
     }
@@ -143,7 +142,6 @@ impl CudaServerKey {
     {
         unsafe {
             self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarOr, streams);
-            ct.as_mut().info = ct.as_ref().info.after_scalar_bitor(rhs);
         }
         streams.synchronize();
     }
@@ -174,7 +172,6 @@ impl CudaServerKey {
     {
         unsafe {
             self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarXor, streams);
-            ct.as_mut().info = ct.as_ref().info.after_scalar_bitxor(rhs);
         }
         streams.synchronize();
     }
@@ -196,7 +193,6 @@ impl CudaServerKey {
             self.full_propagate_assign_async(ct, streams);
         }
         self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarAnd, streams);
-        ct.as_mut().info = ct.as_ref().info.after_scalar_bitand(rhs);
     }
 
     pub fn scalar_bitand_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
@@ -237,7 +233,6 @@ impl CudaServerKey {
             self.full_propagate_assign_async(ct, streams);
         }
         self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarOr, streams);
-        ct.as_mut().info = ct.as_ref().info.after_scalar_bitor(rhs);
     }
 
     pub fn scalar_bitor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
@@ -278,7 +273,6 @@ impl CudaServerKey {
             self.full_propagate_assign_async(ct, streams);
         }
         self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarXor, streams);
-        ct.as_mut().info = ct.as_ref().info.after_scalar_bitxor(rhs);
     }
 
     pub fn scalar_bitxor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
