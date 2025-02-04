@@ -51,7 +51,7 @@ impl HpuRadixCiphertext {
                 // Hpu output clean ciphertext without carry
                 Ciphertext::new(
                     cpu_ct,
-                    Degree::new(pbs_p.message_modulus.0),
+                    Degree::new(pbs_p.message_modulus.0 - 1),
                     NoiseLevel::NOMINAL,
                     pbs_p.message_modulus,
                     pbs_p.carry_modulus,
