@@ -56,7 +56,7 @@ __host__ void legacy_host_integer_abs_kb_async(
 
   uint32_t requested_flag = outputFlag::FLAG_NONE;
   uint32_t uses_carry = 0;
-  host_propagate_single_carry<Torus>(
+  legacy_host_propagate_single_carry<Torus>(
       streams, gpu_indexes, gpu_count, ct, nullptr, nullptr, mem_ptr->scp_mem,
       bsks, ksks, num_blocks, requested_flag, uses_carry);
 
@@ -87,14 +87,14 @@ host_integer_abs_kb(cudaStream_t const *streams, uint32_t const *gpu_indexes,
       streams, gpu_indexes, gpu_count, (Torus *)(mask->ptr),
       num_bits_in_ciphertext - 1, mem_ptr->arithmetic_scalar_shift_mem, bsks,
       ksks, ct->num_radix_blocks);
-  host_addition<Torus>(streams[0], gpu_indexes[0], ct, mask, ct);
+  host_addition<Torus>(streams[0], gpu_indexes[0], ct, mask, ct,
+                       ct->num_radix_blocks);
 
   uint32_t requested_flag = outputFlag::FLAG_NONE;
   uint32_t uses_carry = 0;
-  host_propagate_single_carry<Torus>(
-      streams, gpu_indexes, gpu_count, (Torus *)(ct->ptr), nullptr, nullptr,
-      mem_ptr->scp_mem, bsks, ksks, ct->num_radix_blocks, requested_flag,
-      uses_carry);
+  host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count, ct,
+                                     nullptr, nullptr, mem_ptr->scp_mem, bsks,
+                                     ksks, requested_flag, uses_carry);
 
   host_integer_radix_bitop_kb<Torus>(streams, gpu_indexes, gpu_count, ct, mask,
                                      ct, mem_ptr->bitxor_mem, bsks, ksks);

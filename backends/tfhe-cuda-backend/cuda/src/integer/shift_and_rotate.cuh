@@ -48,8 +48,6 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     return;
 
   auto big_lwe_dimension = mem->params.big_lwe_dimension;
-  auto big_lwe_size = big_lwe_dimension + 1;
-  auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
   if (lwe_array->lwe_dimension != big_lwe_dimension)
     PANIC("Cuda error: lwe_shift lwe_dimension must be equal to "
@@ -85,7 +83,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   // If signed, do an "arithmetic shift" by padding with the sign bit
   CudaRadixCiphertextFFI last_bit;
   as_radix_ciphertext_slice<Torus>(&last_bit, bits, (total_nb_bits - 1),
-                                   (total_nb_bits - 1));
+                                   total_nb_bits);
 
   // Apply op
   auto rotated_input = mem->tmp_rotated;
@@ -98,7 +96,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
                                      bits);
   for (int d = 0; d < max_num_bits_that_tell_shift; d++) {
     CudaRadixCiphertextFFI shift_bit;
-    as_radix_ciphertext_slice<Torus>(&shift_bit, shift_bits, d, d);
+    as_radix_ciphertext_slice<Torus>(&shift_bit, shift_bits, d, d + 1);
 
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], input_bits_b,
                                        input_bits_a);
@@ -112,11 +110,8 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
                                             rotated_input, input_bits_b,
                                             rotations);
 
-      cuda_memset_async((Torus *)rotated_input->ptr, 0,
-                        rotations * big_lwe_size_bytes, streams[0],
-                        gpu_indexes[0]);
-      memset(rotated_input->degrees, 0, rotations * sizeof(uint64_t));
-      memset(rotated_input->noise_levels, 0, rotations * sizeof(uint64_t));
+      set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                                   rotated_input, 0, rotations);
       break;
     case RIGHT_SHIFT:
       // rotate left as the blocks are from LSB to MSB
@@ -128,29 +123,15 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
       if (mem->is_signed)
         for (int i = 0; i < rotations; i++) {
-          CudaRadixCiphertextFFI slice_rotated_input;
-          as_radix_ciphertext_slice<Torus>(&slice_rotated_input, rotated_input,
-                                           (total_nb_bits - rotations + i),
-                                           (total_nb_bits - rotations + i));
-
-          cuda_memcpy_async_gpu_to_gpu(
-              (Torus *)slice_rotated_input.ptr, (Torus *)last_bit.ptr,
-              big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-          slice_rotated_input.degrees[0] = last_bit.degrees[0];
-          slice_rotated_input.noise_levels[0] = last_bit.noise_levels[0];
+          copy_radix_ciphertext_slice_async<Torus>(
+              streams[0], gpu_indexes[0], rotated_input,
+              total_nb_bits - rotations + i, total_nb_bits - rotations + i + 1,
+              &last_bit, 0, 1);
         }
       else {
-        CudaRadixCiphertextFFI slice_rotated_input;
-        as_radix_ciphertext_slice<Torus>(&slice_rotated_input, rotated_input,
-                                         (total_nb_bits - rotations),
-                                         total_nb_bits);
-
-        cuda_memset_async(slice_rotated_input.ptr, 0,
-                          rotations * big_lwe_size_bytes, streams[0],
-                          gpu_indexes[0]);
-        memset(slice_rotated_input.degrees, 0, rotations * sizeof(uint64_t));
-        memset(slice_rotated_input.noise_levels, 0,
-               rotations * sizeof(uint64_t));
+        set_zero_radix_ciphertext_slice_async<Torus>(
+            streams[0], gpu_indexes[0], rotated_input,
+            total_nb_bits - rotations, total_nb_bits);
       }
       break;
     case LEFT_ROTATE:
@@ -191,40 +172,32 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   // Initializes the output
   // Copy the last bit for each radix block
   for (int i = 0; i < num_radix_blocks; i++) {
-    CudaRadixCiphertextFFI last_bit, lwe_last_out;
-    as_radix_ciphertext_slice<Torus>(&last_bit, input_bits_a,
-                                     (bits_per_block - 1) + i * bits_per_block,
-                                     (bits_per_block - 1) + i * bits_per_block);
-    as_radix_ciphertext_slice<Torus>(&lwe_last_out, lwe_array, i, i);
-
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
-                                       &lwe_last_out, &last_bit);
+    auto last_bit_index = (bits_per_block - 1) + i * bits_per_block;
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], lwe_array, i, i + 1, input_bits_a,
+        last_bit_index, last_bit_index + 1);
   }
 
   // Bitshift and add the other bits
   for (int i = bits_per_block - 2; i >= 0; i--) {
-
     host_integer_small_scalar_mul_radix<Torus>(streams, gpu_indexes, gpu_count,
                                                lwe_array, lwe_array, 2);
-
-    CudaRadixCiphertextFFI bit_to_add;
-    as_radix_ciphertext_slice<Torus>(&bit_to_add, input_bits_a, i, i);
     for (int j = 0; j < num_radix_blocks; j++) {
       CudaRadixCiphertextFFI block;
-      as_radix_ciphertext_slice<Torus>(&block, lwe_array, j, j);
-
+      CudaRadixCiphertextFFI bit_to_add;
+      as_radix_ciphertext_slice<Torus>(&block, lwe_array, j, j + 1);
+      as_radix_ciphertext_slice<Torus>(&bit_to_add, input_bits_a,
+                                       i + j * bits_per_block,
+                                       i + j * bits_per_block + 1);
       host_addition<Torus>(streams[0], gpu_indexes[0], &block, &block,
-                           &bit_to_add);
-
-      as_radix_ciphertext_slice<Torus>(&bit_to_add, &bit_to_add, bits_per_block,
-                                       bits_per_block);
+                           &bit_to_add, 1);
     }
 
     // To give back a clean ciphertext
     auto cleaning_lut = mem->cleaning_lut;
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, lwe_array, bsks, ksks,
-        cleaning_lut, lwe_array->num_radix_blocks);
+        cleaning_lut, num_radix_blocks);
   }
 }
 #endif

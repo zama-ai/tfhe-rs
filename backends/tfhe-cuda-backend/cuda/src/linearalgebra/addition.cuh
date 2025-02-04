@@ -100,17 +100,21 @@ __global__ void addition(T *output, T const *input_1, T const *input_2,
 }
 
 // Coefficient-wise addition
+// num_radix_blocks selects the amount of blocks to be added from the inputs
 template <typename T>
 __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index,
                             CudaRadixCiphertextFFI *output,
                             CudaRadixCiphertextFFI const *input_1,
-                            CudaRadixCiphertextFFI const *input_2) {
-  if (output->num_radix_blocks != input_1->num_radix_blocks ||
-      output->num_radix_blocks != input_2->num_radix_blocks)
-    PANIC("Cuda error: input and output num radix blocks must be the same")
+                            CudaRadixCiphertextFFI const *input_2,
+                            uint32_t num_radix_blocks) {
   if (output->lwe_dimension != input_1->lwe_dimension ||
       output->lwe_dimension != input_2->lwe_dimension)
     PANIC("Cuda error: input and output num radix blocks must be the same")
+  if (output->num_radix_blocks < num_radix_blocks ||
+      input_1->num_radix_blocks < num_radix_blocks ||
+      input_2->num_radix_blocks < num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be larger or "
+          "equal to the num blocks to add")
 
   cuda_set_device(gpu_index);
   // lwe_size includes the presence of the body
@@ -118,7 +122,7 @@ __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index,
   int lwe_size = output->lwe_dimension + 1;
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;
-  int num_entries = output->num_radix_blocks * lwe_size;
+  int num_entries = num_radix_blocks * lwe_size;
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
@@ -127,7 +131,7 @@ __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index,
       static_cast<T *>(output->ptr), static_cast<const T *>(input_1->ptr),
       static_cast<const T *>(input_2->ptr), num_entries);
   check_cuda_error(cudaGetLastError());
-  for (uint i = 0; i < output->num_radix_blocks; i++) {
+  for (uint i = 0; i < num_radix_blocks; i++) {
     output->degrees[i] = input_1->degrees[i] + input_2->degrees[i];
     output->noise_levels[i] =
         input_1->noise_levels[i] + input_2->noise_levels[i];

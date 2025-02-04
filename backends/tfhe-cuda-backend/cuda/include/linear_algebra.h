@@ -14,14 +14,14 @@ void cuda_negate_lwe_ciphertext_vector_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_array_in, const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count);
-void cuda_add_lwe_ciphertext_vector_32(
-    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in_1,
-    CudaRadixCiphertextFFI const *lwe_array_in_2);
-void cuda_add_lwe_ciphertext_vector_64(
-    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in_1,
-    CudaRadixCiphertextFFI const *lwe_array_in_2);
+void cuda_add_lwe_ciphertext_vector_32(void *stream, uint32_t gpu_index,
+                                       CudaRadixCiphertextFFI *output,
+                                       CudaRadixCiphertextFFI const *input_1,
+                                       CudaRadixCiphertextFFI const *input_2);
+void cuda_add_lwe_ciphertext_vector_64(void *stream, uint32_t gpu_index,
+                                       CudaRadixCiphertextFFI *output,
+                                       CudaRadixCiphertextFFI const *input_1,
+                                       CudaRadixCiphertextFFI const *input_2);
 void cuda_add_lwe_ciphertext_vector_plaintext_vector_32(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_array_in, void const *plaintext_array_in,

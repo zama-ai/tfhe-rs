@@ -587,7 +587,7 @@ __host__ void host_integer_mult_radix_kb(
   auto scp_mem_ptr = mem_ptr->sc_prop_mem;
   uint32_t requested_flag = outputFlag::FLAG_NONE;
   uint32_t uses_carry = 0;
-  host_propagate_single_carry<Torus>(
+  legacy_host_propagate_single_carry<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, nullptr, nullptr,
       scp_mem_ptr, bsks, ksks, num_blocks, requested_flag, uses_carry);
 }

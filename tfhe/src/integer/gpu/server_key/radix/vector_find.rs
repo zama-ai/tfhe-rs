@@ -1,15 +1,12 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{LweBskGroupingFactor, UnsignedInteger};
+use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::block_decomposition::{BlockDecomposer, Decomposable, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::CudaRadixCiphertext;
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
-use crate::integer::gpu::{
-    apply_univariate_lut_kb_async, compute_prefix_sum_hillis_steele_async, PBSType,
-};
+use crate::integer::gpu::server_key::CudaServerKey;
 pub use crate::integer::server_key::radix_parallel::MatchValues;
 use crate::prelude::CastInto;
 use itertools::Itertools;
@@ -1774,82 +1771,17 @@ impl CudaServerKey {
             }
         });
 
-        let lwe_size = values.as_ref().d_blocks.0.lwe_dimension.to_lwe_size().0;
         let mut first_true: T =
             unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
 
         let mut clone_ct = values.duplicate(streams);
-        let mut slice_in = clone_ct
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
-            .unwrap();
-        {
-            let mut slice_out = first_true
-                .as_mut()
-                .d_blocks
-                .0
-                .d_vec
-                .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
-                .unwrap();
-            unsafe {
-                match &self.bootstrapping_key {
-                    CudaBootstrappingKey::Classic(d_bsk) => {
-                        compute_prefix_sum_hillis_steele_async(
-                            streams,
-                            &mut slice_out,
-                            &mut slice_in,
-                            lut_fn.acc.acc.as_ref(),
-                            lut_fn.acc.degree.0,
-                            &d_bsk.d_vec,
-                            &self.key_switching_key.d_vec,
-                            self.key_switching_key
-                                .output_key_lwe_size()
-                                .to_lwe_dimension(),
-                            d_bsk.glwe_dimension,
-                            d_bsk.polynomial_size,
-                            self.key_switching_key.decomposition_level_count(),
-                            self.key_switching_key.decomposition_base_log(),
-                            d_bsk.decomp_level_count,
-                            d_bsk.decomp_base_log,
-                            num_ct_blocks as u32,
-                            self.message_modulus,
-                            self.carry_modulus,
-                            PBSType::Classical,
-                            LweBskGroupingFactor(0),
-                            0u32,
-                        );
-                    }
-                    CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                        compute_prefix_sum_hillis_steele_async(
-                            streams,
-                            &mut slice_out,
-                            &mut slice_in,
-                            lut_fn.acc.acc.as_ref(),
-                            lut_fn.acc.degree.0,
-                            &d_multibit_bsk.d_vec,
-                            &self.key_switching_key.d_vec,
-                            self.key_switching_key
-                                .output_key_lwe_size()
-                                .to_lwe_dimension(),
-                            d_multibit_bsk.glwe_dimension,
-                            d_multibit_bsk.polynomial_size,
-                            self.key_switching_key.decomposition_level_count(),
-                            self.key_switching_key.decomposition_base_log(),
-                            d_multibit_bsk.decomp_level_count,
-                            d_multibit_bsk.decomp_base_log,
-                            num_ct_blocks as u32,
-                            self.message_modulus,
-                            self.carry_modulus,
-                            PBSType::MultiBit,
-                            d_multibit_bsk.grouping_factor,
-                            0u32,
-                        );
-                    }
-                }
-            }
+        unsafe {
+            self.compute_prefix_sum_hillis_steele_async(
+                first_true.as_mut(),
+                clone_ct.as_mut(),
+                &lut_fn,
+                streams,
+            );
         }
 
         let lut = self.generate_lookup_table(|x| {
@@ -1862,79 +1794,14 @@ impl CudaServerKey {
         });
 
         let cloned_ct = first_true.duplicate(streams);
-        let slice_in_final = cloned_ct
-            .as_ref()
-            .d_blocks
-            .0
-            .d_vec
-            .as_slice(0..lwe_size * num_ct_blocks, 0)
-            .unwrap();
-        let mut slice_out = first_true
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
-            .unwrap();
-        let mut degrees_out = vec![0_u64; num_ct_blocks];
-        let mut noise_levels_out = vec![0_u64; num_ct_blocks];
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    apply_univariate_lut_kb_async(
-                        streams,
-                        &mut slice_out,
-                        &mut degrees_out,
-                        &mut noise_levels_out,
-                        &slice_in_final,
-                        lut.acc.as_ref(),
-                        lut.degree.0,
-                        &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        num_ct_blocks as u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    apply_univariate_lut_kb_async(
-                        streams,
-                        &mut slice_out,
-                        &mut degrees_out,
-                        &mut noise_levels_out,
-                        &slice_in_final,
-                        lut.acc.as_ref(),
-                        lut.degree.0,
-                        &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        num_ct_blocks as u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
-                    );
-                }
-            }
+            self.apply_lookup_table_async(
+                first_true.as_mut(),
+                cloned_ct.as_ref(),
+                &lut,
+                0..num_ct_blocks,
+                streams,
+            );
         }
         streams.synchronize();
         first_true

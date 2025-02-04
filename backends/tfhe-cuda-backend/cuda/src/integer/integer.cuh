@@ -210,14 +210,14 @@ __global__ void radix_blocks_reverse_lwe_inplace(Torus *src,
 }
 
 template <typename Torus>
-__host__ void
-host_radix_blocks_reverse_inplace(cudaStream_t const *streams,
-                                  uint32_t const *gpu_indexes, Torus *src,
-                                  uint32_t blocks_count, uint32_t lwe_size) {
+__host__ void host_radix_blocks_reverse_inplace(cudaStream_t const *streams,
+                                                uint32_t const *gpu_indexes,
+                                                CudaRadixCiphertextFFI *src) {
   cuda_set_device(gpu_indexes[0]);
-  int num_blocks = blocks_count / 2, num_threads = 1024;
+  int num_blocks = src->num_radix_blocks / 2, num_threads = 1024;
   radix_blocks_reverse_lwe_inplace<Torus>
-      <<<num_blocks, num_threads, 0, streams[0]>>>(src, blocks_count, lwe_size);
+      <<<num_blocks, num_threads, 0, streams[0]>>>(
+          (Torus *)src->ptr, src->num_radix_blocks, src->lwe_dimension + 1);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -248,6 +248,8 @@ radix_cumulative_sum_in_groups(Torus *dest, Torus *src, uint32_t blocks_count,
   }
 }
 
+/// This function does not update noise level/degree at this stage,
+/// it can be added later
 template <typename Torus>
 __host__ void host_radix_cumulative_sum_in_groups(
     cudaStream_t stream, uint32_t gpu_index, Torus *dest, Torus *src,
@@ -303,6 +305,8 @@ __global__ void radix_split_simulators_and_grouping_pgns(
   }
 }
 
+/// This function does not update noise level/degree at this stage,
+/// it can be added later
 template <typename Torus>
 __host__ void host_radix_split_simulators_and_grouping_pgns(
     cudaStream_t stream, uint32_t gpu_index, Torus *simulators,
@@ -339,6 +343,8 @@ __global__ void radix_sum_in_groups(Torus *dest, Torus *src1, Torus *src2,
   }
 }
 
+/// This function takes raw pointers as inputs and does not update noise level
+/// /degree at this stage, could be added later
 template <typename Torus>
 __host__ void host_radix_sum_in_groups(cudaStream_t stream, uint32_t gpu_index,
                                        Torus *dest, Torus *src1, Torus *src2,
@@ -377,6 +383,8 @@ device_pack_bivariate_blocks(Torus *lwe_array_out, Torus const *lwe_indexes_out,
 /* Combine lwe_array_1 and lwe_array_2 so that each block m1 and m2
  *  becomes out = m1 * shift + m2
  */
+/// This function does not update noise level/degree at this stage,
+/// it can be added later
 template <typename Torus>
 __host__ void
 pack_bivariate_blocks(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -423,6 +431,8 @@ __global__ void device_pack_bivariate_blocks_with_single_block(
  *
  *  This is for the special case when one of the operands is not an array
  */
+/// This function does not update noise level/degree at this stage,
+/// it can be added later
 template <typename Torus>
 __host__ void pack_bivariate_blocks_with_single_block(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -741,9 +751,10 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
   auto polynomial_size = params.polynomial_size;
   auto grouping_factor = params.grouping_factor;
 
-  if (lwe_array_out->num_radix_blocks != lwe_array_in->num_radix_blocks)
-    PANIC("Cuda error: output radix ciphertext should have the same number "
-          "of blocks as the input")
+  if (lwe_array_out->num_radix_blocks !=
+      lwe_array_in->num_radix_blocks * num_many_lut)
+    PANIC("Cuda error: output radix ciphertext should have num_many_lut times "
+          "the number of blocks of the input")
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
           "lwe dimension")
@@ -819,7 +830,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
                            lut->num_blocks * sizeof(Torus), streams[0],
                            gpu_indexes[0]);
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-    lwe_array_out->degrees[i] = lut->degrees[lut_indexes[i]];
+    lwe_array_out->degrees[i] = lut->degrees[i % lut->num_blocks];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
 }
@@ -922,12 +933,9 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_1,
     CudaRadixCiphertextFFI const *lwe_array_2, void *const *bsks,
-    Torus *const *ksks, int_radix_lut<Torus> *lut, uint32_t shift) {
+    Torus *const *ksks, int_radix_lut<Torus> *lut, uint32_t num_radix_blocks,
+    uint32_t shift) {
 
-  if (lwe_array_out->num_radix_blocks != lwe_array_1->num_radix_blocks ||
-      lwe_array_out->num_radix_blocks != lwe_array_2->num_radix_blocks)
-    PANIC("Cuda error: input and output radix ciphertexts should have the same "
-          "number of blocks")
   if (lwe_array_out->lwe_dimension != lwe_array_1->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_2->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
@@ -948,7 +956,6 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
-  uint32_t num_radix_blocks = lwe_array_out->num_radix_blocks;
 
   // Left message is shifted
   auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
@@ -1343,14 +1350,8 @@ void generate_many_lut_device_accumulator(
   free(h_lut);
 }
 
-// This function is used to perform step 1 of Thomas' new carry propagation
-// algorithm It uses a many lut to calculate two luts in parallel
-// shifted_blocks: contains (block % message modulus) << 1
-// block states: contains the propagation states for the different blocks
-// depending on the group it belongs to and the internal position within the
-// block.
 template <typename Torus>
-void host_compute_shifted_blocks_and_states(
+void legacy_host_compute_shifted_blocks_and_states(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *lwe_array, int_radix_params params,
     int_shifted_blocks_and_states_memory<Torus> *mem, void *const *bsks,
@@ -1362,7 +1363,7 @@ void host_compute_shifted_blocks_and_states(
   uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-  auto shifted_blocks_and_states = mem->shifted_blocks_and_states;
+  auto shifted_blocks_and_states = (Torus *)mem->shifted_blocks_and_states->ptr;
   auto luts_array_first_step = mem->luts_array_first_step;
 
   legacy_integer_radix_apply_many_univariate_lookup_table_kb<Torus>(
@@ -1370,8 +1371,8 @@ void host_compute_shifted_blocks_and_states(
       bsks, ksks, num_radix_blocks, luts_array_first_step, num_many_lut,
       lut_stride);
 
-  auto shifted_blocks = mem->shifted_blocks;
-  auto block_states = mem->block_states;
+  auto shifted_blocks = (Torus *)mem->shifted_blocks->ptr;
+  auto block_states = (Torus *)mem->block_states->ptr;
   cuda_memcpy_async_gpu_to_gpu(block_states, shifted_blocks_and_states,
                                big_lwe_size_bytes * num_radix_blocks,
                                streams[0], gpu_indexes[0]);
@@ -1381,8 +1382,41 @@ void host_compute_shifted_blocks_and_states(
       big_lwe_size_bytes * num_radix_blocks, streams[0], gpu_indexes[0]);
 }
 
+// This function is used to perform step 1 of Thomas' new carry propagation
+// algorithm It uses a many lut to calculate two luts in parallel
+// shifted_blocks: contains (block % message modulus) << 1
+// block states: contains the propagation states for the different blocks
+// depending on the group it belongs to and the internal position within the
+// block.
 template <typename Torus>
-void host_resolve_group_carries_sequentially(
+void host_compute_shifted_blocks_and_states(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array,
+    int_shifted_blocks_and_states_memory<Torus> *mem, void *const *bsks,
+    Torus *const *ksks, uint32_t lut_stride, uint32_t num_many_lut) {
+
+  auto num_radix_blocks = lwe_array->num_radix_blocks;
+
+  auto shifted_blocks_and_states = mem->shifted_blocks_and_states;
+  auto luts_array_first_step = mem->luts_array_first_step;
+
+  integer_radix_apply_many_univariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, shifted_blocks_and_states, lwe_array,
+      bsks, ksks, luts_array_first_step, num_many_lut, lut_stride);
+
+  auto shifted_blocks = mem->shifted_blocks;
+  auto block_states = mem->block_states;
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], block_states, 0, num_radix_blocks,
+      shifted_blocks_and_states, 0, num_radix_blocks);
+  // This works because num_many_lut is hard coded to 2
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], shifted_blocks, 0, num_radix_blocks,
+      shifted_blocks_and_states, num_radix_blocks, 2 * num_radix_blocks);
+}
+
+template <typename Torus>
+void legacy_host_resolve_group_carries_sequentially(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *resolved_carries, Torus *grouping_pgns,
     int_radix_params params, int_seq_group_prop_memory<Torus> *mem,
@@ -1393,7 +1427,7 @@ void host_resolve_group_carries_sequentially(
   uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-  auto group_resolved_carries = mem->group_resolved_carries;
+  auto group_resolved_carries = (Torus *)mem->group_resolved_carries->ptr;
   if (num_groups > 1) {
     // First carry is just copied
     cuda_memcpy_async_gpu_to_gpu(resolved_carries + big_lwe_size, grouping_pgns,
@@ -1454,7 +1488,81 @@ void host_resolve_group_carries_sequentially(
 }
 
 template <typename Torus>
-void host_compute_prefix_sum_hillis_steele(
+void host_resolve_group_carries_sequentially(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *resolved_carries,
+    CudaRadixCiphertextFFI *grouping_pgns, int_radix_params params,
+    int_seq_group_prop_memory<Torus> *mem, void *const *bsks,
+    Torus *const *ksks, uint32_t num_groups) {
+
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
+
+  auto group_resolved_carries = mem->group_resolved_carries;
+  if (num_groups > 1) {
+    // First carry is just copied
+    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                             resolved_carries, 1, 2,
+                                             grouping_pgns, 0, 1);
+    uint32_t solve_per_iter = mem->grouping_size - 1;
+    uint32_t remaining_carries =
+        num_groups -
+        2; // the first one has been resolved and we ignore the last one
+    uint32_t num_loops =
+        ceil(double(remaining_carries) / (double)(solve_per_iter));
+    uint32_t last_resolved_pos = 1;
+
+    for (int i = 0; i < num_loops; i++) {
+      uint32_t loop_offset = i * solve_per_iter;
+      uint32_t blocks_to_solve = solve_per_iter;
+      // In case the last iteration has to solve less
+      if (loop_offset + blocks_to_solve > num_groups - 2) {
+        blocks_to_solve = remaining_carries - loop_offset;
+      }
+
+      // The group_resolved carries is used as an intermediate array
+      // First we need to copy the last resolved carry
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams[0], gpu_indexes[0], group_resolved_carries, 0, 1,
+          resolved_carries, last_resolved_pos, last_resolved_pos + 1);
+
+      // The array is filled with the blocks_to_solve
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams[0], gpu_indexes[0], group_resolved_carries, 1,
+          blocks_to_solve + 1, grouping_pgns, last_resolved_pos,
+          last_resolved_pos + blocks_to_solve);
+
+      // Perform one group cumulative sum
+      host_radix_cumulative_sum_in_groups<Torus>(
+          streams[0], gpu_indexes[0], (Torus *)group_resolved_carries->ptr,
+          (Torus *)group_resolved_carries->ptr, blocks_to_solve + 1,
+          big_lwe_size, mem->grouping_size);
+
+      // Apply the lut
+      auto luts_sequential = mem->lut_sequential_algorithm;
+      CudaRadixCiphertextFFI shifted_group_resolved_carries;
+      as_radix_ciphertext_slice<Torus>(&shifted_group_resolved_carries,
+                                       group_resolved_carries, 1,
+                                       blocks_to_solve + 1);
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          streams, gpu_indexes, gpu_count, &shifted_group_resolved_carries,
+          &shifted_group_resolved_carries, bsks, ksks, luts_sequential,
+          blocks_to_solve);
+
+      // Copy the result to the resolved carries array
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams[0], gpu_indexes[0], resolved_carries, last_resolved_pos + 1,
+          last_resolved_pos + blocks_to_solve + 1, group_resolved_carries, 1,
+          blocks_to_solve + 1);
+
+      last_resolved_pos += blocks_to_solve;
+    }
+  }
+}
+
+template <typename Torus>
+void legacy_host_compute_prefix_sum_hillis_steele(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *step_output, Torus *generates_or_propagates,
     int_radix_params params, int_radix_lut<Torus> *luts, void *const *bsks,
@@ -1490,15 +1598,46 @@ void host_compute_prefix_sum_hillis_steele(
   }
 }
 
-// This function is used to perform step 2 of Thomas' new propagation algorithm
-// Consist three steps:
-// - propagates the carry within each group with cheap LWE operations stored in
-// simulators
-// - calculates the propagation state of each group
-// - resolves the carries between groups, either sequentially or with hillis
-// steele
 template <typename Torus>
-void host_compute_propagation_simulators_and_group_carries(
+void host_compute_prefix_sum_hillis_steele(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *step_output,
+    CudaRadixCiphertextFFI *generates_or_propagates, int_radix_params params,
+    int_radix_lut<Torus> *luts, void *const *bsks, Torus *const *ksks,
+    uint32_t num_radix_blocks) {
+
+  if (step_output->lwe_dimension != generates_or_propagates->lwe_dimension)
+    PANIC("Cuda error: input lwe dimensions must be the same")
+
+  int num_steps = ceil(log2((double)num_radix_blocks));
+  int space = 1;
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], step_output, 0, num_radix_blocks,
+      generates_or_propagates, 0, num_radix_blocks);
+
+  CudaRadixCiphertextFFI cur_blocks;
+  for (int step = 0; step < num_steps; step++) {
+    if (space > num_radix_blocks - 1)
+      PANIC("Cuda error: step output is going out of bounds in Hillis Steele "
+            "propagation")
+    as_radix_ciphertext_slice<Torus>(&cur_blocks, step_output, space,
+                                     num_radix_blocks);
+    auto prev_blocks = generates_or_propagates;
+    int cur_total_blocks = num_radix_blocks - space;
+
+    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, &cur_blocks, &cur_blocks, prev_blocks,
+        bsks, ksks, luts, cur_total_blocks, luts->params.message_modulus);
+
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], generates_or_propagates, space,
+        num_radix_blocks, &cur_blocks, 0, cur_total_blocks);
+    space *= 2;
+  }
+}
+
+template <typename Torus>
+void legacy_host_compute_propagation_simulators_and_group_carries(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *block_states, int_radix_params params,
     int_prop_simu_group_carries_memory<Torus> *mem, void *const *bsks,
@@ -1511,7 +1650,7 @@ void host_compute_propagation_simulators_and_group_carries(
 
   uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
 
-  auto propagation_cum_sums = mem->propagation_cum_sums;
+  auto propagation_cum_sums = (Torus *)mem->propagation_cum_sums->ptr;
   auto group_size = mem->group_size;
   host_radix_cumulative_sum_in_groups<Torus>(
       streams[0], gpu_indexes[0], propagation_cum_sums, block_states,
@@ -1534,11 +1673,76 @@ void host_compute_propagation_simulators_and_group_carries(
   uint32_t modulus_sup = message_modulus * carry_modulus;
   auto nbits = sizeof(Torus) * 8;
   Torus delta = (static_cast<Torus>(1) << (nbits - 1)) / modulus_sup;
-  auto simulators = mem->simulators;
-  auto grouping_pgns = mem->grouping_pgns;
+  auto simulators = (Torus *)mem->simulators->ptr;
+  auto grouping_pgns = (Torus *)mem->grouping_pgns->ptr;
   host_radix_split_simulators_and_grouping_pgns<Torus>(
       streams[0], gpu_indexes[0], simulators, grouping_pgns,
       propagation_cum_sums, num_radix_blocks, big_lwe_size, group_size, delta);
+
+  auto resolved_carries = (Torus *)mem->resolved_carries->ptr;
+  if (mem->use_sequential_algorithm_to_resolver_group_carries) {
+    // Resolve group carries sequentially
+    legacy_host_resolve_group_carries_sequentially(
+        streams, gpu_indexes, gpu_count, resolved_carries, grouping_pgns,
+        params, mem->seq_group_prop_mem, bsks, ksks, num_groups);
+  } else {
+    // Resolve group carries with hillis steele
+    auto luts_carry_propagation_sum = mem->hs_group_prop_mem->lut_hillis_steele;
+    legacy_host_compute_prefix_sum_hillis_steele<Torus>(
+        streams, gpu_indexes, gpu_count, &resolved_carries[big_lwe_size],
+        grouping_pgns, params, luts_carry_propagation_sum, bsks, ksks,
+        num_groups - 1);
+  }
+}
+// This function is used to perform step 2 of Thomas' new propagation algorithm
+// Consist three steps:
+// - propagates the carry within each group with cheap LWE operations stored in
+// simulators
+// - calculates the propagation state of each group
+// - resolves the carries between groups, either sequentially or with hillis
+// steele
+template <typename Torus>
+void host_compute_propagation_simulators_and_group_carries(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *block_states,
+    int_radix_params params, int_prop_simu_group_carries_memory<Torus> *mem,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks,
+    uint32_t num_groups) {
+
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  auto message_modulus = params.message_modulus;
+  auto carry_modulus = params.carry_modulus;
+
+  uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
+
+  auto propagation_cum_sums = mem->propagation_cum_sums;
+  auto group_size = mem->group_size;
+  host_radix_cumulative_sum_in_groups<Torus>(
+      streams[0], gpu_indexes[0], (Torus *)propagation_cum_sums->ptr,
+      (Torus *)block_states->ptr, num_radix_blocks, big_lwe_size, group_size);
+
+  auto luts_array_second_step = mem->luts_array_second_step;
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, propagation_cum_sums,
+      propagation_cum_sums, bsks, ksks, luts_array_second_step,
+      num_radix_blocks);
+
+  auto scalar_array_cum_sum = mem->scalar_array_cum_sum;
+
+  host_integer_radix_scalar_addition_inplace<Torus>(
+      streams, gpu_indexes, gpu_count, propagation_cum_sums,
+      scalar_array_cum_sum, num_radix_blocks, message_modulus, carry_modulus);
+
+  uint32_t modulus_sup = message_modulus * carry_modulus;
+  auto nbits = sizeof(Torus) * 8;
+  Torus delta = (static_cast<Torus>(1) << (nbits - 1)) / modulus_sup;
+  auto simulators = mem->simulators;
+  auto grouping_pgns = mem->grouping_pgns;
+  host_radix_split_simulators_and_grouping_pgns<Torus>(
+      streams[0], gpu_indexes[0], (Torus *)simulators->ptr,
+      (Torus *)grouping_pgns->ptr, (Torus *)propagation_cum_sums->ptr,
+      num_radix_blocks, big_lwe_size, group_size, delta);
 
   auto resolved_carries = mem->resolved_carries;
   if (mem->use_sequential_algorithm_to_resolver_group_carries) {
@@ -1549,8 +1753,11 @@ void host_compute_propagation_simulators_and_group_carries(
   } else {
     // Resolve group carries with hillis steele
     auto luts_carry_propagation_sum = mem->hs_group_prop_mem->lut_hillis_steele;
+    CudaRadixCiphertextFFI shifted_resolved_carries;
+    as_radix_ciphertext_slice<Torus>(&shifted_resolved_carries,
+                                     resolved_carries, 1, num_groups);
     host_compute_prefix_sum_hillis_steele<Torus>(
-        streams, gpu_indexes, gpu_count, &resolved_carries[big_lwe_size],
+        streams, gpu_indexes, gpu_count, &shifted_resolved_carries,
         grouping_pgns, params, luts_carry_propagation_sum, bsks, ksks,
         num_groups - 1);
   }
@@ -1591,19 +1798,6 @@ void host_compute_shifted_blocks_and_borrow_states(
       shifted_blocks,
       shifted_blocks_and_borrow_states + big_lwe_size * num_radix_blocks,
       big_lwe_size_bytes * num_radix_blocks, streams[0], gpu_indexes[0]);
-}
-
-template <typename Torus>
-void host_generate_last_block_inner_propagation(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, Torus *last_block_inner_propagation, Torus const *lhs,
-    Torus const *rhs, int_last_block_inner_propagate_memory<Torus> *mem,
-    void *const *bsks, Torus *const *ksks) {
-
-  legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, last_block_inner_propagation, lhs, rhs,
-      bsks, ksks, 1, mem->last_block_inner_propagation_lut,
-      mem->params.message_modulus);
 }
 
 template <typename Torus>
@@ -2060,11 +2254,12 @@ void host_apply_bivariate_lut_kb(cudaStream_t const *streams,
                                  CudaRadixCiphertextFFI const *radix_lwe_in_1,
                                  CudaRadixCiphertextFFI const *radix_lwe_in_2,
                                  int_radix_lut<Torus> *mem, Torus *const *ksks,
-                                 void *const *bsks, uint32_t shift) {
+                                 void *const *bsks, uint32_t num_radix_blocks,
+                                 uint32_t shift) {
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, radix_lwe_in_1,
-      radix_lwe_in_2, bsks, ksks, mem, shift);
+      radix_lwe_in_2, bsks, ksks, mem, num_radix_blocks, shift);
 }
 
 template <typename Torus>
@@ -2078,17 +2273,13 @@ void scratch_cuda_propagate_single_carry_kb_inplace(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks, requested_flag,
       uses_carry, allocate_gpu_memory);
 }
-// This function perform the three steps of Thomas' new carry propagation
-// includes the logic to extract overflow when requested
 template <typename Torus>
-void host_propagate_single_carry(cudaStream_t const *streams,
-                                 uint32_t const *gpu_indexes,
-                                 uint32_t gpu_count, Torus *lwe_array,
-                                 Torus *carry_out, const Torus *input_carries,
-                                 int_sc_prop_memory<Torus> *mem,
-                                 void *const *bsks, Torus *const *ksks,
-                                 uint32_t num_radix_blocks,
-                                 uint32_t requested_flag, uint32_t uses_carry) {
+void legacy_host_propagate_single_carry(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array, Torus *carry_out,
+    const Torus *input_carries, int_sc_prop_memory<Torus> *mem,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks,
+    uint32_t requested_flag, uint32_t uses_carry) {
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
@@ -2097,25 +2288,131 @@ void host_propagate_single_carry(cudaStream_t const *streams,
   auto big_lwe_dimension = big_lwe_size - 1; // For host addition
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
-  auto output_flag = mem->output_flag + big_lwe_size * num_radix_blocks;
+  auto output_flag =
+      (Torus *)mem->output_flag->ptr + big_lwe_size * num_radix_blocks;
   if (requested_flag == outputFlag::FLAG_OVERFLOW)
     PANIC("Cuda error: single carry propagation is not supported for overflow, "
           "try using add_and_propagate_single_carry");
+  if (requested_flag == outputFlag::FLAG_CARRY && carry_out == nullptr)
+    PANIC("Cuda error: when requesting FLAG_CARRY, carry_out must be a valid "
+          "pointer")
   if (uses_carry == 1) {
     legacy_host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array,
                                 lwe_array, input_carries, big_lwe_dimension, 1);
   }
   // Step 1
-  host_compute_shifted_blocks_and_states<Torus>(
+  legacy_host_compute_shifted_blocks_and_states<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, params,
       mem->shifted_blocks_state_mem, bsks, ksks, num_radix_blocks, lut_stride,
       num_many_lut);
-  auto block_states = mem->shifted_blocks_state_mem->block_states;
+  auto block_states = (Torus *)mem->shifted_blocks_state_mem->block_states->ptr;
 
   if (requested_flag == outputFlag::FLAG_CARRY) {
     cuda_memcpy_async_gpu_to_gpu(
         output_flag, block_states + (num_radix_blocks - 1) * big_lwe_size,
         big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+  }
+  // Step 2
+  legacy_host_compute_propagation_simulators_and_group_carries<Torus>(
+      streams, gpu_indexes, gpu_count, block_states, params,
+      mem->prop_simu_group_carries_mem, bsks, ksks, num_radix_blocks,
+      mem->num_groups);
+
+  auto group_size = mem->prop_simu_group_carries_mem->group_size;
+
+  auto prepared_blocks =
+      (Torus *)mem->prop_simu_group_carries_mem->prepared_blocks->ptr;
+  auto shifted_blocks =
+      (Torus *)mem->shifted_blocks_state_mem->shifted_blocks->ptr;
+  legacy_host_addition<Torus>(
+      streams[0], gpu_indexes[0], prepared_blocks, shifted_blocks,
+      (Torus *)mem->prop_simu_group_carries_mem->simulators->ptr,
+      big_lwe_dimension, num_radix_blocks);
+
+  if (requested_flag == outputFlag::FLAG_OVERFLOW ||
+      requested_flag == outputFlag::FLAG_CARRY) {
+    legacy_host_addition<Torus>(
+        streams[0], gpu_indexes[0], output_flag, output_flag,
+        (Torus *)mem->prop_simu_group_carries_mem->simulators->ptr +
+            (num_radix_blocks - 1) * big_lwe_size,
+        big_lwe_dimension, 1);
+  }
+
+  host_radix_sum_in_groups<Torus>(
+      streams[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
+      (Torus *)mem->prop_simu_group_carries_mem->resolved_carries->ptr,
+      num_radix_blocks, big_lwe_size, group_size);
+  if (requested_flag == outputFlag::FLAG_CARRY) {
+    legacy_host_addition<Torus>(
+        streams[0], gpu_indexes[0], output_flag, output_flag,
+        (Torus *)mem->prop_simu_group_carries_mem->resolved_carries->ptr +
+            (mem->num_groups - 1) * big_lwe_size,
+        big_lwe_dimension, 1);
+
+    cuda_memcpy_async_gpu_to_gpu(
+        prepared_blocks + num_radix_blocks * big_lwe_size, output_flag,
+        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, (Torus *)mem->output_flag->ptr,
+        prepared_blocks, bsks, ksks, num_radix_blocks + 1,
+        mem->lut_message_extract);
+
+    cuda_memcpy_async_gpu_to_gpu(lwe_array, (Torus *)mem->output_flag->ptr,
+                                 big_lwe_size_bytes * num_radix_blocks,
+                                 streams[0], gpu_indexes[0]);
+    cuda_memcpy_async_gpu_to_gpu(
+        carry_out,
+        (Torus *)mem->output_flag->ptr + num_radix_blocks * big_lwe_size,
+        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+  } else {
+    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks, bsks, ksks,
+        num_radix_blocks, mem->lut_message_extract);
+  }
+}
+
+// This function perform the three steps of Thomas' new carry propagation
+// includes the logic to extract overflow when requested
+template <typename Torus>
+void host_propagate_single_carry(cudaStream_t const *streams,
+                                 uint32_t const *gpu_indexes,
+                                 uint32_t gpu_count,
+                                 CudaRadixCiphertextFFI *lwe_array,
+                                 CudaRadixCiphertextFFI *carry_out,
+                                 const CudaRadixCiphertextFFI *input_carries,
+                                 int_sc_prop_memory<Torus> *mem,
+                                 void *const *bsks, Torus *const *ksks,
+                                 uint32_t requested_flag, uint32_t uses_carry) {
+  auto num_radix_blocks = lwe_array->num_radix_blocks;
+  auto params = mem->params;
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
+  auto lut_stride = mem->lut_stride;
+  auto num_many_lut = mem->num_many_lut;
+  CudaRadixCiphertextFFI output_flag;
+  as_radix_ciphertext_slice<Torus>(&output_flag, mem->output_flag,
+                                   num_radix_blocks, num_radix_blocks + 1);
+  if (requested_flag == outputFlag::FLAG_OVERFLOW)
+    PANIC("Cuda error: single carry propagation is not supported for overflow, "
+          "try using add_and_propagate_single_carry");
+  if (requested_flag == outputFlag::FLAG_CARRY && carry_out == nullptr)
+    PANIC("Cuda error: when requesting FLAG_CARRY, carry_out must be a valid "
+          "pointer")
+  if (uses_carry == 1) {
+    host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array, lwe_array,
+                         input_carries, 1);
+  }
+  // Step 1
+  host_compute_shifted_blocks_and_states<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array, mem->shifted_blocks_state_mem,
+      bsks, ksks, lut_stride, num_many_lut);
+  auto block_states = mem->shifted_blocks_state_mem->block_states;
+
+  if (requested_flag == outputFlag::FLAG_CARRY) {
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], &output_flag, 0, 1, block_states,
+        num_radix_blocks - 1, num_radix_blocks);
   }
   // Step 2
   host_compute_propagation_simulators_and_group_carries<Torus>(
@@ -2127,49 +2424,52 @@ void host_propagate_single_carry(cudaStream_t const *streams,
 
   auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
   auto shifted_blocks = mem->shifted_blocks_state_mem->shifted_blocks;
-  legacy_host_addition<Torus>(streams[0], gpu_indexes[0], prepared_blocks,
-                              shifted_blocks,
-                              mem->prop_simu_group_carries_mem->simulators,
-                              big_lwe_dimension, num_radix_blocks);
+  host_addition<Torus>(
+      streams[0], gpu_indexes[0], prepared_blocks, shifted_blocks,
+      mem->prop_simu_group_carries_mem->simulators, num_radix_blocks);
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
-    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], output_flag,
-                                output_flag,
-                                mem->prop_simu_group_carries_mem->simulators +
-                                    (num_radix_blocks - 1) * big_lwe_size,
-                                big_lwe_dimension, 1);
+    CudaRadixCiphertextFFI shifted_simulators;
+    as_radix_ciphertext_slice<Torus>(
+        &shifted_simulators, mem->prop_simu_group_carries_mem->simulators,
+        num_radix_blocks - 1, num_radix_blocks);
+    host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag, &output_flag,
+                         &shifted_simulators, 1);
   }
 
   host_radix_sum_in_groups<Torus>(
-      streams[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
-      mem->prop_simu_group_carries_mem->resolved_carries, num_radix_blocks,
-      big_lwe_size, group_size);
+      streams[0], gpu_indexes[0], (Torus *)prepared_blocks->ptr,
+      (Torus *)prepared_blocks->ptr,
+      (Torus *)mem->prop_simu_group_carries_mem->resolved_carries->ptr,
+      num_radix_blocks, big_lwe_size, group_size);
   if (requested_flag == outputFlag::FLAG_CARRY) {
-    legacy_host_addition<Torus>(
-        streams[0], gpu_indexes[0], output_flag, output_flag,
-        mem->prop_simu_group_carries_mem->resolved_carries +
-            (mem->num_groups - 1) * big_lwe_size,
-        big_lwe_dimension, 1);
+    CudaRadixCiphertextFFI shifted_resolved_carries;
+    as_radix_ciphertext_slice<Torus>(
+        &shifted_resolved_carries,
+        mem->prop_simu_group_carries_mem->resolved_carries, mem->num_groups - 1,
+        mem->num_groups);
+    host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag, &output_flag,
+                         &shifted_resolved_carries, 1);
 
-    cuda_memcpy_async_gpu_to_gpu(
-        prepared_blocks + num_radix_blocks * big_lwe_size, output_flag,
-        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], prepared_blocks, num_radix_blocks,
+        num_radix_blocks + 1, &output_flag, 0, 1);
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, mem->output_flag, prepared_blocks,
-        bsks, ksks, num_radix_blocks + 1, mem->lut_message_extract);
+        bsks, ksks, mem->lut_message_extract, num_radix_blocks + 1);
 
-    cuda_memcpy_async_gpu_to_gpu(lwe_array, mem->output_flag,
-                                 big_lwe_size_bytes * num_radix_blocks,
-                                 streams[0], gpu_indexes[0]);
-    cuda_memcpy_async_gpu_to_gpu(
-        carry_out, mem->output_flag + num_radix_blocks * big_lwe_size,
-        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], lwe_array, 0, num_radix_blocks,
+        mem->output_flag, 0, num_radix_blocks);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], carry_out, 0, 1, mem->output_flag,
+        num_radix_blocks, num_radix_blocks + 1);
   } else {
     auto message_extract = mem->lut_message_extract;
-    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks, bsks, ksks,
-        num_radix_blocks, message_extract);
+        message_extract, num_radix_blocks);
   }
 }
 
@@ -2178,52 +2478,65 @@ void host_propagate_single_carry(cudaStream_t const *streams,
 template <typename Torus>
 void host_add_and_propagate_single_carry(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, Torus *lhs_array, const Torus *rhs_array,
-    Torus *carry_out, const Torus *input_carries,
-    int_sc_prop_memory<Torus> *mem, void *const *bsks, Torus *const *ksks,
-    uint32_t num_radix_blocks, uint32_t requested_flag, uint32_t uses_carry) {
+    uint32_t gpu_count, CudaRadixCiphertextFFI *lhs_array,
+    const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
+    const CudaRadixCiphertextFFI *input_carries, int_sc_prop_memory<Torus> *mem,
+    void *const *bsks, Torus *const *ksks, uint32_t requested_flag,
+    uint32_t uses_carry) {
+  if (lhs_array->num_radix_blocks != rhs_array->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  if (lhs_array->lwe_dimension != rhs_array->lwe_dimension ||
+      lhs_array->lwe_dimension != input_carries->lwe_dimension ||
+      lhs_array->lwe_dimension != carry_out->lwe_dimension)
+    PANIC("Cuda error: input and output lwe dimension must be the same")
+  if ((requested_flag == outputFlag::FLAG_OVERFLOW ||
+       requested_flag == outputFlag::FLAG_CARRY) &&
+      carry_out == nullptr)
+    PANIC("Cuda error: when requesting FLAG_CARRY, carry_out must be a valid "
+          "pointer")
+
+  auto num_radix_blocks = lhs_array->num_radix_blocks;
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
   uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
-  auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-  auto big_lwe_dimension = big_lwe_size - 1; // For host addition
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
-  auto output_flag = mem->output_flag + big_lwe_size * num_radix_blocks;
+  CudaRadixCiphertextFFI output_flag;
+  as_radix_ciphertext_slice<Torus>(&output_flag, mem->output_flag,
+                                   num_radix_blocks, num_radix_blocks + 1);
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW) {
-    cuda_memcpy_async_gpu_to_gpu(
-        mem->last_lhs, lhs_array + (num_radix_blocks - 1) * big_lwe_size,
-        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memcpy_async_gpu_to_gpu(
-        mem->last_rhs, rhs_array + (num_radix_blocks - 1) * big_lwe_size,
-        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], mem->last_lhs, 0, 1, lhs_array,
+        num_radix_blocks - 1, num_radix_blocks);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], mem->last_rhs, 0, 1, rhs_array,
+        num_radix_blocks - 1, num_radix_blocks);
   }
 
-  legacy_host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array, lhs_array,
-                              rhs_array, big_lwe_dimension, num_radix_blocks);
+  host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array, lhs_array,
+                       rhs_array, num_radix_blocks);
 
   if (uses_carry == 1) {
-    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array,
-                                lhs_array, input_carries, big_lwe_dimension, 1);
+    host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array, lhs_array,
+                         input_carries, 1);
   }
   // Step 1
   host_compute_shifted_blocks_and_states<Torus>(
-      streams, gpu_indexes, gpu_count, lhs_array, params,
-      mem->shifted_blocks_state_mem, bsks, ksks, num_radix_blocks, lut_stride,
-      num_many_lut);
+      streams, gpu_indexes, gpu_count, lhs_array, mem->shifted_blocks_state_mem,
+      bsks, ksks, lut_stride, num_many_lut);
   auto block_states = mem->shifted_blocks_state_mem->block_states;
   if (requested_flag == outputFlag::FLAG_OVERFLOW) {
     auto lut_overflow_prep = mem->lut_overflow_flag_prep;
-    legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, output_flag, mem->last_lhs,
-        mem->last_rhs, bsks, ksks, 1, lut_overflow_prep,
+    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, &output_flag, mem->last_lhs,
+        mem->last_rhs, bsks, ksks, lut_overflow_prep, 1,
         lut_overflow_prep->params.message_modulus);
   } else if (requested_flag == outputFlag::FLAG_CARRY) {
-    cuda_memcpy_async_gpu_to_gpu(
-        output_flag, block_states + (num_radix_blocks - 1) * big_lwe_size,
-        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], &output_flag, 0, 1, block_states,
+        num_radix_blocks - 1, num_radix_blocks);
   }
 
   // Step 2
@@ -2236,60 +2549,61 @@ void host_add_and_propagate_single_carry(
 
   auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
   auto shifted_blocks = mem->shifted_blocks_state_mem->shifted_blocks;
-  legacy_host_addition<Torus>(streams[0], gpu_indexes[0], prepared_blocks,
-                              shifted_blocks,
-                              mem->prop_simu_group_carries_mem->simulators,
-                              big_lwe_dimension, num_radix_blocks);
+  host_addition<Torus>(
+      streams[0], gpu_indexes[0], prepared_blocks, shifted_blocks,
+      mem->prop_simu_group_carries_mem->simulators, num_radix_blocks);
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
-    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], output_flag,
-                                output_flag,
-                                mem->prop_simu_group_carries_mem->simulators +
-                                    (num_radix_blocks - 1) * big_lwe_size,
-                                big_lwe_dimension, 1);
+    CudaRadixCiphertextFFI shifted_simulators;
+    as_radix_ciphertext_slice<Torus>(
+        &shifted_simulators, mem->prop_simu_group_carries_mem->simulators,
+        num_radix_blocks - 1, num_radix_blocks);
+    host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag, &output_flag,
+                         &shifted_simulators, 1);
   }
 
   // Step 3
   //  Add carries and cleanup OutputFlag::None
   host_radix_sum_in_groups<Torus>(
-      streams[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
-      mem->prop_simu_group_carries_mem->resolved_carries, num_radix_blocks,
-      big_lwe_size, group_size);
+      streams[0], gpu_indexes[0], (Torus *)prepared_blocks->ptr,
+      (Torus *)prepared_blocks->ptr,
+      (Torus *)mem->prop_simu_group_carries_mem->resolved_carries->ptr,
+      num_radix_blocks, big_lwe_size, group_size);
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
     if (num_radix_blocks == 1 && requested_flag == outputFlag::FLAG_OVERFLOW &&
         uses_carry == 1) {
-      legacy_host_addition<Torus>(streams[0], gpu_indexes[0], output_flag,
-                                  output_flag, input_carries, big_lwe_dimension,
-                                  1);
+      host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag,
+                           &output_flag, input_carries, 1);
 
     } else {
-
-      legacy_host_addition<Torus>(
-          streams[0], gpu_indexes[0], output_flag, output_flag,
-          mem->prop_simu_group_carries_mem->resolved_carries +
-              (mem->num_groups - 1) * big_lwe_size,
-          big_lwe_dimension, 1);
+      CudaRadixCiphertextFFI shifted_resolved_carries;
+      as_radix_ciphertext_slice<Torus>(
+          &shifted_resolved_carries,
+          mem->prop_simu_group_carries_mem->resolved_carries,
+          mem->num_groups - 1, mem->num_groups);
+      host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag,
+                           &output_flag, &shifted_resolved_carries, 1);
     }
-    cuda_memcpy_async_gpu_to_gpu(
-        prepared_blocks + num_radix_blocks * big_lwe_size, output_flag,
-        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], prepared_blocks, num_radix_blocks,
+        num_radix_blocks + 1, &output_flag, 0, 1);
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, mem->output_flag, prepared_blocks,
-        bsks, ksks, num_radix_blocks + 1, mem->lut_message_extract);
+        bsks, ksks, mem->lut_message_extract, num_radix_blocks + 1);
 
-    cuda_memcpy_async_gpu_to_gpu(lhs_array, mem->output_flag,
-                                 big_lwe_size_bytes * num_radix_blocks,
-                                 streams[0], gpu_indexes[0]);
-    cuda_memcpy_async_gpu_to_gpu(
-        carry_out, mem->output_flag + num_radix_blocks * big_lwe_size,
-        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], lhs_array, 0, num_radix_blocks,
+        mem->output_flag, 0, num_radix_blocks);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], carry_out, 0, 1, mem->output_flag,
+        num_radix_blocks, num_radix_blocks + 1);
   } else {
-    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lhs_array, prepared_blocks, bsks, ksks,
-        num_radix_blocks, mem->lut_message_extract);
+        mem->lut_message_extract, num_radix_blocks);
   }
 }
 
@@ -2346,14 +2660,15 @@ void host_single_borrow_propagate(
                                big_lwe_size_bytes, streams[0], gpu_indexes[0]);
 
   // Step 2
-  host_compute_propagation_simulators_and_group_carries<Torus>(
+  legacy_host_compute_propagation_simulators_and_group_carries<Torus>(
       streams, gpu_indexes, gpu_count, borrow_states, params,
       mem->prop_simu_group_carries_mem, bsks, ksks, num_radix_blocks,
       num_groups);
 
   auto shifted_blocks = mem->shifted_blocks_borrow_state_mem->shifted_blocks;
-  auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
-  auto simulators = mem->prop_simu_group_carries_mem->simulators;
+  auto prepared_blocks =
+      (Torus *)mem->prop_simu_group_carries_mem->prepared_blocks->ptr;
+  auto simulators = (Torus *)mem->prop_simu_group_carries_mem->simulators->ptr;
 
   host_subtraction<Torus>(streams[0], gpu_indexes[0], prepared_blocks,
                           shifted_blocks, simulators, big_lwe_dimension,
@@ -2364,13 +2679,14 @@ void host_single_borrow_propagate(
       num_radix_blocks, message_modulus, carry_modulus);
 
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
-    legacy_host_addition<Torus>(streams[0], gpu_indexes[0], mem->overflow_block,
-                                mem->overflow_block,
-                                mem->prop_simu_group_carries_mem->simulators +
-                                    (num_radix_blocks - 1) * big_lwe_size,
-                                big_lwe_dimension, 1);
+    legacy_host_addition<Torus>(
+        streams[0], gpu_indexes[0], mem->overflow_block, mem->overflow_block,
+        (Torus *)mem->prop_simu_group_carries_mem->simulators->ptr +
+            (num_radix_blocks - 1) * big_lwe_size,
+        big_lwe_dimension, 1);
   }
-  auto resolved_borrows = mem->prop_simu_group_carries_mem->resolved_carries;
+  auto resolved_borrows =
+      (Torus *)mem->prop_simu_group_carries_mem->resolved_carries->ptr;
 
   // Step 3
   //  This needs to be done before because in next step we modify the resolved

@@ -1,18 +1,11 @@
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
-use crate::integer::gpu::{
-    apply_univariate_lut_kb_async, compute_prefix_sum_hillis_steele_async,
-    reverse_blocks_inplace_async, PBSType,
-};
+use crate::integer::gpu::reverse_blocks_inplace_async;
+use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
 
 impl CudaServerKey {
     /// This function takes a ciphertext in radix representation
@@ -30,7 +23,7 @@ impl CudaServerKey {
         direction: Direction,
         bit_value: BitValue,
         streams: &CudaStreams,
-    ) -> CudaLweCiphertextList<u64> {
+    ) -> T {
         assert!(
             self.carry_modulus.0 >= self.message_modulus.0,
             "A carry modulus as least as big as the message modulus is required"
@@ -38,10 +31,8 @@ impl CudaServerKey {
 
         let num_ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
 
-        let lwe_size = ct.as_ref().d_blocks.0.lwe_dimension.to_lwe_size().0;
-
         // Allocate the necessary amount of memory
-        let mut tmp_radix = CudaVec::new_async(num_ct_blocks * lwe_size, streams, 0);
+        let mut tmp_radix = ct.duplicate_async(streams);
 
         let lut = match direction {
             Direction::Trailing => self.generate_lookup_table(|x| {
@@ -70,90 +61,19 @@ impl CudaServerKey {
             }),
         };
 
-        tmp_radix.copy_from_gpu_async(&ct.as_ref().d_blocks.0.d_vec, streams, 0);
-        let mut output_slice = tmp_radix
-            .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
-            .unwrap();
-        let mut output_degrees = vec![0_u64; num_ct_blocks];
-        let mut output_noise_levels = vec![0_u64; num_ct_blocks];
-
-        let input_slice = ct
-            .as_ref()
-            .d_blocks
-            .0
-            .d_vec
-            .as_slice(0..lwe_size * num_ct_blocks, 0)
-            .unwrap();
-
-        // Assign to each block its number of leading/trailing zeros/ones
-        // in the message space
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                apply_univariate_lut_kb_async(
-                    streams,
-                    &mut output_slice,
-                    &mut output_degrees,
-                    &mut output_noise_levels,
-                    &input_slice,
-                    lut.acc.as_ref(),
-                    lut.degree.0,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    num_ct_blocks as u32,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                apply_univariate_lut_kb_async(
-                    streams,
-                    &mut output_slice,
-                    &mut output_degrees,
-                    &mut output_noise_levels,
-                    &input_slice,
-                    lut.acc.as_ref(),
-                    lut.degree.0,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    num_ct_blocks as u32,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                );
-            }
-        }
+        self.apply_lookup_table_async(
+            tmp_radix.as_mut(),
+            ct.as_ref(),
+            &lut,
+            0..num_ct_blocks,
+            streams,
+        );
 
         if direction == Direction::Leading {
             // Our blocks are from lsb to msb
             // `leading` means starting from the msb, so we reverse block
             // for the cum sum process done later
-            reverse_blocks_inplace_async(
-                streams,
-                &mut output_slice,
-                num_ct_blocks as u32,
-                lwe_size as u32,
-            );
+            reverse_blocks_inplace_async(streams, tmp_radix.as_mut());
         }
 
         // Use hillis-steele cumulative-sum algorithm
@@ -171,79 +91,14 @@ impl CudaServerKey {
             },
         );
 
-        let mut output_cts = CudaLweCiphertextList::new(
-            ct.as_ref().d_blocks.lwe_dimension(),
-            LweCiphertextCount(num_ct_blocks * ct.as_ref().d_blocks.lwe_ciphertext_count().0),
-            ct.as_ref().d_blocks.ciphertext_modulus(),
+        let mut output_cts = ct.duplicate_async(streams);
+
+        self.compute_prefix_sum_hillis_steele_async(
+            output_cts.as_mut(),
+            tmp_radix.as_mut(),
+            &sum_lut,
             streams,
         );
-
-        let mut generates_or_propagates = tmp_radix
-            .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
-            .unwrap();
-
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                compute_prefix_sum_hillis_steele_async(
-                    streams,
-                    &mut output_cts
-                        .0
-                        .d_vec
-                        .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
-                        .unwrap(),
-                    &mut generates_or_propagates,
-                    sum_lut.acc.acc.as_ref(),
-                    sum_lut.acc.degree.0,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    num_ct_blocks as u32,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    0u32,
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                compute_prefix_sum_hillis_steele_async(
-                    streams,
-                    &mut output_cts
-                        .0
-                        .d_vec
-                        .as_mut_slice(0..lwe_size * num_ct_blocks, 0)
-                        .unwrap(),
-                    &mut generates_or_propagates,
-                    sum_lut.acc.acc.as_ref(),
-                    sum_lut.acc.degree.0,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    num_ct_blocks as u32,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    0u32,
-                );
-            }
-        }
         output_cts
     }
 
@@ -304,6 +159,8 @@ impl CudaServerKey {
                 .unwrap();
 
             let src_slice = leading_count_per_blocks
+                .as_mut()
+                .d_blocks
                 .0
                 .d_vec
                 .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
@@ -528,7 +385,7 @@ impl CudaServerKey {
         let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
 
         let lwe_size = lwe_dimension.to_lwe_size().0;
-        let capacity = (leading_zeros_per_blocks.0.d_vec.len() / lwe_size) + 1;
+        let capacity = (leading_zeros_per_blocks.as_ref().d_blocks.0.d_vec.len() / lwe_size) + 1;
         let mut cts = Vec::<CudaSignedRadixCiphertext>::with_capacity(capacity);
 
         for i in 0..(capacity - 1) {
@@ -544,6 +401,8 @@ impl CudaServerKey {
                 .unwrap();
 
             let src_slice = leading_zeros_per_blocks
+                .as_mut()
+                .d_blocks
                 .0
                 .d_vec
                 .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
@@ -560,7 +419,7 @@ impl CudaServerKey {
 
         cts.push(new_trivial);
 
-        let mut result = self
+        let result = self
             .unchecked_partial_sum_ciphertexts_async(&cts, streams)
             .expect("internal error, empty ciphertext count");
 
@@ -573,83 +432,15 @@ impl CudaServerKey {
             (!x) % self.message_modulus.0
         });
 
-        let mut message_blocks = CudaLweCiphertextList::new(
-            lwe_dimension,
-            LweCiphertextCount(counter_num_blocks),
-            ct.as_ref().d_blocks.ciphertext_modulus(),
+        let mut message_blocks: CudaSignedRadixCiphertext =
+            self.create_trivial_zero_radix(counter_num_blocks, streams);
+        self.apply_lookup_table_async(
+            message_blocks.as_mut(),
+            result.as_ref(),
+            &lut_a,
+            0..counter_num_blocks,
             streams,
         );
-        let mut message_blocks_slice = message_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..lwe_size * counter_num_blocks, 0)
-            .unwrap();
-        let mut message_blocks_degrees = vec![0_u64; counter_num_blocks];
-        let mut message_blocks_noise_levels = vec![0_u64; counter_num_blocks];
-        let result_slice = result
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_slice(0..lwe_size * counter_num_blocks, 0)
-            .unwrap();
-
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                apply_univariate_lut_kb_async(
-                    streams,
-                    &mut message_blocks_slice,
-                    &mut message_blocks_degrees,
-                    &mut message_blocks_noise_levels,
-                    &result_slice,
-                    lut_a.acc.as_ref(),
-                    lut_a.degree.0,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    counter_num_blocks as u32,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                apply_univariate_lut_kb_async(
-                    streams,
-                    &mut message_blocks_slice,
-                    &mut message_blocks_degrees,
-                    &mut message_blocks_noise_levels,
-                    &result_slice,
-                    lut_a.acc.as_ref(),
-                    lut_a.degree.0,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    counter_num_blocks as u32,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                );
-            }
-        }
 
         let lut_b = self.generate_lookup_table(|x| {
             // extract carry
@@ -658,14 +449,8 @@ impl CudaServerKey {
             (!x) % self.message_modulus.0
         });
 
-        let mut carry_blocks = CudaLweCiphertextList::new(
-            lwe_dimension,
-            LweCiphertextCount(
-                counter_num_blocks, //* ct.as_ref().d_blocks.lwe_ciphertext_count().0,
-            ),
-            ct.as_ref().d_blocks.ciphertext_modulus(),
-            streams,
-        );
+        let mut carry_blocks: CudaSignedRadixCiphertext =
+            self.create_trivial_zero_radix(counter_num_blocks, streams);
 
         let mut trivial_last_block: CudaSignedRadixCiphertext =
             self.create_trivial_radix_async(self.message_modulus.0 - 1, 1, streams);
@@ -678,6 +463,8 @@ impl CudaServerKey {
             .unwrap();
 
         let mut carry_blocks_last = carry_blocks
+            .as_mut()
+            .d_blocks
             .0
             .d_vec
             .as_mut_slice(
@@ -688,121 +475,18 @@ impl CudaServerKey {
 
         carry_blocks_last.copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
 
-        let mut carry_blocks_slice = carry_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..lwe_size * counter_num_blocks, 0)
-            .unwrap();
-        let mut carry_blocks_degrees = vec![0_u64; counter_num_blocks];
-        let mut carry_blocks_noise_levels = vec![0_u64; counter_num_blocks];
-        unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    apply_univariate_lut_kb_async(
-                        streams,
-                        &mut carry_blocks_slice,
-                        &mut carry_blocks_degrees,
-                        &mut carry_blocks_noise_levels,
-                        &result_slice,
-                        lut_b.acc.as_ref(),
-                        lut_b.degree.0,
-                        &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        counter_num_blocks as u32 - 1,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    apply_univariate_lut_kb_async(
-                        streams,
-                        &mut carry_blocks_slice,
-                        &mut carry_blocks_degrees,
-                        &mut carry_blocks_noise_levels,
-                        &result_slice,
-                        lut_b.acc.as_ref(),
-                        lut_b.degree.0,
-                        &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        counter_num_blocks as u32 - 1,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
-                    );
-                }
-            }
-        }
+        self.apply_lookup_table_async(
+            carry_blocks.as_mut(),
+            result.as_ref(),
+            &lut_b,
+            0..counter_num_blocks - 1,
+            streams,
+        );
 
         let mut ciphertexts = Vec::<CudaSignedRadixCiphertext>::with_capacity(3);
 
-        let mut new_item: CudaSignedRadixCiphertext =
-            self.create_trivial_zero_radix_async(counter_num_blocks, streams);
-        for (i, b) in new_item.ciphertext.info.blocks.iter_mut().enumerate() {
-            b.degree = Degree(message_blocks_degrees[i]);
-            b.noise_level = NoiseLevel(message_blocks_noise_levels[i]);
-        }
-        let mut dest_slice = new_item
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..counter_num_blocks * lwe_size, 0)
-            .unwrap();
-
-        let src_slice = message_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..(counter_num_blocks * lwe_size), 0)
-            .unwrap();
-
-        dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
-
-        ciphertexts.push(new_item);
-
-        let mut new_item: CudaSignedRadixCiphertext =
-            self.create_trivial_zero_radix_async(counter_num_blocks, streams);
-        for (i, b) in new_item.ciphertext.info.blocks.iter_mut().enumerate() {
-            b.degree = Degree(carry_blocks_degrees[i]);
-            b.noise_level = NoiseLevel(carry_blocks_noise_levels[i]);
-        }
-        let mut dest_slice = new_item
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..counter_num_blocks * lwe_size, 0)
-            .unwrap();
-
-        let src_slice = carry_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..(counter_num_blocks * lwe_size), 0)
-            .unwrap();
-
-        dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
-
-        ciphertexts.push(new_item);
+        ciphertexts.push(message_blocks);
+        ciphertexts.push(carry_blocks);
 
         let trivial_ct: CudaSignedRadixCiphertext =
             self.create_trivial_radix_async(2u32, counter_num_blocks, streams);

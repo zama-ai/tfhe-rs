@@ -15,7 +15,8 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     add_and_propagate_single_carry_assign_async, apply_bivariate_lut_kb_async,
-    apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async, full_propagate_assign_async,
+    apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async,
+    compute_prefix_sum_hillis_steele_async, full_propagate_assign_async,
     propagate_single_carry_assign_async, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
@@ -231,19 +232,17 @@ impl CudaServerKey {
         let ciphertext = ct.as_mut();
         let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
         let uses_carry = input_carry.map_or(0u32, |_block| 1u32);
-        let mut aux_block: T = self.create_trivial_zero_radix(1, streams);
-        let in_carry_dvec = input_carry.map_or_else(
-            || &aux_block.as_mut().d_blocks.0.d_vec,
-            |block| &block.0.ciphertext.d_blocks.0.d_vec,
-        );
+        let aux_block: T = self.create_trivial_zero_radix(1, streams);
+        let in_carry: &CudaRadixCiphertext =
+            input_carry.map_or_else(|| aux_block.as_ref(), |block| block.0.as_ref());
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 propagate_single_carry_assign_async(
                     streams,
-                    &mut ciphertext.d_blocks.0.d_vec,
-                    &mut carry_out.as_mut().d_blocks.0.d_vec,
-                    in_carry_dvec,
+                    ciphertext,
+                    carry_out.as_mut(),
+                    in_carry,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     d_bsk.input_lwe_dimension(),
@@ -265,9 +264,9 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 propagate_single_carry_assign_async(
                     streams,
-                    &mut ciphertext.d_blocks.0.d_vec,
-                    &mut carry_out.as_mut().d_blocks.0.d_vec,
-                    in_carry_dvec,
+                    ciphertext,
+                    carry_out.as_mut(),
+                    in_carry,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     d_multibit_bsk.input_lwe_dimension(),
@@ -286,15 +285,7 @@ impl CudaServerKey {
                     uses_carry,
                 );
             }
-        }
-        ciphertext.info.blocks.iter_mut().for_each(|b| {
-            b.degree = Degree::new(b.message_modulus.0 - 1);
-            b.noise_level = NoiseLevel::NOMINAL;
-        });
-        carry_out.as_mut().info.blocks.iter_mut().for_each(|b| {
-            b.degree = Degree::new(1);
-            b.noise_level = NoiseLevel::NOMINAL;
-        });
+        };
         carry_out
     }
 
@@ -317,20 +308,18 @@ impl CudaServerKey {
 
         let num_blocks = lhs.as_mut().d_blocks.lwe_ciphertext_count().0 as u32;
         let uses_carry = input_carry.map_or(0u32, |_block| 1u32);
-        let mut aux_block: T = self.create_trivial_zero_radix(1, streams);
-        let in_carry_dvec = input_carry.map_or_else(
-            || &aux_block.as_mut().d_blocks.0.d_vec,
-            |block| &block.0.ciphertext.d_blocks.0.d_vec,
-        );
+        let aux_block: T = self.create_trivial_zero_radix(1, streams);
+        let in_carry: &CudaRadixCiphertext =
+            input_carry.map_or_else(|| aux_block.as_ref(), |block| block.0.as_ref());
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 add_and_propagate_single_carry_assign_async(
                     streams,
-                    &mut lhs.as_mut().d_blocks.0.d_vec,
-                    &rhs.as_ref().d_blocks.0.d_vec,
-                    &mut carry_out.as_mut().d_blocks.0.d_vec,
-                    in_carry_dvec,
+                    lhs.as_mut(),
+                    rhs.as_ref(),
+                    carry_out.as_mut(),
+                    in_carry,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     d_bsk.input_lwe_dimension(),
@@ -352,10 +341,10 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 add_and_propagate_single_carry_assign_async(
                     streams,
-                    &mut lhs.as_mut().d_blocks.0.d_vec,
-                    &rhs.as_ref().d_blocks.0.d_vec,
-                    &mut carry_out.as_mut().d_blocks.0.d_vec,
-                    in_carry_dvec,
+                    lhs.as_mut(),
+                    rhs.as_ref(),
+                    carry_out.as_mut(),
+                    in_carry,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     d_multibit_bsk.input_lwe_dimension(),
@@ -374,15 +363,7 @@ impl CudaServerKey {
                     uses_carry,
                 );
             }
-        }
-        lhs.as_mut().info.blocks.iter_mut().for_each(|b| {
-            b.degree = Degree::new(b.message_modulus.0 - 1);
-            b.noise_level = NoiseLevel::NOMINAL;
-        });
-        carry_out.as_mut().info.blocks.iter_mut().for_each(|b| {
-            b.degree = Degree::new(1);
-            b.noise_level = NoiseLevel::NOMINAL;
-        });
+        };
         carry_out
     }
 
@@ -1311,6 +1292,122 @@ impl CudaServerKey {
         }
 
         ciphertexts
+    }
+
+    /// Applies the lookup table on the range of ciphertexts
+    ///
+    /// The output must have exactly block_range.len() blocks
+    ///
+    /// # Safety
+    ///
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    pub(crate) unsafe fn compute_prefix_sum_hillis_steele_async(
+        &self,
+        output: &mut CudaRadixCiphertext,
+        generates_or_propagates: &mut CudaRadixCiphertext,
+        lut: &BivariateLookupTableOwned,
+        streams: &CudaStreams,
+    ) {
+        assert_eq!(
+            generates_or_propagates.d_blocks.lwe_dimension(),
+            output.d_blocks.lwe_dimension()
+        );
+        assert_eq!(
+            generates_or_propagates.d_blocks.lwe_ciphertext_count(),
+            output.d_blocks.lwe_ciphertext_count()
+        );
+
+        let lwe_dimension = generates_or_propagates.d_blocks.lwe_dimension();
+        let lwe_size = lwe_dimension.to_lwe_size().0;
+        let num_blocks = generates_or_propagates.d_blocks.lwe_ciphertext_count().0;
+
+        let mut generates_or_propagates_slice = generates_or_propagates
+            .d_blocks
+            .0
+            .d_vec
+            .as_mut_slice(0..lwe_size * num_blocks, 0)
+            .unwrap();
+        let mut generates_or_propagates_degrees = vec![0; num_blocks];
+        let mut generates_or_propagates_noise_levels = vec![0; num_blocks];
+        let mut output_slice = output.d_blocks.0.d_vec.as_mut_slice(.., 0).unwrap();
+        let mut output_degrees = vec![0_u64; num_blocks];
+        let mut output_noise_levels = vec![0_u64; num_blocks];
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    compute_prefix_sum_hillis_steele_async(
+                        streams,
+                        &mut output_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &mut generates_or_propagates_slice,
+                        &mut generates_or_propagates_degrees,
+                        &mut generates_or_propagates_noise_levels,
+                        lut.acc.acc.as_ref(),
+                        lut.acc.degree.0,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        num_blocks as u32,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    compute_prefix_sum_hillis_steele_async(
+                        streams,
+                        &mut output_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &mut generates_or_propagates_slice,
+                        &mut generates_or_propagates_degrees,
+                        &mut generates_or_propagates_noise_levels,
+                        lut.acc.acc.as_ref(),
+                        lut.acc.degree.0,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        num_blocks as u32,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                    );
+                }
+            }
+        }
+
+        for (i, info) in output.info.blocks[0..num_blocks].iter_mut().enumerate() {
+            info.degree = Degree(output_degrees[i]);
+            info.noise_level = NoiseLevel(output_noise_levels[i]);
+        }
+        for (i, info) in generates_or_propagates.info.blocks[0..num_blocks]
+            .iter_mut()
+            .enumerate()
+        {
+            info.degree = Degree(generates_or_propagates_degrees[i]);
+            info.noise_level = NoiseLevel(generates_or_propagates_noise_levels[i]);
+        }
     }
 
     /// # Safety

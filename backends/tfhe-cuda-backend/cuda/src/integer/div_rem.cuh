@@ -674,7 +674,7 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
 
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     uint32_t uses_carry = 0;
-    host_propagate_single_carry<Torus>(
+    legacy_host_propagate_single_carry<Torus>(
         int_mem_ptr->sub_streams_1, gpu_indexes, gpu_count,
         int_mem_ptr->negated_quotient, nullptr, nullptr, int_mem_ptr->scp_mem_1,
         bsks, ksks, num_blocks, requested_flag, uses_carry);
@@ -685,7 +685,7 @@ __host__ void host_integer_div_rem_kb(cudaStream_t const *streams,
         radix_params.big_lwe_dimension, num_blocks,
         radix_params.message_modulus, radix_params.carry_modulus);
 
-    host_propagate_single_carry<Torus>(
+    legacy_host_propagate_single_carry<Torus>(
         int_mem_ptr->sub_streams_2, gpu_indexes, gpu_count,
         int_mem_ptr->negated_remainder, nullptr, nullptr,
         int_mem_ptr->scp_mem_2, bsks, ksks, num_blocks, requested_flag,

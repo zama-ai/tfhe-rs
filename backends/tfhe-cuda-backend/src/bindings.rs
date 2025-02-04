@@ -267,6 +267,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,
+        num_radix_blocks: u32,
         shift: u32,
     );
 }
@@ -795,13 +796,12 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array: *mut ffi::c_void,
-        carry_out: *mut ffi::c_void,
-        carry_in: *const ffi::c_void,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        carry_out: *mut CudaRadixCiphertextFFI,
+        carry_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
-        num_blocks: u32,
         requested_flag: u32,
         uses_carry: u32,
     );
@@ -811,14 +811,13 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lhs_array: *mut ffi::c_void,
-        rhs_array: *const ffi::c_void,
-        carry_out: *mut ffi::c_void,
-        carry_in: *const ffi::c_void,
+        lhs_array: *mut CudaRadixCiphertextFFI,
+        rhs_array: *const CudaRadixCiphertextFFI,
+        carry_out: *mut CudaRadixCiphertextFFI,
+        carry_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
-        num_blocks: u32,
         requested_flag: u32,
         uses_carry: u32,
     );
@@ -1053,13 +1052,12 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        output_radix_lwe: *mut ffi::c_void,
-        generates_or_propagates: *mut ffi::c_void,
+        output_radix_lwe: *mut CudaRadixCiphertextFFI,
+        generates_or_propagates: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,
         num_blocks: u32,
-        shift: u32,
     );
 }
 unsafe extern "C" {
@@ -1075,9 +1073,7 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array: *mut ffi::c_void,
-        num_blocks: u32,
-        lwe_size: u32,
+        lwe_array: *mut CudaRadixCiphertextFFI,
     );
 }
 unsafe extern "C" {
@@ -1300,18 +1296,18 @@ unsafe extern "C" {
     pub fn cuda_add_lwe_ciphertext_vector_32(
         stream: *mut ffi::c_void,
         gpu_index: u32,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
-        lwe_array_in_1: *const CudaRadixCiphertextFFI,
-        lwe_array_in_2: *const CudaRadixCiphertextFFI,
+        output: *mut CudaRadixCiphertextFFI,
+        input_1: *const CudaRadixCiphertextFFI,
+        input_2: *const CudaRadixCiphertextFFI,
     );
 }
 unsafe extern "C" {
     pub fn cuda_add_lwe_ciphertext_vector_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
-        lwe_array_in_1: *const CudaRadixCiphertextFFI,
-        lwe_array_in_2: *const CudaRadixCiphertextFFI,
+        output: *mut CudaRadixCiphertextFFI,
+        input_1: *const CudaRadixCiphertextFFI,
+        input_2: *const CudaRadixCiphertextFFI,
     );
 }
 unsafe extern "C" {

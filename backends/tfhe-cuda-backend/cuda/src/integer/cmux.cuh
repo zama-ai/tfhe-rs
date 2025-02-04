@@ -90,41 +90,38 @@ __host__ void host_integer_radix_cmux_kb(
   auto num_radix_blocks = lwe_array_out->num_radix_blocks;
   auto params = mem_ptr->params;
   Torus lwe_size = params.big_lwe_dimension + 1;
-  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
-                                     mem_ptr->buffer_in, lwe_array_true);
-  copy_radix_ciphertext_to_larger_output_slice_async<Torus>(
-      streams[0], gpu_indexes[0], mem_ptr->buffer_in, lwe_array_false,
-      num_radix_blocks);
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], mem_ptr->buffer_in, 0, num_radix_blocks,
+      lwe_array_true, 0, num_radix_blocks);
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], mem_ptr->buffer_in, num_radix_blocks,
+      2 * num_radix_blocks, lwe_array_false, 0, num_radix_blocks);
   for (uint i = 0; i < 2 * num_radix_blocks; i++) {
-    cuda_memcpy_async_gpu_to_gpu(
-        (Torus *)(mem_ptr->condition_array->ptr) + i * lwe_size,
-        (Torus *)(lwe_condition->ptr), lwe_size * sizeof(Torus), streams[0],
-        gpu_indexes[0]);
+    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                             mem_ptr->condition_array, i, i + 1,
+                                             lwe_condition, 0, 1);
   }
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, mem_ptr->buffer_out, mem_ptr->buffer_in,
       mem_ptr->condition_array, bsks, ksks, mem_ptr->predicate_lut,
-      params.message_modulus);
+      2 * num_radix_blocks, params.message_modulus);
 
   // If the condition was true, true_ct will have kept its value and false_ct
   // will be 0 If the condition was false, true_ct will be 0 and false_ct will
   // have kept its value
-  CudaRadixCiphertextFFI *mem_true = new CudaRadixCiphertextFFI;
-  CudaRadixCiphertextFFI *mem_false = new CudaRadixCiphertextFFI;
-  as_radix_ciphertext_slice<Torus>(mem_true, mem_ptr->buffer_out, 0,
-                                   num_radix_blocks - 1);
-  as_radix_ciphertext_slice<Torus>(mem_false, mem_ptr->buffer_out,
-                                   num_radix_blocks, 2 * num_radix_blocks - 1);
+  CudaRadixCiphertextFFI mem_true;
+  CudaRadixCiphertextFFI mem_false;
+  as_radix_ciphertext_slice<Torus>(&mem_true, mem_ptr->buffer_out, 0,
+                                   num_radix_blocks);
+  as_radix_ciphertext_slice<Torus>(&mem_false, mem_ptr->buffer_out,
+                                   num_radix_blocks, 2 * num_radix_blocks);
 
-  auto added_cts = mem_true;
-  host_addition<Torus>(streams[0], gpu_indexes[0], added_cts, mem_true,
-                       mem_false);
+  host_addition<Torus>(streams[0], gpu_indexes[0], &mem_true, &mem_true,
+                       &mem_false, num_radix_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, added_cts, bsks, ksks,
+      streams, gpu_indexes, gpu_count, lwe_array_out, &mem_true, bsks, ksks,
       mem_ptr->message_extract_lut, num_radix_blocks);
-  delete mem_true;
-  delete mem_false;
 }
 
 template <typename Torus>
