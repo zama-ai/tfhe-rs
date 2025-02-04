@@ -18,6 +18,10 @@ impl FheEq<&Self> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings eq");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -32,6 +36,10 @@ impl FheEq<&Self> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings ne");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
             }
         })
     }
@@ -48,6 +56,10 @@ impl FheEq<&ClearString> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings eq");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -60,6 +72,10 @@ impl FheEq<&ClearString> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings ne");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
             }
         })
     }
@@ -78,6 +94,10 @@ impl FheOrd<&Self> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings lt");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -92,6 +112,10 @@ impl FheOrd<&Self> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings le");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
             }
         })
     }
@@ -108,6 +132,10 @@ impl FheOrd<&Self> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings gt");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -122,6 +150,10 @@ impl FheOrd<&Self> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings ge");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
             }
         })
     }
@@ -138,6 +170,10 @@ impl FheOrd<&ClearString> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings lt");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -150,6 +186,10 @@ impl FheOrd<&ClearString> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings le");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
             }
         })
     }
@@ -164,6 +204,10 @@ impl FheOrd<&ClearString> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings gt");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -176,6 +220,10 @@ impl FheOrd<&ClearString> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings ge");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
             }
         })
     }
@@ -216,6 +264,10 @@ impl FheEqIgnoreCase for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings eq_ignore_case");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -254,6 +306,10 @@ impl FheEqIgnoreCase<ClearString> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings eq_ignore_case");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
             }
         })
     }

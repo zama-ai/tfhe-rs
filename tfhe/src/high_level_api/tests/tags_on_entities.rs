@@ -215,6 +215,10 @@ fn test_tag_propagation(
 
             set_server_key(sks);
         }
+        #[cfg(feature = "hpu")]
+        Device::Hpu => {
+            todo!()
+        }
     }
 
     // Check encrypting regular ct with client key
