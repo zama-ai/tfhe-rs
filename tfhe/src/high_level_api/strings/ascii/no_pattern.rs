@@ -105,6 +105,10 @@ impl FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings len");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings len");
+            }
         })
     }
 
@@ -148,7 +152,11 @@ impl FheAsciiString {
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
-                panic!("gpu does not support strings len");
+                panic!("gpu does not support strings is_empty");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings is_empty");
             }
         })
     }
@@ -180,6 +188,10 @@ impl FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings to_lowercase");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings to_lowercase");
+            }
         })
     }
 
@@ -209,6 +221,10 @@ impl FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings to_uppercase");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings to_uppercase");
             }
         })
     }
@@ -245,6 +261,10 @@ impl FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings concatenating");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings concatenating");
             }
         })
     }
@@ -304,6 +324,10 @@ impl FheStringRepeat<u16> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings repeat");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings repeat");
+            }
         })
     }
 }
@@ -350,6 +374,10 @@ impl FheStringRepeat<(FheUint16, u16)> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings repeat");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings repeat");
             }
         })
     }

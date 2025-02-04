@@ -196,6 +196,10 @@ where
         Some(Device::CudaGpu) => {
             panic!("Not supported by Cuda devices")
         }
+        #[cfg(feature = "hpu")]
+        Some(Device::Hpu) => {
+            panic!("Not supported by Hpu devices")
+        }
         None => {
             panic!("{}", crate::high_level_api::errors::UninitializedServerKey);
         }
@@ -222,6 +226,10 @@ where
         #[cfg(feature = "gpu")]
         Some(Device::CudaGpu) => {
             panic!("Not supported by Cuda devices")
+        }
+        #[cfg(feature = "hpu")]
+        Some(Device::Hpu) => {
+            panic!("Not supported by Hpu devices")
         }
         None => {
             panic!("{}", crate::high_level_api::errors::UninitializedServerKey);
@@ -346,6 +354,10 @@ where
         #[cfg(feature = "gpu")]
         Some(Device::CudaGpu) => {
             panic!("Not supported by Cuda devices")
+        }
+        #[cfg(feature = "hpu")]
+        Some(Device::Hpu) => {
+            panic!("Not supported by Hpu devices")
         }
         None => {
             panic!("{}", crate::high_level_api::errors::UninitializedServerKey);

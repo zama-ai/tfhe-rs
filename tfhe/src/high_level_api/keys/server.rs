@@ -1,3 +1,7 @@
+#[cfg(feature = "hpu")]
+pub(in crate::high_level_api) use hpu::HpuTaggedDevice;
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::HpuDevice;
 use tfhe_versionable::Versionize;
 
 use super::ClientKey;
@@ -17,7 +21,7 @@ use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
 #[cfg(feature = "gpu")]
 use crate::GpuIndex;
-use crate::Tag;
+use crate::{Device, Tag};
 use std::sync::Arc;
 
 /// Key of the server
@@ -328,14 +332,14 @@ impl Tagged for CompressedServerKey {
     }
 }
 
-impl Named for CompressedServerKey {
-    const NAME: &'static str = "high_level_api::CompressedServerKey";
-}
-
 impl From<CompressedServerKey> for crate::integer::CompressedServerKey {
     fn from(value: CompressedServerKey) -> Self {
         value.integer_key.key
     }
+}
+
+impl Named for CompressedServerKey {
+    const NAME: &'static str = "high_level_api::CompressedServerKey";
 }
 
 #[cfg(feature = "gpu")]
@@ -383,6 +387,20 @@ pub enum InternalServerKey {
     Cpu(ServerKey),
     #[cfg(feature = "gpu")]
     Cuda(CudaServerKey),
+    #[cfg(feature = "hpu")]
+    Hpu(HpuTaggedDevice),
+}
+
+impl InternalServerKey {
+    pub(crate) fn device(&self) -> Device {
+        match self {
+            Self::Cpu(_) => Device::Cpu,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(_) => Device::CudaGpu,
+            #[cfg(feature = "hpu")]
+            Self::Hpu(_) => Device::Hpu,
+        }
+    }
 }
 
 impl std::fmt::Debug for InternalServerKey {
@@ -391,6 +409,8 @@ impl std::fmt::Debug for InternalServerKey {
             Self::Cpu(_) => f.debug_tuple("Cpu").finish(),
             #[cfg(feature = "gpu")]
             Self::Cuda(_) => f.debug_tuple("Cuda").finish(),
+            #[cfg(feature = "hpu")]
+            Self::Hpu(_) => f.debug_tuple("Hpu").finish(),
         }
     }
 }
@@ -404,6 +424,26 @@ impl From<ServerKey> for InternalServerKey {
 impl From<CudaServerKey> for InternalServerKey {
     fn from(value: CudaServerKey) -> Self {
         Self::Cuda(value)
+    }
+}
+
+#[cfg(feature = "hpu")]
+mod hpu {
+    use super::*;
+
+    pub struct HpuTaggedDevice {
+        // The device holds the keys (there can only be one set of keys)
+        // So we attach the tag to it instead of the key
+        pub(in crate::high_level_api) device: HpuDevice,
+        pub(in crate::high_level_api) tag: Tag,
+    }
+
+    impl From<(HpuDevice, CompressedServerKey)> for InternalServerKey {
+        fn from((device, csks): (HpuDevice, CompressedServerKey)) -> Self {
+            let CompressedServerKey { integer_key, tag } = csks;
+            crate::integer::hpu::init_device(&device, integer_key.key);
+            Self::Hpu(HpuTaggedDevice { device, tag })
+        }
     }
 }
 

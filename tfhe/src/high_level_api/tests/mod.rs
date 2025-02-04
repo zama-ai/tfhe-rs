@@ -1,5 +1,3 @@
-#[cfg(feature = "gpu")]
-mod gpu_selection;
 mod tags_on_entities;
 
 use crate::high_level_api::prelude::*;

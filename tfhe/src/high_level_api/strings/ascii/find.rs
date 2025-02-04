@@ -46,6 +46,10 @@ impl FheStringFind<&Self> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings find");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings find");
+            }
         })
     }
 
@@ -88,6 +92,10 @@ impl FheStringFind<&Self> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings rfind");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings rfind");
             }
         })
     }
@@ -132,6 +140,10 @@ impl FheStringFind<&ClearString> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings find");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings find");
+            }
         })
     }
 
@@ -172,6 +184,10 @@ impl FheStringFind<&ClearString> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings rfind");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings rfind");
             }
         })
     }

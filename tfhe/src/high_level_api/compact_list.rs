@@ -146,7 +146,7 @@ impl CompactCiphertextList {
                     inner,
                     tag: self.tag.clone(),
                 }),
-            #[cfg(feature = "gpu")]
+            #[cfg(any(feature = "gpu", feature = "hpu"))]
             Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
         })
     }
@@ -261,7 +261,7 @@ mod zk {
                         inner: expander,
                         tag: self.tag.clone(),
                     }),
-                #[cfg(feature = "gpu")]
+                #[cfg(any(feature = "gpu", feature = "hpu"))]
                 Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
             })
         }
@@ -293,7 +293,7 @@ mod zk {
                         inner: expander,
                         tag: self.tag.clone(),
                     }),
-                #[cfg(feature = "gpu")]
+                #[cfg(any(feature = "gpu", feature = "hpu"))]
                 Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
             })
         }

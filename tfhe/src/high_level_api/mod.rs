@@ -138,6 +138,8 @@ pub enum Device {
     Cpu,
     #[cfg(feature = "gpu")]
     CudaGpu,
+    #[cfg(feature = "hpu")]
+    Hpu,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]

@@ -64,6 +64,10 @@ where
                     Self::new(inner_result, cuda_key.tag.clone())
                 })
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -112,6 +116,10 @@ where
                     Self::new(inner_result, cuda_key.tag.clone())
                 })
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -159,6 +167,10 @@ where
                     FheBool::new(inner_result, cuda_key.tag.clone())
                 })
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -199,6 +211,10 @@ where
                             .scalar_ne(&*self.ciphertext.on_gpu(streams), rhs, streams);
                     FheBool::new(inner_result, cuda_key.tag.clone())
                 })
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -246,6 +262,10 @@ where
                     FheBool::new(inner_result, cuda_key.tag.clone())
                 })
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -285,6 +305,10 @@ where
                             .scalar_le(&*self.ciphertext.on_gpu(streams), rhs, streams);
                     FheBool::new(inner_result, cuda_key.tag.clone())
                 })
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -326,6 +350,10 @@ where
                     FheBool::new(inner_result, cuda_key.tag.clone())
                 })
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -365,6 +393,10 @@ where
                             .scalar_ge(&*self.ciphertext.on_gpu(streams), rhs, streams);
                     FheBool::new(inner_result, cuda_key.tag.clone())
                 })
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -419,6 +451,10 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                     <$concrete_type>::new(r, cuda_key.tag.clone())
                                 )
                             }
+                            #[cfg(feature = "hpu")]
+                            InternalServerKey::Hpu(_device) => {
+                                todo!("hpu")
+                            }
                         })
                     }
                 }
@@ -469,6 +505,10 @@ generic_integer_impl_scalar_operation!(
                     });
                     RadixCiphertext::Cuda(inner_result)
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -506,6 +546,10 @@ generic_integer_impl_scalar_operation!(
                         )
                     });
                     RadixCiphertext::Cuda(inner_result)
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -545,6 +589,10 @@ generic_integer_impl_scalar_operation!(
                     });
                     RadixCiphertext::Cuda(inner_result)
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -583,6 +631,10 @@ generic_integer_impl_scalar_operation!(
                     });
                     RadixCiphertext::Cuda(inner_result)
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -620,6 +672,10 @@ generic_integer_impl_scalar_operation!(
                         )
                     });
                     RadixCiphertext::Cuda(inner_result)
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -660,6 +716,10 @@ generic_integer_impl_scalar_operation!(
                     });
                     RadixCiphertext::Cuda(inner_result)
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -697,6 +757,10 @@ generic_integer_impl_scalar_operation!(
                         )
                     });
                     RadixCiphertext::Cuda(inner_result)
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -736,6 +800,10 @@ generic_integer_impl_scalar_operation!(
                     });
                     RadixCiphertext::Cuda(inner_result)
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -773,6 +841,10 @@ generic_integer_impl_scalar_operation!(
                         )
                     });
                     RadixCiphertext::Cuda(inner_result)
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -812,6 +884,10 @@ generic_integer_impl_scalar_operation!(
                     });
                     RadixCiphertext::Cuda(inner_result)
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -850,6 +926,10 @@ generic_integer_impl_scalar_operation!(
                     });
                     RadixCiphertext::Cuda(inner_result)
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -887,6 +967,10 @@ generic_integer_impl_scalar_operation!(
                         )
                     });
                     RadixCiphertext::Cuda(inner_result)
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -976,6 +1060,10 @@ generic_integer_impl_scalar_left_operation!(
 //                        cuda_key.key.key.sub_assign(&mut result, &rhs.ciphertext.on_gpu(streams), streams);
 //                        RadixCiphertext::Cuda(result)
                     })
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -1208,6 +1296,10 @@ generic_integer_impl_scalar_operation_assign!(
                             .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -1265,6 +1357,10 @@ generic_integer_impl_scalar_operation_assign!(
                             .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -1299,6 +1395,10 @@ generic_integer_impl_scalar_operation_assign!(
                         cuda_key.key.key
                             .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -1335,6 +1435,10 @@ generic_integer_impl_scalar_operation_assign!(
                             .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -1369,6 +1473,10 @@ generic_integer_impl_scalar_operation_assign!(
                         cuda_key.key.key
                             .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -1405,6 +1513,10 @@ generic_integer_impl_scalar_operation_assign!(
                             .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -1439,6 +1551,10 @@ generic_integer_impl_scalar_operation_assign!(
                         cuda_key.key.key
                             .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -1475,6 +1591,10 @@ generic_integer_impl_scalar_operation_assign!(
                             .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -1509,6 +1629,10 @@ generic_integer_impl_scalar_operation_assign!(
                         cuda_key.key.key
                             .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
@@ -1545,6 +1669,10 @@ generic_integer_impl_scalar_operation_assign!(
                             .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                     })
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -1577,6 +1705,10 @@ generic_integer_impl_scalar_operation_assign!(
                 InternalServerKey::Cuda(_) => {
                     panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             })
         }
     },
@@ -1608,6 +1740,10 @@ generic_integer_impl_scalar_operation_assign!(
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(_) => {
                     panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
                 }
             })
         }
