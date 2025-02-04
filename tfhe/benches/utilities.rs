@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::{env, fs};
 use tfhe::core_crypto::prelude::*;
@@ -454,9 +455,98 @@ pub mod integer_utils {
     }
 }
 
+const MULTI_BIT_THREADS_ARRAY: [((MessageModulus, CarryModulus, LweBskGroupingFactor), u64); 12] = [
+    (
+        (MessageModulus(2), CarryModulus(2), LweBskGroupingFactor(2)),
+        5,
+    ),
+    (
+        (MessageModulus(4), CarryModulus(4), LweBskGroupingFactor(2)),
+        5,
+    ),
+    (
+        (MessageModulus(8), CarryModulus(8), LweBskGroupingFactor(2)),
+        5,
+    ),
+    (
+        (
+            MessageModulus(16),
+            CarryModulus(16),
+            LweBskGroupingFactor(2),
+        ),
+        5,
+    ),
+    (
+        (MessageModulus(2), CarryModulus(2), LweBskGroupingFactor(3)),
+        7,
+    ),
+    (
+        (MessageModulus(4), CarryModulus(4), LweBskGroupingFactor(3)),
+        9,
+    ),
+    (
+        (MessageModulus(8), CarryModulus(8), LweBskGroupingFactor(3)),
+        10,
+    ),
+    (
+        (
+            MessageModulus(16),
+            CarryModulus(16),
+            LweBskGroupingFactor(3),
+        ),
+        10,
+    ),
+    (
+        (MessageModulus(2), CarryModulus(2), LweBskGroupingFactor(4)),
+        11,
+    ),
+    (
+        (MessageModulus(4), CarryModulus(4), LweBskGroupingFactor(4)),
+        13,
+    ),
+    (
+        (MessageModulus(8), CarryModulus(8), LweBskGroupingFactor(4)),
+        11,
+    ),
+    (
+        (
+            MessageModulus(16),
+            CarryModulus(16),
+            LweBskGroupingFactor(4),
+        ),
+        11,
+    ),
+];
+
+pub fn multi_bit_num_threads(
+    message_modulus: u64,
+    carry_modulus: u64,
+    grouping_factor: usize,
+) -> Option<u64> {
+    // TODO Implement an interpolation mechanism for X_Y parameters set
+    assert_eq!(
+        message_modulus, carry_modulus,
+        "different values for message and carry modulus is not supported"
+    );
+    assert!(
+        [2, 3, 4].contains(&(grouping_factor as i32)),
+        "only grouping factor 2, 3 and 4 are supported"
+    );
+    let thread_map: HashMap<(MessageModulus, CarryModulus, LweBskGroupingFactor), u64> =
+        HashMap::from_iter(MULTI_BIT_THREADS_ARRAY);
+    thread_map
+        .get(&(
+            MessageModulus(message_modulus),
+            CarryModulus(carry_modulus),
+            LweBskGroupingFactor(grouping_factor),
+        ))
+        .map(|x| *x)
+}
+
 #[allow(unused_imports)]
 #[cfg(feature = "integer")]
 pub use integer_utils::*;
+use tfhe::shortint::{CarryModulus, MessageModulus};
 
 // Empty main to please clippy.
 #[allow(dead_code)]
