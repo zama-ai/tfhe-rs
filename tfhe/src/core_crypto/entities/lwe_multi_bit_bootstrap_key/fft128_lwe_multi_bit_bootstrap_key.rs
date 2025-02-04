@@ -165,7 +165,7 @@ impl<C: Container<Element = f64>> Fourier128LweMultiBitBootstrapKey<C> {
     }
 }
 
-pub type Fourier128MultiBitLweBootstrapKeyOwned = Fourier128LweMultiBitBootstrapKey<ABox<[f64]>>;
+pub type Fourier128LweMultiBitBootstrapKeyOwned = Fourier128LweMultiBitBootstrapKey<ABox<[f64]>>;
 
 impl Fourier128LweMultiBitBootstrapKey<ABox<[f64]>> {
     pub fn new(

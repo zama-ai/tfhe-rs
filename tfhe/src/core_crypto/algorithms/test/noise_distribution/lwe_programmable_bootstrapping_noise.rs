@@ -243,7 +243,7 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
 
                 let filename_kara = format!("./results/{EXP_NAME}/samples/kara-id={thread_id}-gf=1-logB={}-l={}-k={}-N={}-distro={}-logQ={}.npy", pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0, distro, Scalar::BITS);
 
-                let mut filename_kara_path: PathBuf = filename_kara.as_str().into();
+                let filename_kara_path: PathBuf = filename_kara.as_str().into();
                 let filename_kara_parent = filename_kara_path.parent().unwrap();
                 std::fs::create_dir_all(&filename_kara_parent).unwrap();
                 let mut file = OpenOptions::new()
@@ -314,7 +314,7 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
 
                 let filename_fft = format!("./results/{EXP_NAME}/samples/fft-id={thread_id}-gf=1-logB={}-l={}-k={}-N={}-distro={}-logQ={}.npy", pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0, distro, Scalar::BITS);
 
-                let mut filename_fft_path: PathBuf = filename_fft.as_str().into();
+                let filename_fft_path: PathBuf = filename_fft.as_str().into();
                 let filename_fft_parent = filename_fft_path.parent().unwrap();
                 std::fs::create_dir_all(&filename_fft_parent).unwrap();
                 let mut file = OpenOptions::new()
@@ -589,7 +589,12 @@ fn test_impl<
     //TODO FIXME: params need to be updated, cf. mod.rs where they are defined
     //~ lwe_encrypt_pbs_decrypt_custom_mod<Scalar>(&
     //~ NOISE_TEST_PARAMS_2_BITS_NATIVE_U64_132_BITS_TUNIFORM); return;
-    let modulus_as_f64 = 2.0f64.powi(Scalar::BITS as i32);
+    let ciphertext_modulus = CiphertextModulus::<Scalar>::new_native();
+    let modulus_as_f64 = if ciphertext_modulus.is_native_modulus() {
+        2.0f64.powi(Scalar::BITS as i32)
+    } else {
+        ciphertext_modulus.get_custom_modulus() as f64
+    };
     let msg_mod_log = 4;
 
     for logbase in 5..=30 {
@@ -618,7 +623,7 @@ fn test_impl<
                 polynomial_size: PolynomialSize(1 << logN),
                 glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(glwe_var.get_standard_dev())),
                 message_modulus_log: MessageModulusLog(msg_mod_log),
-                ciphertext_modulus: CiphertextModulus::<Scalar>::new_native(),   //TODO remove generics?
+                ciphertext_modulus,
                 // unused param's
                 ks_level: DecompositionLevelCount(0),
                 ks_base_log: DecompositionBaseLog(0),

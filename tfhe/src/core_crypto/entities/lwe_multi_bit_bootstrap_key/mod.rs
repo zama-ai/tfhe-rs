@@ -4,7 +4,9 @@ pub mod fft128_lwe_multi_bit_bootstrap_key;
 pub mod fft64_lwe_multi_bit_bootstrap_key;
 pub mod standard_lwe_multi_bit_bootstrap_key;
 
-pub use fft128_lwe_multi_bit_bootstrap_key::Fourier128LweMultiBitBootstrapKey;
+pub use fft128_lwe_multi_bit_bootstrap_key::{
+    Fourier128LweMultiBitBootstrapKey, Fourier128LweMultiBitBootstrapKeyOwned,
+};
 pub use fft64_lwe_multi_bit_bootstrap_key::{
     FourierLweMultiBitBootstrapKey, FourierLweMultiBitBootstrapKeyMutView,
     FourierLweMultiBitBootstrapKeyOwned, FourierLweMultiBitBootstrapKeyView,

@@ -4,11 +4,18 @@ use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::*;
 use crate::core_crypto::commons::noise_formulas::secure_noise::*;
 use crate::core_crypto::commons::test_tools::variance;
+use crate::core_crypto::entities::{
+    Fourier128LweMultiBitBootstrapKeyOwned, FourierLweMultiBitBootstrapKeyOwned,
+};
 use npyz::{DType, WriterBuilder};
 use rayon::prelude::*;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::any::TypeId;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::mem::discriminant;
+use std::path::PathBuf;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
@@ -17,11 +24,17 @@ const RELATIVE_TOLERANCE: f64 = 0.0625;
 const NB_TESTS: usize = 500;
 const EXP_NAME: &str = "fft-with-gap"; // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
 
-fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
-    params: &MultiBitTestParams<u64>,
+enum MultiBitFourierBsk {
+    F64(FourierLweMultiBitBootstrapKeyOwned),
+    F128(Fourier128LweMultiBitBootstrapKeyOwned),
+}
+
+fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
+    Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
+>(
+    params: &MultiBitTestParams<Scalar>,
     run_measurements: &bool,
 ) {
-    type Scalar = u64;
     let lwe_dimension = params.lwe_dimension;
     let lwe_noise_distribution = params.lwe_noise_distribution;
     let glwe_noise_distribution = params.glwe_noise_distribution;
@@ -134,16 +147,33 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
             ciphertext_modulus
         ));
 
-        let mut fbsk = FourierLweMultiBitBootstrapKey::new(
-            bsk.input_lwe_dimension(),
-            bsk.glwe_size(),
-            bsk.polynomial_size(),
-            bsk.decomposition_base_log(),
-            bsk.decomposition_level_count(),
-            bsk.grouping_factor(),
-        );
+        let fbsk: MultiBitFourierBsk = if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
+            let mut inner_fbsk = Fourier128LweMultiBitBootstrapKey::new(
+                bsk.input_lwe_dimension(),
+                bsk.glwe_size(),
+                bsk.polynomial_size(),
+                bsk.decomposition_base_log(),
+                bsk.decomposition_level_count(),
+                bsk.grouping_factor(),
+            );
 
-        par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+            par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_128(&bsk, &mut inner_fbsk);
+
+            MultiBitFourierBsk::F128(inner_fbsk)
+        } else {
+            let mut inner_fbsk = FourierLweMultiBitBootstrapKey::new(
+                bsk.input_lwe_dimension(),
+                bsk.glwe_size(),
+                bsk.polynomial_size(),
+                bsk.decomposition_base_log(),
+                bsk.decomposition_level_count(),
+                bsk.grouping_factor(),
+            );
+
+            par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut inner_fbsk);
+
+            MultiBitFourierBsk::F64(inner_fbsk)
+        };
 
         (bsk, fbsk)
     };
@@ -170,7 +200,10 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
         &mut rsc.encryption_random_generator,
     );
 
-    let mut sanity_plain = PlaintextList::new(0, PlaintextCount(accumulator.polynomial_size().0));
+    let mut sanity_plain = PlaintextList::new(
+        Scalar::ZERO,
+        PlaintextCount(accumulator.polynomial_size().0),
+    );
 
     decrypt_glwe_ciphertext(&output_glwe_secret_key, &accumulator, &mut sanity_plain);
 
@@ -230,6 +263,9 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
 
                 let filename_kara = format!("./results/{EXP_NAME}/samples/kara-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
 
+                let filename_kara_path: PathBuf = filename_kara.as_str().into();
+                let filename_kara_parent = filename_kara_path.parent().unwrap();
+                std::fs::create_dir_all(&filename_kara_parent).unwrap();
                 let mut file = OpenOptions::new()
                     .create(true)
                     .write(true)
@@ -239,7 +275,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
                 let mut writer = {
                     npyz::WriteOptions::new()
                         // 8 == number of bytes
-                        .dtype(DType::new_scalar("<i8".parse().unwrap()))
+                        .dtype(DType::new_scalar(">f8".parse().unwrap()))
                         .shape(&[
                             karatsuba_noise.len() as u64,
                             //~ karatsuba_noise[0].len() as u64,
@@ -254,7 +290,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
                     //~ for col in row.iter().copied() {
                         //~ writer.push(&(col as i64)).unwrap();
                     //~ }
-                    writer.push(&(row[0] as i64)).unwrap();   // essentially SE
+                    let noise_as_float: f64 = row[0].into_signed().cast_into() / modulus_as_f64;
+                    writer.push(&(noise_as_float)).unwrap();   // essentially SE
                 }
 
                 let last_ext_prod_karatsuba_noise = karatsuba_noise.last().unwrap();
@@ -271,21 +308,41 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
                 );
 
                 //TODO multi_bit_programmable_bootstrap_f128_lwe_ciphertext_return_noise
-                let fft_noise = multi_bit_programmable_bootstrap_lwe_ciphertext_return_noise(
-                    &lwe_ciphertext_in,
-                    &mut fft_out_ct,
-                    &accumulator,
-                    &fbsk,
-                    params.thread_count,
-                    Some((
-                        &input_lwe_secret_key,
-                        &output_glwe_secret_key,
-                        &reference_accumulator,
-                    )),
-                );
+                let fft_noise = match &fbsk {
+                    MultiBitFourierBsk::F64(fbsk) =>
+                        multi_bit_programmable_bootstrap_lwe_ciphertext_return_noise(
+                            &lwe_ciphertext_in,
+                            &mut fft_out_ct,
+                            &accumulator,
+                            &fbsk,
+                            params.thread_count,
+                            Some((
+                                &input_lwe_secret_key,
+                                &output_glwe_secret_key,
+                                &reference_accumulator,
+                            )),
+                        ),
+                    MultiBitFourierBsk::F128(fbsk) =>
+                        multi_bit_programmable_bootstrap_f128_lwe_ciphertext_return_noise(
+                            &lwe_ciphertext_in,
+                            &mut fft_out_ct,
+                            &accumulator,
+                            &fbsk,
+                            params.thread_count,
+                            true,
+                            Some((
+                                &input_lwe_secret_key,
+                                &output_glwe_secret_key,
+                                &reference_accumulator,
+                            )),
+                        ),
+                };
 
                 let filename_fft = format!("./results/{EXP_NAME}/samples/fft-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
 
+                let filename_fft_path: PathBuf = filename_fft.as_str().into();
+                let filename_fft_parent = filename_fft_path.parent().unwrap();
+                std::fs::create_dir_all(&filename_fft_parent).unwrap();
                 let mut file = OpenOptions::new()
                     .create(true)
                     .write(true)
@@ -295,7 +352,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
                 let mut writer = {
                     npyz::WriteOptions::new()
                         // 8 == number of bytes
-                        .dtype(DType::new_scalar("<i8".parse().unwrap()))
+                        .dtype(DType::new_scalar(">f8".parse().unwrap()))
                         .shape(&[
                             fft_noise.len() as u64,
                             //~ fft_noise[0].len() as u64,
@@ -310,7 +367,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
                     //~ for col in row.iter().copied() {
                         //~ writer.push(&(col as i64)).unwrap();
                     //~ }
-                    writer.push(&(row[0] as i64)).unwrap();   // essentially SE
+                    let noise_as_float: f64 = row[0].into_signed().cast_into() / modulus_as_f64;
+                    writer.push(&(noise_as_float)).unwrap();   // essentially SE
                 }
 
                 let last_ext_prod_fft_noise = fft_noise.last().unwrap();
@@ -368,9 +426,14 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
     let measured_variance_fft = variance(&noise_samples_fft);
     let measured_variance_kara = variance(&noise_samples_kara);
 
+        let output_lwe_dimension = match &fbsk {
+            MultiBitFourierBsk::F64(k) => k.output_lwe_dimension(),
+            MultiBitFourierBsk::F128(k) => k.output_lwe_dimension(),
+        };
+
     //TODO add TUniform
     let minimal_variance = minimal_lwe_variance_for_132_bits_security_gaussian(
-        fbsk.output_lwe_dimension(),
+        output_lwe_dimension,
         if ciphertext_modulus.is_native_modulus() {
             2.0f64.powi(Scalar::BITS as i32)
         } else {
@@ -403,7 +466,13 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(
     //~ }
 }
 
-fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
+fn export_noise_predictions<Scalar: UnsignedInteger>(params: &MultiBitTestParams<Scalar>) {
+    let modulus_as_f64 = if params.ciphertext_modulus.is_native_modulus() {
+        2.0f64.powi(Scalar::BITS as i32)
+    } else {
+        params.ciphertext_modulus.get_custom_modulus() as f64
+    };
+
     // output predicted noises to JSON
     let distro: &str = if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
         "GAUSSIAN"
@@ -413,12 +482,13 @@ fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
         panic!("Unknown distribution: {}", params.lwe_noise_distribution)
     };
     let filename_exp_var = format!(
-        "./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.json",
+        "./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}-logQ={}.json",
         params.grouping_factor.0,
         params.pbs_base_log.0,
         params.pbs_level.0,
         params.glwe_dimension.0,
-        params.polynomial_size.0
+        params.polynomial_size.0,
+        modulus_as_f64.log2(),
     );
     let mut file_exp_var = File::create(&filename_exp_var).unwrap();
 
@@ -454,9 +524,10 @@ fn export_noise_predictions(params: &MultiBitTestParams<u64>) {
 }
 
 //TODO make this somehow a bit more compact
-fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance, Variance) {
-    type Scalar = u64;
-    let modulus_as_f64 = if params.ciphertext_modulus.is_native_modulus() {
+fn noise_prediction_kara_fft<Scalar: UnsignedInteger>(
+    params: &MultiBitTestParams<Scalar>,
+) -> (Variance, Variance) {
+    let modulus_as_f64: f64 = if params.ciphertext_modulus.is_native_modulus() {
         2.0f64.powi(Scalar::BITS as i32)
     } else {
         params.ciphertext_modulus.get_custom_modulus() as f64
@@ -586,15 +657,32 @@ fn noise_prediction_kara_fft(params: &MultiBitTestParams<u64>) -> (Variance, Var
 #[test]
 fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u64_132_bits(
 ) {
-    test_impl(true);
+    test_impl::<u64>(true);
 }
 
 #[test]
-fn test_export_multi_bit_noise_predictions() {
-    test_impl(false);
+fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u128_132_bits(
+) {
+    test_impl::<u128>(true);
 }
 
-fn test_impl(run_measurements: bool) {
+#[test]
+fn test_export_multi_bit_noise_predictions_native_u64_132_bits() {
+    test_impl::<u64>(false);
+}
+
+#[test]
+fn test_export_multi_bit_noise_predictions_native_u128_132_bits() {
+    test_impl::<u128>(false);
+}
+
+fn test_impl<
+    Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
+>(
+    run_measurements: bool,
+) where
+    usize: CastFrom<Scalar>,
+{
     //TODO FIXME: params need to be updated, cf. mod.rs where they are defined
     //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
     //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_2_2_BITS_NATIVE_U64_132_BITS_TUNIFORM);
@@ -621,6 +709,13 @@ fn test_impl(run_measurements: bool) {
     //~ lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&
     //~ NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIAN); return;
 
+    let ciphertext_modulus = CiphertextModulus::<Scalar>::new_native();
+    let modulus_as_f64 = if ciphertext_modulus.is_native_modulus() {
+        2.0f64.powi(Scalar::BITS as i32)
+    } else {
+        ciphertext_modulus.get_custom_modulus() as f64
+    };
+
     for gf in [2, 3, 4] {
         for logbase in 5..=30 {
             for level in 1..=6 {
@@ -636,8 +731,8 @@ fn test_impl(run_measurements: bool) {
             //~ }
 
             // Gaussian noise
-            let glwe_var = minimal_glwe_variance_for_132_bits_security_gaussian(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));   // TODO CiphertextModulus::new_native() ???
-            let gaussian_params: MultiBitTestParams<u64> = MultiBitTestParams {
+            let glwe_var = minimal_glwe_variance_for_132_bits_security_gaussian(GlweDimension(*k), PolynomialSize(1<<logN), modulus_as_f64);
+            let gaussian_params: MultiBitTestParams<Scalar> = MultiBitTestParams {
                 lwe_dimension: LweDimension(100 * gf),
                 lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
                     1.4742441118914234e-06 // this shall play no role, right..?
