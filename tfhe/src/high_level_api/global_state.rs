@@ -129,11 +129,7 @@ pub(in crate::high_level_api) fn device_of_internal_keys() -> Option<crate::Devi
     // Should use `with_borrow` when its stabilized
     INTERNAL_KEYS.with(|keys| {
         let cell = keys.borrow();
-        Some(match cell.as_ref()? {
-            InternalServerKey::Cpu(_) => crate::Device::Cpu,
-            #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => crate::Device::CudaGpu,
-        })
+        cell.as_ref().map(InternalServerKey::device)
     })
 }
 
@@ -146,6 +142,8 @@ pub(in crate::high_level_api) fn tag_of_internal_server_key() -> crate::Result<c
             InternalServerKey::Cpu(cpu_key) => cpu_key.tag.clone(),
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => cuda_key.tag.clone(),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(hpu_device) => hpu_device.tag.clone(),
         })
     })
 }
@@ -162,11 +160,14 @@ where
             .as_ref()
             .ok_or(UninitializedServerKey)
             .unwrap_display();
+        #[allow(clippy::match_wildcard_for_single_variants)]
         match key {
             InternalServerKey::Cpu(key) => func(key),
-            #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cpu key requested but only cuda key is available")
+            _ => {
+                panic!(
+                    "Cpu key requested but only the key for {:?} is available",
+                    key.device()
+                )
             }
         }
     })
@@ -185,10 +186,14 @@ where
             .as_ref()
             .ok_or(UninitializedServerKey)
             .unwrap_display();
+        #[allow(clippy::match_wildcard_for_single_variants)]
         match key {
             InternalServerKey::Cuda(key) => func(key),
-            InternalServerKey::Cpu(_) => {
-                panic!("Cuda key requested but only cpu key is available")
+            _ => {
+                panic!(
+                    "Cuda key requested but only {:?} key is available",
+                    key.device()
+                )
             }
         }
     })
@@ -305,5 +310,29 @@ mod gpu {
         fn default() -> Self {
             Self::Multi
         }
+    }
+}
+
+#[cfg(feature = "hpu")]
+pub(in crate::high_level_api) use hpu::with_thread_local_hpu_device;
+
+#[cfg(feature = "hpu")]
+mod hpu {
+    use super::*;
+
+    use crate::high_level_api::keys::HpuTaggedDevice;
+
+    use super::INTERNAL_KEYS;
+
+    pub(in crate::high_level_api) fn with_thread_local_hpu_device<F, R>(func: F) -> R
+    where
+        F: FnOnce(&HpuTaggedDevice) -> R,
+    {
+        INTERNAL_KEYS.with_borrow(|keys| {
+            let Some(InternalServerKey::Hpu(device)) = keys else {
+                panic!("Hpu device was requested but it is not available")
+            };
+            func(device)
+        })
     }
 }

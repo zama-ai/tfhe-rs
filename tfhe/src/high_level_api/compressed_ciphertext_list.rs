@@ -42,6 +42,10 @@ impl<Id: FheUintId> HlCompressible for FheUint<Id> {
                 let kind = DataKind::Unsigned(blocks.info.blocks.len());
                 messages.push((ToBeCompressed::Cuda(blocks), kind));
             }
+            #[cfg(feature = "hpu")]
+            crate::high_level_api::integers::unsigned::RadixCiphertext::Hpu(_) => {
+                panic!("HPU does not support compression");
+            }
         }
     }
 }
@@ -209,6 +213,10 @@ impl CompressedCiphertextListBuilder {
                         }
                     })
             }
+            #[cfg(feature = "hpu")]
+            Some(InternalServerKey::Hpu(_)) => Err(crate::Error::new(
+                "Hpu does not support compression".to_string(),
+            )),
             None => Err(UninitializedServerKey.into()),
         })
     }
@@ -282,6 +290,10 @@ impl InnerCompressedCiphertextList {
                     cpu_ct.to_cuda_compressed_ciphertext_list(streams)
                 });
                 Some(Self::Cuda(cuda_ct))
+            }
+            #[cfg(feature = "hpu")]
+            (Self::Cpu(_), crate::Device::Hpu) => {
+                panic!("HPU does not support compression");
             }
         };
 
@@ -468,6 +480,10 @@ impl CiphertextList for CompressedCiphertextList {
                     }
                     ct
                 }),
+            #[cfg(feature = "hpu")]
+            Some(InternalServerKey::Hpu(_)) => {
+                panic!("HPU does not support compression");
+            }
             None => Err(UninitializedServerKey.into()),
         })
     }

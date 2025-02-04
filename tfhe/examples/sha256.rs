@@ -229,6 +229,11 @@ fn main() -> Result<(), std::io::Error> {
             });
             set_server_key(server_key);
         }
+        #[cfg(feature = "hpu")]
+        (Device::Hpu, _) => {
+            println!("Hpu is not supported");
+            std::process::exit(1);
+        }
     }
     println!("key gen end");
 

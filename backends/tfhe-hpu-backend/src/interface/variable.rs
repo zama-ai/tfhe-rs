@@ -210,6 +210,13 @@ impl HpuVarWrapped {
             }
         }
     }
+
+
+    pub fn wait(&self) {
+        let mut inner = self.inner.lock().unwrap();
+        let _ = inner.try_cpu_sync();
+
+    }
 }
 
 /// Easily construct asm::Arg from HpuVarWrapped
@@ -345,9 +352,33 @@ macro_rules! map_ct_ct {
                 }
             }
 
+            impl<'a> std::ops::[<$rust_op:camel>] for &'a HpuVarWrapped{
+                type Output = HpuVarWrapped;
+
+                fn [<$rust_op:lower>](self, rhs: Self) -> Self::Output {
+                    // Allocate output variable
+                    let backend = {
+                        // NB: use extra scop to take care of mutex lifetime
+                        let inner = self.inner.lock().unwrap();
+                        inner.backend.clone()
+                    };
+                    let dst = HpuVarWrapped::new_on(backend, self.width);
+
+                    HpuVarWrapped::[<$hpu_op:lower _raw>](&dst, self, rhs);
+                    dst
+                }
+            }
+
+
             impl std::ops::[<$rust_op:camel Assign>] for HpuVarWrapped{
                 fn [<$rust_op:lower _assign>](&mut self, rhs: Self) {
                     Self::[<$hpu_op:lower _raw>](&self, &self, &rhs);
+                }
+            }
+
+            impl<'a> std::ops::[<$rust_op:camel Assign>]<&'a Self> for HpuVarWrapped{
+                fn [<$rust_op:lower _assign>](&mut self, rhs: &'a Self) {
+                    HpuVarWrapped::[<$hpu_op:lower _raw>](&self, &self, rhs);
                 }
             }
         }

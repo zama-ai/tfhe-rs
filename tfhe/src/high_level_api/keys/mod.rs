@@ -12,6 +12,8 @@ pub use key_switching_key::KeySwitchingKey;
 pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
 #[cfg(feature = "gpu")]
 pub use server::CudaServerKey;
+#[cfg(feature = "hpu")]
+pub(in crate::high_level_api) use server::HpuTaggedDevice;
 pub(crate) use server::InternalServerKey;
 pub use server::{CompressedServerKey, ServerKey};
 
