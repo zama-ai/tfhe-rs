@@ -88,7 +88,8 @@ void cuda_apply_bivariate_lut_kb_64(
     CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe_1,
     CudaRadixCiphertextFFI const *input_radix_lwe_2, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t shift);
+    void *const *ksks, void *const *bsks, uint32_t num_radix_blocks,
+    uint32_t shift);
 
 void cleanup_cuda_apply_bivariate_lut_kb_64(void *const *streams,
                                             uint32_t const *gpu_indexes,
@@ -318,15 +319,16 @@ void scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
 
 void cuda_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array, void *carry_out, const void *carry_in, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks, uint32_t num_blocks,
-    uint32_t requested_flag, uint32_t uses_carry);
+    CudaRadixCiphertextFFI *lwe_array, CudaRadixCiphertextFFI *carry_out,
+    const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks, uint32_t requested_flag, uint32_t uses_carry);
 
 void cuda_add_and_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lhs_array, const void *rhs_array, void *carry_out,
-    const void *carry_in, int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t num_blocks, uint32_t requested_flag, uint32_t uses_carry);
+    CudaRadixCiphertextFFI *lhs_array, const CudaRadixCiphertextFFI *rhs_array,
+    CudaRadixCiphertextFFI *carry_out, const CudaRadixCiphertextFFI *carry_in,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
+    uint32_t requested_flag, uint32_t uses_carry);
 
 void cleanup_cuda_propagate_single_carry(void *const *streams,
                                          uint32_t const *gpu_indexes,
@@ -428,8 +430,9 @@ void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
 
 void cuda_integer_compute_prefix_sum_hillis_steele_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *output_radix_lwe, void *generates_or_propagates, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t num_blocks, uint32_t shift);
+    CudaRadixCiphertextFFI *output_radix_lwe,
+    CudaRadixCiphertextFFI *generates_or_propagates, int8_t *mem_ptr,
+    void *const *ksks, void *const *bsks, uint32_t num_blocks);
 
 void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -437,9 +440,8 @@ void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
 
 void cuda_integer_reverse_blocks_64_inplace(void *const *streams,
                                             uint32_t const *gpu_indexes,
-                                            uint32_t gpu_count, void *lwe_array,
-                                            uint32_t num_blocks,
-                                            uint32_t lwe_size);
+                                            uint32_t gpu_count,
+                                            CudaRadixCiphertextFFI *lwe_array);
 
 void scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,

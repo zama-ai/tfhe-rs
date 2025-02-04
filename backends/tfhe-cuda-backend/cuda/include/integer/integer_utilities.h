@@ -1275,7 +1275,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 // For sequential algorithm in group propagation
 template <typename Torus> struct int_seq_group_prop_memory {
 
-  Torus *group_resolved_carries;
+  CudaRadixCiphertextFFI *group_resolved_carries;
   int_radix_lut<Torus> *lut_sequential_algorithm;
   uint32_t grouping_size;
 
@@ -1291,11 +1291,10 @@ template <typename Torus> struct int_seq_group_prop_memory {
     auto carry_modulus = params.carry_modulus;
 
     grouping_size = group_size;
-    group_resolved_carries = (Torus *)cuda_malloc_async(
-        (grouping_size)*big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(group_resolved_carries, 0,
-                      (grouping_size)*big_lwe_size_bytes, streams[0],
-                      gpu_indexes[0]);
+    group_resolved_carries = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], group_resolved_carries, grouping_size,
+        params.big_lwe_dimension);
 
     int num_seq_luts = grouping_size - 1;
     Torus *h_seq_lut_indexes = (Torus *)malloc(num_seq_luts * sizeof(Torus));
@@ -1324,7 +1323,9 @@ template <typename Torus> struct int_seq_group_prop_memory {
   };
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    cuda_drop_async(group_resolved_carries, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0],
+                             group_resolved_carries);
+    delete group_resolved_carries;
     lut_sequential_algorithm->release(streams, gpu_indexes, gpu_count);
     delete lut_sequential_algorithm;
   };
@@ -1334,7 +1335,6 @@ template <typename Torus> struct int_seq_group_prop_memory {
 template <typename Torus> struct int_hs_group_prop_memory {
 
   int_radix_lut<Torus> *lut_hillis_steele;
-  uint32_t grouping_size;
 
   int_hs_group_prop_memory(cudaStream_t const *streams,
                            uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -1384,9 +1384,9 @@ template <typename Torus> struct int_hs_group_prop_memory {
 
 // compute_shifted_blocks_and_block_states
 template <typename Torus> struct int_shifted_blocks_and_states_memory {
-  Torus *shifted_blocks_and_states;
-  Torus *shifted_blocks;
-  Torus *block_states;
+  CudaRadixCiphertextFFI *shifted_blocks_and_states;
+  CudaRadixCiphertextFFI *shifted_blocks;
+  CudaRadixCiphertextFFI *block_states;
 
   int_radix_lut<Torus> *luts_array_first_step;
 
@@ -1399,23 +1399,19 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
     auto polynomial_size = params.polynomial_size;
     auto message_modulus = params.message_modulus;
     auto carry_modulus = params.carry_modulus;
-    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
-    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-    shifted_blocks_and_states = (Torus *)cuda_malloc_async(
-        num_many_lut * num_radix_blocks * big_lwe_size_bytes, streams[0],
-        gpu_indexes[0]);
-    cuda_memset_async(shifted_blocks_and_states, 0,
-                      num_many_lut * num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
-    shifted_blocks = (Torus *)cuda_malloc_async(
-        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(shifted_blocks, 0, num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
-    block_states = (Torus *)cuda_malloc_async(
-        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(block_states, 0, num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
+    shifted_blocks_and_states = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], shifted_blocks_and_states,
+        num_many_lut * num_radix_blocks, params.big_lwe_dimension);
+    shifted_blocks = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              shifted_blocks, num_radix_blocks,
+                                              params.big_lwe_dimension);
+    block_states = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              block_states, num_radix_blocks,
+                                              params.big_lwe_dimension);
 
     uint32_t num_luts_first_step = 2 * grouping_size + 1;
 
@@ -1553,9 +1549,13 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
 
-    cuda_drop_async(shifted_blocks_and_states, streams[0], gpu_indexes[0]);
-    cuda_drop_async(shifted_blocks, streams[0], gpu_indexes[0]);
-    cuda_drop_async(block_states, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0],
+                             shifted_blocks_and_states);
+    delete shifted_blocks_and_states;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], shifted_blocks);
+    delete shifted_blocks;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], block_states);
+    delete block_states;
 
     luts_array_first_step->release(streams, gpu_indexes, gpu_count);
     delete luts_array_first_step;
@@ -1564,13 +1564,13 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
 
 // compute_propagation simulator and group carries
 template <typename Torus> struct int_prop_simu_group_carries_memory {
-  Torus *scalar_array_cum_sum;
-  Torus *propagation_cum_sums;
-  Torus *simulators;
-  Torus *grouping_pgns;
-  Torus *prepared_blocks;
+  CudaRadixCiphertextFFI *propagation_cum_sums;
+  CudaRadixCiphertextFFI *simulators;
+  CudaRadixCiphertextFFI *prepared_blocks;
+  CudaRadixCiphertextFFI *grouping_pgns;
+  CudaRadixCiphertextFFI *resolved_carries;
 
-  Torus *resolved_carries;
+  Torus *scalar_array_cum_sum;
 
   int_radix_lut<Torus> *luts_array_second_step;
 
@@ -1597,37 +1597,30 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
     group_size = grouping_size;
 
+    propagation_cum_sums = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], propagation_cum_sums, num_radix_blocks,
+        params.big_lwe_dimension);
+    simulators = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              simulators, num_radix_blocks,
+                                              params.big_lwe_dimension);
+    prepared_blocks = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], prepared_blocks, num_radix_blocks + 1,
+        params.big_lwe_dimension);
+    resolved_carries = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              resolved_carries, num_groups + 1,
+                                              params.big_lwe_dimension);
+    grouping_pgns = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              grouping_pgns, num_groups,
+                                              params.big_lwe_dimension);
     scalar_array_cum_sum = (Torus *)cuda_malloc_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
     cuda_memset_async(scalar_array_cum_sum, 0, num_radix_blocks * sizeof(Torus),
                       streams[0], gpu_indexes[0]);
-    propagation_cum_sums = (Torus *)cuda_malloc_async(
-        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(propagation_cum_sums, 0,
-                      num_radix_blocks * big_lwe_size_bytes, streams[0],
-                      gpu_indexes[0]);
-    simulators = (Torus *)cuda_malloc_async(
-        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(simulators, 0, num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
-
-    grouping_pgns = (Torus *)cuda_malloc_async(num_groups * big_lwe_size_bytes,
-                                               streams[0], gpu_indexes[0]);
-    cuda_memset_async(grouping_pgns, 0, num_groups * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
-
-    prepared_blocks =
-        (Torus *)cuda_malloc_async((num_radix_blocks + 1) * big_lwe_size_bytes,
-                                   streams[0], gpu_indexes[0]);
-    cuda_memset_async(prepared_blocks, 0,
-                      (num_radix_blocks + 1) * big_lwe_size_bytes, streams[0],
-                      gpu_indexes[0]);
-
-    resolved_carries = (Torus *)cuda_malloc_async(
-        (num_groups + 1) * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(resolved_carries, 0,
-                      (num_groups + 1) * big_lwe_size_bytes, streams[0],
-                      gpu_indexes[0]);
 
     // create lut objects for step 2
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
@@ -1838,12 +1831,18 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    release_radix_ciphertext(streams[0], gpu_indexes[0], propagation_cum_sums);
+    delete propagation_cum_sums;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], simulators);
+    delete simulators;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], grouping_pgns);
+    delete grouping_pgns;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], prepared_blocks);
+    delete prepared_blocks;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], resolved_carries);
+    delete resolved_carries;
+
     cuda_drop_async(scalar_array_cum_sum, streams[0], gpu_indexes[0]);
-    cuda_drop_async(propagation_cum_sums, streams[0], gpu_indexes[0]);
-    cuda_drop_async(simulators, streams[0], gpu_indexes[0]);
-    cuda_drop_async(grouping_pgns, streams[0], gpu_indexes[0]);
-    cuda_drop_async(prepared_blocks, streams[0], gpu_indexes[0]);
-    cuda_drop_async(resolved_carries, streams[0], gpu_indexes[0]);
 
     luts_array_second_step->release(streams, gpu_indexes, gpu_count);
 
@@ -1864,9 +1863,9 @@ template <typename Torus> struct int_sc_prop_memory {
   uint32_t lut_stride;
 
   uint32_t num_groups;
-  Torus *output_flag;
-  Torus *last_lhs;
-  Torus *last_rhs;
+  CudaRadixCiphertextFFI *output_flag;
+  CudaRadixCiphertextFFI *last_lhs;
+  CudaRadixCiphertextFFI *last_rhs;
   int_radix_lut<Torus> *lut_message_extract;
 
   int_radix_lut<Torus> *lut_overflow_flag_prep;
@@ -1896,8 +1895,6 @@ template <typename Torus> struct int_sc_prop_memory {
     auto polynomial_size = params.polynomial_size;
     auto message_modulus = params.message_modulus;
     auto carry_modulus = params.carry_modulus;
-    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
-    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
     requested_flag = requested_flag_in;
     // for compute shifted blocks and block states
     uint32_t block_modulus = message_modulus * carry_modulus;
@@ -1936,21 +1933,18 @@ template <typename Torus> struct int_sc_prop_memory {
 
     // This store a single block that with be used to store the overflow or
     // carry results
-    output_flag =
-        (Torus *)cuda_malloc_async(big_lwe_size_bytes * (num_radix_blocks + 1),
-                                   streams[0], gpu_indexes[0]);
-    cuda_memset_async(output_flag, 0, big_lwe_size_bytes, streams[0],
-                      gpu_indexes[0]);
+    output_flag = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              output_flag, num_radix_blocks + 1,
+                                              params.big_lwe_dimension);
 
     if (requested_flag == outputFlag::FLAG_OVERFLOW) {
-      last_lhs = (Torus *)cuda_malloc_async(big_lwe_size_bytes, streams[0],
-                                            gpu_indexes[0]);
-      last_rhs = (Torus *)cuda_malloc_async(big_lwe_size_bytes, streams[0],
-                                            gpu_indexes[0]);
-      cuda_memset_async(last_lhs, 0, big_lwe_size_bytes, streams[0],
-                        gpu_indexes[0]);
-      cuda_memset_async(last_rhs, 0, big_lwe_size_bytes, streams[0],
-                        gpu_indexes[0]);
+      last_lhs = new CudaRadixCiphertextFFI;
+      last_rhs = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], last_lhs, 1, params.big_lwe_dimension);
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], last_rhs, 1, params.big_lwe_dimension);
 
       // For step 1 overflow should be enable only if flag overflow
       uint32_t num_bits_in_message = std::log2(message_modulus);
@@ -2094,15 +2088,18 @@ template <typename Torus> struct int_sc_prop_memory {
 
     shifted_blocks_state_mem->release(streams, gpu_indexes, gpu_count);
     prop_simu_group_carries_mem->release(streams, gpu_indexes, gpu_count);
-    cuda_drop_async(output_flag, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], output_flag);
+    delete output_flag;
     lut_message_extract->release(streams, gpu_indexes, gpu_count);
     delete lut_message_extract;
 
     if (requested_flag == outputFlag::FLAG_OVERFLOW) { // In case of overflow
       lut_overflow_flag_prep->release(streams, gpu_indexes, gpu_count);
       delete lut_overflow_flag_prep;
-      cuda_drop_async(last_lhs, streams[0], gpu_indexes[0]);
-      cuda_drop_async(last_rhs, streams[0], gpu_indexes[0]);
+      release_radix_ciphertext(streams[0], gpu_indexes[0], last_lhs);
+      delete last_lhs;
+      release_radix_ciphertext(streams[0], gpu_indexes[0], last_rhs);
+      delete last_rhs;
     }
 
     // release events

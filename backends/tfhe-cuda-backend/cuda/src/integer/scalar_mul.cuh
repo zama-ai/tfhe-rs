@@ -114,7 +114,7 @@ __host__ void host_integer_scalar_mul_radix(
     auto scp_mem_ptr = mem->sc_prop_mem;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     uint32_t uses_carry = 0;
-    host_propagate_single_carry<T>(
+    legacy_host_propagate_single_carry<T>(
         streams, gpu_indexes, gpu_count, lwe_array, nullptr, nullptr,
         scp_mem_ptr, bsks, ksks, num_radix_blocks, requested_flag, uses_carry);
   }

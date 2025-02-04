@@ -37,7 +37,8 @@ __host__ void host_integer_radix_bitop_kb(
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_1, lwe_array_2,
-      bsks, ksks, lut, lut->params.message_modulus);
+      bsks, ksks, lut, lwe_array_out->num_radix_blocks,
+      lut->params.message_modulus);
 
   memcpy(lwe_array_out->degrees, degrees,
          lwe_array_out->num_radix_blocks * sizeof(uint64_t));

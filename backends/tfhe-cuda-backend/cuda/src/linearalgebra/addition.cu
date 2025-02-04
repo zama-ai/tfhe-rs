@@ -1,13 +1,16 @@
 #include "integer/integer.h"
 #include "linearalgebra/addition.cuh"
 
-void cuda_add_lwe_ciphertext_vector_32(
-    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in_1,
-    CudaRadixCiphertextFFI const *lwe_array_in_2) {
+void cuda_add_lwe_ciphertext_vector_32(void *stream, uint32_t gpu_index,
+                                       CudaRadixCiphertextFFI *output,
+                                       CudaRadixCiphertextFFI const *input_1,
+                                       CudaRadixCiphertextFFI const *input_2) {
 
-  host_addition<uint32_t>(static_cast<cudaStream_t>(stream), gpu_index,
-                          lwe_array_out, lwe_array_in_1, lwe_array_in_2);
+  if (output->num_radix_blocks != input_1->num_radix_blocks ||
+      output->num_radix_blocks != input_2->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  host_addition<uint32_t>(static_cast<cudaStream_t>(stream), gpu_index, output,
+                          input_1, input_2, output->num_radix_blocks);
 }
 
 /*
@@ -15,14 +18,14 @@ void cuda_add_lwe_ciphertext_vector_32(
  * - `v_stream` is a void pointer to the Cuda stream to be used in the kernel
  * launch
  * - `gpu_index` is the index of the GPU to be used in the kernel launch
- * - `lwe_array_out` is an array of size
+ * - `output` is an array of size
  * `(input_lwe_dimension + 1) * input_lwe_ciphertext_count` that should have
  * been allocated on the GPU before calling this function, and that will hold
  * the result of the computation.
- * - `lwe_array_in_1` is the first LWE ciphertext vector used as input, it
+ * - `input_1` is the first LWE ciphertext vector used as input, it
  * should have been allocated and initialized before calling this function. It
  * has the same size as the output array.
- * - `lwe_array_in_2` is the second LWE ciphertext vector used as input, it
+ * - `input_2` is the second LWE ciphertext vector used as input, it
  * should have been allocated and initialized before calling this function. It
  * has the same size as the output array.
  * - `input_lwe_dimension` is the number of mask elements in the two input and
@@ -36,13 +39,16 @@ void cuda_add_lwe_ciphertext_vector_32(
  * vectors are left unchanged. This function is a wrapper to a device function
  * that performs the operation on the GPU.
  */
-void cuda_add_lwe_ciphertext_vector_64(
-    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in_1,
-    CudaRadixCiphertextFFI const *lwe_array_in_2) {
+void cuda_add_lwe_ciphertext_vector_64(void *stream, uint32_t gpu_index,
+                                       CudaRadixCiphertextFFI *output,
+                                       CudaRadixCiphertextFFI const *input_1,
+                                       CudaRadixCiphertextFFI const *input_2) {
 
-  host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
-                          lwe_array_out, lwe_array_in_1, lwe_array_in_2);
+  if (output->num_radix_blocks != input_1->num_radix_blocks ||
+      output->num_radix_blocks != input_2->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index, output,
+                          input_1, input_2, output->num_radix_blocks);
 }
 
 /*

@@ -106,32 +106,27 @@ void scratch_cuda_integer_overflowing_sub_kb_64_inplace(
 
 void cuda_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array, void *carry_out, const void *carry_in, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks, uint32_t num_blocks,
-    uint32_t requested_flag, uint32_t uses_carry) {
+    CudaRadixCiphertextFFI *lwe_array, CudaRadixCiphertextFFI *carry_out,
+    const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks, uint32_t requested_flag, uint32_t uses_carry) {
 
   host_propagate_single_carry<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lwe_array), static_cast<uint64_t *>(carry_out),
-      static_cast<const uint64_t *>(carry_in),
-      (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-      num_blocks, requested_flag, uses_carry);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array, carry_out,
+      carry_in, (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks), requested_flag, uses_carry);
 }
 
 void cuda_add_and_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lhs_array, const void *rhs_array, void *carry_out,
-    const void *carry_in, int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t num_blocks, uint32_t requested_flag, uint32_t uses_carry) {
+    CudaRadixCiphertextFFI *lhs_array, const CudaRadixCiphertextFFI *rhs_array,
+    CudaRadixCiphertextFFI *carry_out, const CudaRadixCiphertextFFI *carry_in,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
+    uint32_t requested_flag, uint32_t uses_carry) {
 
   host_add_and_propagate_single_carry<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lhs_array),
-      static_cast<const uint64_t *>(rhs_array),
-      static_cast<uint64_t *>(carry_out),
-      static_cast<const uint64_t *>(carry_in),
-      (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-      num_blocks, requested_flag, uses_carry);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, lhs_array, rhs_array,
+      carry_out, carry_in, (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks), requested_flag, uses_carry);
 }
 
 void cuda_integer_overflowing_sub_kb_64_inplace(
@@ -278,12 +273,13 @@ void cuda_apply_bivariate_lut_kb_64(
     CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe_1,
     CudaRadixCiphertextFFI const *input_radix_lwe_2, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t shift) {
+    void *const *ksks, void *const *bsks, uint32_t num_radix_blocks,
+    uint32_t shift) {
 
   host_apply_bivariate_lut_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, output_radix_lwe,
       input_radix_lwe_1, input_radix_lwe_2, (int_radix_lut<uint64_t> *)mem_ptr,
-      (uint64_t **)(ksks), bsks, shift);
+      (uint64_t **)(ksks), bsks, num_radix_blocks, shift);
 }
 
 void cleanup_cuda_apply_bivariate_lut_kb_64(void *const *streams,
@@ -317,17 +313,16 @@ void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
 
 void cuda_integer_compute_prefix_sum_hillis_steele_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *output_radix_lwe, void *generates_or_propagates, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t num_blocks, uint32_t shift) {
+    CudaRadixCiphertextFFI *output_radix_lwe,
+    CudaRadixCiphertextFFI *generates_or_propagates, int8_t *mem_ptr,
+    void *const *ksks, void *const *bsks, uint32_t num_radix_blocks) {
 
   int_radix_params params = ((int_radix_lut<uint64_t> *)mem_ptr)->params;
 
   host_compute_prefix_sum_hillis_steele<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(output_radix_lwe),
-      static_cast<uint64_t *>(generates_or_propagates), params,
-      (int_radix_lut<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
-      num_blocks);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, output_radix_lwe,
+      generates_or_propagates, params, (int_radix_lut<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks), num_radix_blocks);
 }
 
 void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
@@ -339,11 +334,9 @@ void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
 
 void cuda_integer_reverse_blocks_64_inplace(void *const *streams,
                                             uint32_t const *gpu_indexes,
-                                            uint32_t gpu_count, void *lwe_array,
-                                            uint32_t num_blocks,
-                                            uint32_t lwe_size) {
+                                            uint32_t gpu_count,
+                                            CudaRadixCiphertextFFI *lwe_array) {
 
-  host_radix_blocks_reverse_inplace<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes,
-      static_cast<uint64_t *>(lwe_array), num_blocks, lwe_size);
+  host_radix_blocks_reverse_inplace<uint64_t>((cudaStream_t *)(streams),
+                                              gpu_indexes, lwe_array);
 }

@@ -1186,9 +1186,9 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
 ///   is required
 pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_input: &mut CudaVec<T>,
-    carry_out: &mut CudaVec<T>,
-    carry_in: &CudaVec<T>,
+    radix_lwe_input: &mut CudaRadixCiphertext,
+    carry_out: &mut CudaRadixCiphertext,
+    carry_in: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     lwe_dimension: LweDimension,
@@ -1208,7 +1208,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input.gpu_index(0),
+        radix_lwe_input.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -1223,6 +1223,44 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    let mut radix_lwe_input_degrees = radix_lwe_input
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_input_noise_levels = radix_lwe_input
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_input = prepare_cuda_radix_ffi(
+        radix_lwe_input,
+        &mut radix_lwe_input_degrees,
+        &mut radix_lwe_input_noise_levels,
+    );
+    let mut carry_out_degrees = carry_out.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut carry_out_noise_levels = carry_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_carry_out = prepare_cuda_radix_ffi(
+        carry_out,
+        &mut carry_out_degrees,
+        &mut carry_out_noise_levels,
+    );
+    let mut carry_in_degrees = carry_in.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut carry_in_noise_levels = carry_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_carry_in =
+        prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
     scratch_cuda_propagate_single_carry_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -1249,13 +1287,12 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_input.as_mut_c_ptr(0),
-        carry_out.as_mut_c_ptr(0),
-        carry_in.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_input,
+        &mut cuda_ffi_carry_out,
+        &cuda_ffi_carry_in,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
         requested_flag as u32,
         uses_carry,
     );
@@ -1265,6 +1302,8 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_input, &cuda_ffi_radix_lwe_input);
+    update_noise_degree(carry_out, &cuda_ffi_carry_out);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1274,10 +1313,10 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
 ///   is required
 pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_lhs_input: &mut CudaVec<T>,
-    radix_lwe_rhs_input: &CudaVec<T>,
-    carry_out: &mut CudaVec<T>,
-    carry_in: &CudaVec<T>,
+    lhs_input: &mut CudaRadixCiphertext,
+    rhs_input: &CudaRadixCiphertext,
+    carry_out: &mut CudaRadixCiphertext,
+    carry_in: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     lwe_dimension: LweDimension,
@@ -1297,12 +1336,22 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_lhs_input.gpu_index(0),
+        lhs_input.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_rhs_input.gpu_index(0),
+        rhs_input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        carry_out.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        carry_in.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -1317,6 +1366,51 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    let mut lhs_input_degrees = lhs_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut lhs_input_noise_levels = lhs_input
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_lhs_input = prepare_cuda_radix_ffi(
+        lhs_input,
+        &mut lhs_input_degrees,
+        &mut lhs_input_noise_levels,
+    );
+    let mut rhs_input_degrees = rhs_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut rhs_input_noise_levels = rhs_input
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_rhs_input = prepare_cuda_radix_ffi(
+        rhs_input,
+        &mut rhs_input_degrees,
+        &mut rhs_input_noise_levels,
+    );
+    let mut carry_out_degrees = carry_out.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut carry_out_noise_levels = carry_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_carry_out = prepare_cuda_radix_ffi(
+        carry_out,
+        &mut carry_out_degrees,
+        &mut carry_out_noise_levels,
+    );
+    let mut carry_in_degrees = carry_in.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut carry_in_noise_levels = carry_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_carry_in =
+        prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
     scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -1343,14 +1437,13 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_lhs_input.as_mut_c_ptr(0),
-        radix_lwe_rhs_input.as_c_ptr(0),
-        carry_out.as_mut_c_ptr(0),
-        carry_in.as_c_ptr(0),
+        &mut cuda_ffi_lhs_input,
+        &cuda_ffi_rhs_input,
+        &mut cuda_ffi_carry_out,
+        &cuda_ffi_carry_in,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
         requested_flag as u32,
         uses_carry,
     );
@@ -1360,6 +1453,8 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(lhs_input, &cuda_ffi_lhs_input);
+    update_noise_degree(carry_out, &cuda_ffi_carry_out);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2694,7 +2789,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         output,
         output_degrees,
         output_noise_levels,
-        num_blocks,
+        num_blocks * num_many_lut,
         (glwe_dimension.0 * polynomial_size.0) as u32,
     );
     let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
@@ -2854,6 +2949,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
+        num_blocks,
         shift,
     );
     cleanup_cuda_apply_bivariate_lut_kb_64(
@@ -2943,8 +3039,12 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
 ///   is required
 pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_output: &mut CudaSliceMut<T>,
+    output: &mut CudaSliceMut<T>,
+    output_degrees: &mut Vec<u64>,
+    output_noise_levels: &mut Vec<u64>,
     generates_or_propagates: &mut CudaSliceMut<T>,
+    generates_or_propagates_degrees: &mut Vec<u64>,
+    generates_or_propagates_noise_levels: &mut Vec<u64>,
     input_lut: &[T],
     lut_degree: u64,
     bootstrapping_key: &CudaVec<B>,
@@ -2961,7 +3061,6 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
-    shift: u32,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2970,7 +3069,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_output.gpu_index(0),
+        output.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -2984,6 +3083,20 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
+        output,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
+    let mut cuda_ffi_generates_or_propagates = prepare_cuda_radix_ffi_from_slice_mut(
+        generates_or_propagates,
+        generates_or_propagates_degrees,
+        generates_or_propagates_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
     scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -3010,13 +3123,12 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_output.as_mut_c_ptr(0),
-        generates_or_propagates.as_mut_c_ptr(0),
+        &mut cuda_ffi_output,
+        &mut cuda_ffi_generates_or_propagates,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
         num_blocks,
-        shift,
     );
 
     cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
@@ -3032,18 +3144,33 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn reverse_blocks_inplace_async<T: UnsignedInteger>(
+pub unsafe fn reverse_blocks_inplace_async(
     streams: &CudaStreams,
-    radix_lwe_output: &mut CudaSliceMut<T>,
-    num_blocks: u32,
-    lwe_size: u32,
+    radix_lwe_output: &mut CudaRadixCiphertext,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_output.gpu_index(0),
+        radix_lwe_output.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
-    if num_blocks > 1 {
+    if radix_lwe_output.d_blocks.lwe_ciphertext_count().0 > 1 {
+        let mut radix_lwe_output_degrees = radix_lwe_output
+            .info
+            .blocks
+            .iter()
+            .map(|b| b.degree.0)
+            .collect();
+        let mut radix_lwe_output_noise_levels = radix_lwe_output
+            .info
+            .blocks
+            .iter()
+            .map(|b| b.noise_level.0)
+            .collect();
+        let mut cuda_ffi_radix_lwe_output = prepare_cuda_radix_ffi(
+            radix_lwe_output,
+            &mut radix_lwe_output_degrees,
+            &mut radix_lwe_output_noise_levels,
+        );
         cuda_integer_reverse_blocks_64_inplace(
             streams.ptr.as_ptr(),
             streams
@@ -3053,9 +3180,7 @@ pub unsafe fn reverse_blocks_inplace_async<T: UnsignedInteger>(
                 .collect::<Vec<u32>>()
                 .as_ptr(),
             streams.len() as u32,
-            radix_lwe_output.as_mut_c_ptr(0),
-            num_blocks,
-            lwe_size,
+            &mut cuda_ffi_radix_lwe_output,
         );
     }
 }

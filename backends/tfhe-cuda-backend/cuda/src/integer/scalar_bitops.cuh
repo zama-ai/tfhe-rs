@@ -22,8 +22,8 @@ __host__ void host_integer_radix_scalar_bitop_kb(
 
   if (num_clear_blocks == 0) {
     if (op == SCALAR_BITAND) {
-      set_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], output,
-                                             0, num_radix_blocks - 1);
+      set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                                   output, 0, num_radix_blocks);
     } else {
       if (input != output)
         copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], output,
@@ -58,9 +58,9 @@ __host__ void host_integer_radix_scalar_bitop_kb(
     memcpy(output->degrees, degrees, num_clear_blocks * sizeof(uint64_t));
 
     if (op == SCALAR_BITAND && num_clear_blocks < num_radix_blocks) {
-      set_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], output,
-                                             num_clear_blocks,
-                                             num_radix_blocks - 1);
+      set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                                   output, num_clear_blocks,
+                                                   num_radix_blocks);
     }
   }
 }
