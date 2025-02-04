@@ -14,7 +14,7 @@ fn test_gpu_selection() {
 
     let mut rng = rand::thread_rng();
 
-    let last_gpu = GpuIndex(get_number_of_gpus() as u32 - 1);
+    let last_gpu = GpuIndex::new(get_number_of_gpus() - 1);
 
     let clear_a: u32 = rng.gen();
     let clear_b: u32 = rng.gen();
@@ -73,8 +73,8 @@ fn test_gpu_selection_2() {
 
     let mut rng = rand::thread_rng();
 
-    let first_gpu = GpuIndex(0);
-    let last_gpu = GpuIndex(get_number_of_gpus() as u32 - 1);
+    let first_gpu = GpuIndex::new(0);
+    let last_gpu = GpuIndex::new(get_number_of_gpus() - 1);
 
     let clear_a: u32 = rng.gen();
     let clear_b: u32 = rng.gen();

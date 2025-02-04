@@ -231,9 +231,10 @@ mod gpu {
         fn new() -> Self {
             Self {
                 multi: LazyCell::new(CudaStreams::new_multi_gpu),
-                single: (0..get_number_of_gpus() as u32)
+                single: (0..get_number_of_gpus())
                     .map(|index| {
-                        let ctor = Box::new(move || CudaStreams::new_single_gpu(GpuIndex(index)));
+                        let ctor =
+                            Box::new(move || CudaStreams::new_single_gpu(GpuIndex::new(index)));
                         LazyCell::new(ctor as Box<dyn Fn() -> CudaStreams>)
                     })
                     .collect(),
@@ -247,7 +248,7 @@ mod gpu {
         fn index(&self, indexes: &'a [GpuIndex]) -> &Self::Output {
             match indexes.len() {
                 0 => panic!("Internal error: Gpu indexes must not be empty"),
-                1 => &self.single[indexes[0].0 as usize],
+                1 => &self.single[indexes[0].get() as usize],
                 _ => &self.multi,
             }
         }
@@ -259,7 +260,7 @@ mod gpu {
         fn index(&self, choice: CudaGpuChoice) -> &Self::Output {
             match choice {
                 CudaGpuChoice::Multi => &self.multi,
-                CudaGpuChoice::Single(index) => &self.single[index.0 as usize],
+                CudaGpuChoice::Single(index) => &self.single[index.get() as usize],
             }
         }
     }

@@ -40,7 +40,7 @@ where
     let grouping_factor = params.grouping_factor;
     let number_of_messages = 1;
 
-    let gpu_index = GpuIndex(0);
+    let gpu_index = GpuIndex::new(0);
     let stream = CudaStreams::new_single_gpu(gpu_index);
 
     let modulus_as_f64 = if ciphertext_modulus.is_native_modulus() {

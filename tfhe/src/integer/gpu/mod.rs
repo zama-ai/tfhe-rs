@@ -247,12 +247,7 @@ pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
     );
     cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         lwe_array.as_mut_c_ptr(0),
         scalar_input.as_c_ptr(0),
@@ -307,12 +302,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_scalar_mul_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -332,12 +322,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
 
     cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         lwe_array.as_mut_c_ptr(0),
         decomposed_scalar.as_ptr().cast::<u64>(),
@@ -354,12 +339,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
 
     cleanup_cuda_integer_radix_scalar_mul(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -404,12 +384,7 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_compress_radix_ciphertext_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         compression_glwe_dimension.0 as u32,
@@ -428,12 +403,7 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
 
     cuda_integer_compress_radix_ciphertext_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         glwe_array_out.as_mut_c_ptr(0),
         lwe_array_in.as_c_ptr(0),
@@ -444,12 +414,7 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
 
     cleanup_cuda_integer_compress_radix_ciphertext_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -497,12 +462,7 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_decompress_radix_ciphertext_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         encryption_glwe_dimension.0 as u32,
@@ -523,12 +483,7 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
 
     cuda_integer_decompress_radix_ciphertext_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         lwe_array_out.as_mut_c_ptr(0),
         glwe_in.as_c_ptr(0),
@@ -540,12 +495,7 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
 
     cleanup_cuda_integer_decompress_radix_ciphertext_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -613,7 +563,7 @@ pub unsafe fn unchecked_add_integer_radix_assign_async(
     );
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
-        streams.gpu_indexes[0].0,
+        streams.gpu_indexes[0].get(),
         &mut cuda_ffi_radix_lwe_left,
         &cuda_ffi_radix_lwe_left,
         &cuda_ffi_radix_lwe_right,
@@ -670,12 +620,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_mult_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         is_boolean_left,
@@ -696,12 +641,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     );
     cuda_integer_mult_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         radix_lwe_left.as_c_ptr(0),
@@ -716,12 +656,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     );
     cleanup_cuda_integer_mult(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -816,12 +751,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     );
     scratch_cuda_integer_radix_bitop_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -842,12 +772,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     );
     cuda_bitop_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         &mut cuda_ffi_radix_lwe_left,
         &cuda_ffi_radix_lwe_left,
@@ -858,12 +783,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     );
     cleanup_cuda_integer_bitop(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -934,12 +854,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     );
     scratch_cuda_integer_radix_bitop_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -960,12 +875,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     );
     cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         &mut cuda_ffi_radix_lwe,
         &cuda_ffi_radix_lwe,
@@ -977,12 +887,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     );
     cleanup_cuda_integer_bitop(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1045,12 +950,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_comparison_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1073,12 +973,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
 
     cuda_comparison_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_out.as_mut_c_ptr(0),
         radix_lwe_left.as_c_ptr(0),
@@ -1091,12 +986,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
 
     cleanup_cuda_integer_comparison(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1159,12 +1049,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_comparison_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1187,12 +1072,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
 
     cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_out.as_mut_c_ptr(0),
         radix_lwe_in.as_c_ptr(0),
@@ -1206,12 +1086,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
 
     cleanup_cuda_integer_comparison(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1258,12 +1133,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_full_propagation_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         lwe_dimension.0 as u32,
@@ -1281,12 +1151,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     );
     cuda_full_propagation_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_input.as_mut_c_ptr(0),
         mem_ptr,
@@ -1296,12 +1161,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     );
     cleanup_cuda_full_propagation(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1353,12 +1213,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     scratch_cuda_propagate_single_carry_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1380,12 +1235,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
     );
     cuda_propagate_single_carry_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_input.as_mut_c_ptr(0),
         carry_out.as_mut_c_ptr(0),
@@ -1399,12 +1249,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
     );
     cleanup_cuda_propagate_single_carry(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1462,12 +1307,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1489,12 +1329,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
     );
     cuda_add_and_propagate_single_carry_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_lhs_input.as_mut_c_ptr(0),
         radix_lwe_rhs_input.as_c_ptr(0),
@@ -1509,12 +1344,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
     );
     cleanup_cuda_add_and_propagate_single_carry(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1566,12 +1396,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1592,12 +1417,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     );
     cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         shift,
@@ -1608,12 +1428,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1665,12 +1480,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1691,12 +1501,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     );
     cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         shift,
@@ -1707,12 +1512,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1764,12 +1564,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1790,12 +1585,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     );
     cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         shift,
@@ -1806,12 +1596,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     );
     cleanup_cuda_integer_radix_arithmetic_scalar_shift(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1869,12 +1654,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1896,12 +1676,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     );
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         radix_shift.as_c_ptr(0),
@@ -1912,12 +1687,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -1972,12 +1742,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -1999,12 +1764,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     );
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         radix_shift.as_c_ptr(0),
@@ -2015,12 +1775,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -2078,12 +1833,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2105,12 +1855,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     );
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         radix_shift.as_c_ptr(0),
@@ -2121,12 +1866,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -2184,12 +1924,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2211,12 +1946,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     );
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         radix_shift.as_c_ptr(0),
@@ -2227,12 +1957,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -2376,12 +2101,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_cmux_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2401,12 +2121,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     );
     cuda_cmux_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         &mut cuda_ffi_radix_lwe_out,
         &cuda_ffi_condition,
@@ -2418,12 +2133,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     );
     cleanup_cuda_integer_radix_cmux(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -2476,12 +2186,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_scalar_rotate_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2502,12 +2207,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     );
     cuda_integer_radix_scalar_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         n,
@@ -2518,12 +2218,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     );
     cleanup_cuda_integer_radix_scalar_rotate(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -2575,12 +2270,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_scalar_rotate_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2601,12 +2291,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     );
     cuda_integer_radix_scalar_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(0),
         n,
@@ -2617,12 +2302,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     );
     cleanup_cuda_integer_radix_scalar_rotate(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -2679,12 +2359,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -2704,12 +2379,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
     );
     cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         result.as_mut_c_ptr(0),
         radix_list.as_mut_c_ptr(0),
@@ -2721,12 +2391,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
     );
     cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -2797,12 +2462,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     );
     scratch_cuda_apply_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
@@ -2823,12 +2483,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     );
     cuda_apply_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         &mut cuda_ffi_output,
         &cuda_ffi_input,
@@ -2838,12 +2493,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     );
     cleanup_cuda_apply_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -2916,12 +2566,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
     );
     scratch_cuda_apply_many_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
@@ -2943,12 +2588,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
     );
     cuda_apply_many_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         &mut cuda_ffi_output,
         &cuda_ffi_input,
@@ -2960,12 +2600,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
     );
     cleanup_cuda_apply_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3050,12 +2685,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     );
     scratch_cuda_apply_bivariate_lut_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
@@ -3076,12 +2706,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     );
     cuda_apply_bivariate_lut_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         &mut cuda_ffi_output,
         &cuda_ffi_input_1,
@@ -3093,12 +2718,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     );
     cleanup_cuda_apply_bivariate_lut_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3135,12 +2755,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         is_signed,
         std::ptr::addr_of_mut!(mem_ptr),
@@ -3161,12 +2776,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
     );
     cuda_integer_div_rem_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         quotient.as_mut_c_ptr(0),
         remainder.as_mut_c_ptr(0),
@@ -3180,12 +2790,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
     );
     cleanup_cuda_integer_div_rem(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3241,12 +2846,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
@@ -3268,12 +2868,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
 
     cuda_integer_compute_prefix_sum_hillis_steele_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_output.as_mut_c_ptr(0),
         generates_or_propagates.as_mut_c_ptr(0),
@@ -3286,12 +2881,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
 
     cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3319,7 +2909,7 @@ pub unsafe fn reverse_blocks_inplace_async<T: UnsignedInteger>(
             streams
                 .gpu_indexes
                 .iter()
-                .map(|i| i.0)
+                .map(|i| i.get())
                 .collect::<Vec<u32>>()
                 .as_ptr(),
             streams.len() as u32,
@@ -3380,12 +2970,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     scratch_cuda_integer_overflowing_sub_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -3406,12 +2991,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     );
     cuda_integer_overflowing_sub_kb_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_input.as_mut_c_ptr(0),
         radix_rhs_input.as_c_ptr(0),
@@ -3426,12 +3006,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     );
     cleanup_cuda_integer_overflowing_sub(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3472,12 +3047,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     let mut cuda_ffi_ct = prepare_cuda_radix_ffi(ct, &mut ct_degrees, &mut ct_noise_levels);
     scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         true,
@@ -3498,12 +3068,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     );
     cuda_integer_abs_inplace_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         &mut cuda_ffi_ct,
         mem_ptr,
@@ -3513,12 +3078,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     );
     cleanup_cuda_integer_abs_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3575,12 +3135,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -3601,12 +3156,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
 
     cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_out.as_mut_c_ptr(0),
         radix_lwe_in.as_c_ptr(0),
@@ -3618,12 +3168,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
 
     cleanup_cuda_integer_is_at_least_one_comparisons_block_true(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3680,12 +3225,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
@@ -3706,12 +3246,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
 
     cuda_integer_are_all_comparisons_block_true_kb_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         radix_lwe_out.as_mut_c_ptr(0),
         radix_lwe_in.as_c_ptr(0),
@@ -3723,12 +3258,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
 
     cleanup_cuda_integer_are_all_comparisons_block_true(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
@@ -3785,12 +3315,7 @@ pub unsafe fn unchecked_negate_integer_radix_async(
 
     cuda_negate_integer_radix_ciphertext_64(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
         &mut cuda_ffi_radix_lwe_out,
         &cuda_ffi_radix_lwe_in,

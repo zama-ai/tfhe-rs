@@ -103,7 +103,7 @@ where
                 src.as_c_ptr(index),
                 size as u64,
                 streams.ptr[index],
-                streams.gpu_indexes[index].0,
+                streams.gpu_indexes[index].get(),
             );
         }
     }
@@ -128,7 +128,7 @@ where
                 self.as_c_ptr(index),
                 size as u64,
                 streams.ptr[index],
-                streams.gpu_indexes[index].0,
+                streams.gpu_indexes[index].get(),
             );
         }
     }

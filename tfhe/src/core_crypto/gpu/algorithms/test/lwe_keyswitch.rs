@@ -18,7 +18,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize>>(
     let ks_decomp_base_log = params.ks_base_log;
     let ks_decomp_level_count = params.ks_level;
 
-    let stream = CudaStreams::new_single_gpu(GpuIndex(0));
+    let stream = CudaStreams::new_single_gpu(GpuIndex::new(0));
 
     let mut rsc = TestResources::new();
 
