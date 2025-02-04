@@ -67,6 +67,10 @@ where
                         .scalar_eq(&*self.ciphertext.on_gpu(streams), rhs, streams);
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -106,6 +110,10 @@ where
                         .key
                         .scalar_ne(&*self.ciphertext.on_gpu(streams), rhs, streams);
                 FheBool::new(inner_result, cuda_key.tag.clone())
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -153,6 +161,10 @@ where
                         .scalar_lt(&*self.ciphertext.on_gpu(streams), rhs, streams);
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -192,6 +204,10 @@ where
                         .key
                         .scalar_le(&*self.ciphertext.on_gpu(streams), rhs, streams);
                 FheBool::new(inner_result, cuda_key.tag.clone())
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -233,6 +249,10 @@ where
                         .scalar_gt(&*self.ciphertext.on_gpu(streams), rhs, streams);
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -272,6 +292,10 @@ where
                         .key
                         .scalar_ge(&*self.ciphertext.on_gpu(streams), rhs, streams);
                 FheBool::new(inner_result, cuda_key.tag.clone())
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -321,6 +345,10 @@ where
                         .scalar_max(&*self.ciphertext.on_gpu(streams), rhs, streams);
                 Self::new(inner_result, cuda_key.tag.clone())
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -368,6 +396,10 @@ where
                         .key
                         .scalar_min(&*self.ciphertext.on_gpu(streams), rhs, streams);
                 Self::new(inner_result, cuda_key.tag.clone())
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -418,6 +450,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support bitslice yet");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -509,6 +545,10 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                         <$concrete_type>::new(q, cuda_key.tag.clone()),
                                         <$concrete_type>::new(r, cuda_key.tag.clone())
                                     )
+                                }
+                                #[cfg(feature = "hpu")]
+                                InternalServerKey::Hpu(_device) => {
+                                    todo!("hpu")
                                 }
                             }
                         })
@@ -686,6 +726,10 @@ macro_rules! define_scalar_rotate_shifts {
                             };
                             RadixCiphertext::Cuda(inner_result)
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -714,6 +758,10 @@ macro_rules! define_scalar_rotate_shifts {
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
+                        }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -744,6 +792,10 @@ macro_rules! define_scalar_rotate_shifts {
                             };
                             RadixCiphertext::Cuda(inner_result)
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -773,6 +825,10 @@ macro_rules! define_scalar_rotate_shifts {
                             };
                             RadixCiphertext::Cuda(inner_result)
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -798,6 +854,10 @@ macro_rules! define_scalar_rotate_shifts {
                                 cuda_key.key.key
                                     .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                             }
+                        }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -825,6 +885,10 @@ macro_rules! define_scalar_rotate_shifts {
                                     .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                             }
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -850,6 +914,10 @@ macro_rules! define_scalar_rotate_shifts {
                                 cuda_key.key.key
                                     .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -874,6 +942,10 @@ macro_rules! define_scalar_rotate_shifts {
                             let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                        }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -991,6 +1063,10 @@ macro_rules! define_scalar_ops {
                             };
                             RadixCiphertext::Cuda(inner_result)
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -1020,6 +1096,10 @@ macro_rules! define_scalar_ops {
                             };
                             RadixCiphertext::Cuda(inner_result)
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -1048,6 +1128,10 @@ macro_rules! define_scalar_ops {
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
+                        }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -1079,6 +1163,10 @@ macro_rules! define_scalar_ops {
                             };
                             RadixCiphertext::Cuda(inner_result)
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -1107,6 +1195,10 @@ macro_rules! define_scalar_ops {
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
+                        }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -1138,6 +1230,10 @@ macro_rules! define_scalar_ops {
                             };
                             RadixCiphertext::Cuda(inner_result)
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -1166,6 +1262,10 @@ macro_rules! define_scalar_ops {
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
+                        }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -1196,6 +1296,10 @@ macro_rules! define_scalar_ops {
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
+                        }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -1240,6 +1344,10 @@ macro_rules! define_scalar_ops {
                                     lhs, rhs.ciphertext.on_gpu(streams).ciphertext.info.blocks.len(), streams);
                                 cuda_key.pbs_key().sub_assign(&mut result, &rhs.ciphertext.on_gpu(streams), streams);
                                 RadixCiphertext::Cuda(result)
+                        }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -1334,6 +1442,10 @@ macro_rules! define_scalar_ops {
                                 cuda_key.key.key
                                     .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -1364,6 +1476,10 @@ macro_rules! define_scalar_ops {
                                 cuda_key.key.key
                                     .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -1389,6 +1505,10 @@ macro_rules! define_scalar_ops {
                             let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                        }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -1417,6 +1537,10 @@ macro_rules! define_scalar_ops {
                                 cuda_key.key.key
                                     .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -1443,6 +1567,10 @@ macro_rules! define_scalar_ops {
                                 cuda_key.key.key
                                     .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -1468,6 +1596,10 @@ macro_rules! define_scalar_ops {
                                 cuda_key.key.key
                                     .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
+                        }
                     })
                 }
             },
@@ -1492,6 +1624,10 @@ macro_rules! define_scalar_ops {
                             let cuda_lhs = lhs.ciphertext.as_gpu_mut(streams);
                             let cuda_result = cuda_key.pbs_key().scalar_div(&cuda_lhs, rhs, streams);
                             *cuda_lhs = cuda_result;
+                            }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }
@@ -1517,6 +1653,10 @@ macro_rules! define_scalar_ops {
                             let cuda_lhs = lhs.ciphertext.as_gpu_mut(streams);
                             let cuda_result = cuda_key.pbs_key().scalar_rem(&cuda_lhs, rhs, streams);
                             *cuda_lhs = cuda_result;
+                            }
+                        #[cfg(feature = "hpu")]
+                        InternalServerKey::Hpu(_device) => {
+                            todo!("hpu")
                         }
                     })
                 }

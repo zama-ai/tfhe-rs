@@ -249,6 +249,8 @@ impl InnerBoolean {
                     });
                 *self = Self::Cpu(new_inner);
             }
+            #[cfg(feature = "hpu")]
+            _ => todo!(),
         }
     }
 

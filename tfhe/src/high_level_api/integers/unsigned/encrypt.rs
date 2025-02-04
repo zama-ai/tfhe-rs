@@ -122,6 +122,10 @@ where
                 );
                 Ok(Self::new(inner, cuda_key.tag.clone()))
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }

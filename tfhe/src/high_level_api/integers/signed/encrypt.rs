@@ -120,6 +120,8 @@ where
                 );
                 Ok(Self::new(inner, cuda_key.tag.clone()))
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => todo!("Hpu currently not support signed operation"),
         })
     }
 }

@@ -63,6 +63,10 @@ where
                     FheBool::new(inner_result.1, cuda_key.tag.clone()),
                 )
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -159,6 +163,10 @@ where
                     FheUint::<Id>::new(inner_result.0, cuda_key.tag.clone()),
                     FheBool::new(inner_result.1, cuda_key.tag.clone()),
                 )
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -297,6 +305,10 @@ where
                     FheBool::new(inner_result.1, cuda_key.tag.clone()),
                 )
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -385,6 +397,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support overflowing_add yet");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -471,6 +487,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 todo!("Cuda devices do not support overflowing_mul");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }

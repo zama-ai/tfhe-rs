@@ -52,6 +52,10 @@ impl FheBool {
                     cuda_key.tag.clone(),
                 )
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         });
         Self::new(ciphertext, tag)
     }
