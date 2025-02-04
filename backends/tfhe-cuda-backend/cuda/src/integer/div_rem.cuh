@@ -347,7 +347,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
                            interesting_remainder1.len - 1, streams[0],
                            gpu_indexes[0]);
 
-      host_radix_blocks_rotate_left<Torus>(
+      legacy_host_radix_blocks_rotate_left<Torus>(
           streams, gpu_indexes, gpu_count, interesting_remainder1.data,
           tmp_radix.data, 1, interesting_remainder1.len, big_lwe_size);
 

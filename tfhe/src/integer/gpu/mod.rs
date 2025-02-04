@@ -1623,8 +1623,8 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaVec<T>,
-    radix_shift: &CudaVec<T>,
+    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_shift: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -1644,12 +1644,12 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(0),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.gpu_index(0),
+        radix_shift.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -1662,6 +1662,38 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
+
+    let mut radix_lwe_left_degrees = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_left_noise_levels = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
+        radix_lwe_left,
+        &mut radix_lwe_left_degrees,
+        &mut radix_lwe_left_noise_levels,
+    );
+
+    let mut radix_shift_degrees = radix_shift.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_shift_noise_levels = radix_shift
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_shift = prepare_cuda_radix_ffi(
+        radix_shift,
+        &mut radix_shift_degrees,
+        &mut radix_shift_noise_levels,
+    );
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
         streams.ptr.as_ptr(),
@@ -1689,12 +1721,11 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(0),
-        radix_shift.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_shift,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
@@ -1702,6 +1733,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1711,8 +1743,8 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
 ///   is required
 pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaVec<T>,
-    radix_shift: &CudaVec<T>,
+    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_shift: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -1732,12 +1764,12 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(0),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.gpu_index(0),
+        radix_shift.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -1750,6 +1782,38 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
+
+    let mut radix_lwe_left_degrees = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_left_noise_levels = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
+        radix_lwe_left,
+        &mut radix_lwe_left_degrees,
+        &mut radix_lwe_left_noise_levels,
+    );
+
+    let mut radix_shift_degrees = radix_shift.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_shift_noise_levels = radix_shift
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_shift = prepare_cuda_radix_ffi(
+        radix_shift,
+        &mut radix_shift_degrees,
+        &mut radix_shift_noise_levels,
+    );
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
         streams.ptr.as_ptr(),
@@ -1777,12 +1841,11 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(0),
-        radix_shift.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_shift,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
@@ -1790,6 +1853,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1802,8 +1866,8 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaVec<T>,
-    radix_shift: &CudaVec<T>,
+    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_shift: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -1823,12 +1887,12 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(0),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.gpu_index(0),
+        radix_shift.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -1841,6 +1905,38 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
+
+    let mut radix_lwe_left_degrees = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_left_noise_levels = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
+        radix_lwe_left,
+        &mut radix_lwe_left_degrees,
+        &mut radix_lwe_left_noise_levels,
+    );
+
+    let mut radix_shift_degrees = radix_shift.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_shift_noise_levels = radix_shift
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_shift = prepare_cuda_radix_ffi(
+        radix_shift,
+        &mut radix_shift_degrees,
+        &mut radix_shift_noise_levels,
+    );
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
         streams.ptr.as_ptr(),
@@ -1868,12 +1964,11 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(0),
-        radix_shift.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_shift,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
@@ -1881,6 +1976,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1893,8 +1989,8 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaVec<T>,
-    radix_shift: &CudaVec<T>,
+    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_shift: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -1914,12 +2010,12 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(0),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.gpu_index(0),
+        radix_shift.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -1932,6 +2028,38 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
+
+    let mut radix_lwe_left_degrees = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_left_noise_levels = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
+        radix_lwe_left,
+        &mut radix_lwe_left_degrees,
+        &mut radix_lwe_left_noise_levels,
+    );
+
+    let mut radix_shift_degrees = radix_shift.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_shift_noise_levels = radix_shift
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_shift = prepare_cuda_radix_ffi(
+        radix_shift,
+        &mut radix_shift_degrees,
+        &mut radix_shift_noise_levels,
+    );
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
         streams.ptr.as_ptr(),
@@ -1959,12 +2087,11 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(0),
-        radix_shift.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_shift,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
@@ -1972,6 +2099,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3333,15 +3461,5 @@ pub unsafe fn unchecked_negate_integer_radix_async(
         message_modulus,
         carry_modulus,
     );
-
-    radix_lwe_out
-        .info
-        .blocks
-        .iter_mut()
-        .zip(radix_lwe_out_degrees.iter())
-        .zip(radix_lwe_out_noise_levels.iter())
-        .for_each(|((block, degree), noise)| {
-            block.degree = Degree(*degree);
-            block.noise_level = NoiseLevel(*noise);
-        });
+    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }

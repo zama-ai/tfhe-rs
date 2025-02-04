@@ -53,9 +53,9 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
   if (mem->shift_type == LEFT_SHIFT) {
     // rotate right as the blocks are from LSB to MSB
-    host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
-                                          rotated_buffer, lwe_array, rotations,
-                                          num_blocks, big_lwe_size);
+    legacy_host_radix_blocks_rotate_right<Torus>(
+        streams, gpu_indexes, gpu_count, rotated_buffer, lwe_array, rotations,
+        num_blocks, big_lwe_size);
 
     // create trivial assign for value = 0
     cuda_memset_async(rotated_buffer, 0, rotations * big_lwe_size_bytes,
@@ -83,9 +83,9 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
   } else {
     // right shift
-    host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
-                                         rotated_buffer, lwe_array, rotations,
-                                         num_blocks, big_lwe_size);
+    legacy_host_radix_blocks_rotate_left<Torus>(
+        streams, gpu_indexes, gpu_count, rotated_buffer, lwe_array, rotations,
+        num_blocks, big_lwe_size);
 
     // rotate left as the blocks are from LSB to MSB
     // create trivial assign for value = 0
@@ -156,9 +156,9 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
   Torus *last_block_copy = &padding_block[big_lwe_size];
 
   if (mem->shift_type == RIGHT_SHIFT) {
-    host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
-                                         rotated_buffer, lwe_array, rotations,
-                                         num_blocks, big_lwe_size);
+    legacy_host_radix_blocks_rotate_left<Torus>(
+        streams, gpu_indexes, gpu_count, rotated_buffer, lwe_array, rotations,
+        num_blocks, big_lwe_size);
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, streams[0],
                                  gpu_indexes[0]);

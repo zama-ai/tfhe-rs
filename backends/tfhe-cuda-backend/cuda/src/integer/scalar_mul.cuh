@@ -80,7 +80,7 @@ __host__ void host_integer_scalar_mul_radix(
           preshifted_buffer + (i % msg_bits) * num_radix_blocks * lwe_size;
       T *block_shift_buffer =
           all_shifted_buffer + j * num_radix_blocks * lwe_size;
-      host_radix_blocks_rotate_right<T>(
+      legacy_host_radix_blocks_rotate_right<T>(
           streams, gpu_indexes, gpu_count, block_shift_buffer,
           preshifted_radix_ct, i / msg_bits, num_radix_blocks, lwe_size);
       // create trivial assign for value = 0

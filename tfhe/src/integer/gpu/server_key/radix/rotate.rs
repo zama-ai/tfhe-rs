@@ -27,8 +27,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_rotate_right_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
-                    &rotate.as_ref().d_blocks.0.d_vec,
+                    ct.as_mut(),
+                    rotate.as_ref(),
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -54,8 +54,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_rotate_right_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
-                    &rotate.as_ref().d_blocks.0.d_vec,
+                    ct.as_mut(),
+                    rotate.as_ref(),
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -79,7 +79,6 @@ impl CudaServerKey {
                 );
             }
         }
-        ct.as_mut().info = ct.as_ref().info.after_rotate(&rotate.as_ref().info);
     }
 
     /// # Safety
@@ -147,8 +146,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_rotate_left_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
-                    &rotate.as_ref().d_blocks.0.d_vec,
+                    ct.as_mut(),
+                    rotate.as_ref(),
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -174,8 +173,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_rotate_left_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
-                    &rotate.as_ref().d_blocks.0.d_vec,
+                    ct.as_mut(),
+                    rotate.as_ref(),
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -199,7 +198,6 @@ impl CudaServerKey {
                 );
             }
         }
-        ct.as_mut().info = ct.as_ref().info.after_rotate(&rotate.as_ref().info);
     }
 
     /// # Safety

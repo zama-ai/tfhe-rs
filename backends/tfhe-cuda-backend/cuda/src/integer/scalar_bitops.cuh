@@ -26,8 +26,8 @@ __host__ void host_integer_radix_scalar_bitop_kb(
                                              0, num_radix_blocks - 1);
     } else {
       if (input != output)
-        copy_radix_ciphertext_to_larger_output_slice_async<Torus>(
-            streams[0], gpu_indexes[0], output, input, 0);
+        copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], output,
+                                           input);
     }
   } else {
     // We have all possible LUTs pre-computed and we use the decomposed scalar

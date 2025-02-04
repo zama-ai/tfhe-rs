@@ -520,12 +520,11 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array: *mut ffi::c_void,
-        lwe_shift: *const ffi::c_void,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_shift: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
-        num_blocks: u32,
     );
 }
 unsafe extern "C" {

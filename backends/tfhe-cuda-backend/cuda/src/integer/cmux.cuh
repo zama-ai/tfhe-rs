@@ -90,8 +90,8 @@ __host__ void host_integer_radix_cmux_kb(
   auto num_radix_blocks = lwe_array_out->num_radix_blocks;
   auto params = mem_ptr->params;
   Torus lwe_size = params.big_lwe_dimension + 1;
-  copy_radix_ciphertext_to_larger_output_slice_async<Torus>(
-      streams[0], gpu_indexes[0], mem_ptr->buffer_in, lwe_array_true, 0);
+  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                     mem_ptr->buffer_in, lwe_array_true);
   copy_radix_ciphertext_to_larger_output_slice_async<Torus>(
       streams[0], gpu_indexes[0], mem_ptr->buffer_in, lwe_array_false,
       num_radix_blocks);

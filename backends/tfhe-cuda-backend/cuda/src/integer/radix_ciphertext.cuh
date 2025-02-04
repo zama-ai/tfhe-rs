@@ -15,15 +15,12 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
   uint32_t size = (lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
   radix->ptr = (void *)cuda_malloc_async(size, stream, gpu_index);
   cuda_memset_async(radix->ptr, 0, size, stream, gpu_index);
-  radix->degrees = (uint64_t *)(malloc(num_radix_blocks * sizeof(uint64_t)));
+
+  radix->degrees = (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
   radix->noise_levels =
-      (uint64_t *)(malloc(num_radix_blocks * sizeof(uint64_t)));
+      (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
   if (radix->degrees == NULL || radix->noise_levels == NULL) {
     PANIC("Cuda error: degrees / noise levels not allocated correctly")
-  }
-  for (uint i = 0; i < num_radix_blocks; i++) {
-    radix->degrees[i] = 0;
-    radix->noise_levels[i] = 0;
   }
 }
 
@@ -78,6 +75,15 @@ void copy_radix_ciphertext_to_larger_output_slice_async(
     output_radix->noise_levels[i + output_start_lwe_index] =
         input_radix->noise_levels[i];
   }
+}
+
+template <typename Torus>
+void copy_radix_ciphertext_async(cudaStream_t const stream,
+                                 uint32_t const gpu_index,
+                                 CudaRadixCiphertextFFI *output_radix,
+                                 const CudaRadixCiphertextFFI *input_radix) {
+  copy_radix_ciphertext_to_larger_output_slice_async<Torus>(
+      stream, gpu_index, output_radix, input_radix, 0);
 }
 
 // end_lwe_index is inclusive
