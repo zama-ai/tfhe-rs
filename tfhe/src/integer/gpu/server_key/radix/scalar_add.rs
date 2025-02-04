@@ -92,20 +92,16 @@ impl CudaServerKey {
                     .collect::<Vec<_>>();
             d_decomposed_scalar.copy_from_cpu_async(decomposed_scalar.as_slice(), streams, 0);
 
-            let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
             // If the scalar is decomposed using less than the number of blocks our ciphertext
             // has, we just don't touch ciphertext's last blocks
             scalar_addition_integer_radix_assign_async(
                 streams,
-                &mut ct.as_mut().d_blocks.0.d_vec,
+                ct.as_mut(),
                 &d_decomposed_scalar,
-                lwe_dimension,
                 decomposed_scalar.len() as u32,
                 self.message_modulus.0 as u32,
                 self.carry_modulus.0 as u32,
             );
-
-            ct.as_mut().info = ct.as_ref().info.after_scalar_add(scalar);
         }
     }
 
