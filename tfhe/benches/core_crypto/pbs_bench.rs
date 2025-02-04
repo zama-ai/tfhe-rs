@@ -1,7 +1,9 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+use crate::utilities::{
+    multi_bit_num_threads, write_to_json, CryptoParametersRecord, OperatorType,
+};
 use criterion::{black_box, criterion_main, Criterion};
 use rayon::prelude::*;
 use serde::Serialize;
@@ -638,6 +640,13 @@ fn multi_bit_pbs<
             params.ciphertext_modulus.unwrap(),
         );
 
+        let thread_count = multi_bit_num_threads(
+            params.message_modulus.unwrap(),
+            params.carry_modulus.unwrap(),
+            grouping_factor.0,
+        )
+        .unwrap() as usize;
+
         let id = format!("{bench_name}::{name}::parallelized");
         bench_group.bench_function(&id, |b| {
             b.iter(|| {
@@ -646,7 +655,7 @@ fn multi_bit_pbs<
                     &mut out_pbs_ct,
                     &accumulator.as_view(),
                     &multi_bit_bsk,
-                    ThreadCount(10),
+                    ThreadCount(thread_count),
                     false,
                 );
                 black_box(&mut out_pbs_ct);
@@ -1715,8 +1724,8 @@ pub fn pbs_group() {
 
 pub fn multi_bit_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    // multi_bit_pbs(&mut criterion, &multi_bit_benchmark_parameters_64bits());
-    multi_bit_deterministic_pbs(&mut criterion, &multi_bit_benchmark_parameters_64bits());
+    multi_bit_pbs(&mut criterion, &multi_bit_benchmark_parameters_64bits());
+    //multi_bit_deterministic_pbs(&mut criterion, &multi_bit_benchmark_parameters_64bits());
 }
 
 pub fn pbs_throughput_group() {
@@ -1726,7 +1735,7 @@ pub fn pbs_throughput_group() {
 }
 
 #[cfg(not(feature = "gpu"))]
-criterion_main!(pbs_group, multi_bit_pbs_group);
+criterion_main!(multi_bit_pbs_group);
 // criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
 #[cfg(feature = "gpu")]
 criterion_main!(
