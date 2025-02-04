@@ -690,12 +690,12 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
   SHIFT_OR_ROTATE_TYPE shift_type;
   bool is_signed;
 
-  Torus *tmp_bits;
-  Torus *tmp_shift_bits;
-  Torus *tmp_rotated;
-  Torus *tmp_input_bits_a;
-  Torus *tmp_input_bits_b;
-  Torus *tmp_mux_inputs;
+  CudaRadixCiphertextFFI *tmp_bits;
+  CudaRadixCiphertextFFI *tmp_shift_bits;
+  CudaRadixCiphertextFFI *tmp_rotated;
+  CudaRadixCiphertextFFI *tmp_input_bits_a;
+  CudaRadixCiphertextFFI *tmp_input_bits_b;
+  CudaRadixCiphertextFFI *tmp_mux_inputs;
 
   int_bit_extract_luts_buffer<Torus> *bit_extract_luts;
   int_bit_extract_luts_buffer<Torus> *bit_extract_luts_with_offset_2;
@@ -743,56 +743,36 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
                                  num_radix_blocks, allocate_gpu_memory);
 
     if (allocate_gpu_memory) {
-      tmp_bits = (Torus *)cuda_malloc_async(bits_per_block * num_radix_blocks *
-                                                (params.big_lwe_dimension + 1) *
-                                                sizeof(Torus),
-                                            streams[0], gpu_indexes[0]);
-      cuda_memset_async(tmp_bits, 0,
-                        bits_per_block * num_radix_blocks *
-                            (params.big_lwe_dimension + 1) * sizeof(Torus),
-                        streams[0], gpu_indexes[0]);
-      tmp_shift_bits = (Torus *)cuda_malloc_async(
-          max_num_bits_that_tell_shift * num_radix_blocks *
-              (params.big_lwe_dimension + 1) * sizeof(Torus),
-          streams[0], gpu_indexes[0]);
-      cuda_memset_async(tmp_shift_bits, 0,
-                        max_num_bits_that_tell_shift * num_radix_blocks *
-                            (params.big_lwe_dimension + 1) * sizeof(Torus),
-                        streams[0], gpu_indexes[0]);
+      tmp_bits = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_bits,
+          bits_per_block * num_radix_blocks, params.big_lwe_dimension);
 
-      tmp_rotated = (Torus *)cuda_malloc_async(
-          bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
-              sizeof(Torus),
-          streams[0], gpu_indexes[0]);
-      cuda_memset_async(tmp_rotated, 0,
-                        bits_per_block * num_radix_blocks *
-                            (params.big_lwe_dimension + 1) * sizeof(Torus),
-                        streams[0], gpu_indexes[0]);
+      tmp_shift_bits = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_shift_bits,
+          max_num_bits_that_tell_shift * num_radix_blocks,
+          params.big_lwe_dimension);
 
-      tmp_input_bits_a = (Torus *)cuda_malloc_async(
-          bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
-              sizeof(Torus),
-          streams[0], gpu_indexes[0]);
-      cuda_memset_async(tmp_input_bits_a, 0,
-                        bits_per_block * num_radix_blocks *
-                            (params.big_lwe_dimension + 1) * sizeof(Torus),
-                        streams[0], gpu_indexes[0]);
-      tmp_input_bits_b = (Torus *)cuda_malloc_async(
-          bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
-              sizeof(Torus),
-          streams[0], gpu_indexes[0]);
-      cuda_memset_async(tmp_input_bits_b, 0,
-                        bits_per_block * num_radix_blocks *
-                            (params.big_lwe_dimension + 1) * sizeof(Torus),
-                        streams[0], gpu_indexes[0]);
-      tmp_mux_inputs = (Torus *)cuda_malloc_async(
-          bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
-              sizeof(Torus),
-          streams[0], gpu_indexes[0]);
-      cuda_memset_async(tmp_mux_inputs, 0,
-                        bits_per_block * num_radix_blocks *
-                            (params.big_lwe_dimension + 1) * sizeof(Torus),
-                        streams[0], gpu_indexes[0]);
+      tmp_rotated = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_rotated,
+          bits_per_block * num_radix_blocks, params.big_lwe_dimension);
+
+      tmp_input_bits_a = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_input_bits_a,
+          bits_per_block * num_radix_blocks, params.big_lwe_dimension);
+
+      tmp_input_bits_b = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_input_bits_b,
+          bits_per_block * num_radix_blocks, params.big_lwe_dimension);
+
+      tmp_mux_inputs = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_mux_inputs,
+          bits_per_block * num_radix_blocks, params.big_lwe_dimension);
 
       auto mux_lut_f = [](Torus x) -> Torus {
         // x is expected to be x = 0bcba
@@ -831,12 +811,18 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    cuda_drop_async(tmp_bits, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_shift_bits, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_rotated, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_input_bits_a, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_input_bits_b, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_mux_inputs, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_bits);
+    delete tmp_bits;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_shift_bits);
+    delete tmp_shift_bits;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_rotated);
+    delete tmp_rotated;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_input_bits_a);
+    delete tmp_input_bits_a;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_input_bits_b);
+    delete tmp_input_bits_b;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_mux_inputs);
+    delete tmp_mux_inputs;
 
     bit_extract_luts->release(streams, gpu_indexes, gpu_count);
     bit_extract_luts_with_offset_2->release(streams, gpu_indexes, gpu_count);

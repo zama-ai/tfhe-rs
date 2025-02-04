@@ -199,8 +199,8 @@ void scratch_cuda_integer_radix_shift_and_rotate_kb_64(
 
 void cuda_integer_radix_shift_and_rotate_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array, void const *lwe_shift, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, uint32_t num_blocks);
+    CudaRadixCiphertextFFI *lwe_array, CudaRadixCiphertextFFI const *lwe_shift,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_integer_radix_shift_and_rotate(void *const *streams,
                                                  uint32_t const *gpu_indexes,

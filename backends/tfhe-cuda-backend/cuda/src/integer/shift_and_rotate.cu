@@ -22,15 +22,13 @@ void scratch_cuda_integer_radix_shift_and_rotate_kb_64(
 
 void cuda_integer_radix_shift_and_rotate_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array, void const *lwe_shift, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, uint32_t num_blocks) {
+    CudaRadixCiphertextFFI *lwe_array, CudaRadixCiphertextFFI const *lwe_shift,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
 
   host_integer_radix_shift_and_rotate_kb_inplace<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lwe_array),
-      static_cast<const uint64_t *>(lwe_shift),
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array, lwe_shift,
       (int_shift_and_rotate_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)(ksks), num_blocks);
+      (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_integer_radix_shift_and_rotate(void *const *streams,

@@ -65,15 +65,105 @@ __global__ void radix_blocks_rotate_left(Torus *dst, Torus *src, uint32_t value,
   }
 }
 
+// rotate an array in the CPU memory by value positions
+template <typename Torus>
+__host__ void array_rotate_right(Torus *array_out, Torus *array_in,
+                                 uint32_t value, uint32_t num_elements) {
+  value %= num_elements;
+  for (uint32_t i = 0; i < num_elements; i++) {
+    auto src_i = (size_t)i;
+    auto dst_j = (src_i + value) % num_elements;
+    array_out[dst_j] = array_in[src_i];
+  }
+}
+
+// rotate an array in the CPU memory by value positions
+template <typename Torus>
+__host__ void array_rotate_left(Torus *array_out, Torus *array_in,
+                                uint32_t value, uint32_t num_elements) {
+  value %= num_elements;
+  for (uint32_t i = 0; i < num_elements; i++) {
+    auto src_i = (size_t)i;
+    auto dst_j =
+        (src_i >= value) ? src_i - value : src_i - value + num_elements;
+    array_out[dst_j] = array_in[src_i];
+  }
+}
+
+// rotate radix ciphertext right with specific rotations
+// calculation is not inplace, so `dst` and `src` must not be the same
+// one block is responsible to process single lwe ciphertext
+template <typename Torus>
+__host__ void host_radix_blocks_rotate_right(cudaStream_t const *streams,
+                                             uint32_t const *gpu_indexes,
+                                             uint32_t gpu_count,
+                                             CudaRadixCiphertextFFI *dst,
+                                             CudaRadixCiphertextFFI *src,
+                                             uint32_t rotations) {
+  if (src == dst) {
+    PANIC("Cuda error (blocks_rotate_right): the source and destination "
+          "pointers should be different");
+  }
+  if (dst->lwe_dimension != src->lwe_dimension)
+    PANIC("Cuda error: input and output should have the same "
+          "lwe dimension")
+
+  auto lwe_size = src->lwe_dimension + 1;
+
+  cuda_set_device(gpu_indexes[0]);
+  radix_blocks_rotate_right<Torus>
+      <<<src->num_radix_blocks, 1024, 0, streams[0]>>>(
+          (Torus *)dst->ptr, (Torus *)src->ptr, rotations,
+          dst->num_radix_blocks, lwe_size);
+  check_cuda_error(cudaGetLastError());
+
+  // Rotate degrees and noise to follow blocks
+  array_rotate_right(dst->degrees, src->degrees, rotations,
+                     dst->num_radix_blocks);
+  array_rotate_right(dst->noise_levels, src->noise_levels, rotations,
+                     dst->num_radix_blocks);
+}
+
+// rotate radix ciphertext left with specific value
+// calculation is not inplace, so `dst` and `src` must not be the same
+template <typename Torus>
+__host__ void
+host_radix_blocks_rotate_left(cudaStream_t const *streams,
+                              uint32_t const *gpu_indexes, uint32_t gpu_count,
+                              CudaRadixCiphertextFFI *dst,
+                              CudaRadixCiphertextFFI *src, uint32_t value) {
+  if (src == dst) {
+    PANIC("Cuda error (blocks_rotate_left): the source and destination "
+          "pointers should be different");
+  }
+
+  if (dst->lwe_dimension != src->lwe_dimension)
+    PANIC("Cuda error: input and output should have the same "
+          "lwe dimension")
+
+  auto lwe_size = src->lwe_dimension + 1;
+
+  cuda_set_device(gpu_indexes[0]);
+  radix_blocks_rotate_left<Torus>
+      <<<src->num_radix_blocks, 1024, 0, streams[0]>>>(
+          (Torus *)dst->ptr, (Torus *)src->ptr, value, dst->num_radix_blocks,
+          lwe_size);
+  check_cuda_error(cudaGetLastError());
+
+  // Rotate degrees and noise to follow blocks
+  array_rotate_left(dst->degrees, src->degrees, value, dst->num_radix_blocks);
+  array_rotate_left(dst->noise_levels, src->noise_levels, value,
+                    dst->num_radix_blocks);
+}
+
 // rotate radix ciphertext right with specific value
 // calculation is not inplace, so `dst` and `src` must not be the same
 // one block is responsible to process single lwe ciphertext
 template <typename Torus>
-__host__ void
-host_radix_blocks_rotate_right(cudaStream_t const *streams,
-                               uint32_t const *gpu_indexes, uint32_t gpu_count,
-                               Torus *dst, Torus *src, uint32_t value,
-                               uint32_t blocks_count, uint32_t lwe_size) {
+__host__ void legacy_host_radix_blocks_rotate_right(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *dst, Torus *src, uint32_t value,
+    uint32_t blocks_count, uint32_t lwe_size) {
   if (src == dst) {
     PANIC("Cuda error (blocks_rotate_right): the source and destination "
           "pointers should be different");
@@ -87,11 +177,10 @@ host_radix_blocks_rotate_right(cudaStream_t const *streams,
 // rotate radix ciphertext left with specific value
 // calculation is not inplace, so `dst` and `src` must not be the same
 template <typename Torus>
-__host__ void
-host_radix_blocks_rotate_left(cudaStream_t const *streams,
-                              uint32_t const *gpu_indexes, uint32_t gpu_count,
-                              Torus *dst, Torus *src, uint32_t value,
-                              uint32_t blocks_count, uint32_t lwe_size) {
+__host__ void legacy_host_radix_blocks_rotate_left(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *dst, Torus *src, uint32_t value,
+    uint32_t blocks_count, uint32_t lwe_size) {
   if (src == dst) {
     PANIC("Cuda error (blocks_rotate_left): the source and destination "
           "pointers should be different");
@@ -375,17 +464,13 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   auto polynomial_size = params.polynomial_size;
   auto grouping_factor = params.grouping_factor;
 
-  if (lwe_array_out->num_radix_blocks != lwe_array_in->num_radix_blocks)
-    PANIC("Cuda error: input and output radix ciphertexts should have the same "
-          "number of blocks")
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
           "lwe dimension")
-  if (num_radix_blocks > lwe_array_out->num_radix_blocks ||
-      num_radix_blocks > lwe_array_in->num_radix_blocks)
+  if (num_radix_blocks > lut->num_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal"
-          " to the number of input and output radix blocks")
+          " to the number of lut radix blocks")
 
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
@@ -1753,16 +1838,33 @@ create_trivial_radix(cudaStream_t stream, uint32_t gpu_index,
  * * (lwe_dimension+1) * sizeeof(Torus) bytes
  */
 template <typename Torus>
-__host__ void extract_n_bits(cudaStream_t const *streams,
-                             uint32_t const *gpu_indexes, uint32_t gpu_count,
-                             Torus *lwe_array_out, Torus *lwe_array_in,
-                             void *const *bsks, Torus *const *ksks,
-                             uint32_t num_radix_blocks, uint32_t bits_per_block,
-                             int_bit_extract_luts_buffer<Torus> *bit_extract) {
+__host__ void legacy_extract_n_bits(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, Torus *lwe_array_out, Torus *lwe_array_in,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks,
+    uint32_t bits_per_block, int_bit_extract_luts_buffer<Torus> *bit_extract) {
 
   legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in, bsks, ksks,
       num_radix_blocks * bits_per_block, bit_extract->lut);
+}
+
+/**
+ * Each bit in lwe_array_in becomes a lwe ciphertext in lwe_array_out
+ * Thus, lwe_array_out must be allocated with num_radix_blocks * bits_per_block
+ * * (lwe_dimension+1) * sizeeof(Torus) bytes
+ */
+template <typename Torus>
+__host__ void
+extract_n_bits(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
+               const CudaRadixCiphertextFFI *lwe_array_in, void *const *bsks,
+               Torus *const *ksks, uint32_t effective_num_radix_blocks,
+               int_bit_extract_luts_buffer<Torus> *bit_extract) {
+
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in, bsks, ksks,
+      bit_extract->lut, effective_num_radix_blocks);
 }
 
 template <typename Torus>

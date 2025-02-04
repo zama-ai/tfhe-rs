@@ -134,6 +134,63 @@ __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index,
   }
 }
 
+template <typename T>
+__global__ void constant_addition(T *output, T const *input_1, T const *input_2,
+                                  uint32_t lwe_size, uint32_t num_entries) {
+
+  int tid = threadIdx.x;
+  int index = blockIdx.x * blockDim.x + tid;
+  if (index < num_entries) {
+    // Here we take advantage of the wrapping behaviour of uint
+    output[index] = input_1[index] + input_2[index % lwe_size];
+  }
+}
+
+// Coefficient-wise addition by the same block
+// input_with_multiple_blocks is a radix ciphertext with potentially multiple
+// blocks input_with_single_block is a radix ciphertext with a single block
+//
+// This function adds the single block in input_with_single_block to each block
+// in input_with_multiple_blocks. The result is written to output
+template <typename T>
+__host__ void host_add_the_same_block_to_all_blocks(
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *input_with_multiple_blocks,
+    CudaRadixCiphertextFFI const *input_with_single_block) {
+  if (output->num_radix_blocks != input_with_multiple_blocks->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  if (input_with_single_block->num_radix_blocks != 1)
+    PANIC(
+        "Cuda error: input_with_single_block must be a single-block ciphertext")
+  if (output->lwe_dimension != input_with_multiple_blocks->lwe_dimension ||
+      output->lwe_dimension != input_with_single_block->lwe_dimension)
+    PANIC("Cuda error: input and output lwe dimensions must be the same")
+
+  cuda_set_device(gpu_index);
+  // lwe_size includes the presence of the body
+  // whereas lwe_dimension is the number of elements in the mask
+  int lwe_size = output->lwe_dimension + 1;
+  // Create a 1-dimensional grid of threads
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = output->num_radix_blocks * lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  constant_addition<T><<<grid, thds, 0, stream>>>(
+      static_cast<T *>(output->ptr),
+      static_cast<const T *>(input_with_multiple_blocks->ptr),
+      static_cast<const T *>(input_with_single_block->ptr), lwe_size,
+      num_entries);
+  check_cuda_error(cudaGetLastError());
+  for (uint i = 0; i < output->num_radix_blocks; i++) {
+    output->degrees[i] = input_with_multiple_blocks->degrees[i] +
+                         input_with_single_block->degrees[0];
+    output->noise_levels[i] = input_with_multiple_blocks->noise_levels[i] +
+                              input_with_single_block->noise_levels[0];
+  }
+}
+
 // Coefficient-wise addition
 template <typename T>
 __host__ void legacy_host_addition(cudaStream_t stream, uint32_t gpu_index,

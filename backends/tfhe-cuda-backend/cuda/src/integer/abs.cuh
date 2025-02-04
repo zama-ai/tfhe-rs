@@ -81,8 +81,7 @@ host_integer_abs_kb(cudaStream_t const *streams, uint32_t const *gpu_indexes,
       (31 - __builtin_clz(mem_ptr->params.message_modulus)) *
       ct->num_radix_blocks;
 
-  copy_radix_ciphertext_to_larger_output_slice_async<Torus>(
-      streams[0], gpu_indexes[0], mask, ct, 0);
+  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], mask, ct);
 
   host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
       streams, gpu_indexes, gpu_count, (Torus *)(mask->ptr),
