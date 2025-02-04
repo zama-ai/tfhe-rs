@@ -26,7 +26,7 @@ fn lwe_encrypt_pbs_decrypt<
     let decomp_level_count = params.pbs_level;
 
     let gpu_index = 0;
-    let stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
     let mut rsc = TestResources::new();
 

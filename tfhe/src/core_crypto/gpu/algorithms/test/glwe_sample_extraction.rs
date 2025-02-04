@@ -27,7 +27,7 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
     let gpu_index = 0;
-    let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
     let mut msgs = vec![];
 
