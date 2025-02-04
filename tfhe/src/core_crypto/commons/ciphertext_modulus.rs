@@ -151,6 +151,12 @@ impl std::fmt::Debug for CiphertextModulusCreationError {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ModulusAsF64 {
+    Exact(f64),
+    Approximate(f64),
+}
+
 impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
     pub const fn new_native() -> Self {
         Self {
@@ -278,6 +284,26 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         match self.inner {
             CiphertextModulusInner::Native => None,
             CiphertextModulusInner::Custom(modulus) => Some(modulus.get().cast_into()),
+        }
+    }
+
+    /// Note that due to floating point precision issues you may get an imprecise result
+    pub fn get_modulus_as_f64(&self) -> ModulusAsF64 {
+        if self.is_native_modulus() {
+            return ModulusAsF64::Exact(2.0f64.powi(Scalar::BITS as i32));
+        }
+
+        let custom_as_u128 = self.get_custom_modulus();
+        let custom_as_f64 = custom_as_u128 as f64;
+        if self.is_power_of_two() {
+            return ModulusAsF64::Exact(custom_as_f64);
+        }
+
+        let roundtrip_value: u128 = custom_as_f64 as u128;
+        if roundtrip_value == custom_as_u128 {
+            ModulusAsF64::Exact(custom_as_f64)
+        } else {
+            ModulusAsF64::Approximate(custom_as_f64)
         }
     }
 
