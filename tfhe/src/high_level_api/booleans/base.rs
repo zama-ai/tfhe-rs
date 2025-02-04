@@ -225,6 +225,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda does not support if_then_else with clear input")
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -271,6 +275,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda does not support if_then_else with clear input")
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -319,6 +327,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda does not support if_then_else with clear input")
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -366,6 +378,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda does not support if_then_else with clear input")
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -395,6 +411,10 @@ impl ScalarIfThenElse<&Self, &Self> for FheBool {
                 let boolean_inner = CudaBooleanBlock(inner);
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -432,6 +452,10 @@ where
 
                 FheUint::new(inner, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -465,6 +489,10 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
 
                 FheInt::new(inner, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         })
     }
 }
@@ -492,6 +520,10 @@ impl IfThenElse<Self> for FheBool {
                 let boolean_inner = CudaBooleanBlock(inner);
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -550,6 +582,10 @@ where
                 let ciphertext = InnerBoolean::Cuda(inner);
                 Self::new(ciphertext, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         })
     }
 
@@ -592,6 +628,10 @@ where
                 let ciphertext = InnerBoolean::Cuda(inner);
                 Self::new(ciphertext, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         })
     }
 }
@@ -636,6 +676,10 @@ impl FheEq<bool> for FheBool {
                 );
                 (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -679,6 +723,10 @@ impl FheEq<bool> for FheBool {
                 );
                 (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -759,6 +807,10 @@ where
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -843,6 +895,10 @@ where
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -927,6 +983,10 @@ where
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1003,6 +1063,10 @@ impl BitAnd<bool> for &FheBool {
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1079,6 +1143,10 @@ impl BitOr<bool> for &FheBool {
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1155,6 +1223,10 @@ impl BitXor<bool> for &FheBool {
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1353,6 +1425,10 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
     }
 }
@@ -1396,6 +1472,10 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
     }
 }
@@ -1439,6 +1519,10 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
     }
 }
@@ -1476,6 +1560,10 @@ impl BitAndAssign<bool> for FheBool {
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
     }
 }
@@ -1513,6 +1601,10 @@ impl BitOrAssign<bool> for FheBool {
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
     }
 }
@@ -1550,6 +1642,10 @@ impl BitXorAssign<bool> for FheBool {
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
     }
 }
@@ -1619,6 +1715,10 @@ impl std::ops::Not for &FheBool {
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!()
+            }
         });
         FheBool::new(ciphertext, tag)
     }

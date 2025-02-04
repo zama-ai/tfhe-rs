@@ -6,6 +6,7 @@ use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::{FheInt, Seed};
+
 impl<Id: FheUintId> FheUint<Id> {
     /// Generates an encrypted unsigned integer
     /// taken uniformly in its full range using the given seed.
@@ -50,6 +51,10 @@ impl<Id: FheUintId> FheUint<Id> {
 
                 Self::new(d_ct, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -99,6 +104,10 @@ impl<Id: FheUintId> FheUint<Id> {
                     );
                 Self::new(d_ct, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -148,6 +157,10 @@ impl<Id: FheIntId> FheInt<Id> {
 
                 Self::new(d_ct, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -199,6 +212,10 @@ impl<Id: FheIntId> FheInt<Id> {
                     );
                 Self::new(d_ct, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }

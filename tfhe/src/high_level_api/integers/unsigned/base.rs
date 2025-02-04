@@ -217,10 +217,15 @@ where
     /// slice is empty
     #[cfg(feature = "gpu")]
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        #[allow(clippy::match_wildcard_for_single_variants)]
         match &self.ciphertext {
-            RadixCiphertext::Cpu(_) => &[],
             RadixCiphertext::Cuda(cuda_ct) => cuda_ct.gpu_indexes(),
+            _ => &[],
         }
+    }
+
+    pub fn wait(&self) {
+        self.ciphertext.wait()
     }
 
     /// Returns a FheBool that encrypts `true` if the value is even
@@ -256,6 +261,10 @@ where
                     .is_even(&*self.ciphertext.on_gpu(streams), streams);
                 FheBool::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -292,6 +301,10 @@ where
                     .is_odd(&*self.ciphertext.on_gpu(streams), streams);
                 FheBool::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -430,6 +443,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -475,6 +492,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -520,6 +541,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -565,6 +590,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -602,6 +631,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support count_ones yet");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -638,6 +671,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support count_zeros yet");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -686,6 +723,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -743,6 +784,10 @@ where
                     FheBool::new(is_ok, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -826,6 +871,10 @@ where
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -902,6 +951,10 @@ where
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 
@@ -937,6 +990,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support reverse yet");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
             }
         })
     }
@@ -984,6 +1041,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support if_then_else yet");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                todo!("hpu");
+            }
         })
     }
 
@@ -1023,6 +1084,10 @@ where
                     cuda_key.key.key.carry_modulus,
                     cuda_key.key.key.message_modulus,
                 ),
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    todo!("hpu")
+                }
             });
 
         // Check number of blocks
@@ -1109,6 +1174,10 @@ where
                 );
                 Self::new(casted, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -1153,6 +1222,10 @@ where
                 );
                 Self::new(casted, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }
@@ -1197,6 +1270,10 @@ where
                 );
                 Self::new(inner, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                todo!("hpu")
+            }
         })
     }
 }

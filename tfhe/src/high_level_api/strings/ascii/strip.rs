@@ -49,6 +49,10 @@ impl FheStringStrip<&Self> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strip_prefix");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings strip_prefix");
+            }
         })
     }
 
@@ -94,6 +98,10 @@ impl FheStringStrip<&Self> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strip_suffix");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings string_suffix");
             }
         })
     }
@@ -143,6 +151,10 @@ impl FheStringStrip<&ClearString> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strip_prefix");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings strip_prefix");
+            }
         })
     }
 
@@ -188,6 +200,10 @@ impl FheStringStrip<&ClearString> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strip_suffix");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings strip_suffix");
             }
         })
     }

@@ -13,6 +13,14 @@ pub struct Config {
 }
 
 impl Config {
+    #[cfg(feature = "hpu")]
+    pub fn from_hpu_device(hpu_device: &tfhe_hpu_backend::prelude::HpuDevice) -> Self {
+        let pbs_params = crate::shortint::PBSParameters::PBS(hpu_device.params().into());
+        ConfigBuilder::with_custom_parameters(pbs_params)
+            .use_custom_parameters(pbs_params)
+            .build()
+    }
+
     pub fn public_key_encryption_parameters(
         &self,
     ) -> Result<crate::shortint::parameters::CompactPublicKeyEncryptionParameters, crate::Error>

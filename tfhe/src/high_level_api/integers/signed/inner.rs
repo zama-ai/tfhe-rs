@@ -218,18 +218,8 @@ impl SignedRadixCiphertext {
                 // Nothing to do, we already are on the correct device
             }
             #[cfg(feature = "gpu")]
-            (Self::Cuda(cuda_ct), Device::CudaGpu) => {
-                // We are on a GPU, but it may not be the correct one
-                let new = with_thread_local_cuda_streams(|streams| {
-                    if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
-                        None
-                    } else {
-                        Some(cuda_ct.duplicate(streams))
-                    }
-                });
-                if let Some(ct) = new {
-                    *self = Self::Cuda(ct);
-                }
+            (Self::Cuda(_), Device::CudaGpu) => {
+                // Nothing to do, we already are on the correct device
             }
             #[cfg(feature = "gpu")]
             (Self::Cpu(ct), Device::CudaGpu) => {
@@ -240,12 +230,12 @@ impl SignedRadixCiphertext {
             }
             #[cfg(feature = "gpu")]
             (Self::Cuda(ct), Device::Cpu) => {
-                let new_inner =
-                    with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
-                        ct.to_signed_radix_ciphertext(streams)
-                    });
+                let new_inner = with_thread_local_cuda_streams(|streams| {
+                    ct.to_signed_radix_ciphertext(streams)
+                });
                 *self = Self::Cpu(new_inner);
             }
+            _ => todo!(),
         }
     }
 
