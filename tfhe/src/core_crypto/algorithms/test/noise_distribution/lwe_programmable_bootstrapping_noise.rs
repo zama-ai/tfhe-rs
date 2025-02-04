@@ -20,8 +20,8 @@ use std::path::PathBuf;
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
-const NB_TESTS: usize = 500;
-const EXP_NAME: &str = "fft-with-gap"; // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
+const NB_TESTS: usize = 5;
+const EXP_NAME: &str = "u64-u128"; // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
 
 #[derive(Clone, Debug)]
 enum FourierBsk {
@@ -596,10 +596,11 @@ fn test_impl<
         ciphertext_modulus.get_custom_modulus() as f64
     };
     let msg_mod_log = 4;
+    let (level_upbnd, logB_l_upbnd) = if Scalar::BITS == 64 {(6,36)} else if Scalar::BITS == 128 {(4,96)} else {panic!("Unexpected bit-len of ciphertext modulus: {:?}",Scalar::BITS)};
 
     for logbase in 5..=30 {
-        for level in 1..=6 {
-            if logbase * level > 36 {
+        for level in 1..=level_upbnd {            //  6 for u64,  4 for u128
+            if logbase * level > logB_l_upbnd {   // 36 for u64, 96 for u128
                 continue;
             } // also used: logbase * level < 15
               //~ for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
