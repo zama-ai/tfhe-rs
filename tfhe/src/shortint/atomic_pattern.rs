@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::NotVersioned;
 
@@ -24,7 +26,7 @@ pub enum AtomicPattern {
     Classical(PBSOrder),
 }
 
-pub trait AtomicPatternOperations {
+pub trait AtomicPatternOperations: std::fmt::Debug {
     fn ciphertext_lwe_dimension(&self) -> LweDimension;
 
     fn ciphertext_modulus(&self) -> CiphertextModulus;
@@ -48,6 +50,49 @@ pub trait AtomicPatternOperations {
 
 pub trait AtomicPatternMutOperations: AtomicPatternOperations {
     fn set_deterministic_execution(&mut self, new_deterministic_execution: bool);
+}
+
+// Prevent user implementation of this trait
+mod private {
+    use super::*;
+    pub trait DynamicAtomicPatternOperations:
+        AtomicPatternMutOperations
+        + Send
+        + Sync
+        + std::panic::UnwindSafe
+        + std::panic::RefUnwindSafe
+    {
+        fn as_any(&self) -> &dyn Any;
+        fn dyn_eq(&self, other: &dyn DynamicAtomicPatternOperations) -> bool;
+        fn dyn_clone(&self) -> Box<dyn DynamicAtomicPatternOperations>;
+    }
+
+    impl<
+            AP: 'static
+                + PartialEq
+                + Clone
+                + AtomicPatternOperations
+                + AtomicPatternMutOperations
+                + Send
+                + Sync
+                + std::panic::UnwindSafe
+                + std::panic::RefUnwindSafe,
+        > DynamicAtomicPatternOperations for AP
+    {
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+
+        fn dyn_eq(&self, other: &dyn DynamicAtomicPatternOperations) -> bool {
+            // Do a type-safe casting. If the types are different,
+            // return false, otherwise test the values for equality.
+            other.as_any().downcast_ref::<AP>() == Some(self)
+        }
+
+        fn dyn_clone(&self) -> Box<dyn DynamicAtomicPatternOperations> {
+            Box::new(self.clone())
+        }
+    }
 }
 
 impl<T: AtomicPatternOperations> AtomicPatternOperations for &T {
@@ -356,10 +401,34 @@ impl ClassicalAtomicPatternServerKey<u64> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, NotVersioned)] // TODO: Versionize
+// TODO: Versionize
+#[derive(Debug, Serialize, Deserialize, NotVersioned)]
 pub enum ServerKeyAtomicPattern {
     Classical(ClassicalAtomicPatternServerKey<u64>),
     KeySwitch32(ClassicalAtomicPatternServerKey<u32>),
+    #[serde(skip)]
+    Dynamic(Box<dyn private::DynamicAtomicPatternOperations>),
+}
+
+impl PartialEq for ServerKeyAtomicPattern {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Classical(ap_self), Self::Classical(ap_other)) => ap_self.eq(ap_other),
+            (Self::KeySwitch32(ap_self), Self::KeySwitch32(ap_other)) => ap_self.eq(ap_other),
+            (Self::Dynamic(ap_self), Self::Dynamic(ap_other)) => ap_self.dyn_eq(ap_other.as_ref()),
+            _ => false,
+        }
+    }
+}
+
+impl Clone for ServerKeyAtomicPattern {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Classical(ap) => Self::Classical(ap.clone()),
+            Self::KeySwitch32(ap) => Self::KeySwitch32(ap.clone()),
+            Self::Dynamic(ap) => Self::Dynamic(ap.dyn_clone()),
+        }
+    }
 }
 
 impl AtomicPatternOperations for ServerKeyAtomicPattern {
@@ -367,6 +436,7 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
         match self {
             Self::Classical(ap) => ap.ciphertext_lwe_dimension(),
             Self::KeySwitch32(_) => todo!(),
+            Self::Dynamic(ap) => ap.ciphertext_lwe_dimension(),
         }
     }
 
@@ -374,6 +444,7 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
         match self {
             Self::Classical(ap) => ap.ciphertext_modulus(),
             Self::KeySwitch32(_) => todo!(),
+            Self::Dynamic(ap) => ap.ciphertext_modulus(),
         }
     }
 
@@ -381,6 +452,7 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
         match self {
             Self::Classical(ap) => ap.ciphertext_decompression_method(),
             Self::KeySwitch32(_) => todo!(),
+            Self::Dynamic(ap) => ap.ciphertext_decompression_method(),
         }
     }
 
@@ -388,6 +460,7 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
         match self {
             Self::Classical(ap) => ap.apply_lookup_table_assign(ct, acc),
             Self::KeySwitch32(_) => todo!(),
+            Self::Dynamic(ap) => ap.apply_lookup_table_assign(ct, acc),
         }
     }
 
@@ -399,6 +472,7 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
         match self {
             Self::Classical(ap) => ap.apply_many_lookup_table(ct, lut),
             Self::KeySwitch32(_) => todo!(),
+            Self::Dynamic(ap) => ap.apply_many_lookup_table(ct, lut),
         }
     }
 
@@ -406,6 +480,7 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
         match self {
             Self::Classical(ap) => ap.lookup_table_size(),
             Self::KeySwitch32(_) => todo!(),
+            Self::Dynamic(ap) => ap.lookup_table_size(),
         }
     }
 
@@ -413,6 +488,7 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
         match self {
             Self::Classical(ap) => ap.atomic_pattern(),
             Self::KeySwitch32(_) => todo!(),
+            Self::Dynamic(ap) => ap.atomic_pattern(),
         }
     }
 
@@ -420,6 +496,7 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
         match self {
             Self::Classical(ap) => ap.deterministic_execution(),
             Self::KeySwitch32(_) => todo!(),
+            Self::Dynamic(ap) => ap.deterministic_execution(),
         }
     }
 }
@@ -429,6 +506,7 @@ impl AtomicPatternMutOperations for ServerKeyAtomicPattern {
         match self {
             Self::Classical(ap) => ap.set_deterministic_execution(new_deterministic_execution),
             Self::KeySwitch32(_) => todo!(),
+            Self::Dynamic(ap) => ap.set_deterministic_execution(new_deterministic_execution),
         }
     }
 }
