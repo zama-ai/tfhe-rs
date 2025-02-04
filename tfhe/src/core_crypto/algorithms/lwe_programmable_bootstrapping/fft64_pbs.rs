@@ -1169,7 +1169,8 @@ where
             fft,
         )
         .unwrap()
-        .unaligned_bytes_required(),
+        .unaligned_bytes_required()
+            * 10,
     );
 
     let stack = buffers.stack();

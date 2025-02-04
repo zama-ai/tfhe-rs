@@ -460,6 +460,11 @@ fn export_noise_predictions<
         params.polynomial_size.0,
         log_q,
     );
+
+    let filename_exp_var_path: PathBuf = filename_exp_var.as_str().into();
+    let filename_exp_var_parent = filename_exp_var_path.parent().unwrap();
+    std::fs::create_dir_all(&filename_exp_var_parent).unwrap();
+
     let mut file_exp_var = File::create(&filename_exp_var).unwrap();
 
     let (expected_variance_kara, expected_variance_fft) =
