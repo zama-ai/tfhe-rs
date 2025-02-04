@@ -36,8 +36,8 @@ void as_radix_ciphertext_slice(CudaRadixCiphertextFFI *output_radix,
   if (input_radix->num_radix_blocks < end_lwe_index - start_lwe_index + 1)
     PANIC("Cuda error: input radix should have more blocks than the specified "
           "range")
-  if (start_lwe_index >= end_lwe_index)
-    PANIC("Cuda error: slice range should be strictly positive")
+  if (start_lwe_index > end_lwe_index)
+    PANIC("Cuda error: slice range should be non negative")
 
   auto lwe_size = input_radix->lwe_dimension + 1;
   output_radix->num_radix_blocks = end_lwe_index - start_lwe_index + 1;
@@ -78,6 +78,31 @@ void copy_radix_ciphertext_to_larger_output_slice_async(
     output_radix->noise_levels[i + output_start_lwe_index] =
         input_radix->noise_levels[i];
   }
+}
+
+// end_lwe_index is inclusive
+template <typename Torus>
+void set_zero_radix_ciphertext_async(cudaStream_t const stream,
+                                     uint32_t const gpu_index,
+                                     CudaRadixCiphertextFFI *radix,
+                                     const uint32_t start_lwe_index,
+                                     const uint32_t end_lwe_index) {
+  if (radix->num_radix_blocks < end_lwe_index - start_lwe_index + 1)
+    PANIC("Cuda error: input radix should have more blocks than the specified "
+          "range")
+  if (start_lwe_index > end_lwe_index)
+    PANIC("Cuda error: slice range should be non negative")
+
+  auto lwe_size = radix->lwe_dimension + 1;
+  auto num_blocks_to_set = end_lwe_index - start_lwe_index + 1;
+  auto lwe_array_out_block = (Torus *)radix->ptr + start_lwe_index * lwe_size;
+  cuda_memset_async(lwe_array_out_block, 0,
+                    num_blocks_to_set * lwe_size * sizeof(Torus), stream,
+                    gpu_index);
+  memset(&radix->degrees[start_lwe_index], 0,
+         num_blocks_to_set * sizeof(uint64_t));
+  memset(&radix->noise_levels[start_lwe_index], 0,
+         num_blocks_to_set * sizeof(uint64_t));
 }
 
 #endif

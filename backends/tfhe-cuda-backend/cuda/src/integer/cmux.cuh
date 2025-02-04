@@ -122,7 +122,7 @@ __host__ void host_integer_radix_cmux_kb(
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, added_cts, bsks, ksks,
-      mem_ptr->message_extract_lut);
+      mem_ptr->message_extract_lut, num_radix_blocks);
   delete mem_true;
   delete mem_false;
 }
