@@ -2,7 +2,6 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::server_key::TwosComplementNegation;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
-use itertools::Itertools;
 
 #[derive(Clone, Copy)]
 pub struct CudaBlockInfo {
@@ -223,33 +222,6 @@ impl CudaRadixCiphertextInfo {
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
                     noise_level,
-                })
-                .collect(),
-        }
-    }
-
-    pub(crate) fn after_scalar_add<T>(&self, scalar: T) -> Self
-    where
-        T: DecomposableInto<u8>,
-    {
-        let message_modulus = self.blocks.first().unwrap().message_modulus;
-        let bits_in_message = message_modulus.0.ilog2();
-        let decomposer =
-            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
-        let mut scalar_composed = decomposer.collect_vec();
-        scalar_composed.resize(self.blocks.len(), 0);
-
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .zip(scalar_composed)
-                .map(|(left, scalar_block)| CudaBlockInfo {
-                    degree: Degree::new(left.degree.get() + u64::from(scalar_block)),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: left.noise_level,
                 })
                 .collect(),
         }

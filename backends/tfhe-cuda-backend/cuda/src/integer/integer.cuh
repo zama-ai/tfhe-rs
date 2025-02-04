@@ -1441,7 +1441,7 @@ void host_compute_propagation_simulators_and_group_carries(
   auto scalar_array_cum_sum = mem->scalar_array_cum_sum;
   auto big_lwe_dimension = big_lwe_size - 1;
 
-  host_integer_radix_scalar_addition_inplace<Torus>(
+  legacy_host_integer_radix_scalar_addition_inplace<Torus>(
       streams, gpu_indexes, gpu_count, propagation_cum_sums,
       scalar_array_cum_sum, big_lwe_dimension, num_radix_blocks,
       message_modulus, carry_modulus);

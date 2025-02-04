@@ -228,16 +228,15 @@ where
 ///   is required
 pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
     streams: &CudaStreams,
-    lwe_array: &mut CudaVec<T>,
+    lwe_array: &mut CudaRadixCiphertext,
     scalar_input: &CudaVec<T>,
-    lwe_dimension: LweDimension,
-    num_samples: u32,
+    num_scalars: u32,
     message_modulus: u32,
     carry_modulus: u32,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        lwe_array.gpu_index(0),
+        lwe_array.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -245,17 +244,29 @@ pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
         scalar_input.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
+    let mut lwe_array_degrees = lwe_array.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut lwe_array_noise_levels = lwe_array
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_lwe_array = prepare_cuda_radix_ffi(
+        lwe_array,
+        &mut lwe_array_degrees,
+        &mut lwe_array_noise_levels,
+    );
     cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        lwe_array.as_mut_c_ptr(0),
+        &mut cuda_ffi_lwe_array,
         scalar_input.as_c_ptr(0),
-        lwe_dimension.0 as u32,
-        num_samples,
+        num_scalars,
         message_modulus,
         carry_modulus,
     );
+    update_noise_degree(lwe_array, &cuda_ffi_lwe_array);
 }
 
 #[allow(clippy::too_many_arguments)]

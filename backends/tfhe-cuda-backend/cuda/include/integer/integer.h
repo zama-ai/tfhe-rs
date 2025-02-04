@@ -148,9 +148,8 @@ void cuda_negate_integer_radix_ciphertext_64(
 
 void cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array, void const *scalar_input, uint32_t lwe_dimension,
-    uint32_t lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus);
+    CudaRadixCiphertextFFI *lwe_array, void const *scalar_input,
+    uint32_t num_scalars, uint32_t message_modulus, uint32_t carry_modulus);
 
 void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
