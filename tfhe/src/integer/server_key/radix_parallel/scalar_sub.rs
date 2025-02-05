@@ -105,7 +105,7 @@ impl ServerKey {
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
-        };
+        }
 
         if Scalar::ZERO == scalar {
             return;

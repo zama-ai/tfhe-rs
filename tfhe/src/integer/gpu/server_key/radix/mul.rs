@@ -122,7 +122,7 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                 );
             }
-        };
+        }
 
         ct_left.as_mut().info = ct_left.as_ref().info.after_mul();
     }

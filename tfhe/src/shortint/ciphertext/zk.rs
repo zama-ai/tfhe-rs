@@ -267,7 +267,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             } else {
                 expected_len = remaining_len;
                 remaining_len = 0;
-            };
+            }
 
             let params = CiphertextListConformanceParams {
                 ct_list_params: LweCiphertextListParameters {

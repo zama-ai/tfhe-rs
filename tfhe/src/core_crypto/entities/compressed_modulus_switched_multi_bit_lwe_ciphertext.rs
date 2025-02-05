@@ -318,7 +318,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
 
         if let Some(packed_diffs) = &self.packed_diffs {
             diffs_two_complement = packed_diffs.unpack().collect()
-        };
+        }
 
         let diffs = |a: usize| {
             self.packed_diffs.as_ref().map_or(0, |packed_diffs| {

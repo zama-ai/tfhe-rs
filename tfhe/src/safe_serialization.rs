@@ -254,7 +254,7 @@ impl SerializationConfig {
                 SerializationVersioningMode::Unversioned { .. } => {
                     options.serialize_into(&mut writer, &object)?
                 }
-            };
+            }
         } else {
             let options = options.with_no_limit();
 
@@ -267,8 +267,8 @@ impl SerializationConfig {
                 SerializationVersioningMode::Unversioned { .. } => {
                     options.serialize_into(&mut writer, &object)?
                 }
-            };
-        };
+            }
+        }
 
         Ok(())
     }

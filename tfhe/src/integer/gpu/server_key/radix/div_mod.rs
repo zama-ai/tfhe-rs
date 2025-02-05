@@ -80,7 +80,7 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                 );
             }
-        };
+        }
 
         quotient.as_mut().info = quotient.as_ref().info.after_div_rem();
         remainder.as_mut().info = remainder.as_ref().info.after_div_rem();

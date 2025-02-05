@@ -342,7 +342,7 @@ fn draw_unique_randoms(
             special_value,
             modulus,
         );
-    };
+    }
 
     let mut numbers = unique_numbers.into_iter().collect::<Vec<u64>>();
     for _ in 0..occurrence_count.saturating_sub(1) {

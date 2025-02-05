@@ -389,7 +389,7 @@ impl ClientKey {
                 // End of T::BITS reached no need to try more
                 // recomposition
                 break;
-            };
+            }
         }
 
         recomposer.value()

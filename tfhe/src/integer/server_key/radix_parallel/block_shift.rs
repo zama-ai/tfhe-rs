@@ -314,7 +314,7 @@ impl ServerKey {
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
-        };
+        }
         self.block_barrel_shifter(ct, amount, BarrelShifterOperation::RightRotate)
     }
 
@@ -324,7 +324,7 @@ impl ServerKey {
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
-        };
+        }
         self.block_barrel_shifter(ct, amount, BarrelShifterOperation::LeftRotate)
     }
 
@@ -334,7 +334,7 @@ impl ServerKey {
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
-        };
+        }
         self.block_barrel_shifter(ct, amount, BarrelShifterOperation::RightShift)
     }
 
@@ -344,7 +344,7 @@ impl ServerKey {
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
-        };
+        }
         self.block_barrel_shifter(ct, amount, BarrelShifterOperation::LeftShift)
     }
 

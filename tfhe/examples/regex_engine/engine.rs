@@ -146,8 +146,7 @@ fn build_branches(
                 build_branches(
                     content,
                     &(RegExpr::Seq {
-                        re_xs: std::iter::repeat(*repeat_re.clone())
-                            .take(std::cmp::max(1, at_least))
+                        re_xs: std::iter::repeat_n(*repeat_re.clone(), std::cmp::max(1, at_least))
                             .collect(),
                     }),
                     c_pos,

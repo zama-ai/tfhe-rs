@@ -39,18 +39,16 @@ impl KeySwitchingKey {
     pub fn cast_into(&self, ct: &Ciphertext, ct_dest: &mut Ciphertext) {
         match ct {
             Ciphertext::Trivial(_) => *ct_dest = ct.clone(),
-            Ciphertext::Encrypted(ref cipher) => {
-                match ct_dest {
-                    Ciphertext::Trivial(_) => {
-                        let mut cipher_dest = cipher.clone();
-                        keyswitch_lwe_ciphertext(&self.key_switching_key, cipher, &mut cipher_dest);
-                        *ct_dest = Ciphertext::Encrypted(cipher_dest);
-                    }
-                    Ciphertext::Encrypted(ref mut cipher_dest) => {
-                        keyswitch_lwe_ciphertext(&self.key_switching_key, cipher, cipher_dest);
-                    }
-                };
-            }
+            Ciphertext::Encrypted(ref cipher) => match ct_dest {
+                Ciphertext::Trivial(_) => {
+                    let mut cipher_dest = cipher.clone();
+                    keyswitch_lwe_ciphertext(&self.key_switching_key, cipher, &mut cipher_dest);
+                    *ct_dest = Ciphertext::Encrypted(cipher_dest);
+                }
+                Ciphertext::Encrypted(ref mut cipher_dest) => {
+                    keyswitch_lwe_ciphertext(&self.key_switching_key, cipher, cipher_dest);
+                }
+            },
         }
     }
 

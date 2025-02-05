@@ -294,7 +294,10 @@ fn encrypt_data<T: AsRef<[u8]>>(input: T, client_key: Option<&ClientKey>) -> Vec
         .iter()
         .copied()
         .chain(iter::once(0x80))
-        .chain(iter::repeat(0x00).take(if remainder == 0 { 0 } else { 64 - remainder }))
+        .chain(std::iter::repeat_n(
+            0x00,
+            if remainder == 0 { 0 } else { 64 - remainder },
+        ))
         .chain(((len * 8) as u64).to_be_bytes());
 
     ArrayChunks::<_, 4>::new(bytes_iter)

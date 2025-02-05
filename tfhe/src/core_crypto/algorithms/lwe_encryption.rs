@@ -119,7 +119,7 @@ pub fn fill_lwe_mask_and_body_for_encryption_native_mod_compatible<
             *output_body.data = (*output_body.data).wrapping_mul(torus_scaling);
         }
         CiphertextModulusKind::Other => unreachable!(),
-    };
+    }
 }
 
 pub fn fill_lwe_mask_and_body_for_encryption_other_mod<

@@ -274,7 +274,7 @@ impl ServerKey {
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
-        };
+        }
 
         let scalar_blocks = BlockDecomposer::new(scalar, self.message_modulus().0.ilog2())
             .iter_as::<u8>()

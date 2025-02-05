@@ -155,7 +155,7 @@ where
             self.data >>= self.num_bits_in_mask;
         } else {
             self.data = T::ZERO;
-        };
+        }
 
         if self.num_bits_valid < self.num_bits_in_mask {
             // This will be the case when self.num_bits_in_mask is not a multiple

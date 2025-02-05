@@ -1106,7 +1106,7 @@ mod tests {
 
         // signed usage example
         let chosen = choose_multiplier(3u64, 31, 32);
-        assert_eq!(chosen.multiplier, ((1u128 << 32) + 2) / 3);
+        assert_eq!(chosen.multiplier, (1u128 << 32).div_ceil(3));
         assert_eq!(chosen.shift_post, 0);
     }
 }

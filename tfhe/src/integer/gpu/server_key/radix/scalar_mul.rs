@@ -161,7 +161,7 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                 );
             }
-        };
+        }
 
         ct.as_mut().info = ct.as_ref().info.after_scalar_mul();
     }
@@ -243,7 +243,7 @@ impl CudaServerKey {
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign_async(ct, streams);
-        };
+        }
 
         self.unchecked_scalar_mul_assign_async(ct, scalar, streams);
     }

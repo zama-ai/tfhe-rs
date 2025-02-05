@@ -1531,7 +1531,7 @@ pub(crate) fn apply_blind_rotate<Scalar, InputCont, OutputCont>(
                 *deterministic_execution,
             );
         }
-    };
+    }
 }
 
 pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
