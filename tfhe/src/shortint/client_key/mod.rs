@@ -9,6 +9,7 @@ use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
     allocate_and_generate_new_binary_lwe_secret_key, decrypt_lwe_ciphertext,
 };
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::client_key::ClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
@@ -259,7 +260,7 @@ impl ClientKey {
             lwe_size,
             params.message_modulus(),
             params.carry_modulus(),
-            PBSOrder::from(params.encryption_key_choice()),
+            AtomicPattern::Classical(PBSOrder::from(params.encryption_key_choice())),
             params.ciphertext_modulus(),
         )
     }
@@ -535,9 +536,9 @@ impl ClientKey {
     }
 
     pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> Plaintext<u64> {
-        let lwe_decryption_key = match ct.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
-            PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
+        let lwe_decryption_key = match ct.atomic_pattern {
+            AtomicPattern::Classical(PBSOrder::KeyswitchBootstrap) => self.large_lwe_secret_key(),
+            AtomicPattern::Classical(PBSOrder::BootstrapKeyswitch) => self.small_lwe_secret_key(),
         };
         decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct)
     }

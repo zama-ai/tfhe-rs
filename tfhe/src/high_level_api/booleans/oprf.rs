@@ -8,6 +8,8 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::BooleanBlock;
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
+use crate::shortint::server_key::ClassicalServerKeyView;
 use tfhe_csprng::seeders::Seed;
 
 impl FheBool {
@@ -32,7 +34,15 @@ impl FheBool {
     pub fn generate_oblivious_pseudo_random(seed: Seed) -> Self {
         let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
-                let ct = key.pbs_key().key.generate_oblivious_pseudo_random(seed, 1);
+                let sk = ClassicalServerKeyView::try_from(key.pbs_key().key.as_view())
+                    .unwrap_or_else(|_| {
+                        panic!(
+                            "Trying to generate random, but this is not supported by the \
+                         chosen atomic pattern: {:?}",
+                            key.pbs_key().key.atomic_pattern.atomic_pattern()
+                        )
+                    });
+                let ct = sk.generate_oblivious_pseudo_random(seed, 1);
                 (
                     InnerBoolean::Cpu(BooleanBlock::new_unchecked(ct)),
                     key.tag.clone(),

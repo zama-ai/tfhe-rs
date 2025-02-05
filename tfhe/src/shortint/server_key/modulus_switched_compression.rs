@@ -1,19 +1,20 @@
 use super::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
 use super::{
     extract_lwe_sample_from_glwe_ciphertext, multi_bit_deterministic_blind_rotate_assign,
-    GlweCiphertext, ShortintBootstrappingKey,
+    ClassicalServerKeyView, GlweCiphertext, ShortintBootstrappingKey,
 };
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
 use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweCiphertext};
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::{
     CompressedModulusSwitchedCiphertext, InternalCompressedModulusSwitchedCiphertext, NoiseLevel,
 };
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
-use crate::shortint::{Ciphertext, PBSOrder, ServerKey};
+use crate::shortint::{Ciphertext, PBSOrder};
 
-impl ServerKey {
+impl ClassicalServerKeyView<'_> {
     /// Compresses a ciphertext to have a smaller serialization size
     ///
     /// See [`CompressedModulusSwitchedCiphertext#example`] for usage
@@ -23,27 +24,31 @@ impl ServerKey {
     ) -> CompressedModulusSwitchedCiphertext {
         let compressed_modulus_switched_lwe_ciphertext =
             ShortintEngine::with_thread_local_mut(|engine| {
-                let (mut ciphertext_buffers, _) = engine.get_buffers(self);
-                match self.pbs_order {
+                let (mut ciphertext_buffer, _) = engine.get_buffers(
+                    self.atomic_pattern.intermediate_lwe_dimension(),
+                    self.ciphertext_modulus,
+                );
+
+                match self.atomic_pattern.pbs_order {
                     PBSOrder::KeyswitchBootstrap => {
                         keyswitch_lwe_ciphertext(
-                            &self.key_switching_key,
+                            &self.atomic_pattern.key_switching_key,
                             &ct.ct,
-                            &mut ciphertext_buffers.buffer_lwe_after_ks,
+                            &mut ciphertext_buffer,
                         );
                     }
-                    PBSOrder::BootstrapKeyswitch => ciphertext_buffers
-                        .buffer_lwe_after_ks
-                        .as_mut()
-                        .copy_from_slice(ct.ct.as_ref()),
+                    PBSOrder::BootstrapKeyswitch => {
+                        ciphertext_buffer.as_mut().copy_from_slice(ct.ct.as_ref())
+                    }
                 }
 
-                match &self.bootstrapping_key {
+                match &self.atomic_pattern.bootstrapping_key {
                     ShortintBootstrappingKey::Classic(_) => {
                         InternalCompressedModulusSwitchedCiphertext::Classic(
                             CompressedModulusSwitchedLweCiphertext::compress(
-                                &ciphertext_buffers.buffer_lwe_after_ks,
-                                self.bootstrapping_key
+                                &ciphertext_buffer,
+                                self.atomic_pattern
+                                    .bootstrapping_key
                                     .polynomial_size()
                                     .to_blind_rotation_input_modulus_log(),
                             ),
@@ -52,8 +57,9 @@ impl ServerKey {
                     ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
                         InternalCompressedModulusSwitchedCiphertext::MultiBit(
                             CompressedModulusSwitchedMultiBitLweCiphertext::compress(
-                                &ciphertext_buffers.buffer_lwe_after_ks,
-                                self.bootstrapping_key
+                                &ciphertext_buffer,
+                                self.atomic_pattern
+                                    .bootstrapping_key
                                     .polynomial_size()
                                     .to_blind_rotation_input_modulus_log(),
                                 fourier_bsk.grouping_factor(),
@@ -68,7 +74,7 @@ impl ServerKey {
             degree: ct.degree,
             message_modulus: ct.message_modulus,
             carry_modulus: ct.carry_modulus,
-            pbs_order: ct.pbs_order,
+            atomic_pattern: ct.atomic_pattern,
         }
     }
 
@@ -124,14 +130,23 @@ impl ServerKey {
         acc: &LookupTableOwned,
     ) -> Ciphertext {
         let mut output = LweCiphertext::from_container(
-            vec![0; self.ciphertext_lwe_dimension().to_lwe_size().0],
+            vec![
+                0;
+                self.atomic_pattern
+                    .ciphertext_lwe_dimension()
+                    .to_lwe_size()
+                    .0
+            ],
             self.ciphertext_modulus,
         );
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                self.atomic_pattern.intermediate_lwe_dimension(),
+                self.ciphertext_modulus,
+            );
 
-            match &self.bootstrapping_key {
+            match &self.atomic_pattern.bootstrapping_key {
                 ShortintBootstrappingKey::Classic(_) => {
                     let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {
                         InternalCompressedModulusSwitchedCiphertext::Classic(a) => a.extract(),
@@ -140,9 +155,9 @@ impl ServerKey {
                         }
                     };
                     apply_programmable_bootstrap(
-                        &self.bootstrapping_key,
+                        &self.atomic_pattern.bootstrapping_key,
                         &ct,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &mut ciphertext_buffer,
                         &acc.acc,
                         buffers,
                     );
@@ -176,20 +191,20 @@ impl ServerKey {
 
                     extract_lwe_sample_from_glwe_ciphertext(
                         &local_accumulator,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &mut ciphertext_buffer,
                         MonomialDegree(0),
                     );
                 }
             }
 
-            match self.pbs_order {
+            match self.atomic_pattern.pbs_order {
                 PBSOrder::KeyswitchBootstrap => output
                     .as_mut()
-                    .copy_from_slice(ciphertext_buffers.buffer_lwe_after_pbs.into_container()),
+                    .copy_from_slice(ciphertext_buffer.into_container()),
                 PBSOrder::BootstrapKeyswitch => {
                     keyswitch_lwe_ciphertext(
-                        &self.key_switching_key,
-                        &ciphertext_buffers.buffer_lwe_after_pbs,
+                        &self.atomic_pattern.key_switching_key,
+                        &ciphertext_buffer,
                         &mut output,
                     );
                 }
@@ -202,7 +217,7 @@ impl ServerKey {
             NoiseLevel::NOMINAL,
             compressed_ct.message_modulus,
             compressed_ct.carry_modulus,
-            compressed_ct.pbs_order,
+            compressed_ct.atomic_pattern,
         )
     }
 }

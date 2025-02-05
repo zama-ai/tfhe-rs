@@ -3,7 +3,7 @@
 //! Engines are required to abstract cryptographic notions and efficiently manage memory from the
 //! underlying `core_crypto` module.
 
-use super::parameters::LweDimension;
+use super::prelude::LweDimension;
 use super::{CiphertextModulus, PaddingBit, ShortintEncoding};
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{
@@ -17,7 +17,7 @@ use crate::core_crypto::prelude::{ContainerMut, GlweSize};
 use crate::core_crypto::seeders::new_seeder;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
 use crate::shortint::prelude::PolynomialSize;
-use crate::shortint::{CarryModulus, MessageModulus, ServerKey};
+use crate::shortint::{CarryModulus, MessageModulus};
 use std::cell::RefCell;
 use std::fmt::Debug;
 
@@ -31,74 +31,28 @@ thread_local! {
     static LOCAL_ENGINE: RefCell<ShortintEngine> = RefCell::new(ShortintEngine::new());
 }
 
-pub struct BuffersRef<'a> {
-    // For the intermediate keyswitch result in the case of a big ciphertext
-    pub(crate) buffer_lwe_after_ks: LweCiphertextMutView<'a, u64>,
-    // For the intermediate PBS result in the case of a smallciphertext
-    pub(crate) buffer_lwe_after_pbs: LweCiphertextMutView<'a, u64>,
-}
-
 #[derive(Default)]
-struct Memory {
+struct CiphertextBuffer {
     buffer: Vec<u64>,
 }
 
-impl Memory {
-    fn as_buffers(
+impl CiphertextBuffer {
+    fn as_lwe(
         &mut self,
-        in_dim: LweDimension,
-        out_dim: LweDimension,
+        dim: LweDimension,
         ciphertext_modulus: CiphertextModulus,
-    ) -> BuffersRef<'_> {
-        let num_elem_in_lwe_after_ks = in_dim.to_lwe_size().0;
-        let num_elem_in_lwe_after_pbs = out_dim.to_lwe_size().0;
+    ) -> LweCiphertextMutView<'_, u64> {
+        let required_size = dim.to_lwe_size().0;
 
-        let total_elem_needed = num_elem_in_lwe_after_ks + num_elem_in_lwe_after_pbs;
-
-        let all_elements = if self.buffer.len() < total_elem_needed {
-            self.buffer.resize(total_elem_needed, 0u64);
+        let buffer = if self.buffer.len() < required_size {
+            self.buffer.resize(required_size, 0u64);
             self.buffer.as_mut_slice()
         } else {
-            &mut self.buffer[..total_elem_needed]
+            &mut self.buffer[..required_size]
         };
 
-        let (after_ks_elements, after_pbs_elements) =
-            all_elements.split_at_mut(num_elem_in_lwe_after_ks);
-
-        let buffer_lwe_after_ks =
-            LweCiphertextMutView::from_container(after_ks_elements, ciphertext_modulus);
-        let buffer_lwe_after_pbs =
-            LweCiphertextMutView::from_container(after_pbs_elements, ciphertext_modulus);
-
-        BuffersRef {
-            buffer_lwe_after_ks,
-            buffer_lwe_after_pbs,
-        }
+        LweCiphertextMutView::from_container(buffer, ciphertext_modulus)
     }
-}
-
-pub(crate) fn fill_accumulator<F, C>(
-    accumulator: &mut GlweCiphertext<C>,
-    polynomial_size: PolynomialSize,
-    glwe_size: GlweSize,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    f: F,
-) -> u64
-where
-    C: ContainerMut<Element = u64>,
-    F: Fn(u64) -> u64,
-{
-    fill_accumulator_with_encoding(
-        accumulator,
-        polynomial_size,
-        glwe_size,
-        message_modulus,
-        carry_modulus,
-        message_modulus,
-        carry_modulus,
-        f,
-    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -315,8 +269,8 @@ pub struct ShortintEngine {
     pub(crate) seeder: DeterministicSeeder<DefaultRandomGenerator>,
     #[cfg(feature = "zk-pok")]
     pub(crate) random_generator: RandomGenerator<DefaultRandomGenerator>,
-    pub(crate) computation_buffers: ComputationBuffers,
-    ciphertext_buffers: Memory,
+    computation_buffers: ComputationBuffers,
+    ciphertext_buffers: CiphertextBuffer,
 }
 
 impl ShortintEngine {
@@ -362,38 +316,24 @@ impl ShortintEngine {
             random_generator: RandomGenerator::new(deterministic_seeder.seed()),
             seeder: deterministic_seeder,
             computation_buffers: ComputationBuffers::default(),
-            ciphertext_buffers: Memory::default(),
+            ciphertext_buffers: CiphertextBuffer::default(),
         }
     }
 
-    /// Return the [`BuffersRef`] and [`ComputationBuffers`] for the given `ServerKey`
+    /// Return the [`CiphertextBuffer`] and [`ComputationBuffers`] for the given `ServerKey`
     pub fn get_buffers(
         &mut self,
-        server_key: &ServerKey,
-    ) -> (BuffersRef<'_>, &mut ComputationBuffers) {
+        lwe_dimension: LweDimension,
+        ciphertext_modulus: CiphertextModulus,
+    ) -> (LweCiphertextMutView<'_, u64>, &mut ComputationBuffers) {
         (
-            self.ciphertext_buffers.as_buffers(
-                server_key
-                    .key_switching_key
-                    .output_lwe_size()
-                    .to_lwe_dimension(),
-                server_key.bootstrapping_key.output_lwe_dimension(),
-                server_key.ciphertext_modulus,
-            ),
+            self.ciphertext_buffers
+                .as_lwe(lwe_dimension, ciphertext_modulus),
             &mut self.computation_buffers,
         )
     }
 
-    pub fn get_buffers_no_sk(
-        &mut self,
-        in_dim: LweDimension,
-        out_dim: LweDimension,
-        ciphertext_modulus: CiphertextModulus,
-    ) -> (BuffersRef<'_>, &mut ComputationBuffers) {
-        (
-            self.ciphertext_buffers
-                .as_buffers(in_dim, out_dim, ciphertext_modulus),
-            &mut self.computation_buffers,
-        )
+    pub fn get_computation_buffers(&mut self) -> &mut ComputationBuffers {
+        &mut self.computation_buffers
     }
 }

@@ -2,6 +2,7 @@ pub mod p_fail_2_minus_64;
 
 use super::{CiphertextModulus, PBSOrder};
 use crate::core_crypto::commons::parameters::{DynamicDistribution, LweDimension};
+use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternParameters};
 use crate::shortint::backward_compatibility::parameters::compact_public_key_only::{
     CompactCiphertextListExpansionKindVersions, CompactPublicKeyEncryptionParametersVersions,
 };
@@ -18,7 +19,7 @@ use tfhe_versionable::Versionize;
 #[versionize(CompactCiphertextListExpansionKindVersions)]
 pub enum CompactCiphertextListExpansionKind {
     RequiresCasting,
-    NoCasting(PBSOrder),
+    NoCasting(PBSOrder), // TODO: change to AtomicPattern too ?
 }
 
 pub type CastingFunctionsOwned<'functions> =
@@ -35,9 +36,11 @@ pub enum ShortintCompactCiphertextListCastingMode<'a> {
     NoCasting,
 }
 
-impl From<PBSOrder> for CompactCiphertextListExpansionKind {
-    fn from(value: PBSOrder) -> Self {
-        Self::NoCasting(value)
+impl From<AtomicPattern> for CompactCiphertextListExpansionKind {
+    fn from(value: AtomicPattern) -> Self {
+        match value {
+            AtomicPattern::Classical(pbsorder) => Self::NoCasting(pbsorder),
+        }
     }
 }
 
@@ -169,5 +172,18 @@ impl TryFrom<PBSParameters> for CompactPublicKeyEncryptionParameters {
     fn try_from(value: PBSParameters) -> Result<Self, Self::Error> {
         let params: ShortintParameterSet = value.into();
         params.try_into()
+    }
+}
+
+impl TryFrom<AtomicPatternParameters> for CompactPublicKeyEncryptionParameters {
+    type Error = Error;
+
+    fn try_from(value: AtomicPatternParameters) -> Result<Self, Self::Error> {
+        match value {
+            AtomicPatternParameters::Classical(pbsparameters) => {
+                let params: ShortintParameterSet = pbsparameters.into();
+                params.try_into()
+            }
+        }
     }
 }

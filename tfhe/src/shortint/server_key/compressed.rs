@@ -4,6 +4,7 @@ use super::{MaxDegree, PBSConformanceParameters};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
+use crate::shortint::atomic_pattern::ClassicalAtomicPatternServerKey;
 use crate::shortint::backward_compatibility::server_key::{
     CompressedServerKeyVersions, ShortintCompressedBootstrappingKeyVersions,
 };
@@ -236,15 +237,19 @@ impl CompressedServerKey {
         let ciphertext_modulus = *ciphertext_modulus;
         let pbs_order = *pbs_order;
 
-        ServerKey {
+        let atomic_pattern = ClassicalAtomicPatternServerKey::from_raw_parts(
             key_switching_key,
             bootstrapping_key,
+            pbs_order,
+        );
+
+        ServerKey {
+            atomic_pattern: atomic_pattern.into(),
             message_modulus,
             carry_modulus,
             max_degree,
             max_noise_level,
             ciphertext_modulus,
-            pbs_order,
         }
     }
 

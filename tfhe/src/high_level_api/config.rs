@@ -50,7 +50,7 @@ impl ConfigBuilder {
 
     pub fn with_custom_parameters<P>(block_parameters: P) -> Self
     where
-        P: Into<crate::shortint::PBSParameters>,
+        P: Into<crate::shortint::atomic_pattern::AtomicPatternParameters>,
     {
         Self {
             config: Config {
@@ -73,7 +73,7 @@ impl ConfigBuilder {
 
     pub fn use_custom_parameters<P>(mut self, block_parameters: P) -> Self
     where
-        P: Into<crate::shortint::PBSParameters>,
+        P: Into<crate::shortint::atomic_pattern::AtomicPatternParameters>,
     {
         self.config.inner = IntegerConfig::new(block_parameters.into(), None);
         self

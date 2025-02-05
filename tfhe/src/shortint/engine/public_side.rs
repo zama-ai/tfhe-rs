@@ -3,6 +3,7 @@ use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{
@@ -50,7 +51,9 @@ impl ShortintEngine {
         PublicKey {
             lwe_public_key,
             parameters: client_key.parameters,
-            pbs_order: client_key.parameters.encryption_key_choice().into(),
+            atomic_pattern: AtomicPattern::Classical(
+                client_key.parameters.encryption_key_choice().into(),
+            ),
         }
     }
 
@@ -88,7 +91,9 @@ impl ShortintEngine {
         CompressedPublicKey {
             lwe_public_key: compressed_public_key,
             parameters: client_key.parameters,
-            pbs_order: client_key.parameters.encryption_key_choice().into(),
+            atomic_pattern: AtomicPattern::Classical(
+                client_key.parameters.encryption_key_choice().into(),
+            ),
         }
     }
 
@@ -165,7 +170,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             message_modulus,
             CarryModulus(carry_modulus),
-            public_key.pbs_order,
+            public_key.atomic_pattern,
         )
     }
 
@@ -233,7 +238,7 @@ impl ShortintEngine {
                     NoiseLevel::NOMINAL,
                     message_modulus,
                     CarryModulus(carry_modulus),
-                    public_key.pbs_order,
+                    public_key.atomic_pattern,
                 )
             })
             .collect()
@@ -292,7 +297,7 @@ impl ShortintEngine {
                     NoiseLevel::NOMINAL,
                     message_modulus,
                     carry_modulus,
-                    public_key.pbs_order,
+                    public_key.atomic_pattern,
                 )
             })
             .collect()
@@ -326,7 +331,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
-            public_key.pbs_order,
+            public_key.atomic_pattern,
         )
     }
 
@@ -382,7 +387,7 @@ impl ShortintEngine {
                     NoiseLevel::NOMINAL,
                     public_key.parameters.message_modulus(),
                     public_key.parameters.carry_modulus(),
-                    public_key.pbs_order,
+                    public_key.atomic_pattern,
                 )
             })
             .collect()
@@ -421,7 +426,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             message_modulus,
             carry_modulus,
-            public_key.pbs_order,
+            public_key.atomic_pattern,
         )
     }
 
@@ -458,7 +463,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             message_modulus,
             carry_modulus,
-            public_key.pbs_order,
+            public_key.atomic_pattern,
         )
     }
 
@@ -507,7 +512,7 @@ impl ShortintEngine {
                     NoiseLevel::NOMINAL,
                     message_modulus,
                     carry_modulus,
-                    public_key.pbs_order,
+                    public_key.atomic_pattern,
                 )
             })
             .collect()
@@ -544,7 +549,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
-            public_key.pbs_order,
+            public_key.atomic_pattern,
         )
     }
 
@@ -579,7 +584,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
-            public_key.pbs_order,
+            public_key.atomic_pattern,
         )
     }
 }

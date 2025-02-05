@@ -1,21 +1,24 @@
 //! # WARNING: this module is experimental.
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
+use crate::shortint::atomic_pattern::ClassicalAtomicPatternServerKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::server_key::ShortintBootstrappingKey;
+use crate::shortint::server_key::{
+    ClassicalServerKey, ClassicalServerKeyView, ShortintBootstrappingKey,
+};
 use crate::shortint::wopbs::{WopbsKey, WopbsKeyCreationError};
-use crate::shortint::{ClientKey, ServerKey, WopbsParameters};
+use crate::shortint::{ClientKey, WopbsParameters};
 
 impl ShortintEngine {
     // Creates a key when ONLY a wopbs is used.
     pub(crate) fn new_wopbs_key_only_for_wopbs(
         &mut self,
         cks: &ClientKey,
-        sks: &ServerKey,
+        sks: ClassicalServerKeyView<'_>,
     ) -> crate::Result<WopbsKey> {
         if matches!(
-            sks.bootstrapping_key,
+            sks.atomic_pattern.bootstrapping_key,
             ShortintBootstrappingKey::MultiBit { .. }
         ) {
             return Err(crate::Error::new(format!(
@@ -36,12 +39,12 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
-        let sks_cpy = sks.clone();
+        let sks_cpy = sks.into_owned();
 
         let wopbs_key = WopbsKey {
             wopbs_server_key: sks_cpy.clone(),
             cbs_pfpksk,
-            ksk_pbs_to_wopbs: sks.key_switching_key.clone(),
+            ksk_pbs_to_wopbs: sks.atomic_pattern.key_switching_key.clone(),
             param: wop_params,
             pbs_server_key: sks_cpy,
         };
@@ -52,7 +55,7 @@ impl ShortintEngine {
     pub(crate) fn new_wopbs_key(
         &mut self,
         cks: &ClientKey,
-        sks: &ServerKey,
+        sks: ClassicalServerKeyView<'_>,
         parameters: &WopbsParameters,
     ) -> WopbsKey {
         //Independent client key generation dedicated to the WoPBS
@@ -142,9 +145,14 @@ impl ShortintEngine {
             parameters.carry_modulus,
         );
 
-        let wopbs_server_key = ServerKey {
+        let wopbs_atomic_pattern = ClassicalAtomicPatternServerKey {
             key_switching_key: ksk_wopbs_large_to_wopbs_small,
             bootstrapping_key: ShortintBootstrappingKey::Classic(small_bsk),
+            pbs_order: cks.parameters.encryption_key_choice().into(),
+        };
+
+        let wopbs_server_key = ClassicalServerKey {
+            atomic_pattern: wopbs_atomic_pattern,
             message_modulus: parameters.message_modulus,
             carry_modulus: parameters.carry_modulus,
             max_degree: MaxDegree::from_msg_carry_modulus(
@@ -153,7 +161,6 @@ impl ShortintEngine {
             ),
             max_noise_level: max_noise_level_wopbs,
             ciphertext_modulus: parameters.ciphertext_modulus,
-            pbs_order: cks.parameters.encryption_key_choice().into(),
         };
 
         let max_noise_level_pbs = MaxNoiseLevel::from_msg_carry_modulus(
@@ -161,9 +168,14 @@ impl ShortintEngine {
             cks.parameters.carry_modulus(),
         );
 
-        let pbs_server_key = ServerKey {
+        let pbs_atomic_pattern = ClassicalAtomicPatternServerKey {
             key_switching_key: ksk_wopbs_large_to_pbs_small,
-            bootstrapping_key: sks.bootstrapping_key.clone(),
+            bootstrapping_key: sks.atomic_pattern.bootstrapping_key.clone(),
+            pbs_order: cks.parameters.encryption_key_choice().into(),
+        };
+
+        let pbs_server_key = ClassicalServerKey {
+            atomic_pattern: pbs_atomic_pattern,
             message_modulus: cks.parameters.message_modulus(),
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree: MaxDegree::from_msg_carry_modulus(
@@ -172,7 +184,6 @@ impl ShortintEngine {
             ),
             max_noise_level: max_noise_level_pbs,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
-            pbs_order: cks.parameters.encryption_key_choice().into(),
         };
 
         WopbsKey {

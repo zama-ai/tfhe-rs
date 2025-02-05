@@ -22,7 +22,9 @@ mod experimental {
     use crate::core_crypto::prelude::*;
     use crate::integer::client_key::utils::i_crt;
     use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, RadixCiphertext, ServerKey};
+    use crate::shortint::atomic_pattern::AtomicPatternOperations;
     use crate::shortint::ciphertext::{Degree, NoiseLevel};
+    use crate::shortint::server_key::ClassicalServerKeyView;
     use crate::shortint::WopbsParameters;
 
     use crate::shortint::wopbs::WopbsLUTBase;
@@ -230,10 +232,16 @@ mod experimental {
             sks: &ServerKey,
             parameters: &WopbsParameters,
         ) -> Self {
+            let sk = ClassicalServerKeyView::try_from(sks.key.as_view()).unwrap_or_else(|_| {
+                panic!(
+                    "Wopbs is not supported by the chosen atomic pattern: {:?}",
+                    sks.key.atomic_pattern.atomic_pattern()
+                )
+            });
             Self {
                 wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key(
                     &cks.as_ref().key,
-                    &sks.key,
+                    sk,
                     parameters,
                 ),
             }
@@ -253,10 +261,17 @@ mod experimental {
             cks: &IntegerClientKey,
             sks: &ServerKey,
         ) -> Self {
+            let sk = ClassicalServerKeyView::try_from(sks.key.as_view()).unwrap_or_else(|_| {
+                panic!(
+                    "Wopbs is not supported by the chosen atomic pattern: {:?}",
+                    sks.key.atomic_pattern.atomic_pattern()
+                )
+            });
+
             Self {
                 wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key_only_for_wopbs(
                     &cks.as_ref().key,
-                    &sks.key,
+                    sk,
                 ),
             }
         }
@@ -302,6 +317,7 @@ mod experimental {
             let extract_bits_output_lwe_size = self
                 .wopbs_key
                 .wopbs_server_key
+                .atomic_pattern
                 .key_switching_key
                 .output_key_lwe_dimension()
                 .to_lwe_size();
@@ -351,7 +367,7 @@ mod experimental {
                     NoiseLevel::NOMINAL,
                     block.message_modulus,
                     block.carry_modulus,
-                    block.pbs_order,
+                    block.atomic_pattern,
                 ));
             }
             T::from_blocks(ct_vec_out)
@@ -390,6 +406,7 @@ mod experimental {
             let extract_bits_output_lwe_size = self
                 .wopbs_key
                 .wopbs_server_key
+                .atomic_pattern
                 .key_switching_key
                 .output_key_lwe_dimension()
                 .to_lwe_size();
@@ -438,7 +455,7 @@ mod experimental {
                     NoiseLevel::NOMINAL,
                     block.message_modulus,
                     block.carry_modulus,
-                    block.pbs_order,
+                    block.atomic_pattern,
                 ));
             }
             T::from_blocks(ct_vec_out)
@@ -1087,6 +1104,7 @@ mod experimental {
             let extract_bits_output_lwe_size = self
                 .wopbs_key
                 .wopbs_server_key
+                .atomic_pattern
                 .key_switching_key
                 .output_key_lwe_dimension()
                 .to_lwe_size();
@@ -1145,7 +1163,7 @@ mod experimental {
                     NoiseLevel::NOMINAL,
                     block.message_modulus,
                     block.carry_modulus,
-                    block.pbs_order,
+                    block.atomic_pattern,
                 ));
             }
             T::from_blocks(ct_vec_out)

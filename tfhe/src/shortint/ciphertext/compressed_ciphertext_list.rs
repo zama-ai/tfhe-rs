@@ -3,6 +3,7 @@ use tfhe_versionable::Versionize;
 use self::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::*;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::ciphertext::CompressedCiphertextListVersions;
 use crate::shortint::parameters::CompressedCiphertextConformanceParams;
 use crate::shortint::{CarryModulus, MessageModulus};
@@ -14,7 +15,7 @@ pub struct CompressedCiphertextList {
     pub ciphertext_modulus: CiphertextModulus<u64>,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPattern,
     pub lwe_per_glwe: LweCiphertextCount,
     pub count: CiphertextCount,
 }
@@ -28,7 +29,7 @@ impl ParameterSetConformant for CompressedCiphertextList {
             ciphertext_modulus,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             lwe_per_glwe,
             count,
         } = self;
@@ -61,6 +62,6 @@ impl ParameterSetConformant for CompressedCiphertextList {
             && *ciphertext_modulus == params.ct_params.ct_modulus
             && *message_modulus == params.message_modulus
             && *carry_modulus == params.carry_modulus
-            && *pbs_order == params.pbs_order
+            && *atomic_pattern == params.atomic_pattern
     }
 }

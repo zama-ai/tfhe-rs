@@ -8,6 +8,7 @@ use crate::integer::compression_keys::{
 };
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::key_switching_key::KeySwitchingKeyConformanceParams;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
@@ -24,7 +25,7 @@ use tfhe_versionable::Versionize;
 #[versionize(IntegerConfigVersions)]
 #[allow(clippy::struct_field_names)]
 pub(crate) struct IntegerConfig {
-    pub(crate) block_parameters: crate::shortint::PBSParameters,
+    pub(crate) block_parameters: crate::shortint::atomic_pattern::AtomicPatternParameters,
     pub(crate) dedicated_compact_public_key_parameters: Option<(
         crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
         crate::shortint::parameters::ShortintKeySwitchingParameters,
@@ -34,7 +35,7 @@ pub(crate) struct IntegerConfig {
 
 impl IntegerConfig {
     pub(crate) fn new(
-        block_parameters: crate::shortint::PBSParameters,
+        block_parameters: crate::shortint::atomic_pattern::AtomicPatternParameters,
         dedicated_compact_public_key_parameters: Option<(
             crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
             crate::shortint::parameters::ShortintKeySwitchingParameters,
@@ -467,7 +468,7 @@ impl IntegerCompressedCompactPublicKey {
 
 #[allow(clippy::struct_field_names)]
 pub struct IntegerServerKeyConformanceParams {
-    pub sk_param: PBSParameters,
+    pub sk_param: AtomicPatternParameters,
     pub cpk_param: Option<(
         CompactPublicKeyEncryptionParameters,
         ShortintKeySwitchingParameters,
@@ -547,7 +548,7 @@ impl ParameterSetConformant for IntegerServerKey {
         ) {
             (None, None) => true,
             (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
-                let cpk_param = (parameter_set.sk_param, *cpk_params, *ks_params)
+                let cpk_param = (parameter_set.sk_param.into(), *cpk_params, *ks_params)
                     .try_into()
                     .unwrap();
                 cpk_key_switching_key_material.is_conformant(&cpk_param)
@@ -562,7 +563,7 @@ impl ParameterSetConformant for IntegerServerKey {
         ) {
             (None, None, None) => true,
             (Some(compression_key), Some(decompression_key), Some(compression_param)) => {
-                let compression_param = (parameter_set.sk_param, *compression_param).into();
+                let compression_param = (parameter_set.sk_param.into(), *compression_param).into();
 
                 compression_key.is_conformant(&compression_param)
                     && decompression_key.is_conformant(&compression_param)
@@ -593,7 +594,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
         ) {
             (None, None) => true,
             (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
-                let cpk_param = (parameter_set.sk_param, *cpk_params, *ks_params)
+                let cpk_param = (parameter_set.sk_param.into(), *cpk_params, *ks_params)
                     .try_into()
                     .unwrap();
                 cpk_key_switching_key_material.is_conformant(&cpk_param)
@@ -608,7 +609,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
         ) {
             (None, None, None) => true,
             (Some(compression_key), Some(decompression_key), Some(compression_param)) => {
-                let compression_param = (parameter_set.sk_param, *compression_param).into();
+                let compression_param = (parameter_set.sk_param.into(), *compression_param).into();
 
                 compression_key.is_conformant(&compression_param)
                     && decompression_key.is_conformant(&compression_param)
@@ -616,7 +617,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             _ => return false,
         };
 
-        key.is_conformant(&parameter_set.sk_param)
+        key.is_conformant(&parameter_set.sk_param.into())
             && cpk_key_switching_key_material_is_ok
             && compression_is_ok
     }

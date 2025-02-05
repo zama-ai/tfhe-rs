@@ -9,9 +9,10 @@ use crate::shortint::ciphertext::CompressedCiphertextList;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
-    apply_programmable_bootstrap, generate_lookup_table_with_encoding, unchecked_scalar_mul_assign,
+    apply_programmable_bootstrap, generate_lookup_table_with_output_encoding,
+    unchecked_scalar_mul_assign, LookupTableSize,
 };
-use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
+use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
 
@@ -42,7 +43,7 @@ impl CompressionKey {
 
         let message_modulus = first_ct.message_modulus;
         let carry_modulus = first_ct.carry_modulus;
-        let pbs_order = first_ct.pbs_order;
+        let atomic_pattern = first_ct.atomic_pattern;
 
         assert!(
             message_modulus.0 <= carry_modulus.0,
@@ -82,7 +83,7 @@ impl CompressionKey {
                         "All ciphertexts do not have the same carry modulus"
                     );
                     assert_eq!(
-                        pbs_order, ct.pbs_order,
+                        atomic_pattern, ct.atomic_pattern,
                         "All ciphertexts do not have the same pbs order"
                     );
 
@@ -117,7 +118,7 @@ impl CompressionKey {
             modulus_switched_glwe_ciphertext_list: glwe_ct_list,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             lwe_per_glwe,
             count,
             ciphertext_modulus,
@@ -153,10 +154,10 @@ impl DecompressionKey {
         let compression_cleartext_modulus = encryption_cleartext_modulus / packed.message_modulus.0;
         let effective_compression_message_modulus = MessageModulus(compression_cleartext_modulus);
         let effective_compression_carry_modulus = CarryModulus(1);
+        let lut_size = LookupTableSize::new(self.out_glwe_size(), self.out_polynomial_size());
 
-        let decompression_rescale = generate_lookup_table_with_encoding(
-            self.out_glwe_size(),
-            self.out_polynomial_size(),
+        let decompression_rescale = generate_lookup_table_with_output_encoding(
+            lut_size,
             packed.ciphertext_modulus,
             // Input moduli are the effective compression ones
             effective_compression_message_modulus,
@@ -202,11 +203,7 @@ impl DecompressionKey {
         );
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (_ciphertext_buffers, buffers) = engine.get_buffers_no_sk(
-                self.blind_rotate_key.input_lwe_dimension(),
-                self.blind_rotate_key.output_lwe_dimension(),
-                CiphertextModulus::new_native(),
-            );
+            let buffers = engine.get_computation_buffers();
 
             apply_programmable_bootstrap(
                 &self.blind_rotate_key,
@@ -223,7 +220,7 @@ impl DecompressionKey {
             NoiseLevel::NOMINAL,
             packed.message_modulus,
             packed.carry_modulus,
-            packed.pbs_order,
+            packed.atomic_pattern,
         ))
     }
 }

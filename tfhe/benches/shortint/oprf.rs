@@ -2,6 +2,7 @@ use criterion::{black_box, criterion_group, Criterion};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::*;
+use tfhe::shortint::server_key::ClassicalServerKeyView;
 use tfhe_csprng::seeders::Seed;
 
 fn oprf(c: &mut Criterion) {
@@ -12,7 +13,7 @@ fn oprf(c: &mut Criterion) {
     let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
     let keys = KEY_CACHE.get_from_param(param);
-    let sks = keys.server_key();
+    let sks = ClassicalServerKeyView::try_from(keys.server_key().as_view()).unwrap();
 
     bench_group.bench_function(format!("2-bits-oprf::{}", param.name()), |b| {
         b.iter(|| {
