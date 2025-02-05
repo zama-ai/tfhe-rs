@@ -4737,4 +4737,28 @@ template <typename Torus> struct int_div_rem_memory {
   }
 };
 
+void update_degrees_after_bitand(uint64_t *output_degrees,
+                                 uint64_t *lwe_array_1_degrees,
+                                 uint64_t *lwe_array_2_degrees,
+                                 uint32_t num_radix_blocks);
+void update_degrees_after_bitor(uint64_t *output_degrees,
+                                uint64_t *lwe_array_1_degrees,
+                                uint64_t *lwe_array_2_degrees,
+                                uint32_t num_radix_blocks);
+void update_degrees_after_bitxor(uint64_t *output_degrees,
+                                 uint64_t *lwe_array_1_degrees,
+                                 uint64_t *lwe_array_2_degrees,
+                                 uint32_t num_radix_blocks);
+void update_degrees_after_scalar_bitand(uint64_t *output_degrees,
+                                        uint64_t *clear_degrees,
+                                        uint64_t *input_degrees,
+                                        uint32_t num_clear_blocks);
+void update_degrees_after_scalar_bitor(uint64_t *output_degrees,
+                                       uint64_t *clear_degrees,
+                                       uint64_t *input_degrees,
+                                       uint32_t num_clear_blocks);
+void update_degrees_after_scalar_bitxor(uint64_t *output_degrees,
+                                        uint64_t *clear_degrees,
+                                        uint64_t *input_degrees,
+                                        uint32_t num_clear_blocks);
 #endif // CUDA_INTEGER_UTILITIES_H
