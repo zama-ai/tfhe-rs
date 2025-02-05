@@ -516,6 +516,10 @@ pub mod test_tools {
 
     #[test]
     fn test_equivalent_pfail() {
+        let equiv_pfail = equivalent_pfail_gaussian_noise(7, 0.001067, 5);
+        println!("{equiv_pfail}");
+        println!("{}", equiv_pfail.log2());
+
         assert_eq!(
             equivalent_pfail_gaussian_noise(5, 2.0f64.powi(-64), 7),
             0.022089612797217772

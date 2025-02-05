@@ -27,9 +27,9 @@ pub const V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128: ClassicPBSParamete
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(934),
+            modulus_switch_zeros_count: LweCiphertextCount(1092),
             ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
-            ms_r_sigma_factor: RSigmaFactor(15.0203152634534f64),
+            ms_r_sigma_factor: RSigmaFactor(15.0501465920567f64),
         }),
     };
 

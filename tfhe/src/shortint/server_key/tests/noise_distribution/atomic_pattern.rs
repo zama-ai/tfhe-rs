@@ -2884,9 +2884,9 @@ const PBS128_PARAMS: PBS128Parameters = PBS128Parameters {
     decomp_base_log: DecompositionBaseLog(24),
     decomp_level_count: DecompositionLevelCount(3),
     modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-        modulus_switch_zeros_count: LweCiphertextCount(346),
+        modulus_switch_zeros_count: LweCiphertextCount(1161),
         ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
-        ms_r_sigma_factor: RSigmaFactor(14.3466936077319f64),
+        ms_r_sigma_factor: RSigmaFactor(14.6186301624361f64),
     }),
     mantissa_size: 104f64,
     // 2^128
@@ -2930,6 +2930,7 @@ fn br_to_squash_pbs_128_inner_helper(
     single_pbs_128_key: &Fourier128LweBootstrapKeyOwned,
     single_output_pbs_128_glwe_secret_key: &GlweSecretKey<&[u128]>,
     msg: u64,
+    scalar_for_multiplication: u8,
 ) -> (
     DecryptionAndNoiseResult,
     DecryptionAndNoiseResult,
@@ -2975,12 +2976,19 @@ fn br_to_squash_pbs_128_inner_helper(
     ) = if should_use_one_key_per_sample() {
         thread_cks = engine.new_client_key(block_params);
         thread_sks = engine.new_server_key(&thread_cks);
+        thread_before_pbs_128_ms_noise_reduction_key = pbs128_params
+            .modulus_switch_noise_reduction_params
+            .map(|ms_param| {
+                ModulusSwitchNoiseReductionKey::new(
+                    ms_param,
+                    &thread_cks.small_lwe_secret_key(),
+                    &mut engine.encryption_generator,
+                    block_params.ciphertext_modulus(),
+                    block_params.lwe_noise_distribution(),
+                )
+            });
 
-        (
-            thread_encryption_key,
-            thread_input_br_key,
-            thread_before_pbs_128_ms_noise_reduction_key,
-        ) = match input_br_params {
+        (thread_encryption_key, thread_input_br_key) = match input_br_params {
             PBS128InputBRParams::Decompression { params } => {
                 thread_compression_private_key = thread_cks.new_compression_private_key(params);
                 thread_decompression_key = thread_cks
@@ -2992,19 +3000,11 @@ fn br_to_squash_pbs_128_inner_helper(
                         .post_packing_ks_key
                         .as_lwe_secret_key(),
                     &thread_decompression_key.blind_rotate_key,
-                    None,
                 )
             }
             PBS128InputBRParams::Compute => (
                 thread_cks.small_lwe_secret_key(),
                 &thread_sks.bootstrapping_key,
-                Some(ModulusSwitchNoiseReductionKey::new(
-                    pbs128_params.modulus_switch_noise_reduction_params.unwrap(),
-                    &thread_cks.small_lwe_secret_key(),
-                    &mut engine.encryption_generator,
-                    block_params.ciphertext_modulus(),
-                    block_params.lwe_noise_distribution(),
-                )),
             ),
         };
 
@@ -3130,6 +3130,12 @@ fn br_to_squash_pbs_128_inner_helper(
 
     after_pbs_shortint_ct.set_noise_level(NoiseLevel::NOMINAL, sks.max_noise_level);
 
+    lwe_ciphertext_plaintext_sub_assign(&mut after_pbs_shortint_ct.ct, Plaintext(msg * delta));
+
+    sks.unchecked_scalar_mul_assign(&mut after_pbs_shortint_ct, scalar_for_multiplication);
+
+    sks.unchecked_scalar_add_assign(&mut after_pbs_shortint_ct, msg.try_into().unwrap());
+
     let mut after_ks_lwe = LweCiphertext::new(
         0u64,
         sks.key_switching_key.output_lwe_size(),
@@ -3246,6 +3252,7 @@ fn br_to_squash_pbs_128_noise_helper(
     single_pbs_128_key: &Fourier128LweBootstrapKeyOwned,
     single_output_pbs_128_glwe_secret_key: &GlweSecretKey<&[u128]>,
     msg: u64,
+    scalar_for_multiplication: u8,
 ) -> ((NoiseSample, NoiseSample), (NoiseSample, NoiseSample)) {
     let (
         decryption_and_noise_result_before_drift_mitigation,
@@ -3264,6 +3271,7 @@ fn br_to_squash_pbs_128_noise_helper(
         single_pbs_128_key,
         single_output_pbs_128_glwe_secret_key,
         msg,
+        scalar_for_multiplication,
     );
 
     (
@@ -3311,6 +3319,7 @@ fn br_to_squash_pbs_128_pfail_helper(
     single_pbs_128_key: &Fourier128LweBootstrapKeyOwned,
     single_output_pbs_128_glwe_secret_key: &GlweSecretKey<&[u128]>,
     msg: u64,
+    scalar_for_multiplication: u8,
 ) -> (f64, f64) {
     let (
         _decryption_and_noise_result_before_drift_mitigation,
@@ -3329,6 +3338,7 @@ fn br_to_squash_pbs_128_pfail_helper(
         single_pbs_128_key,
         single_output_pbs_128_glwe_secret_key,
         msg,
+        scalar_for_multiplication,
     );
 
     (
@@ -3475,6 +3485,10 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         ),
     };
 
+    let scalar_for_multiplication = block_params.max_noise_level().get();
+    let expected_variance_after_multiplication =
+        scalar_multiplication_variance(expected_variance_after_input_br, scalar_for_multiplication);
+
     let compute_ks_input_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
     let compute_ks_output_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
     let compute_ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
@@ -3498,7 +3512,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
     };
 
     let expected_variance_after_ks =
-        Variance(expected_variance_after_input_br.0 + keyswitch_additive_variance.0);
+        Variance(expected_variance_after_multiplication.0 + keyswitch_additive_variance.0);
 
     let br_128_input_modulus_log = pbs_128_key
         .polynomial_size()
@@ -3573,6 +3587,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
                     &pbs_128_key,
                     &output_pbs_128_glwe_secret_key.as_view(),
                     msg,
+                    scalar_for_multiplication.try_into().unwrap(),
                 )
             })
             .unzip();
@@ -3861,6 +3876,8 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         PBS128InputBRParams::Compute => (&cks.small_lwe_secret_key(), &sks.bootstrapping_key),
     };
 
+    let scalar_for_multiplication = block_params.max_noise_level().get();
+
     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
     let (measured_fails_before_pbs_128, _measured_fails_after_pbs_128): (Vec<_>, Vec<_>) = (0
         ..runs_for_expected_fails)
@@ -3880,6 +3897,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
                 &pbs_128_key,
                 &output_pbs_128_glwe_secret_key.as_view(),
                 msg,
+                scalar_for_multiplication.try_into().unwrap(),
             )
         })
         .unzip();
