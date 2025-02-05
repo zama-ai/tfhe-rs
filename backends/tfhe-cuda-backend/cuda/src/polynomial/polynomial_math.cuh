@@ -198,7 +198,7 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
   dim3 grid_gemm(polynomial_size / BLOCK_SIZE_GEMM, polynomial_size / BLOCK_SIZE_GEMM);
   dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
   uint32_t sharedMemSize = BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
-  tgemmVectorize1<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
+  tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
       polynomial_size, polynomial_size, polynomial_size, circulant, poly_rhs, result
   );
   check_cuda_error(cudaGetLastError());  

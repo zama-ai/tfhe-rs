@@ -1618,11 +1618,14 @@ unsafe extern "C" {
     );
 }
 extern "C" {
-    void *stream, uint32_t gpu_index, void *result,
-    void const* poly_lhs, void const* poly_rhs, 
-    uint32_t polynomial_size, uint32_t n_rhs
 
     pub fn cuda_wrapping_polynomial_mul_one_to_many_64(
-
+        stream: *mut ffi::c_void, 
+        gpu_index: u32, 
+        result: *mut ffi::c_void, 
+        poly_lhs: *const ffi::c_void, 
+        poly_rhs: *const ffi::c_void,
+        polynomial_size: u32, 
+        n_rhs: u32,
     );
 }
