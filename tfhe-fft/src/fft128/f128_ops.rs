@@ -40,7 +40,7 @@ fn two_prod(a: f64, b: f64) -> (f64, f64) {
     // println!("b: {:?}", b);
     let p = a * b;
     // println!("p: {:?}", p);
-    let  p2 = f64::mul_add(a, b, -p);
+    let p2 = f64::mul_add(a, b, -p);
     // println!("p2: {:?}", p2);
     (p, p2)
 }

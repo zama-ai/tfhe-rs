@@ -5,7 +5,7 @@ use dyn_stack::{GlobalPodBuffer, ReborrowMut};
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
-    for size_log in 6..=14 {
+    for size_log in 6..=6 {
         let size = 1_usize << size_log;
         let fourier_size = PolynomialSize(size).to_fourier_polynomial_size().0;
 
@@ -19,9 +19,6 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         let mut fourier_im0 = avec![0.0f64; fourier_size].into_boxed_slice();
         let mut fourier_im1 = avec![0.0f64; fourier_size].into_boxed_slice();
 
-        if poly.len() > 64 {
-            return;
-        }
         println!("sizeof_scalar: {:?}", Scalar::BITS);
         println!("poly.size(): {:?}", poly.len());
 
@@ -33,13 +30,30 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         }
 
         let n = poly.len();
-        for coef in poly.iter() {
-            println!("{:?}", coef);
-        }
-
+        // for coef in poly.iter() {
+        //     println!("{:?}", coef);
+        // }
 
         let mut mem = GlobalPodBuffer::new(fft.backward_scratch().unwrap());
         let mut stack = PodStack::new(&mut mem);
+
+        let (standard_re, standard_im) = poly.split_at(n / 2);
+
+        convert_forward_torus(
+            &mut fourier_re0,
+            &mut fourier_re1,
+            &mut fourier_im0,
+            &mut fourier_im1,
+            &standard_re,
+            &standard_im,
+        );
+        for ((re0, re1), (im0, im1)) in (&*fourier_re0)
+            .iter()
+            .zip((&*fourier_re1).iter())
+            .zip((&*fourier_im0).iter().zip((&*fourier_im1).iter()))
+        {
+            println!("{:.73} {:.73} {:.73} {:.73}", re0, re1, im0, im1);
+        }
 
         fft.forward_as_torus(
             &mut fourier_re0,
@@ -49,11 +63,12 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             &poly,
         );
 
-        for ((re0, re1), (im0, im1)) in (&*fourier_re0).iter()
+        for ((re0, re1), (im0, im1)) in (&*fourier_re0)
+            .iter()
             .zip((&*fourier_re1).iter())
             .zip((&*fourier_im0).iter().zip((&*fourier_im1).iter()))
         {
-            println!("{:.20} {:.20} {:.20} {:.20}", re0, re1, im0, im1);
+            println!("{:.100} {:.100} {:.100} {:.100}", re0, re1, im0, im1);
         }
 
         fft.backward_as_torus(
@@ -62,7 +77,6 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             &fourier_re1,
             &fourier_im0,
             &fourier_im1,
-
             stack.rb_mut(),
         );
 

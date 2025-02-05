@@ -67,18 +67,18 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
     F64x4_TO_F128x2(u[i], tid);
     F64x4_TO_F128x2(v[i], tid + HALF_DEGREE);
-//    u[i].re.hi = dt_re_hi[tid];
-//    u[i].re.lo = dt_re_lo[tid];
-//    u[i].im.hi = dt_im_hi[tid];
-//    u[i].im.lo = dt_im_lo[tid];
+    //    u[i].re.hi = dt_re_hi[tid];
+    //    u[i].re.lo = dt_re_lo[tid];
+    //    u[i].im.hi = dt_im_hi[tid];
+    //    u[i].im.lo = dt_im_lo[tid];
 
-//    v[i].re.hi = dt_re_hi[tid + HALF_DEGREE];
-//    v[i].re.lo = dt_re_lo[tid + HALF_DEGREE];
-//    v[i].im.hi = dt_im_hi[tid + HALF_DEGREE];
-//    v[i].im.lo = dt_im_lo[tid + HALF_DEGREE];
+    //    v[i].re.hi = dt_re_hi[tid + HALF_DEGREE];
+    //    v[i].re.lo = dt_re_lo[tid + HALF_DEGREE];
+    //    v[i].im.hi = dt_im_hi[tid + HALF_DEGREE];
+    //    v[i].im.lo = dt_im_lo[tid + HALF_DEGREE];
 
-//    F64x4_TO_F128x2(u[i], tid);
-//    F64x4_TO_F128x2(v[i], tid + HALF_DEGREE);
+    //    F64x4_TO_F128x2(u[i], tid);
+    //    F64x4_TO_F128x2(v[i], tid + HALF_DEGREE);
     tid += STRIDE;
   }
 
@@ -90,34 +90,39 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
     auto ww = NEG_TWID(1);
-    f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, NEG_TWID(1).re, NEG_TWID(1).im);
-    w = v[i] * NEG_TWID(1);
+    f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, NEG_TWID(1).re,
+                               NEG_TWID(1).im);
+    //    w = v[i] * NEG_TWID(1);
 
-//    __syncthreads();
-//    if (threadIdx.x == 0 && blockIdx.x == 0) {
-//      printf("w = %.5f %.5f %.5f %.5f\n", ww.re.hi, ww.re.lo, ww.im.hi, ww.im.lo);
-//      printf("u = %.5f %.5f %.5f %.5f\n", u[i].re.hi, u[i].re.lo, u[i].im.hi, u[i].im.lo);
-//      printf("v = %.5f %.5f %.5f %.5f\n", v[i].re.hi, v[i].re.lo, v[i].im.hi, v[i].im.lo);
-//      printf("wv = %.5f %.5f %.5f %.5f\n", w.re.hi, w.re.lo, w.im.hi, w.im.lo);
-//    }
-//    __syncthreads();
-    v[i] = u[i] - w;
-    u[i] = u[i] + w;
+    //    __syncthreads();
+    //    if (threadIdx.x == 0 && blockIdx.x == 0) {
+    //      printf("w = %.5f %.5f %.5f %.5f\n", ww.re.hi, ww.re.lo, ww.im.hi,
+    //      ww.im.lo); printf("u = %.5f %.5f %.5f %.5f\n", u[i].re.hi,
+    //      u[i].re.lo, u[i].im.hi, u[i].im.lo); printf("v = %.5f %.5f %.5f
+    //      %.5f\n", v[i].re.hi, v[i].re.lo, v[i].im.hi, v[i].im.lo); printf("wv
+    //      = %.5f %.5f %.5f %.5f\n", w.re.hi, w.re.lo, w.im.hi, w.im.lo);
+    //    }
+    //    __syncthreads();
+    //    v[i] = u[i] - w;
+    //    u[i] = u[i] + w;
+
+    f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re, w.im);
+    f128::cplx_f128_add_assign(u[i].re, u[i].im, u[i].re, u[i].im, w.re, w.im);
   }
 
-
-//  tid = threadIdx.x;
-//#pragma unroll
-//  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
-//    F128x2_TO_F64x4(u[i], (tid));
-//    F128x2_TO_F64x4(v[i], (tid + HALF_DEGREE));
-//    tid = tid + STRIDE;
-//  }
-//  __syncthreads();
-
+  //  tid = threadIdx.x;
+  // #pragma unroll
+  //  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+  //    F128x2_TO_F64x4(u[i], (tid));
+  //    F128x2_TO_F64x4(v[i], (tid + HALF_DEGREE));
+  //    tid = tid + STRIDE;
+  //  }
+  //  __syncthreads();
 
   Index twiddle_shift = 1;
+  int ii = 0;
   for (Index l = LOG2_DEGREE - 1; l >= 1; --l) {
+    ii++;
     Index lane_mask = 1 << (l - 1);
     Index thread_mask = (1 << l) - 1;
     twiddle_shift <<= 1;
@@ -143,16 +148,18 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
       v[i] = (u_stays_in_register) ? w : v[i];
       w = NEG_TWID(tid / lane_mask + twiddle_shift);
 
-      w *= v[i];
-
-      v[i] = u[i] - w;
-      u[i] = u[i] + w;
+      // w *= v[i];
+      f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
+      f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
+                                 w.im);
+      f128::cplx_f128_add_assign(u[i].re, u[i].im, u[i].re, u[i].im, w.re,
+                                 w.im);
       tid = tid + STRIDE;
     }
   }
   __syncthreads();
 
-//   store registers in SM
+  //   store registers in SM
   tid = threadIdx.x;
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
@@ -183,7 +190,6 @@ __device__ void negacyclic_inverse_fft_f128(double *dt_re_hi, double *dt_re_lo,
 
     F64x4_TO_F128x2(u[i], 2 * tid);
     F64x4_TO_F128x2(v[i], 2 * tid + 1);
-
 
     tid += STRIDE;
   }
@@ -250,12 +256,11 @@ __device__ void negacyclic_inverse_fft_f128(double *dt_re_hi, double *dt_re_lo,
 // params is expected to be full degree not half degree
 template <class params>
 __device__ void convert_u128_to_f128_as_integer(
-    double *out_re_hi, double *out_re_lo,
-    double *out_im_hi, double *out_im_lo,
+    double *out_re_hi, double *out_re_lo, double *out_im_hi, double *out_im_lo,
     const __uint128_t *in_re, const __uint128_t *in_im) {
 
   Index tid = threadIdx.x;
-//#pragma unroll
+  // #pragma unroll
   for (Index i = 0; i < params::opt / 2; i++) {
     __syncthreads();
     auto out_re = u128_to_signed_to_f128(in_re[tid]);
@@ -268,12 +273,13 @@ __device__ void convert_u128_to_f128_as_integer(
     out_im_hi[tid] = out_im.hi;
     out_im_lo[tid] = out_im.lo;
 
-//    __syncthreads();
-//    if (threadIdx.x == 0 && blockIdx.x == 0) {
-//      printf("%.5f %.5f %.5f %.5f\n", out_re_hi[tid], out_re_lo[tid], out_im_hi[tid],
-//             out_im_lo[tid]);
-//    }
-//    __syncthreads();
+    //    __syncthreads();
+    //    if (threadIdx.x == 0 && blockIdx.x == 0) {
+    //      printf("%.5f %.5f %.5f %.5f\n", out_re_hi[tid], out_re_lo[tid],
+    //      out_im_hi[tid],
+    //             out_im_lo[tid]);
+    //    }
+    //    __syncthreads();
     tid += params::degree / params::opt;
   }
 }
@@ -281,13 +287,12 @@ __device__ void convert_u128_to_f128_as_integer(
 // params is expected to be full degree not half degree
 template <class params>
 __device__ void convert_u128_to_f128_as_torus(
-    double *out_re_hi, double *out_re_lo,
-    double *out_im_hi, double *out_im_lo,
+    double *out_re_hi, double *out_re_lo, double *out_im_hi, double *out_im_lo,
     const __uint128_t *in_re, const __uint128_t *in_im) {
 
   const double normalization = pow(2., -128.);
   Index tid = threadIdx.x;
-//#pragma unroll
+  // #pragma unroll
   for (Index i = 0; i < params::opt / 2; i++) {
     __syncthreads();
     auto out_re = u128_to_signed_to_f128(in_re[tid]);
@@ -300,22 +305,23 @@ __device__ void convert_u128_to_f128_as_torus(
     out_im_hi[tid] = out_im.hi * normalization;
     out_im_lo[tid] = out_im.lo * normalization;
 
-//    __syncthreads();
-//    if (threadIdx.x == 0 && blockIdx.x == 0) {
-//      printf("%.5f %.5f %.5f %.5f\n", out_re_hi[tid], out_re_lo[tid], out_im_hi[tid],
-//             out_im_lo[tid]);
-//    }
-//    __syncthreads();
+    //    __syncthreads();
+    //    if (threadIdx.x == 0 && blockIdx.x == 0) {
+    //      printf("%.5f %.5f %.5f %.5f\n", out_re_hi[tid], out_re_lo[tid],
+    //      out_im_hi[tid],
+    //             out_im_lo[tid]);
+    //    }
+    //    __syncthreads();
     tid += params::degree / params::opt;
   }
 }
 
 // params is expected to be full degree not half degree
 template <class params>
-__global__ void batch_convert_u128_to_f128_as_integer(
-    double *out_re_hi, double *out_re_lo,
-    double *out_im_hi, double *out_im_lo,
-    const __uint128_t *in) {
+__global__ void
+batch_convert_u128_to_f128_as_integer(double *out_re_hi, double *out_re_lo,
+                                      double *out_im_hi, double *out_im_lo,
+                                      const __uint128_t *in) {
 
   convert_u128_to_f128_as_integer<params>(
       &out_re_hi[blockIdx.x * params::degree / 2],
@@ -324,15 +330,14 @@ __global__ void batch_convert_u128_to_f128_as_integer(
       &out_im_lo[blockIdx.x * params::degree / 2],
       &in[blockIdx.x * params::degree],
       &in[blockIdx.x * params::degree + params::degree / 2]);
-
 }
 
 // params is expected to be full degree not half degree
 template <class params>
-__global__ void batch_convert_u128_to_f128_as_torus(
-    double *out_re_hi, double *out_re_lo,
-    double *out_im_hi, double *out_im_lo,
-    const __uint128_t *in) {
+__global__ void
+batch_convert_u128_to_f128_as_torus(double *out_re_hi, double *out_re_lo,
+                                    double *out_im_hi, double *out_im_lo,
+                                    const __uint128_t *in) {
 
   convert_u128_to_f128_as_torus<params>(
       &out_re_hi[blockIdx.x * params::degree / 2],
@@ -341,17 +346,13 @@ __global__ void batch_convert_u128_to_f128_as_torus(
       &out_im_lo[blockIdx.x * params::degree / 2],
       &in[blockIdx.x * params::degree],
       &in[blockIdx.x * params::degree + params::degree / 2]);
-
 }
 
 template <class params, sharedMemDegree SMD>
-__global__ void batch_NSMFFT_128(double *in_re_hi, double *in_re_lo,
-                            double *in_im_hi,
-                            double *in_im_lo,
-                            double *out_re_hi, double *out_re_lo,
-                            double *out_im_hi,
-                            double *out_im_lo,
-                            double *buffer) {
+__global__ void
+batch_NSMFFT_128(double *in_re_hi, double *in_re_lo, double *in_im_hi,
+                 double *in_im_lo, double *out_re_hi, double *out_re_lo,
+                 double *out_im_hi, double *out_im_lo, double *buffer) {
   extern __shared__ double sharedMemoryFFT[];
   double *re_hi, *re_lo, *im_hi, *im_lo;
 
@@ -364,10 +365,14 @@ __global__ void batch_NSMFFT_128(double *in_re_hi, double *in_re_lo,
   __syncthreads();
 
   if (SMD == NOSM) {
-    re_hi = &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 0];
-    re_lo = &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 1];
-    im_hi = &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 2];
-    im_lo = &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 3];
+    re_hi =
+        &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 0];
+    re_lo =
+        &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 1];
+    im_hi =
+        &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 2];
+    im_lo =
+        &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 3];
   } else {
     re_hi = &sharedMemoryFFT[params::degree / 2 * 0];
     re_lo = &sharedMemoryFFT[params::degree / 2 * 1];
@@ -417,38 +422,45 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
     double *im0, double *im1, const __uint128_t *standard, const uint32_t N,
     const uint32_t number_of_samples) {
 
-//  for (int i = 0; i < N / 2; i++)
-//  {
-//    printf("%.10f\n", re0[i]);
-//  }
-//  printf("cpp_poly_host\n");
-//  for (int i = 0; i < N; i++) {
-//    print_uint128_bits(standard[i]);
-//  }
-//  printf("check #1\n");
+  //  for (int i = 0; i < N / 2; i++)
+  //  {
+  //    printf("%.10f\n", re0[i]);
+  //  }
+  //  printf("cpp_poly_host\n");
+  //  for (int i = 0; i < N; i++) {
+  //    print_uint128_bits(standard[i]);
+  //  }
+  //  printf("check #1\n");
 
-//  for (int i = 0; i < 32; i++) {
-//    standard[i + 32] = standard[i];
-//  }
+  //  for (int i = 0; i < 32; i++) {
+  //    standard[i + 32] = standard[i];
+  //  }
 
   // allocate device buffers
-  double *d_re0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_re1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(N * sizeof(__uint128_t), stream, gpu_index);
+  double *d_re0 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_re1 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_im0 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_im1 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(
+      N * sizeof(__uint128_t), stream, gpu_index);
 
   // copy input into device
-  cuda_memcpy_async_to_gpu(d_standard, standard, N * sizeof(__uint128_t), stream, gpu_index);
+  cuda_memcpy_async_to_gpu(d_standard, standard, N * sizeof(__uint128_t),
+                           stream, gpu_index);
 
   // setup launch parameters
   size_t required_shared_memory_size = sizeof(double) * N / 2 * 4;
   int grid_size = number_of_samples;
   int block_size = params::degree / params::opt;
-  bool full_sm = (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
-  size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2  * 4;
+  bool full_sm =
+      (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
+  size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2 * 4;
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
-  double *buffer = (double*)cuda_malloc_async(buffer_size, stream, gpu_index);
+  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
   // configure shared memory for batch fft kernel
   if (full_sm) {
@@ -461,36 +473,36 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
   }
 
   // convert u128 into 4 x double
-  batch_convert_u128_to_f128_as_integer<params><<<grid_size, block_size, 0, stream>>>(
-      d_re0, d_re1, d_im0, d_im1, d_standard);
+  batch_convert_u128_to_f128_as_integer<params>
+      <<<grid_size, block_size, 0, stream>>>(d_re0, d_re1, d_im0, d_im1,
+                                             d_standard);
 
   // call negacyclic 128 bit forward fft.
   if (full_sm) {
-    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, FULLSM><<<grid_size, block_size,
-    shared_memory_size, stream>>>
-        (d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
+    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, FULLSM>
+        <<<grid_size, block_size, shared_memory_size, stream>>>(
+            d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
   } else {
-    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, NOSM><<<grid_size, block_size,
-    shared_memory_size, stream>>>
-        (d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
-
+    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, NOSM>
+        <<<grid_size, block_size, shared_memory_size, stream>>>(
+            d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
   }
 
   cudaDeviceSynchronize();
 
-//  print_debug("re_hi", d_re0, 32);
-//  print_debug("d_re_lo", d_re1, 32);
-//  print_debug("d_im_hi", d_im0, 32);
-//  print_debug("d_im_lo", d_im1, 32);
+  //  print_debug("re_hi", d_re0, 32);
+  //  print_debug("d_re_lo", d_re1, 32);
+  //  print_debug("d_im_hi", d_im0, 32);
+  //  print_debug("d_im_lo", d_im1, 32);
 
-  cuda_memcpy_async_to_cpu(re0, d_re0, N / 2 * sizeof(double), stream, gpu_index);
-  cuda_memcpy_async_to_cpu(re1, d_re1, N / 2 * sizeof(double), stream, gpu_index);
-  cuda_memcpy_async_to_cpu(im0, d_im0, N / 2 * sizeof(double), stream, gpu_index);
-  cuda_memcpy_async_to_cpu(im1, d_im1, N / 2 * sizeof(double), stream, gpu_index);
-
-
-
-
+  cuda_memcpy_async_to_cpu(re0, d_re0, N / 2 * sizeof(double), stream,
+                           gpu_index);
+  cuda_memcpy_async_to_cpu(re1, d_re1, N / 2 * sizeof(double), stream,
+                           gpu_index);
+  cuda_memcpy_async_to_cpu(im0, d_im0, N / 2 * sizeof(double), stream,
+                           gpu_index);
+  cuda_memcpy_async_to_cpu(im1, d_im1, N / 2 * sizeof(double), stream,
+                           gpu_index);
 
   cuda_drop_async(d_standard, stream, gpu_index);
   cuda_drop_async(d_re0, stream, gpu_index);
@@ -500,22 +512,34 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
 
   cudaDeviceSynchronize();
 
-//  printf("params::degree: %d\n", params::degree);
-//  printf("params::opt: %d\n", params::opt);
-//  printf("N: %d\n", N);
-//  for (int i = 0; i < N; i++)
-//  {
-//    printf("%s\n", to_string_128(standard[i]).c_str());
-//  }
-//
-//  for (int i = 0; i < N / 2; i++) {
-////    auto re = u128_to_signed_to_f128(standard[i]);
-////    auto im = u128_to_signed_to_f128(standard[i + N / 2]);
-////    printf("%.10f %.10f %.10f %.10f\n", re.hi, re.lo, im.hi, im.lo);
-//    printf("%.10f %.10f %.10f %.10f\n", re0[i], re1[i], im0[i], im1[i]);
-//  }
+  //  printf("params::degree: %d\n", params::degree);
+  //  printf("params::opt: %d\n", params::opt);
+  //  printf("N: %d\n", N);
+  //  for (int i = 0; i < N; i++)
+  //  {
+  //    printf("%s\n", to_string_128(standard[i]).c_str());
+  //  }
+  //
+  //  for (int i = 0; i < N / 2; i++) {
+  ////    auto re = u128_to_signed_to_f128(standard[i]);
+  ////    auto im = u128_to_signed_to_f128(standard[i + N / 2]);
+  ////    printf("%.10f %.10f %.10f %.10f\n", re.hi, re.lo, im.hi, im.lo);
+  //    printf("%.10f %.10f %.10f %.10f\n", re0[i], re1[i], im0[i], im1[i]);
+  //  }
+}
 
+__global__ void print_twiddles(int N) {
+  for (int i = 0; i < N / 2; i++) {
+    printf("%.73f %.73f %.73f %.73f\n", neg_twiddles_re_hi[i],
+           neg_twiddles_re_lo[i], neg_twiddles_im_hi[i], neg_twiddles_im_lo[i]);
+  }
+}
 
+__global__ void print_c128(double *re0, double *re1, double *im0, double *im1,
+                           int N) {
+  for (int i = 0; i < N / 2; i++) {
+    printf("%.73f %.73f %.73f %.73f\n", re0[i], re1[i], im0[i], im1[i]);
+  }
 }
 
 template <class params>
@@ -524,38 +548,47 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
     double *im0, double *im1, const __uint128_t *standard, const uint32_t N,
     const uint32_t number_of_samples) {
 
-  for (int i = 0; i < N / 2; i++)
-  {
-    printf("%.10f\n", re0[i]);
-  }
-  printf("cpp_poly_host\n");
-  for (int i = 0; i < N; i++) {
-    print_uint128_bits(standard[i]);
-  }
-  printf("check #1\n");
+  print_twiddles<<<1, 1>>>(N);
+  cudaDeviceSynchronize();
+  //  for (int i = 0; i < N / 2; i++)
+  //  {
+  //    printf("%.10f\n", re0[i]);
+  //  }
+  //  printf("cpp_poly_host\n");
+  //  for (int i = 0; i < N; i++) {
+  //    print_uint128_bits(standard[i]);
+  //  }
+  //  printf("check #1\n");
 
-//  for (int i = 0; i < 32; i++) {
-//    standard[i + 32] = standard[i];
-//  }
+  //  for (int i = 0; i < 32; i++) {
+  //    standard[i + 32] = standard[i];
+  //  }
 
   // allocate device buffers
-  double *d_re0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_re1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(N * sizeof(__uint128_t), stream, gpu_index);
+  double *d_re0 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_re1 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_im0 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_im1 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(
+      N * sizeof(__uint128_t), stream, gpu_index);
 
   // copy input into device
-  cuda_memcpy_async_to_gpu(d_standard, standard, N * sizeof(__uint128_t), stream, gpu_index);
+  cuda_memcpy_async_to_gpu(d_standard, standard, N * sizeof(__uint128_t),
+                           stream, gpu_index);
 
   // setup launch parameters
   size_t required_shared_memory_size = sizeof(double) * N / 2 * 4;
   int grid_size = number_of_samples;
   int block_size = params::degree / params::opt;
-  bool full_sm = (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
-  size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2  * 4;
+  bool full_sm =
+      (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
+  size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2 * 4;
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
-  double *buffer = (double*)cuda_malloc_async(buffer_size, stream, gpu_index);
+  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
   // configure shared memory for batch fft kernel
   if (full_sm) {
@@ -568,36 +601,37 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
   }
 
   // convert u128 into 4 x double
-  batch_convert_u128_to_f128_as_torus<params><<<grid_size, block_size, 0, stream>>>(
-      d_re0, d_re1, d_im0, d_im1, d_standard);
-
+  batch_convert_u128_to_f128_as_torus<params>
+      <<<grid_size, block_size, 0, stream>>>(d_re0, d_re1, d_im0, d_im1,
+                                             d_standard);
+  print_c128<<<1, 1>>>(d_re0, d_re1, d_im0, d_im1, N);
+  cudaDeviceSynchronize();
   // call negacyclic 128 bit forward fft.
   if (full_sm) {
-    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, FULLSM><<<grid_size, block_size,
-    shared_memory_size, stream>>>
-        (d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
+    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, FULLSM>
+        <<<grid_size, block_size, shared_memory_size, stream>>>(
+            d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
   } else {
-    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, NOSM><<<grid_size, block_size,
-    shared_memory_size, stream>>>
-        (d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
-
+    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, NOSM>
+        <<<grid_size, block_size, shared_memory_size, stream>>>(
+            d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
   }
 
   cudaDeviceSynchronize();
 
-//  print_debug("re_hi", d_re0, 32);
-//  print_debug("d_re_lo", d_re1, 32);
-//  print_debug("d_im_hi", d_im0, 32);
-//  print_debug("d_im_lo", d_im1, 32);
+  //  print_debug("re_hi", d_re0, 32);
+  //  print_debug("d_re_lo", d_re1, 32);
+  //  print_debug("d_im_hi", d_im0, 32);
+  //  print_debug("d_im_lo", d_im1, 32);
 
-  cuda_memcpy_async_to_cpu(re0, d_re0, N / 2 * sizeof(double), stream, gpu_index);
-  cuda_memcpy_async_to_cpu(re1, d_re1, N / 2 * sizeof(double), stream, gpu_index);
-  cuda_memcpy_async_to_cpu(im0, d_im0, N / 2 * sizeof(double), stream, gpu_index);
-  cuda_memcpy_async_to_cpu(im1, d_im1, N / 2 * sizeof(double), stream, gpu_index);
-
-
-
-
+  cuda_memcpy_async_to_cpu(re0, d_re0, N / 2 * sizeof(double), stream,
+                           gpu_index);
+  cuda_memcpy_async_to_cpu(re1, d_re1, N / 2 * sizeof(double), stream,
+                           gpu_index);
+  cuda_memcpy_async_to_cpu(im0, d_im0, N / 2 * sizeof(double), stream,
+                           gpu_index);
+  cuda_memcpy_async_to_cpu(im1, d_im1, N / 2 * sizeof(double), stream,
+                           gpu_index);
 
   cuda_drop_async(d_standard, stream, gpu_index);
   cuda_drop_async(d_re0, stream, gpu_index);
@@ -607,54 +641,59 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
 
   cudaDeviceSynchronize();
 
-  printf("params::degree: %d\n", params::degree);
-  printf("params::opt: %d\n", params::opt);
-  printf("N: %d\n", N);
-  for (int i = 0; i < N; i++)
-  {
-    printf("%s\n", to_string_128(standard[i]).c_str());
-  }
+  //  printf("params::degree: %d\n", params::degree);
+  //  printf("params::opt: %d\n", params::opt);
+  //  printf("N: %d\n", N);
+  //  for (int i = 0; i < N; i++)
+  //  {
+  //    printf("%s\n", to_string_128(standard[i]).c_str());
+  //  }
 
-  for (int i = 0; i < N / 2; i++) {
-//    auto re = u128_to_signed_to_f128(standard[i]);
-//    auto im = u128_to_signed_to_f128(standard[i + N / 2]);
-//    printf("%.10f %.10f %.10f %.10f\n", re.hi, re.lo, im.hi, im.lo);
-    printf("%.10f %.10f %.10f %.10f\n", re0[i], re1[i], im0[i], im1[i]);
-  }
-
-
+  //  for (int i = 0; i < N / 2; i++) {
+  ////    auto re = u128_to_signed_to_f128(standard[i]);
+  ////    auto im = u128_to_signed_to_f128(standard[i + N / 2]);
+  ////    printf("%.10f %.10f %.10f %.10f\n", re.hi, re.lo, im.hi, im.lo);
+  //    printf("%.10f %.10f %.10f %.10f\n", re0[i], re1[i], im0[i], im1[i]);
+  //  }
 }
 
 template <class params>
 __host__ void host_fourier_transform_backward_as_torus_f128(
-    cudaStream_t stream, uint32_t gpu_index, __uint128_t *standard, double const *re0, double const
-    *re1,
-    double const *im0, double const  *im1, const uint32_t N,
-    const uint32_t number_of_samples) {
+    cudaStream_t stream, uint32_t gpu_index, __uint128_t *standard,
+    double const *re0, double const *re1, double const *im0, double const *im1,
+    const uint32_t N, const uint32_t number_of_samples) {
 
-    // allocate device buffers
-  double *d_re0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_re1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(N * sizeof(__uint128_t), stream, gpu_index);
+  // allocate device buffers
+  double *d_re0 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_re1 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_im0 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_im1 =
+      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(
+      N * sizeof(__uint128_t), stream, gpu_index);
 
-//  // copy input into device
-  cuda_memcpy_async_to_gpu(d_re0, standard, N / 2 * sizeof(double), stream, gpu_index);
-  cuda_memcpy_async_to_gpu(d_re1, standard, N / 2 * sizeof(double), stream, gpu_index);
-  cuda_memcpy_async_to_gpu(d_im0, standard, N / 2 * sizeof(double), stream, gpu_index);
-  cuda_memcpy_async_to_gpu(d_im1, standard, N / 2 * sizeof(double), stream, gpu_index);
-
-
+  //  // copy input into device
+  cuda_memcpy_async_to_gpu(d_re0, standard, N / 2 * sizeof(double), stream,
+                           gpu_index);
+  cuda_memcpy_async_to_gpu(d_re1, standard, N / 2 * sizeof(double), stream,
+                           gpu_index);
+  cuda_memcpy_async_to_gpu(d_im0, standard, N / 2 * sizeof(double), stream,
+                           gpu_index);
+  cuda_memcpy_async_to_gpu(d_im1, standard, N / 2 * sizeof(double), stream,
+                           gpu_index);
 
   // setup launch parameters
   size_t required_shared_memory_size = sizeof(double) * N / 2 * 4;
   int grid_size = number_of_samples;
   int block_size = params::degree / params::opt;
-  bool full_sm = (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
-  size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2  * 4;
+  bool full_sm =
+      (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
+  size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2 * 4;
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
-  double *buffer = (double*)cuda_malloc_async(buffer_size, stream, gpu_index);
+  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
   // configure shared memory for batch fft kernel
   if (full_sm) {
@@ -666,31 +705,33 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
         cudaFuncCachePreferShared));
   }
 
-//  // convert u128 into 4 x double
-//  batch_convert_u128_to_f128_as_torus<params><<<grid_size, block_size, 0, stream>>>(
-//      d_re0, d_re1, d_im0, d_im1, d_standard);
+  //  // convert u128 into 4 x double
+  //  batch_convert_u128_to_f128_as_torus<params><<<grid_size, block_size, 0,
+  //  stream>>>(
+  //      d_re0, d_re1, d_im0, d_im1, d_standard);
 
   // call negacyclic 128 bit forward fft.
-//  if (full_sm) {
-//    negacyclic_inverse_fft_f128<FFTDegree<params, ForwardFFT>, FULLSM><<<grid_size, block_size,
-//    shared_memory_size, stream>>>
-//        (d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
-//  } else {
-//    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, NOSM><<<grid_size, block_size,
-//    shared_memory_size, stream>>>
-//        (d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
-//
-//  }
-//
-//  cudaDeviceSynchronize();
+  //  if (full_sm) {
+  //    negacyclic_inverse_fft_f128<FFTDegree<params, ForwardFFT>,
+  //    FULLSM><<<grid_size, block_size, shared_memory_size, stream>>>
+  //        (d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
+  //  } else {
+  //    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, NOSM><<<grid_size,
+  //    block_size, shared_memory_size, stream>>>
+  //        (d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
+  //
+  //  }
+  //
+  //  cudaDeviceSynchronize();
 
-////  print_debug("re_hi", d_re0, 32);
-////  print_debug("d_re_lo", d_re1, 32);
-////  print_debug("d_im_hi", d_im0, 32);
-////  print_debug("d_im_lo", d_im1, 32);
-//
+  ////  print_debug("re_hi", d_re0, 32);
+  ////  print_debug("d_re_lo", d_re1, 32);
+  ////  print_debug("d_im_hi", d_im0, 32);
+  ////  print_debug("d_im_lo", d_im1, 32);
+  //
 
-  cuda_memcpy_async_to_cpu(standard, d_standard, N * sizeof(__uint128_t), stream, gpu_index);
+  cuda_memcpy_async_to_cpu(standard, d_standard, N * sizeof(__uint128_t),
+                           stream, gpu_index);
   cuda_drop_async(d_standard, stream, gpu_index);
   cuda_drop_async(d_re0, stream, gpu_index);
   cuda_drop_async(d_re1, stream, gpu_index);
@@ -698,25 +739,22 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
   cuda_drop_async(d_im1, stream, gpu_index);
 
   cudaDeviceSynchronize();
-//
-//  printf("params::degree: %d\n", params::degree);
-//  printf("params::opt: %d\n", params::opt);
-//  printf("N: %d\n", N);
-//  for (int i = 0; i < N; i++)
-//  {
-//    printf("%s\n", to_string_128(standard[i]).c_str());
-//  }
-//
-//  for (int i = 0; i < N / 2; i++) {
-////    auto re = u128_to_signed_to_f128(standard[i]);
-////    auto im = u128_to_signed_to_f128(standard[i + N / 2]);
-////    printf("%.10f %.10f %.10f %.10f\n", re.hi, re.lo, im.hi, im.lo);
-//    printf("%.10f %.10f %.10f %.10f\n", re0[i], re1[i], im0[i], im1[i]);
-//  }
-//
-
+  //
+  //  printf("params::degree: %d\n", params::degree);
+  //  printf("params::opt: %d\n", params::opt);
+  //  printf("N: %d\n", N);
+  //  for (int i = 0; i < N; i++)
+  //  {
+  //    printf("%s\n", to_string_128(standard[i]).c_str());
+  //  }
+  //
+  //  for (int i = 0; i < N / 2; i++) {
+  ////    auto re = u128_to_signed_to_f128(standard[i]);
+  ////    auto im = u128_to_signed_to_f128(standard[i + N / 2]);
+  ////    printf("%.10f %.10f %.10f %.10f\n", re.hi, re.lo, im.hi, im.lo);
+  //    printf("%.10f %.10f %.10f %.10f\n", re0[i], re1[i], im0[i], im1[i]);
+  //  }
+  //
 }
-
-
 
 #endif // TFHE_RS_BACKENDS_TFHE_CUDA_BACKEND_CUDA_SRC_FFT128_FFT128_CUH_

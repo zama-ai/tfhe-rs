@@ -1,8 +1,10 @@
 use super::*;
 use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
 use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::gpu::{fourier_transform_forward_as_integer_f128_async,
-                              fourier_transform_forward_as_torus_f128_async, CudaStreams};
+use crate::core_crypto::gpu::{
+    fourier_transform_forward_as_integer_f128_async, fourier_transform_forward_as_torus_f128_async,
+    CudaStreams,
+};
 use aligned_vec::avec;
 use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 use tfhe_cuda_backend::cuda_bind::cuda_synchronize_device;
@@ -33,7 +35,6 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             *x = base - Scalar::ONE;
             base = base * exp;
         }
-
 
         let mut mem = GlobalPodBuffer::new(fft.backward_scratch().unwrap());
         let mut stack = PodStack::new(&mut mem);
@@ -77,14 +78,14 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         }
         unsafe {
             cuda_synchronize_device(0);
-
         }
 
-        for ((re0, re1), (im0, im1)) in (&*fourier_re0).iter()
+        for ((re0, re1), (im0, im1)) in (&*fourier_re0)
+            .iter()
             .zip((&*fourier_re1).iter())
             .zip((&*fourier_im0).iter().zip((&*fourier_im1).iter()))
         {
-            println!("{:.20} {:.20} {:.20} {:.20}", re0, re1, im0, im1);
+            println!("{:.100} {:.100} {:.100} {:.100}", re0, re1, im0, im1);
         }
         fft.backward_as_torus(
             &mut roundtrip,

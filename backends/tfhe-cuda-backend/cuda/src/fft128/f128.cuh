@@ -16,44 +16,51 @@ struct alignas(16) f128 {
   // Quick two-sum
   __host__ __device__ __forceinline__ static f128 quick_two_sum(double a,
                                                                 double b) {
+#ifdef __CUDA_ARCH__
+    double s = __dadd_rn(a, b);
+    return f128(s, __dsub_rn(b, __dsub_rn(s, a)));
+#else
     double s = a + b;
     return f128(s, b - (s - a));
+#endif;
   }
 
   // Two-sum
   __host__ __device__ __forceinline__ static f128 two_sum(double a, double b) {
+#ifdef __CUDA_ARCH__
+    double s = __dadd_rn(a, b);
+    double bb = __dsub_rn(s, a);
+    return f128(s, __dadd_rn(__dsub_rn(a, __dsub_rn(s, bb)), __dsub_rn(b, bb)));
+#else
     double s = a + b;
     double bb = s - a;
     return f128(s, (a - (s - bb)) + (b - bb));
+#endif
   }
 
   // Two-product
   __host__ __device__ __forceinline__ static f128 two_prod(double a, double b) {
-    double p = a * b;
-
 
 #ifdef __CUDA_ARCH__
-    double p2 =  __fma_rn(a, b, -p);
+    double p = __dmul_rn(a, b);
+    double p2 = __fma_rn(a, b, -p);
 #else
-    double p2 =  fma(a, b, -p);
+    double p = a * b;
+    double p2 = fma(a, b, -p);
 #endif
-
-//#ifdef __CUDA_ARCH__
-//    if (threadIdx.x == 0 && blockIdx.x == 0) {
-//      printf("two_prod\n");
-//      printf("a: %.15f\n", a);
-//      printf("b: %.15f\n", b);
-//      printf("p: %.15f\n", p);
-//      printf("p2: %.15f\n", p2);
-//    }
-//#endif
     return f128(p, p2);
   }
 
   __host__ __device__ __forceinline__ static f128 two_diff(double a, double b) {
+#ifdef __CUDA_ARCH__
+    double s = __dsub_rn(a, b);
+    double bb = __dsub_rn(s, a);
+    return f128(s, __dsub_rn(__dsub_rn(a, __dsub_rn(s, bb)), __dadd_rn(b, bb)));
+#else
     double s = a - b;
     double bb = s - a;
     return f128(s, (a - (s - bb)) - (b + bb));
+#endif
   }
 
   // Addition
@@ -72,7 +79,11 @@ struct alignas(16) f128 {
   // Addition with estimate
   __host__ __device__ static f128 add_estimate(const f128 &a, const f128 &b) {
     auto se = two_sum(a.hi, b.hi);
+#ifdef __CUDA_ARCH__
+    se.lo = __dadd_rn(se.lo, __dadd_rn(a.lo, b.lo));
+#else
     se.lo += (a.lo + b.lo);
+#endif
 
     return quick_two_sum(se.hi, se.lo);
   }
@@ -80,8 +91,13 @@ struct alignas(16) f128 {
   // Subtraction with estimate
   __host__ __device__ static f128 sub_estimate(const f128 &a, const f128 &b) {
     f128 se = two_diff(a.hi, b.hi);
+#ifdef __CUDA_ARCH__
+    se.lo = __dadd_rn(se.lo, a.lo);
+    se.lo = __dsub_rn(se.lo, b.lo);
+#else
     se.lo += a.lo;
     se.lo -= b.lo;
+#endif
     return quick_two_sum(se.hi, se.lo);
   }
 
@@ -96,30 +112,14 @@ struct alignas(16) f128 {
   // Multiplication
   __host__ __device__ static f128 mul(const f128 &a, const f128 &b) {
     auto p = two_prod(a.hi, b.hi);
-//#ifdef __CUDA_ARCH__
-//    if (threadIdx.x == 0 && blockIdx.x == 0) {
-//      printf("f128_mul\n");
-//      printf("a: %.5f %.5f\n", a.hi, a.lo);
-//      printf("b: %.5f %.5f\n", b.hi, b.lo);
-//      printf("p1: %.5f\n", p.hi);
-//      printf("p2: %.5f\n", p.lo);
-//    }
-//#endif
+#ifdef __CUDA_ARCH__
+    double a_0_x_b_1 = __dmul_rn(a.hi, b.lo);
+    double a_1_x_b_0 = __dmul_rn(a.lo, b.hi);
+    p.lo = __dadd_rn(p.lo, __dadd_rn(a_0_x_b_1, a_1_x_b_0));
+#else
     p.lo += (a.hi * b.lo + a.lo * b.hi);
-//#ifdef __CUDA_ARCH__
-//    if (threadIdx.x == 0 && blockIdx.x == 0) {
-//      printf("a.0 * b.1: %.5f\n", a.hi * b.lo);
-//      printf("a.1 * b.0: %.5f\n", a.lo * b.hi);
-//      printf("p2: %.5f\n", p.lo);
-//    }
-//#endif
+#endif
     p = quick_two_sum(p.hi, p.lo);
-//#ifdef __CUDA_ARCH__
-//    if (threadIdx.x == 0 && blockIdx.x == 0) {
-//      printf("p1: %.5f\n", p.hi);
-//      printf("p2: %.5f\n", p.lo);
-//    }
-//#endif
     return p;
   }
 
@@ -131,23 +131,21 @@ struct alignas(16) f128 {
     auto a_im_x_b_re = mul(a_im, b_re);
     auto a_im_x_b_im = mul(a_im, b_im);
 
-//#ifdef __CUDA_ARCH__
-//    //__syncthreads();
-//    if (threadIdx.x == 0 && blockIdx.x == 0) {
-//      printf("a_re: %.5f %.5f\n", a_re.hi, a_re.lo);
-//      printf("a_im: %.5f %.5f\n", a_im.hi, a_im.lo);
-//      printf("b_re: %.5f %.5f\n", b_re.hi, b_re.lo);
-//      printf("b_im: %.5f %.5f\n", b_im.hi, b_im.lo);
-//
-//      printf("a_re_x_b_re: %.5f %.5f\n", a_re_x_b_re.hi, a_re_x_b_re.lo);
-//      printf("a_re_x_b_im: %.5f %.5f\n", a_re_x_b_im.hi, a_re_x_b_im.lo);
-//      printf("a_im_x_b_re: %.5f %.5f\n", a_im_x_b_re.hi, a_im_x_b_re.lo);
-//      printf("a_im_x_b_im: %.5f %.5f\n", a_im_x_b_im.hi, a_im_x_b_im.lo);
-//    }
-//#endif
-    //__syncthreads();
-    c_re = add_estimate(a_re_x_b_re, a_im_x_b_im);
-    c_im = sub_estimate(a_im_x_b_re, a_re_x_b_im);
+    c_re = sub_estimate(a_re_x_b_re, a_im_x_b_im);
+    c_im = add_estimate(a_im_x_b_re, a_re_x_b_im);
+  }
+
+  __host__ __device__ static void
+  cplx_f128_sub_assign(f128 &c_re, f128 &c_im, const f128 &a_re,
+                       const f128 &a_im, const f128 &b_re, const f128 &b_im) {
+    c_re = sub_estimate(a_re, b_re);
+    c_im = sub_estimate(a_im, b_im);
+  }
+  __host__ __device__ static void
+  cplx_f128_add_assign(f128 &c_re, f128 &c_im, const f128 &a_re,
+                       const f128 &a_im, const f128 &b_re, const f128 &b_im) {
+    c_re = add_estimate(a_re, b_re);
+    c_im = add_estimate(a_im, b_im);
   }
 };
 
@@ -251,16 +249,14 @@ struct f128x2 {
 };
 
 __host__ __device__ inline uint64_t double_to_bits(double d) {
-  uint64_t bits =  *reinterpret_cast<uint64_t*> (&d);
+  uint64_t bits = *reinterpret_cast<uint64_t *>(&d);
   return bits;
 }
 
-__host__ __device__ inline double bits_to_double(uint64_t bits)
-{
-  double d =  *reinterpret_cast<double *> (&bits);
+__host__ __device__ inline double bits_to_double(uint64_t bits) {
+  double d = *reinterpret_cast<double *>(&bits);
   return d;
 }
-
 
 __host__ __device__ double u128_to_f64(__uint128_t x) {
   const __uint128_t ONE = 1;
@@ -320,7 +316,7 @@ __host__ __device__ __uint128_t f64_to_u128(const double f) {
   if (f_bits < 1023ull << 52) {
     return 0;
   } else {
-    const __uint128_t m = ONE << 127 | (__uint128_t) f_bits << 75;
+    const __uint128_t m = ONE << 127 | (__uint128_t)f_bits << 75;
     const uint64_t s = 1150 - (f_bits >> 52);
     if (s >= 128) {
       return 0;
@@ -332,29 +328,27 @@ __host__ __device__ __uint128_t f64_to_u128(const double f) {
 
 __host__ __device__ double i128_to_f64(__int128_t const x) {
   uint64_t sign = static_cast<uint64_t>(x >> 64) & (1ULL << 63);
-  __uint128_t abs = (x < 0)
-      ? static_cast<__uint128_t>(-x)
-      : static_cast<__uint128_t>(x);
+  __uint128_t abs =
+      (x < 0) ? static_cast<__uint128_t>(-x) : static_cast<__uint128_t>(x);
 
   return bits_to_double(double_to_bits(u128_to_f64(abs)) | sign);
-
 }
 __host__ __device__ f128 u128_to_signed_to_f128(__uint128_t x) {
   const double first_approx = i128_to_f64(x);
   const uint64_t sign_bit = double_to_bits(first_approx) & (1ull << 63);
   const __uint128_t first_approx_roundtrip =
       f64_to_u128((first_approx < 0) ? -first_approx : first_approx);
-  const __uint128_t first_approx_roundtrip_signed = (sign_bit == (1ull << 63))
-      ?-first_approx_roundtrip
-      :first_approx_roundtrip;
+  const __uint128_t first_approx_roundtrip_signed =
+      (sign_bit == (1ull << 63)) ? -first_approx_roundtrip
+                                 : first_approx_roundtrip;
 
   double correction = i128_to_f64(x - first_approx_roundtrip_signed);
 
   return f128(first_approx, correction);
 };
 
-#include <string>
 #include <algorithm>
+#include <string>
 // Convert __uint128_t to decimal string
 std::string to_string_128(__uint128_t value) {
   if (value == 0)
@@ -371,6 +365,6 @@ std::string to_string_128(__uint128_t value) {
   // The digits are in reverse order, so reverse them
   std::reverse(result.begin(), result.end());
   return result;
-}// TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
+} // TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 
 #endif

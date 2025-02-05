@@ -1,35 +1,68 @@
+#!/usr/bin/env python3
 import sys
 
-def generate_twiddles(file_path):
+def parse_file(filename):
+    with open(filename, 'r') as f:
+        # Read all non-empty lines (you can also filter out comments if needed)
+        lines = [line.strip() for line in f if line.strip()]
+
+    # The first line is expected to be the count (e.g. "4096")
     try:
-        with open(file_path, "r") as file:
-            lines = file.readlines()
+        count = int(lines[0])
+    except ValueError:
+        sys.exit("Error: The first line must be an integer (the count of data lines).")
 
-        # Parse n
-        n_line = lines[0].strip()
-        n = int(n_line.split('=')[1].strip())
+    # Initialize lists for each twiddle array.
+    neg_twiddles_re_hi = []
+    neg_twiddles_re_lo = []
+    neg_twiddles_im_hi = []
+    neg_twiddles_im_lo = []
 
-        # Parse twiddle data
-        twiddles = []
-        for line in lines[1:]:
-            if "twid_re_hi" in line:
-                parts = line.split(':')[1].strip().split(',')
-                hex_val = parts[0].strip()
-                float_val = parts[1].strip()
-                twiddles.append((hex_val, float_val))
+    # Process each subsequent line.
+    for i, line in enumerate(lines[1:], start=1):
+        tokens = line.split()
+        if len(tokens) != 4:
+            sys.exit(f"Error on line {i+1}: expected 4 tokens, found {len(tokens)}.")
+        neg_twiddles_re_hi.append(tokens[0])
+        neg_twiddles_re_lo.append(tokens[1])
+        neg_twiddles_im_hi.append(tokens[2])
+        neg_twiddles_im_lo.append(tokens[3])
 
-        # Generate C++ code
-        cpp_code = f"double negtwiddles[{n}] = {{\n"
-        for hex_val, float_val in twiddles:
-            cpp_code += f"     {float_val},\n"
-        cpp_code += "};\n"
+    if len(neg_twiddles_re_hi) != count:
+        print(f"Warning: Count mismatch. Expected {count} entries but found {len(neg_twiddles_re_hi)}.")
+        count = len(neg_twiddles_re_hi)  # adjust count to the actual number of data lines
 
-        print(cpp_code)
-    except Exception as e:
-        print(f"Error: {e}")
+    return count, neg_twiddles_re_hi, neg_twiddles_re_lo, neg_twiddles_im_hi, neg_twiddles_im_lo
+
+def print_cpp_array(name, count, values, indent=4, per_line=4):
+    indent_str = " " * indent
+    print(f"__device__ double {name}[{count}] = {{")
+    for i, val in enumerate(values):
+        # Print a newline every 'per_line' entries.
+        if i % per_line == 0:
+            print(indent_str, end="")
+        print(val, end="")
+        if i != len(values) - 1:
+            print(", ", end="")
+        if (i + 1) % per_line == 0:
+            print("")
+    # If the last line wasn't completed, print a newline.
+    if len(values) % per_line != 0:
+        print("")
+    print("};\n")
+
+def main():
+    if len(sys.argv) != 2:
+        sys.exit("Usage: python3 generate_twiddles.py <input_file>")
+
+    filename = sys.argv[1]
+    count, re_hi, re_lo, im_hi, im_lo = parse_file(filename)
+
+    # Generate C++ arrays.
+    print_cpp_array("neg_twiddles_re_hi", count, re_hi)
+    print_cpp_array("neg_twiddles_re_lo", count, re_lo)
+    print_cpp_array("neg_twiddles_im_hi", count, im_hi)
+    print_cpp_array("neg_twiddles_im_lo", count, im_lo)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python generate_twiddles.py <file_path>")
-    else:
-        generate_twiddles(sys.argv[1])
+    main()
