@@ -631,7 +631,7 @@ impl ServerKey {
                     };
                     self.key.unchecked_scalar_add_assign(&mut result, corrector);
                     result.degree = crate::shortint::ciphertext::Degree::new(3);
-                };
+                }
 
                 result
             })

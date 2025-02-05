@@ -148,7 +148,7 @@ impl<'a> BitExtractor<'a> {
         } else {
             let iterator = blocks[..num_blocks_to_process].iter().cloned();
             self.buffer.extend(iterator);
-        };
+        }
 
         // We have to advance our internal iterator
         self.input_blocks = blocks[num_blocks_to_process..].iter();

@@ -898,7 +898,7 @@ mod experimental {
                     ShortintBootstrappingKey::MultiBit { .. } => {
                         return Err(WopbsKeyCreationError::UnsupportedMultiBit);
                     }
-                };
+                }
                 Ok(())
             }).unwrap();
 

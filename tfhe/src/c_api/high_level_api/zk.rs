@@ -92,7 +92,7 @@ pub unsafe extern "C" fn compact_pke_crs_safe_serialize(
             crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&wrapper.0, &mut buffer)
                 .unwrap();
-        };
+        }
 
         *result = buffer.into();
     })

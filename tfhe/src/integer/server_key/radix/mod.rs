@@ -624,7 +624,7 @@ impl ServerKey {
             } else {
                 let num_blocks_to_remove = current_num_blocks - target_num_blocks;
                 self.trim_radix_blocks_msb_assign(&mut ct_as_unsigned_radix, num_blocks_to_remove);
-            };
+            }
             ct_as_unsigned_radix.blocks
         };
 
@@ -702,7 +702,7 @@ impl ServerKey {
             } else {
                 let num_blocks_to_remove = current_num_blocks - target_num_blocks;
                 self.trim_radix_blocks_msb_assign(&mut ct_as_unsigned_radix, num_blocks_to_remove);
-            };
+            }
             ct_as_unsigned_radix.blocks
         };
 

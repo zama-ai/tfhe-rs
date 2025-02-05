@@ -182,7 +182,7 @@ impl CudaServerKey {
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign_async(ct, streams);
-        };
+        }
 
         self.unchecked_scalar_add_assign_async(ct, scalar, streams);
         let _carry = self.propagate_single_carry_assign_async(ct, streams, None, OutputFlag::None);

@@ -41,7 +41,7 @@ fn pad_sha256_data(data: &[u8]) -> Vec<bool> {
 
     // Calculate the number of padding zeros required
     let padding_zeros = (512 - ((bits.len() + 64) % 512)) % 512;
-    bits.extend(std::iter::repeat(false).take(padding_zeros));
+    bits.extend(std::iter::repeat_n(false, padding_zeros));
 
     // Append a 64-bit big-endian representation of the original message length
     let data_len_bits = (data.len() as u64) * 8;

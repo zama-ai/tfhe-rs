@@ -107,7 +107,7 @@ fn ends_with_cases<'a>(
                 let start = str_len - (pat_len - 1);
 
                 range = start..start + pat_len;
-            };
+            }
         }
 
         (true, true) => {

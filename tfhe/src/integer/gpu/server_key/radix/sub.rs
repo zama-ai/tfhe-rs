@@ -429,7 +429,7 @@ impl CudaServerKey {
                     uses_input_borrow,
                 );
             }
-        };
+        }
         ciphertext.info.blocks.iter_mut().for_each(|b| {
             b.degree = Degree::new(b.message_modulus.0 - 1);
             b.noise_level = NoiseLevel::NOMINAL;

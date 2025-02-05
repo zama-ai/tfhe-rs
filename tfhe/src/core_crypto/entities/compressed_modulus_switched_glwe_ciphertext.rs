@@ -178,9 +178,10 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedGlweCiphertext<Scalar> {
             .unpack()
             // Scaling
             .map(|a| a << (Scalar::BITS - log_modulus))
-            .chain(
-                std::iter::repeat(Scalar::ZERO).take(self.polynomial_size.0 - self.bodies_count.0),
-            )
+            .chain(std::iter::repeat_n(
+                Scalar::ZERO,
+                self.polynomial_size.0 - self.bodies_count.0,
+            ))
             .collect();
 
         GlweCiphertextOwned::from_container(

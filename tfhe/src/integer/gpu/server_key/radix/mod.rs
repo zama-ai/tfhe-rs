@@ -286,7 +286,7 @@ impl CudaServerKey {
                     uses_carry,
                 );
             }
-        };
+        }
         ciphertext.info.blocks.iter_mut().for_each(|b| {
             b.degree = Degree::new(b.message_modulus.0 - 1);
             b.noise_level = NoiseLevel::NOMINAL;
@@ -374,7 +374,7 @@ impl CudaServerKey {
                     uses_carry,
                 );
             }
-        };
+        }
         lhs.as_mut().info.blocks.iter_mut().for_each(|b| {
             b.degree = Degree::new(b.message_modulus.0 - 1);
             b.noise_level = NoiseLevel::NOMINAL;
@@ -435,7 +435,7 @@ impl CudaServerKey {
                         d_multibit_bsk.grouping_factor,
                     );
                 }
-            };
+            }
         }
         ciphertext.info.blocks.iter_mut().for_each(|b| {
             b.degree = Degree::new(b.message_modulus.0 - 1);
@@ -989,7 +989,7 @@ impl CudaServerKey {
                         d_multibit_bsk.grouping_factor,
                     );
                 }
-            };
+            }
         }
 
         for (i, info) in output.info.blocks[block_range].iter_mut().enumerate() {
@@ -1109,7 +1109,7 @@ impl CudaServerKey {
                         self.message_modulus.0 as u32,
                     );
                 }
-            };
+            }
         }
 
         for (i, info) in output.info.blocks[block_range].iter_mut().enumerate() {
@@ -1286,7 +1286,7 @@ impl CudaServerKey {
                     lut.sample_extraction_stride as u32,
                 );
             }
-        };
+        }
 
         let mut ciphertexts = Vec::<CudaRadixCiphertext>::with_capacity(function_count);
 
