@@ -956,6 +956,20 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSP
     println!("measured_pfail={measured_pfail}");
     println!("expected_pfail={expected_pfail}");
 
+    let equivalent_measured_pfail = equivalent_pfail_gaussian_noise(
+        new_precision_with_padding,
+        measured_pfail,
+        original_precision_with_padding,
+    );
+
+    println!("equivalent_measured_pfail={equivalent_measured_pfail}");
+    println!("original_expected_pfail  ={original_pfail}");
+    println!(
+        "equivalent_measured_pfail_log2={}",
+        equivalent_measured_pfail.log2()
+    );
+    println!("original_expected_pfail_log2  ={}", original_pfail.log2());
+
     if measured_fails > 0.0 {
         let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
             runs_for_expected_fails as f64,
@@ -963,13 +977,31 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSP
             0.99,
         );
 
+        let pfail_lower_bound = pfail_confidence_interval.lower_bound();
+        let pfail_upper_bound = pfail_confidence_interval.upper_bound();
+        println!("pfail_lower_bound={pfail_lower_bound}");
+        println!("pfail_upper_bound={pfail_upper_bound}");
+
+        let equivalent_pfail_lower_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_lower_bound,
+            original_precision_with_padding,
+        );
+        let equivalent_pfail_upper_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_upper_bound,
+            original_precision_with_padding,
+        );
+
+        println!("equivalent_pfail_lower_bound={equivalent_pfail_lower_bound}");
+        println!("equivalent_pfail_upper_bound={equivalent_pfail_upper_bound}");
         println!(
-            "pfail_lower_bound={}",
-            pfail_confidence_interval.lower_bound()
+            "equivalent_pfail_lower_bound_log2={}",
+            equivalent_pfail_lower_bound.log2()
         );
         println!(
-            "pfail_upper_bound={}",
-            pfail_confidence_interval.upper_bound()
+            "equivalent_pfail_upper_bound_log2={}",
+            equivalent_pfail_upper_bound.log2()
         );
 
         if measured_pfail <= expected_pfail {
@@ -1640,6 +1672,20 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
     println!("measured_pfail={measured_pfail}");
     println!("expected_pfail={expected_pfail}");
 
+    let equivalent_measured_pfail = equivalent_pfail_gaussian_noise(
+        new_precision_with_padding,
+        measured_pfail,
+        original_precision_with_padding,
+    );
+
+    println!("equivalent_measured_pfail={equivalent_measured_pfail}");
+    println!("original_expected_pfail  ={original_pfail}");
+    println!(
+        "equivalent_measured_pfail_log2={}",
+        equivalent_measured_pfail.log2()
+    );
+    println!("original_expected_pfail_log2  ={}", original_pfail.log2());
+
     if measured_fails > 0.0 {
         let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
             runs_for_expected_fails as f64,
@@ -1647,13 +1693,31 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
             0.99,
         );
 
+        let pfail_lower_bound = pfail_confidence_interval.lower_bound();
+        let pfail_upper_bound = pfail_confidence_interval.upper_bound();
+        println!("pfail_lower_bound={pfail_lower_bound}");
+        println!("pfail_upper_bound={pfail_upper_bound}");
+
+        let equivalent_pfail_lower_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_lower_bound,
+            original_precision_with_padding,
+        );
+        let equivalent_pfail_upper_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_upper_bound,
+            original_precision_with_padding,
+        );
+
+        println!("equivalent_pfail_lower_bound={equivalent_pfail_lower_bound}");
+        println!("equivalent_pfail_upper_bound={equivalent_pfail_upper_bound}");
         println!(
-            "pfail_lower_bound={}",
-            pfail_confidence_interval.lower_bound()
+            "equivalent_pfail_lower_bound_log2={}",
+            equivalent_pfail_lower_bound.log2()
         );
         println!(
-            "pfail_upper_bound={}",
-            pfail_confidence_interval.upper_bound()
+            "equivalent_pfail_upper_bound_log2={}",
+            equivalent_pfail_upper_bound.log2()
         );
 
         if measured_pfail <= expected_pfail {
@@ -2526,14 +2590,30 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
         })
         .unzip();
 
-    let sample_count = measured_fails_after_ap.len();
     let measured_fails_after_ap: f64 = measured_fails_after_ap.into_iter().flatten().sum();
-    let measured_pfail_after_ap = measured_fails_after_ap / (sample_count as f64);
+    let measured_pfail_after_ap = measured_fails_after_ap / (total_sample_count as f64);
 
     println!("measured_fails_after_ap={measured_fails_after_ap}");
     println!("measured_pfail_after_ap={measured_pfail_after_ap}");
     println!("expected_fails_after_ap={expected_fails_after_ap}");
     println!("expected_pfail_after_ap={expected_pfail_after_ap}");
+
+    let equivalent_measured_pfail_after_ap = equivalent_pfail_gaussian_noise(
+        new_precision_with_padding,
+        measured_pfail_after_ap,
+        original_precision_with_padding,
+    );
+
+    println!("equivalent_measured_pfail_after_ap={equivalent_measured_pfail_after_ap}");
+    println!("original_expected_pfail_after_ap  ={original_pfail}");
+    println!(
+        "equivalent_measured_pfail_after_ap_log2={}",
+        equivalent_measured_pfail_after_ap.log2()
+    );
+    println!(
+        "original_expected_pfail_after_ap_log2  ={}",
+        original_pfail.log2()
+    );
 
     if measured_fails_after_ap > 0.0 {
         let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
@@ -2542,13 +2622,31 @@ fn noise_check_shortint_pbs_compression_ap_pfail(
             0.99,
         );
 
+        let pfail_lower_bound = pfail_confidence_interval.lower_bound();
+        let pfail_upper_bound = pfail_confidence_interval.upper_bound();
+        println!("pfail_lower_bound={pfail_lower_bound}");
+        println!("pfail_upper_bound={pfail_upper_bound}");
+
+        let equivalent_pfail_lower_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_lower_bound,
+            original_precision_with_padding,
+        );
+        let equivalent_pfail_upper_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_upper_bound,
+            original_precision_with_padding,
+        );
+
+        println!("equivalent_pfail_lower_bound={equivalent_pfail_lower_bound}");
+        println!("equivalent_pfail_upper_bound={equivalent_pfail_upper_bound}");
         println!(
-            "pfail_lower_bound={}",
-            pfail_confidence_interval.lower_bound()
+            "equivalent_pfail_lower_bound_log2={}",
+            equivalent_pfail_lower_bound.log2()
         );
         println!(
-            "pfail_upper_bound={}",
-            pfail_confidence_interval.upper_bound()
+            "equivalent_pfail_upper_bound_log2={}",
+            equivalent_pfail_upper_bound.log2()
         );
 
         if measured_pfail_after_ap <= expected_pfail_after_ap {
@@ -2694,18 +2792,28 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail(
 
     // We want to estimate the pfail under the original modulus with the one under the modified
     // precision_used_during_compression
-    let equivalent_pfail_ms_storage = equivalent_pfail_gaussian_noise(
+    let equivalent_measured_pfail_ms_storage = equivalent_pfail_gaussian_noise(
         precision_used_during_compression,
         measured_pfail_after_ms_storage,
         1 + original_compression_cleartext_modulus.ilog2(),
     );
 
-    let equivalent_pfail_ms_storage_log2 = equivalent_pfail_ms_storage.log2();
+    let equivalent_measured_pfail_ms_storage_log2 = equivalent_measured_pfail_ms_storage.log2();
 
-    println!("equivalent_pfail_ms_storage={equivalent_pfail_ms_storage}");
-    println!("equivalent_pfail_ms_storage_log2={equivalent_pfail_ms_storage_log2}");
+    println!("equivalent_measured_pfail_ms_storage={equivalent_measured_pfail_ms_storage}");
+    println!(
+        "equivalent_measured_pfail_ms_storage_log2={equivalent_measured_pfail_ms_storage_log2}"
+    );
 
-    assert!(equivalent_pfail_ms_storage <= 2.0f64.powf(block_params_log2_pfail));
+    let original_pfail = 2.0f64.powf(block_params_log2_pfail);
+
+    println!("original_expected_pfail_after_ms_storage={original_pfail}");
+    println!(
+        "original_expected_pfail_after_after_ms_storage={}",
+        original_pfail.log2()
+    );
+
+    assert!(equivalent_measured_pfail_ms_storage <= 2.0f64.powf(block_params_log2_pfail));
 
     // if measured_fails_after_ms_storage > 0.0 {
     //     let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
@@ -3911,6 +4019,23 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
     println!("expected_fails_before_pbs_128={expected_fails_before_pbs_128}");
     println!("expected_pfail_before_pbs_128={expected_pfail_before_pbs_128}");
 
+    let equivalent_measured_pfail_before_pbs_128 = equivalent_pfail_gaussian_noise(
+        new_precision_with_padding,
+        measured_pfail_before_pbs_128,
+        original_precision_with_padding,
+    );
+
+    println!("equivalent_measured_pfail_before_pbs_128={equivalent_measured_pfail_before_pbs_128}");
+    println!("original_expected_pfail_before_pbs_128  ={original_pfail}");
+    println!(
+        "equivalent_measured_pfail_before_pbs_128_log2={}",
+        equivalent_measured_pfail_before_pbs_128.log2()
+    );
+    println!(
+        "original_expected_pfail_before_pbs_128_log2  ={}",
+        original_pfail.log2()
+    );
+
     if measured_fails_before_pbs_128 > 0.0 {
         let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
             total_sample_count as f64,
@@ -3918,13 +4043,31 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
             0.99,
         );
 
+        let pfail_lower_bound = pfail_confidence_interval.lower_bound();
+        let pfail_upper_bound = pfail_confidence_interval.upper_bound();
+        println!("pfail_lower_bound={pfail_lower_bound}");
+        println!("pfail_upper_bound={pfail_upper_bound}");
+
+        let equivalent_pfail_lower_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_lower_bound,
+            original_precision_with_padding,
+        );
+        let equivalent_pfail_upper_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_upper_bound,
+            original_precision_with_padding,
+        );
+
+        println!("equivalent_pfail_lower_bound={equivalent_pfail_lower_bound}");
+        println!("equivalent_pfail_upper_bound={equivalent_pfail_upper_bound}");
         println!(
-            "pfail_lower_bound={}",
-            pfail_confidence_interval.lower_bound()
+            "equivalent_pfail_lower_bound_log2={}",
+            equivalent_pfail_lower_bound.log2()
         );
         println!(
-            "pfail_upper_bound={}",
-            pfail_confidence_interval.upper_bound()
+            "equivalent_pfail_upper_bound_log2={}",
+            equivalent_pfail_upper_bound.log2()
         );
 
         if measured_pfail_before_pbs_128 <= expected_pfail_before_pbs_128 {
