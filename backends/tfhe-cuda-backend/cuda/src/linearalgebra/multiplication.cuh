@@ -90,10 +90,20 @@ host_cleartext_multiplication(cudaStream_t stream, uint32_t gpu_index,
 const int BLOCK_SIZE_GEMM = 64;
 const int THREADS_GEMM = 8;
 
+// Multiply matrices A, B of size (M, K), (K, N) respectively
+// with K as the inner dimension.
+//
+// A block of threads processeds blocks of size (BLOCK_SIZE_GEMM,
+// BLOCK_SIZE_GEMM) splitting them in multiple tiles: (BLOCK_SIZE_GEMM,
+// THREADS_GEMM)-shaped tiles of values from A, and a (THREADS_GEMM,
+// BLOCK_SIZE_GEMM)-shaped tiles of values from B.
+//
+// This code is adapted by generalizing the 1d block-tiling
+// kernel from https://github.com/siboehm/SGEMM_CUDA
+// to any matrix dimension
 template <typename Torus, typename TorusVec>
-__global__ void tgemmVectorize1(int M, int N, int K, 
-                                  const Torus *A, const Torus *B,
-                                  Torus *C) {
+__global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
+                      int stride_B, Torus *C) {
 
   const int BM = BLOCK_SIZE_GEMM;
   const int BN = BLOCK_SIZE_GEMM;
@@ -103,41 +113,51 @@ __global__ void tgemmVectorize1(int M, int N, int K,
   const uint cRow = blockIdx.y;
   const uint cCol = blockIdx.x;
 
-  //const uint totalResultsBlocktile = BM * BN;
-  // A thread is responsible for calculating TM elements in the blocktile
-  //const uint numThreadsBlocktile = totalResultsBlocktile / TM;
-
-  // each warp will calculate 32*TM elements, with 32 being the columnar dim.
   const int threadCol = threadIdx.x % BN;
   const int threadRow = threadIdx.x / BN;
 
-  // allocate space for the current blocktile in SMEM
+  // Allocate space for the current block tile in shared memory
   __shared__ Torus As[BM * BK];
   __shared__ Torus Bs[BK * BN];
 
-  // Move blocktile to beginning of A's row and B's column
+  // Initialize the pointers to the input blocks from A, B
+  // Tiles from these blocks are loaded to shared memory
   A += cRow * BM * K;
   B += cCol * BN;
-  C += cRow * BM * N + cCol * BN;
 
-  const uint innerColA = threadIdx.x % BK; // warp-level GMEM coalescing
+  // Each thread will handle multiple sub-blocks
+  const uint innerColA = threadIdx.x % BK;
   const uint innerRowA = threadIdx.x / BK;
-  const uint innerColB = threadIdx.x % BN; // warp-level GMEM coalescing
+  const uint innerColB = threadIdx.x % BN;
   const uint innerRowB = threadIdx.x / BN;
 
   // allocate thread-local cache for results in registerfile
   Torus threadResults[TM] = {0};
 
-  // outer loop over block tiles
-  for (uint bkIdx = 0; bkIdx < K; bkIdx += BK) {
-    // populate the SMEM caches
-    As[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
-    Bs[innerRowB * BN + innerColB] = B[innerRowB * N + innerColB];
-    __syncthreads();
+  auto row_A = cRow * BM + innerRowA;
+  auto col_B = cCol * BN + innerColB;
 
-    // advance blocktile
+  // For each thread, loop over block tiles
+  for (uint bkIdx = 0; bkIdx < K; bkIdx += BK) {
+    auto col_A = bkIdx + innerColA;
+    auto row_B = bkIdx + innerRowB;
+
+    if (row_A < M && col_A < K) {
+      As[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
+    } else {
+      As[innerRowA * BK + innerColA] = 0;
+    }
+
+    if (col_B < N && row_B < K) {
+      Bs[innerRowB * BN + innerColB] = B[innerRowB * stride_B + innerColB];
+    } else {
+      Bs[innerRowB * BN + innerColB] = 0;
+    }
+    synchronize_threads_in_block();
+
+    // Advance blocktile for the next iteration of this loop
     A += BK;
-    B += BK * N;
+    B += BK * stride_B;
 
     // calculate per-thread results
     for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
@@ -149,13 +169,26 @@ __global__ void tgemmVectorize1(int M, int N, int K,
             As[(threadRow * TM + resIdx) * BK + dotIdx] * tmp;
       }
     }
-    __syncthreads();
+    synchronize_threads_in_block();
   }
+
+  // Initialize the pointer to the output block of size (BLOCK_SIZE_GEMM,
+  // BLOCK_SIZE_GEMM)
+  C += cRow * BM * N + cCol * BN;
 
   // write out the results
   for (uint resIdx = 0; resIdx < TM; ++resIdx) {
-    C[(threadRow * TM + resIdx) * N + threadCol] = threadResults[resIdx];
+    int outRow = cRow * BM + threadRow * TM + resIdx;
+    int outCol = cCol * BN + threadCol;
+
+    if (outRow >= M)
+      continue;
+    if (outCol >= N)
+      continue;
+
+    C[(threadRow * TM + resIdx) * N + threadCol] += threadResults[resIdx];
   }
 }
+
 
 #endif // CUDA_MULT_H

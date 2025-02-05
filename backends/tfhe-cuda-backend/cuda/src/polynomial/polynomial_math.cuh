@@ -199,7 +199,7 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
   dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
   uint32_t sharedMemSize = BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
   tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
-      polynomial_size, polynomial_size, polynomial_size, circulant, poly_rhs, result
+      polynomial_size, polynomial_size, polynomial_size, circulant, poly_rhs, polynomial_size, result
   );
   check_cuda_error(cudaGetLastError());  
 

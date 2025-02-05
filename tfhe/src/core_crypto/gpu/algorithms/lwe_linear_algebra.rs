@@ -8,6 +8,7 @@ use crate::core_crypto::gpu::{
     negate_lwe_ciphertext_vector_assign_async, negate_lwe_ciphertext_vector_async, CudaStreams,
 };
 use crate::core_crypto::prelude::UnsignedInteger;
+use tfhe_cuda_backend::bindings::cuda_wrapping_polynomial_mul_one_to_many_64;
 
 /// # Safety
 ///
@@ -392,13 +393,13 @@ pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
 
     unsafe {
         cuda_wrapping_polynomial_mul_one_to_many_64(
-            stream,
-            0,
-            out,
-            lhs,
-            rhs,
-            lhs.len(),
-            rhs.len() / lhs.len(),
+            stream.ptr[0],
+            stream.gpu_indexes[0].0,
+            out.as_mut_c_ptr(0),
+            lhs.as_c_ptr(0),
+            rhs.as_c_ptr(0),
+            lhs.len() as u32,
+            (rhs.len() / lhs.len()) as u32,
         );
     }
 
