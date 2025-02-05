@@ -38,36 +38,14 @@ __host__ void host_integer_radix_scalar_bitop_kb(
                              num_clear_blocks * sizeof(Torus), streams[0],
                              gpu_indexes[0]);
     if (mem_ptr->op == BITOP_TYPE::SCALAR_BITAND) {
-      for (uint i = 0; i < num_clear_blocks; i++) {
-        degrees[i] = std::min(clear_degrees[i], input->degrees[i]);
-      }
+      update_degrees_after_scalar_bitand(degrees, clear_degrees, input->degrees,
+                                         num_clear_blocks);
     } else if (mem_ptr->op == BITOP_TYPE::SCALAR_BITOR) {
-      for (uint i = 0; i < num_clear_blocks; i++) {
-        auto max = std::max(clear_degrees[i], input->degrees[i]);
-        auto min = std::min(clear_degrees[i], input->degrees[i]);
-        auto result = max;
-
-        for (uint j = 0; j < min + 1; j++) {
-          if (max | j > result) {
-            result = max | j;
-          }
-        }
-        degrees[i] = result;
-      }
+      update_degrees_after_scalar_bitor(degrees, clear_degrees, input->degrees,
+                                        num_clear_blocks);
     } else if (mem_ptr->op == SCALAR_BITXOR) {
-      for (uint i = 0; i < num_clear_blocks; i++) {
-        auto max = std::max(clear_degrees[i], input->degrees[i]);
-        auto min = std::min(clear_degrees[i], input->degrees[i]);
-        auto result = max;
-
-        // Try every possibility to find the worst case
-        for (uint j = 0; j < min + 1; j++) {
-          if (max ^ j > result) {
-            result = max ^ j;
-          }
-        }
-        degrees[i] = result;
-      }
+      update_degrees_after_scalar_bitxor(degrees, clear_degrees, input->degrees,
+                                         num_clear_blocks);
     }
     cuda_memcpy_async_gpu_to_gpu(lut->get_lut_indexes(0, 0), clear_blocks,
                                  num_clear_blocks * sizeof(Torus), streams[0],

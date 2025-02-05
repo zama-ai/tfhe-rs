@@ -22,36 +22,17 @@ __host__ void host_integer_radix_bitop_kb(
   auto lut = mem_ptr->lut;
   uint64_t degrees[lwe_array_1->num_radix_blocks];
   if (mem_ptr->op == BITOP_TYPE::BITAND) {
-    for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-      degrees[i] = std::min(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
-    }
+    update_degrees_after_bitand(degrees, lwe_array_1->degrees,
+                                lwe_array_2->degrees,
+                                lwe_array_1->num_radix_blocks);
   } else if (mem_ptr->op == BITOP_TYPE::BITOR) {
-    for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-      auto max = std::max(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
-      auto min = std::min(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
-      auto result = max;
-
-      for (uint j = 0; j < min + 1; j++) {
-        if (max | j > result) {
-          result = max | j;
-        }
-      }
-      degrees[i] = result;
-    }
+    update_degrees_after_bitor(degrees, lwe_array_1->degrees,
+                               lwe_array_2->degrees,
+                               lwe_array_1->num_radix_blocks);
   } else if (mem_ptr->op == BITXOR) {
-    for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-      auto max = std::max(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
-      auto min = std::min(lwe_array_1->degrees[i], lwe_array_2->degrees[i]);
-      auto result = max;
-
-      // Try every possibility to find the worst case
-      for (uint j = 0; j < min + 1; j++) {
-        if (max ^ j > result) {
-          result = max ^ j;
-        }
-      }
-      degrees[i] = result;
-    }
+    update_degrees_after_bitxor(degrees, lwe_array_1->degrees,
+                                lwe_array_2->degrees,
+                                lwe_array_1->num_radix_blocks);
   }
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(

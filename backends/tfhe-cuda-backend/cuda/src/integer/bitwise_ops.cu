@@ -41,3 +41,50 @@ void cleanup_cuda_integer_bitop(void *const *streams,
       (int_bitop_buffer<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
 }
+
+void update_degrees_after_bitand(uint64_t *output_degrees,
+                                 uint64_t *lwe_array_1_degrees,
+                                 uint64_t *lwe_array_2_degrees,
+                                 uint32_t num_radix_blocks) {
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    output_degrees[i] =
+        std::min(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
+  }
+}
+
+void update_degrees_after_bitor(uint64_t *output_degrees,
+                                uint64_t *lwe_array_1_degrees,
+                                uint64_t *lwe_array_2_degrees,
+                                uint32_t num_radix_blocks) {
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    auto max = std::max(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
+    auto min = std::min(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
+    auto result = max;
+
+    for (uint j = 0; j < min + 1; j++) {
+      if (max | j > result) {
+        result = max | j;
+      }
+    }
+    output_degrees[i] = result;
+  }
+}
+
+void update_degrees_after_bitxor(uint64_t *output_degrees,
+                                 uint64_t *lwe_array_1_degrees,
+                                 uint64_t *lwe_array_2_degrees,
+                                 uint32_t num_radix_blocks) {
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    auto max = std::max(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
+    auto min = std::min(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
+    auto result = max;
+
+    // Try every possibility to find the worst case
+    for (uint j = 0; j < min + 1; j++) {
+      if (max ^ j > result) {
+        result = max ^ j;
+      }
+    }
+    output_degrees[i] = result;
+  }
+}
