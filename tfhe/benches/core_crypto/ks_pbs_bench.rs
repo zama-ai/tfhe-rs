@@ -479,6 +479,16 @@ fn multi_bit_ks_pbs<
             );
         let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
 
+        let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+            &output_lwe_secret_key,
+            &input_lwe_secret_key,
+            params.ks_base_log.unwrap(),
+            params.ks_level.unwrap(),
+            params.lwe_noise_distribution.unwrap(),
+            params.ciphertext_modulus.unwrap(),
+            &mut encryption_generator,
+        );
+
         let multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
             params.lwe_dimension.unwrap(),
             params.glwe_dimension.unwrap().to_glwe_size(),
@@ -489,12 +499,18 @@ fn multi_bit_ks_pbs<
         );
 
         // Allocate a new LweCiphertext and encrypt our plaintext
-        let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
-            &input_lwe_secret_key,
-            Plaintext(Scalar::ZERO),
+        let input_ks_ct: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+            &output_lwe_secret_key,
+            Plaintext(Scalar::ONE),
             params.lwe_noise_distribution.unwrap(),
             params.ciphertext_modulus.unwrap(),
             &mut encryption_generator,
+        );
+
+        let mut output_ks_ct: LweCiphertextOwned<Scalar> = LweCiphertext::new(
+            Scalar::ZERO,
+            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            params.ciphertext_modulus.unwrap(),
         );
 
         let accumulator = GlweCiphertext::new(
@@ -505,7 +521,7 @@ fn multi_bit_ks_pbs<
         );
 
         // Allocate the LweCiphertext to store the result of the PBS
-        let mut out_pbs_ct = LweCiphertext::new(
+        let mut output_pbs_ct = LweCiphertext::new(
             Scalar::ZERO,
             output_lwe_secret_key.lwe_dimension().to_lwe_size(),
             params.ciphertext_modulus.unwrap(),
@@ -520,15 +536,16 @@ fn multi_bit_ks_pbs<
         let id = format!("{bench_name}::{name}::parallelized");
         bench_group.bench_function(&id, |b| {
             b.iter(|| {
+                keyswitch_lwe_ciphertext(&ksk_big_to_small, &input_ks_ct, &mut output_ks_ct);
                 multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &lwe_ciphertext_in,
-                    &mut out_pbs_ct,
+                    &output_ks_ct,
+                    &mut output_pbs_ct,
                     &accumulator.as_view(),
                     &multi_bit_bsk,
                     ThreadCount(thread_count),
                     false,
                 );
-                black_box(&mut out_pbs_ct);
+                black_box(&mut output_pbs_ct);
             })
         });
 
