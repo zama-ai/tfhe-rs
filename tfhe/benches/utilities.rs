@@ -119,6 +119,8 @@ pub mod shortint_utils {
                         .try_to()
                         .expect("failed to convert ciphertext modulus"),
                 ),
+                modulus_switch_noise_reduction_params: params
+                    .modulus_switch_noise_reduction_params(),
                 ..Default::default()
             }
         }
@@ -223,6 +225,7 @@ pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub ciphertext_modulus: Option<CiphertextModulus<Scalar>>,
     pub lwe_per_glwe: Option<LweCiphertextCount>,
     pub storage_log_modulus: Option<CiphertextModulusLog>,
+    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
 }
 
 impl<Scalar: UnsignedInteger> CryptoParametersRecord<Scalar> {
@@ -546,6 +549,7 @@ pub fn multi_bit_num_threads(
 #[allow(unused_imports)]
 #[cfg(feature = "integer")]
 pub use integer_utils::*;
+use tfhe::shortint::server_key::ModulusSwitchNoiseReductionParams;
 use tfhe::shortint::{CarryModulus, MessageModulus};
 
 // Empty main to please clippy.

@@ -23,6 +23,7 @@ pub const V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80: ClassicPBSParameter
         log2_p_fail: -80.097,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
+        modulus_switch_noise_reduction_params: None,
     };
 // p-fail = 2^-80.039, algorithmic cost ~ 120, 2-norm = 5
 pub const V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80: ClassicPBSParameters =
@@ -46,6 +47,7 @@ pub const V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80: ClassicPBSParameter
         log2_p_fail: -80.039,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
+        modulus_switch_noise_reduction_params: None,
     };
 // p-fail = 2^-81.27, algorithmic cost ~ 1727, 2-norm = 9
 pub const V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80: ClassicPBSParameters =
@@ -69,6 +71,7 @@ pub const V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80: ClassicPBSParameter
         log2_p_fail: -81.27,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
+        modulus_switch_noise_reduction_params: None,
     };
 // p-fail = 2^-80.07, algorithmic cost ~ 11510, 2-norm = 17
 pub const V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80: ClassicPBSParameters =
@@ -92,4 +95,5 @@ pub const V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80: ClassicPBSParameter
         log2_p_fail: -80.07,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
+        modulus_switch_noise_reduction_params: None,
     };

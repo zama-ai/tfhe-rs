@@ -440,6 +440,17 @@ impl PBSParameters {
         }
     }
 
+    pub const fn modulus_switch_noise_reduction_params(
+        &self,
+    ) -> Option<ModulusSwitchNoiseReductionParams> {
+        match self {
+            Self::PBS(params) => params.modulus_switch_noise_reduction_params,
+            Self::MultiBitPBS(_) => panic!(
+                "PBSParameters::MultiBitPBS does not have a ModulusSwitchNoiseReductionParams"
+            ),
+        }
+    }
+
     pub const fn is_pbs(&self) -> bool {
         matches!(self, Self::PBS(_))
     }

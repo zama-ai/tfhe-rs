@@ -25,38 +25,38 @@ use tfhe::shortint::parameters::*;
 //     V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
 // ];
 
-const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 16] = [
-    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
-    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
-    V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
-    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
-    V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
-    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
-    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
-    V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M80,
+const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 4] = [
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40,
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M80,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M80,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M80,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M80,
     V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
     V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
     V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
 ];
 
-const SHORTINT_BENCH_PARAMS_GAUSSIAN: [ClassicPBSParameters; 16] = [
-    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
-    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
-    V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
-    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
-    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
-    V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
+const SHORTINT_BENCH_PARAMS_GAUSSIAN: [ClassicPBSParameters; 4] = [
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40,
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    // V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80,
+    // V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80,
+    // V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80,
+    // V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80,
     V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
@@ -388,7 +388,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         );
 
         // Allocate a new LweCiphertext and encrypt our plaintext
-        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+        let mut lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
             &input_lwe_secret_key,
             Plaintext(Scalar::ZERO),
             params.lwe_noise_distribution.unwrap(),
@@ -425,10 +425,44 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             .unaligned_bytes_required(),
         );
 
+        let ModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count: count,
+            ms_bound,
+            ms_r_sigma_factor,
+        } = params.modulus_switch_noise_reduction_params.unwrap();
+
+        let lwe_size = input_lwe_secret_key.lwe_dimension().to_lwe_size();
+
+        let mut modulus_switch_zeros = LweCiphertextList::new(
+            Scalar::ZERO,
+            lwe_size,
+            count,
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(count.0));
+
+        encrypt_lwe_ciphertext_list(
+            &input_lwe_secret_key,
+            &mut modulus_switch_zeros,
+            &plaintext_list,
+            params.lwe_noise_distribution.unwrap(),
+            &mut encryption_generator,
+        );
+
         let id = format!("{bench_name}::{name}");
         {
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
+                    improve_lwe_ciphertext_modulus_switch_noise_for_binary_key(
+                        &mut lwe_ciphertext_in,
+                        &modulus_switch_zeros,
+                        ms_r_sigma_factor,
+                        ms_bound,
+                        fourier_bsk
+                            .polynomial_size()
+                            .to_blind_rotation_input_modulus_log(),
+                    );
                     programmable_bootstrap_lwe_ciphertext_mem_optimized(
                         &lwe_ciphertext_in,
                         &mut out_pbs_ct,
@@ -1713,6 +1747,8 @@ use cuda::{
     cuda_multi_bit_pbs_group, cuda_multi_bit_pbs_throughput_group, cuda_pbs_group,
     cuda_pbs_throughput_group,
 };
+use tfhe::core_crypto::algorithms::modulus_switch_noise_reduction::improve_lwe_ciphertext_modulus_switch_noise_for_binary_key;
+use tfhe::shortint::server_key::ModulusSwitchNoiseReductionParams;
 
 pub fn pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
@@ -1735,7 +1771,7 @@ pub fn pbs_throughput_group() {
 }
 
 #[cfg(not(feature = "gpu"))]
-criterion_main!(multi_bit_pbs_group);
+criterion_main!(pbs_group);
 // criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
 #[cfg(feature = "gpu")]
 criterion_main!(
