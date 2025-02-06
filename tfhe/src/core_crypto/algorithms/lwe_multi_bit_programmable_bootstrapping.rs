@@ -2441,7 +2441,8 @@ where
                 fft,
             )
             .unwrap()
-            .unaligned_bytes_required(),
+            .unaligned_bytes_required()
+                * 10,
         );
 
         let mut src_idx = 1usize;
