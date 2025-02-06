@@ -4,7 +4,7 @@
 //! underlying `core_crypto` module.
 
 use super::prelude::LweDimension;
-use super::{CiphertextModulus, PaddingBit, ShortintEncoding};
+use super::{PaddingBit, ShortintEncoding};
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
@@ -12,8 +12,9 @@ use crate::core_crypto::commons::generators::{
 #[cfg(feature = "zk-pok")]
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder};
+use crate::core_crypto::commons::parameters::CiphertextModulus;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{ContainerMut, GlweSize};
+use crate::core_crypto::prelude::{ContainerMut, GlweSize, UnsignedInteger};
 use crate::core_crypto::seeders::new_seeder;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
 use crate::shortint::prelude::PolynomialSize;
@@ -31,27 +32,47 @@ thread_local! {
     static LOCAL_ENGINE: RefCell<ShortintEngine> = RefCell::new(ShortintEngine::new());
 }
 
+/// A buffer used to stored intermediate ciphertexts within an atomic pattern, to reduce the number
+/// of allocations
 #[derive(Default)]
 struct CiphertextBuffer {
-    buffer: Vec<u64>,
+    // This buffer will be converted when needed into temporary lwe ciphertexts, eventually by
+    // splitting u128 blocks into smaller scalars
+    buffer: Vec<u128>,
 }
 
 impl CiphertextBuffer {
-    fn as_lwe(
+    fn as_lwe<Scalar>(
         &mut self,
         dim: LweDimension,
-        ciphertext_modulus: CiphertextModulus,
-    ) -> LweCiphertextMutView<'_, u64> {
-        let required_size = dim.to_lwe_size().0;
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> LweCiphertextMutView<'_, Scalar>
+    where
+        Scalar: UnsignedInteger,
+    {
+        let elems_per_block = 128 / Scalar::BITS;
 
-        let buffer = if self.buffer.len() < required_size {
-            self.buffer.resize(required_size, 0u64);
+        let required_elems = dim.to_lwe_size().0;
+
+        // Round up to have a full number of blocks
+        let required_blocks = required_elems.div_ceil(elems_per_block);
+
+        let buffer = if self.buffer.len() < required_blocks {
+            self.buffer.resize(required_blocks, 0u128);
             self.buffer.as_mut_slice()
         } else {
-            &mut self.buffer[..required_size]
+            &mut self.buffer[..required_blocks]
         };
 
-        LweCiphertextMutView::from_container(buffer, ciphertext_modulus)
+        // This should not panic as long as `Scalar::BITS` is a divisor of 128
+        let buffer = bytemuck::try_cast_slice_mut(buffer).unwrap_or_else(|_| {
+            panic!(
+                "Scalar of size {} are not supported by the shortint engine",
+                Scalar::BITS
+            )
+        });
+
+        LweCiphertextMutView::from_container(&mut buffer[..required_elems], ciphertext_modulus)
     }
 }
 
@@ -324,14 +345,17 @@ impl ShortintEngine {
     ///
     /// - Ciphertext buffer for intermediate results within an atomic pattern
     /// - [`ComputationBuffers`] used by the FFT during the PBS
-    pub fn get_buffers(
+    pub fn get_buffers<Scalar>(
         &mut self,
         lwe_dimension: LweDimension,
-        ciphertext_modulus: CiphertextModulus,
-    ) -> (LweCiphertextMutView<'_, u64>, &mut ComputationBuffers) {
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> (LweCiphertextMutView<'_, Scalar>, &mut ComputationBuffers)
+    where
+        Scalar: UnsignedInteger,
+    {
         (
             self.ciphertext_buffers
-                .as_lwe(lwe_dimension, ciphertext_modulus),
+                .as_lwe::<Scalar>(lwe_dimension, ciphertext_modulus),
             &mut self.computation_buffers,
         )
     }
