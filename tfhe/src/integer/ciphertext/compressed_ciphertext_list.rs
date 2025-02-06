@@ -64,9 +64,10 @@ impl CompressedCiphertextListBuilder {
     {
         let n = self.ciphertexts.len();
         let kind = data.compress_into(&mut self.ciphertexts);
-        assert_eq!(n + kind.num_blocks(), self.ciphertexts.len());
+        let message_modulus = self.ciphertexts.last().unwrap().message_modulus;
+        assert_eq!(n + kind.num_blocks(message_modulus), self.ciphertexts.len());
 
-        if kind.num_blocks() != 0 {
+        if kind.num_blocks(message_modulus) != 0 {
             self.info.push(kind);
         }
 
@@ -118,14 +119,15 @@ impl CompressedCiphertextList {
     ) -> Option<(Vec<Ciphertext>, DataKind)> {
         let preceding_infos = self.info.get(..index)?;
         let current_info = self.info.get(index).copied()?;
+        let message_modulus = self.packed_list.message_modulus;
 
         let start_block_index: usize = preceding_infos
             .iter()
             .copied()
-            .map(DataKind::num_blocks)
+            .map(|kind| kind.num_blocks(message_modulus))
             .sum();
 
-        let end_block_index = start_block_index + current_info.num_blocks();
+        let end_block_index = start_block_index + current_info.num_blocks(message_modulus);
 
         Some((
             (start_block_index..end_block_index)
