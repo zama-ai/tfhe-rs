@@ -14,6 +14,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_2_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
@@ -22,6 +23,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_2_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -36,6 +38,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     (1_f64 / 2.0)
@@ -56,7 +59,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
             + (0.00161646632509532
-                * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                 * decomposition_base.powf(2.0)
                 * decomposition_level_count.powf(1.77234652499817)
                 * modulus.powf(-2.0)
@@ -65,7 +68,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
                 * (output_glwe_dimension + 1.0).powf(1.77234652499817))
             .min(
                 (0.0359920092044659
-                    * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                    * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                     * decomposition_base.powf(2.0)
                     * decomposition_level_count.powf(1.13417603503624)
                     * modulus.powf(-2.0)
@@ -83,7 +86,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
                                         .ln())
                             * (decomposition_level_count + 1.0).recip())
                         .exp2()
-                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                         * decomposition_level_count.powf(1.77234652499817)
                         * modulus.powf(-2.0)
                         * output_glwe_dimension
@@ -104,6 +107,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
@@ -112,6 +116,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -126,6 +131,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     (1_f64 / 3.0)
@@ -146,7 +152,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
             + (0.00199266437277764
-                * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                 * decomposition_base.powf(2.0)
                 * decomposition_level_count.powf(1.56465014441664)
                 * modulus.powf(-2.0)
@@ -155,7 +161,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
                 * (output_glwe_dimension + 1.0).powf(1.56465014441664))
             .min(
                 (0.0871692998932619
-                    * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                    * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                     * decomposition_base.powf(2.0)
                     * decomposition_level_count.powf(1.10016173309229)
                     * modulus.powf(-2.0)
@@ -173,7 +179,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
                                         .ln())
                             * (decomposition_level_count + 1.0).recip())
                         .exp2()
-                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                         * decomposition_level_count.powf(1.56465014441664)
                         * modulus.powf(-2.0)
                         * output_glwe_dimension
@@ -194,6 +200,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
@@ -202,6 +209,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -216,6 +224,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     (1_f64 / 4.0)
@@ -236,7 +245,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
             + (0.00783734686643254
-                * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                 * decomposition_base.powf(2.0)
                 * decomposition_level_count.powf(1.4448158032271)
                 * modulus.powf(-2.0)
@@ -245,7 +254,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
                 * (output_glwe_dimension + 1.0).powf(1.4448158032271))
             .min(
                 (0.219460209700405
-                    * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                    * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                     * decomposition_base.powf(2.0)
                     * decomposition_level_count.powf(1.12084795039463)
                     * modulus.powf(-2.0)
@@ -263,7 +272,7 @@ pub fn pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
                                         .ln())
                             * (decomposition_level_count + 1.0).recip())
                         .exp2()
-                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                         * decomposition_level_count.powf(1.4448158032271)
                         * modulus.powf(-2.0)
                         * output_glwe_dimension
@@ -284,6 +293,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_2_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_tuniform_gf_2_fft_mul_impl(
@@ -292,6 +302,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_2_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -306,6 +317,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_2_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     1e42 + //TODO FIXME
@@ -333,14 +345,14 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_2_fft_mul_impl(
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
             + (
-                3.4 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                3.4 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                     * decomposition_base.powf(2.0)
                     * decomposition_level_count
                     * modulus.powf(-2.0)
                     * output_glwe_dimension
                     * output_polynomial_size.powf(2.0)
                     * (output_glwe_dimension + 1.0))
-            .min(( 0.18 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+            .min(( 0.18 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                         * decomposition_base.powf(2.0)
                         * decomposition_level_count
                         * modulus.powf(-2.0)
@@ -355,7 +367,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_2_fft_mul_impl(
                                 .ln())
                         * (decomposition_level_count + 1.0).recip())
                     .exp2()
-                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                         * decomposition_level_count
                         * modulus.powf(-2.0)
                         * output_glwe_dimension
@@ -376,6 +388,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_tuniform_gf_3_fft_mul_impl(
@@ -384,6 +397,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -398,6 +412,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_3_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     1e42 + //TODO FIXME
@@ -424,14 +439,14 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_3_fft_mul_impl(
                 * (0.0208333333333333 * modulus.powf(-2.0)
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + ( 5.2 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+            + ( 5.2 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                     * decomposition_base.powf(2.0)
                     * decomposition_level_count
                     * modulus.powf(-2.0)
                     * output_glwe_dimension
                     * output_polynomial_size.powf(2.0)
                     * (output_glwe_dimension + 1.0))
-            .min(( 0.36 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+            .min(( 0.36 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                         * decomposition_base.powf(2.0)
                         * decomposition_level_count
                         * modulus.powf(-2.0)
@@ -446,7 +461,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_3_fft_mul_impl(
                                 .ln())
                         * (decomposition_level_count + 1.0).recip())
                     .exp2()
-                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                         * decomposition_level_count
                         * modulus.powf(-2.0)
                         * output_glwe_dimension
@@ -467,6 +482,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
     Variance(pbs_variance_132_bits_security_tuniform_gf_4_fft_mul_impl(
@@ -475,6 +491,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -489,6 +506,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_4_fft_mul_impl(
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     1e42 + //TODO FIXME
@@ -515,14 +533,14 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_4_fft_mul_impl(
                 * (0.0208333333333333 * modulus.powf(-2.0)
                     + 0.0416666666666667
                         * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + ( 8.6 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+            + ( 8.6 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                     * decomposition_base.powf(2.0)
                     * decomposition_level_count
                     * modulus.powf(-2.0)
                     * output_glwe_dimension
                     * output_polynomial_size.powf(2.0)
                     * (output_glwe_dimension + 1.0))
-            .min((  0.8 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+            .min((  0.8 * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                         * decomposition_base.powf(2.0)
                         * decomposition_level_count
                         * modulus.powf(-2.0)
@@ -537,7 +555,7 @@ pub fn pbs_variance_132_bits_security_tuniform_gf_4_fft_mul_impl(
                                 .ln())
                         * (decomposition_level_count + 1.0).recip())
                     .exp2()
-                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - 53.0)).exp2()
+                        * (2.0 * 0.0_f64.max(1.44269504088896 * modulus.ln() - mantissa_size)).exp2()
                         * decomposition_level_count
                         * modulus.powf(-2.0)
                         * output_glwe_dimension

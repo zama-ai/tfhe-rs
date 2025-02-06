@@ -24,6 +24,7 @@ const RELATIVE_TOLERANCE: f64 = 0.0625;
 const NB_TESTS: usize = 5;
 const EXP_NAME: &str = "u64-u128"; // wide-search-2000-gauss   gpu-gauss   gpu-tuniform
 
+#[derive(Clone, Debug)]
 enum MultiBitFourierBsk {
     F64(FourierLweMultiBitBootstrapKeyOwned),
     F128(Fourier128LweMultiBitBootstrapKeyOwned),
@@ -66,17 +67,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
         ciphertext_modulus.get_custom_modulus() as f64
     };
 
-    let (expected_variance_kara, expected_variance_fft) = noise_prediction_kara_fft(params);
-
-    // 3 sigma                            > half   interval size (msg-mod    +    padding bit)
-    if 3.0 * expected_variance_fft.0.sqrt()
-        > 0.5 / (2usize.pow(message_modulus_log.0 as u32 + 1) as f64)
-    {
-        return;
-    }
-
     // output predicted noises to JSON
-    export_noise_predictions(params);
+    export_noise_predictions::<Scalar>(params);
     if !run_measurements {
         return;
     }
@@ -248,6 +240,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
                     ciphertext_modulus,
                 );
 
+                // Karatsuba functions support both u64 & u128
                 let karatsuba_noise = karatsuba_multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &lwe_ciphertext_in,
                     &mut karatsuba_out_ct,
@@ -261,7 +254,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
                     )),
                 );
 
-                let filename_kara = format!("./results/{EXP_NAME}/samples/kara-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
+                let filename_kara = format!("./results/{EXP_NAME}/samples/kara-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro={}-logQ={}.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0, distro, Scalar::BITS);
 
                 let filename_kara_path: PathBuf = filename_kara.as_str().into();
                 let filename_kara_parent = filename_kara_path.parent().unwrap();
@@ -307,7 +300,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
                     ciphertext_modulus,
                 );
 
-                //TODO multi_bit_programmable_bootstrap_f128_lwe_ciphertext_return_noise
+                // different FFT functions for u64 & u128
                 let fft_noise = match &fbsk {
                     MultiBitFourierBsk::F64(fbsk) =>
                         multi_bit_programmable_bootstrap_lwe_ciphertext_return_noise(
@@ -338,7 +331,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
                         ),
                 };
 
-                let filename_fft = format!("./results/{EXP_NAME}/samples/fft-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro={distro}.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0);
+                let filename_fft = format!("./results/{EXP_NAME}/samples/fft-id={thread_id}-gf={}-logB={}-l={}-k={}-N={}-distro={}-logQ={}.npy", grouping_factor.0, pbs_decomposition_base_log.0, pbs_decomposition_level_count.0, glwe_dimension.0, polynomial_size.0, distro, Scalar::BITS);
 
                 let filename_fft_path: PathBuf = filename_fft.as_str().into();
                 let filename_fft_parent = filename_fft_path.parent().unwrap();
@@ -423,27 +416,25 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
         noise_samples_fft.extend(current_run_samples_kara_fft.into_iter().map(|s| s.1));
     }
 
-    let measured_variance_fft = variance(&noise_samples_fft);
-    let measured_variance_kara = variance(&noise_samples_kara);
-
-        let output_lwe_dimension = match &fbsk {
-            MultiBitFourierBsk::F64(k) => k.output_lwe_dimension(),
-            MultiBitFourierBsk::F128(k) => k.output_lwe_dimension(),
-        };
-
-    //TODO add TUniform
-    let minimal_variance = minimal_lwe_variance_for_132_bits_security_gaussian(
-        output_lwe_dimension,
-        if ciphertext_modulus.is_native_modulus() {
-            2.0f64.powi(Scalar::BITS as i32)
-        } else {
-            ciphertext_modulus.get_custom_modulus() as f64
-        },
-    );
-
     println!("Finished parameters {params:?}");
 
+    //TODO write these values somewhere?
+    //~ let measured_variance_fft = variance(&noise_samples_fft);
+    //~ let measured_variance_kara = variance(&noise_samples_kara);
+
     //TODO uncomment, at some point
+    //~ let output_lwe_dimension = match &fbsk {
+        //~ MultiBitFourierBsk::F64(k) => k.output_lwe_dimension(),
+        //~ MultiBitFourierBsk::F128(k) => k.output_lwe_dimension(),
+    //~ };
+    //~ let minimal_variance = minimal_lwe_variance_for_132_bits_security_gaussian(
+        //~ output_lwe_dimension,
+        //~ if ciphertext_modulus.is_native_modulus() {
+            //~ 2.0f64.powi(Scalar::BITS as i32)
+        //~ } else {
+            //~ ciphertext_modulus.get_custom_modulus() as f64
+        //~ },
+    //~ );
     //~ if measured_variance_fft.0 < expected_variance_fft.0 {
     //~ // We are in the clear as long as we have at least the noise for security
     //~ assert!(
@@ -467,12 +458,6 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
 }
 
 fn export_noise_predictions<Scalar: UnsignedInteger>(params: &MultiBitTestParams<Scalar>) {
-    let modulus_as_f64 = if params.ciphertext_modulus.is_native_modulus() {
-        2.0f64.powi(Scalar::BITS as i32)
-    } else {
-        params.ciphertext_modulus.get_custom_modulus() as f64
-    };
-
     // output predicted noises to JSON
     let distro: &str = if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
         "GAUSSIAN"
@@ -481,18 +466,30 @@ fn export_noise_predictions<Scalar: UnsignedInteger>(params: &MultiBitTestParams
     } else {
         panic!("Unknown distribution: {}", params.lwe_noise_distribution)
     };
+    let log_q = if params.ciphertext_modulus.is_native_modulus() {
+        Scalar::BITS as u32
+    } else {
+        params.ciphertext_modulus.get_custom_modulus().ilog2()
+    };
     let filename_exp_var = format!(
-        "./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={distro}-logQ={}.json",
+        "./results/{EXP_NAME}/expected-variances-gf={}-logB={}-l={}-k={}-N={}-distro={}-logQ={}.json",
         params.grouping_factor.0,
         params.pbs_base_log.0,
         params.pbs_level.0,
         params.glwe_dimension.0,
         params.polynomial_size.0,
-        modulus_as_f64.log2(),
+        distro,
+        log_q,
     );
+
+    let filename_exp_var_path: PathBuf = filename_exp_var.as_str().into();
+    let filename_exp_var_parent = filename_exp_var_path.parent().unwrap();
+    std::fs::create_dir_all(&filename_exp_var_parent).unwrap();
+
     let mut file_exp_var = File::create(&filename_exp_var).unwrap();
 
-    let (expected_variance_kara, expected_variance_fft) = noise_prediction_kara_fft(params);
+    let (expected_variance_kara, expected_variance_fft) =
+        noise_prediction_kara_fft::<Scalar>(params);
 
     file_exp_var
         .write_all(
@@ -527,10 +524,20 @@ fn export_noise_predictions<Scalar: UnsignedInteger>(params: &MultiBitTestParams
 fn noise_prediction_kara_fft<Scalar: UnsignedInteger>(
     params: &MultiBitTestParams<Scalar>,
 ) -> (Variance, Variance) {
-    let modulus_as_f64: f64 = if params.ciphertext_modulus.is_native_modulus() {
-        2.0f64.powi(Scalar::BITS as i32)
+    if !params.ciphertext_modulus.is_native_modulus() {
+        panic!("With FFT, only native modulus is supported.")
+    }
+    let modulus_as_f64 = 2.0f64.powi(Scalar::BITS as i32);
+    let mantissa_size_as_f64 = if Scalar::BITS == 64 {
+        53_f64
+    } else if Scalar::BITS == 128 {
+        104_f64 //TODO check this (also make sure Sarah's impl is used, not the quadruple type,
+                // mantissa size of which is 112+1
     } else {
-        params.ciphertext_modulus.get_custom_modulus() as f64
+        panic!(
+            "Unexpected bit-len of ciphertext modulus: {:?}",
+            Scalar::BITS
+        )
     };
     return (
         if let DynamicDistribution::Gaussian(_) = params.lwe_noise_distribution {
@@ -600,6 +607,7 @@ fn noise_prediction_kara_fft<Scalar: UnsignedInteger>(
                     params.polynomial_size,
                     params.pbs_base_log,
                     params.pbs_level,
+                    mantissa_size_as_f64,
                     modulus_as_f64,
                 ),
                 3 => pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
@@ -608,6 +616,7 @@ fn noise_prediction_kara_fft<Scalar: UnsignedInteger>(
                     params.polynomial_size,
                     params.pbs_base_log,
                     params.pbs_level,
+                    mantissa_size_as_f64,
                     modulus_as_f64,
                 ),
                 4 => pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
@@ -616,6 +625,7 @@ fn noise_prediction_kara_fft<Scalar: UnsignedInteger>(
                     params.polynomial_size,
                     params.pbs_base_log,
                     params.pbs_level,
+                    mantissa_size_as_f64,
                     modulus_as_f64,
                 ),
                 _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
@@ -628,6 +638,7 @@ fn noise_prediction_kara_fft<Scalar: UnsignedInteger>(
                     params.polynomial_size,
                     params.pbs_base_log,
                     params.pbs_level,
+                    mantissa_size_as_f64,
                     modulus_as_f64,
                 ),
                 3 => pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
@@ -636,6 +647,7 @@ fn noise_prediction_kara_fft<Scalar: UnsignedInteger>(
                     params.polynomial_size,
                     params.pbs_base_log,
                     params.pbs_level,
+                    mantissa_size_as_f64,
                     modulus_as_f64,
                 ),
                 4 => pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
@@ -644,6 +656,7 @@ fn noise_prediction_kara_fft<Scalar: UnsignedInteger>(
                     params.polynomial_size,
                     params.pbs_base_log,
                     params.pbs_level,
+                    mantissa_size_as_f64,
                     modulus_as_f64,
                 ),
                 _ => panic!("Unsupported grouping factor: {}", params.grouping_factor.0),
@@ -655,14 +668,11 @@ fn noise_prediction_kara_fft<Scalar: UnsignedInteger>(
 }
 
 #[test]
-fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u64_132_bits(
-) {
+fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u64_132_bits() {
     test_impl::<u64>(true);
 }
-
 #[test]
-fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u128_132_bits(
-) {
+fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u128_132_bits() {
     test_impl::<u128>(true);
 }
 
@@ -670,7 +680,6 @@ fn test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit
 fn test_export_multi_bit_noise_predictions_native_u64_132_bits() {
     test_impl::<u64>(false);
 }
-
 #[test]
 fn test_export_multi_bit_noise_predictions_native_u128_132_bits() {
     test_impl::<u128>(false);
@@ -715,16 +724,17 @@ fn test_impl<
     } else {
         ciphertext_modulus.get_custom_modulus() as f64
     };
+    let msg_mod_log = 4;
     let (level_upbnd, logB_l_upbnd) = if Scalar::BITS == 64 {(6,36)} else if Scalar::BITS == 128 {(4,96)} else {panic!("Unexpected bit-len of ciphertext modulus: {:?}",Scalar::BITS)};
 
     for gf in [2, 3, 4] {
-        for logbase in 5..=30 {
-            for level in 1..=level_upbnd {
-                if logbase * level > logB_l_upbnd {
-                    continue;
-                } // also used: logbase * level < 15
-                  //~ for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
-                for (k,logN) in [(4,9),(2,10),(1,11),(3,10),(2,11),(1,12),(1,13),].iter() {
+    for logbase in 5..=30 {
+        for level in 1..=level_upbnd {
+            if logbase * level > logB_l_upbnd {
+                continue;
+            } // also used: logbase * level < 15
+              //~ for (k,logN) in [(3,9),(4,9),(1,10),(2,10),(1,11)].iter() {
+            for (k,logN) in [(4,9),(2,10),(1,11),(3,10),(2,11),(1,12),(1,13),].iter() {
             //~ // skip those not interesting                                                             1 is here to make a margin
             //~ if ((logbase*(level+1)) as f64) < 53_f64 - *logN as f64 - (((k+1)*level) as f64).log2() - 1_f64 || logbase * level > 36 {
                 //~ println!("Early-discarded: l={level}, logB={logbase}, (k,N)=({k},{})", 1<<*logN);
@@ -743,19 +753,25 @@ fn test_impl<
                 glwe_dimension: GlweDimension(*k),
                 polynomial_size: PolynomialSize(1 << logN),
                 glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(glwe_var.get_standard_dev())),
-                message_modulus_log: MessageModulusLog(4),
-                ciphertext_modulus: CiphertextModulus::new_native(),
+                message_modulus_log: MessageModulusLog(msg_mod_log),
+                ciphertext_modulus,
                 grouping_factor: LweBskGroupingFactor(gf),
                 thread_count: ThreadCount(12),
             };
 
             // skip those that predict FFT noise <10% of the overall noise
-            let (exp_var_kara,exp_var_fft) = noise_prediction_kara_fft(&gaussian_params);
+            let (exp_var_kara,exp_var_fft) = noise_prediction_kara_fft::<Scalar>(&gaussian_params);
+
+            // 3 sigma                  > half   interval size (msg-mod    +    padding bit)
+            if 3.0*exp_var_fft.0.sqrt() > 0.5 / (2usize.pow(msg_mod_log as u32 + 1) as f64) {
+                println!("3-sigma-discarded:   l={level}, logB={logbase}, (k,N)=({k},{})", 1<<logN);
+                continue;
+            }
             if exp_var_fft.0 < exp_var_kara.0 * 1.1 {
                 println!("FFT-ratio-discarded: l={level}, logB={logbase}, (k,N)=({k},{})", 1<<logN);
                 continue;
             }
-            lwe_encrypt_multi_bit_pbs_decrypt_custom_mod(&gaussian_params, &run_measurements);
+            lwe_encrypt_multi_bit_pbs_decrypt_custom_mod::<Scalar>(&gaussian_params, &run_measurements);
 
             //~ // TUniform noise
             //~ let glwe_bnd = minimal_glwe_bound_for_132_bits_security_tuniform(GlweDimension(*k), PolynomialSize(1<<logN), 2.0_f64.powf(64.0));

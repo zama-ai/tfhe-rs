@@ -351,10 +351,6 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
                     ciphertext_modulus
                 ));
 
-                let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &karatsuba_out_ct);
-
-                let decoded = round_decode(decrypted.0, delta) % msg_modulus;
-
                 //TODO FIXME uncomment !!
                 //~ let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &karatsuba_out_ct);
                 //~ let decoded = round_decode(decrypted.0, delta) % msg_modulus;
@@ -453,11 +449,12 @@ fn export_noise_predictions<
         params.ciphertext_modulus.get_custom_modulus().ilog2()
     };
     let filename_exp_var = format!(
-        "./results/{EXP_NAME}/expected-variances-gf=1-logB={}-l={}-k={}-N={}-distro={distro}-logQ={}.json",
+        "./results/{EXP_NAME}/expected-variances-gf=1-logB={}-l={}-k={}-N={}-distro={}-logQ={}.json",
         params.pbs_base_log.0,
         params.pbs_level.0,
         params.glwe_dimension.0,
         params.polynomial_size.0,
+        distro,
         log_q,
     );
 
