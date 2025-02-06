@@ -10,7 +10,7 @@ mod boolean;
 #[cfg(feature = "parallel-wasm-api")]
 pub use wasm_bindgen_rayon::init_thread_pool;
 
-#[cfg(feature = "integer")]
+#[cfg(feature = "integer-client-js-wasm-api")]
 mod js_high_level_api;
 
 pub(crate) fn into_js_error<E: std::fmt::Debug>(e: E) -> wasm_bindgen::JsError {

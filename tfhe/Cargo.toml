@@ -105,7 +105,7 @@ __c_api = ["dep:cbindgen"]
 __force_skip_cbindgen = []
 boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
-high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer", "__c_api"]
+high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer"]
 
 __wasm_api = [
     "dep:wasm-bindgen",
@@ -117,8 +117,11 @@ __wasm_api = [
 ]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
-integer-client-js-wasm-api = ["integer", "__wasm_api"]
-high-level-client-js-wasm-api = ["boolean", "shortint", "integer", "__wasm_api"]
+integer-client-js-wasm-api = ["integer", "shortint-client-js-wasm-api"]
+high-level-client-js-wasm-api = [
+    "boolean-client-js-wasm-api",
+    "integer-client-js-wasm-api",
+]
 parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
 nightly-avx512 = ["tfhe-fft/nightly", "tfhe-ntt/nightly", "pulp/nightly"]
