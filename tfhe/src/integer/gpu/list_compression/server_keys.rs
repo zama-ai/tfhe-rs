@@ -1,11 +1,15 @@
+use std::ops::Range;
+
+use crate::core_crypto::entities::packed_integers::PackedIntegers;
 use crate::core_crypto::gpu::entities::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
-    CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount, LweCiphertextCount,
-    PolynomialSize,
+    CiphertextCount, CiphertextModulus, CiphertextModulusLog, ContiguousEntityContainer,
+    GlweCiphertextCount, LweCiphertextCount, PolynomialSize,
 };
 use crate::integer::ciphertext::DataKind;
 use crate::integer::compression_keys::CompressionKey;
@@ -15,7 +19,7 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
 };
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::ciphertext::{CompressedCiphertextList, Degree, NoiseLevel};
 use crate::shortint::prelude::GlweDimension;
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
@@ -71,6 +75,53 @@ impl Clone for CudaPackedGlweCiphertext {
             storage_log_modulus: self.storage_log_modulus,
             lwe_per_glwe: self.lwe_per_glwe,
             initial_len: self.initial_len,
+        }
+    }
+}
+
+impl CudaPackedGlweCiphertext {
+    pub fn to_compressed_ciphertext_list(&self, streams: &CudaStreams) -> CompressedCiphertextList {
+        let glwe_list = self.glwe_ciphertext_list.to_glwe_ciphertext_list(streams);
+        let ciphertext_modulus = self.glwe_ciphertext_list.ciphertext_modulus();
+
+        let message_modulus = self.message_modulus;
+        let carry_modulus = self.carry_modulus;
+        let lwe_per_glwe = self.lwe_per_glwe;
+        let storage_log_modulus: CiphertextModulusLog = self.storage_log_modulus;
+
+        let initial_len = self.initial_len;
+        let number_bits_to_pack = initial_len * storage_log_modulus.0;
+        let len = number_bits_to_pack.div_ceil(u64::BITS as usize);
+
+        let modulus_switched_glwe_ciphertext_list = glwe_list
+            .iter()
+            .map(|x| {
+                let glwe_dimension = x.glwe_size().to_glwe_dimension();
+                let polynomial_size = x.polynomial_size();
+                CompressedModulusSwitchedGlweCiphertext {
+                    packed_integers: PackedIntegers {
+                        packed_coeffs: x.into_container()[0..len].to_vec(),
+                        log_modulus: storage_log_modulus,
+                        initial_len,
+                    },
+                    glwe_dimension,
+                    polynomial_size,
+                    bodies_count: LweCiphertextCount(self.bodies_count),
+                    uncompressed_ciphertext_modulus: ciphertext_modulus,
+                }
+            })
+            .collect_vec();
+
+        let count = CiphertextCount(self.bodies_count);
+        let pbs_order = PBSOrder::KeyswitchBootstrap;
+        CompressedCiphertextList {
+            modulus_switched_glwe_ciphertext_list,
+            ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            lwe_per_glwe,
+            count,
         }
     }
 }
@@ -202,12 +253,10 @@ impl CudaCompressionKey {
 }
 
 impl CudaDecompressionKey {
-    pub fn unpack(
+    pub(crate) fn raw_unpack(
         &self,
         packed_list: &CudaPackedGlweCiphertext,
-        kind: DataKind,
-        start_block_index: usize,
-        end_block_index: usize,
+        range: Range<usize>,
         streams: &CudaStreams,
     ) -> Result<CudaRadixCiphertext, crate::Error> {
         if self.message_modulus.0 != self.carry_modulus.0 {
@@ -225,10 +274,7 @@ impl CudaDecompressionKey {
                 packed_list.bodies_count
             )));
         }
-
-        let indexes_array = (start_block_index..=end_block_index)
-            .map(|x| x as u32)
-            .collect_vec();
+        let indexes_array = range.map(|x| x as u32).collect_vec();
 
         let encryption_glwe_dimension = self.glwe_dimension;
         let encryption_polynomial_size = self.polynomial_size;
@@ -277,12 +323,7 @@ impl CudaDecompressionKey {
 
                 streams.synchronize();
 
-                let degree = match kind {
-                    DataKind::Unsigned(_) | DataKind::Signed(_) => {
-                        Degree::new(message_modulus.0 * carry_modulus.0 - 1)
-                    }
-                    DataKind::Boolean => Degree::new(1),
-                };
+                let degree = Degree::new(message_modulus.0 - 1);
 
                 let first_block_info = CudaBlockInfo {
                     degree,
@@ -303,5 +344,20 @@ impl CudaDecompressionKey {
                 panic! {"Compression is currently not compatible with Multi-Bit PBS"}
             }
         }
+    }
+
+    pub fn unpack(
+        &self,
+        packed_list: &CudaPackedGlweCiphertext,
+        kind: DataKind,
+        range: Range<usize>,
+        streams: &CudaStreams,
+    ) -> CudaRadixCiphertext {
+        let mut radix = self.raw_unpack(packed_list, range, streams);
+        if kind == DataKind::Boolean {
+            radix.info.blocks[0].degree = Degree::new(1);
+        }
+
+        radix
     }
 }

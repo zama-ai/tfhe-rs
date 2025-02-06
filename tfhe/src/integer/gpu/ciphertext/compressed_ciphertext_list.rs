@@ -1,12 +1,8 @@
-use crate::core_crypto::entities::packed_integers::PackedIntegers;
 use crate::core_crypto::entities::GlweCiphertextList;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::{
-    glwe_ciphertext_size, CiphertextCount, ContiguousEntityContainer, LweCiphertextCount,
-};
+use crate::core_crypto::prelude::glwe_ciphertext_size;
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -16,8 +12,6 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey, CudaPackedGlweCiphertext,
 };
-use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
-use crate::shortint::PBSOrder;
 use itertools::Itertools;
 use serde::{Deserializer, Serializer};
 
@@ -98,18 +92,15 @@ impl CudaCompressedCiphertextList {
             .map(DataKind::num_blocks)
             .sum();
 
-        let end_block_index = start_block_index + current_info.num_blocks() - 1;
+        let end_block_index = start_block_index + current_info.num_blocks();
 
         Some((
-            decomp_key
-                .unpack(
-                    &self.packed_list,
-                    current_info,
-                    start_block_index,
-                    end_block_index,
-                    streams,
-                )
-                .unwrap(),
+            decomp_key.unpack(
+                &self.packed_list,
+                current_info,
+                start_block_index..end_block_index,
+                streams,
+            ),
             current_info,
         ))
     }
@@ -182,52 +173,7 @@ impl CudaCompressedCiphertextList {
     /// let converted_compressed = cuda_compressed.to_compressed_ciphertext_list(&streams);
     /// ```
     pub fn to_compressed_ciphertext_list(&self, streams: &CudaStreams) -> CompressedCiphertextList {
-        let glwe_list = self
-            .packed_list
-            .glwe_ciphertext_list
-            .to_glwe_ciphertext_list(streams);
-        let ciphertext_modulus = self.packed_list.glwe_ciphertext_list.ciphertext_modulus();
-
-        let message_modulus = self.packed_list.message_modulus;
-        let carry_modulus = self.packed_list.carry_modulus;
-        let lwe_per_glwe = self.packed_list.lwe_per_glwe;
-        let storage_log_modulus = self.packed_list.storage_log_modulus;
-
-        let initial_len = self.packed_list.initial_len;
-        let number_bits_to_pack = initial_len * storage_log_modulus.0;
-        let len = number_bits_to_pack.div_ceil(u64::BITS as usize);
-
-        let modulus_switched_glwe_ciphertext_list = glwe_list
-            .iter()
-            .map(|x| {
-                let glwe_dimension = x.glwe_size().to_glwe_dimension();
-                let polynomial_size = x.polynomial_size();
-                CompressedModulusSwitchedGlweCiphertext {
-                    packed_integers: PackedIntegers {
-                        packed_coeffs: x.into_container()[0..len].to_vec(),
-                        log_modulus: storage_log_modulus,
-                        initial_len,
-                    },
-                    glwe_dimension,
-                    polynomial_size,
-                    bodies_count: LweCiphertextCount(self.packed_list.bodies_count),
-                    uncompressed_ciphertext_modulus: ciphertext_modulus,
-                }
-            })
-            .collect_vec();
-
-        let count = CiphertextCount(self.packed_list.bodies_count);
-        let pbs_order = PBSOrder::KeyswitchBootstrap;
-        let packed_list = ShortintCompressedCiphertextList {
-            modulus_switched_glwe_ciphertext_list,
-            ciphertext_modulus,
-            message_modulus,
-            carry_modulus,
-            pbs_order,
-            lwe_per_glwe,
-            count,
-        };
-
+        let packed_list = self.packed_list.to_compressed_ciphertext_list(streams);
         CompressedCiphertextList {
             packed_list,
             info: self.info.clone(),
@@ -238,6 +184,56 @@ impl CudaCompressedCiphertextList {
         Self {
             packed_list: self.packed_list.duplicate(streams),
             info: self.info.clone(),
+        }
+    }
+}
+
+impl crate::shortint::ciphertext::CompressedCiphertextList {
+    pub fn to_cuda_packed_glwe_ciphertext(
+        &self,
+        streams: &CudaStreams,
+    ) -> CudaPackedGlweCiphertext {
+        let lwe_per_glwe = self.lwe_per_glwe;
+
+        let modulus_switched_glwe_ciphertext_list = &self.modulus_switched_glwe_ciphertext_list;
+
+        let first_ct = modulus_switched_glwe_ciphertext_list.first().unwrap();
+        let storage_log_modulus = first_ct.packed_integers.log_modulus;
+        let initial_len = first_ct.packed_integers.initial_len;
+        let bodies_count = first_ct.bodies_count.0;
+
+        let message_modulus = self.message_modulus;
+        let carry_modulus = self.carry_modulus;
+
+        let mut data = modulus_switched_glwe_ciphertext_list
+            .iter()
+            .flat_map(|ct| ct.packed_integers.packed_coeffs.clone())
+            .collect_vec();
+        let glwe_ciphertext_size = glwe_ciphertext_size(
+            first_ct.glwe_dimension.to_glwe_size(),
+            first_ct.polynomial_size,
+        );
+        data.resize(
+            self.modulus_switched_glwe_ciphertext_list.len() * glwe_ciphertext_size,
+            0,
+        );
+        let glwe_ciphertext_list = GlweCiphertextList::from_container(
+            data.as_slice(),
+            first_ct.glwe_dimension.to_glwe_size(),
+            first_ct.polynomial_size,
+            self.ciphertext_modulus,
+        );
+        CudaPackedGlweCiphertext {
+            glwe_ciphertext_list: CudaGlweCiphertextList::from_glwe_ciphertext_list(
+                &glwe_ciphertext_list,
+                streams,
+            ),
+            message_modulus,
+            carry_modulus,
+            bodies_count,
+            storage_log_modulus,
+            lwe_per_glwe,
+            initial_len,
         }
     }
 }
@@ -316,50 +312,8 @@ impl CompressedCiphertextList {
         &self,
         streams: &CudaStreams,
     ) -> CudaCompressedCiphertextList {
-        let lwe_per_glwe = self.packed_list.lwe_per_glwe;
-
-        let modulus_switched_glwe_ciphertext_list =
-            &self.packed_list.modulus_switched_glwe_ciphertext_list;
-
-        let first_ct = modulus_switched_glwe_ciphertext_list.first().unwrap();
-        let storage_log_modulus = first_ct.packed_integers.log_modulus;
-        let initial_len = first_ct.packed_integers.initial_len;
-        let bodies_count = first_ct.bodies_count.0;
-
-        let message_modulus = self.packed_list.message_modulus;
-        let carry_modulus = self.packed_list.carry_modulus;
-
-        let mut data = modulus_switched_glwe_ciphertext_list
-            .iter()
-            .flat_map(|ct| ct.packed_integers.packed_coeffs.clone())
-            .collect_vec();
-        let glwe_ciphertext_size = glwe_ciphertext_size(
-            first_ct.glwe_dimension.to_glwe_size(),
-            first_ct.polynomial_size,
-        );
-        data.resize(
-            self.packed_list.modulus_switched_glwe_ciphertext_list.len() * glwe_ciphertext_size,
-            0,
-        );
-        let glwe_ciphertext_list = GlweCiphertextList::from_container(
-            data.as_slice(),
-            first_ct.glwe_dimension.to_glwe_size(),
-            first_ct.polynomial_size,
-            self.packed_list.ciphertext_modulus,
-        );
         CudaCompressedCiphertextList {
-            packed_list: CudaPackedGlweCiphertext {
-                glwe_ciphertext_list: CudaGlweCiphertextList::from_glwe_ciphertext_list(
-                    &glwe_ciphertext_list,
-                    streams,
-                ),
-                message_modulus,
-                carry_modulus,
-                bodies_count,
-                storage_log_modulus,
-                lwe_per_glwe,
-                initial_len,
-            },
+            packed_list: self.packed_list.to_cuda_packed_glwe_ciphertext(streams),
             info: self.info.clone(),
         }
     }
