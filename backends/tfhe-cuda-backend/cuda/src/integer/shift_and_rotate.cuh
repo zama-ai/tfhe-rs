@@ -108,7 +108,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
         PANIC("Cuda error: incorrect number of blocks")
       host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
                                             rotated_input, input_bits_b,
-                                            rotations);
+                                            rotations, total_nb_bits);
 
       if (rotations > 0)
         set_zero_radix_ciphertext_slice_async<Torus>(
@@ -120,7 +120,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
         PANIC("Cuda error: incorrect number of blocks")
       host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
                                            rotated_input, input_bits_b,
-                                           rotations);
+                                           rotations, total_nb_bits);
 
       if (mem->is_signed)
         for (int i = 0; i < rotations; i++) {
@@ -140,13 +140,13 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
       // rotate right as the blocks are from LSB to MSB
       host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
                                             rotated_input, input_bits_b,
-                                            rotations);
+                                            rotations, total_nb_bits);
       break;
     case RIGHT_ROTATE:
       // rotate left as the blocks are from LSB to MSB
       host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
                                            rotated_input, input_bits_b,
-                                           rotations);
+                                           rotations, total_nb_bits);
       break;
     default:
       PANIC("Unknown operation")
