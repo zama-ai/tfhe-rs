@@ -25,11 +25,11 @@ use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = thread_rng();
 
-    let params = tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let params = tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     // Indicate which parameters to use for the Compact Public Key encryption
-    let cpk_params = tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let cpk_params = tfhe::shortint::parameters::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     // And parameters allowing to keyswitch/cast to the computation parameters.
-    let casting_params = tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let casting_params = tfhe::shortint::parameters::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     // Enable the dedicated parameters on the config
     let config = tfhe::ConfigBuilder::with_custom_parameters(params)
         .use_dedicated_compact_public_key_parameters((cpk_params, casting_params)).build();
@@ -102,11 +102,11 @@ use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = thread_rng();
 
-    let params = tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let params = tfhe::shortint::parameters::v1_0::V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     // Indicate which parameters to use for the Compact Public Key encryption
-    let cpk_params = tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1;
+    let cpk_params = tfhe::shortint::parameters::v1_0::compact_public_key_only::p_fail_2_minus_128::ks_pbs::V1_0_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
     // And parameters allowing to keyswitch/cast to the computation parameters.
-    let casting_params = tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1;
+    let casting_params = tfhe::shortint::parameters::v1_0::key_switching::p_fail_2_minus_128::ks_pbs::V1_0_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
     // Enable the dedicated parameters on the config
     let config = tfhe::ConfigBuilder::with_custom_parameters(params)
         .use_dedicated_compact_public_key_parameters((cpk_params, casting_params)).build();

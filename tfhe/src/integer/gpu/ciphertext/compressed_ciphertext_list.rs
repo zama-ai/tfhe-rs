@@ -141,26 +141,32 @@ impl CudaCompressedCiphertextList {
     /// use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::{
+    /// # // TODO GPU DRIFT UPDATE
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ///     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    /// };
     ///
+    /// # // TODO GPU DRIFT UPDATE
+    /// let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// let compression_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// let num_blocks = 32;
     /// let streams = CudaStreams::new_multi_gpu();
     ///
-    /// let (radix_cks, _) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    /// let (radix_cks, _) = gen_keys_radix_gpu(block_params,
     ///     num_blocks,
     ///     &streams,
     /// );
     /// let cks = radix_cks.as_ref();
     ///
     /// let private_compression_key =
-    /// cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    /// cks.new_compression_private_key(compression_params);
     ///
     /// let (cuda_compression_key, cuda_decompression_key) =
     /// radix_cks.new_cuda_compression_decompression_keys(&private_compression_key, &streams);
     ///
     /// let private_compression_key =
-    ///     cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    ///     cks.new_compression_private_key(compression_params);
     ///
     /// let (compressed_compression_key, compressed_decompression_key) =
     ///     radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
@@ -174,7 +180,7 @@ impl CudaCompressedCiphertextList {
     /// let ct2 = radix_cks.encrypt_signed(-2);
     /// let ct3 = radix_cks.encrypt_bool(true);
     ///
-    /// /// Copy to GPU
+    /// // Copy to GPU
     /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
     /// let d_ct2 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct2, &streams);
     /// let d_ct3 = CudaBooleanBlock::from_boolean_block(&ct3, &streams);
@@ -258,24 +264,26 @@ impl CompressedCiphertextList {
     ///```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
-    /// use tfhe::integer::ClientKey;
-    /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+    /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::integer::ClientKey;
+    /// use tfhe::shortint::parameters::{
+    /// # // TODO GPU DRIFT UPDATE
+    ///     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    /// };
     ///
+    /// # // TODO GPU DRIFT UPDATE
+    /// let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// let compression_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// let num_blocks = 32;
     /// let streams = CudaStreams::new_multi_gpu();
     ///
-    /// let (radix_cks, _) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    ///     num_blocks,
-    ///     &streams,
-    /// );
+    /// let (radix_cks, _) = gen_keys_radix_gpu(block_params, num_blocks, &streams);
     /// let cks = radix_cks.as_ref();
     ///
-    /// let private_compression_key =
-    ///     cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    /// let private_compression_key = cks.new_compression_private_key(compression_params);
     ///
     /// let (compressed_compression_key, compressed_decompression_key) =
     ///     radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
@@ -286,7 +294,7 @@ impl CompressedCiphertextList {
     ///     radix_cks.parameters().message_modulus(),
     ///     radix_cks.parameters().carry_modulus(),
     ///     radix_cks.parameters().ciphertext_modulus(),
-    ///     &streams
+    ///     &streams,
     /// );
     ///
     /// let compression_key = compressed_compression_key.decompress();
@@ -306,20 +314,26 @@ impl CompressedCiphertextList {
     ///
     /// assert_eq!(recovered_cuda_compressed, compressed);
     ///
-    /// let d_decompressed1: CudaUnsignedRadixCiphertext =
-    ///     cuda_compressed.get(0, &cuda_decompression_key, &streams).unwrap().unwrap();
+    /// let d_decompressed1: CudaUnsignedRadixCiphertext = cuda_compressed
+    ///     .get(0, &cuda_decompression_key, &streams)
+    ///     .unwrap()
+    ///     .unwrap();
     /// let decompressed1 = d_decompressed1.to_radix_ciphertext(&streams);
     /// let decrypted: u32 = radix_cks.decrypt(&decompressed1);
     /// assert_eq!(decrypted, 3_u32);
     ///
-    /// let d_decompressed2: CudaSignedRadixCiphertext =
-    ///     cuda_compressed.get(1, &cuda_decompression_key, &streams).unwrap().unwrap();
+    /// let d_decompressed2: CudaSignedRadixCiphertext = cuda_compressed
+    ///     .get(1, &cuda_decompression_key, &streams)
+    ///     .unwrap()
+    ///     .unwrap();
     /// let decompressed2 = d_decompressed2.to_signed_radix_ciphertext(&streams);
     /// let decrypted: i32 = radix_cks.decrypt_signed(&decompressed2);
     /// assert_eq!(decrypted, -2);
     ///
-    /// let d_decompressed3: CudaBooleanBlock =
-    ///     cuda_compressed.get(2, &cuda_decompression_key, &streams).unwrap().unwrap();
+    /// let d_decompressed3: CudaBooleanBlock = cuda_compressed
+    ///     .get(2, &cuda_decompression_key, &streams)
+    ///     .unwrap()
+    ///     .unwrap();
     /// let decompressed3 = d_decompressed3.to_boolean_block(&streams);
     /// let decrypted = radix_cks.decrypt_bool(&decompressed3);
     /// assert!(decrypted);
@@ -520,10 +534,11 @@ mod tests {
     use crate::integer::ciphertext::CompressedCiphertextListBuilder;
     use crate::integer::gpu::gen_keys_radix_gpu;
     use crate::integer::{ClientKey, RadixCiphertext, RadixClientKey};
-    use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::{
+        // TODO GPU DRIFT UPDATE
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     };
     use crate::shortint::ShortintParameterSet;
     use rand::Rng;
@@ -536,6 +551,7 @@ mod tests {
         const NUM_BLOCKS: usize = 32;
         let streams = CudaStreams::new_multi_gpu();
 
+        // TODO GPU DRIFT UPDATE
         let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
         let comp_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
@@ -560,6 +576,7 @@ mod tests {
 
         // How many uints of NUM_BLOCKS we have to push in the list to ensure it
         // internally has more than one packed GLWE
+        // TODO GPU DRIFT UPDATE
         const MAX_NB_MESSAGES: usize = 1 + 2 * COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
             .lwe_per_glwe
             .0
@@ -685,19 +702,22 @@ mod tests {
         let streams = CudaStreams::new_multi_gpu();
 
         for params in [
+            // TODO GPU DRIFT UPDATE
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
-            V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
         ] {
             let (radix_cks, sks) =
                 gen_keys_radix_gpu::<ShortintParameterSet>(params, NUM_BLOCKS, &streams);
             let cks = radix_cks.as_ref();
 
+            // TODO GPU DRIFT UPDATE
             let private_compression_key =
                 cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 
             let (cuda_compression_key, cuda_decompression_key) = radix_cks
                 .new_cuda_compression_decompression_keys(&private_compression_key, &streams);
 
+            // TODO GPU DRIFT UPDATE
             const MAX_NB_MESSAGES: usize = 2 * COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
                 .lwe_per_glwe
                 .0

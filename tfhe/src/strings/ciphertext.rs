@@ -422,11 +422,11 @@ pub(super) fn num_ascii_blocks(message_modulus: MessageModulus) -> usize {
 mod tests {
     use super::*;
     use crate::integer::ClientKey as IntegerClientKey;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     #[test]
     fn test_uint_conversion() {
-        let ck = IntegerClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+        let ck = IntegerClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let ck = ClientKey::new(ck);
 

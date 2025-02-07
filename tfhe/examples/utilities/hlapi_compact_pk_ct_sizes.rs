@@ -9,9 +9,9 @@ use std::path::Path;
 use tfhe::integer::U256;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::classic::compact_pk::{
-    V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
+use tfhe::shortint::parameters::current_params::{
+    V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
 };
 use tfhe::shortint::PBSParameters;
 use tfhe::{
@@ -40,7 +40,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     let operator = OperatorType::Atomic;
 
     {
-        let params = V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
+        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
             .build();
@@ -98,7 +98,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     }
 
     {
-        let params = V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64;
+        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
             .build();
@@ -157,7 +157,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
     // 256 bits
     {
-        let params = V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
+        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
             .build();
@@ -205,7 +205,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     }
 
     {
-        let params = V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64;
+        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
             .build();

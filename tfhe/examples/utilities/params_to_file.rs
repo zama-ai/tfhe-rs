@@ -6,14 +6,12 @@ use tfhe::boolean::parameters::{BooleanParameters, VEC_BOOLEAN_PARAM};
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
 use tfhe::core_crypto::prelude::{DynamicDistribution, TUniform, UnsignedInteger};
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::parameters::classic::compact_pk::ALL_PARAMETER_VEC_COMPACT_PK;
-use tfhe::shortint::parameters::classic::gaussian::ALL_PARAMETER_VEC_GAUSSIAN;
-use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::shortint::parameters::multi_bit::ALL_MULTI_BIT_PARAMETER_VEC;
+use tfhe::shortint::parameters::current_params::{
+    VEC_ALL_CLASSIC_PBS_PARAMETERS, VEC_ALL_COMPACT_PUBLIC_KEY_ENCRYPTION_PARAMETERS,
+    VEC_ALL_COMPRESSION_PARAMETERS, VEC_ALL_MULTI_BIT_PBS_PARAMETERS,
+};
 use tfhe::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, CompressionParameters, ShortintParameterSet,
-    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 
 pub trait ParamDetails<T: UnsignedInteger> {
@@ -151,15 +149,10 @@ struct ParamGroupKey {
 ///Function to print in the lattice_estimator format the parameters
 /// Format:   LWE.Parameters(n=722, q=2^32, Xs=ND.UniformMod(2),
 /// Xe=ND.DiscreteGaussian(56139.60810663548), tag='test_lattice_estimator')
-pub fn format_lwe_parameters_to_lattice_estimator<
-    U: UnsignedInteger,
-    T: ParamDetails<U> + NamedParam,
->(
-    param: &T,
-    similar_params: Vec<String>,
+pub fn format_lwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamDetails<U>>(
+    (param, name): (&T, &str),
+    similar_params: &[&str],
 ) -> String {
-    let name = param.name();
-
     match param.lwe_noise_distribution() {
         DynamicDistribution::Gaussian(distrib) => {
             let modular_std_dev =
@@ -180,15 +173,10 @@ pub fn format_lwe_parameters_to_lattice_estimator<
 ///Function to print in the lattice_estimator format the parameters
 /// Format: LWE.Parameters(n=722, q=2^32, Xs=ND.UniformMod(2),
 /// Xe=ND.DiscreteGaussian(56139.60810663548), tag='test_lattice_estimator')
-pub fn format_glwe_parameters_to_lattice_estimator<
-    U: UnsignedInteger,
-    T: ParamDetails<U> + NamedParam,
->(
-    param: &T,
-    similar_params: Vec<String>,
+pub fn format_glwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamDetails<U>>(
+    (param, name): (&T, &str),
+    similar_params: &[&str],
 ) -> String {
-    let name = param.name();
-
     match param.glwe_noise_distribution() {
         DynamicDistribution::Gaussian(distrib) => {
             let modular_std_dev =
@@ -218,7 +206,7 @@ fn write_file(file: &mut File, filename: &Path, line: impl Into<String>) {
 
 fn write_all_params_in_file<U: UnsignedInteger, T: ParamDetails<U> + Copy + NamedParam>(
     filename: &str,
-    params: &[T],
+    params: &[(T, Option<&str>)],
     format: ParametersFormat,
 ) {
     let path = Path::new(filename);
@@ -228,9 +216,9 @@ fn write_all_params_in_file<U: UnsignedInteger, T: ParamDetails<U> + Copy + Name
         .open(path)
         .expect("cannot open parsed results file");
 
-    let mut params_groups: HashMap<ParamGroupKey, Vec<T>> = HashMap::new();
+    let mut params_groups: HashMap<ParamGroupKey, Vec<(T, String)>> = HashMap::new();
 
-    for params in params.iter() {
+    for (params, optional_name) in params.iter() {
         let keys = match format {
             ParametersFormat::LweGlwe => vec![
                 ParamGroupKey {
@@ -267,10 +255,19 @@ fn write_all_params_in_file<U: UnsignedInteger, T: ParamDetails<U> + Copy + Name
         for key in keys.into_iter() {
             match params_groups.get_mut(&key) {
                 Some(vec) => {
-                    vec.push(*params);
+                    vec.push((
+                        *params,
+                        optional_name.map_or_else(|| params.name(), |name| name.to_string()),
+                    ));
                 }
                 None => {
-                    params_groups.insert(key, vec![*params]);
+                    params_groups.insert(
+                        key,
+                        vec![(
+                            *params,
+                            optional_name.map_or_else(|| params.name(), |name| name.to_string()),
+                        )],
+                    );
                 }
             };
         }
@@ -279,16 +276,22 @@ fn write_all_params_in_file<U: UnsignedInteger, T: ParamDetails<U> + Copy + Name
     let mut param_names_augmented = Vec::new();
 
     for (key, group) in params_groups.iter() {
-        let similar_params = group.iter().map(|p| p.name()).collect::<Vec<String>>();
-        let ref_param = group[0];
+        let similar_params = group.iter().map(|p| p.1.as_str()).collect::<Vec<_>>();
+        let (ref_param, ref_param_name) = &group[0];
         let formatted_param = match key.parameters_format {
             ParametersFormat::Lwe => {
-                param_names_augmented.push(format!("{}_LWE", ref_param.name()));
-                format_lwe_parameters_to_lattice_estimator(&ref_param, similar_params)
+                param_names_augmented.push(format!("{}_LWE", ref_param_name));
+                format_lwe_parameters_to_lattice_estimator(
+                    (ref_param, ref_param_name.as_str()),
+                    &similar_params,
+                )
             }
             ParametersFormat::Glwe => {
-                param_names_augmented.push(format!("{}_GLWE", ref_param.name()));
-                format_glwe_parameters_to_lattice_estimator(&ref_param, similar_params)
+                param_names_augmented.push(format!("{}_GLWE", ref_param_name));
+                format_glwe_parameters_to_lattice_estimator(
+                    (ref_param, ref_param_name.as_str()),
+                    &similar_params,
+                )
             }
             ParametersFormat::LweGlwe => panic!("formatted parameters cannot be LweGlwe"),
         };
@@ -305,47 +308,50 @@ fn main() {
     new_work_dir.push("ci");
     std::env::set_current_dir(new_work_dir).unwrap();
 
+    let boolean_params: Vec<_> = VEC_BOOLEAN_PARAM.into_iter().map(|p| (p, None)).collect();
     write_all_params_in_file(
         "boolean_parameters_lattice_estimator.sage",
-        &VEC_BOOLEAN_PARAM,
+        &boolean_params,
         ParametersFormat::LweGlwe,
     );
 
-    let all_classic_pbs = [
-        ALL_PARAMETER_VEC_GAUSSIAN.to_vec(),
-        ALL_PARAMETER_VEC_COMPACT_PK.to_vec(),
-        vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64],
-    ]
-    .concat();
-    let classic_pbs = all_classic_pbs
-        .iter()
-        .map(|p| ShortintParameterSet::from(*p))
-        .collect::<Vec<_>>();
+    let classic_pbs: Vec<_> = VEC_ALL_CLASSIC_PBS_PARAMETERS
+        .into_iter()
+        .map(|p| (ShortintParameterSet::from(*p.0), Some(p.1)))
+        .collect();
     write_all_params_in_file(
         "shortint_classic_parameters_lattice_estimator.sage",
         &classic_pbs,
         ParametersFormat::LweGlwe,
     );
 
-    let multi_bit_pbs = ALL_MULTI_BIT_PARAMETER_VEC
-        .iter()
-        .map(|p| ShortintParameterSet::from(*p))
-        .collect::<Vec<_>>();
+    let multi_bit_pbs: Vec<_> = VEC_ALL_MULTI_BIT_PBS_PARAMETERS
+        .into_iter()
+        .map(|p| (ShortintParameterSet::from(*p.0), Some(p.1)))
+        .collect();
     write_all_params_in_file(
         "shortint_multi_bit_parameters_lattice_estimator.sage",
         &multi_bit_pbs,
         ParametersFormat::LweGlwe,
     );
 
+    let cpk_params: Vec<_> = VEC_ALL_COMPACT_PUBLIC_KEY_ENCRYPTION_PARAMETERS
+        .into_iter()
+        .map(|p| (*p.0, Some(p.1)))
+        .collect();
     write_all_params_in_file(
         "shortint_cpke_parameters_lattice_estimator.sage",
-        &[V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64],
+        &cpk_params,
         ParametersFormat::Lwe,
     );
 
+    let comp_params: Vec<_> = VEC_ALL_COMPRESSION_PARAMETERS
+        .into_iter()
+        .map(|p| (*p.0, Some(p.1)))
+        .collect();
     write_all_params_in_file(
         "shortint_list_compression_parameters_lattice_estimator.sage",
-        &[COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64],
+        &comp_params,
         ParametersFormat::Glwe,
     );
 

@@ -1,6 +1,3 @@
-use compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
 use crate::integer::ciphertext::{
     CompactCiphertextListBuilder, DataKind, IntegerCompactCiphertextListExpansionMode,
 };
@@ -11,9 +8,9 @@ use crate::strings::ciphertext::{ClearString, FheString};
 
 #[test]
 fn test_compact_list_with_string_casting() {
-    let pke_params = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    let ksk_params = V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let cks = ClientKey::new(fhe_params);
     let sk = ServerKey::new_radix_server_key(&cks);
@@ -80,7 +77,7 @@ fn test_compact_list_with_string_casting() {
 
 #[test]
 fn test_compact_list_with_string_no_casting() {
-    let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let cks = ClientKey::new(fhe_params);
     let sk = ServerKey::new_radix_server_key(&cks);
@@ -137,9 +134,9 @@ fn test_compact_list_with_string_no_casting() {
 
 #[test]
 fn test_compact_list_with_malicious_string_casting() {
-    let pke_params = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    let ksk_params = V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let cks = ClientKey::new(fhe_params);
     let sk = ServerKey::new_radix_server_key(&cks);
@@ -188,7 +185,7 @@ fn test_compact_list_with_malicious_string_casting() {
 
 #[test]
 fn test_compact_list_with_malicious_string_no_casting() {
-    let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let cks = ClientKey::new(fhe_params);
     let sk = ServerKey::new_radix_server_key(&cks);

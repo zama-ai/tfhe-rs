@@ -34,7 +34,7 @@ function fhe_uint32_example() {
     // the error message will be displayed in the console
     init_panic_hook();
 
-    const block_params = new ShortintParameters(ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
+    const block_params = new ShortintParameters(ShortintParametersName.V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
     let config = TfheConfigBuilder.default()
         .build();
 
@@ -79,7 +79,7 @@ async function example() {
     await initThreadPool(navigator.hardwareConcurrency);
     await init_panic_hook();
 
-    const block_params = new ShortintParameters(ShortintParametersName.V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
+    const block_params = new ShortintParameters(ShortintParametersName.V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
     // ....
 }
 ```
@@ -172,7 +172,7 @@ const { Shortint, ShortintParametersName, ShortintParameters } = require("/path/
 function shortint_example() {
     // Get pre-defined parameters from the shortint module to manage messages with 4 bits of useful
     // information in total (2 bits of "message" and 2 bits of "carry")
-    let params_name = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let params_name = ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     let params = new ShortintParameters(params_name);
     // Create a new secret ClientKey, this must not be shared
     console.log("Generating client keys...")
