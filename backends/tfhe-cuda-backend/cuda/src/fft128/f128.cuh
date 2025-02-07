@@ -349,22 +349,21 @@ __host__ __device__ f128 u128_to_signed_to_f128(__uint128_t x) {
 
 #include <algorithm>
 #include <string>
-// Convert __uint128_t to decimal string
+
 std::string to_string_128(__uint128_t value) {
   if (value == 0)
     return "0";
 
   std::string result;
-  // Repeatedly divide by 10 and build the number in reverse
+
   while (value > 0) {
     unsigned digit = static_cast<unsigned>(value % 10);
     result.push_back(static_cast<char>('0' + digit));
     value /= 10;
   }
 
-  // The digits are in reverse order, so reverse them
   std::reverse(result.begin(), result.end());
   return result;
-} // TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
+}
 
 #endif

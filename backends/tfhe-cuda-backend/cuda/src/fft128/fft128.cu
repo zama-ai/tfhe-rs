@@ -50,7 +50,7 @@ void cuda_fourier_transform_forward_as_integer_f128_async(
   default:
     PANIC("Cuda error (f128 fft): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..4096].")
+          " in the interval [64..4096].")
   }
 }
 
@@ -104,7 +104,7 @@ void cuda_fourier_transform_forward_as_torus_f128_async(
   default:
     PANIC("Cuda error (f128 fft): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..4096].")
+          " in the interval [64..4096].")
   }
 }
 
@@ -158,6 +158,6 @@ void cuda_fourier_transform_backward_as_torus_f128_async(
   default:
     PANIC("Cuda error (f128 fft): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..4096].")
+          " in the interval [64..4096].")
   }
 }
