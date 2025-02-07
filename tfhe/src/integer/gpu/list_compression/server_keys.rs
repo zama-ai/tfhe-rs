@@ -279,7 +279,7 @@ impl CudaDecompressionKey {
 
                 let degree = match kind {
                     DataKind::Unsigned(_) | DataKind::Signed(_) => {
-                        Degree::new(message_modulus.0 * carry_modulus.0 - 1)
+                        Degree::new(message_modulus.0 - 1)
                     }
                     DataKind::Boolean => Degree::new(1),
                 };
