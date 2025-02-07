@@ -105,7 +105,7 @@ pub fn main() {
 
     // Instanciate HpuDevice --------------------------------------------------
     let hpu_device = {
-        let mut config = HpuConfig::read_from(&args.config);
+        let mut config = HpuConfig::from_toml(&args.config);
         config.firmware.integer_w = vec![args.integer_width];
         HpuDevice::new(config)
     };

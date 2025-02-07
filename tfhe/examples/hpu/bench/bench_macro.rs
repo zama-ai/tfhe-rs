@@ -119,7 +119,7 @@ macro_rules! impl_hpu_bench {
 
             // Instanciate HpuDevice --------------------------------------------------
             let hpu_device = {
-                let mut config = HpuConfig::read_from(&args.config);
+                let mut config = HpuConfig::from_toml(&args.config);
                 config.firmware.integer_w = vec![$user_size];
                 HpuDevice::new(config)
             };

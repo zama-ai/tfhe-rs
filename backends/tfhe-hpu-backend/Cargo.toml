@@ -29,7 +29,7 @@ enum_dispatch = "0.3.13"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"]}
-toml = {version = "*", features = []}
+toml = {version = "0.8.*", features = []}
 paste = "1.0.15"
 thiserror = "1.0.61"
 bytemuck = "1.16.0"
@@ -37,25 +37,18 @@ anyhow = "1.0.82"
 lazy_static = "1.4.0"
 rand = "0.8.5"
 regex = "1.10.4"
-bitflags = "2.5.0"
+bitflags = {version="2.5.0", features = ["serde"]}
 itertools = "0.11.0"
 lru = "0.12.3"
+bitfield-struct = "0.10.0"
 
 # Dependencies used for Sim feature
 ipc-channel = "0.18.3"
-# ron = "*"
-# getset = "*"
-# indexmap = "*"
 
 # Dependencies used for debug feature
 num-traits = { version = "*", optional=true}
 clap = { version = "4.4.4", features = ["derive"], optional=true}
 clap-num = {version = "1.1.1", optional=true}
-bitfield-struct = "0.10.0"
-
-# Dependency used for dynamic scheduling in fw
-ron = "*"
-
 
 # Binary for manual debugging
 # Enable to access Hpu register and drive some custom sequence by hand
@@ -83,3 +76,4 @@ required-features = ["utils"]
 name = "fw"
 path = "src/utils/fw.rs"
 required-features = ["utils"]
+

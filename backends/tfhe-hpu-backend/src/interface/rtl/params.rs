@@ -3,6 +3,8 @@
 //! Read Rtl parameters from registers.
 //! NB: Some registers contains encoded value that must be converted to concrete one (i.e.
 //! apps/ntt_moduls)
+use parameters::HpuNttPrime;
+
 use super::*;
 use crate::entities::*;
 
@@ -98,18 +100,13 @@ impl FromRtl for HpuNttParameters {
                 field_code, MOD_NTT_NAME_OFS,
                 "Invalid register encoding. Check register map definition"
             );
-            match ntt_modulo_val & 0xFF {
-                0 => {
-                    /* Goldilocks64 */
-                    ((1_u128 << 64) - (1_u128 << 32) + 1_u128) as u64
+            match (ntt_modulo_val & 0xFF) as u8 {
+                enum_id if enum_id == HpuNttPrime::GF64 as u8 => HpuNttPrime::GF64,
+                enum_id if enum_id == HpuNttPrime::Solinas3_32_17_13 as u8 => {
+                    HpuNttPrime::Solinas3_32_17_13
                 }
-                1 => {
-                    /* Solinas3_32_17_13 */
-                    ((1_u128 << 32) - (1_u128 << 17) - (1_u128 << 13)) as u64
-                }
-                2 => {
-                    /* Solinas2_44_14 */
-                    ((1_u128 << 44) - (1_u128 << 14) + 1) as u64
+                enum_id if enum_id == HpuNttPrime::Solinas2_44_14 as u8 => {
+                    HpuNttPrime::Solinas2_44_14
                 }
                 _ => panic!("Unknown NttModName encoding"),
             }
@@ -275,6 +272,7 @@ impl FromRtl for HpuIscParameters {
 
         Self {
             min_iop_size: *isc_fields.get("min_iop_size").expect("Unknow field") as usize,
+            depth: *isc_fields.get("depth").expect("Unknow field") as usize,
         }
     }
 }

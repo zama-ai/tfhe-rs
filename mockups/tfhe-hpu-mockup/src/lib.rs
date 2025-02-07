@@ -17,6 +17,7 @@ use tfhe::core_crypto::hpu::from_with::FromWith;
 use tfhe::core_crypto::hpu::glwe_lookuptable::create_hpu_lookuptable;
 use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::prelude::ClassicPBSParameters;
+use tfhe::tfhe_hpu_backend::fw::isc_sim::PeConfigStore;
 
 mod ipc;
 use ipc::Ipc;
@@ -92,7 +93,7 @@ impl HpuSim {
         let hbm_bank: [HbmBank; HBM_BANK_NB] = from_fn(HbmBank::new);
 
         // Allocate inner regfile and lock abstraction
-        let regfile = (0..params.isc_sim_params.register)
+        let regfile = (0..params.rtl_params.regf_params.reg_nb)
             .map(|_| HpuLweCiphertextOwned::new(0, params.rtl_params.clone()))
             .collect::<Vec<_>>();
 
@@ -101,7 +102,13 @@ impl HpuSim {
 
         // Allocate InstructionScheduler
         // This module is also in charge of performances estimation
-        let isc = isc::Scheduler::new(params.isc_sim_params.clone());
+        let pe_config = PeConfigStore::from(&params.rtl_params);
+        let isc = isc::Scheduler::new(
+            params.freq_mhz,
+            params.quantum_us,
+            &params.rtl_params.isc_params,
+            pe_config,
+        );
         Self {
             config,
             params,

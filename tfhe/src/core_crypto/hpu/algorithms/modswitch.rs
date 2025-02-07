@@ -44,7 +44,7 @@ pub fn lsb2msb_align<Scalar: UnsignedInteger>(params: &HpuParameters, data: &mut
 /// Switching are done inplace
 pub fn user2ntt_modswitch<Scalar: UnsignedInteger>(params: &HpuParameters, data: &mut [Scalar]) {
     let user_width = params.ntt_params.ct_width as usize;
-    let mod_p_u128 = params.ntt_params.prime_modulus as u128;
+    let mod_p_u128 = u64::from(&params.ntt_params.prime_modulus) as u128;
     data.iter_mut().for_each(|val| {
         let val_u128: u128 = val.cast_into();
         *val = Scalar::cast_from((val_u128 * mod_p_u128) + (1 << (user_width - 1)) >> user_width);
@@ -57,7 +57,7 @@ pub fn user2ntt_modswitch<Scalar: UnsignedInteger>(params: &HpuParameters, data:
 /// Switching are done inplace
 pub fn ntt2user_modswitch<Scalar: UnsignedInteger>(params: &HpuParameters, data: &mut [Scalar]) {
     let user_width = params.ntt_params.ct_width as usize;
-    let mod_p_u128 = params.ntt_params.prime_modulus as u128;
+    let mod_p_u128 = u64::from(&params.ntt_params.prime_modulus) as u128;
     data.iter_mut().for_each(|val| {
         let val_u128: u128 = val.cast_into();
         *val = Scalar::cast_from((((val_u128) << user_width) | ((mod_p_u128) >> 1)) / mod_p_u128);
