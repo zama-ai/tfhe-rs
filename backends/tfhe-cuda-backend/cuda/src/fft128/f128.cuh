@@ -347,23 +347,4 @@ __host__ __device__ f128 u128_to_signed_to_f128(__uint128_t x) {
   return f128(first_approx, correction);
 };
 
-#include <algorithm>
-#include <string>
-
-std::string to_string_128(__uint128_t value) {
-  if (value == 0)
-    return "0";
-
-  std::string result;
-
-  while (value > 0) {
-    unsigned digit = static_cast<unsigned>(value % 10);
-    result.push_back(static_cast<char>('0' + digit));
-    value /= 10;
-  }
-
-  std::reverse(result.begin(), result.end());
-  return result;
-}
-
 #endif

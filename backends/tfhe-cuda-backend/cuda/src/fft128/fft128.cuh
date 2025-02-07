@@ -42,18 +42,6 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
 
   Index tid = threadIdx.x;
 
-  // debug
-  __syncthreads();
-  if (threadIdx.x == 0 && blockIdx.x == 0) {
-    printf("BUTTERFLY_DEPTH %d\n", BUTTERFLY_DEPTH);
-    printf("LOG2_DEGREE %d\n", LOG2_DEGREE);
-    printf("HALF_DEGREE %d\n", HALF_DEGREE);
-    printf("STRIDE %d\n", STRIDE);
-    printf("Params::degree %d\n", params::degree);
-    printf("opt %d\n", params::opt);
-  }
-  __syncthreads();
-
   // load into registers
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
@@ -534,5 +522,9 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
   cuda_drop_async(d_im0, stream, gpu_index);
   cuda_drop_async(d_im1, stream, gpu_index);
 }
+
+#undef NEG_TWID(i)
+#undef F64x4_TO_F128x2(f128x2_reg, ind)
+#undef F128x2_TO_F64x4(f128x2_reg, ind)
 
 #endif // TFHE_RS_BACKENDS_TFHE_CUDA_BACKEND_CUDA_SRC_FFT128_FFT128_CUH_

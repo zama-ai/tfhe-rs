@@ -46,16 +46,4 @@ void print_body(const char *name, T *src, int n, int lwe_dimension) {
   printf("\n");
 }
 
-void print_uint128_bits(__uint128_t value) {
-  char buffer[129];   // 128 bits + null terminator
-  buffer[128] = '\0'; // Null-terminate the string
-
-  for (int i = 127; i >= 0; --i) {
-    buffer[i] = (value & 1) ? '1' : '0'; // Extract the least significant bit
-    value >>= 1;                         // Shift right by 1 bit
-  }
-
-  printf("%s\n", buffer);
-}
-
 #endif

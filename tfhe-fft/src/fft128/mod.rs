@@ -183,7 +183,6 @@ impl FftSimdF128 for Scalar {
 
     #[inline(always)]
     fn mul(self, a: (Self::Reg, Self::Reg), b: (Self::Reg, Self::Reg)) -> (Self::Reg, Self::Reg) {
-        println!("mul for scalar");
         let f128(o0, o1) = f128(a.0, a.1) * f128(b.0, b.1);
         (o0, o1)
     }
@@ -317,60 +316,15 @@ trait FftSimdF128Ext: FftSimdF128 {
         b_re: (Self::Reg, Self::Reg),
         b_im: (Self::Reg, Self::Reg),
     ) -> ((Self::Reg, Self::Reg), (Self::Reg, Self::Reg)) {
-        println!("fftSimdF123::cplx_mul");
         let a_re_x_b_re = self.mul(a_re, b_re);
         let a_re_x_b_im = self.mul(a_re, b_im);
         let a_im_x_b_re = self.mul(a_im, b_re);
         let a_im_x_b_im = self.mul(a_im, b_im);
 
-        let a_re_0: f64 = unsafe { std::mem::transmute_copy(&a_re.0) };
-        let a_re_1: f64 = unsafe { std::mem::transmute_copy(&a_re.1) };
-
-        let a_im_0: f64 = unsafe { std::mem::transmute_copy(&a_im.0) };
-        let a_im_1: f64 = unsafe { std::mem::transmute_copy(&a_im.1) };
-
-        let b_re_0: f64 = unsafe { std::mem::transmute_copy(&b_re.0) };
-        let b_re_1: f64 = unsafe { std::mem::transmute_copy(&b_re.1) };
-
-        let b_im_0: f64 = unsafe { std::mem::transmute_copy(&b_im.0) };
-        let b_im_1: f64 = unsafe { std::mem::transmute_copy(&b_im.1) };
-
-        let a_re_x_b_re_0: f64 = unsafe { std::mem::transmute_copy(&a_re_x_b_re.0) };
-        let a_re_x_b_re_1: f64 = unsafe { std::mem::transmute_copy(&a_re_x_b_re.1) };
-
-        let a_re_x_b_im_0: f64 = unsafe { std::mem::transmute_copy(&a_re_x_b_im.0) };
-        let a_re_x_b_im_1: f64 = unsafe { std::mem::transmute_copy(&a_re_x_b_im.1) };
-
-        let a_im_x_b_re_0: f64 = unsafe { std::mem::transmute_copy(&a_im_x_b_re.0) };
-        let a_im_x_b_re_1: f64 = unsafe { std::mem::transmute_copy(&a_im_x_b_re.1) };
-
-        let a_im_x_b_im_0: f64 = unsafe { std::mem::transmute_copy(&a_im_x_b_im.0) };
-        let a_im_x_b_im_1: f64 = unsafe { std::mem::transmute_copy(&a_im_x_b_im.1) };
-
-        println!("a_re: {:.100} {:.100}", a_re_0, a_re_1);
-        println!("a_im: {:.100} {:.100}", a_im_0, a_im_1);
-        println!("b_re: {:.100} {:.100}", b_re_0, b_re_1);
-        println!("b_im: {:.100} {:.100}", b_im_0, b_im_1);
-
-        println!("a_re_x_b_re: {:.100} {:.100}", a_re_x_b_re_0, a_re_x_b_re_1);
-        println!("a_re_x_b_im: {:.100} {:.100}", a_re_x_b_im_0, a_re_x_b_im_1);
-        println!("a_im_x_b_re: {:.100} {:.100}", a_im_x_b_re_0, a_im_x_b_re_1);
-        println!("a_im_x_b_im: {:.100} {:.100}", a_im_x_b_im_0, a_im_x_b_im_1);
-
-        let (c_re, c_im) = (
+        (
             self.sub(a_re_x_b_re, a_im_x_b_im),
             self.add(a_im_x_b_re, a_re_x_b_im),
-        );
-
-        let c_re_0: f64 = unsafe { std::mem::transmute_copy(&c_re.0) };
-        let c_re_1: f64 = unsafe { std::mem::transmute_copy(&c_re.1) };
-
-        let c_im_0: f64 = unsafe { std::mem::transmute_copy(&c_im.0) };
-        let c_im_1: f64 = unsafe { std::mem::transmute_copy(&c_im.1) };
-        println!("a_re: {:.100} {:.100}", c_re_0, c_re_1);
-        println!("a_im: {:.100} {:.100}", c_im_0, c_im_1);
-
-        (c_re, c_im)
+        )
     }
 
     /// `a * conj(b)`
@@ -412,9 +366,7 @@ pub fn negacyclic_fwd_fft_scalar(
     let mut m = 1;
     let simd = Scalar;
 
-    let mut ii = 0;
     while m < n {
-        ii = ii + 1;
         t /= 2;
 
         for i in 0..m {
@@ -438,7 +390,6 @@ pub fn negacyclic_fwd_fft_scalar(
             {
                 let (z0_re, z0_im) = ((*z0_re0, *z0_re1), (*z0_im0, *z0_im1));
                 let (z1_re, z1_im) = ((*z1_re0, *z1_re1), (*z1_im0, *z1_im1));
-                println!("{:?} {:?}", w1_re, w1_im);
                 let (z1w_re, z1w_im) = simd.cplx_mul(z1_re, z1_im, w1_re, w1_im);
 
                 ((*z0_re0, *z0_re1), (*z0_im0, *z0_im1)) =
@@ -447,7 +398,6 @@ pub fn negacyclic_fwd_fft_scalar(
                     simd.cplx_sub(z0_re, z0_im, z1w_re, z1w_im);
             }
         }
-        //break;
 
         m *= 2;
     }
@@ -1100,22 +1050,22 @@ pub fn negacyclic_fwd_fft(
     twid_im0: &[f64],
     twid_im1: &[f64],
 ) {
-    // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    // {
-    //     #[cfg(feature = "nightly")]
-    //     if let Some(simd) = V4::try_new() {
-    //         return negacyclic_fwd_fft_avx512(
-    //             simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
-    //             twid_im1,
-    //         );
-    //     }
-    //     if let Some(simd) = V3::try_new() {
-    //         return negacyclic_fwd_fft_avxfma(
-    //             simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
-    //             twid_im1,
-    //         );
-    //     }
-    // }
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        #[cfg(feature = "nightly")]
+        if let Some(simd) = V4::try_new() {
+            return negacyclic_fwd_fft_avx512(
+                simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
+                twid_im1,
+            );
+        }
+        if let Some(simd) = V3::try_new() {
+            return negacyclic_fwd_fft_avxfma(
+                simd, data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0,
+                twid_im1,
+            );
+        }
+    }
     negacyclic_fwd_fft_scalar(
         data_re0, data_re1, data_im0, data_im1, twid_re0, twid_re1, twid_im0, twid_im1,
     )
@@ -1853,47 +1803,6 @@ fn bitreverse(i: usize, n: usize) -> usize {
     result
 }
 
-fn f64_to_hexfloat(f: f64) -> String {
-    // Special cases.
-    if f.is_nan() {
-        return "NaN".to_string();
-    }
-    if f.is_infinite() {
-        return if f.is_sign_positive() {
-            "inf".to_string()
-        } else {
-            "-inf".to_string()
-        };
-    }
-    if f == 0.0 {
-        // Handle both +0.0 and -0.0.
-        return if f.is_sign_negative() {
-            "-0x0p+0".to_string()
-        } else {
-            "0x0p+0".to_string()
-        };
-    }
-
-    let bits = f.to_bits();
-    let sign = if bits >> 63 == 1 { "-" } else { "" };
-    let exponent_bits = ((bits >> 52) & 0x7FF) as i32;
-    let fraction = bits & ((1u64 << 52) - 1);
-
-    // For normalized numbers the printed form is "0x1.<fraction>p<exp>".
-    // There are 52 fraction bits so printing 13 hex digits (since 13 * 4 = 52)
-    // captures the entire fractional part.
-    if exponent_bits != 0 {
-        let frac_str = format!("{:013x}", fraction);
-        let exp = exponent_bits - 1023;
-        return format!("{}0x1.{}p{:+}", sign, frac_str, exp);
-    } else {
-        // Subnormal numbers: no implicit leading 1.
-        let frac_str = format!("{:013x}", fraction);
-        // For subnormals the effective exponent is fixed at -1022.
-        return format!("{}0x0.{}p-1022", sign, frac_str);
-    }
-}
-
 #[doc(hidden)]
 pub fn init_negacyclic_twiddles(
     twid_re0: &mut [f64],
@@ -1915,10 +1824,6 @@ pub fn init_negacyclic_twiddles(
             twid_re1[pos] = c.1;
             twid_im0[pos] = s.0;
             twid_im1[pos] = s.1;
-
-            println!("{:.73} {:.73} {:.73} {:.73}", c.0, c.1, s.0, s.1);
-            // println!("{} {} {} {}", f64_to_hexfloat(c.0), f64_to_hexfloat(c.1),
-            //          f64_to_hexfloat(s.0), f64_to_hexfloat(s.1));
         }
         m *= 2;
     }

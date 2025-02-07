@@ -641,7 +641,6 @@ pub unsafe fn fourier_transform_forward_as_integer_f128_async<T: UnsignedInteger
     fft_size: u32,
     number_of_samples: u32,
 ) {
-    println!("before cuda api: {:?}", re0);
     cuda_fourier_transform_forward_as_integer_f128_async(
         streams.ptr[0],
         streams.gpu_indexes[0],
@@ -666,7 +665,6 @@ pub unsafe fn fourier_transform_forward_as_torus_f128_async<T: UnsignedInteger>(
     fft_size: u32,
     number_of_samples: u32,
 ) {
-    println!("before cuda api: {:?}", re0);
     cuda_fourier_transform_forward_as_torus_f128_async(
         streams.ptr[0],
         streams.gpu_indexes[0],
