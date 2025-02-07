@@ -142,8 +142,9 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
   if (mem->shift_type == LEFT_SHIFT) {
     // rotate right as the blocks are from LSB to MSB
-    host_radix_blocks_rotate_right<Torus>(
-        streams, gpu_indexes, gpu_count, &rotated_buffer, lwe_array, rotations);
+    host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
+                                          &rotated_buffer, lwe_array, rotations,
+                                          num_blocks);
 
     // create trivial assign for value = 0
     if (rotations > 0)
@@ -177,7 +178,8 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
   } else {
     // right shift
     host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
-                                         &rotated_buffer, lwe_array, rotations);
+                                         &rotated_buffer, lwe_array, rotations,
+                                         num_blocks);
 
     // rotate left as the blocks are from LSB to MSB
     // create trivial assign for value = 0

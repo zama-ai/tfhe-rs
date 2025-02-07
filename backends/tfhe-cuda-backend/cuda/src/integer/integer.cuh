@@ -94,12 +94,10 @@ __host__ void array_rotate_left(Torus *array_out, Torus *array_in,
 // calculation is not inplace, so `dst` and `src` must not be the same
 // one block is responsible to process single lwe ciphertext
 template <typename Torus>
-__host__ void host_radix_blocks_rotate_right(cudaStream_t const *streams,
-                                             uint32_t const *gpu_indexes,
-                                             uint32_t gpu_count,
-                                             CudaRadixCiphertextFFI *dst,
-                                             CudaRadixCiphertextFFI *src,
-                                             uint32_t rotations) {
+__host__ void host_radix_blocks_rotate_right(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *dst,
+    CudaRadixCiphertextFFI *src, uint32_t rotations, uint32_t num_blocks) {
   if (src == dst) {
     PANIC("Cuda error (blocks_rotate_right): the source and destination "
           "pointers should be different");
@@ -107,31 +105,31 @@ __host__ void host_radix_blocks_rotate_right(cudaStream_t const *streams,
   if (dst->lwe_dimension != src->lwe_dimension)
     PANIC("Cuda error: input and output should have the same "
           "lwe dimension")
+  if (dst->num_radix_blocks < num_blocks || src->num_radix_blocks < num_blocks)
+    PANIC("Cuda error: input and output should have more blocks than asked for "
+          "in the "
+          "function call")
 
   auto lwe_size = src->lwe_dimension + 1;
 
   cuda_set_device(gpu_indexes[0]);
-  radix_blocks_rotate_right<Torus>
-      <<<src->num_radix_blocks, 1024, 0, streams[0]>>>(
-          (Torus *)dst->ptr, (Torus *)src->ptr, rotations,
-          dst->num_radix_blocks, lwe_size);
+  radix_blocks_rotate_right<Torus><<<num_blocks, 1024, 0, streams[0]>>>(
+      (Torus *)dst->ptr, (Torus *)src->ptr, rotations, num_blocks, lwe_size);
   check_cuda_error(cudaGetLastError());
 
   // Rotate degrees and noise to follow blocks
-  array_rotate_right(dst->degrees, src->degrees, rotations,
-                     dst->num_radix_blocks);
+  array_rotate_right(dst->degrees, src->degrees, rotations, num_blocks);
   array_rotate_right(dst->noise_levels, src->noise_levels, rotations,
-                     dst->num_radix_blocks);
+                     num_blocks);
 }
 
 // rotate radix ciphertext left with specific value
 // calculation is not inplace, so `dst` and `src` must not be the same
 template <typename Torus>
-__host__ void
-host_radix_blocks_rotate_left(cudaStream_t const *streams,
-                              uint32_t const *gpu_indexes, uint32_t gpu_count,
-                              CudaRadixCiphertextFFI *dst,
-                              CudaRadixCiphertextFFI *src, uint32_t value) {
+__host__ void host_radix_blocks_rotate_left(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *dst,
+    CudaRadixCiphertextFFI *src, uint32_t value, uint32_t num_blocks) {
   if (src == dst) {
     PANIC("Cuda error (blocks_rotate_left): the source and destination "
           "pointers should be different");
@@ -140,20 +138,21 @@ host_radix_blocks_rotate_left(cudaStream_t const *streams,
   if (dst->lwe_dimension != src->lwe_dimension)
     PANIC("Cuda error: input and output should have the same "
           "lwe dimension")
+  if (dst->num_radix_blocks < num_blocks || src->num_radix_blocks < num_blocks)
+    PANIC("Cuda error: input and output should have more blocks than asked for "
+          "in the "
+          "function call")
 
   auto lwe_size = src->lwe_dimension + 1;
 
   cuda_set_device(gpu_indexes[0]);
-  radix_blocks_rotate_left<Torus>
-      <<<src->num_radix_blocks, 1024, 0, streams[0]>>>(
-          (Torus *)dst->ptr, (Torus *)src->ptr, value, dst->num_radix_blocks,
-          lwe_size);
+  radix_blocks_rotate_left<Torus><<<num_blocks, 1024, 0, streams[0]>>>(
+      (Torus *)dst->ptr, (Torus *)src->ptr, value, num_blocks, lwe_size);
   check_cuda_error(cudaGetLastError());
 
   // Rotate degrees and noise to follow blocks
-  array_rotate_left(dst->degrees, src->degrees, value, dst->num_radix_blocks);
-  array_rotate_left(dst->noise_levels, src->noise_levels, value,
-                    dst->num_radix_blocks);
+  array_rotate_left(dst->degrees, src->degrees, value, num_blocks);
+  array_rotate_left(dst->noise_levels, src->noise_levels, value, num_blocks);
 }
 
 // rotate radix ciphertext right with specific value
@@ -1836,7 +1835,7 @@ void host_propagate_single_sub_borrow(cudaStream_t const *streams,
 
   host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
                                         step_output, generates_or_propagates, 1,
-                                        num_blocks, big_lwe_size);
+                                        num_blocks);
   cuda_memset_async(step_output, 0, big_lwe_size_bytes, streams[0],
                     gpu_indexes[0]);
 

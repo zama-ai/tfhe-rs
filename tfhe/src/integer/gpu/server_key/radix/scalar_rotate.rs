@@ -47,7 +47,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_rotate_left_integer_radix_kb_assign_async(
                     stream,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     u32::cast_from(n),
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -73,7 +73,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_scalar_rotate_left_integer_radix_kb_assign_async(
                     stream,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     u32::cast_from(n),
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -97,7 +97,6 @@ impl CudaServerKey {
                 );
             }
         }
-        ct.as_mut().info = ct.as_ref().info.after_scalar_rotate();
     }
 
     pub fn unchecked_scalar_rotate_left<Scalar, T>(
@@ -155,7 +154,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_rotate_right_integer_radix_kb_assign_async(
                     stream,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     u32::cast_from(n),
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -181,7 +180,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_scalar_rotate_right_integer_radix_kb_assign_async(
                     stream,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     u32::cast_from(n),
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -205,7 +204,6 @@ impl CudaServerKey {
                 );
             }
         }
-        ct.as_mut().info = ct.as_ref().info.after_scalar_rotate();
     }
 
     pub fn unchecked_scalar_rotate_right<Scalar, T>(
