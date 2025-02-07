@@ -52,7 +52,6 @@ clap-num = {version = "1.1.1"}
 # Only one Hpu device -> Tests have to be executed in series
 serial_test = "3.1.1"
 # End hpu-tests deps
-ron = "0.8"
 
 [build-dependencies]
 cbindgen = { version = "0.28", optional = true }

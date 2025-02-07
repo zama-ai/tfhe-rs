@@ -111,7 +111,7 @@ fn main() {
         .init();
 
     // Load fpga configuration from file
-    let config = HpuConfig::read_from(&args.config);
+    let config = HpuConfig::from_toml(&args.config);
 
     // Instanciate bare-minimum abstraction around XRT -----------------------
     let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);

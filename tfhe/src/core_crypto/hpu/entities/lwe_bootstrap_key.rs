@@ -16,7 +16,7 @@ impl FromWith<LweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyOwne
             cpu_bsk.polynomial_size(),
             cpu_bsk.decomposition_base_log(),
             cpu_bsk.decomposition_level_count(),
-            CiphertextModulus::new(params.ntt_params.prime_modulus as u128),
+            CiphertextModulus::new(u64::from(&params.ntt_params.prime_modulus) as u128),
         );
 
         // Conversion to ntt domain
@@ -123,7 +123,7 @@ fn unshuffle_gf64(
         PolynomialSize(pbs_p.polynomial_size),
         DecompositionBaseLog(pbs_p.pbs_base_log),
         DecompositionLevelCount(pbs_p.pbs_level),
-        CiphertextModulus::new(hpu_bsk.params().ntt_params.prime_modulus as u128),
+        CiphertextModulus::new(u64::from(&hpu_bsk.params().ntt_params.prime_modulus) as u128),
     );
 
     // Recursive function used to define the expected polynomial order
@@ -269,7 +269,7 @@ fn unshuffle_wmm(hpu_bsk: HpuLweBootstrapKeyView<u64>) -> NttLweBootstrapKeyOwne
         PolynomialSize(pbs_p.polynomial_size),
         DecompositionBaseLog(pbs_p.pbs_base_log),
         DecompositionLevelCount(pbs_p.pbs_level),
-        CiphertextModulus::new(hpu_bsk.params().ntt_params.prime_modulus as u128),
+        CiphertextModulus::new(u64::from(&hpu_bsk.params().ntt_params.prime_modulus) as u128),
     );
 
     // Instanciate Ntt network
