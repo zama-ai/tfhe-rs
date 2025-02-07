@@ -703,15 +703,8 @@ pub struct CudaGlweList<T: UnsignedInteger> {
 
 impl<T: UnsignedInteger> CudaGlweList<T> {
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
-        let d_vec = unsafe {
-            let mut d_vec = CudaVec::new_async(self.d_vec.len(), streams, 0);
-            d_vec.copy_from_gpu_async(&self.d_vec, streams, 0);
-            d_vec
-        };
-        streams.synchronize();
-
         Self {
-            d_vec,
+            d_vec: self.d_vec.duplicate(streams),
             glwe_ciphertext_count: self.glwe_ciphertext_count,
             glwe_dimension: self.glwe_dimension,
             polynomial_size: self.polynomial_size,
