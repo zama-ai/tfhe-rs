@@ -69,19 +69,21 @@ pub struct BoardConfig {
 /// Embedded Fw properties
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct FwConfig {
-    pub sim: String,
-    pub kogge: String,
-
     /// List of supported integer width
     /// NB: Currently only one width is supported at a time
     pub integer_w: Vec<usize>,
 
+    /// Target IPIP fw generation
+    /// By default use BPIP mode
+    pub use_ipip: bool,
+
+    /// Kogge config filename
+    /// Used to depicts best tradeoff for kogge Add/Sub algorithm
+    pub kogge_cfg: String,
+
     /// List of custom iop to load
     /// IopName -> Iop asm file
     pub custom_iop: HashMap<String, String>,
-
-    // Whether to target fw for ipip or not
-    pub ipip: bool
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -93,7 +95,8 @@ pub struct HpuConfig {
 }
 
 impl HpuConfig {
-    pub fn read_from(file: &str) -> Self {
+    /// Provide Serde mechanisms from TOML file
+    pub fn from_toml(file: &str) -> Self {
         let file_str = match std::fs::read_to_string(file) {
             Ok(str) => str,
             Err(err) => {
@@ -103,7 +106,7 @@ impl HpuConfig {
 
         match toml::from_str(&file_str) {
             Ok(cfg) => cfg,
-            Err(err) => panic!("Error: {err}"),
+            Err(err) => panic!("Toml error in `{file}`: {err}"),
         }
     }
 }

@@ -128,17 +128,7 @@ impl RegisterMap {
                 (ntt_p.batch_pbs_nb + (ntt_p.total_pbs_nb << 8)) as u32
             }
             "Info::NttModulo" => {
-                const GF64: u64 = ((1_u128 << 64) - (1_u128 << 32) + 1_u128) as u64;
-                const SOLINAS3_32_17_13: u64 =
-                    ((1_u128 << 32) - (1_u128 << 17) - (1_u128 << 13)) as u64;
-                const SOLINAS2_44_14: u64 = ((1_u128 << 44) - (1_u128 << 14) + 1) as u64;
-
-                match self.rtl_params.ntt_params.prime_modulus {
-                    GF64 => MOD_NTT_NAME_OFS,
-                    SOLINAS3_32_17_13 => MOD_NTT_NAME_OFS + 1,
-                    SOLINAS2_44_14 => MOD_NTT_NAME_OFS + 2,
-                    _ => panic!("Unknown NttModPrime"),
-                }
+                MOD_NTT_NAME_OFS + (self.rtl_params.ntt_params.prime_modulus.clone() as u8) as u32
             }
 
             "Info::Appli" => {

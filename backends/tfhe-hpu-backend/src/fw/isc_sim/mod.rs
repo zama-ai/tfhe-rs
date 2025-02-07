@@ -5,25 +5,22 @@
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-mod params;
-pub use params::IscSimParameters;
-
 /// Implement a pool that mimics the RTL
 mod pool;
 use pool::Pool;
 
 /// Implement simple model of Pe
 mod pe;
-pub use pe::PeConfigStore;
-pub(crate) use pe::PeStore;
 pub(crate) use pe::Flush as PeFlush;
+pub(crate) use pe::PeStore;
+pub use pe::{PeConfig, PeConfigStore, PeCost};
 
 /// Implement time simulation of Isc
 mod scheduler;
 pub use scheduler::Scheduler;
 
 pub(crate) mod report;
- 
+
 use crate::asm;
 
 /// Event used for modelisation of time advance

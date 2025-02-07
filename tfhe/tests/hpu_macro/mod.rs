@@ -42,7 +42,7 @@ macro_rules! hpu_testbundle {
             std::env::set_current_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap()).unwrap();
 
             let mut hpu_device = {
-                let mut config = HpuConfig::read_from("backends/tfhe-hpu-backend/config/hpu_config.toml");
+                let mut config = HpuConfig::from_toml("backends/tfhe-hpu-backend/config/hpu_config.toml");
                 config.firmware.integer_w = vec![$integer_width];
                 HpuDevice::new(config)
             };

@@ -19,8 +19,8 @@ pub struct HpuDevice {
 /// definition
 impl HpuDevice {
     pub fn from_config(config_toml: &str) -> Self {
-        let config = HpuConfig::read_from(config_toml);
-        
+        let config = HpuConfig::from_toml(config_toml);
+
         Self::new(config)
     }
 

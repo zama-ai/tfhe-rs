@@ -23,7 +23,7 @@ fn hpu_key_loopback() {
     .unwrap();
 
     let hpu_device = {
-        let config = HpuConfig::read_from("backends/tfhe-hpu-backend/config/hpu_config.toml");
+        let config = HpuConfig::from_toml("backends/tfhe-hpu-backend/config/hpu_config.toml");
         HpuDevice::new(config)
     };
 

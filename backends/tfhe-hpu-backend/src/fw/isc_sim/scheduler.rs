@@ -1,14 +1,16 @@
+use crate::prelude::HpuIscParameters;
+
 use super::*;
 use std::collections::{BinaryHeap, HashMap, VecDeque};
 
-use report::{DOpRpt, TimeRpt, PeStoreRpt};
+use report::{DOpRpt, PeStoreRpt, TimeRpt};
 
 // NB: Pool query take 4 cycles on avg there are 3 pool request in a query
 const QUERY_CYCLE: usize = 12;
 
 #[derive(Debug)]
 pub struct Scheduler {
-    params: IscSimParameters,
+    freq_mhz: usize,
     quantum_cycles: usize,
     sim_cycles: usize,
     sync_id: usize,
@@ -24,14 +26,19 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    pub fn new(params: IscSimParameters) -> Self {
+    pub fn new(
+        freq_mhz: usize,
+        quantum_us: usize,
+        isc_params: &HpuIscParameters,
+        pe_config: PeConfigStore,
+    ) -> Self {
         // NB: Scale match between freq and time (i.e. us vs MHz)
-        let quantum_cycles = params.freq_MHz * params.quantum_us;
-        let pool = Pool::new(&params);
-        let pe_store = PeStore::from(params.pe_cfg.clone());
+        let quantum_cycles = freq_mhz * quantum_us;
+        let pool = Pool::new(isc_params.depth);
+        let pe_store = PeStore::from(pe_config);
 
         Self {
-            params,
+            freq_mhz,
             dop_pdg: VecDeque::new(),
             dop_exec: Vec::new(),
             sim_cycles: 0,
@@ -126,7 +133,9 @@ impl Scheduler {
                 }
                 EventType::BpipTimeout => {
                     // Trigger issue on pe store with batch_flush flag
-                    let evts = self.pe_store.probe_for_exec(self.sim_cycles, Some(pe::Flush::ByTimeout));
+                    let evts = self
+                        .pe_store
+                        .probe_for_exec(self.sim_cycles, Some(pe::Flush::ByTimeout));
                     evts.into_iter().for_each(|evt| self.evt_pdg.push(evt));
 
                     // Register next timeout event
@@ -254,7 +263,9 @@ impl Scheduler {
                     self.pe_store.push(kind_1h);
 
                     // Probe for execution and registered generated events
-                    let evts = self.pe_store.probe_for_exec(self.sim_cycles, flush.then_some(pe::Flush::ByFlush));
+                    let evts = self
+                        .pe_store
+                        .probe_for_exec(self.sim_cycles, flush.then_some(pe::Flush::ByFlush));
                     evts.into_iter().for_each(|evt| self.evt_pdg.push(evt));
                     self.trace.push(Trace {
                         timestamp: self.sim_cycles,
@@ -315,7 +326,7 @@ impl Scheduler {
         match (start, end) {
             (Some(start), Some(end)) => {
                 let cycle = end.timestamp - start.timestamp;
-                let dur_us = cycle / self.params.freq_MHz;
+                let dur_us = cycle / self.freq_mhz;
                 TimeRpt {
                     cycle,
                     duration: std::time::Duration::from_micros(dur_us as u64),
@@ -327,7 +338,7 @@ impl Scheduler {
             },
         }
     }
-    
+
     pub fn pe_report(&mut self) -> PeStoreRpt {
         let rpt = PeStoreRpt::from(&self.pe_store);
         self.pe_store.reset_stats();

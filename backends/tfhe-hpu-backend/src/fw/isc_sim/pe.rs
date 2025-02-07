@@ -1,17 +1,15 @@
-use ron::de::from_reader;
-use ron::ser::to_writer_pretty;
 use serde::{Deserialize, Serialize};
 
+use crate::prelude::HpuParameters;
+
 use super::*;
-use std::fs::{File, OpenOptions};
-use std::path::Path;
 
 use enum_dispatch::enum_dispatch;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Flush {
     ByTimeout,
-    ByFlush
+    ByFlush,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -25,17 +23,11 @@ impl PeCost {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PeStats {
     pub batches: usize,
     pub issued: usize,
     pub by_timeout: usize,
-}
-
-impl Default for PeStats {
-    fn default() -> Self {
-        PeStats { batches: 0, issued: 0, by_timeout: 0 }
-    }
 }
 
 #[enum_dispatch]
@@ -136,10 +128,12 @@ impl Pe {
     }
     fn fifo_free(&self) -> i32 {
         match self {
-            Pe::Single(pe) => pe.fifo_limit
-                .unwrap_or(usize::max_value()) as i32 - (pe.fifo_in as i32),
-            Pe::Batch(pe) => pe.fifo_limit
-                .unwrap_or(usize::max_value()) as i32 - (pe.fifo_in as i32)
+            Pe::Single(pe) => {
+                pe.fifo_limit.unwrap_or(usize::max_value()) as i32 - (pe.fifo_in as i32)
+            }
+            Pe::Batch(pe) => {
+                pe.fifo_limit.unwrap_or(usize::max_value()) as i32 - (pe.fifo_in as i32)
+            }
         }
     }
     fn is_full(&self) -> bool {
@@ -186,8 +180,12 @@ impl Pe {
         }
     }
 
-    fn probe_for_exec(&mut self, pe_id: usize, at_cycle: usize,
-                      batch_flush: Option<Flush>) -> Vec<Event> {
+    fn probe_for_exec(
+        &mut self,
+        pe_id: usize,
+        at_cycle: usize,
+        batch_flush: Option<Flush>,
+    ) -> Vec<Event> {
         if !self.is_busy() {
             match self {
                 Pe::Single(pe) => {
@@ -216,8 +214,7 @@ impl Pe {
                 }
                 Pe::Batch(pe) => {
                     // Batch full or batch flush
-                    if (pe.fifo_in >= pe.batch_size)
-                        || (pe.fifo_in != 0 && batch_flush.is_some()) {
+                    if (pe.fifo_in >= pe.batch_size) || (pe.fifo_in != 0 && batch_flush.is_some()) {
                         let issued = std::cmp::min(pe.batch_size, pe.fifo_in);
 
                         // update state
@@ -226,8 +223,8 @@ impl Pe {
                         pe.wr_lock = issued;
                         pe.stats.issued += issued;
                         pe.stats.batches += 1;
-                        pe.stats.by_timeout += batch_flush
-                            .is_some_and(|f| f == Flush::ByTimeout) as usize;
+                        pe.stats.by_timeout +=
+                            batch_flush.is_some_and(|f| f == Flush::ByTimeout) as usize;
 
                         // Register unlock event
                         // First all rd_unlock then all wr_unlock
@@ -296,21 +293,22 @@ impl PeStore {
             .0
             .iter_mut()
             .enumerate()
-            .filter(|(_, (_, pe))|
-                    (InstructionKind::None != (pe.kind() & kind_1h)) 
-                    && !pe.is_busy() && !pe.is_full())
+            .filter(|(_, (_, pe))| {
+                (InstructionKind::None != (pe.kind() & kind_1h)) && !pe.is_busy() && !pe.is_full()
+            })
             .collect::<Vec<_>>();
 
-        capable_pe
-            .first_mut()
-            .map(|(id, (_, pe))| {
-                pe.push();
-                *id
-            })
+        capable_pe.first_mut().map(|(id, (_, pe))| {
+            pe.push();
+            *id
+        })
     }
 
-    pub(crate) fn probe_for_exec(&mut self, at_cycle: usize,
-                                 batch_flush: Option<Flush>) -> Vec<Event> {
+    pub(crate) fn probe_for_exec(
+        &mut self,
+        at_cycle: usize,
+        batch_flush: Option<Flush>,
+    ) -> Vec<Event> {
         let mut events = Vec::new();
         self.0.iter_mut().enumerate().for_each(|(id, pe)| {
             let evt = pe.1.probe_for_exec(id, at_cycle, batch_flush);
@@ -328,27 +326,25 @@ impl PeStore {
     }
 
     pub(crate) fn is_busy(&self) -> bool {
-        self.0.iter().fold(false, |acc, (_,next)| acc | next.is_busy())
+        self.0
+            .iter()
+            .fold(false, |acc, (_, next)| acc | next.is_busy())
     }
 
     pub(crate) fn pending(&self) -> usize {
-        self.0.iter()
-            .map(|(_,pe)| pe.pending())
-            .sum::<usize>()
+        self.0.iter().map(|(_, pe)| pe.pending()).sum::<usize>()
     }
 
     pub(crate) fn reset_stats(&mut self) {
-        self.0
-            .iter_mut()
-            .for_each(|(_, pe)| {pe.reset_stats();});
+        self.0.iter_mut().for_each(|(_, pe)| {
+            pe.reset_stats();
+        });
     }
 
     pub(crate) fn set_batch_limit(&mut self) {
-        self.0
-            .iter_mut()
-            .for_each(|(_, pe)| {
-                *pe.fifo_limit() = Some(pe.batch_size());
-            });
+        self.0.iter_mut().for_each(|(_, pe)| {
+            *pe.fifo_limit() = Some(pe.batch_size());
+        });
     }
 }
 
@@ -387,7 +383,7 @@ impl From<PeConfig> for Pe {
                 wr_lock: false,
                 fifo_in: 0,
                 fifo_limit: None,
-                stats: PeStats::default()
+                stats: PeStats::default(),
             })
         } else {
             Self::Batch(PeBatch {
@@ -398,7 +394,7 @@ impl From<PeConfig> for Pe {
                 wr_lock: 0,
                 fifo_in: 0,
                 fifo_limit: None,
-                stats: PeStats::default()
+                stats: PeStats::default(),
             })
         }
     }
@@ -426,36 +422,84 @@ impl PeConfigStore {
     pub fn new(store: Vec<(String, PeConfig)>) -> Self {
         Self(store)
     }
-    pub fn from_ron(config: &str) -> Self {
-        let pe_f = File::open(config).expect("Failed opening file");
-        match from_reader(pe_f) {
-            Ok(data) => data,
-            Err(err) => {
-                panic!("Failed to load PeConfigStore from file {}", err);
-            }
-        }
-    }
+}
 
-    pub fn to_ron(&self, config: &str) {
-        let config = Path::new(config);
-        if let Some(cfg_d) = config.parent() {
-            std::fs::create_dir_all(cfg_d).unwrap();
+/// Construct PeConfigStore directly from HpuParameters
+/// Use RTL parameters to compute the expected performances
+impl From<&HpuParameters> for PeConfigStore {
+    fn from(params: &HpuParameters) -> Self {
+        // TODO: Add register to depicts the number of computation units (NB: Currently fixed to 1)
+        let ldst_pe_nb = 1;
+        let lin_pe_nb = 1;
+        let pbs_pe_nb = 1;
+        // Extract used parameters for ease of access
+        let batch_pbs = params.ntt_params.batch_pbs_nb;
+        let lwe_k = params.pbs_params.lwe_dimension;
+        let glwe_k = params.pbs_params.glwe_dimension;
+        let poly_size = params.pbs_params.polynomial_size;
+        let pem_axi_w = params.pc_params.pem_pc * params.pc_params.pem_bytes_w * 8;
+        let ct_w = params.ntt_params.ct_width as usize;
+        let lbx = params.ks_params.lbx;
+
+        // Compute some intermediate values
+        let blwe_coefs = (poly_size * glwe_k) + 1;
+        let glwe_coefs = poly_size * (glwe_k + 1);
+        let rpsi = params.ntt_params.radix * params.ntt_params.psi;
+
+        // Cycles required to load a ciphertext in the computation pipe
+        let ct_load_cycles = usize::div_ceil(glwe_coefs * params.pbs_params.pbs_level, rpsi);
+        // Latency of a Cmux for a batch
+        let cmux_lat = ct_load_cycles * batch_pbs;
+
+        // NB: Keyswitch latency is dimension to match roughly the Cmux latency (with lbx coefs in //)
+        // Keep this approximation here
+        let ks_cycles = cmux_lat * lbx;
+
+        let mut pe_config_store = Vec::with_capacity(ldst_pe_nb + lin_pe_nb + batch_pbs);
+
+        // LoadStore
+        // Load store performance is computed as access_cycle *2
+        // Take 2 as really raw approximation
+        // LoadStore operation don't support early rd_unlock -> assign same value as wr_unlock
+        let ldst_raw_cycle = (blwe_coefs * ct_w).div_ceil(pem_axi_w);
+        let ldst_cycle = ldst_raw_cycle * 2;
+        for i in 0..ldst_pe_nb {
+            let name = format!("LdSt_{i}");
+            let cost = PeCost::new(ldst_cycle, ldst_cycle + 1);
+            let kind = InstructionKind::MemLd | InstructionKind::MemSt;
+            pe_config_store.push((name, PeConfig::new(cost, kind, 1)));
         }
 
-        let cfg_f = OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .write(true)
-            .append(false)
-            .open(config)
-            .unwrap();
-
-        match to_writer_pretty(cfg_f, self, Default::default()) {
-            Ok(_) => {}
-            Err(err) => {
-                panic!("Failed to write PeConfigStore to file {}", err);
-            }
+        // Linear operation
+        // Linear operation performance is computed roughly as glwe_n*glwe_k
+        // In practice this could be lower if multiple coefs are handle in //
+        // Linear operation don't support early rd_unlock -> assign same value as wr_unlock
+        let lin_cycle = blwe_coefs;
+        for i in 0..lin_pe_nb {
+            let name = format!("Lin_{i}");
+            let cost = PeCost::new(lin_cycle, lin_cycle + 1);
+            let kind = InstructionKind::Arith;
+            pe_config_store.push((name, PeConfig::new(cost, kind, 1)));
         }
+
+        // KsPbs operation
+        // View as PeBatch unit
+        // IPIP/BPIP Mode is handle by the scheduler module
+        // Thus we view the KsPbs engine as a list of batch_pbs alu with full latency each
+        let kspbs_rd_cycle = blwe_coefs.div_ceil(params.regf_params.coef_nb);
+        let kspbs_wr_cycle = 2* kspbs_rd_cycle  // read from regfile and write to regfile
+            + ks_cycles // latency of keyswitch
+             + lwe_k * cmux_lat  // Loop of cmux lat
+             + batch_pbs * blwe_coefs.div_ceil(rpsi / 2 /* approx */); //Sample extract latency
+
+        for i in 0..pbs_pe_nb {
+            let name = format!("KsPbs_{}", i);
+            let cost = PeCost::new(kspbs_rd_cycle, kspbs_wr_cycle);
+            let kind = InstructionKind::Pbs;
+            pe_config_store.push((name, PeConfig::new(cost, kind, batch_pbs)));
+        }
+
+        Self::new(pe_config_store)
     }
 }
 
@@ -481,35 +525,3 @@ impl From<&PeStore> for PeConfigStore {
         Self(config)
     }
 }
-
-impl Default for PeConfigStore {
-    fn default() -> Self {
-        PeConfigStore(vec![
-            (String::from("LdSt_0"), PeConfig{
-                cost: PeCost{
-                    rd_lock: 354,
-                    wr_lock: 355,
-                },
-                kind: InstructionKind::MemLd | InstructionKind::MemSt,
-                batch_size: 1,
-            }),
-            (String::from("Lin_0"), PeConfig{
-                cost: PeCost{
-                    rd_lock: 2048,
-                    wr_lock: 2049,
-                },
-                kind: InstructionKind::Arith,
-                batch_size: 1,
-            }),
-            (String::from("KsPbs_0"), PeConfig{
-                cost: PeCost{
-                    rd_lock: 16384,
-                    wr_lock: 556448,
-                },
-                kind: InstructionKind::Pbs,
-                batch_size: 12,
-            }),
-        ])
-    }
-}
-
