@@ -2,7 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
 use crate::strings::client_key::ClientKey;
@@ -21,7 +21,7 @@ const UP_LOW_CASE: [&str; 21] = [
 
 #[test]
 fn to_lower_upper_case_test_parameterized() {
-    to_lower_upper_case_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    to_lower_upper_case_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -104,7 +104,7 @@ pub(crate) fn to_lower_upper_case_test_impl<P, T>(
 
 #[test]
 fn eq_ignore_case_test_parameterized() {
-    eq_ignore_case_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    eq_ignore_case_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]

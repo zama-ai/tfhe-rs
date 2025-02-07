@@ -3,13 +3,10 @@
 pub use super::parameters_wopbs_message_carry::*;
 pub use super::parameters_wopbs_only::*;
 use super::WopbsParametersVersions;
-pub use crate::core_crypto::commons::dispersion::StandardDev;
-pub use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweDimension, PolynomialSize,
-};
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus,
+    CarryModulus, CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus,
+    PolynomialSize,
 };
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;

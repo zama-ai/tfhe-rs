@@ -700,9 +700,17 @@ pub mod gpu {
 mod tests {
     use crate::prelude::*;
     use crate::safe_serialization::{safe_deserialize, safe_serialize};
-    use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    // TODO GPU DRIFT UPDATE
+    use crate::shortint::parameters::current_params::{
+        V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    };
+    use crate::shortint::parameters::{
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    };
     use crate::shortint::PBSParameters;
     use crate::{
         set_server_key, unset_server_key, ClientKey, CompressedCiphertextList,
@@ -711,12 +719,28 @@ mod tests {
 
     #[test]
     fn test_compressed_ct_list_cpu_gpu() {
-        for params in [
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
-            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
-        ] {
+        // TODO GPU DRIFT UPDATE
+        let (test_params, comp_params) = if cfg!(feature = "gpu") {
+            (
+                [
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+                    V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+                ],
+                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            )
+        } else {
+            (
+                [
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                    V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                ],
+                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
+        };
+
+        for params in test_params {
             let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
-                .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+                .enable_compression(comp_params)
                 .build();
 
             let ck = crate::ClientKey::generate(config);

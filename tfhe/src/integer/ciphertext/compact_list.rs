@@ -828,9 +828,9 @@ impl CompactCiphertextList {
     ///     RadixCiphertext, SignedRadixCiphertext,
     /// };
     /// use tfhe::integer::{ClientKey, CompactPublicKey};
-    /// use tfhe::shortint::parameters::classic::compact_pk::V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
-    /// let fhe_params = V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
+    /// let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// let num_blocks = 4usize;
     ///
@@ -1152,23 +1152,27 @@ mod tests {
     use crate::integer::{
         BooleanBlock, ClientKey, CompactPrivateKey, CompactPublicKey, RadixCiphertext, ServerKey,
     };
-    use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
-        V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-    };
-    use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
-        V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+    use crate::shortint::parameters::{
+        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+    use crate::shortint::parameters::current_params::compact_public_key_only::p_fail_2_minus_128::ks_pbs::{
+        V1_0_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_0_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+    };
+    use crate::shortint::parameters::current_params::key_switching::p_fail_2_minus_128::ks_pbs::{
+        V1_0_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_0_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+    };
     use rand::random;
 
     #[test]
     fn test_zk_compact_ciphertext_list_encryption_ci_run_filter() {
-        let pke_params = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let ksk_params = V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
@@ -1229,11 +1233,11 @@ mod tests {
     /// Test a compact list encryption proven with the v1 zk scheme
     #[test]
     fn test_zkv1_compact_ciphertext_list_encryption_ci_run_filter() {
-        let pke_params = V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1;
+        let pke_params = V1_0_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
         let ksk_params =
-            V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1;
+            V1_0_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
 
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
@@ -1293,9 +1297,9 @@ mod tests {
 
     #[test]
     fn test_several_proven_lists() {
-        let pke_params = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let ksk_params = V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let pke_params = V1_0_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = V1_0_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
@@ -1356,9 +1360,9 @@ mod tests {
     fn test_malicious_boolean_proven_lists() {
         use super::DataKind;
 
-        let pke_params = V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let ksk_params = V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let pke_params = V1_0_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = V1_0_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 

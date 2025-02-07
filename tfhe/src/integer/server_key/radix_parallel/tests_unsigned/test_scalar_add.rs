@@ -6,6 +6,7 @@ use crate::integer::tests::create_parameterized_test;
 use crate::integer::ServerKey;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 
 create_parameterized_test!(integer_smart_scalar_add);
