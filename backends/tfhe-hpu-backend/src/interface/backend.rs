@@ -2,8 +2,8 @@
 use super::*;
 use crate::asm::PbsLut;
 use crate::entities::*;
-use crate::fw::isc_sim::InstructionKind;
-use crate::fw::{Fw, FwParameters, isc_sim::IscSimParameters};
+use crate::fw::isc_sim::PeConfigStore;
+use crate::fw::{Fw, FwParameters};
 use crate::{asm, ffi};
 use rtl::FromRtl;
 
@@ -20,7 +20,6 @@ pub struct HpuBackend {
 
     // Extracted parameters
     pub(crate) params: HpuParameters,
-    pub(crate) sim_params: IscSimParameters,
     // Prevent to parse regmap at each polling iteration
     workq_addr: u64,
     ackq_addr: u64,
@@ -91,7 +90,6 @@ impl HpuBackend {
         let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
 
         let params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
-        let sim_params = IscSimParameters::from_ron(&config.firmware.sim);
 
         // Flush ack_q
         // Ensure that no residue from previous execution were stall in the pipe
@@ -233,7 +231,6 @@ impl HpuBackend {
             hpu_hw,
             regmap,
             params,
-            sim_params,
             workq_addr,
             ackq_addr,
             bsk_key,
@@ -551,26 +548,20 @@ impl HpuBackend {
     pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
         // Create Asm architecture properties and Fw instanciation
         // TODO construct from real params
-        let pbs_batch_w = self.sim_params.pe_cfg.0
-            .iter()
-            .filter_map(|(_,pe)| match pe.kind {
-                InstructionKind::Pbs => Some(pe.batch_size),
-                _ => None
-            })
-            .next()
-            .unwrap();
+        let pe_cfg = PeConfigStore::from(&self.params);
+
         let fw_params = FwParameters {
-            regs: self.params.regf_params.reg_nb,
+            register: self.params.regf_params.reg_nb,
+            isc_depth: self.params.isc_params.depth,
             heap_size: config.board.heap_size,
-            pbs_batch_w,
-            msg_w: 2,
-            carry_w: 2,
+            pbs_batch_w: self.params.ntt_params.batch_pbs_nb,
+            msg_w: self.params.pbs_params.message_width,
+            carry_w: self.params.pbs_params.carry_width,
             nu: 5,
-            // TODO extend with multi-width support
             integer_w: config.firmware.integer_w[0],
-            ipip: config.firmware.ipip,
-            kogge: config.firmware.kogge.clone(),
-            sim_params: self.sim_params.clone(),
+            use_ipip: config.firmware.use_ipip,
+            kogge_cfg: config.firmware.kogge_cfg.clone(),
+            pe_cfg,
         };
 
         let mut fw = crate::fw::fw_impl::ilp::Ilp::default();

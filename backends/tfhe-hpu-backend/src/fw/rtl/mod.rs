@@ -5,6 +5,8 @@
 
 mod macros;
 
+use super::isc_sim;
+use super::isc_sim::{report::PeStoreRpt, InstructionKind, PeFlush, PeStore};
 use super::metavar::{MetaVarCell, MetaVarCellWeak, VarPos};
 use super::program::Program;
 use crate::asm::{Pbs, PbsLut};
@@ -18,12 +20,6 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use strum_macros::{Display, EnumDiscriminants, EnumString};
 use tracing::trace;
-use super::isc_sim;
-use super::isc_sim::{
-    InstructionKind,
-    PeStore, PeFlush,
-    report::PeStoreRpt,
-};
 
 static COUNTER: AtomicUsize = AtomicUsize::new(1);
 fn new_uid() -> usize {
@@ -620,7 +616,7 @@ impl PartialEq for OperationCell {
     fn eq(&self, other: &Self) -> bool {
         match self.cmp(other) {
             std::cmp::Ordering::Equal => true,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -664,7 +660,7 @@ struct Arch {
     events: BinaryHeap<isc_sim::Event>,
     rd_pdg: HashMap<usize, Vec<OperationCell>>,
     wr_pdg: HashMap<usize, Vec<OperationCell>>,
-    ipip: bool,
+    use_ipip: bool,
 }
 
 // An interface to the target architecture
@@ -675,50 +671,53 @@ impl Arch {
     pub fn try_dispatch(&mut self, op: BinaryHeap<OperationCell>) -> BinaryHeap<OperationCell> {
         let ret = op
             .into_iter()
-            .filter_map(|op| if let Some(id) = {
+            .filter_map(|op| {
+                if let Some(id) = {
                     let op_borrow = op.borrow();
                     let kind = op_borrow.kind();
 
-                    self.program.clone()
-                    .and_then(|mut p| {
-                        // Make sure all sources that are not already in
-                        // registers can be allocated
-                        let src = op_borrow
-                            .src()
-                            .iter()
-                            .filter(|src| src.copy_meta()
-                                    .is_some_and(|m| m.as_reg().is_none()))
-                            .map(|_| 1);
-                        // And all destinations too
-                        let ranges: Vec<_> = [op_borrow.dst().len()]
-                            .into_iter()
-                            .chain(src)
-                            .collect();
-                        Some(p.reg_avail(ranges))
-                    })
-                    .unwrap_or(true)
-                    .then_some(kind)
-                    .and_then(|kind| self.pe_store.try_push(kind))
+                    self.program
+                        .clone()
+                        .and_then(|mut p| {
+                            // Make sure all sources that are not already in
+                            // registers can be allocated
+                            let src = op_borrow
+                                .src()
+                                .iter()
+                                .filter(|src| src.copy_meta().is_some_and(|m| m.as_reg().is_none()))
+                                .map(|_| 1);
+                            // And all destinations too
+                            let ranges: Vec<_> =
+                                [op_borrow.dst().len()].into_iter().chain(src).collect();
+                            Some(p.reg_avail(ranges))
+                        })
+                        .unwrap_or(true)
+                        .then_some(kind)
+                        .and_then(|kind| self.pe_store.try_push(kind))
                 } {
                     self.add(&op);
-                    self.rd_pdg.entry(id)
-                        .or_insert(Vec::new())
-                        .push(op);
+                    self.rd_pdg.entry(id).or_insert(Vec::new()).push(op);
                     None
                 } else {
                     Some(op)
                 }
-            )
+            })
             .collect::<BinaryHeap<_>>();
 
         // Flush if there's nothing else to do or ipip
-        let flush = (ret.len() == 0 || self.ipip).then_some(PeFlush::ByFlush);
-        self.pe_store.probe_for_exec(self.cycle, flush)
+        let flush = (ret.len() == 0 || self.use_ipip).then_some(PeFlush::ByFlush);
+        self.pe_store
+            .probe_for_exec(self.cycle, flush)
             .into_iter()
-            .filter(|isc_sim::Event{at_cycle: _, event_type: ev}| match ev {
-                isc_sim::EventType::ReqTimeout(_, _) => false,
-                _ => true,
-            })
+            .filter(
+                |isc_sim::Event {
+                     at_cycle: _,
+                     event_type: ev,
+                 }| match ev {
+                    isc_sim::EventType::ReqTimeout(_, _) => false,
+                    _ => true,
+                },
+            )
             .for_each(|evt| self.events.push(evt));
         ret
     }
@@ -736,9 +735,7 @@ impl Arch {
                 self.pe_store.rd_unlock(id);
                 let op = self.rd_pdg.get_mut(&id).unwrap().pop().unwrap();
                 self.rd_unlock(&op);
-                self.wr_pdg.entry(id)
-                    .or_insert(Vec::new())
-                    .push(op);
+                self.wr_pdg.entry(id).or_insert(Vec::new()).push(op);
                 None
             }
             isc_sim::EventType::WrUnlock(_, id) => {
@@ -748,13 +745,12 @@ impl Arch {
                 self.wr_unlock(&op);
                 Some(op)
             }
-            _ => panic!("Received an unexpected event")
+            _ => panic!("Received an unexpected event"),
         }
     }
 
     pub fn busy(&self) -> bool {
-        self.pe_store.is_busy() || (self.events.len() != 0) 
-                                || (self.pe_store.pending() != 0)
+        self.pe_store.is_busy() || (self.events.len() != 0) || (self.pe_store.pending() != 0)
     }
 
     pub fn cycle(&self) -> usize {
@@ -853,14 +849,14 @@ impl Arch {
 impl From<&Program> for Arch {
     fn from(program: &Program) -> Self {
         let params = program.params();
-        let mut pe_store = PeStore::from(params.sim_params.pe_cfg.clone());
+        let mut pe_store = PeStore::from(params.pe_cfg.clone());
         pe_store.set_batch_limit();
         Arch {
             pe_store,
             program: Some(program.clone()),
             reg_rc: HashMap::new(),
             cycle: 0,
-            ipip: params.ipip,
+            use_ipip: params.use_ipip,
             events: BinaryHeap::new(),
             rd_pdg: HashMap::new(),
             wr_pdg: HashMap::new(),
@@ -922,10 +918,7 @@ impl Rtl {
         if dry_run {
             arch.program = None;
         };
-        let mut todo: BinaryHeap<_> = 
-            Rtl::find_roots(&mut self.0)
-                .into_iter()
-                .collect();
+        let mut todo: BinaryHeap<_> = Rtl::find_roots(&mut self.0).into_iter().collect();
 
         trace!(target: "rtl", "todo: {:?}", &todo);
 
