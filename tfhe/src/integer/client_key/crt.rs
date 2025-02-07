@@ -13,10 +13,10 @@ use tfhe_versionable::Versionize;
 ///
 /// ```rust
 /// use tfhe::integer::CrtClientKey;
-/// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
+/// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
 ///
 /// let basis = vec![2, 3, 5];
-/// let cks = CrtClientKey::new(V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, basis);
+/// let cks = CrtClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128, basis);
 ///
 /// let msg = 13_u64;
 ///

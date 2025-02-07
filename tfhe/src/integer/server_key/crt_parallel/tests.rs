@@ -2,6 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::IntegerKeyKind;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
 
@@ -14,7 +15,7 @@ const NB_TESTS: usize = 30;
 const NB_TESTS: usize = 1;
 
 #[cfg(not(tarpaulin))]
-const PARAM: ClassicPBSParameters = V0_11_PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64;
+const PARAM: ClassicPBSParameters = V1_0_PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M128;
 #[cfg(tarpaulin)]
 const PARAM: ClassicPBSParameters = COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 

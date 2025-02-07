@@ -55,7 +55,9 @@ Here is a more complete example:
 use tfhe::conformance::ParameterSetConformant;
 use tfhe::prelude::*;
 use tfhe::safe_serialization::{safe_serialize, safe_deserialize_conformant};
-use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2_KS_PBS,  V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64};
+use tfhe::shortint::parameters::{
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128};
 use tfhe::conformance::ListSizeConstraint;
 use tfhe::{
     generate_keys, FheUint8, CompactCiphertextList, FheUint8ConformanceParams,
@@ -63,8 +65,10 @@ use tfhe::{
 };
 
 fn main() {
-    let params_1 = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    let params_2 =  V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+    let params_1 = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let params_2 = PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+
+    assert_ne!(params_1, params_2);
 
     let config = ConfigBuilder::with_custom_parameters(params_1).build();
 

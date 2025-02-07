@@ -13,16 +13,16 @@ use rand::Rng;
 use std::sync::Arc;
 
 create_parameterized_test!(safe_erc20 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 create_parameterized_test!(whitepaper_erc20 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 create_parameterized_test!(no_cmux_erc20 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 create_parameterized_test!(overflow_erc20 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
 fn safe_erc20<P>(param: P)

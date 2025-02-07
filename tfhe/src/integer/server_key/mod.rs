@@ -81,10 +81,10 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
     /// // Generate the server key:
     /// let sks = ServerKey::new_radix_server_key(cks);
@@ -134,11 +134,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     /// use tfhe::shortint::ServerKey as ShortintServerKey;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
     /// // Generate the shortint server key:
     /// let shortint_sks = ShortintServerKey::new(cks.as_ref());
@@ -165,11 +165,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     /// use tfhe::shortint::ServerKey as ShortintServerKey;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
     /// // Generate the shortint server key:
     /// let shortint_sks = ShortintServerKey::new(cks.as_ref());
@@ -340,7 +340,7 @@ mod test {
     fn test_compressed_server_key_max_degree() {
         {
             let cks = ClientKey::new(
-                crate::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
             );
             // msg_mod = 4, carry_mod = 4, (msg_mod * carry_mod - 1) - (carry_mod - 1) = 12
             let expected_radix_max_degree = MaxDegree::new(12);
@@ -357,7 +357,7 @@ mod test {
 
         {
             let cks = ClientKey::new(
-                crate::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
             );
             // msg_mod = 4, carry_mod = 4, msg_mod * carrymod - 1 = 15
             let expected_crt_max_degree = MaxDegree::new(15);

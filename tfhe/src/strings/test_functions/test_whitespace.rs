@@ -2,7 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::FheString;
 use crate::strings::client_key::ClientKey;
@@ -14,7 +14,7 @@ const WHITESPACES: [&str; 5] = [" ", "\n", "\t", "\r", "\u{000C}"];
 
 #[test]
 fn trim_test_parameterized() {
-    trim_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    trim_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -114,7 +114,7 @@ pub(crate) fn trim_test_impl<P, T>(
 
 #[test]
 fn split_whitespace_test_parameterized() {
-    split_whitespace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    split_whitespace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]

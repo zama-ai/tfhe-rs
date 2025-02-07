@@ -7,6 +7,7 @@ use crate::integer::tests::create_parameterized_test;
 use crate::integer::ServerKey;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 
 create_parameterized_test!(
@@ -15,8 +16,8 @@ create_parameterized_test!(
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         },
         no_coverage => {
-            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         }
     }
 );
@@ -27,7 +28,7 @@ create_parameterized_test!(
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         },
         no_coverage => {
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         }
     }
 );

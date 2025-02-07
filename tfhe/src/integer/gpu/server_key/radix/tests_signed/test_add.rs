@@ -5,6 +5,7 @@ use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_add::{
     signed_default_add_test, signed_unchecked_add_test, signed_unchecked_overflowing_add_test,
 };
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_unchecked_add);

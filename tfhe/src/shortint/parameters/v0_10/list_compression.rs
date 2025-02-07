@@ -1,7 +1,6 @@
-use crate::core_crypto::prelude::{CiphertextModulusLog, LweCiphertextCount};
 use crate::shortint::parameters::{
-    CompressionParameters, DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution,
-    GlweDimension, PolynomialSize,
+    CiphertextModulusLog, CompressionParameters, DecompositionBaseLog, DecompositionLevelCount,
+    DynamicDistribution, GlweDimension, LweCiphertextCount, PolynomialSize,
 };
 
 pub const V0_10_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompressionParameters =

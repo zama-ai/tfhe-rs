@@ -363,7 +363,7 @@ clippy_rustdoc: install_rs_check_toolchain
 	fi && \
 	CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --nocapture --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
-		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings \
+		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental \
 		-p $(TFHE_SPEC)
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
@@ -956,6 +956,10 @@ check_intra_md_links: install_mlc
 check_md_links: install_mlc
 	mlc --match-file-extension tfhe/docs
 
+.PHONY: check_parameter_export_ok # Checks exported "current" shortint parameter module is correct
+check_parameter_export_ok:
+	python3 ./scripts/check_current_param_export.py
+
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
@@ -1313,15 +1317,16 @@ sha256_bool: install_rs_check_toolchain
 	--example sha256_bool --features=boolean
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
-pcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_tested check_intra_md_links \
-clippy_all check_compile_tests test_tfhe_lints tfhe_lints
+pcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
+check_md_docs_are_tested check_intra_md_links clippy_all check_compile_tests test_tfhe_lints \
+tfhe_lints
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu check_rust_bindings_did_not_change
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
-fpcc: no_tfhe_typo no_dbg_log check_fmt check_typos lint_doc check_md_docs_are_tested clippy_fast \
-check_compile_tests
+fpcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
+check_md_docs_are_tested clippy_fast check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fix_newline fmt fmt_js

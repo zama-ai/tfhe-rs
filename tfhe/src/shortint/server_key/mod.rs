@@ -728,57 +728,29 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
-    /// };
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
-    /// {
-    ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
-    ///     let msg = 3;
+    /// let msg = 3;
     ///
-    ///     let ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
-    ///     // Generate the lookup table for the functions
-    ///     // f1: x -> x*x mod 4
-    ///     // f2: x -> count_ones(x as binary) mod 4
-    ///     let f1 = |x: u64| x.pow(2) % 4;
-    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
-    ///     // Easy to use for generation
-    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
-    ///     let vec_res = sks.apply_many_lookup_table(&ct, &luts);
+    /// // Generate the lookup table for the functions
+    /// // f1: x -> x*x mod 4
+    /// // f2: x -> count_ones(x as binary) mod 4
+    /// let f1 = |x: u64| x.pow(2) % 4;
+    /// let f2 = |x: u64| x.count_ones() as u64 % 4;
+    /// // Easy to use for generation
+    /// let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
+    /// let vec_res = sks.apply_many_lookup_table(&ct, &luts);
     ///
-    ///     // Need to manually help Rust to iterate over them easily
-    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
-    ///     for (res, function) in vec_res.iter().zip(functions) {
-    ///         let dec = cks.decrypt(res);
-    ///         assert_eq!(dec, function(msg));
-    ///     }
-    /// }
-    /// {
-    ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
-    ///
-    ///     let msg = 3;
-    ///
-    ///     let ct = cks.encrypt(msg);
-    ///
-    ///     // Generate the lookup table for the functions
-    ///     // f1: x -> x*x mod 4
-    ///     // f2: x -> count_ones(x as binary) mod 4
-    ///     let f1 = |x: u64| x.pow(2) % 4;
-    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
-    ///     // Easy to use for generation
-    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
-    ///     let vec_res = sks.apply_many_lookup_table(&ct, &luts);
-    ///
-    ///     // Need to manually help Rust to iterate over them easily
-    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
-    ///     for (res, function) in vec_res.iter().zip(functions) {
-    ///         let dec = cks.decrypt(res);
-    ///         assert_eq!(dec, function(msg));
-    ///     }
+    /// // Need to manually help Rust to iterate over them easily
+    /// let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
+    /// for (res, function) in vec_res.iter().zip(functions) {
+    ///     let dec = cks.decrypt(res);
+    ///     assert_eq!(dec, function(msg));
     /// }
     /// ```
     pub fn generate_many_lookup_table(
@@ -896,57 +868,29 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
-    /// };
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
-    /// {
-    ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
-    ///     let msg = 3;
+    /// let msg = 3;
     ///
-    ///     let ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
-    ///     // Generate the lookup table for the functions
-    ///     // f1: x -> x*x mod 4
-    ///     // f2: x -> count_ones(x as binary) mod 4
-    ///     let f1 = |x: u64| x.pow(2) % 4;
-    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
-    ///     // Easy to use for generation
-    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
-    ///     let vec_res = sks.apply_many_lookup_table(&ct, &luts);
+    /// // Generate the lookup table for the functions
+    /// // f1: x -> x*x mod 4
+    /// // f2: x -> count_ones(x as binary) mod 4
+    /// let f1 = |x: u64| x.pow(2) % 4;
+    /// let f2 = |x: u64| x.count_ones() as u64 % 4;
+    /// // Easy to use for generation
+    /// let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
+    /// let vec_res = sks.apply_many_lookup_table(&ct, &luts);
     ///
-    ///     // Need to manually help Rust to iterate over them easily
-    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
-    ///     for (res, function) in vec_res.iter().zip(functions) {
-    ///         let dec = cks.decrypt(res);
-    ///         assert_eq!(dec, function(msg));
-    ///     }
-    /// }
-    /// {
-    ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64);
-    ///
-    ///     let msg = 3;
-    ///
-    ///     let ct = cks.encrypt(msg);
-    ///
-    ///     // Generate the lookup table for the functions
-    ///     // f1: x -> x*x mod 4
-    ///     // f2: x -> count_ones(x as binary) mod 4
-    ///     let f1 = |x: u64| x.pow(2) % 4;
-    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
-    ///     // Easy to use for generation
-    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
-    ///     let vec_res = sks.apply_many_lookup_table(&ct, &luts);
-    ///
-    ///     // Need to manually help Rust to iterate over them easily
-    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
-    ///     for (res, function) in vec_res.iter().zip(functions) {
-    ///         let dec = cks.decrypt(res);
-    ///         assert_eq!(dec, function(msg));
-    ///     }
+    /// // Need to manually help Rust to iterate over them easily
+    /// let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
+    /// for (res, function) in vec_res.iter().zip(functions) {
+    ///     let dec = cks.decrypt(res);
+    ///     assert_eq!(dec, function(msg));
     /// }
     /// ```
     pub fn apply_many_lookup_table(

@@ -33,7 +33,15 @@ pub mod utils {
             )*
         };
 
-        ($param_type:ty => $($(#[$cfg:meta])? $const_param:ident),* $(,)? ) => {
+        (@fallback) => {
+            panic!("Unnamed parameters")
+        };
+
+        (@fallback: $self:ident, $name_fallback:ident) => {
+            $name_fallback($self)
+        };
+
+        ($param_type:ty => $($(#[$cfg:meta])? $const_param:ident),* $(,)? $(; fallback => $name_fallback:ident)? ) => {
             $(
                 $(#[$cfg])?
                 named_params_impl!(expose $const_param);
@@ -45,7 +53,8 @@ pub mod utils {
                         $(#[$cfg])?
                         named_params_impl!({*self; $param_type} == ( $const_param ));
                     )*
-                    panic!("Unnamed parameters");
+
+                    named_params_impl!(@fallback$(: self, $name_fallback)?)
                 }
             }
         };

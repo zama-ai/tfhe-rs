@@ -1,11 +1,8 @@
 pub use super::parameters_wopbs::WopbsParameters;
-pub use crate::core_crypto::commons::dispersion::StandardDev;
-pub use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweDimension, PolynomialSize,
-};
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus,
+    CarryModulus, CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus,
+    PolynomialSize, StandardDev,
 };
 
 pub const LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_0_KS_PBS: WopbsParameters =

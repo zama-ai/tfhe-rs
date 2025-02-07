@@ -1,6 +1,9 @@
-use crate::core_crypto::prelude::*;
-use crate::shortint::ciphertext::MaxNoiseLevel;
-use crate::shortint::parameters::{CarryModulus, ClassicPBSParameters, MessageModulus};
+use crate::shortint::parameters::{
+    CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
+    DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension,
+    MaxNoiseLevel, MessageModulus, PolynomialSize, StandardDev,
+};
+
 // p-fail = 2^-64.093, algorithmic cost ~ 43, 2-norm = 1
 pub const V0_10_PARAM_MESSAGE_1_CARRY_0_COMPACT_PK_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
     ClassicPBSParameters {

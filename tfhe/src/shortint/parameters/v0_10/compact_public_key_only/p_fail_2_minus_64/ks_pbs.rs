@@ -1,9 +1,7 @@
-use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, DynamicDistribution, LweDimension,
-};
 use crate::shortint::parameters::{
-    CarryModulus, CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
-    MessageModulus, SupportedCompactPkeZkScheme,
+    CarryModulus, CiphertextModulus, CompactCiphertextListExpansionKind,
+    CompactPublicKeyEncryptionParameters, DynamicDistribution, LweDimension, MessageModulus,
+    SupportedCompactPkeZkScheme,
 };
 
 /// This legacy parameter set were used with the v1 pke zk scheme on TFHE-rs v0.10 and lower

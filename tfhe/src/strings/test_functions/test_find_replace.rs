@@ -4,7 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecu
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey as IntegerServerKey,
 };
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{
     ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
@@ -19,7 +19,7 @@ const PATTERN_FIND: [&str; 5] = ["", "a", "b", "ab", "abc"];
 
 #[test]
 fn find_test_parameterized() {
-    find_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    find_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -130,7 +130,7 @@ pub(crate) fn find_test_impl<P, T>(
 
 #[test]
 fn replace_test_parameterized() {
-    replace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    replace_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -226,7 +226,7 @@ where
 
 #[test]
 fn replacen_test_parameterized() {
-    replacen_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    replacen_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]

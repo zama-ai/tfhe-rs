@@ -9,15 +9,12 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(
-    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    ///     num_blocks,
-    /// );
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg = 0b10110100_u8;
     ///
@@ -72,8 +69,8 @@ mod tests {
     use crate::integer::{IntegerKeyKind, RadixClientKey};
     #[cfg(tarpaulin)]
     use crate::shortint::parameters::coverage_parameters::*;
+    use crate::shortint::parameters::current_params::*;
     use crate::shortint::parameters::*;
-    use crate::shortint::PBSParameters;
     use rand::prelude::*;
     use std::sync::Arc;
 

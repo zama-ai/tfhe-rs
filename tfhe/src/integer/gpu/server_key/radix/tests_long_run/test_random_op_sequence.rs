@@ -10,7 +10,7 @@ use crate::shortint::parameters::*;
 use std::cmp::{max, min};
 
 create_gpu_parameterized_test!(random_op_sequence {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 fn random_op_sequence<P>(param: P)
 where

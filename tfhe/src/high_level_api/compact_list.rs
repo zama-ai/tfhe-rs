@@ -308,6 +308,7 @@ mod zk {
     mod test {
         use super::*;
         use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
+        use crate::shortint::parameters::*;
         use crate::zk::CompactPkeCrs;
         use rand::{thread_rng, Rng};
 
@@ -315,11 +316,11 @@ mod zk {
         fn conformance_zk_compact_ciphertext_list() {
             let mut rng = thread_rng();
 
-            let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-            let cpk_params = crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let cpk_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+            let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
             let config = crate::ConfigBuilder::with_custom_parameters(params)
                 .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
@@ -484,6 +485,7 @@ impl CompactCiphertextListBuilder {
 mod tests {
     use super::*;
     use crate::prelude::*;
+    use crate::shortint::parameters::*;
     use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
 
     #[test]
@@ -541,16 +543,12 @@ mod tests {
 
     #[test]
     fn test_compact_list_with_casting() {
-        use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
         let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         )
         .use_dedicated_compact_public_key_parameters((
-            V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ))
         .build();
 
@@ -604,16 +602,12 @@ mod tests {
     #[cfg(feature = "zk-pok")]
     #[test]
     fn test_proven_compact_list() {
-        use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
         let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         )
         .use_dedicated_compact_public_key_parameters((
-            V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ))
         .build();
 

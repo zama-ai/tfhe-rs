@@ -2,6 +2,7 @@ use crate::integer::gen_keys_radix;
 use crate::integer::tests::create_parameterized_test;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
 
