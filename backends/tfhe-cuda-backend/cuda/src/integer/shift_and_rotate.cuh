@@ -110,8 +110,9 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
                                             rotated_input, input_bits_b,
                                             rotations);
 
-      set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
-                                                   rotated_input, 0, rotations);
+      if (rotations > 0)
+        set_zero_radix_ciphertext_slice_async<Torus>(
+            streams[0], gpu_indexes[0], rotated_input, 0, rotations);
       break;
     case RIGHT_SHIFT:
       // rotate left as the blocks are from LSB to MSB
@@ -129,9 +130,10 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
               &last_bit, 0, 1);
         }
       else {
-        set_zero_radix_ciphertext_slice_async<Torus>(
-            streams[0], gpu_indexes[0], rotated_input,
-            total_nb_bits - rotations, total_nb_bits);
+        if (rotations > 0)
+          set_zero_radix_ciphertext_slice_async<Torus>(
+              streams[0], gpu_indexes[0], rotated_input,
+              total_nb_bits - rotations, total_nb_bits);
       }
       break;
     case LEFT_ROTATE:

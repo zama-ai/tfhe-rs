@@ -2682,7 +2682,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
 
   SHIFT_OR_ROTATE_TYPE shift_type;
 
-  Torus *tmp_rotated;
+  CudaRadixCiphertextFFI *tmp_rotated;
 
   bool reuse_memory = false;
 
@@ -2698,16 +2698,11 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
 
     if (allocate_gpu_memory) {
       uint32_t max_amount_of_pbs = num_radix_blocks;
-      uint32_t big_lwe_size = params.big_lwe_dimension + 1;
-      uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-      tmp_rotated = (Torus *)cuda_malloc_async((max_amount_of_pbs + 2) *
-                                                   big_lwe_size_bytes,
-                                               streams[0], gpu_indexes[0]);
-
-      cuda_memset_async(tmp_rotated, 0,
-                        (max_amount_of_pbs + 2) * big_lwe_size_bytes,
-                        streams[0], gpu_indexes[0]);
+      tmp_rotated = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_rotated, max_amount_of_pbs + 2,
+          params.big_lwe_dimension);
 
       uint32_t num_bits_in_block = (uint32_t)std::log2(params.message_modulus);
 
@@ -2783,7 +2778,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, SHIFT_OR_ROTATE_TYPE shift_type,
       int_radix_params params, uint32_t num_radix_blocks,
-      bool allocate_gpu_memory, Torus *pre_allocated_buffer) {
+      bool allocate_gpu_memory, CudaRadixCiphertextFFI *pre_allocated_buffer) {
     this->shift_type = shift_type;
     this->params = params;
     tmp_rotated = pre_allocated_buffer;
@@ -2792,9 +2787,9 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     uint32_t max_amount_of_pbs = num_radix_blocks;
     uint32_t big_lwe_size = params.big_lwe_dimension + 1;
     uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-    cuda_memset_async(tmp_rotated, 0,
-                      (max_amount_of_pbs + 2) * big_lwe_size_bytes, streams[0],
-                      gpu_indexes[0]);
+    set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                                 tmp_rotated, 0,
+                                                 tmp_rotated->num_radix_blocks);
     if (allocate_gpu_memory) {
 
       uint32_t num_bits_in_block = (uint32_t)std::log2(params.message_modulus);
@@ -2874,8 +2869,10 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     }
     lut_buffers_bivariate.clear();
 
-    if (!reuse_memory)
-      cuda_drop_async(tmp_rotated, streams[0], gpu_indexes[0]);
+    if (!reuse_memory) {
+      release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_rotated);
+      delete tmp_rotated;
+    }
   }
 };
 
@@ -4423,7 +4420,7 @@ template <typename Torus> struct int_scalar_mul_buffer {
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_buffer;
   int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_vec_mem;
   Torus *preshifted_buffer;
-  Torus *all_shifted_buffer;
+  CudaRadixCiphertextFFI *all_shifted_buffer;
   int_sc_prop_memory<Torus> *sc_prop_mem;
   bool anticipated_buffers_drop;
 
@@ -4447,17 +4444,14 @@ template <typename Torus> struct int_scalar_mul_buffer {
       preshifted_buffer = (Torus *)cuda_malloc_async(
           num_ciphertext_bits * lwe_size_bytes, streams[0], gpu_indexes[0]);
 
-      all_shifted_buffer = (Torus *)cuda_malloc_async(
-          num_ciphertext_bits * num_radix_blocks * lwe_size_bytes, streams[0],
-          gpu_indexes[0]);
+      all_shifted_buffer = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], all_shifted_buffer,
+          num_ciphertext_bits * num_radix_blocks, params.big_lwe_dimension);
 
       cuda_memset_async(preshifted_buffer, 0,
                         num_ciphertext_bits * lwe_size_bytes, streams[0],
                         gpu_indexes[0]);
-
-      cuda_memset_async(all_shifted_buffer, 0,
-                        num_ciphertext_bits * num_radix_blocks * lwe_size_bytes,
-                        streams[0], gpu_indexes[0]);
 
       if (num_ciphertext_bits * num_radix_blocks >= num_radix_blocks + 2)
         logical_scalar_shift_buffer =
@@ -4487,7 +4481,8 @@ template <typename Torus> struct int_scalar_mul_buffer {
     sc_prop_mem->release(streams, gpu_indexes, gpu_count);
     delete sum_ciphertexts_vec_mem;
     delete sc_prop_mem;
-    cuda_drop_async(all_shifted_buffer, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], all_shifted_buffer);
+    delete all_shifted_buffer;
     if (!anticipated_buffers_drop) {
       cuda_drop_async(preshifted_buffer, streams[0], gpu_indexes[0]);
       logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);

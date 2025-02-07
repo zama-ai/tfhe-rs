@@ -339,7 +339,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
       interesting_remainder1.insert(0, numerator_block_1.first_block(),
                                     streams[0], gpu_indexes[0]);
 
-      host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+      legacy_host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
           streams, gpu_indexes, gpu_count, interesting_remainder1.data, 1,
           mem_ptr->shift_mem_1, bsks, ksks, interesting_remainder1.len);
 
@@ -369,7 +369,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
     auto left_shift_interesting_remainder2 = [&](cudaStream_t const *streams,
                                                  uint32_t const *gpu_indexes,
                                                  uint32_t gpu_count) {
-      host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+      legacy_host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
           streams, gpu_indexes, gpu_count, interesting_remainder2.data, 1,
           mem_ptr->shift_mem_2, bsks, ksks, interesting_remainder2.len);
     }; // left_shift_interesting_remainder2

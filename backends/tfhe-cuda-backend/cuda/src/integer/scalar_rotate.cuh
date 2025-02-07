@@ -48,7 +48,7 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
   size_t rotations = n / num_bits_in_message;
   size_t shift_within_block = n % num_bits_in_message;
 
-  Torus *rotated_buffer = mem->tmp_rotated;
+  Torus *rotated_buffer = (Torus *)mem->tmp_rotated->ptr;
 
   // rotate right all the blocks in radix ciphertext
   // copy result in new buffer

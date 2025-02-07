@@ -55,7 +55,7 @@ __host__ void host_integer_scalar_mul_radix(
   uint32_t num_ciphertext_bits = msg_bits * num_radix_blocks;
 
   T *preshifted_buffer = mem->preshifted_buffer;
-  T *all_shifted_buffer = mem->all_shifted_buffer;
+  T *all_shifted_buffer = (T *)mem->all_shifted_buffer->ptr;
 
   for (size_t shift_amount = 0; shift_amount < msg_bits; shift_amount++) {
     T *ptr = preshifted_buffer + shift_amount * lwe_size * num_radix_blocks;
@@ -63,7 +63,7 @@ __host__ void host_integer_scalar_mul_radix(
       cuda_memcpy_async_gpu_to_gpu(ptr, lwe_array,
                                    lwe_size_bytes * num_radix_blocks,
                                    streams[0], gpu_indexes[0]);
-      host_integer_radix_logical_scalar_shift_kb_inplace<T>(
+      legacy_host_integer_radix_logical_scalar_shift_kb_inplace<T>(
           streams, gpu_indexes, gpu_count, ptr, shift_amount,
           mem->logical_scalar_shift_buffer, bsks, ksks, num_radix_blocks);
     } else {
