@@ -566,6 +566,10 @@ mod tests {
                             .get(i, &cuda_decompression_key, &streams)
                             .unwrap()
                             .unwrap();
+                        assert!(
+                            d_decompressed.block_carries_are_empty(),
+                            "Expected carries to be empty"
+                        );
                         let decompressed = d_decompressed.to_radix_ciphertext(&streams);
                         let decrypted: u128 = radix_cks.decrypt(&decompressed);
                         assert_eq!(decrypted, *message);
@@ -602,6 +606,10 @@ mod tests {
                             .get(i, &cuda_decompression_key, &streams)
                             .unwrap()
                             .unwrap();
+                        assert!(
+                            d_decompressed.block_carries_are_empty(),
+                            "Expected carries to be empty"
+                        );
                         let decompressed = d_decompressed.to_signed_radix_ciphertext(&streams);
                         let decrypted: i128 = radix_cks.decrypt_signed(&decompressed);
                         assert_eq!(decrypted, *message);
@@ -640,6 +648,10 @@ mod tests {
                             .get(i, &cuda_decompression_key, &streams)
                             .unwrap()
                             .unwrap();
+                        assert!(
+                            d_decompressed.0.holds_boolean_value(),
+                            "Expected boolean block to have the degree of a boolean value"
+                        );
                         let decompressed = d_decompressed.to_boolean_block(&streams);
                         let decrypted = radix_cks.decrypt_bool(&decompressed);
                         assert_eq!(decrypted, *message);
