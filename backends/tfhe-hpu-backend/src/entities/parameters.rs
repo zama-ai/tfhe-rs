@@ -67,7 +67,7 @@ pub struct HpuNttParameters {
     /// the NTT.
     pub stg_nb: usize,
     // Prime used during computation
-    pub prime_modulus: u64,
+    pub prime_modulus: HpuNttPrime,
 
     /// Psi value -> Number of radix blocks that work in parallel
     pub psi: usize,
@@ -83,6 +83,31 @@ pub enum HpuNttCoreArch {
     WmmCompactPcg,
     WmmUnfoldPcg,
     GF64(Vec<u8>),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HpuNttPrime {
+    GF64 = 0,
+    Solinas3_32_17_13 = 1,
+    Solinas2_44_14 = 2,
+}
+impl From<&HpuNttPrime> for u64 {
+    fn from(prime: &HpuNttPrime) -> Self {
+        match prime {
+            HpuNttPrime::GF64 => {
+                /* Goldilocks64 */
+                ((1_u128 << 64) - (1_u128 << 32) + 1_u128) as u64
+            }
+            HpuNttPrime::Solinas3_32_17_13 => {
+                /* Solinas3_32_17_13 */
+                ((1_u128 << 32) - (1_u128 << 17) - (1_u128 << 13) + 1) as u64
+            }
+            HpuNttPrime::Solinas2_44_14 => {
+                /* Solinas2_44_14 */
+                ((1_u128 << 44) - (1_u128 << 14) + 1) as u64
+            }
+        }
+    }
 }
 
 impl HpuNttParameters {
@@ -127,6 +152,10 @@ pub struct HpuRegfileParameters {
 /// Parameters related to Instruction Scheduler
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuIscParameters {
+    /// HPU lookahead buffer depth
+    /// Number of instruction that are considered in advance
+    pub depth: usize,
+
     /// Minimum Number of DOps per IOp
     pub min_iop_size: usize,
 }
@@ -141,4 +170,22 @@ pub struct HpuParameters {
     pub pc_params: HpuPcParameters,
     pub regf_params: HpuRegfileParameters,
     pub isc_params: HpuIscParameters,
+}
+
+/// Provide Serde mechanims in ron file
+impl HpuParameters {
+    /// Provide Serde mechanisms from TOML file
+    pub fn from_toml(file: &str) -> Self {
+        let file_str = match std::fs::read_to_string(file) {
+            Ok(str) => str,
+            Err(err) => {
+                panic!("Error: `{file}`:: {err}");
+            }
+        };
+
+        match toml::from_str(&file_str) {
+            Ok(cfg) => cfg,
+            Err(err) => panic!("Toml error in `{file}`: {err}"),
+        }
+    }
 }

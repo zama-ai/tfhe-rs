@@ -1,9 +1,8 @@
-use asm::dop::{DOpPbs,DOpPbsMl2,DOpPbsMl4,DOpPbsMl8,
-                   DOpPbsF,DOpPbsMl2F,DOpPbsMl4F,DOpPbsMl8F,ToAsm};
+use asm::dop::{
+    DOpPbs, DOpPbsF, DOpPbsMl2, DOpPbsMl2F, DOpPbsMl4, DOpPbsMl4F, DOpPbsMl8, DOpPbsMl8F, ToAsm,
+};
 use asm::PbsLut;
 use tracing::instrument;
-
-use params::IscSimParameters;
 
 use super::*;
 
@@ -35,10 +34,10 @@ pub enum IssueEvt {
 }
 
 impl Pool {
-    pub fn new(params: &IscSimParameters) -> Self {
+    pub fn new(isc_depth: usize) -> Self {
         Self {
-            max_depth: params.isc_depth,
-            store: Vec::with_capacity(params.isc_depth),
+            max_depth: isc_depth,
+            store: Vec::with_capacity(isc_depth),
         }
     }
 
@@ -405,21 +404,26 @@ impl ArgId {
             Self::default()
         } else {
             let mut arg = Self::from_arg(dst[0].clone());
-            tracing::trace!(target="pool", "Building dst for {:?}", dop);
+            tracing::trace!(target = "pool", "Building dst for {:?}", dop);
             match dop {
                 // Are we sure that this is better than what I had before?
-                asm::DOp::PBS(DOpPbs(pbs)) |
-                asm::DOp::PBS_ML2(DOpPbsMl2(pbs)) |
-                asm::DOp::PBS_ML4(DOpPbsMl4(pbs)) |
-                asm::DOp::PBS_ML8(DOpPbsMl8(pbs)) |
-                asm::DOp::PBS_F(DOpPbsF(pbs)) |
-                asm::DOp::PBS_ML2_F(DOpPbsMl2F(pbs)) |
-                asm::DOp::PBS_ML4_F(DOpPbsMl4F(pbs)) |
-                asm::DOp::PBS_ML8_F(DOpPbsMl8F(pbs)) => {
-                // PBS used muliple contiguous register in case of many-lut
+                asm::DOp::PBS(DOpPbs(pbs))
+                | asm::DOp::PBS_ML2(DOpPbsMl2(pbs))
+                | asm::DOp::PBS_ML4(DOpPbsMl4(pbs))
+                | asm::DOp::PBS_ML8(DOpPbsMl8(pbs))
+                | asm::DOp::PBS_F(DOpPbsF(pbs))
+                | asm::DOp::PBS_ML2_F(DOpPbsMl2F(pbs))
+                | asm::DOp::PBS_ML4_F(DOpPbsMl4F(pbs))
+                | asm::DOp::PBS_ML8_F(DOpPbsMl8F(pbs)) => {
+                    // PBS used muliple contiguous register in case of many-lut
                     let lut = asm::Pbs::from_hex(pbs.gid).expect("Invalid PbsGid");
                     arg.mode = DOpMode::Register(lut.lut_msk() as usize);
-                    tracing::trace!(target="pool", "destination mask for {:?} = {:?}", pbs, arg.mode);
+                    tracing::trace!(
+                        target = "pool",
+                        "destination mask for {:?} = {:?}",
+                        pbs,
+                        arg.mode
+                    );
                     arg
                 }
                 // Otherwise Standard ArgId handling

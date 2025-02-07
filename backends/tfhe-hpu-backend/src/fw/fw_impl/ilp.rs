@@ -4,6 +4,7 @@
 //! In this version of the Fw focus is done on Instruction Level Parallelism
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
+use std::io::Write;
 
 use super::*;
 use crate::asm::{self, OperandKind, Pbs};
@@ -701,21 +702,15 @@ use std::error::Error;
 use std::sync::{Arc, Mutex};
 
 // For the kogge block table
-use ron;
 use serde::{Deserialize, Serialize};
+use toml;
 
 #[derive(Clone, Serialize, Deserialize, Hash, PartialEq, Eq, Debug)]
-struct KoggeBlockTableIndex {
-    blk_w: usize,
-    pbs_w: usize,
-}
+struct KoggeBlockTableIndex(String);
 
 impl From<FwParameters> for KoggeBlockTableIndex {
     fn from(value: FwParameters) -> Self {
-        KoggeBlockTableIndex {
-            blk_w: value.blk_w(),
-            pbs_w: value.pbs_batch_w,
-        }
+        KoggeBlockTableIndex(format!("blk_{}_pbs_{}", value.blk_w(), value.pbs_batch_w))
     }
 }
 
@@ -744,7 +739,7 @@ impl KoggeBlockCfg {
         if let Ok(contents) =
             KoggeBlockCfg::try_with_filename(filename, |f| std::fs::read_to_string(f))
         {
-            let mut res: KoggeBlockCfg = ron::from_str(&contents)
+            let mut res: KoggeBlockCfg = toml::from_str(&contents)
                 .expect(&format!("{} is not a valid KoggeBlockCfg", filename));
             res.filename = String::from(filename);
             res
@@ -765,14 +760,18 @@ impl KoggeBlockCfg {
     }
 
     fn try_write(&self) -> Result<(), Box<dyn Error>> {
-        let file = KoggeBlockCfg::try_with_filename(&self.filename, |name| {
+        // Convert in toml string
+        let toml = toml::to_string(&self)?;
+
+        // Open file and write to it
+        let mut file = KoggeBlockCfg::try_with_filename(&self.filename, |name| {
             std::fs::File::options()
                 .write(true)
                 .truncate(true)
                 .create(true)
                 .open(name)
         })?;
-        ron::ser::to_writer_pretty(file, self, ron::ser::PrettyConfig::default())?;
+        write!(&mut file, "{}", toml)?;
         Ok(())
     }
 }
@@ -786,10 +785,10 @@ impl Drop for KoggeBlockCfg {
 }
 
 impl From<&str> for KoggeBlockCfg {
-    fn from(alu_store: &str) -> Self {
+    fn from(cfg_f: &str) -> Self {
         let mut hash = KOGGE_BLOCK_CFG.lock().unwrap();
         (hash
-            .entry(alu_store.to_string())
+            .entry(cfg_f.to_string())
             .or_insert_with_key(|key| KoggeBlockCfg::new(key)))
         .clone()
     }
@@ -945,14 +944,14 @@ fn cached_kogge_add(
     cin: Option<VarCell>,
     dst: Vec<metavar::MetaVarCell>,
 ) -> Rtl {
-    let mut kogge_cfg = KoggeBlockCfg::from(prog.params().kogge.as_str());
+    let mut kogge_cfg = KoggeBlockCfg::from(prog.params().kogge_cfg.as_str());
     let index: KoggeBlockTableIndex = prog.params().into();
     let dst: Vec<_> = dst.iter().map(|v| VarCell::from(v.clone())).collect();
 
     kogge_cfg
         .get(&index)
         .and_then(|w| Some(*w..=*w))
-        .or_else(|| Some(1..=index.blk_w))
+        .or_else(|| Some(1..=prog.params().blk_w()))
         .unwrap()
         .map(|w| {
             // Build a new tree for every par_w trial, which means that we

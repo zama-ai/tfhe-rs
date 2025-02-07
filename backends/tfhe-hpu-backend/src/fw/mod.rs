@@ -6,10 +6,10 @@
 //! * IntegerOperarions (IOp)
 
 pub mod fw_impl;
+pub mod isc_sim;
 pub mod metavar;
 pub mod program;
 pub mod rtl;
-pub mod isc_sim;
 
 use crate::asm;
 use enum_dispatch::enum_dispatch;
@@ -19,7 +19,8 @@ use strum_macros::{EnumDiscriminants, EnumString};
 /// Used to generate fw customized for the targeted architecture
 #[derive(Debug, Clone)]
 pub struct FwParameters {
-    pub regs: usize,
+    pub register: usize,
+    pub isc_depth: usize,
     pub heap_size: usize,
     pub pbs_batch_w: usize,
 
@@ -27,9 +28,9 @@ pub struct FwParameters {
     pub carry_w: usize,
     pub nu: usize,
     pub integer_w: usize,
-    pub ipip: bool,
-    pub kogge: String,
-    pub sim_params: isc_sim::IscSimParameters,
+    pub use_ipip: bool,
+    pub kogge_cfg: String,
+    pub pe_cfg: isc_sim::PeConfigStore,
 }
 
 impl FwParameters {

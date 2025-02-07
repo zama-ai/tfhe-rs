@@ -39,6 +39,5 @@
   custom_iop.'IOP[19]' = "backends/tfhe-hpu-backend/config/custom_iop/cust_19.asm"
   custom_iop.'IOP[20]' = "backends/tfhe-hpu-backend/config/custom_iop/cust_20.asm"
   custom_iop.'IOP[21]' = "backends/tfhe-hpu-backend/config/custom_iop/cust_21.asm"
-  sim = "backends/tfhe-hpu-backend/config/sim.ron"
-  kogge = "backends/tfhe-hpu-backend/config/kogge.ron"
-  ipip = false
+  kogge_cfg = "backends/tfhe-hpu-backend/config/kogge_cfg.ron"
+  use_ipip = false

@@ -9,7 +9,6 @@ use std::fs::OpenOptions;
 use std::path::Path;
 
 use hpu_sim::{HpuSim, MockupOptions, MockupParameters};
-use tfhe::tfhe_hpu_backend::fw::isc_sim::{IscSimParameters, PeConfigStore};
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 /// Define CLI arguments
@@ -33,30 +32,33 @@ pub struct Args {
     #[clap(
         long,
         value_parser,
-        default_value = "mockups/tfhe-hpu-mockup/params/tfhers_64b_fast.ron"
+        default_value = "mockups/tfhe-hpu-mockup/params/tfhers_64b_fast.toml"
     )]
     pub params: String,
 
-    // Arch configuration ----------------------------------------------------
+    // Override params --------------------------------------------------
+    // Quick way to override parameters through ClI instead of editing the
+    // configuration file
     // Used to override some parameters at runtime
-    /// Frequency in HZ
-    /// Only use for report display
-    #[clap(long, value_parser)]
-    freq_mhz: Option<usize>,
-
-    /// Number of Register
+    /// Override Number of Register
     #[clap(long, value_parser)]
     register: Option<usize>,
 
-    /// HPU lookahead buffer depth
+    /// Override HPU lookahead buffer depth
     /// Number of instruction that are considered in advance
     #[clap(long, value_parser)]
     isc_depth: Option<usize>,
 
-    /// Pes configuration file path
-    /// Cf. params/pe folder or cfg_gen bin for generation
-    #[clap(long, value_parser)]
-    pe_cfg: Option<String>,
+    // Simulation configuration -----------------------------------------
+    /// Frequency in MHz
+    /// Only use for report display
+    #[clap(long, value_parser, default_value_t = 300)]
+    freq_mhz: usize,
+
+    /// Simulation quantum in micro_seconds.
+    /// Maximum simulation time drift between mockup and backend
+    #[clap(long, value_parser, default_value_t = 1_000_000)]
+    quantum_us: usize,
 
     // Dump configuration ----------------------------------------------------
     // Use to activate some dump features for the generation of simulation stimulus
@@ -139,25 +141,22 @@ fn main() {
     }
 
     // Load parameters from configuration file ------------------------------------
-    let config = HpuConfig::read_from(&args.config);
+    let config = HpuConfig::from_toml(&args.config);
     let params = {
-        let mut params = MockupParameters::from_ron(&args.params);
-        params.isc_sim_params = IscSimParameters::from_ron(&config.firmware.sim);
+        let mut rtl_params = HpuParameters::from_toml(&args.params);
 
         // Override some parameters if required
-        if let Some(freq_mhz) = args.freq_mhz.as_ref() {
-            params.isc_sim_params.freq_MHz = *freq_mhz;
-        }
         if let Some(register) = args.register.as_ref() {
-            params.isc_sim_params.register = *register;
+            rtl_params.regf_params.reg_nb = *register;
         }
         if let Some(isc_depth) = args.isc_depth.as_ref() {
-            params.isc_sim_params.isc_depth = *isc_depth;
+            rtl_params.isc_params.depth = *isc_depth;
         }
-        if let Some(pe_cfg) = args.pe_cfg.as_ref() {
-            params.isc_sim_params.pe_cfg = PeConfigStore::from_ron(pe_cfg);
+        MockupParameters {
+            freq_mhz: args.freq_mhz,
+            quantum_us: args.quantum_us,
+            rtl_params,
         }
-        params
     };
     println!("Mockup parameters after override with CLI: {params:?}");
 

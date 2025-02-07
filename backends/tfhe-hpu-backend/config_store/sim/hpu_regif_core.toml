@@ -117,7 +117,8 @@ align_offset=true
   owner="Parameter"
   read_access="Read"
   write_access="None"
-  field.min_iop_size  = { size_b=8, offset_b=0 , param_name="MIN_IOP_SIZE", description="#DOp per IOp to prevent sync_id overflow."}
+  field.depth = { size_b=8, offset_b=0 , param_name="ISC_DEPTH", description="#Slot in the ISC"}
+  field.min_iop_size  = { size_b=8, offset_b=8 , param_name="MIN_IOP_SIZE", description="#DOp per IOp to prevent sync_id overflow."}
 
 [section.Info.register.PEInfo]
   description="Properties of process elements"

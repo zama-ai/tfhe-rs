@@ -1,35 +1,13 @@
-use ron::de::from_reader;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 
 use tfhe::tfhe_hpu_backend::prelude::*;
-use tfhe::tfhe_hpu_backend::fw::isc_sim::IscSimParameters;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct MockupConfig {
-    pub rtl_params: HpuParameters
-}
-
-#[derive(Clone, Debug)]
 pub struct MockupParameters {
+    pub freq_mhz: usize,
+    pub quantum_us: usize,
     pub rtl_params: HpuParameters,
-    // isc_sim_params comes now from hpu_config
-    pub isc_sim_params: IscSimParameters,
-}
-
-/// Provide Serde mechanims in ron file
-impl MockupParameters {
-    pub fn from_ron(params: &str) -> Self {
-        let params_f =
-            File::open(params).unwrap_or_else(|_| panic!("Failed opening file: {params}"));
-        let rtl_params = match from_reader::<_, MockupConfig>(params_f) {
-            Ok(data) => data,
-            Err(err) => {
-                panic!("Failed to load HpuParameters from file {}", err);
-            }
-        }.rtl_params;
-        MockupParameters{rtl_params, isc_sim_params: IscSimParameters::default()}
-    }
 }
 
 /// Structure to pass runtime options
