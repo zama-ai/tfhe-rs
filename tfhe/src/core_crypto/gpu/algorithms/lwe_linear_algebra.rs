@@ -8,6 +8,7 @@ use crate::core_crypto::gpu::{
     negate_lwe_ciphertext_vector_assign_async, negate_lwe_ciphertext_vector_async, CudaStreams,
 };
 use crate::core_crypto::prelude::UnsignedInteger;
+use tfhe_cuda_backend::bindings::cuda_wrapping_polynomial_mul_one_to_many_64;
 
 /// # Safety
 ///
@@ -371,4 +372,35 @@ pub fn cuda_lwe_ciphertext_cleartext_mul_assign<Scalar>(
         cuda_lwe_ciphertext_cleartext_mul_assign_async(ct, cleartext, stream);
     }
     stream.synchronize();
+}
+
+pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
+    lhs: &CudaVec<Scalar>,
+    rhs: &CudaVec<Scalar>,
+    out: &mut CudaVec<Scalar>,
+    stream: &CudaStreams,
+) where
+    Scalar: UnsignedInteger,
+{
+    assert_eq!(rhs.len() % lhs.len(), 0,  
+        "CUDA polynomial multiplication one to many: the rhs 
+        must contain multiple polynomials of the same size as the 
+        lhs"); 
+        
+    assert_eq!(lhs.len().is_power_of_two(), true, 
+        "CUDA polynomial multiplication one to many: expected 
+        the polynomial size to be a multiple of two");
+
+    unsafe {
+        cuda_wrapping_polynomial_mul_one_to_many_64(
+            stream.ptr[0],
+            stream.gpu_indexes[0].0,
+            out.as_mut_c_ptr(0),
+            lhs.as_c_ptr(0),
+            rhs.as_c_ptr(0),
+            lhs.len() as u32,
+            (rhs.len() / lhs.len()) as u32,
+        );
+    }
+
 }
