@@ -661,6 +661,18 @@ pub struct CudaGlweList<T: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<T>,
 }
 
+impl<T: UnsignedInteger> CudaGlweList<T> {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self {
+            d_vec: self.d_vec.duplicate(streams),
+            glwe_ciphertext_count: self.glwe_ciphertext_count,
+            glwe_dimension: self.glwe_dimension,
+            polynomial_size: self.polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
+    }
+}
+
 /// Get the number of GPUs on the machine
 pub fn get_number_of_gpus() -> i32 {
     unsafe { cuda_get_number_of_gpus() }
