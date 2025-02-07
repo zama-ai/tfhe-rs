@@ -7,12 +7,15 @@ use crate::integer::server_key::radix_parallel::tests_long_run::test_erc20::{
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(safe_erc20 {
+    // TODO GPU DRIFT UPDATE
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 create_gpu_parameterized_test!(whitepaper_erc20 {
+    // TODO GPU DRIFT UPDATE
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 create_gpu_parameterized_test!(no_cmux_erc20 {
+    // TODO GPU DRIFT UPDATE
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 

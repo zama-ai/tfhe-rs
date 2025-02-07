@@ -15,6 +15,7 @@ use rand::prelude::*;
 
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 
 create_parameterized_test!(integer_unchecked_match_value);

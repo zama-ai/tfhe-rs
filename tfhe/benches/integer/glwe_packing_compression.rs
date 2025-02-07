@@ -9,8 +9,10 @@ use rayon::prelude::*;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
 use tfhe::integer::{ClientKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::{
+    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
 
 fn cpu_glwe_packing(c: &mut Criterion) {
     let bench_name = "integer::packing_compression";
@@ -19,8 +21,8 @@ fn cpu_glwe_packing(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(30));
 
-    let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let cks = ClientKey::new(param);
 
@@ -154,7 +156,7 @@ mod cuda {
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::gen_keys_radix_gpu;
-    use tfhe::shortint::parameters::V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use tfhe::shortint::parameters::current_params::*;
 
     fn gpu_glwe_packing(c: &mut Criterion) {
         let bench_name = "integer::cuda::packing_compression";
@@ -166,7 +168,7 @@ mod cuda {
         let stream = CudaStreams::new_multi_gpu();
 
         let param = V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let log_message_modulus = param.message_modulus.0.ilog2() as usize;
 

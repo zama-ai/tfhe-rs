@@ -18,102 +18,102 @@ use tfhe::prelude::*;
 use tfhe_trivium::TriviumStream;
 
 fn get_hexadecimal_string_from_lsb_first_stream(a: Vec<bool>) -> String {
-	assert!(a.len() % 8 == 0);
-	let mut hexadecimal: String = "".to_string();
-	for test in a.chunks(8) {
-		// Encoding is bytes in LSB order
-		match test[4..8] {
-			[false, false, false, false] => hexadecimal.push('0'),
-			[true, false, false, false] => hexadecimal.push('1'),
-			[false, true, false, false] => hexadecimal.push('2'),
-			[true, true, false, false] => hexadecimal.push('3'),
+    assert!(a.len() % 8 == 0);
+    let mut hexadecimal: String = "".to_string();
+    for test in a.chunks(8) {
+        // Encoding is bytes in LSB order
+        match test[4..8] {
+            [false, false, false, false] => hexadecimal.push('0'),
+            [true, false, false, false] => hexadecimal.push('1'),
+            [false, true, false, false] => hexadecimal.push('2'),
+            [true, true, false, false] => hexadecimal.push('3'),
 
-			[false, false, true, false] => hexadecimal.push('4'),
-			[true, false, true, false] => hexadecimal.push('5'),
-			[false, true, true, false] => hexadecimal.push('6'),
-			[true, true, true, false] => hexadecimal.push('7'),
+            [false, false, true, false] => hexadecimal.push('4'),
+            [true, false, true, false] => hexadecimal.push('5'),
+            [false, true, true, false] => hexadecimal.push('6'),
+            [true, true, true, false] => hexadecimal.push('7'),
 
-			[false, false, false, true] => hexadecimal.push('8'),
-			[true, false, false, true] => hexadecimal.push('9'),
-			[false, true, false, true] => hexadecimal.push('A'),
-			[true, true, false, true] => hexadecimal.push('B'),
+            [false, false, false, true] => hexadecimal.push('8'),
+            [true, false, false, true] => hexadecimal.push('9'),
+            [false, true, false, true] => hexadecimal.push('A'),
+            [true, true, false, true] => hexadecimal.push('B'),
 
-			[false, false, true, true] => hexadecimal.push('C'),
-			[true, false, true, true] => hexadecimal.push('D'),
-			[false, true, true, true] => hexadecimal.push('E'),
-			[true, true, true, true] => hexadecimal.push('F'),
-			_ => ()
-		};
-		match test[0..4] {
-			[false, false, false, false] => hexadecimal.push('0'),
-			[true, false, false, false] => hexadecimal.push('1'),
-			[false, true, false, false] => hexadecimal.push('2'),
-			[true, true, false, false] => hexadecimal.push('3'),
+            [false, false, true, true] => hexadecimal.push('C'),
+            [true, false, true, true] => hexadecimal.push('D'),
+            [false, true, true, true] => hexadecimal.push('E'),
+            [true, true, true, true] => hexadecimal.push('F'),
+            _ => ()
+        };
+        match test[0..4] {
+            [false, false, false, false] => hexadecimal.push('0'),
+            [true, false, false, false] => hexadecimal.push('1'),
+            [false, true, false, false] => hexadecimal.push('2'),
+            [true, true, false, false] => hexadecimal.push('3'),
 
-			[false, false, true, false] => hexadecimal.push('4'),
-			[true, false, true, false] => hexadecimal.push('5'),
-			[false, true, true, false] => hexadecimal.push('6'),
-			[true, true, true, false] => hexadecimal.push('7'),
+            [false, false, true, false] => hexadecimal.push('4'),
+            [true, false, true, false] => hexadecimal.push('5'),
+            [false, true, true, false] => hexadecimal.push('6'),
+            [true, true, true, false] => hexadecimal.push('7'),
 
-			[false, false, false, true] => hexadecimal.push('8'),
-			[true, false, false, true] => hexadecimal.push('9'),
-			[false, true, false, true] => hexadecimal.push('A'),
-			[true, true, false, true] => hexadecimal.push('B'),
+            [false, false, false, true] => hexadecimal.push('8'),
+            [true, false, false, true] => hexadecimal.push('9'),
+            [false, true, false, true] => hexadecimal.push('A'),
+            [true, true, false, true] => hexadecimal.push('B'),
 
-			[false, false, true, true] => hexadecimal.push('C'),
-			[true, false, true, true] => hexadecimal.push('D'),
-			[false, true, true, true] => hexadecimal.push('E'),
-			[true, true, true, true] => hexadecimal.push('F'),
-			_ => ()
-		};
-	}
-	return hexadecimal;
+            [false, false, true, true] => hexadecimal.push('C'),
+            [true, false, true, true] => hexadecimal.push('D'),
+            [false, true, true, true] => hexadecimal.push('E'),
+            [true, true, true, true] => hexadecimal.push('F'),
+            _ => ()
+        };
+    }
+    return hexadecimal;
 }
 
 fn main() {
-	let config = ConfigBuilder::default().build();
-	let (client_key, server_key) = generate_keys(config);
+    let config = ConfigBuilder::default().build();
+    let (client_key, server_key) = generate_keys(config);
 
-	let key_string = "0053A6F94C9FF24598EB".to_string();
-	let mut key = [false; 80];
+    let key_string = "0053A6F94C9FF24598EB".to_string();
+    let mut key = [false; 80];
 
-	for i in (0..key_string.len()).step_by(2) {
-		let mut val: u8 = u8::from_str_radix(&key_string[i..i+2], 16).unwrap();
-		for j in 0..8 {
-			key[8*(i>>1) + j] = val % 2 == 1;
-			val >>= 1;
-		}
-	}
+    for i in (0..key_string.len()).step_by(2) {
+        let mut val: u8 = u8::from_str_radix(&key_string[i..i+2], 16).unwrap();
+        for j in 0..8 {
+            key[8*(i>>1) + j] = val % 2 == 1;
+            val >>= 1;
+        }
+    }
 
-	let iv_string = "0D74DB42A91077DE45AC".to_string();
-	let mut iv = [false; 80];
+    let iv_string = "0D74DB42A91077DE45AC".to_string();
+    let mut iv = [false; 80];
 
-	for i in (0..iv_string.len()).step_by(2) {
-		let mut val: u8 = u8::from_str_radix(&iv_string[i..i+2], 16).unwrap();
-		for j in 0..8 {
-			iv[8*(i>>1) + j] = val % 2 == 1;
-			val >>= 1;
-		}
-	}
+    for i in (0..iv_string.len()).step_by(2) {
+        let mut val: u8 = u8::from_str_radix(&iv_string[i..i+2], 16).unwrap();
+        for j in 0..8 {
+            iv[8*(i>>1) + j] = val % 2 == 1;
+            val >>= 1;
+        }
+    }
 
-	let output_0_63    = "F4CD954A717F26A7D6930830C4E7CF0819F80E03F25F342C64ADC66ABA7F8A8E6EAA49F23632AE3CD41A7BD290A0132F81C6D4043B6E397D7388F3A03B5FE358".to_string();
+    let output_0_63    = "F4CD954A717F26A7D6930830C4E7CF0819F80E03F25F342C64ADC66ABA7F8A8E6EAA49F23632AE3CD41A7BD290A0132F81C6D4043B6E397D7388F3A03B5FE358".to_string();
 
-	let cipher_key = key.map(|x| FheBool::encrypt(x, &client_key));
-	let cipher_iv = iv.map(|x| FheBool::encrypt(x, &client_key));
+    let cipher_key = key.map(|x| FheBool::encrypt(x, &client_key));
+    let cipher_iv = iv.map(|x| FheBool::encrypt(x, &client_key));
 
 
-	let mut trivium = TriviumStream::<FheBool>::new(cipher_key, cipher_iv, &server_key);
+    let mut trivium = TriviumStream::<FheBool>::new(cipher_key, cipher_iv, &server_key);
 
-	let mut vec = Vec::<bool>::with_capacity(64*8);
-	while vec.len() < 64*8 {
-		let cipher_outputs = trivium.next_64();
-		for c in cipher_outputs {
-			vec.push(c.decrypt(&client_key))
-		}
-	}
+    let mut vec = Vec::<bool>::with_capacity(64*8);
+    while vec.len() < 64*8 {
+        let cipher_outputs = trivium.next_64();
+        for c in cipher_outputs {
+            vec.push(c.decrypt(&client_key))
+        }
+    }
 
-	let hexadecimal = get_hexadecimal_string_from_lsb_first_stream(vec);
-	assert_eq!(output_0_63, hexadecimal[0..64*2]);
+    let hexadecimal = get_hexadecimal_string_from_lsb_first_stream(vec);
+    assert_eq!(output_0_63, hexadecimal[0..64*2]);
 }
 ```
 
@@ -129,7 +129,7 @@ Other sizes than 64 bit are expected to be available in the future.
 
 # FHE shortint Trivium implementation
 
-The same implementation is also available for generic Ciphertexts representing bits (meant to be used with parameters `V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64`).
+The same implementation is also available for generic Ciphertexts representing bits (meant to be used with parameters `V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128`).
 It uses a lower level API of tfhe-rs, so the syntax is a little bit different. It also implements the `TransCiphering` trait. For optimization purposes, it does not internally run
 on the same cryptographic parameters as the high level API of tfhe-rs. As such, it requires the usage of a casting key, to switch from one parameter space to another, which makes
 its setup a little more intricate.
@@ -137,67 +137,68 @@ its setup a little more intricate.
 Example code:
 ```rust
 use tfhe::shortint::prelude::*;
-use tfhe::shortint::parameters::{
-    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+use tfhe::shortint::parameters::v1_0::{
+    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
 };
 use tfhe::{ConfigBuilder, generate_keys, FheUint64};
 use tfhe::prelude::*;
 use tfhe_trivium::TriviumStreamShortint;
 
 fn test_shortint() {
-	let config = ConfigBuilder::default()
-        .use_custom_parameters(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64)
+    let config = ConfigBuilder::default()
+        .use_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
         .build();
-	let (hl_client_key, hl_server_key) = generate_keys(config);
+    let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-	let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128_2M128,
     );
 
-	let key_string = "0053A6F94C9FF24598EB".to_string();
-	let mut key = [0; 80];
+    let key_string = "0053A6F94C9FF24598EB".to_string();
+    let mut key = [0; 80];
 
-	for i in (0..key_string.len()).step_by(2) {
-		let mut val = u64::from_str_radix(&key_string[i..i+2], 16).unwrap();
-		for j in 0..8 {
-			key[8*(i>>1) + j] = val % 2;
-			val >>= 1;
-		}
-	}
+    for i in (0..key_string.len()).step_by(2) {
+        let mut val = u64::from_str_radix(&key_string[i..i+2], 16).unwrap();
+        for j in 0..8 {
+            key[8*(i>>1) + j] = val % 2;
+            val >>= 1;
+        }
+    }
 
-	let iv_string = "0D74DB42A91077DE45AC".to_string();
-	let mut iv = [0; 80];
+    let iv_string = "0D74DB42A91077DE45AC".to_string();
+    let mut iv = [0; 80];
 
-	for i in (0..iv_string.len()).step_by(2) {
-		let mut val = u64::from_str_radix(&iv_string[i..i+2], 16).unwrap();
-		for j in 0..8 {
-			iv[8*(i>>1) + j] = val % 2;
-			val >>= 1;
-		}
-	}
-	let output_0_63    = "F4CD954A717F26A7D6930830C4E7CF0819F80E03F25F342C64ADC66ABA7F8A8E6EAA49F23632AE3CD41A7BD290A0132F81C6D4043B6E397D7388F3A03B5FE358".to_string();
+    for i in (0..iv_string.len()).step_by(2) {
+        let mut val = u64::from_str_radix(&iv_string[i..i+2], 16).unwrap();
+        for j in 0..8 {
+            iv[8*(i>>1) + j] = val % 2;
+            val >>= 1;
+        }
+    }
+    let output_0_63    = "F4CD954A717F26A7D6930830C4E7CF0819F80E03F25F342C64ADC66ABA7F8A8E6EAA49F23632AE3CD41A7BD290A0132F81C6D4043B6E397D7388F3A03B5FE358".to_string();
 
-	let cipher_key = key.map(|x| client_key.encrypt(x));
-	let cipher_iv = iv.map(|x| client_key.encrypt(x));
+    let cipher_key = key.map(|x| client_key.encrypt(x));
+    let cipher_iv = iv.map(|x| client_key.encrypt(x));
 
-	let mut ciphered_message = vec![FheUint64::try_encrypt(0u64, &hl_client_key).unwrap(); 9];
+    let mut ciphered_message = vec![FheUint64::try_encrypt(0u64, &hl_client_key).unwrap(); 9];
 
-	let mut trivium = TriviumStreamShortint::new(cipher_key, cipher_iv, &server_key, &ksk);
+    let mut trivium = TriviumStreamShortint::new(cipher_key, cipher_iv, &server_key, &ksk);
 
-	let mut vec = Vec::<u64>::with_capacity(8);
-	while vec.len() < 8 {
-		let trans_ciphered_message = trivium.trans_encrypt_64(ciphered_message.pop().unwrap(), &hl_server_key);
-		vec.push(trans_ciphered_message.decrypt(&hl_client_key));
-	}
+    let mut vec = Vec::<u64>::with_capacity(8);
+    while vec.len() < 8 {
+        let trans_ciphered_message = trivium.trans_encrypt_64(ciphered_message.pop().unwrap(), &hl_server_key);
+        vec.push(trans_ciphered_message.decrypt(&hl_client_key));
+    }
 
-	let hexadecimal = get_hexagonal_string_from_u64(vec);
-	assert_eq!(output_0_63, hexadecimal[0..64*2]);
+    let hexadecimal = get_hexagonal_string_from_u64(vec);
+    assert_eq!(output_0_63, hexadecimal[0..64*2]);
 }
 ```
 

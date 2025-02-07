@@ -7,6 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_bitwise_op::{
     signed_default_bitxor_test, signed_unchecked_bitand_test, signed_unchecked_bitor_test,
     signed_unchecked_bitxor_test,
 };
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_signed_unchecked_bitand);

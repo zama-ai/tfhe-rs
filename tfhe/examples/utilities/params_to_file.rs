@@ -6,14 +6,13 @@ use tfhe::boolean::parameters::{BooleanParameters, VEC_BOOLEAN_PARAM};
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
 use tfhe::core_crypto::prelude::{DynamicDistribution, TUniform, UnsignedInteger};
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::parameters::classic::compact_pk::ALL_PARAMETER_VEC_COMPACT_PK;
-use tfhe::shortint::parameters::classic::gaussian::ALL_PARAMETER_VEC_GAUSSIAN;
-use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::shortint::parameters::multi_bit::ALL_MULTI_BIT_PARAMETER_VEC;
+use tfhe::shortint::parameters::current_params::{
+    VEC_ALL_CLASSIC_PARAMETERS, VEC_ALL_MULTI_BIT_PARAMETERS,
+};
 use tfhe::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, CompressionParameters, ShortintParameterSet,
-    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 
 pub trait ParamDetails<T: UnsignedInteger> {
@@ -311,14 +310,8 @@ fn main() {
         ParametersFormat::LweGlwe,
     );
 
-    let all_classic_pbs = [
-        ALL_PARAMETER_VEC_GAUSSIAN.to_vec(),
-        ALL_PARAMETER_VEC_COMPACT_PK.to_vec(),
-        vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64],
-    ]
-    .concat();
-    let classic_pbs = all_classic_pbs
-        .iter()
+    let classic_pbs = VEC_ALL_CLASSIC_PARAMETERS
+        .into_iter()
         .map(|p| ShortintParameterSet::from(*p))
         .collect::<Vec<_>>();
     write_all_params_in_file(
@@ -327,8 +320,8 @@ fn main() {
         ParametersFormat::LweGlwe,
     );
 
-    let multi_bit_pbs = ALL_MULTI_BIT_PARAMETER_VEC
-        .iter()
+    let multi_bit_pbs = VEC_ALL_MULTI_BIT_PARAMETERS
+        .into_iter()
         .map(|p| ShortintParameterSet::from(*p))
         .collect::<Vec<_>>();
     write_all_params_in_file(
@@ -339,13 +332,13 @@ fn main() {
 
     write_all_params_in_file(
         "shortint_cpke_parameters_lattice_estimator.sage",
-        &[V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64],
+        &[PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128],
         ParametersFormat::Lwe,
     );
 
     write_all_params_in_file(
         "shortint_list_compression_parameters_lattice_estimator.sage",
-        &[COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64],
+        &[COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128],
         ParametersFormat::Glwe,
     );
 

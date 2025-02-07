@@ -6,6 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_shift::{
     signed_default_left_shift_test, signed_default_right_shift_test,
     signed_unchecked_left_shift_test, signed_unchecked_right_shift_test,
 };
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_signed_unchecked_left_shift);

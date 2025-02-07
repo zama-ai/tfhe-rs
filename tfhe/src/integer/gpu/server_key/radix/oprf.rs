@@ -35,6 +35,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// use tfhe::Seed;
     ///
@@ -42,6 +43,7 @@ impl CudaServerKey {
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
@@ -125,6 +127,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// use tfhe::Seed;
     ///
@@ -132,6 +135,7 @@ impl CudaServerKey {
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     /// let size = 4;
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
@@ -226,6 +230,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// use tfhe::Seed;
     ///
@@ -233,6 +238,7 @@ impl CudaServerKey {
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     /// let size = 4;
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
@@ -287,6 +293,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     /// use tfhe::Seed;
     ///
@@ -294,6 +301,7 @@ impl CudaServerKey {
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     /// let size = 4;
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
     ///
@@ -569,6 +577,7 @@ pub(crate) mod test {
     use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
     use crate::integer::{ClientKey, RadixCiphertext};
     use crate::shortint::oprf::create_random_from_seed_modulus_switched;
+    // TODO GPU DRIFT UPDATE
     use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
@@ -583,6 +592,7 @@ pub(crate) mod test {
     fn oprf_compare_plain_ci_run_filter() {
         let gpu_index = 0;
         let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+        // TODO GPU DRIFT UPDATE
         let (ck, gpu_sk) = gen_keys_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             &streams,
@@ -673,6 +683,7 @@ pub(crate) mod test {
         let p_value_limit: f64 = 0.000_01;
         let gpu_index = 0;
         let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+        // TODO GPU DRIFT UPDATE
         let (ck, gpu_sk) = gen_keys_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             &streams,

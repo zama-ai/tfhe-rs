@@ -13,16 +13,8 @@ use tfhe::integer::key_switching_key::KeySwitchingKey;
 use tfhe::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
-    V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-};
-use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
-    V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-};
-use tfhe::shortint::parameters::PBSParameters;
+use tfhe::shortint::parameters::current_params::*;
+use tfhe::shortint::parameters::*;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 use utilities::{write_to_json, OperatorType};
 
@@ -41,14 +33,15 @@ fn pke_zk_proof(c: &mut Criterion) {
 
     for (param_pke, _param_casting, param_fhe) in [
         (
-            V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
+        // Non default params use the V1_0 prefix
         (
-            V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-            V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+            V1_0_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
     ] {
         let param_name = param_fhe.name();
@@ -173,14 +166,14 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
     for (param_pke, param_casting, param_fhe) in [
         (
-            V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
         (
-            V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-            V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_0_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+            V1_0_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
     ] {
         let param_name = param_fhe.name();
