@@ -248,23 +248,23 @@ impl DecompressionKey {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::current_params::*;
     use crate::shortint::{gen_keys, ClientKey, ShortintParameterSet};
     use rayon::iter::IntoParallelIterator;
 
     #[test]
     fn test_packing() {
         for params in [
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
-            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+            V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
         ] {
             // Generate the client key and the server key:
             let (cks, _sks) = gen_keys::<ShortintParameterSet>(params);
 
             let private_compression_key: crate::shortint::list_compression::CompressionPrivateKeys =
-                cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+                cks.new_compression_private_key(
+                    V1_0_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                );
 
             let (compression_key, decompression_key) =
                 cks.new_compression_decompression_keys(&private_compression_key);

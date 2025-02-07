@@ -202,7 +202,7 @@ pub fn partial_extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, Output
 /// // Create the plaintext
 /// let msg = 3u64;
 /// let encoded_msg = msg << 60;
-/// let mut plaintext = Plaintext(encoded_msg);
+/// let plaintext = Plaintext(encoded_msg);
 ///
 /// // Create a new LweCiphertext
 /// let mut lwe = LweCiphertext::new(0u64, lwe_dimension.to_lwe_size(), ciphertext_modulus);

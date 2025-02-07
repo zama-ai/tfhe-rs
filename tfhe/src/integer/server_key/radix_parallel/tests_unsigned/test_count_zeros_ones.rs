@@ -5,11 +5,10 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
-use crate::shortint::PBSParameters;
+use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
-
-use crate::shortint::parameters::*;
 
 create_parameterized_test!(integer_extensive_trivial_default_count_zeros_ones);
 create_parameterized_test!(integer_default_count_zeros_ones);
