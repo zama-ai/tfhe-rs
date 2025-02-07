@@ -16,14 +16,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(
-    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    ///     num_blocks,
-    /// );
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg1 = 10;
     /// let msg2 = 127;
@@ -55,13 +52,10 @@ impl ServerKey {
     /// The result is assigned to the `ct_left` ciphertext.
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(
-    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    ///     num_blocks,
-    /// );
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg1 = 28;
     /// let msg2 = 127;
@@ -95,14 +89,11 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(
-    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    ///     num_blocks,
-    /// );
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg1 = 46u64;
     /// let msg2 = 87u64;
@@ -152,14 +143,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(
-    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    ///     num_blocks,
-    /// );
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -195,14 +183,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(
-    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    ///     num_blocks,
-    /// );
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -231,14 +216,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(
-    ///     V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    ///     num_blocks,
-    /// );
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg1 = 14;
     /// let msg2 = 97;

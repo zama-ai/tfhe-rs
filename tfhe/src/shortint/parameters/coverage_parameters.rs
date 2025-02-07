@@ -3,10 +3,9 @@
 //! This module provides the structure containing the cryptographic parameters only intended to be
 //! used to speed up test coverage operations.
 //! These parameters are *NOT safe*.
-use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweDimension, PolynomialSize, StandardDev,
+    LweBskGroupingFactor, LweDimension, PolynomialSize, StandardDev,
 };
 use crate::shortint::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel,

@@ -74,20 +74,26 @@ impl CudaServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(
+    ///     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ///     size,
+    ///     &streams,
+    /// );
     ///
     /// let msg = 30;
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar division:
     /// let d_ct_res = sks.unchecked_scalar_div(&d_ct, scalar, &streams);
@@ -242,11 +248,13 @@ impl CudaServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
@@ -255,7 +263,7 @@ impl CudaServerKey {
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let d_ct_res = sks.scalar_div(&d_ct, scalar, &streams);
@@ -368,11 +376,13 @@ impl CudaServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
@@ -381,7 +391,7 @@ impl CudaServerKey {
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let (d_ct_q, d_ct_r) = sks.scalar_div_rem(&d_ct, scalar, &streams);
@@ -482,11 +492,13 @@ impl CudaServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
@@ -495,7 +507,7 @@ impl CudaServerKey {
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let d_ct_res = sks.scalar_rem(&d_ct, scalar, &streams);
@@ -720,11 +732,13 @@ impl CudaServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
@@ -733,7 +747,7 @@ impl CudaServerKey {
     /// let scalar = -3;
     ///
     /// let ct = cks.encrypt_signed(msg);
-    /// let mut d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
+    /// let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar division:
     /// let d_ct_res = sks.signed_scalar_div(&d_ct, scalar, &streams);
@@ -835,11 +849,13 @@ impl CudaServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
@@ -848,7 +864,7 @@ impl CudaServerKey {
     /// let scalar = -3;
     ///
     /// let ct = cks.encrypt_signed(msg);
-    /// let mut d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
+    /// let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar division:
     /// let (d_ct_q, d_ct_r) = sks.signed_scalar_div_rem(&d_ct, scalar, &streams);
@@ -950,11 +966,13 @@ impl CudaServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
@@ -963,7 +981,7 @@ impl CudaServerKey {
     /// let scalar = -3;
     ///
     /// let ct = cks.encrypt_signed(msg);
-    /// let mut d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
+    /// let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let d_ct_res = sks.signed_scalar_rem(&d_ct, scalar, &streams);

@@ -10,6 +10,7 @@ use crate::shortint::parameters::*;
 use std::cmp::{max, min};
 
 create_gpu_parameterized_test!(random_op_sequence {
+    // TODO GPU DRIFT UPDATE
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 fn random_op_sequence<P>(param: P)

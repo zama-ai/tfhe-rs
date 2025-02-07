@@ -1,7 +1,9 @@
-use crate::core_crypto::prelude::*;
-use crate::shortint::ciphertext::MaxNoiseLevel;
-use crate::shortint::parameters::multi_bit::MultiBitPBSParameters;
-use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::parameters::{
+    CarryModulus, CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweBskGroupingFactor, LweDimension,
+    MaxNoiseLevel, MessageModulus, MultiBitPBSParameters, PolynomialSize, StandardDev,
+};
+
 // Group 2
 
 // p-fail = 2^-64.545, algorithmic cost ~ 62, 2-norm = 3

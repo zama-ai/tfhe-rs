@@ -2,7 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{
     ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
@@ -38,7 +38,7 @@ const TEST_CASES_SPLIT: [(&str, &str); 21] = [
 
 #[test]
 fn split_once_test_parameterized() {
-    split_once_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    split_once_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -158,7 +158,7 @@ pub(crate) fn split_once_test_impl<P, T>(
 
 #[test]
 fn split_test_parameterized() {
-    split_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    split_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -306,7 +306,7 @@ pub(crate) fn split_test_impl<P, T>(
 
 #[test]
 fn splitn_test_parameterized() {
-    splitn_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    splitn_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]
