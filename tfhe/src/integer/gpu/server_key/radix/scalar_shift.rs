@@ -49,7 +49,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_left_shift_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     u32::cast_from(shift),
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -75,7 +75,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_scalar_left_shift_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     u32::cast_from(shift),
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -99,7 +99,6 @@ impl CudaServerKey {
                 );
             }
         }
-        ct.as_mut().info = ct.as_ref().info.after_scalar_rotate();
     }
 
     /// Computes homomorphically a left shift by a scalar.
@@ -250,7 +249,7 @@ impl CudaServerKey {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async(
                         streams,
-                        &mut ct.as_mut().d_blocks.0.d_vec,
+                        ct.as_mut(),
                         u32::cast_from(shift),
                         &d_bsk.d_vec,
                         &self.key_switching_key.d_vec,
@@ -276,7 +275,7 @@ impl CudaServerKey {
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async(
                         streams,
-                        &mut ct.as_mut().d_blocks.0.d_vec,
+                        ct.as_mut(),
                         u32::cast_from(shift),
                         &d_multibit_bsk.d_vec,
                         &self.key_switching_key.d_vec,
@@ -592,7 +591,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     u32::cast_from(shift),
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -618,7 +617,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     u32::cast_from(shift),
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,

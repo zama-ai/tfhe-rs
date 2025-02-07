@@ -24,7 +24,7 @@ __host__ void scratch_cuda_integer_radix_logical_scalar_shift_kb(
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
+__host__ void legacy_host_integer_radix_logical_scalar_shift_kb_inplace(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
@@ -48,7 +48,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
   size_t rotations = std::min(shift / num_bits_in_block, (size_t)num_blocks);
   size_t shift_within_block = shift % num_bits_in_block;
 
-  Torus *full_rotated_buffer = mem->tmp_rotated;
+  Torus *full_rotated_buffer = (Torus *)mem->tmp_rotated->ptr;
   Torus *rotated_buffer = &full_rotated_buffer[big_lwe_size];
 
   if (mem->shift_type == LEFT_SHIFT) {
@@ -111,6 +111,101 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
         partial_current_blocks, partial_next_blocks, bsks, ksks,
         partial_block_count, lut_bivariate,
         lut_bivariate->params.message_modulus);
+  }
+}
+
+template <typename Torus>
+__host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
+    int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
+    Torus *const *ksks) {
+
+  auto num_blocks = lwe_array->num_radix_blocks;
+  auto params = mem->params;
+  auto message_modulus = params.message_modulus;
+
+  size_t num_bits_in_block = (size_t)log2_int(message_modulus);
+  size_t total_num_bits = num_bits_in_block * num_blocks;
+  shift = shift % total_num_bits;
+
+  if (shift == 0) {
+    return;
+  }
+  size_t rotations = std::min(shift / num_bits_in_block, (size_t)num_blocks);
+  size_t shift_within_block = shift % num_bits_in_block;
+
+  CudaRadixCiphertextFFI *full_rotated_buffer = mem->tmp_rotated;
+  CudaRadixCiphertextFFI rotated_buffer;
+  as_radix_ciphertext_slice<Torus>(&rotated_buffer, full_rotated_buffer, 1,
+                                   full_rotated_buffer->num_radix_blocks);
+
+  if (mem->shift_type == LEFT_SHIFT) {
+    // rotate right as the blocks are from LSB to MSB
+    host_radix_blocks_rotate_right<Torus>(
+        streams, gpu_indexes, gpu_count, &rotated_buffer, lwe_array, rotations);
+
+    // create trivial assign for value = 0
+    if (rotations > 0)
+      set_zero_radix_ciphertext_slice_async<Torus>(
+          streams[0], gpu_indexes[0], &rotated_buffer, 0, rotations);
+    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                             lwe_array, 0, num_blocks,
+                                             &rotated_buffer, 0, num_blocks);
+
+    if (shift_within_block == 0 || rotations == num_blocks) {
+      return;
+    }
+
+    auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
+    CudaRadixCiphertextFFI partial_current_blocks;
+    as_radix_ciphertext_slice<Torus>(&partial_current_blocks, lwe_array,
+                                     rotations, lwe_array->num_radix_blocks);
+    CudaRadixCiphertextFFI partial_previous_blocks;
+    as_radix_ciphertext_slice<Torus>(&partial_previous_blocks,
+                                     full_rotated_buffer, rotations,
+                                     full_rotated_buffer->num_radix_blocks);
+
+    size_t partial_block_count = num_blocks - rotations;
+
+    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, &partial_current_blocks,
+        &partial_current_blocks, &partial_previous_blocks, bsks, ksks,
+        lut_bivariate, partial_block_count,
+        lut_bivariate->params.message_modulus);
+
+  } else {
+    // right shift
+    host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
+                                         &rotated_buffer, lwe_array, rotations);
+
+    // rotate left as the blocks are from LSB to MSB
+    // create trivial assign for value = 0
+    if (rotations > 0) {
+      set_zero_radix_ciphertext_slice_async<Torus>(
+          streams[0], gpu_indexes[0], &rotated_buffer, num_blocks - rotations,
+          num_blocks);
+    }
+    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                             lwe_array, 0, num_blocks,
+                                             &rotated_buffer, 0, num_blocks);
+
+    if (shift_within_block == 0 || rotations == num_blocks) {
+      return;
+    }
+
+    auto partial_current_blocks = lwe_array;
+    CudaRadixCiphertextFFI partial_next_blocks;
+    as_radix_ciphertext_slice<Torus>(&partial_next_blocks, &rotated_buffer, 1,
+                                     rotated_buffer.num_radix_blocks);
+    auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
+
+    size_t partial_block_count = num_blocks - rotations;
+
+    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, partial_current_blocks,
+        partial_current_blocks, &partial_next_blocks, bsks, ksks, lut_bivariate,
+        partial_block_count, lut_bivariate->params.message_modulus);
   }
 }
 
