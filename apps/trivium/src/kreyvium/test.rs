@@ -1,8 +1,9 @@
 use crate::{KreyviumStream, KreyviumStreamByte, KreyviumStreamShortint, TransCiphering};
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::{
-    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64,
+use tfhe::shortint::parameters::v1_0::{
+    V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
 };
 use tfhe::{generate_keys, ConfigBuilder, FheBool, FheUint64, FheUint8};
 // Values for these tests come from the github repo renaud1239/Kreyvium,
@@ -220,19 +221,19 @@ use tfhe::shortint::prelude::*;
 #[test]
 fn kreyvium_test_shortint_long() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64)
+        .use_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
         .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
     let (client_key, server_key): (ClientKey, ServerKey) =
-        gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
+        gen_keys(V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
-        V0_11_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+        V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     );
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();

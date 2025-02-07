@@ -6,6 +6,7 @@ use crate::integer::server_key::crt::make_basis;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
 use crate::integer::{gen_keys, IntegerKeyKind};
 use crate::shortint::ciphertext::Degree;
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::*;
 use paste::paste;
@@ -38,11 +39,11 @@ macro_rules! create_parameterized_test{    (
     ($name:ident)=> {
         create_parameterized_test!($name
         {
-            (V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            (V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
             #[cfg(not(tarpaulin))]
-            (V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
+            (V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
             #[cfg(not(tarpaulin))]
-            (V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
+            (V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
         });
     };
 }
@@ -268,7 +269,7 @@ pub fn test_wopbs_non_reg_trivial_0() {
     use crate::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey, ServerKey};
 
     fn generate_keys() -> (RadixClientKey, ServerKey, WopbsKey) {
-        let (ck, sk) = gen_keys_radix(V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, 16);
+        let (ck, sk) = gen_keys_radix(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, 16);
         let wopbs_key =
             WopbsKey::new_wopbs_key(&ck, &sk, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         (ck, sk, wopbs_key)

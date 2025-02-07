@@ -198,10 +198,10 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::strings::ciphertext::FheString;
     ///
-    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
     /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let ck = tfhe::strings::ClientKey::new(ck);
     /// let sk = tfhe::strings::ServerKey::new(sk);
@@ -258,10 +258,10 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::strings::ciphertext::FheString;
     ///
-    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
     /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let ck = tfhe::strings::ClientKey::new(ck);
     /// let sk = tfhe::strings::ServerKey::new(sk);
@@ -302,10 +302,10 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::strings::ciphertext::FheString;
     ///
-    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    /// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
     /// let sk = ServerKey::new_radix_server_key(&ck);
     /// let ck = tfhe::strings::ClientKey::new(ck);
     /// let sk = tfhe::strings::ServerKey::new(sk);
@@ -341,11 +341,11 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
 ///
 /// ```rust
 /// use tfhe::integer::{ClientKey, ServerKey};
-/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 /// use tfhe::strings::ciphertext::FheString;
 /// use tfhe::strings::server_key::{split_ascii_whitespace, FheStringIterator};
 ///
-/// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+/// let ck = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 /// let sk = ServerKey::new_radix_server_key(&ck);
 /// let ck = tfhe::strings::ClientKey::new(ck);
 /// let sk = tfhe::strings::ServerKey::new(sk);

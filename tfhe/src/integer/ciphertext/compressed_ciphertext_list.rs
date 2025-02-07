@@ -156,17 +156,17 @@ impl CompressedCiphertextList {
 mod tests {
     use super::*;
     use crate::integer::{gen_keys, IntegerKeyKind};
-    use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::ShortintParameterSet;
+    use crate::shortint::parameters::current_params::classic::tuniform::p_fail_2_minus_128::ks_pbs::V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use crate::shortint::parameters::current_params::list_compression::p_fail_2_minus_128::V1_0_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use crate::shortint::parameters::current_params::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use itertools::Itertools;
     use rand::Rng;
 
     const NB_TESTS: usize = 10;
     const NB_OPERATOR_TESTS: usize = 10;
     const NUM_BLOCKS: usize = 32;
-    const MAX_NB_MESSAGES: usize = 2 * COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    const MAX_NB_MESSAGES: usize = 2 * V1_0_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
         .lwe_per_glwe
         .0
         / NUM_BLOCKS;
@@ -174,13 +174,14 @@ mod tests {
     #[test]
     fn test_ciphertext_compression() {
         for params in [
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+            V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
         ] {
             let (cks, sks) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
 
-            let private_compression_key =
-                cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let private_compression_key = cks.new_compression_private_key(
+                V1_0_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            );
 
             let (compression_key, decompression_key) =
                 cks.new_compression_decompression_keys(&private_compression_key);

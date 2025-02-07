@@ -32,5 +32,8 @@ web-test-runner/
 node_modules/
 package-lock.json
 
+# Python .env
+.env
+
 # Dir used for backward compatibility test data
 tests/tfhe-backward-compat-data/

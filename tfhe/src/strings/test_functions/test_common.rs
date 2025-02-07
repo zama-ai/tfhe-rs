@@ -2,7 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NotTuple};
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::PBSParameters;
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
 use crate::strings::client_key::ClientKey;
@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 #[test]
 fn test_encrypt_decrypt_parameterized() {
-    test_encrypt_decrypt(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    test_encrypt_decrypt(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 fn test_encrypt_decrypt<P>(param: P)
@@ -35,7 +35,7 @@ where
 
 #[test]
 fn is_empty_test_parameterized() {
-    is_empty_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    is_empty_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 impl NotTuple for &FheString {}
@@ -105,7 +105,7 @@ where
 
 #[test]
 fn len_test_parameterized() {
-    len_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    len_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -183,7 +183,7 @@ where
 
 #[test]
 fn strip_test_parameterized() {
-    strip_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    strip_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -293,7 +293,7 @@ const TEST_CASES_COMP: [&str; 5] = ["", "a", "aa", "ab", "abc"];
 
 #[test]
 fn comp_test_parameterized() {
-    comp_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    comp_test(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 #[allow(clippy::needless_pass_by_value)]

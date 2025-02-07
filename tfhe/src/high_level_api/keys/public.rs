@@ -274,17 +274,15 @@ impl ParameterSetConformant for CompressedCompactPublicKey {
 #[cfg(test)]
 mod test {
     use crate::conformance::ParameterSetConformant;
-    use crate::shortint::parameters::{
-        CompactPublicKeyEncryptionParameters,
-        V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
-    };
+    use crate::shortint::parameters::current_params::V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128;
+    use crate::shortint::parameters::*;
     use crate::{
         generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, ConfigBuilder,
     };
 
     #[test]
     fn conformance_compact_public_key() {
-        let params = V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
+        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128;
 
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
@@ -302,11 +300,11 @@ mod test {
 
     #[test]
     fn conformance_compact_public_key_casting() {
-        let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let cpk_params = crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let cpk_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let config = ConfigBuilder::with_custom_parameters(params)
             .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
@@ -320,7 +318,7 @@ mod test {
 
     #[test]
     fn conformance_compressed_compact_public_key() {
-        let params = V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64;
+        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128;
 
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
@@ -338,11 +336,13 @@ mod test {
 
     #[test]
     fn conformance_compressed_compact_public_key_casting() {
-        let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let cpk_params = crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let cpk_params =
+            crate::shortint::parameters::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let casting_params =
+            crate::shortint::parameters::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let config = ConfigBuilder::with_custom_parameters(params)
             .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));

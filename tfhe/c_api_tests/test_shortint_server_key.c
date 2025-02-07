@@ -539,9 +539,9 @@ void test_server_key(void) {
   const uint32_t message_bits = 2;
   const uint32_t carry_bits = 2;
 
-  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
   // We don't have TUniform small params, use gaussian instead
-  ShortintPBSParameters params_small = SHORTINT_V0_11_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64;
+  ShortintPBSParameters params_small = SHORTINT_V1_0_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
 
   assert(params.message_modulus == 1 << message_bits);
   assert(params.carry_modulus == 1 << carry_bits);

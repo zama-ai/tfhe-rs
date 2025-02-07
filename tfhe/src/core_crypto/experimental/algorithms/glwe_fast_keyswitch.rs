@@ -90,7 +90,7 @@ use tfhe_fft::c64;
 ///
 /// let ct_plaintext = Plaintext(3 << 60);
 ///
-/// let mut ct_plaintexts = PlaintextList::new(ct_plaintext.0, PlaintextCount(polynomial_size.0));
+/// let ct_plaintexts = PlaintextList::new(ct_plaintext.0, PlaintextCount(polynomial_size.0));
 /// let mut ct = GlweCiphertext::new(0u64, glwe_size_in, polynomial_size, ciphertext_modulus);
 ///
 /// encrypt_glwe_ciphertext(

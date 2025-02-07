@@ -146,10 +146,10 @@ int main(void) {
     ok = config_builder_default(&builder);
     assert(ok == 0);
     ok = config_builder_use_custom_parameters(
-        &builder, SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+        &builder, SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
     assert(ok == 0);
     ok = use_dedicated_compact_public_key_parameters(
-        &builder, SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+        &builder, SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
     assert(ok == 0);
     ok = config_builder_build(builder, &config);
     assert(ok == 0);

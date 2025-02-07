@@ -346,11 +346,13 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// let size = 4;
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
@@ -361,8 +363,8 @@ impl CudaServerKey {
     /// let ct = cks.encrypt(msg);
     /// let rotate_ct = cks.encrypt(rotate);
     /// // Copy to GPU
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
-    /// let mut d_rotate_ct =
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+    /// let d_rotate_ct =
     ///     CudaUnsignedRadixCiphertext::from_radix_ciphertext(&rotate_ct, &streams);
     ///
     /// let d_ct_res = sks.rotate_right(&d_ct, &d_rotate_ct, &streams);
@@ -500,11 +502,13 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
+    /// # // TODO GPU DRIFT UPDATE
     /// let size = 4;
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, size, &streams);
@@ -515,8 +519,8 @@ impl CudaServerKey {
     /// let ct = cks.encrypt(msg);
     /// let rotate_ct = cks.encrypt(rotate);
     /// // Copy to GPU
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
-    /// let mut d_rotate_ct =
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+    /// let d_rotate_ct =
     ///     CudaUnsignedRadixCiphertext::from_radix_ciphertext(&rotate_ct, &streams);
     ///
     /// let d_ct_res = sks.rotate_left(&d_ct, &d_rotate_ct, &streams);

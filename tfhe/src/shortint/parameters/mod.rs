@@ -6,16 +6,17 @@
 //! sets.
 
 use crate::conformance::ListSizeConstraint;
-pub use crate::core_crypto::commons::dispersion::StandardDev;
+pub use crate::core_crypto::commons::dispersion::{StandardDev, Variance};
 pub use crate::core_crypto::commons::parameters::{
-    CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
-    DynamicDistribution, GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
+    CiphertextModulus as CoreCiphertextModulus, CiphertextModulusLog, DecompositionBaseLog,
+    DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension,
+    LweBskGroupingFactor, LweCiphertextCount, LweDimension, NoiseEstimationMeasureBound,
+    PolynomialSize, RSigmaFactor,
 };
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    GlweCiphertextConformanceParams, LweCiphertextConformanceParams, LweCiphertextCount,
-    LweCiphertextListConformanceParams, LweKeyswitchKeyConformanceParams, MsDecompressionType,
-    NoiseEstimationMeasureBound, RSigmaFactor, Variance,
+    GlweCiphertextConformanceParams, LweCiphertextConformanceParams,
+    LweCiphertextListConformanceParams, LweKeyswitchKeyConformanceParams,
 };
 use crate::shortint::backward_compatibility::parameters::*;
 #[cfg(feature = "zk-pok")]
@@ -24,6 +25,7 @@ use serde::{Deserialize, Serialize};
 
 use tfhe_versionable::Versionize;
 
+pub mod aliases;
 pub mod classic;
 pub mod compact_public_key_only;
 #[cfg(tarpaulin)]
@@ -36,41 +38,23 @@ pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
 pub mod v0_10;
 pub mod v0_11;
+pub mod v1_0;
+
+// TODO, what do we do about this one ?
+pub use aliases::*;
+pub use v1_0 as current_params;
 
 use super::backward_compatibility::parameters::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionParamsVersions;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use super::server_key::PBSConformanceParams;
 pub use super::PBSOrder;
-pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 use crate::shortint::ciphertext::MaxDegree;
-pub use crate::shortint::parameters::classic::compact_pk::*;
-pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
-pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::list_compression::{
-    CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-};
-pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs_gpu::*;
-pub use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::*;
+pub use crate::shortint::parameters::list_compression::CompressionParameters;
+pub use classic::ClassicPBSParameters;
 pub use compact_public_key_only::{
     CastingFunctionsOwned, CastingFunctionsView, CompactCiphertextListExpansionKind,
     CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
 };
-
-pub use crate::shortint::parameters::v0_10::classic::compact_pk::gaussian::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::v0_10::classic::compact_pk::gaussian::p_fail_2_minus_64::pbs_ks::*;
-pub use crate::shortint::parameters::v0_10::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::v0_10::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
-pub use crate::shortint::parameters::v0_10::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::v0_10::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::v0_10::key_switching::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::v0_10::compact_public_key_only::p_fail_2_minus_64::ks_pbs::*;
-
-pub use crate::shortint::parameters::v0_11::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs::*;
-pub use crate::shortint::parameters::v0_11::multi_bit::gaussian::p_fail_2_minus_64::ks_pbs_gpu::*;
-pub use crate::shortint::parameters::v0_11::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::*;
-
 #[cfg(tarpaulin)]
 pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
@@ -106,124 +90,6 @@ pub struct CarryModulus(pub u64);
 
 /// Determines in what ring computations are made
 pub type CiphertextModulus = CoreCiphertextModulus<u64>;
-
-/// A structure defining the set of cryptographic parameters for homomorphic integer circuit
-/// evaluation.
-///
-/// The choice of encryption key for (`shortint ciphertext`)[`super::ciphertext::Ciphertext`].
-///
-/// * The `Big` choice means the big LWE key derived from the GLWE key is used to encrypt the input
-///   ciphertext. This offers better performance but the (`public
-///   key`)[`super::public_key::PublicKey`] can be extremely large and in some cases may not fit in
-///   memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch is
-///   computed first followed by a PBS, the keyswitch goes from the large key to the small key and
-///   the PBS goes from the small key to the large key.
-/// * The `Small` choice means the small LWE key is used to encrypt the input ciphertext.
-///   Performance is not as good as in the `Big` case but (`public
-///   key`)[`super::public_key::PublicKey`] sizes are much more manageable and should always fit in
-///   memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
-///   first followed by a keyswitch, the PBS goes from the small key to the large key and the
-///   keyswitch goes from the large key to the small key.
-#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
-#[versionize(ClassicPBSParametersVersions)]
-pub struct ClassicPBSParameters {
-    pub lwe_dimension: LweDimension,
-    pub glwe_dimension: GlweDimension,
-    pub polynomial_size: PolynomialSize,
-    pub lwe_noise_distribution: DynamicDistribution<u64>,
-    pub glwe_noise_distribution: DynamicDistribution<u64>,
-    pub pbs_base_log: DecompositionBaseLog,
-    pub pbs_level: DecompositionLevelCount,
-    pub ks_base_log: DecompositionBaseLog,
-    pub ks_level: DecompositionLevelCount,
-    pub message_modulus: MessageModulus,
-    pub carry_modulus: CarryModulus,
-    pub max_noise_level: MaxNoiseLevel,
-    pub log2_p_fail: f64,
-    pub ciphertext_modulus: CiphertextModulus,
-    pub encryption_key_choice: EncryptionKeyChoice,
-    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
-}
-
-impl ClassicPBSParameters {
-    /// Constructs a new set of parameters for integer circuit evaluation.
-    ///
-    /// # Warning
-    ///
-    /// Failing to fix the parameters properly would yield incorrect and unsecure computation.
-    /// Unless you are a cryptographer who really knows the impact of each of those parameters, you
-    /// __must__ stick with the provided parameters.
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        lwe_dimension: LweDimension,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        lwe_noise_distribution: DynamicDistribution<u64>,
-        glwe_noise_distribution: DynamicDistribution<u64>,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        ks_level: DecompositionLevelCount,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        max_noise_level: MaxNoiseLevel,
-        log2_p_fail: f64,
-        ciphertext_modulus: CiphertextModulus,
-        encryption_key_choice: EncryptionKeyChoice,
-        modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
-    ) -> Self {
-        Self {
-            lwe_dimension,
-            glwe_dimension,
-            polynomial_size,
-            lwe_noise_distribution,
-            glwe_noise_distribution,
-            pbs_base_log,
-            pbs_level,
-            ks_base_log,
-            ks_level,
-            message_modulus,
-            carry_modulus,
-            max_noise_level,
-            log2_p_fail,
-            ciphertext_modulus,
-            encryption_key_choice,
-            modulus_switch_noise_reduction_params,
-        }
-    }
-
-    pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
-        let (pbs_order, expected_dim) = match self.encryption_key_choice {
-            EncryptionKeyChoice::Big => (
-                PBSOrder::KeyswitchBootstrap,
-                self.glwe_dimension
-                    .to_equivalent_lwe_dimension(self.polynomial_size),
-            ),
-            EncryptionKeyChoice::Small => (PBSOrder::BootstrapKeyswitch, self.lwe_dimension),
-        };
-
-        let message_modulus = self.message_modulus;
-        let ciphertext_modulus = self.ciphertext_modulus;
-        let carry_modulus = self.carry_modulus;
-
-        let degree = Degree::new(message_modulus.0 - 1);
-
-        let noise_level = NoiseLevel::NOMINAL;
-
-        CiphertextConformanceParams {
-            ct_params: LweCiphertextConformanceParams {
-                lwe_dim: expected_dim,
-                ct_modulus: ciphertext_modulus,
-                ms_decompression_method: MsDecompressionType::ClassicPbs,
-            },
-            message_modulus,
-            carry_modulus,
-            pbs_order,
-            degree,
-            noise_level,
-        }
-    }
-}
 
 impl From<&PBSConformanceParams> for LweBootstrapKeyConformanceParams {
     fn from(value: &PBSConformanceParams) -> Self {
@@ -688,124 +554,6 @@ where
         Self::try_new_pbs_and_wopbs_param_set(value)
     }
 }
-
-/// Vector containing all [`ClassicPBSParameters`] parameter sets
-pub const ALL_PARAMETER_VEC: [ClassicPBSParameters; 29] = WITH_CARRY_PARAMETERS_VEC;
-
-/// Vector containing all parameter sets where the carry space is strictly greater than one
-pub const WITH_CARRY_PARAMETERS_VEC: [ClassicPBSParameters; 29] = [
-    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-];
-
-/// Vector containing all parameter sets where the carry space is strictly greater than one
-pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [ClassicPBSParameters; 17] = [
-    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-];
-
-/// Nomenclature: PARAM_MESSAGE_X_CARRY_Y: the message (respectively carry) modulus is
-/// encoded over X (reps. Y) bits, i.e., message_modulus = 2^{X} (resp. carry_modulus = 2^{Y}).
-/// All parameter sets guarantee 128-bits of security and an error probability smaller than
-/// 2^{-40} for a PBS.
-///
-/// Return a parameter set from a message and carry moduli.
-///
-/// # Example
-///
-/// ```rust
-/// use tfhe::shortint::parameters::{
-///     get_parameters_from_message_and_carry, V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-/// };
-/// let message_space = 7;
-/// let carry_space = 2;
-/// let param = get_parameters_from_message_and_carry(message_space, carry_space);
-/// assert_eq!(param, V0_11_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M64);
-/// ```
-pub fn get_parameters_from_message_and_carry(
-    msg_space: usize,
-    carry_space: usize,
-) -> ClassicPBSParameters {
-    let mut out = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    let mut flag: bool = false;
-    let mut rescaled_message_space = f64::ceil(f64::log2(msg_space as f64)) as u64;
-    rescaled_message_space = 1 << rescaled_message_space;
-    let mut rescaled_carry_space = f64::ceil(f64::log2(carry_space as f64)) as u64;
-    rescaled_carry_space = 1 << rescaled_carry_space;
-
-    for param in ALL_PARAMETER_VEC {
-        if param.message_modulus.0 == rescaled_message_space
-            && param.carry_modulus.0 == rescaled_carry_space
-        {
-            out = param;
-            flag = true;
-            break;
-        }
-    }
-    if !flag {
-        println!(
-            "### WARNING: NO PARAMETERS FOUND for msg_space = {rescaled_message_space} and \
-            carry_space = {rescaled_carry_space} ### "
-        );
-    }
-    out
-}
-
-pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
-pub const PARAM_MESSAGE_2_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-
-pub const COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS: CompressionParameters =
-    list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
-pub const COMP_PARAM_MESSAGE_2_CARRY_2: CompressionParameters = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-
-// GPU
-pub const PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
-    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
 /// The Zk scheme for compact private key encryption supported by these parameters.
 ///

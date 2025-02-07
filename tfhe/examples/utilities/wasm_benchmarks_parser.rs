@@ -9,22 +9,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::keycache::{
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_NAME,
-    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64_NAME,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64_NAME,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64_NAME,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64_NAME,
-};
-use tfhe::shortint::parameters::classic::compact_pk::{
-    V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
-};
-use tfhe::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use tfhe::shortint::parameters::{
-    V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-};
+use tfhe::shortint::keycache::get_shortint_parameter_set_from_name;
 use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
 
 const BENCHMARK_NAME_PREFIX: &str = "wasm::";
@@ -36,23 +21,14 @@ struct Args {
 }
 
 fn params_from_name(name: &str) -> ClassicPBSParameters {
-    match name.to_uppercase().as_str() {
-        V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64_NAME => {
-            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64
+    match get_shortint_parameter_set_from_name(name.to_uppercase().as_str())
+        .pbs_parameters()
+        .unwrap()
+    {
+        PBSParameters::PBS(p) => p,
+        PBSParameters::MultiBitPBS(_) => {
+            panic!("Tried to get a MultiBitPBS, expected ClassicPBSParameters")
         }
-        V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64_NAME => {
-            V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64
-        }
-        V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64_NAME => {
-            V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64
-        }
-        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64_NAME => {
-            V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
-        }
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_NAME => {
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
-        }
-        _ => panic!("failed to get parameters for name '{name}'"),
     }
 }
 

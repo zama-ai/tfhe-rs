@@ -256,13 +256,13 @@ mod experimental {
         ///
         /// ```rust
         /// use tfhe::shortint::gen_keys;
-        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
-        /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
+        /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
         /// use tfhe::shortint::wopbs::*;
         ///
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(V0_11_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64);
-        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+        /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// ```
         pub fn new_wopbs_key(
             cks: &ClientKey,
@@ -343,11 +343,11 @@ mod experimental {
         /// ```rust
         /// use tfhe::shortint::gen_keys;
         /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
         /// use tfhe::shortint::wopbs::*;
         ///
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let message_modulus = LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let m = 2;
@@ -426,10 +426,10 @@ mod experimental {
         /// let message_modulus = MessageModulus(5);
         /// let m = 2;
         /// let ct = cks.encrypt_native_crt(m, message_modulus);
-        /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x * x % message_modulus.0 as u64);
+        /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x * x % message_modulus.0);
         /// let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&ct, &lut);
         /// let res = cks.decrypt_message_native_crt(&ct_res, message_modulus);
-        /// assert_eq!(res, (m * m) % message_modulus.0 as u64);
+        /// assert_eq!(res, (m * m) % message_modulus.0);
         /// ```
         pub fn generate_lut_native_crt<F>(&self, ct: &Ciphertext, f: F) -> ShortintWopbsLUT
         where
@@ -465,7 +465,7 @@ mod experimental {
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut rng = rand::thread_rng();
         /// let message_modulus = LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
-        /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus as u64);
+        /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus);
         /// let lut = vec![1_u64 << 59; wopbs_key.param.polynomial_size.0].into();
         /// let ct_res = wopbs_key.programmable_bootstrapping(&sks, &ct, &lut);
         /// let res = cks.decrypt_message_and_carry(&ct_res);
@@ -501,7 +501,7 @@ mod experimental {
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
         /// let mut rng = rand::thread_rng();
         /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
-        /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus as u64);
+        /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus);
         /// let lut = vec![1_u64 << 59; wopbs_key.param.polynomial_size.0].into();
         /// let ct_res = wopbs_key.wopbs(&ct, &lut);
         /// let res = cks.decrypt_message_and_carry(&ct_res);

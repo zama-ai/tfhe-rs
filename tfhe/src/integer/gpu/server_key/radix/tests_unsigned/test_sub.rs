@@ -8,6 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_sub_test, unchecked_sub_test,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::default_overflowing_sub_test;
+use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_unchecked_sub);
