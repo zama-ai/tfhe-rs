@@ -454,6 +454,16 @@ impl<T: Numeric> CudaVec<T> {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let d_vec = unsafe {
+            let mut d_vec = Self::new_async(self.len(), streams, 0);
+            d_vec.copy_from_gpu_async(self, streams, 0);
+            d_vec
+        };
+        streams.synchronize();
+        d_vec
+    }
 }
 
 // SAFETY
