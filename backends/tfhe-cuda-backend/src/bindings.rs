@@ -391,6 +391,7 @@ unsafe extern "C" {
         lwe_array_in: *const CudaRadixCiphertextFFI,
         message_modulus: u32,
         carry_modulus: u32,
+        num_radix_blocks: u32,
     );
 }
 unsafe extern "C" {
@@ -564,13 +565,12 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_1: *const ffi::c_void,
-        lwe_array_2: *const ffi::c_void,
+        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_1: *const CudaRadixCiphertextFFI,
+        lwe_array_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
-        lwe_ciphertext_count: u32,
     );
 }
 unsafe extern "C" {
@@ -578,13 +578,12 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
+        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_in: *const CudaRadixCiphertextFFI,
         scalar_blocks: *const ffi::c_void,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
-        lwe_ciphertext_count: u32,
         num_scalar_blocks: u32,
     );
 }
@@ -1143,8 +1142,8 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
+        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
@@ -1186,8 +1185,8 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
+        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,

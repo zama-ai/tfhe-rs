@@ -145,7 +145,7 @@ void cuda_negate_integer_radix_ciphertext_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, uint32_t message_modulus,
-    uint32_t carry_modulus);
+    uint32_t carry_modulus, uint32_t num_radix_blocks);
 
 void cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -218,15 +218,17 @@ void scratch_cuda_integer_radix_comparison_kb_64(
 
 void cuda_comparison_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_array_1, void const *lwe_array_2,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t lwe_ciphertext_count);
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_1,
+    CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks);
 
 void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_array_in, void const *scalar_blocks,
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, void const *scalar_blocks,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t lwe_ciphertext_count, uint32_t num_scalar_blocks);
+    uint32_t num_scalar_blocks);
 
 void cleanup_cuda_integer_comparison(void *const *streams,
                                      uint32_t const *gpu_indexes,
@@ -474,7 +476,8 @@ void scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
 
 void cuda_integer_are_all_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_array_in, int8_t *mem_ptr,
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks);
 
 void cleanup_cuda_integer_are_all_comparisons_block_true(
@@ -492,7 +495,8 @@ void scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
 
 void cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_array_in, int8_t *mem_ptr,
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks);
 
 void cleanup_cuda_integer_is_at_least_one_comparisons_block_true(

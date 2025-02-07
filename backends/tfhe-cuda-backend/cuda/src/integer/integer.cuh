@@ -1162,7 +1162,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   cuda_memcpy_async_to_cpu(&lut_indexes, lut->get_lut_indexes(0, 0),
                            lut->num_blocks * sizeof(Torus), streams[0],
                            gpu_indexes[0]);
-  for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
+  for (uint i = 0; i < num_radix_blocks; i++) {
     lwe_array_out->degrees[i] = lut->degrees[lut_indexes[i]];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
@@ -2066,69 +2066,49 @@ __global__ void device_pack_blocks(Torus *lwe_array_out,
 // Expects the carry buffer to be empty
 template <typename Torus>
 __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
-                          Torus *lwe_array_out, Torus const *lwe_array_in,
-                          uint32_t lwe_dimension, uint32_t num_radix_blocks,
-                          uint32_t factor) {
+                          CudaRadixCiphertextFFI *lwe_array_out,
+                          CudaRadixCiphertextFFI const *lwe_array_in,
+                          uint32_t num_radix_blocks, uint32_t factor) {
+  if (lwe_array_in->lwe_dimension != lwe_array_out->lwe_dimension)
+    PANIC("Cuda error: the input and output should have the same lwe dimension")
+  if (lwe_array_in->num_radix_blocks < num_radix_blocks)
+    PANIC("Cuda error: the number of blocks to pack should be lower or equal "
+          "to the number of blocks of the input")
+  if (lwe_array_out->num_radix_blocks < num_radix_blocks / 2)
+    PANIC("Cuda error: the number of output blocks should be greater or equal "
+          "to the number of blocks to pack / 2")
   if (num_radix_blocks == 0)
     return;
+  auto lwe_dimension = lwe_array_in->lwe_dimension;
   cuda_set_device(gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 1024, num_blocks, num_threads);
   device_pack_blocks<Torus><<<num_blocks, num_threads, 0, stream>>>(
-      lwe_array_out, lwe_array_in, lwe_dimension, num_radix_blocks, factor);
+      (Torus *)lwe_array_out->ptr, (Torus *)lwe_array_in->ptr, lwe_dimension,
+      num_radix_blocks, factor);
   check_cuda_error(cudaGetLastError());
 }
 
 template <typename Torus>
-__global__ void
-device_create_trivial_radix(Torus *lwe_array, Torus const *scalar_input,
-                            int32_t num_blocks, uint32_t lwe_dimension,
-                            uint64_t delta) {
-  int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (tid < num_blocks) {
-    Torus scalar = scalar_input[tid];
-    Torus *body = lwe_array + tid * (lwe_dimension + 1) + lwe_dimension;
-
-    *body = scalar * delta;
-  }
-}
-
-template <typename Torus>
-__host__ void
-create_trivial_radix(cudaStream_t stream, uint32_t gpu_index,
-                     Torus *lwe_array_out, Torus const *scalar_array,
-                     uint32_t lwe_dimension, uint32_t num_radix_blocks,
-                     uint32_t num_scalar_blocks, Torus message_modulus,
-                     Torus carry_modulus) {
-
-  cuda_set_device(gpu_index);
-  size_t radix_size = (lwe_dimension + 1) * num_radix_blocks;
-  cuda_memset_async(lwe_array_out, 0, radix_size * sizeof(Torus), stream,
-                    gpu_index);
-
-  if (num_scalar_blocks == 0)
+__host__ void scalar_pack_blocks(cudaStream_t stream, uint32_t gpu_index,
+                                 CudaRadixCiphertextFFI *lwe_array_out,
+                                 Torus const *scalar_array_in,
+                                 uint32_t num_radix_blocks, uint32_t factor) {
+  if (lwe_array_out->num_radix_blocks < num_radix_blocks / 2)
+    PANIC("Cuda error: the number of output blocks should be greater or equal "
+          "to the number of blocks to pack / 2")
+  if (num_radix_blocks == 0)
     return;
-
-  // Create a 1-dimensional grid of threads
+  cuda_set_device(gpu_index);
   int num_blocks = 0, num_threads = 0;
-  int num_entries = num_scalar_blocks;
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  dim3 grid(num_blocks, 1, 1);
-  dim3 thds(num_threads, 1, 1);
-
-  // Value of the shift we multiply our messages by
-  // If message_modulus and carry_modulus are always powers of 2 we can simplify
-  // this
-  auto nbits = sizeof(Torus) * 8;
-  Torus delta = (static_cast<Torus>(1) << (nbits - 1)) /
-                (message_modulus * carry_modulus);
-
-  device_create_trivial_radix<Torus><<<grid, thds, 0, stream>>>(
-      lwe_array_out, scalar_array, num_scalar_blocks, lwe_dimension, delta);
+  int num_entries = 1;
+  getNumBlocksAndThreads(num_entries, 1024, num_blocks, num_threads);
+  device_pack_blocks<Torus><<<num_blocks, num_threads, 0, stream>>>(
+      (Torus *)lwe_array_out->ptr, scalar_array_in, 0, num_radix_blocks,
+      factor);
   check_cuda_error(cudaGetLastError());
 }
-
 /**
  * Each bit in lwe_array_in becomes a lwe ciphertext in lwe_array_out
  * Thus, lwe_array_out must be allocated with num_radix_blocks * bits_per_block
@@ -2178,10 +2158,17 @@ extract_n_bits(cudaStream_t const *streams, uint32_t const *gpu_indexes,
 template <typename Torus>
 __host__ void
 reduce_signs(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-             uint32_t gpu_count, Torus *signs_array_out, Torus *signs_array_in,
+             uint32_t gpu_count, CudaRadixCiphertextFFI *signs_array_out,
+             CudaRadixCiphertextFFI *signs_array_in,
              int_comparison_buffer<Torus> *mem_ptr,
              std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
              Torus *const *ksks, uint32_t num_sign_blocks) {
+
+  if (signs_array_out->lwe_dimension != signs_array_in->lwe_dimension)
+    PANIC("Cuda error: input lwe dimensions must be the same")
+  if (signs_array_in->num_radix_blocks < num_sign_blocks)
+    PANIC("Cuda error: input num radix blocks should not be lower "
+          "than the number of blocks to operate on")
 
   auto diff_buffer = mem_ptr->diff_buffer;
 
@@ -2203,10 +2190,9 @@ reduce_signs(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   auto signs_a = diff_buffer->tmp_signs_a;
   auto signs_b = diff_buffer->tmp_signs_b;
 
-  cuda_memcpy_async_gpu_to_gpu(signs_a, signs_array_in,
-                               (big_lwe_dimension + 1) * num_sign_blocks *
-                                   sizeof(Torus),
-                               streams[0], gpu_indexes[0]);
+  copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0], signs_a,
+                                           0, num_sign_blocks, signs_array_in,
+                                           0, num_sign_blocks);
   if (num_sign_blocks > 2) {
     auto lut = diff_buffer->reduce_signs_lut;
     generate_device_accumulator<Torus>(
@@ -2217,19 +2203,16 @@ reduce_signs(cudaStream_t const *streams, uint32_t const *gpu_indexes,
 
     while (num_sign_blocks > 2) {
       pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
-                         big_lwe_dimension, num_sign_blocks, 4);
-      legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, signs_a, signs_b, bsks, ksks,
-          num_sign_blocks / 2, lut);
+                         num_sign_blocks, 4);
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          streams, gpu_indexes, gpu_count, signs_a, signs_b, bsks, ksks, lut,
+          num_sign_blocks / 2);
 
-      auto last_block_signs_b =
-          signs_b + (num_sign_blocks / 2) * (big_lwe_dimension + 1);
-      auto last_block_signs_a =
-          signs_a + (num_sign_blocks / 2) * (big_lwe_dimension + 1);
       if (num_sign_blocks % 2 == 1)
-        cuda_memcpy_async_gpu_to_gpu(last_block_signs_a, last_block_signs_b,
-                                     (big_lwe_dimension + 1) * sizeof(Torus),
-                                     streams[0], gpu_indexes[0]);
+        copy_radix_ciphertext_slice_async<Torus>(
+            streams[0], gpu_indexes[0], signs_a, num_sign_blocks / 2,
+            num_sign_blocks / 2 + 1, signs_b, num_sign_blocks / 2,
+            num_sign_blocks / 2 + 1);
 
       num_sign_blocks = (num_sign_blocks / 2) + (num_sign_blocks % 2);
     }
@@ -2249,11 +2232,10 @@ reduce_signs(cudaStream_t const *streams, uint32_t const *gpu_indexes,
         message_modulus, carry_modulus, final_lut_f);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
-    pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
-                       big_lwe_dimension, 2, 4);
-    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a, 2, 4);
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, signs_array_out, signs_b, bsks, ksks,
-        1, lut);
+        lut, 1);
 
   } else {
 
@@ -2269,9 +2251,9 @@ reduce_signs(cudaStream_t const *streams, uint32_t const *gpu_indexes,
         message_modulus, carry_modulus, final_lut_f);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
-    legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, signs_array_out, signs_a, bsks, ksks,
-        1, lut);
+        lut, 1);
   }
 }
 

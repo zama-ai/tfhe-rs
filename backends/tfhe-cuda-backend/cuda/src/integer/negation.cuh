@@ -54,23 +54,22 @@ device_integer_radix_negation(Torus *output, Torus const *input,
 }
 
 template <typename Torus>
-__host__ void
-host_integer_radix_negation(cudaStream_t const *streams,
-                            uint32_t const *gpu_indexes, uint32_t gpu_count,
-                            CudaRadixCiphertextFFI *lwe_array_out,
-                            CudaRadixCiphertextFFI const *lwe_array_in,
-                            uint64_t message_modulus, uint64_t carry_modulus) {
+__host__ void host_integer_radix_negation(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, uint64_t message_modulus,
+    uint64_t carry_modulus, uint32_t num_radix_blocks) {
   cuda_set_device(gpu_indexes[0]);
 
-  if (lwe_array_out->num_radix_blocks != lwe_array_in->num_radix_blocks)
+  if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
+      lwe_array_in->num_radix_blocks < num_radix_blocks)
     PANIC("Cuda error: lwe_array_in and lwe_array_out num radix blocks must be "
-          "the same")
+          "greater or equal to the number of blocks to negate")
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: lwe_array_in and lwe_array_out lwe_dimension must be "
           "the same")
 
-  auto num_radix_blocks = lwe_array_out->num_radix_blocks;
   auto lwe_dimension = lwe_array_out->lwe_dimension;
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask

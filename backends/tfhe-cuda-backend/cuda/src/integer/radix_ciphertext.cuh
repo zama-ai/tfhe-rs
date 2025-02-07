@@ -3,6 +3,7 @@
 
 #include "device.h"
 #include "integer/integer.h"
+#include "utils/kernel_dimensions.cuh"
 
 template <typename Torus>
 void create_zero_radix_ciphertext_async(cudaStream_t const stream,
@@ -21,6 +22,20 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
       (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
   if (radix->degrees == NULL || radix->noise_levels == NULL) {
     PANIC("Cuda error: degrees / noise levels not allocated correctly")
+  }
+}
+
+template <typename Torus>
+__global__ void
+device_create_trivial_radix(Torus *lwe_array, Torus const *scalar_input,
+                            int32_t num_blocks, uint32_t lwe_dimension,
+                            uint64_t delta) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid < num_blocks) {
+    Torus scalar = scalar_input[tid];
+    Torus *body = lwe_array + tid * (lwe_dimension + 1) + lwe_dimension;
+
+    *body = scalar * delta;
   }
 }
 
@@ -137,6 +152,48 @@ void set_zero_radix_ciphertext_slice_async(cudaStream_t const stream,
          num_blocks_to_set * sizeof(uint64_t));
   memset(&radix->noise_levels[start_lwe_index], 0,
          num_blocks_to_set * sizeof(uint64_t));
+}
+
+template <typename Torus>
+__host__ void set_trivial_radix_ciphertext_async(
+    cudaStream_t stream, uint32_t gpu_index,
+    CudaRadixCiphertextFFI *lwe_array_out, Torus const *scalar_array,
+    uint32_t num_scalar_blocks, Torus message_modulus, Torus carry_modulus) {
+
+  if (num_scalar_blocks > lwe_array_out->num_radix_blocks)
+    PANIC("Cuda error: num scalar blocks should be lower or equal to the "
+          "number of input radix blocks")
+  set_zero_radix_ciphertext_slice_async<Torus>(
+      stream, gpu_index, lwe_array_out, 0, lwe_array_out->num_radix_blocks);
+  if (num_scalar_blocks == 0)
+    return;
+
+  // Create a 1-dimensional grid of threads
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = num_scalar_blocks;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  // Value of the shift we multiply our messages by
+  // If message_modulus and carry_modulus are always powers of 2 we can simplify
+  // this
+  auto nbits = sizeof(Torus) * 8;
+  Torus delta = (static_cast<Torus>(1) << (nbits - 1)) /
+                (message_modulus * carry_modulus);
+
+  device_create_trivial_radix<Torus><<<grid, thds, 0, stream>>>(
+      (Torus *)lwe_array_out->ptr, scalar_array, num_scalar_blocks,
+      lwe_array_out->lwe_dimension, delta);
+  check_cuda_error(cudaGetLastError());
+  Torus scalar_array_cpu[num_scalar_blocks];
+  cuda_memcpy_async_to_cpu(&scalar_array_cpu, scalar_array,
+                           num_scalar_blocks * sizeof(Torus), stream,
+                           gpu_index);
+  cuda_synchronize_stream(stream, gpu_index);
+  for (uint i = 0; i < num_scalar_blocks; i++) {
+    lwe_array_out->degrees[i] = scalar_array_cpu[i];
+  }
 }
 
 #endif
