@@ -194,27 +194,27 @@ impl CudaCompressedCiphertextList {
         let storage_log_modulus = self.packed_list.storage_log_modulus;
 
         let initial_len = self.packed_list.initial_len;
-        let number_bits_to_pack = initial_len * storage_log_modulus.0;
-        let len = number_bits_to_pack.div_ceil(u64::BITS as usize);
 
-        let modulus_switched_glwe_ciphertext_list = glwe_list
-            .iter()
-            .map(|x| {
-                let glwe_dimension = x.glwe_size().to_glwe_dimension();
-                let polynomial_size = x.polynomial_size();
-                CompressedModulusSwitchedGlweCiphertext {
-                    packed_integers: PackedIntegers {
-                        packed_coeffs: x.into_container()[0..len].to_vec(),
-                        log_modulus: storage_log_modulus,
-                        initial_len,
-                    },
-                    glwe_dimension,
-                    polynomial_size,
-                    bodies_count: LweCiphertextCount(self.packed_list.bodies_count),
-                    uncompressed_ciphertext_modulus: ciphertext_modulus,
-                }
-            })
-            .collect_vec();
+        let mut num_bodies_left = self.packed_list.bodies_count;
+        let mut modulus_switched_glwe_ciphertext_list =
+            Vec::with_capacity(glwe_list.glwe_ciphertext_count().0);
+        for glwe in glwe_list.iter() {
+            let glwe_dimension = glwe.glwe_size().to_glwe_dimension();
+            let polynomial_size = glwe.polynomial_size();
+            let bodies_count = LweCiphertextCount(num_bodies_left.min(lwe_per_glwe.0));
+            modulus_switched_glwe_ciphertext_list.push(CompressedModulusSwitchedGlweCiphertext {
+                packed_integers: PackedIntegers {
+                    packed_coeffs: glwe.into_container().to_vec(),
+                    log_modulus: storage_log_modulus,
+                    initial_len,
+                },
+                glwe_dimension,
+                polynomial_size,
+                bodies_count,
+                uncompressed_ciphertext_modulus: ciphertext_modulus,
+            });
+            num_bodies_left = num_bodies_left.saturating_sub(lwe_per_glwe.0);
+        }
 
         let count = CiphertextCount(self.packed_list.bodies_count);
         let pbs_order = PBSOrder::KeyswitchBootstrap;
@@ -324,7 +324,6 @@ impl CompressedCiphertextList {
         let first_ct = modulus_switched_glwe_ciphertext_list.first().unwrap();
         let storage_log_modulus = first_ct.packed_integers.log_modulus;
         let initial_len = first_ct.packed_integers.initial_len;
-        let bodies_count = first_ct.bodies_count.0;
 
         let message_modulus = self.packed_list.message_modulus;
         let carry_modulus = self.packed_list.carry_modulus;
@@ -355,7 +354,7 @@ impl CompressedCiphertextList {
                 ),
                 message_modulus,
                 carry_modulus,
-                bodies_count,
+                bodies_count: self.packed_list.count.0,
                 storage_log_modulus,
                 lwe_per_glwe,
                 initial_len,
@@ -506,6 +505,66 @@ mod tests {
 
     const NB_TESTS: usize = 10;
     const NB_OPERATOR_TESTS: usize = 10;
+
+    #[test]
+    fn test_cpu_to_gpu_compressed_ciphertext_list() {
+        const NUM_BLOCKS: usize = 32;
+        let streams = CudaStreams::new_multi_gpu();
+
+        let params = V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let comp_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let (radix_cks, sks) =
+            gen_keys_radix_gpu::<ShortintParameterSet>(params.into(), NUM_BLOCKS, &streams);
+        let cks = radix_cks.as_ref();
+
+        let private_compression_key = cks.new_compression_private_key(comp_params);
+
+        let (cuda_compression_key, cuda_decompression_key) =
+            radix_cks.new_cuda_compression_decompression_keys(&private_compression_key, &streams);
+
+        // How many uints of NUM_BLOCKS we have to push in the list to ensure it
+        // internally has more than one packed GLWE
+        const MAX_NB_MESSAGES: usize = 1 + 2 * COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+            .lwe_per_glwe
+            .0
+            / NUM_BLOCKS;
+
+        let mut rng = rand::thread_rng();
+        let message_modulus: u128 = cks.parameters().message_modulus().0 as u128;
+        let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+        let messages = (0..MAX_NB_MESSAGES)
+            .map(|_| rng.gen::<u128>() % modulus)
+            .collect::<Vec<_>>();
+        let d_cts = messages
+            .iter()
+            .map(|message| {
+                let ct = radix_cks.encrypt(*message);
+                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams)
+            })
+            .collect_vec();
+
+        let mut builder = CudaCompressedCiphertextListBuilder::new();
+        for d_ct in d_cts {
+            let d_and_ct = sks.bitand(&d_ct, &d_ct, &streams);
+            builder.push(d_and_ct, &streams);
+        }
+        let cuda_compressed = builder.build(&cuda_compression_key, &streams);
+        // Roundtrip Gpu->Cpu->Gpu
+        let cuda_compressed = cuda_compressed
+            .to_compressed_ciphertext_list(&streams)
+            .to_cuda_compressed_ciphertext_list(&streams);
+
+        for (i, message) in messages.iter().enumerate() {
+            let d_decompressed: CudaUnsignedRadixCiphertext = cuda_compressed
+                .get(i, &cuda_decompression_key, &streams)
+                .unwrap()
+                .unwrap();
+            let decompressed = d_decompressed.to_radix_ciphertext(&streams);
+            let decrypted: u128 = radix_cks.decrypt(&decompressed);
+            assert_eq!(decrypted, *message);
+        }
+    }
 
     #[test]
     fn test_gpu_ciphertext_compression() {
