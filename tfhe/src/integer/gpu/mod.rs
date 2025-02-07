@@ -915,9 +915,9 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
 ///   is required
 pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_out: &mut CudaVec<T>,
-    radix_lwe_left: &CudaVec<T>,
-    radix_lwe_right: &CudaVec<T>,
+    radix_lwe_out: &mut CudaRadixCiphertext,
+    radix_lwe_left: &CudaRadixCiphertext,
+    radix_lwe_right: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -930,7 +930,6 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     ks_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
-    num_blocks: u32,
     op: ComparisonType,
     is_signed: bool,
     pbs_type: PBSType,
@@ -938,17 +937,17 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_out.gpu_index(0),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(0),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_right.gpu_index(0),
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -962,6 +961,59 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut radix_lwe_out_degrees = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_out_noise_levels = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_out = prepare_cuda_radix_ffi(
+        radix_lwe_out,
+        &mut radix_lwe_out_degrees,
+        &mut radix_lwe_out_noise_levels,
+    );
+    let mut radix_lwe_left_degrees = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_left_noise_levels = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
+        radix_lwe_left,
+        &mut radix_lwe_left_degrees,
+        &mut radix_lwe_left_noise_levels,
+    );
+
+    let mut radix_lwe_right_degrees = radix_lwe_right
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_right_noise_levels = radix_lwe_right
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_lwe_right = prepare_cuda_radix_ffi(
+        radix_lwe_right,
+        &mut radix_lwe_right_degrees,
+        &mut radix_lwe_right_noise_levels,
+    );
+
     scratch_cuda_integer_radix_comparison_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -976,7 +1028,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
-        num_blocks,
+        radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
@@ -989,13 +1041,12 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_out.as_mut_c_ptr(0),
-        radix_lwe_left.as_c_ptr(0),
-        radix_lwe_right.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_out,
+        &cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_lwe_right,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
     );
 
     cleanup_cuda_integer_comparison(
@@ -1004,6 +1055,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1013,8 +1065,8 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
 ///   is required
 pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_out: &mut CudaVec<T>,
-    radix_lwe_in: &CudaVec<T>,
+    radix_lwe_out: &mut CudaRadixCiphertext,
+    radix_lwe_in: &CudaRadixCiphertext,
     scalar_blocks: &CudaVec<T>,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -1028,7 +1080,6 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     ks_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
-    num_blocks: u32,
     num_scalar_blocks: u32,
     op: ComparisonType,
     signed_with_positive_scalar: bool,
@@ -1037,12 +1088,12 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_out.gpu_index(0),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_in.gpu_index(0),
+        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -1061,6 +1112,40 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut radix_lwe_out_degrees = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_out_noise_levels = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_out = prepare_cuda_radix_ffi(
+        radix_lwe_out,
+        &mut radix_lwe_out_degrees,
+        &mut radix_lwe_out_noise_levels,
+    );
+    let mut radix_lwe_in_degrees = radix_lwe_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_in_noise_levels = radix_lwe_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_lwe_in = prepare_cuda_radix_ffi(
+        radix_lwe_in,
+        &mut radix_lwe_in_degrees,
+        &mut radix_lwe_in_noise_levels,
+    );
     scratch_cuda_integer_radix_comparison_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -1075,7 +1160,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
-        num_blocks,
+        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
@@ -1088,13 +1173,12 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_out.as_mut_c_ptr(0),
-        radix_lwe_in.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_out,
+        &cuda_ffi_radix_lwe_in,
         scalar_blocks.as_c_ptr(0),
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
         num_scalar_blocks,
     );
 
@@ -1104,6 +1188,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3503,8 +3588,8 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_out: &mut CudaVec<T>,
-    radix_lwe_in: &CudaVec<T>,
+    radix_lwe_out: &mut CudaRadixCiphertext,
+    radix_lwe_in: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -3517,18 +3602,17 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
     ks_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
-    num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_out.gpu_index(0),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_in.gpu_index(0),
+        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -3542,6 +3626,40 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut radix_lwe_out_degrees = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_out_noise_levels = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_out = prepare_cuda_radix_ffi(
+        radix_lwe_out,
+        &mut radix_lwe_out_degrees,
+        &mut radix_lwe_out_noise_levels,
+    );
+    let mut radix_lwe_in_degrees = radix_lwe_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_in_noise_levels = radix_lwe_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_lwe_in = prepare_cuda_radix_ffi(
+        radix_lwe_in,
+        &mut radix_lwe_in_degrees,
+        &mut radix_lwe_in_noise_levels,
+    );
     scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -3556,7 +3674,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
-        num_blocks,
+        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
@@ -3567,12 +3685,12 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_out.as_mut_c_ptr(0),
-        radix_lwe_in.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_out,
+        &cuda_ffi_radix_lwe_in,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
+        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
     );
 
     cleanup_cuda_integer_is_at_least_one_comparisons_block_true(
@@ -3581,6 +3699,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3593,8 +3712,8 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_out: &mut CudaVec<T>,
-    radix_lwe_in: &CudaVec<T>,
+    radix_lwe_out: &mut CudaRadixCiphertext,
+    radix_lwe_in: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -3607,18 +3726,17 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
     ks_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
-    num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_out.gpu_index(0),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_in.gpu_index(0),
+        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -3630,6 +3748,40 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
+    );
+    let mut radix_lwe_out_degrees = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_out_noise_levels = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_out = prepare_cuda_radix_ffi(
+        radix_lwe_out,
+        &mut radix_lwe_out_degrees,
+        &mut radix_lwe_out_noise_levels,
+    );
+    let mut radix_lwe_in_degrees = radix_lwe_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_in_noise_levels = radix_lwe_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_lwe_in = prepare_cuda_radix_ffi(
+        radix_lwe_in,
+        &mut radix_lwe_in_degrees,
+        &mut radix_lwe_in_noise_levels,
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
@@ -3646,7 +3798,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
-        num_blocks,
+        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
@@ -3657,12 +3809,12 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_out.as_mut_c_ptr(0),
-        radix_lwe_in.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_out,
+        &cuda_ffi_radix_lwe_in,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
+        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
     );
 
     cleanup_cuda_integer_are_all_comparisons_block_true(
@@ -3671,6 +3823,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3730,6 +3883,7 @@ pub unsafe fn unchecked_negate_integer_radix_async(
         &cuda_ffi_radix_lwe_in,
         message_modulus,
         carry_modulus,
+        radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
     );
     update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }

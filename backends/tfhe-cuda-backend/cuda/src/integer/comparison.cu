@@ -38,21 +38,26 @@ void scratch_cuda_integer_radix_comparison_kb_64(
 
 void cuda_comparison_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_array_1, void const *lwe_array_2,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t num_radix_blocks) {
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_1,
+    CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks) {
 
+  if (lwe_array_1->num_radix_blocks != lwe_array_1->num_radix_blocks)
+    PANIC("Cuda error: input num radix blocks must be the same")
+  // The output ciphertext might be a boolean block or a radix ciphertext
+  // depending on the case (eq/gt vs max/min) so the amount of blocks to
+  // consider for calculation is the one of the input
+  auto num_radix_blocks = lwe_array_1->num_radix_blocks;
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;
   switch (buffer->op) {
   case EQ:
   case NE:
     host_integer_radix_equality_check_kb<uint64_t>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_array_1),
-        static_cast<const uint64_t *>(lwe_array_2), buffer, bsks,
-        (uint64_t **)(ksks), num_radix_blocks);
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array_out,
+        lwe_array_1, lwe_array_2, buffer, bsks, (uint64_t **)(ksks),
+        num_radix_blocks);
     break;
   case GT:
   case GE:
@@ -62,23 +67,18 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
       PANIC("Cuda error (comparisons): the number of radix blocks has to be "
             "even.")
     host_integer_radix_difference_check_kb<uint64_t>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_array_1),
-        static_cast<const uint64_t *>(lwe_array_2), buffer,
-        buffer->diff_buffer->operator_f, bsks, (uint64_t **)(ksks),
-        num_radix_blocks);
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array_out,
+        lwe_array_1, lwe_array_2, buffer, buffer->diff_buffer->operator_f, bsks,
+        (uint64_t **)(ksks), num_radix_blocks);
     break;
   case MAX:
   case MIN:
     if (num_radix_blocks % 2 != 0)
       PANIC("Cuda error (max/min): the number of radix blocks has to be even.")
     host_integer_radix_maxmin_kb<uint64_t>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_array_1),
-        static_cast<const uint64_t *>(lwe_array_2), buffer, bsks,
-        (uint64_t **)(ksks), num_radix_blocks);
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array_out,
+        lwe_array_1, lwe_array_2, buffer, bsks, (uint64_t **)(ksks),
+        num_radix_blocks);
     break;
   default:
     PANIC("Cuda error: integer operation not supported")
@@ -117,17 +117,16 @@ void scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
 
 void cuda_integer_are_all_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_array_in, int8_t *mem_ptr,
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
 
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;
 
   host_integer_are_all_comparisons_block_true_kb<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lwe_array_out),
-      static_cast<const uint64_t *>(lwe_array_in), buffer, bsks,
-      (uint64_t **)(ksks), num_radix_blocks);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array_out,
+      lwe_array_in, buffer, bsks, (uint64_t **)(ksks), num_radix_blocks);
 }
 
 void cleanup_cuda_integer_are_all_comparisons_block_true(
@@ -161,17 +160,16 @@ void scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
 
 void cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void const *lwe_array_in, int8_t *mem_ptr,
+    CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
 
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;
 
   host_integer_is_at_least_one_comparisons_block_true_kb<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lwe_array_out),
-      static_cast<const uint64_t *>(lwe_array_in), buffer, bsks,
-      (uint64_t **)(ksks), num_radix_blocks);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array_out,
+      lwe_array_in, buffer, bsks, (uint64_t **)(ksks), num_radix_blocks);
 }
 
 void cleanup_cuda_integer_is_at_least_one_comparisons_block_true(

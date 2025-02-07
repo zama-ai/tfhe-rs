@@ -133,21 +133,6 @@ impl CudaRadixCiphertextInfo {
                 .collect(),
         }
     }
-    pub(crate) fn after_min_max(&self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .map(|left| CudaBlockInfo {
-                    degree: Degree::new(left.message_modulus.0 - 1),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        }
-    }
     pub(crate) fn boolean_info(&self, noise_level: NoiseLevel) -> Self {
         Self {
             blocks: self
@@ -216,72 +201,6 @@ impl CudaRadixCiphertextInfo {
                     carry_modulus: b.carry_modulus,
                     pbs_order: b.pbs_order,
                     noise_level: b.noise_level,
-                })
-                .collect(),
-        }
-    }
-
-    // eq/ne, and comparisons returns a ciphertext that encrypts a 0 or 1, so the first block
-    // (least significant) has a degree of 1, the other blocks should be trivial lwe encrypting 0,
-    // so degree 0
-    pub(crate) fn after_eq(&self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .enumerate()
-                .map(|(i, block)| CudaBlockInfo {
-                    degree: if i == 0 {
-                        Degree::new(1)
-                    } else {
-                        Degree::new(0)
-                    },
-                    message_modulus: block.message_modulus,
-                    carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        }
-    }
-
-    pub(crate) fn after_block_comparisons(&self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .enumerate()
-                .map(|(i, block)| CudaBlockInfo {
-                    degree: if i == 0 {
-                        Degree::new(1)
-                    } else {
-                        Degree::new(0)
-                    },
-                    message_modulus: block.message_modulus,
-                    carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        }
-    }
-
-    pub(crate) fn after_ne(&self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .enumerate()
-                .map(|(i, block)| CudaBlockInfo {
-                    degree: if i == 0 {
-                        Degree::new(1)
-                    } else {
-                        Degree::new(0)
-                    },
-                    message_modulus: block.message_modulus,
-                    carry_modulus: block.carry_modulus,
-                    pbs_order: block.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }

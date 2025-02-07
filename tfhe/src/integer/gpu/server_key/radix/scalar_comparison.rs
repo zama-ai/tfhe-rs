@@ -157,8 +157,6 @@ impl CudaServerKey {
 
         let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, streams, 0);
 
-        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-
         let block = CudaLweCiphertextList::new(
             ct.as_ref().d_blocks.lwe_dimension(),
             LweCiphertextCount(1),
@@ -177,8 +175,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_comparison_integer_radix_kb_async(
                     streams,
-                    &mut result.as_mut().ciphertext.d_blocks.0.d_vec,
-                    &ct.as_ref().d_blocks.0.d_vec,
+                    result.as_mut().as_mut(),
+                    ct.as_ref(),
                     &d_scalar_blocks,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -196,7 +194,6 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
                     signed_with_positive_scalar,
@@ -207,8 +204,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_scalar_comparison_integer_radix_kb_async(
                     streams,
-                    &mut result.as_mut().ciphertext.d_blocks.0.d_vec,
-                    &ct.as_ref().d_blocks.0.d_vec,
+                    result.as_mut().as_mut(),
+                    ct.as_ref(),
                     &d_scalar_blocks,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -226,7 +223,6 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
                     signed_with_positive_scalar,
@@ -331,16 +327,14 @@ impl CudaServerKey {
 
         let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, streams, 0);
 
-        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-
         let mut result = ct.duplicate_async(streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_comparison_integer_radix_kb_async(
                     streams,
-                    &mut result.as_mut().d_blocks.0.d_vec,
-                    &ct.as_ref().d_blocks.0.d_vec,
+                    result.as_mut(),
+                    ct.as_ref(),
                     &d_scalar_blocks,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -358,7 +352,6 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
                     T::IS_SIGNED,
@@ -369,8 +362,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_scalar_comparison_integer_radix_kb_async(
                     streams,
-                    &mut result.as_mut().d_blocks.0.d_vec,
-                    &ct.as_ref().d_blocks.0.d_vec,
+                    result.as_mut(),
+                    ct.as_ref(),
                     &d_scalar_blocks,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -388,7 +381,6 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
                     T::IS_SIGNED,
@@ -397,7 +389,6 @@ impl CudaServerKey {
                 );
             }
         }
-        result.as_mut().info = ct.as_ref().info.after_min_max();
         result
     }
 
@@ -409,8 +400,6 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-
         let ct_res: T = self.create_trivial_radix(0, 1, streams);
         let mut boolean_res = CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
         unsafe {
@@ -418,8 +407,8 @@ impl CudaServerKey {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     unchecked_are_all_comparisons_block_true_integer_radix_kb_async(
                         streams,
-                        &mut boolean_res.as_mut().ciphertext.d_blocks.0.d_vec,
-                        &ct.as_ref().d_blocks.0.d_vec,
+                        boolean_res.as_mut().as_mut(),
+                        ct.as_ref(),
                         &d_bsk.d_vec,
                         &self.key_switching_key.d_vec,
                         self.message_modulus,
@@ -436,7 +425,6 @@ impl CudaServerKey {
                         self.key_switching_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
-                        lwe_ciphertext_count.0 as u32,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
                     );
@@ -444,8 +432,8 @@ impl CudaServerKey {
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     unchecked_are_all_comparisons_block_true_integer_radix_kb_async(
                         streams,
-                        &mut boolean_res.as_mut().ciphertext.d_blocks.0.d_vec,
-                        &ct.as_ref().d_blocks.0.d_vec,
+                        boolean_res.as_mut().as_mut(),
+                        ct.as_ref(),
                         &d_multibit_bsk.d_vec,
                         &self.key_switching_key.d_vec,
                         self.message_modulus,
@@ -462,18 +450,12 @@ impl CudaServerKey {
                         self.key_switching_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
-                        lwe_ciphertext_count.0 as u32,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
                     );
                 }
             }
         }
-        boolean_res.as_mut().ciphertext.info = boolean_res
-            .as_ref()
-            .ciphertext
-            .info
-            .after_block_comparisons();
         streams.synchronize();
         boolean_res
     }
@@ -486,8 +468,6 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-
         let ct_res: T = self.create_trivial_radix(0, 1, streams);
         let mut boolean_res = CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
         unsafe {
@@ -495,8 +475,8 @@ impl CudaServerKey {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_async(
                         streams,
-                        &mut boolean_res.as_mut().ciphertext.d_blocks.0.d_vec,
-                        &ct.as_ref().d_blocks.0.d_vec,
+                        boolean_res.as_mut().as_mut(),
+                        ct.as_ref(),
                         &d_bsk.d_vec,
                         &self.key_switching_key.d_vec,
                         self.message_modulus,
@@ -513,7 +493,6 @@ impl CudaServerKey {
                         self.key_switching_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
-                        lwe_ciphertext_count.0 as u32,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
                     );
@@ -521,8 +500,8 @@ impl CudaServerKey {
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_async(
                         streams,
-                        &mut boolean_res.as_mut().ciphertext.d_blocks.0.d_vec,
-                        &ct.as_ref().d_blocks.0.d_vec,
+                        boolean_res.as_mut().as_mut(),
+                        ct.as_ref(),
                         &d_multibit_bsk.d_vec,
                         &self.key_switching_key.d_vec,
                         self.message_modulus,
@@ -539,18 +518,12 @@ impl CudaServerKey {
                         self.key_switching_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
-                        lwe_ciphertext_count.0 as u32,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
                     );
                 }
             }
         }
-        boolean_res.as_mut().ciphertext.info = boolean_res
-            .as_ref()
-            .ciphertext
-            .info
-            .after_block_comparisons();
         streams.synchronize();
         boolean_res
     }
