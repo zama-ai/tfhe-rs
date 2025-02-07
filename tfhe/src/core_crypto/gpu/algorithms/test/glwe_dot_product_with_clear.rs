@@ -1,11 +1,7 @@
 use super::*;
 
-use std::iter;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
-use crate::core_crypto::gpu::{cuda_keyswitch_lwe_ciphertext, CudaStreams};
-use itertools::Itertools;
+use crate::core_crypto::gpu::CudaStreams;
 
 use crate::core_crypto::gpu::algorithms::cuda_wrapping_polynomial_mul_one_to_many;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -74,9 +70,10 @@ where
 fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     params: ClassicTestParams<Scalar>,
 ) {
+    let poly_size= 2048usize;
     let encryption_glwe_dimension = GlweDimension(1);
     let glwe_size = encryption_glwe_dimension.to_glwe_size();
-    let polynomial_size = PolynomialSize(2048);
+    let polynomial_size = PolynomialSize(poly_size as usize);
     let ciphertext_modulus = CiphertextModulus::new_native();
     let glwe_noise_distribution =
         Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
@@ -116,10 +113,10 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         &mut encryption_generator,
     );
 
-    let clear: Vec<u64> = (0u64..(glwe.polynomial_size() as u64 * glwe.polynomial_size() as u64))
-        .collect()
+    let clear_range: Vec<usize>  = (0usize..(poly_size * poly_size)).collect();
+    let clear : Vec<Scalar> = clear_range
         .iter()
-        .map(|x| x % (glwe.polynomial_size() as u64))
+        .map(|x| Scalar::cast_from(x % poly_size))
         .collect();
 
 
@@ -129,9 +126,7 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
-    let clear_gpu = CudaVec::from_cpu_async(clear, &streams, 0);
-
-    let mut d_output_glwe = CudaGlweCiphertextList::from_glwe_ciphertext(&glwe, &streams);
+    let mut d_input_glwe = CudaGlweCiphertextList::from_glwe_ciphertext(&glwe, &streams);
 
     let mut d_output_glwe = CudaGlweCiphertextList::new(
         glwe_secret_key.glwe_dimension(),
@@ -141,20 +136,24 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         &streams,
     );
 
-    for (mut out_poly, in_poly) in d_output_glwe.0.d_vec
-        .as_mut_polynomial_list()
-        .iter_mut()
-        .zip(glwe.as_polynomial_list().iter())
-    {
+    unsafe {
+        let clear_gpu = CudaVec::from_cpu_async(clear.as_ref(), &streams, 0);
+
         cuda_wrapping_polynomial_mul_one_to_many(
-            &mut out_poly,
-            &in_poly,
+            &d_input_glwe.0.d_vec,
             &clear_gpu,
+            &mut d_output_glwe.0.d_vec,
             &streams,
-        );
+            );
     }
 
-    decrypt_glwe();
+    let output_glwe_list = d_output_glwe.to_glwe_ciphertext_list(&streams);
+
+    let result_glwe = output_glwe_list.get(0);
+
+    decrypt_glwe(&glwe_secret_key, &result_glwe, bits_reserved_for_computation);
+
+    println!("TEST POLY PRODUCT ONE TO MANY PASSED");
 }
 
 create_gpu_parameterized_test!(glwe_dot_product_with_clear);
