@@ -58,7 +58,8 @@ impl CompressionKey {
 
                 for ct in ct_list {
                     assert!(
-                        ct.noise_level() == NoiseLevel::NOMINAL,
+                        ct.noise_level() == NoiseLevel::NOMINAL
+                            || ct.noise_level() == NoiseLevel::ZERO,
                         "Ciphertexts must have a nominal (post PBS) noise to be compressed"
                     );
 
