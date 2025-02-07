@@ -29,13 +29,13 @@ pub struct ProgramInner {
 /// ProgramInner constructors
 impl ProgramInner {
     pub fn new(params: &FwParameters) -> Self {
-        let nb_regs = match std::num::NonZeroUsize::try_from(params.regs) {
+        let nb_regs = match std::num::NonZeroUsize::try_from(params.register) {
             Ok(val) => val,
             _ => panic!("Error: Number of registers must be >= 0"),
         };
         let mut regs = LruCache::<asm::RegId, Option<MetaVarCellWeak>>::new(nb_regs);
         // At start regs cache is full of unused slot
-        for rid in 0..params.regs {
+        for rid in 0..params.register {
             regs.put(asm::RegId(rid as u8), None);
         }
 
@@ -425,18 +425,18 @@ impl Program {
         // state.
         let reg_copy = inner.regs.clone();
 
-        let avail = range
-            .into_iter()
-            .fold(true, |acc, range| acc && 
-                 inner.aligned_reg_range(range)
-                      .and_then(|id| Some(id.0 as usize))
-                      .and_then(|id| {
-                          (id..id+range)
-                              .for_each(|id| {inner.regs.pop(&asm::RegId(id as u8));});
-                          Some(true)
-                      })
-                      .is_some()
-            );
+        let avail = range.into_iter().fold(true, |acc, range| {
+            acc && inner
+                .aligned_reg_range(range)
+                .and_then(|id| Some(id.0 as usize))
+                .and_then(|id| {
+                    (id..id + range).for_each(|id| {
+                        inner.regs.pop(&asm::RegId(id as u8));
+                    });
+                    Some(true)
+                })
+                .is_some()
+        });
 
         inner.regs = reg_copy;
 

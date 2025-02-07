@@ -31,11 +31,6 @@ serde = { version = "1", features = ["derive"] }
 bitflags = "2.6.0"
 
 [[bin]]
-name = "config_gen"
-path = "src/config_gen.rs"
-required-features = []
-
-[[bin]]
 name = "hpu_mockup"
 path = "src/mockup.rs"
 required-features = []
