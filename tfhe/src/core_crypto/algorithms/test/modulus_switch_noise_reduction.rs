@@ -22,6 +22,7 @@ struct MsNoiseReductionTestParams {
     pub modulus_switch_zeros_count: LweCiphertextCount,
     pub bound: NoiseEstimationMeasureBound,
     pub r_sigma_factor: RSigmaFactor,
+    pub input_variance: Variance,
     pub log_modulus: CiphertextModulusLog,
     pub expected_individual_check_p_success: f64,
     pub expected_variance_improved: Variance,
@@ -30,15 +31,16 @@ struct MsNoiseReductionTestParams {
 
 const TEST_PARAM: MsNoiseReductionTestParams = MsNoiseReductionTestParams {
     lwe_dimension: LweDimension(918),
-    lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),
     ciphertext_modulus: CiphertextModulus::new_native(),
-    modulus_switch_zeros_count: LweCiphertextCount(1452),
-    bound: NoiseEstimationMeasureBound((1_u64 << (64 - 1 - 4 - 1)) as f64),
-    r_sigma_factor: RSigmaFactor(14.658999256586121),
+    modulus_switch_zeros_count: LweCiphertextCount(1449),
+    bound: NoiseEstimationMeasureBound(288230376151711744_f64),
+    r_sigma_factor: RSigmaFactor(13.179852282053789f64),
     log_modulus: PolynomialSize(2048).to_blind_rotation_input_modulus_log(),
-    expected_individual_check_p_success: 0.059282589,
-    expected_variance_improved: Variance(4.834651119161795e32 - 9.68570987092478e+31),
+    expected_individual_check_p_success: 0.060923874,
+    expected_variance_improved: Variance(1.40546154228955e-6),
     target_upper_bound_p_all_fail_log2: -130.,
+    input_variance: Variance(2.63039184094559e-7f64),
 };
 
 thread_local! {
@@ -66,7 +68,12 @@ fn improve_modulus_switch_noise_test_individual_check_p_success(
         expected_individual_check_p_success,
         expected_variance_improved: _,
         target_upper_bound_p_all_fail_log2,
+        input_variance,
     } = params;
+
+    let modulus = ciphertext_modulus.raw_modulus_float();
+
+    let input_variance = input_variance.get_modular_variance(modulus);
 
     let number_loops = 100_000;
 
@@ -132,6 +139,7 @@ fn improve_modulus_switch_noise_test_individual_check_p_success(
 
                 let measure = measure_modulus_switch_noise_estimation_for_binary_key(
                     r_sigma_factor,
+                    input_variance,
                     log_modulus,
                     mask_sum,
                     body_sum,
@@ -232,6 +240,7 @@ fn improve_modulus_switch_noise_test_average_number_checks(params: MsNoiseReduct
         expected_individual_check_p_success,
         expected_variance_improved: _,
         target_upper_bound_p_all_fail_log2: _,
+        input_variance,
     } = params;
 
     let expected_average_number_checks = 1. / expected_individual_check_p_success;
@@ -280,6 +289,7 @@ fn improve_modulus_switch_noise_test_average_number_checks(params: MsNoiseReduct
             &encryptions_of_zero,
             r_sigma_factor,
             bound,
+            input_variance,
             log_modulus,
         ) {
             CandidateResult::SatisfiyingBound(candidate) => candidate,
@@ -357,6 +367,7 @@ fn check_noise_improve_modulus_switch_noise(
         expected_individual_check_p_success: _,
         expected_variance_improved,
         target_upper_bound_p_all_fail_log2: _,
+        input_variance,
     } = ms_noise_reduction_test_params;
 
     let number_loops = 100_000;
@@ -414,6 +425,7 @@ fn check_noise_improve_modulus_switch_noise(
                         &encryptions_of_zero,
                         r_sigma_factor,
                         bound,
+                        input_variance,
                         log_modulus,
                     );
 
@@ -467,7 +479,9 @@ fn check_noise_improve_modulus_switch_noise(
         "Expected {expected_base_variance}, got {base_variance}",
     );
 
-    let expected_variance_improved = expected_variance_improved.0;
+    let expected_variance_improved = Variance(expected_variance_improved.0 - input_variance.0)
+        .get_modular_variance(2_f64.powi(64))
+        .value;
 
     assert!(
         check_both_ratio_under(variance_improved, expected_variance_improved, 1.03_f64),
