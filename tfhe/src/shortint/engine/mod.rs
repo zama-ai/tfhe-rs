@@ -17,7 +17,7 @@ use crate::core_crypto::prelude::{ContainerMut, GlweSize};
 use crate::core_crypto::seeders::new_seeder;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
 use crate::shortint::prelude::PolynomialSize;
-use crate::shortint::{CarryModulus, MessageModulus, ServerKey};
+use crate::shortint::{CarryModulus, MessageModulus};
 use std::cell::RefCell;
 use std::fmt::Debug;
 
@@ -326,19 +326,12 @@ impl ShortintEngine {
     /// - [`ComputationBuffers`] used by the FFT during the PBS
     pub fn get_buffers(
         &mut self,
-        server_key: &ServerKey,
+        lwe_dimension: LweDimension,
+        ciphertext_modulus: CiphertextModulus,
     ) -> (LweCiphertextMutView<'_, u64>, &mut ComputationBuffers) {
-        let lwe_dimension = match server_key.pbs_order {
-            super::PBSOrder::KeyswitchBootstrap => {
-                server_key.key_switching_key.output_key_lwe_dimension()
-            }
-            super::PBSOrder::BootstrapKeyswitch => {
-                server_key.key_switching_key.input_key_lwe_dimension()
-            }
-        };
         (
             self.ciphertext_buffers
-                .as_lwe(lwe_dimension, server_key.ciphertext_modulus),
+                .as_lwe(lwe_dimension, ciphertext_modulus),
             &mut self.computation_buffers,
         )
     }

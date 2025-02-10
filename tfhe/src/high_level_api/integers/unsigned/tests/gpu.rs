@@ -1,12 +1,13 @@
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
-use crate::shortint::{ClassicPBSParameters, PBSParameters};
+use crate::shortint::ClassicPBSParameters;
 use crate::{set_server_key, ClientKey, ConfigBuilder};
 
 /// GPU setup for tests
 ///
 /// Crates a client key, with the given parameters or default params in None were given
 /// and sets the gpu server key for the current thread
-pub(crate) fn setup_gpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
+pub(crate) fn setup_gpu(params: Option<impl Into<AtomicPatternParameters>>) -> ClientKey {
     let config = params
         .map_or_else(ConfigBuilder::default, |p| {
             ConfigBuilder::with_custom_parameters(p.into())

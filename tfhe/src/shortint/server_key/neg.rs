@@ -1,11 +1,12 @@
 use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, PaddingBit, ServerKey};
+use crate::shortint::server_key::{CheckError, GenericServerKey};
+use crate::shortint::{Ciphertext, PaddingBit};
 
-impl ServerKey {
+impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compute homomorphically a negation of a ciphertext.
     ///
     /// This checks that the negation is possible. In the case where the carry buffers are full,
