@@ -15,7 +15,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConforma
 use crate::core_crypto::prelude::{
     GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams, LweCiphertextCount,
     LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
-    NoiseEstimationMeasureBound, RSigmaFactor,
+    NoiseEstimationMeasureBound, RSigmaFactor, Variance,
 };
 use crate::shortint::backward_compatibility::parameters::*;
 #[cfg(feature = "zk-pok")]
@@ -441,6 +441,7 @@ impl PBSParameters {
 
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
 #[versionize(ShortintParameterSetInnerVersions)]
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum ShortintParameterSetInner {
     PBSOnly(PBSParameters),
     WopbsOnly(WopbsParameters),
@@ -838,4 +839,5 @@ pub struct ModulusSwitchNoiseReductionParams {
     pub modulus_switch_zeros_count: LweCiphertextCount,
     pub ms_bound: NoiseEstimationMeasureBound,
     pub ms_r_sigma_factor: RSigmaFactor,
+    pub ms_input_variance: Variance,
 }
