@@ -609,7 +609,11 @@ mod wopbs {
             let params = params.into();
             let key = KEY_CACHE.get_from_param(params.0);
             let wk = self.inner.get_with_closure(params, &mut |_| {
-                WopbsKey::new_wopbs_key(&key.inner.0, &key.inner.1, &params.1)
+                WopbsKey::new_wopbs_key(
+                    &key.inner.0,
+                    key.inner.1.as_view().try_into().unwrap(),
+                    &params.1,
+                )
             });
             SharedWopbsKey {
                 inner: key.inner,

@@ -9,6 +9,7 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::current_params::*;
 use tfhe::shortint::parameters::*;
+use tfhe::shortint::server_key::{ClassicalServerKey, ClassicalServerKeyView};
 use tfhe::shortint::{
     ClassicPBSParameters, ClientKey, CompactPrivateKey, CompressedCompactPublicKey,
     CompressedKeySwitchingKey, CompressedServerKey, PBSParameters,
@@ -58,7 +59,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let keys = KEY_CACHE.get_from_param(params);
 
         let cks = keys.client_key();
-        let sks = keys.server_key();
+        let sks = ClassicalServerKeyView::try_from(keys.server_key().as_view()).unwrap();
         let ksk_size = sks.key_switching_key_size_bytes();
         let test_name = format!("shortint_key_sizes_{}_ksk", params.name());
 
@@ -170,10 +171,10 @@ fn tuniform_key_set_sizes(results_file: &Path) {
     let param_fhe_name = param_fhe.name();
     let cks = ClientKey::new(param_fhe);
     let compressed_sks = CompressedServerKey::new(&cks);
-    let sks = compressed_sks.decompress();
+    let sks = ClassicalServerKey::try_from(compressed_sks.decompress()).unwrap();
 
     measure_serialized_size(
-        &sks.key_switching_key,
+        &sks.atomic_pattern.key_switching_key,
         <ClassicPBSParameters as Into<PBSParameters>>::into(param_fhe),
         &param_fhe_name,
         "ksk",
@@ -190,7 +191,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
     );
 
     measure_serialized_size(
-        &sks.bootstrapping_key,
+        &sks.atomic_pattern.bootstrapping_key,
         <ClassicPBSParameters as Into<PBSParameters>>::into(param_fhe),
         &param_fhe_name,
         "bsk",

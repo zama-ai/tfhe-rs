@@ -8,12 +8,13 @@ use crate::integer::compression_keys::{
 };
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::key_switching_key::KeySwitchingKeyConformanceParams;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
 };
-use crate::shortint::{EncryptionKeyChoice, MessageModulus, PBSParameters};
+use crate::shortint::{EncryptionKeyChoice, MessageModulus};
 use crate::{Config, Error};
 use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::Seed;
@@ -24,7 +25,7 @@ use tfhe_versionable::Versionize;
 #[versionize(IntegerConfigVersions)]
 #[allow(clippy::struct_field_names)]
 pub(crate) struct IntegerConfig {
-    pub(crate) block_parameters: crate::shortint::PBSParameters,
+    pub(crate) block_parameters: crate::shortint::atomic_pattern::AtomicPatternParameters,
     pub(crate) dedicated_compact_public_key_parameters: Option<(
         crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
         crate::shortint::parameters::ShortintKeySwitchingParameters,
@@ -34,7 +35,7 @@ pub(crate) struct IntegerConfig {
 
 impl IntegerConfig {
     pub(crate) fn new(
-        block_parameters: crate::shortint::PBSParameters,
+        block_parameters: crate::shortint::atomic_pattern::AtomicPatternParameters,
         dedicated_compact_public_key_parameters: Option<(
             crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
             crate::shortint::parameters::ShortintKeySwitchingParameters,
@@ -467,7 +468,7 @@ impl IntegerCompressedCompactPublicKey {
 
 #[allow(clippy::struct_field_names)]
 pub struct IntegerServerKeyConformanceParams {
-    pub sk_param: PBSParameters,
+    pub sk_param: AtomicPatternParameters,
     pub cpk_param: Option<(
         CompactPublicKeyEncryptionParameters,
         ShortintKeySwitchingParameters,
@@ -487,7 +488,7 @@ impl From<Config> for IntegerServerKeyConformanceParams {
 
 impl
     TryFrom<(
-        PBSParameters,
+        AtomicPatternParameters,
         CompactPublicKeyEncryptionParameters,
         ShortintKeySwitchingParameters,
     )> for KeySwitchingKeyConformanceParams
@@ -496,7 +497,7 @@ impl
 
     fn try_from(
         (sk_params, cpk_params, ks_params): (
-            PBSParameters,
+            AtomicPatternParameters,
             CompactPublicKeyEncryptionParameters,
             ShortintKeySwitchingParameters,
         ),
