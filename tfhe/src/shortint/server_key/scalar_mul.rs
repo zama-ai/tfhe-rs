@@ -1,11 +1,12 @@
 use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, MaxNoiseLevel, ServerKey};
+use crate::shortint::server_key::{CheckError, GenericServerKey};
+use crate::shortint::{Ciphertext, MaxNoiseLevel};
 
-impl ServerKey {
+impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will

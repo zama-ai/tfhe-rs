@@ -11,16 +11,19 @@ use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::prelude::{LweCiphertextOwned, LweDimension, MsDecompressionType};
+use crate::core_crypto::prelude::{
+    GlweDimension, LweCiphertextOwned, LweDimension, MsDecompressionType, PolynomialSize,
+};
 
 use super::backward_compatibility::atomic_pattern::*;
+use super::ciphertext::CompressedModulusSwitchedCiphertext;
 use super::server_key::{
     apply_blind_rotate, apply_programmable_bootstrap, LookupTableOwned, LookupTableSize,
     ManyLookupTableOwned,
 };
 use super::{
     CarryModulus, Ciphertext, CiphertextModulus, ClassicPBSParameters, MaxNoiseLevel,
-    MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters,
+    MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters, ShortintParameterSet,
 };
 
 pub use classical::*;
@@ -87,6 +90,21 @@ pub trait AtomicPattern {
 
     /// Returns true if the Atomic Pattern will execute deterministically
     fn deterministic_execution(&self) -> bool;
+
+    /// Compresses a ciphertext to have a smaller serialization size
+    fn switch_modulus_and_compress(&self, ct: &Ciphertext) -> CompressedModulusSwitchedCiphertext;
+
+    /// Decompresses a compressed ciphertext
+    fn decompress_and_apply_lookup_table(
+        &self,
+        compressed_ct: &CompressedModulusSwitchedCiphertext,
+        lut: &LookupTableOwned,
+    ) -> Ciphertext;
+
+    /// Convert the ciphertext to a state where it is ready for noise squashing
+    ///
+    /// Basically, this means getting it ready for the 128b PBS, for example by doing a keyswitch
+    fn prepare_for_noise_squashing(&self, ct: &Ciphertext) -> LweCiphertextOwned<u64>;
 }
 
 pub trait AtomicPatternMut: AtomicPattern {
@@ -140,6 +158,22 @@ impl<T: AtomicPattern> AtomicPattern for &T {
 
     fn deterministic_execution(&self) -> bool {
         (*self).deterministic_execution()
+    }
+
+    fn switch_modulus_and_compress(&self, ct: &Ciphertext) -> CompressedModulusSwitchedCiphertext {
+        (*self).switch_modulus_and_compress(ct)
+    }
+
+    fn decompress_and_apply_lookup_table(
+        &self,
+        compressed_ct: &CompressedModulusSwitchedCiphertext,
+        lut: &LookupTableOwned,
+    ) -> Ciphertext {
+        (*self).decompress_and_apply_lookup_table(compressed_ct, lut)
+    }
+
+    fn prepare_for_noise_squashing(&self, ct: &Ciphertext) -> LweCiphertextOwned<u64> {
+        (*self).prepare_for_noise_squashing(ct)
     }
 }
 
@@ -215,6 +249,28 @@ impl AtomicPattern for AtomicPatternServerKey {
             }
         }
     }
+
+    fn switch_modulus_and_compress(&self, ct: &Ciphertext) -> CompressedModulusSwitchedCiphertext {
+        match self {
+            Self::Classical(ap) => ap.switch_modulus_and_compress(ct),
+        }
+    }
+
+    fn decompress_and_apply_lookup_table(
+        &self,
+        compressed_ct: &CompressedModulusSwitchedCiphertext,
+        lut: &LookupTableOwned,
+    ) -> Ciphertext {
+        match self {
+            Self::Classical(ap) => ap.decompress_and_apply_lookup_table(compressed_ct, lut),
+        }
+    }
+
+    fn prepare_for_noise_squashing(&self, ct: &Ciphertext) -> LweCiphertextOwned<u64> {
+        match self {
+            Self::Classical(ap) => ap.prepare_for_noise_squashing(ct),
+        }
+    }
 }
 
 impl AtomicPatternMut for AtomicPatternServerKey {
@@ -232,6 +288,12 @@ pub enum AtomicPatternParameters {
     Classical(PBSParameters),
 }
 
+impl From<PBSParameters> for AtomicPatternParameters {
+    fn from(value: PBSParameters) -> Self {
+        Self::Classical(value)
+    }
+}
+
 impl From<ClassicPBSParameters> for AtomicPatternParameters {
     fn from(value: ClassicPBSParameters) -> Self {
         Self::Classical(PBSParameters::PBS(value))
@@ -244,11 +306,10 @@ impl From<MultiBitPBSParameters> for AtomicPatternParameters {
     }
 }
 
-// TODO: make this more generic
-impl From<AtomicPatternParameters> for PBSParameters {
+impl From<AtomicPatternParameters> for ShortintParameterSet {
     fn from(value: AtomicPatternParameters) -> Self {
         match value {
-            AtomicPatternParameters::Classical(parameters) => parameters,
+            AtomicPatternParameters::Classical(parameters) => parameters.into(),
         }
     }
 }
@@ -275,6 +336,24 @@ impl AtomicPatternParameters {
     pub fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self {
             Self::Classical(parameters) => parameters.ciphertext_modulus(),
+        }
+    }
+
+    pub fn lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::Classical(parameters) => parameters.lwe_dimension(),
+        }
+    }
+
+    pub fn glwe_dimension(&self) -> GlweDimension {
+        match self {
+            Self::Classical(parameters) => parameters.glwe_dimension(),
+        }
+    }
+
+    pub fn polynomial_size(&self) -> PolynomialSize {
+        match self {
+            Self::Classical(parameters) => parameters.polynomial_size(),
         }
     }
 }

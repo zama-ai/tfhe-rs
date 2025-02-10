@@ -38,6 +38,8 @@ impl ServerKey {
 
         let random_bits_count = range_log_size;
 
+        let sk = &self.key;
+
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
@@ -61,11 +63,9 @@ impl ServerKey {
 
                         assert!(top_message_bits_count <= message_bits_count);
 
-                        self.key
-                            .generate_oblivious_pseudo_random(seed, top_message_bits_count)
+                        sk.generate_oblivious_pseudo_random(seed, top_message_bits_count)
                     } else {
-                        self.key
-                            .generate_oblivious_pseudo_random(seed, message_bits_count)
+                        sk.generate_oblivious_pseudo_random(seed, message_bits_count)
                     }
                 } else {
                     self.key.create_trivial(0)
