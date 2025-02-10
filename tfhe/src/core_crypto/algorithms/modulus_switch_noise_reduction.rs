@@ -1,10 +1,13 @@
 use super::lwe_ciphertext_add_assign;
+use crate::core_crypto::commons::dispersion::{ModularVariance, Variance};
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{NoiseEstimationMeasureBound, RSigmaFactor};
 use crate::core_crypto::commons::traits::{Container, ContainerMut, UnsignedInteger};
 use crate::core_crypto::entities::{LweCiphertext, LweCiphertextList};
 use crate::core_crypto::fft_impl::common::modulus_switch;
-use crate::core_crypto::prelude::{CiphertextModulusLog, ContiguousEntityContainer};
+use crate::core_crypto::prelude::{
+    CiphertextModulusLog, ContiguousEntityContainer, DispersionParameter,
+};
 use itertools::Itertools;
 
 /// Only works on power of 2 moduli
@@ -67,6 +70,7 @@ fn measure_modulus_switch_noise_expectancy_variance_for_binary_key<Scalar: Unsig
 
 pub fn measure_modulus_switch_noise_estimation_for_binary_key<Scalar: UnsignedInteger>(
     r_sigma_factor: RSigmaFactor,
+    input_variance: ModularVariance,
     log_modulus: CiphertextModulusLog,
     masks: impl Iterator<Item = Scalar>,
     body: Scalar,
@@ -76,7 +80,7 @@ pub fn measure_modulus_switch_noise_estimation_for_binary_key<Scalar: UnsignedIn
         variance,
     } = measure_modulus_switch_noise_expectancy_variance_for_binary_key(masks, body, log_modulus);
 
-    let std_dev = variance.sqrt();
+    let std_dev = (variance + input_variance.value).sqrt();
 
     expectancy.abs() + std_dev * r_sigma_factor.0
 }
@@ -97,6 +101,7 @@ pub fn choose_candidate_to_improve_modulus_switch_noise_for_binary_key<Scalar, C
     encryptions_of_zero: &LweCiphertextList<C2>,
     r_sigma_factor: RSigmaFactor,
     bound: NoiseEstimationMeasureBound,
+    input_variance: Variance,
     log_modulus: CiphertextModulusLog,
 ) -> CandidateResult
 where
@@ -124,12 +129,17 @@ where
         "Expected at least one encryption of zero"
     );
 
+    let modulus = lwe.ciphertext_modulus().raw_modulus_float();
+
+    let input_variance = input_variance.get_modular_variance(modulus);
+
     let mask = lwe.get_mask();
 
     let mask = mask.as_ref();
 
     let base_measure = measure_modulus_switch_noise_estimation_for_binary_key(
         r_sigma_factor,
+        input_variance,
         log_modulus,
         mask.iter().copied(),
         *lwe.get_body().data,
@@ -159,6 +169,7 @@ where
 
         let measure = measure_modulus_switch_noise_estimation_for_binary_key(
             r_sigma_factor,
+            input_variance,
             log_modulus,
             mask_sum,
             body_sum,
@@ -187,6 +198,7 @@ pub fn improve_lwe_ciphertext_modulus_switch_noise_for_binary_key<Scalar, C1, C2
     encryptions_of_zero: &LweCiphertextList<C2>,
     r_sigma_factor: RSigmaFactor,
     bound: NoiseEstimationMeasureBound,
+    input_variance: Variance,
     log_modulus: CiphertextModulusLog,
 ) where
     Scalar: UnsignedInteger,
@@ -198,6 +210,7 @@ pub fn improve_lwe_ciphertext_modulus_switch_noise_for_binary_key<Scalar, C1, C2
         encryptions_of_zero,
         r_sigma_factor,
         bound,
+        input_variance,
         log_modulus,
     );
 
