@@ -303,11 +303,11 @@ impl<C: Container> ParameterSetConformant for SeededGlweCiphertext<C>
 where
     C::Element: UnsignedInteger,
 {
-    type ParameterSet = GlweCiphertextConformanceParameters<C::Element>;
+    type ParameterSet = GlweCiphertextConformanceParams<C::Element>;
 
     fn is_conformant(
         &self,
-        glwe_ct_parameters: &GlweCiphertextConformanceParameters<C::Element>,
+        glwe_ct_parameters: &GlweCiphertextConformanceParams<C::Element>,
     ) -> bool {
         let Self {
             compression_seed: _,
