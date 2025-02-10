@@ -185,7 +185,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     // control_bit|b|a
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, input_bits_a, mux_inputs, bsks, ksks,
-        mux_lut, mux_inputs->num_radix_blocks);
+        mux_lut, total_nb_bits);
   }
 
   // Initializes the output
