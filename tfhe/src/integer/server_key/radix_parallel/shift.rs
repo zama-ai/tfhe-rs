@@ -370,21 +370,59 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
+        if amount.blocks.is_empty() || ct.blocks().is_empty() {
+            return ct.clone();
+        }
+
         let message_bits_per_block = self.key.message_modulus.0.ilog2() as u64;
         let carry_bits_per_block = self.key.carry_modulus.0.ilog2() as u64;
         assert!(carry_bits_per_block >= message_bits_per_block);
-
-        // Extracts bits and put them in the bit index 2 (=> bit number 3)
-        // so that it is already aligned to the correct position of the cmux input,
-        // and we reduce noise growth
-        let mut shift_bit_extractor = BitExtractor::with_final_offset(
-            &amount.blocks,
-            self,
-            message_bits_per_block as usize,
-            message_bits_per_block as usize,
-        );
-
         assert!(message_bits_per_block.is_power_of_two());
+
+        if ct.blocks().len() == 1 {
+            let lut = self
+                .key
+                .generate_lookup_table_bivariate(|input, first_shift_block| {
+                    let shift_within_block = first_shift_block % message_bits_per_block;
+
+                    match operation {
+                        BarrelShifterOperation::LeftShift => {
+                            (input << shift_within_block) % self.message_modulus().0
+                        }
+                        BarrelShifterOperation::LeftRotate => {
+                            let shifted = (input << shift_within_block) % self.message_modulus().0;
+                            let wrapped = input >> (shift_within_block);
+                            shifted | wrapped
+                        }
+                        BarrelShifterOperation::RightRotate => {
+                            let shifted = input >> shift_within_block;
+                            let wrapped = (input << shift_within_block) % self.message_modulus().0;
+                            wrapped | shifted
+                        }
+                        BarrelShifterOperation::RightShift => {
+                            if T::IS_SIGNED {
+                                let sign_bit_pos = message_bits_per_block - 1;
+                                let sign_bit = (input >> sign_bit_pos) & 1;
+                                let padding_block = (self.message_modulus().0 - 1) * sign_bit;
+
+                                // Pad with sign bits to 'simulate' an arithmetic shift
+                                let input = (padding_block << message_bits_per_block) | input;
+                                (input >> shift_within_block) % self.message_modulus().0
+                            } else {
+                                input >> shift_within_block
+                            }
+                        }
+                    }
+                });
+
+            let block = self.key.unchecked_apply_lookup_table_bivariate(
+                &ct.blocks()[0],
+                &amount.blocks[0],
+                &lut,
+            );
+
+            return T::from_blocks(vec![block]);
+        }
 
         let message_for_block =
             self.key
@@ -408,6 +446,45 @@ impl ServerKey {
                         b
                     }
                 });
+
+        // When doing right shift of a signed ciphertext, we do an arithmetic shift
+        // Thus, we need some special luts to be used on the last block
+        // (which has the sign bit)
+        let message_for_block_right_shift_signed =
+            if T::IS_SIGNED && operation == BarrelShifterOperation::RightShift {
+                let lut = self
+                    .key
+                    .generate_lookup_table_bivariate(|input, first_shift_block| {
+                        let shift_within_block = first_shift_block % message_bits_per_block;
+                        let shift_to_next_block = (first_shift_block / message_bits_per_block) % 2;
+
+                        let sign_bit_pos = message_bits_per_block - 1;
+                        let sign_bit = (input >> sign_bit_pos) & 1;
+                        let padding_block = (self.message_modulus().0 - 1) * sign_bit;
+
+                        if shift_to_next_block == 1 {
+                            padding_block
+                        } else {
+                            // Pad with sign bits to 'simulate' an arithmetic shift
+                            let input = (padding_block << message_bits_per_block) | input;
+                            (input >> shift_within_block) % self.message_modulus().0
+                        }
+                    });
+                Some(lut)
+            } else {
+                None
+            };
+
+        // Extracts bits and put them in the bit index 2 (=> bit number 3)
+        // so that it is already aligned to the correct position of the cmux input,
+        // and we reduce noise growth
+        let mut shift_bit_extractor = BitExtractor::with_final_offset(
+            &amount.blocks,
+            self,
+            message_bits_per_block as usize,
+            message_bits_per_block as usize,
+        );
+
         let message_for_next_block =
             self.key
                 .generate_lookup_table_bivariate(|previous, first_shift_block| {
@@ -466,34 +543,6 @@ impl ServerKey {
                         0
                     }
                 });
-
-        // When doing right shift of a signed ciphertext, we do an arithmetic shift
-        // Thus, we need some special luts to be used on the last block
-        // (which has the sign big)
-        let message_for_block_right_shift_signed =
-            if T::IS_SIGNED && operation == BarrelShifterOperation::RightShift {
-                let lut = self
-                    .key
-                    .generate_lookup_table_bivariate(|input, first_shift_block| {
-                        let shift_within_block = first_shift_block % message_bits_per_block;
-                        let shift_to_next_block = (first_shift_block / message_bits_per_block) % 2;
-
-                        let sign_bit_pos = message_bits_per_block - 1;
-                        let sign_bit = (input >> sign_bit_pos) & 1;
-                        let padding_block = (self.message_modulus().0 - 1) * sign_bit;
-
-                        if shift_to_next_block == 1 {
-                            padding_block
-                        } else {
-                            // Pad with sign bits to 'simulate' an arithmetic shift
-                            let input = (padding_block << message_bits_per_block) | input;
-                            (input >> shift_within_block) % self.message_modulus().0
-                        }
-                    });
-                Some(lut)
-            } else {
-                None
-            };
 
         let message_for_next_block_right_shift_signed = if T::IS_SIGNED
             && operation == BarrelShifterOperation::RightShift
@@ -693,7 +742,8 @@ impl ServerKey {
     ) where
         T: IntegerRadixCiphertext,
     {
-        let num_blocks = shift.blocks.len();
+        // What matters is the len of the ct to shift, not the `shift` len
+        let num_blocks = ct.blocks().len();
         let message_bits_per_block = self.key.message_modulus.0.ilog2() as u64;
         let carry_bits_per_block = self.key.carry_modulus.0.ilog2() as u64;
         let total_nb_bits = message_bits_per_block * num_blocks as u64;
