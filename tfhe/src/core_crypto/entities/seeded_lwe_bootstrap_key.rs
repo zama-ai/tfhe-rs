@@ -9,7 +9,7 @@ use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGe
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 
 /// A [`seeded LWE bootstrap key`](`SeededLweBootstrapKey`).
 ///
@@ -324,7 +324,7 @@ impl<Scalar: UnsignedInteger> SeededLweBootstrapKeyOwned<Scalar> {
 }
 
 impl<C: Container<Element = u64>> ParameterSetConformant for SeededLweBootstrapKey<C> {
-    type ParameterSet = BootstrapKeyConformanceParams;
+    type ParameterSet = LweBootstrapKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { ggsw_list } = self;

@@ -39,7 +39,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::core_crypto::prelude::{CiphertextModulusLog, ComputationBuffers};
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
@@ -601,7 +601,7 @@ impl ServerKey {
             }
         };
 
-        let ct_params = LweCiphertextParameters {
+        let ct_params = LweCiphertextConformanceParams {
             lwe_dim,
             ct_modulus: self.ciphertext_modulus,
             ms_decompression_method,
@@ -1720,18 +1720,18 @@ where
 }
 
 #[derive(Copy, Clone)]
-pub struct PBSConformanceParameters {
+pub struct PBSConformanceParams {
     pub in_lwe_dimension: LweDimension,
     pub out_glwe_dimension: GlweDimension,
     pub out_polynomial_size: PolynomialSize,
     pub base_log: DecompositionBaseLog,
     pub level: DecompositionLevelCount,
     pub ciphertext_modulus: CiphertextModulus,
-    pub pbs_type: PbsTypeConformanceParameters,
+    pub pbs_type: PbsTypeConformanceParams,
 }
 
 #[derive(Copy, Clone)]
-pub enum PbsTypeConformanceParameters {
+pub enum PbsTypeConformanceParams {
     Classic {
         modulus_switch_noise_reduction: Option<ModulusSwitchNoiseReductionParams>,
     },
@@ -1740,7 +1740,7 @@ pub enum PbsTypeConformanceParameters {
     },
 }
 
-impl From<&PBSParameters> for PBSConformanceParameters {
+impl From<&PBSParameters> for PBSConformanceParams {
     fn from(value: &PBSParameters) -> Self {
         Self {
             in_lwe_dimension: value.lwe_dimension(),
@@ -1750,14 +1750,12 @@ impl From<&PBSParameters> for PBSConformanceParameters {
             level: value.pbs_level(),
             ciphertext_modulus: value.ciphertext_modulus(),
             pbs_type: match value {
-                PBSParameters::PBS(classic_pbsparameters) => {
-                    PbsTypeConformanceParameters::Classic {
-                        modulus_switch_noise_reduction: classic_pbsparameters
-                            .modulus_switch_noise_reduction_params,
-                    }
-                }
+                PBSParameters::PBS(classic_pbsparameters) => PbsTypeConformanceParams::Classic {
+                    modulus_switch_noise_reduction: classic_pbsparameters
+                        .modulus_switch_noise_reduction_params,
+                },
                 PBSParameters::MultiBitPBS(multi_bit_pbs_parameters) => {
-                    PbsTypeConformanceParameters::MultiBit {
+                    PbsTypeConformanceParams::MultiBit {
                         lwe_bsk_grouping_factor: multi_bit_pbs_parameters.grouping_factor,
                     }
                 }
@@ -1767,7 +1765,7 @@ impl From<&PBSParameters> for PBSConformanceParameters {
 }
 
 impl ParameterSetConformant for ShortintBootstrappingKey {
-    type ParameterSet = PBSConformanceParameters;
+    type ParameterSet = PBSConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         match (self, &parameter_set.pbs_type) {
@@ -1776,11 +1774,11 @@ impl ParameterSetConformant for ShortintBootstrappingKey {
                     bsk,
                     modulus_switch_noise_reduction_key,
                 },
-                PbsTypeConformanceParameters::Classic { .. },
+                PbsTypeConformanceParams::Classic { .. },
             ) => {
                 let modulus_switch_noise_reduction_key_conformant = match (
                     modulus_switch_noise_reduction_key,
-                    ModulusSwitchNoiseReductionKeyConformanceParameters::try_from(parameter_set),
+                    ModulusSwitchNoiseReductionKeyConformanceParams::try_from(parameter_set),
                 ) {
                     (None, Err(())) => true,
                     (Some(modulus_switch_noise_reduction_key), Ok(param)) => {
@@ -1789,7 +1787,7 @@ impl ParameterSetConformant for ShortintBootstrappingKey {
                     _ => false,
                 };
 
-                let param: BootstrapKeyConformanceParams = parameter_set.into();
+                let param: LweBootstrapKeyConformanceParams = parameter_set.into();
 
                 bsk.is_conformant(&param) && modulus_switch_noise_reduction_key_conformant
             }
@@ -1799,7 +1797,7 @@ impl ParameterSetConformant for ShortintBootstrappingKey {
                     thread_count: _,
                     deterministic_execution: _,
                 },
-                PbsTypeConformanceParameters::MultiBit { .. },
+                PbsTypeConformanceParams::MultiBit { .. },
             ) => {
                 let param: MultiBitBootstrapKeyConformanceParams =
                     parameter_set.try_into().unwrap();
@@ -1826,11 +1824,11 @@ impl ParameterSetConformant for ServerKey {
             pbs_order,
         } = self;
 
-        let params: PBSConformanceParameters = parameter_set.into();
+        let params: PBSConformanceParams = parameter_set.into();
 
         let pbs_key_ok = bootstrapping_key.is_conformant(&params);
 
-        let param: KeyswitchKeyConformanceParams = parameter_set.into();
+        let param: LweKeyswitchKeyConformanceParams = parameter_set.into();
 
         let ks_key_ok = key_switching_key.is_conformant(&param);
 

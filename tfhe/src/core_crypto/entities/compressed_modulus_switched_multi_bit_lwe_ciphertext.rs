@@ -402,9 +402,9 @@ impl MultiBitModulusSwitchedCt for FromCompressionMultiBitModulusSwitchedCt {
 impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetConformant
     for CompressedModulusSwitchedMultiBitLweCiphertext<Scalar>
 {
-    type ParameterSet = LweCiphertextParameters<Scalar>;
+    type ParameterSet = LweCiphertextConformanceParams<Scalar>;
 
-    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<Scalar>) -> bool {
+    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextConformanceParams<Scalar>) -> bool {
         let Self {
             body,
             packed_mask,

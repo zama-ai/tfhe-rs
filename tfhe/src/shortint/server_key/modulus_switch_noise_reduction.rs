@@ -1,4 +1,4 @@
-use super::{PBSConformanceParameters, PbsTypeConformanceParameters};
+use super::{PBSConformanceParams, PbsTypeConformanceParams};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::random::{CompressionSeed, DynamicDistribution};
@@ -18,17 +18,17 @@ use std::fmt::Debug;
 use tfhe_versionable::Versionize;
 
 #[derive(Copy, Clone)]
-pub struct ModulusSwitchNoiseReductionKeyConformanceParameters {
+pub struct ModulusSwitchNoiseReductionKeyConformanceParams {
     pub modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
     pub lwe_dimension: LweDimension,
 }
 
-impl TryFrom<&PBSConformanceParameters> for ModulusSwitchNoiseReductionKeyConformanceParameters {
+impl TryFrom<&PBSConformanceParams> for ModulusSwitchNoiseReductionKeyConformanceParams {
     type Error = ();
 
-    fn try_from(value: &PBSConformanceParameters) -> Result<Self, ()> {
+    fn try_from(value: &PBSConformanceParams) -> Result<Self, ()> {
         match &value.pbs_type {
-            PbsTypeConformanceParameters::Classic {
+            PbsTypeConformanceParams::Classic {
                 modulus_switch_noise_reduction,
             } => modulus_switch_noise_reduction.map_or(Err(()), |modulus_switch_noise_reduction| {
                 Ok(Self {
@@ -36,7 +36,7 @@ impl TryFrom<&PBSConformanceParameters> for ModulusSwitchNoiseReductionKeyConfor
                     lwe_dimension: value.in_lwe_dimension,
                 })
             }),
-            PbsTypeConformanceParameters::MultiBit { .. } => Err(()),
+            PbsTypeConformanceParams::MultiBit { .. } => Err(()),
         }
     }
 }
@@ -60,7 +60,7 @@ pub struct ModulusSwitchNoiseReductionKey {
 }
 
 impl ParameterSetConformant for ModulusSwitchNoiseReductionKey {
-    type ParameterSet = ModulusSwitchNoiseReductionKeyConformanceParameters;
+    type ParameterSet = ModulusSwitchNoiseReductionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
@@ -70,7 +70,7 @@ impl ParameterSetConformant for ModulusSwitchNoiseReductionKey {
             ms_input_variance,
         } = self;
 
-        let ModulusSwitchNoiseReductionKeyConformanceParameters {
+        let ModulusSwitchNoiseReductionKeyConformanceParams {
             modulus_switch_noise_reduction_params,
             lwe_dimension,
         } = parameter_set;
@@ -119,7 +119,7 @@ pub struct CompressedModulusSwitchNoiseReductionKey {
 }
 
 impl ParameterSetConformant for CompressedModulusSwitchNoiseReductionKey {
-    type ParameterSet = ModulusSwitchNoiseReductionKeyConformanceParameters;
+    type ParameterSet = ModulusSwitchNoiseReductionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
@@ -129,7 +129,7 @@ impl ParameterSetConformant for CompressedModulusSwitchNoiseReductionKey {
             ms_input_variance,
         } = self;
 
-        let ModulusSwitchNoiseReductionKeyConformanceParameters {
+        let ModulusSwitchNoiseReductionKeyConformanceParams {
             modulus_switch_noise_reduction_params,
             lwe_dimension,
         } = parameter_set;
