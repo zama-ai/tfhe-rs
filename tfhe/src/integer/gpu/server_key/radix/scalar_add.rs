@@ -30,7 +30,7 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -137,7 +137,7 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let mut streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -287,7 +287,7 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;

@@ -203,7 +203,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(
@@ -318,7 +318,7 @@ impl CudaServerKey {
     ///  let number_of_blocks = 4;
     ///
     ///  let gpu_index = 0;
-    ///  let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    ///  let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     ///  // Generate the client key and the server key:
     ///  let (cks, sks) =
@@ -405,7 +405,7 @@ impl CudaServerKey {
     ///  let number_of_blocks = 4;
     ///
     ///  let gpu_index = 0;
-    ///  let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    ///  let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     ///  // Generate the client key and the server key:
     ///  let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
@@ -503,7 +503,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
@@ -591,7 +591,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
@@ -688,7 +688,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
@@ -815,7 +815,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
@@ -915,7 +915,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
@@ -1034,7 +1034,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
@@ -1165,7 +1165,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
@@ -1293,7 +1293,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 4;
     ///
     /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
