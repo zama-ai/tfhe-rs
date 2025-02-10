@@ -101,6 +101,7 @@ EXCLUDED_BIG_PARAMETERS = [
     "/.*_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
 ]
 
+
 def filter_integer_tests(input_args):
     (multi_bit_filter, group_filter) = (
         ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
@@ -145,17 +146,22 @@ def filter_integer_tests(input_args):
                 f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_3_carry_3_.*/)"
             )
         excluded_tests = (
-            EXCLUDED_INTEGER_FAST_TESTS if input_args.fast_tests else EXCLUDED_INTEGER_TESTS
+            EXCLUDED_INTEGER_FAST_TESTS
+            if input_args.fast_tests
+            else EXCLUDED_INTEGER_TESTS
         )
         for pattern in excluded_tests:
             filter_expression.append(f"not test({pattern})")
 
     else:
         if input_args.backend == "gpu":
-            filter_expression = [f"test(/^integer::gpu::server_key::radix::tests_long_run.*/)"]
+            filter_expression = [
+                "test(/^integer::gpu::server_key::radix::tests_long_run.*/)"
+            ]
         elif input_args.backend == "cpu":
-            filter_expression = [f"test(/^integer::server_key::radix_parallel::tests_long_run.*/)"]
-
+            filter_expression = [
+                "test(/^integer::server_key::radix_parallel::tests_long_run.*/)"
+            ]
 
     return " and ".join(filter_expression)
 
