@@ -4,7 +4,7 @@
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, Cleartext, KeyswitchKeyConformanceParams, LweKeyswitchKeyOwned,
+    keyswitch_lwe_ciphertext, Cleartext, LweKeyswitchKeyConformanceParams, LweKeyswitchKeyOwned,
     SeededLweKeyswitchKeyOwned,
 };
 use crate::shortint::ciphertext::Degree;
@@ -1015,7 +1015,7 @@ impl CompressedKeySwitchingKey {
 }
 
 pub struct KeySwitchingKeyConformanceParams {
-    pub keyswitch_key_conformance_params: KeyswitchKeyConformanceParams,
+    pub keyswitch_key_conformance_params: LweKeyswitchKeyConformanceParams,
     pub cast_rshift: i8,
     pub destination_key: EncryptionKeyChoice,
 }

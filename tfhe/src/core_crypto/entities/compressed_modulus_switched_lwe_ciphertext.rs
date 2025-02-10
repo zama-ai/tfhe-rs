@@ -144,9 +144,9 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {
 impl<Scalar: UnsignedInteger> ParameterSetConformant
     for CompressedModulusSwitchedLweCiphertext<Scalar>
 {
-    type ParameterSet = LweCiphertextParameters<Scalar>;
+    type ParameterSet = LweCiphertextConformanceParams<Scalar>;
 
-    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<Scalar>) -> bool {
+    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextConformanceParams<Scalar>) -> bool {
         let Self {
             packed_integers,
             lwe_dimension,

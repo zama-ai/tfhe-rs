@@ -12,7 +12,7 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use tfhe_versionable::Versionize;
 
 /// A contiguous list containing
@@ -472,7 +472,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
         Self: 'this;
 }
 
-pub struct GgswCiphertextListConformanceParameters {
+pub struct GgswCiphertextListConformanceParams {
     pub len: usize,
     pub glwe_size: GlweSize,
     pub polynomial_size: PolynomialSize,
@@ -481,7 +481,7 @@ pub struct GgswCiphertextListConformanceParameters {
     pub ciphertext_modulus: CiphertextModulus<u64>,
 }
 
-impl TryFrom<&MultiBitBootstrapKeyConformanceParams> for GgswCiphertextListConformanceParameters {
+impl TryFrom<&MultiBitBootstrapKeyConformanceParams> for GgswCiphertextListConformanceParams {
     type Error = ();
 
     fn try_from(value: &MultiBitBootstrapKeyConformanceParams) -> Result<Self, ()> {
@@ -502,8 +502,8 @@ impl TryFrom<&MultiBitBootstrapKeyConformanceParams> for GgswCiphertextListConfo
     }
 }
 
-impl From<&BootstrapKeyConformanceParams> for GgswCiphertextListConformanceParameters {
-    fn from(value: &BootstrapKeyConformanceParams) -> Self {
+impl From<&LweBootstrapKeyConformanceParams> for GgswCiphertextListConformanceParams {
+    fn from(value: &LweBootstrapKeyConformanceParams) -> Self {
         Self {
             len: value.input_lwe_dimension.0,
             glwe_size: value.output_glwe_size,
@@ -516,7 +516,7 @@ impl From<&BootstrapKeyConformanceParams> for GgswCiphertextListConformanceParam
 }
 
 impl<C: Container<Element = u64>> ParameterSetConformant for SeededGgswCiphertextList<C> {
-    type ParameterSet = GgswCiphertextListConformanceParameters;
+    type ParameterSet = GgswCiphertextListConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {

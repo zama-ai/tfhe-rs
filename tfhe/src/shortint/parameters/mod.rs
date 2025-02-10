@@ -11,10 +11,10 @@ pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams, LweCiphertextCount,
-    LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
+    GlweCiphertextConformanceParams, LweCiphertextConformanceParams, LweCiphertextCount,
+    LweCiphertextListConformanceParams, LweKeyswitchKeyConformanceParams, MsDecompressionType,
     NoiseEstimationMeasureBound, RSigmaFactor,
 };
 use crate::shortint::backward_compatibility::parameters::*;
@@ -39,7 +39,7 @@ pub mod v0_11;
 
 use super::backward_compatibility::parameters::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionParamsVersions;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
-use super::server_key::PBSConformanceParameters;
+use super::server_key::PBSConformanceParams;
 pub use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 use crate::shortint::ciphertext::MaxDegree;
@@ -211,7 +211,7 @@ impl ClassicPBSParameters {
         let noise_level = NoiseLevel::NOMINAL;
 
         CiphertextConformanceParams {
-            ct_params: LweCiphertextParameters {
+            ct_params: LweCiphertextConformanceParams {
                 lwe_dim: expected_dim,
                 ct_modulus: ciphertext_modulus,
                 ms_decompression_method: MsDecompressionType::ClassicPbs,
@@ -225,8 +225,8 @@ impl ClassicPBSParameters {
     }
 }
 
-impl From<&PBSConformanceParameters> for BootstrapKeyConformanceParams {
-    fn from(value: &PBSConformanceParameters) -> Self {
+impl From<&PBSConformanceParams> for LweBootstrapKeyConformanceParams {
+    fn from(value: &PBSConformanceParams) -> Self {
         Self {
             decomp_base_log: value.base_log,
             decomp_level_count: value.level,
@@ -250,7 +250,7 @@ pub enum PBSParameters {
 /// before running a computation on them
 #[derive(Copy, Clone)]
 pub struct CiphertextConformanceParams {
-    pub ct_params: LweCiphertextParameters<u64>,
+    pub ct_params: LweCiphertextConformanceParams<u64>,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
@@ -263,7 +263,7 @@ pub struct CiphertextConformanceParams {
 /// before running a computation on them
 #[derive(Copy, Clone)]
 pub struct CompressedCiphertextConformanceParams {
-    pub ct_params: GlweCiphertextConformanceParameters<u64>,
+    pub ct_params: GlweCiphertextConformanceParams<u64>,
     pub lwe_per_glwe: LweCiphertextCount,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
@@ -277,7 +277,7 @@ pub struct CompressedCiphertextConformanceParams {
 /// before running a computation on them
 #[derive(Copy, Clone)]
 pub struct CiphertextListConformanceParams {
-    pub ct_list_params: LweCiphertextListParameters<u64>,
+    pub ct_list_params: LweCiphertextListConformanceParams<u64>,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
@@ -290,7 +290,7 @@ impl CiphertextConformanceParams {
         list_constraint: ListSizeConstraint,
     ) -> CiphertextListConformanceParams {
         CiphertextListConformanceParams {
-            ct_list_params: LweCiphertextListParameters {
+            ct_list_params: LweCiphertextListConformanceParams {
                 lwe_dim: self.ct_params.lwe_dim,
                 ct_modulus: self.ct_params.ct_modulus,
                 lwe_ciphertext_count_constraint: list_constraint,
@@ -315,7 +315,7 @@ impl From<MultiBitPBSParameters> for PBSParameters {
     }
 }
 
-impl From<&PBSParameters> for KeyswitchKeyConformanceParams {
+impl From<&PBSParameters> for LweKeyswitchKeyConformanceParams {
     fn from(value: &PBSParameters) -> Self {
         Self {
             decomp_base_log: value.ks_base_log(),
