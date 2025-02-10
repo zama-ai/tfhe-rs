@@ -8,7 +8,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::modulus_switch_noise_reduction::improve_lwe_ciphertext_modulus_switch_noise_for_binary_key;
-use crate::core_crypto::prelude::CiphertextModulusLog;
+use crate::core_crypto::prelude::{CiphertextModulusLog, Variance};
 use crate::shortint::backward_compatibility::server_key::modulus_switch_noise_reduction::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ModulusSwitchNoiseReductionParams;
@@ -56,6 +56,7 @@ pub struct ModulusSwitchNoiseReductionKey {
     pub modulus_switch_zeros: LweCiphertextListOwned<u64>,
     pub ms_bound: NoiseEstimationMeasureBound,
     pub ms_r_sigma_factor: RSigmaFactor,
+    pub input_variance: Variance,
 }
 
 impl ParameterSetConformant for ModulusSwitchNoiseReductionKey {
@@ -66,6 +67,7 @@ impl ParameterSetConformant for ModulusSwitchNoiseReductionKey {
             modulus_switch_zeros,
             ms_bound,
             ms_r_sigma_factor,
+            input_variance,
         } = self;
 
         *ms_bound == parameter_set.modulus_switch_noise_reduction_params.ms_bound
@@ -95,6 +97,7 @@ impl ModulusSwitchNoiseReductionKey {
             &self.modulus_switch_zeros,
             self.ms_r_sigma_factor,
             self.ms_bound,
+            self.input_variance,
             log_modulus,
         );
     }
@@ -106,6 +109,7 @@ pub struct CompressedModulusSwitchNoiseReductionKey {
     pub modulus_switch_zeros: SeededLweCiphertextListOwned<u64>,
     pub ms_bound: NoiseEstimationMeasureBound,
     pub ms_r_sigma_factor: RSigmaFactor,
+    pub input_variance: Variance,
 }
 
 impl ParameterSetConformant for CompressedModulusSwitchNoiseReductionKey {
@@ -116,6 +120,7 @@ impl ParameterSetConformant for CompressedModulusSwitchNoiseReductionKey {
             modulus_switch_zeros,
             ms_bound,
             ms_r_sigma_factor,
+            input_variance,
         } = self;
 
         *ms_bound == parameter_set.modulus_switch_noise_reduction_params.ms_bound
@@ -144,6 +149,7 @@ impl ModulusSwitchNoiseReductionKey {
             modulus_switch_zeros_count: count,
             ms_bound,
             ms_r_sigma_factor,
+            input_variance,
         } = modulus_switch_noise_reduction_params;
 
         let lwe_size = secret_key.lwe_dimension().to_lwe_size();
@@ -177,6 +183,7 @@ impl ModulusSwitchNoiseReductionKey {
             modulus_switch_zeros,
             ms_bound,
             ms_r_sigma_factor,
+            input_variance,
         }
     }
 }
@@ -194,6 +201,7 @@ impl CompressedModulusSwitchNoiseReductionKey {
             modulus_switch_zeros_count: count,
             ms_bound,
             ms_r_sigma_factor,
+            input_variance,
         } = modulus_switch_noise_reduction_params;
 
         let lwe_size = secret_key.lwe_dimension().to_lwe_size();
@@ -227,6 +235,7 @@ impl CompressedModulusSwitchNoiseReductionKey {
             modulus_switch_zeros,
             ms_bound,
             ms_r_sigma_factor,
+            input_variance,
         }
     }
 
@@ -238,6 +247,7 @@ impl CompressedModulusSwitchNoiseReductionKey {
                 .decompress_into_lwe_ciphertext_list(),
             ms_bound: self.ms_bound,
             ms_r_sigma_factor: self.ms_r_sigma_factor,
+            input_variance: self.input_variance,
         }
     }
 }

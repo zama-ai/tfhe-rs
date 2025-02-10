@@ -11,6 +11,7 @@ fn modulus_switch_noise_reduction(c: &mut Criterion) {
     let bound = NoiseEstimationMeasureBound((1_u64 << (64 - 1 - 4 - 1)) as f64);
     let r_sigma_factor = RSigmaFactor(14.658999256586121);
     let log_modulus = PolynomialSize(2048).to_blind_rotation_input_modulus_log();
+    let input_variance = Variance(0.);
 
     for count in [10, 50, 100, 1_000, 10_000, 100_000] {
         let mut boxed_seeder = new_seeder();
@@ -71,6 +72,7 @@ fn modulus_switch_noise_reduction(c: &mut Criterion) {
                     &encryptions_of_zero,
                     r_sigma_factor,
                     bound,
+                    input_variance,
                     log_modulus,
                 );
 

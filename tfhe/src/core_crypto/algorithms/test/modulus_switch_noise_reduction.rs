@@ -22,6 +22,7 @@ struct MsNoiseReductionTestParams {
     pub modulus_switch_zeros_count: LweCiphertextCount,
     pub bound: NoiseEstimationMeasureBound,
     pub r_sigma_factor: RSigmaFactor,
+    pub input_variance: Variance,
     pub log_modulus: CiphertextModulusLog,
     pub expected_individual_check_p_success: f64,
     pub expected_variance_improved: Variance,
@@ -39,6 +40,7 @@ const TEST_PARAM: MsNoiseReductionTestParams = MsNoiseReductionTestParams {
     expected_individual_check_p_success: 0.059282589,
     expected_variance_improved: Variance(4.834651119161795e32 - 9.68570987092478e+31),
     target_upper_bound_p_all_fail_log2: -130.,
+    input_variance: Variance(0.),
 };
 
 thread_local! {
@@ -66,7 +68,12 @@ fn improve_modulus_switch_noise_test_individual_check_p_success(
         expected_individual_check_p_success,
         expected_variance_improved: _,
         target_upper_bound_p_all_fail_log2,
+        input_variance,
     } = params;
+
+    let modulus = ciphertext_modulus.raw_modulus() as f64;
+
+    let input_variance = input_variance.get_modular_variance(modulus);
 
     let number_loops = 100_000;
 
@@ -132,6 +139,7 @@ fn improve_modulus_switch_noise_test_individual_check_p_success(
 
                 let measure = measure_modulus_switch_noise_estimation_for_binary_key(
                     r_sigma_factor,
+                    input_variance,
                     log_modulus,
                     mask_sum,
                     body_sum,
@@ -232,6 +240,7 @@ fn improve_modulus_switch_noise_test_average_number_checks(params: MsNoiseReduct
         expected_individual_check_p_success,
         expected_variance_improved: _,
         target_upper_bound_p_all_fail_log2: _,
+        input_variance,
     } = params;
 
     let expected_average_number_checks = 1. / expected_individual_check_p_success;
@@ -280,6 +289,7 @@ fn improve_modulus_switch_noise_test_average_number_checks(params: MsNoiseReduct
             &encryptions_of_zero,
             r_sigma_factor,
             bound,
+            input_variance,
             log_modulus,
         ) {
             CandidateResult::SatisfiyingBound(candidate) => candidate,
@@ -357,6 +367,7 @@ fn check_noise_improve_modulus_switch_noise(
         expected_individual_check_p_success: _,
         expected_variance_improved,
         target_upper_bound_p_all_fail_log2: _,
+        input_variance,
     } = ms_noise_reduction_test_params;
 
     let number_loops = 100_000;
@@ -414,6 +425,7 @@ fn check_noise_improve_modulus_switch_noise(
                         &encryptions_of_zero,
                         r_sigma_factor,
                         bound,
+                        input_variance,
                         log_modulus,
                     );
 
