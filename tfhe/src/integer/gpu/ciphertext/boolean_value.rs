@@ -113,7 +113,7 @@ impl CudaBooleanBlock {
     /// use tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    /// let mut stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 1;
