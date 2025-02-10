@@ -482,8 +482,8 @@ impl TryFrom<ServerKey> for ClassicalServerKey {
     type Error = UnsupportedOperation;
 
     fn try_from(value: ServerKey) -> Result<Self, Self::Error> {
-        let atomic_pattern = match value.atomic_pattern {
-            ServerKeyAtomicPattern::Classical(ap) => ap,
+        let ServerKeyAtomicPattern::Classical(atomic_pattern) = value.atomic_pattern else {
+            return Err(UnsupportedOperation);
         };
 
         Ok(Self {
@@ -501,8 +501,8 @@ impl<'key> TryFrom<ServerKeyView<'key>> for ClassicalServerKeyView<'key> {
     type Error = UnsupportedOperation;
 
     fn try_from(value: ServerKeyView<'key>) -> Result<Self, Self::Error> {
-        let atomic_pattern = match value.atomic_pattern {
-            ServerKeyAtomicPattern::Classical(ap) => ap,
+        let ServerKeyAtomicPattern::Classical(atomic_pattern) = value.atomic_pattern else {
+            return Err(UnsupportedOperation);
         };
 
         Ok(Self {
