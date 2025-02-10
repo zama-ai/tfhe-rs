@@ -547,10 +547,12 @@ impl ParameterSetConformant for IntegerServerKey {
         ) {
             (None, None) => true,
             (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
-                let cpk_param = (parameter_set.sk_param, *cpk_params, *ks_params)
-                    .try_into()
-                    .unwrap();
-                cpk_key_switching_key_material.is_conformant(&cpk_param)
+                if let Ok(cpk_param) = (parameter_set.sk_param, *cpk_params, *ks_params).try_into()
+                {
+                    cpk_key_switching_key_material.is_conformant(&cpk_param)
+                } else {
+                    return false;
+                }
             }
             _ => return false,
         };
@@ -593,10 +595,12 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
         ) {
             (None, None) => true,
             (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
-                let cpk_param = (parameter_set.sk_param, *cpk_params, *ks_params)
-                    .try_into()
-                    .unwrap();
-                cpk_key_switching_key_material.is_conformant(&cpk_param)
+                if let Ok(cpk_param) = (parameter_set.sk_param, *cpk_params, *ks_params).try_into()
+                {
+                    cpk_key_switching_key_material.is_conformant(&cpk_param)
+                } else {
+                    return false;
+                }
             }
             _ => return false,
         };
