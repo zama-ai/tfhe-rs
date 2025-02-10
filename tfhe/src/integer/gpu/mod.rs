@@ -3282,10 +3282,10 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_input: &mut CudaVec<T>,
-    radix_rhs_input: &CudaVec<T>,
-    carry_out: &mut CudaVec<T>,
-    carry_in: &CudaVec<T>,
+    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_lwe_right: &CudaRadixCiphertext,
+    carry_out: &mut CudaRadixCiphertext,
+    carry_in: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     lwe_dimension: LweDimension,
@@ -3295,7 +3295,6 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     ks_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
-    num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
@@ -3305,7 +3304,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input.gpu_index(0),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -3320,6 +3319,61 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    let mut radix_lwe_left_degrees = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_left_noise_levels = radix_lwe_left
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
+        radix_lwe_left,
+        &mut radix_lwe_left_degrees,
+        &mut radix_lwe_left_noise_levels,
+    );
+    let mut radix_lwe_right_degrees = radix_lwe_right
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_right_noise_levels = radix_lwe_right
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_radix_lwe_right = prepare_cuda_radix_ffi(
+        radix_lwe_right,
+        &mut radix_lwe_right_degrees,
+        &mut radix_lwe_right_noise_levels,
+    );
+    let mut carry_out_degrees = carry_out.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut carry_out_noise_levels = carry_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_carry_out = prepare_cuda_radix_ffi(
+        carry_out,
+        &mut carry_out_degrees,
+        &mut carry_out_noise_levels,
+    );
+    let mut carry_in_degrees = carry_in.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut carry_in_noise_levels = carry_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_carry_in =
+        prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
     scratch_cuda_integer_overflowing_sub_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -3334,7 +3388,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
-        num_blocks,
+        radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
@@ -3345,14 +3399,13 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_input.as_mut_c_ptr(0),
-        radix_rhs_input.as_c_ptr(0),
-        carry_out.as_mut_c_ptr(0),
-        carry_in.as_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_left,
+        &cuda_ffi_radix_lwe_right,
+        &mut cuda_ffi_carry_out,
+        &cuda_ffi_carry_in,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
         compute_overflow as u32,
         uses_input_borrow,
     );
@@ -3362,6 +3415,8 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(carry_out, &cuda_ffi_carry_out);
 }
 
 #[allow(clippy::too_many_arguments)]

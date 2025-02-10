@@ -378,7 +378,7 @@ __host__ void compare_radix_blocks_kb(
   // Add one
   // Here Lhs can have the following values: (-1) % (message modulus * carry
   // modulus), 0, 1 So the output values after the addition will be: 0, 1, 2
-  host_integer_radix_add_scalar_one_inplace<Torus>(
+  legacy_host_integer_radix_add_scalar_one_inplace<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, big_lwe_dimension,
       num_radix_blocks, message_modulus, carry_modulus);
 }
