@@ -1761,14 +1761,8 @@ void host_compute_propagation_simulators_and_group_carries(
         num_groups - 1);
   }
 }
-// This function is used to perform step 1 of Thomas' new borrow propagation
-// algorithm It uses a many lut to calculate two luts in parallel
-// shifted_blocks: contains (block % message modulus) << 1
-// block states: contains the propagation states for the different blocks
-// depending on the group it belongs to and the internal position within the
-// block.
 template <typename Torus>
-void host_compute_shifted_blocks_and_borrow_states(
+void legacy_host_compute_shifted_blocks_and_borrow_states(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *lwe_array, int_radix_params params,
     int_shifted_blocks_and_borrow_states_memory<Torus> *mem, void *const *bsks,
@@ -1780,7 +1774,8 @@ void host_compute_shifted_blocks_and_borrow_states(
   uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-  auto shifted_blocks_and_borrow_states = mem->shifted_blocks_and_borrow_states;
+  auto shifted_blocks_and_borrow_states =
+      (Torus *)mem->shifted_blocks_and_borrow_states->ptr;
   auto luts_array_first_step = mem->luts_array_first_step;
 
   legacy_integer_radix_apply_many_univariate_lookup_table_kb<Torus>(
@@ -1788,8 +1783,8 @@ void host_compute_shifted_blocks_and_borrow_states(
       lwe_array, bsks, ksks, num_radix_blocks, luts_array_first_step,
       num_many_lut, lut_stride);
 
-  auto shifted_blocks = mem->shifted_blocks;
-  auto borrow_states = mem->borrow_states;
+  auto shifted_blocks = (Torus *)mem->shifted_blocks->ptr;
+  auto borrow_states = (Torus *)mem->borrow_states->ptr;
   cuda_memcpy_async_gpu_to_gpu(borrow_states, shifted_blocks_and_borrow_states,
                                big_lwe_size_bytes * num_radix_blocks,
                                streams[0], gpu_indexes[0]);
@@ -1797,6 +1792,37 @@ void host_compute_shifted_blocks_and_borrow_states(
       shifted_blocks,
       shifted_blocks_and_borrow_states + big_lwe_size * num_radix_blocks,
       big_lwe_size_bytes * num_radix_blocks, streams[0], gpu_indexes[0]);
+}
+
+// This function is used to perform step 1 of Thomas' new borrow propagation
+// algorithm It uses a many lut to calculate two luts in parallel
+// shifted_blocks: contains (block % message modulus) << 1
+// block states: contains the propagation states for the different blocks
+// depending on the group it belongs to and the internal position within the
+// block.
+template <typename Torus>
+void host_compute_shifted_blocks_and_borrow_states(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array,
+    int_shifted_blocks_and_borrow_states_memory<Torus> *mem, void *const *bsks,
+    Torus *const *ksks, uint32_t lut_stride, uint32_t num_many_lut) {
+  auto num_radix_blocks = lwe_array->num_radix_blocks;
+
+  auto shifted_blocks_and_borrow_states = mem->shifted_blocks_and_borrow_states;
+  auto luts_array_first_step = mem->luts_array_first_step;
+
+  integer_radix_apply_many_univariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, shifted_blocks_and_borrow_states,
+      lwe_array, bsks, ksks, luts_array_first_step, num_many_lut, lut_stride);
+
+  auto shifted_blocks = mem->shifted_blocks;
+  auto borrow_states = mem->borrow_states;
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], borrow_states, 0, num_radix_blocks,
+      shifted_blocks_and_borrow_states, 0, num_radix_blocks);
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], shifted_blocks, 0, num_radix_blocks,
+      shifted_blocks_and_borrow_states, num_radix_blocks, 2 * num_radix_blocks);
 }
 
 template <typename Torus>
@@ -2618,10 +2644,8 @@ void scratch_cuda_integer_overflowing_sub(
       compute_overflow, allocate_gpu_memory);
 }
 
-// This function perform the three steps of Thomas' new borrow propagation
-// includes the logic to extract overflow when requested
 template <typename Torus>
-void host_single_borrow_propagate(
+void legacy_host_single_borrow_propagate(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, Torus *lhsrhs_array, Torus *overflow_block,
     const Torus *input_borrow, int_borrow_prop_memory<Torus> *mem,
@@ -2641,19 +2665,20 @@ void host_single_borrow_propagate(
 
   assert(mem->num_groups >= num_groups);
   if (uses_input_borrow == 1) {
-    host_unchecked_sub_with_correcting_term<Torus>(
+    legacy_host_unchecked_sub_with_correcting_term<Torus>(
         streams[0], gpu_indexes[0], lhsrhs_array, lhsrhs_array, input_borrow,
         big_lwe_dimension, 1, message_modulus, carry_modulus,
         message_modulus - 1);
   }
   // Step 1
-  host_compute_shifted_blocks_and_borrow_states<Torus>(
+  legacy_host_compute_shifted_blocks_and_borrow_states<Torus>(
       streams, gpu_indexes, gpu_count, lhsrhs_array, params,
       mem->shifted_blocks_borrow_state_mem, bsks, ksks, num_radix_blocks,
       lut_stride, num_many_lut);
 
-  auto borrow_states = mem->shifted_blocks_borrow_state_mem->borrow_states;
-  cuda_memcpy_async_gpu_to_gpu(mem->overflow_block,
+  auto borrow_states =
+      (Torus *)mem->shifted_blocks_borrow_state_mem->borrow_states->ptr;
+  cuda_memcpy_async_gpu_to_gpu((Torus *)mem->overflow_block->ptr,
                                borrow_states +
                                    (num_radix_blocks - 1) * big_lwe_size,
                                big_lwe_size_bytes, streams[0], gpu_indexes[0]);
@@ -2664,7 +2689,8 @@ void host_single_borrow_propagate(
       mem->prop_simu_group_carries_mem, bsks, ksks, num_radix_blocks,
       num_groups);
 
-  auto shifted_blocks = mem->shifted_blocks_borrow_state_mem->shifted_blocks;
+  auto shifted_blocks =
+      (Torus *)mem->shifted_blocks_borrow_state_mem->shifted_blocks->ptr;
   auto prepared_blocks =
       (Torus *)mem->prop_simu_group_carries_mem->prepared_blocks->ptr;
   auto simulators = (Torus *)mem->prop_simu_group_carries_mem->simulators->ptr;
@@ -2673,13 +2699,14 @@ void host_single_borrow_propagate(
                           shifted_blocks, simulators, big_lwe_dimension,
                           num_radix_blocks);
 
-  host_integer_radix_add_scalar_one_inplace<Torus>(
+  legacy_host_integer_radix_add_scalar_one_inplace<Torus>(
       streams, gpu_indexes, gpu_count, prepared_blocks, big_lwe_dimension,
       num_radix_blocks, message_modulus, carry_modulus);
 
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
     legacy_host_addition<Torus>(
-        streams[0], gpu_indexes[0], mem->overflow_block, mem->overflow_block,
+        streams[0], gpu_indexes[0], (Torus *)mem->overflow_block->ptr,
+        (Torus *)mem->overflow_block->ptr,
         (Torus *)mem->prop_simu_group_carries_mem->simulators->ptr +
             (num_radix_blocks - 1) * big_lwe_size,
         big_lwe_dimension, 1);
@@ -2692,7 +2719,8 @@ void host_single_borrow_propagate(
   //  borrows
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
     legacy_host_addition<Torus>(
-        streams[0], gpu_indexes[0], mem->overflow_block, mem->overflow_block,
+        streams[0], gpu_indexes[0], (Torus *)mem->overflow_block->ptr,
+        (Torus *)mem->overflow_block->ptr,
         resolved_borrows + (num_groups - 1) * big_lwe_size, big_lwe_dimension,
         1);
   }
@@ -2709,7 +2737,7 @@ void host_single_borrow_propagate(
     auto borrow_flag = mem->lut_borrow_flag;
     legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
         mem->sub_streams_1, gpu_indexes, gpu_count, overflow_block,
-        mem->overflow_block, bsks, ksks, 1, borrow_flag);
+        (Torus *)mem->overflow_block->ptr, bsks, ksks, 1, borrow_flag);
   }
   for (int j = 0; j < mem->active_gpu_count; j++) {
     cuda_event_record(mem->outgoing_events1[j], mem->sub_streams_1[j],
@@ -2728,6 +2756,130 @@ void host_single_borrow_propagate(
   legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
       mem->sub_streams_2, gpu_indexes, gpu_count, lhsrhs_array, prepared_blocks,
       bsks, ksks, num_radix_blocks, message_extract);
+
+  for (int j = 0; j < mem->active_gpu_count; j++) {
+    cuda_event_record(mem->outgoing_events2[j], mem->sub_streams_2[j],
+                      gpu_indexes[j]);
+    cuda_stream_wait_event(streams[0], mem->outgoing_events1[j],
+                           gpu_indexes[0]);
+    cuda_stream_wait_event(streams[0], mem->outgoing_events2[j],
+                           gpu_indexes[0]);
+  }
+}
+
+// This function perform the three steps of Thomas' new borrow propagation
+// includes the logic to extract overflow when requested
+template <typename Torus>
+void host_single_borrow_propagate(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array,
+    CudaRadixCiphertextFFI *overflow_block,
+    const CudaRadixCiphertextFFI *input_borrow,
+    int_borrow_prop_memory<Torus> *mem, void *const *bsks, Torus *const *ksks,
+    uint32_t num_groups, uint32_t compute_overflow,
+    uint32_t uses_input_borrow) {
+  auto num_radix_blocks = lwe_array->num_radix_blocks;
+  auto params = mem->params;
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  auto message_modulus = params.message_modulus;
+  auto carry_modulus = params.carry_modulus;
+  uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
+  auto big_lwe_dimension = big_lwe_size - 1;
+  auto lut_stride = mem->lut_stride;
+  auto num_many_lut = mem->num_many_lut;
+
+  assert(mem->num_groups >= num_groups);
+  if (uses_input_borrow == 1) {
+    host_unchecked_sub_with_correcting_term<Torus>(
+        streams[0], gpu_indexes[0], lwe_array, lwe_array, input_borrow, 1,
+        message_modulus, carry_modulus);
+  }
+  // Step 1
+  host_compute_shifted_blocks_and_borrow_states<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array,
+      mem->shifted_blocks_borrow_state_mem, bsks, ksks, lut_stride,
+      num_many_lut);
+
+  auto borrow_states = mem->shifted_blocks_borrow_state_mem->borrow_states;
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams[0], gpu_indexes[0], mem->overflow_block, 0, 1, borrow_states,
+      num_radix_blocks - 1, num_radix_blocks);
+
+  // Step 2
+  host_compute_propagation_simulators_and_group_carries<Torus>(
+      streams, gpu_indexes, gpu_count, borrow_states, params,
+      mem->prop_simu_group_carries_mem, bsks, ksks, num_radix_blocks,
+      num_groups);
+
+  auto shifted_blocks =
+      (Torus *)mem->shifted_blocks_borrow_state_mem->shifted_blocks->ptr;
+  auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
+  auto simulators = (Torus *)mem->prop_simu_group_carries_mem->simulators->ptr;
+
+  host_subtraction<Torus>(streams[0], gpu_indexes[0],
+                          (Torus *)prepared_blocks->ptr, shifted_blocks,
+                          simulators, big_lwe_dimension, num_radix_blocks);
+
+  host_integer_radix_add_scalar_one_inplace<Torus>(
+      streams, gpu_indexes, gpu_count, prepared_blocks, message_modulus,
+      carry_modulus);
+
+  if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
+    CudaRadixCiphertextFFI shifted_simulators;
+    as_radix_ciphertext_slice<Torus>(
+        &shifted_simulators, mem->prop_simu_group_carries_mem->simulators,
+        num_radix_blocks - 1, num_radix_blocks);
+    host_addition<Torus>(streams[0], gpu_indexes[0], mem->overflow_block,
+                         mem->overflow_block, &shifted_simulators, 1);
+  }
+  CudaRadixCiphertextFFI resolved_borrows;
+  as_radix_ciphertext_slice<Torus>(
+      &resolved_borrows, mem->prop_simu_group_carries_mem->resolved_carries,
+      num_groups - 1, num_groups);
+
+  // Step 3
+  //  This needs to be done before because in next step we modify the resolved
+  //  borrows
+  if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
+    host_addition<Torus>(streams[0], gpu_indexes[0], mem->overflow_block,
+                         mem->overflow_block, &resolved_borrows, 1);
+  }
+
+  cuda_event_record(mem->incoming_events[0], streams[0], gpu_indexes[0]);
+  for (int j = 0; j < mem->active_gpu_count; j++) {
+    cuda_stream_wait_event(mem->sub_streams_1[j], mem->incoming_events[0],
+                           gpu_indexes[j]);
+    cuda_stream_wait_event(mem->sub_streams_2[j], mem->incoming_events[0],
+                           gpu_indexes[j]);
+  }
+
+  if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
+    auto borrow_flag = mem->lut_borrow_flag;
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        mem->sub_streams_1, gpu_indexes, gpu_count, overflow_block,
+        mem->overflow_block, bsks, ksks, borrow_flag, 1);
+  }
+  for (int j = 0; j < mem->active_gpu_count; j++) {
+    cuda_event_record(mem->outgoing_events1[j], mem->sub_streams_1[j],
+                      gpu_indexes[j]);
+  }
+
+  // subtract borrow and cleanup prepared blocks
+  auto resolved_carries =
+      (Torus *)mem->prop_simu_group_carries_mem->resolved_carries->ptr;
+  host_negation<Torus>(mem->sub_streams_2[0], gpu_indexes[0], resolved_carries,
+                       resolved_carries, big_lwe_dimension, num_groups);
+
+  host_radix_sum_in_groups<Torus>(
+      mem->sub_streams_2[0], gpu_indexes[0], (Torus *)prepared_blocks->ptr,
+      (Torus *)prepared_blocks->ptr, resolved_carries, num_radix_blocks,
+      big_lwe_size, mem->group_size);
+
+  auto message_extract = mem->lut_message_extract;
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      mem->sub_streams_2, gpu_indexes, gpu_count, lwe_array, prepared_blocks,
+      bsks, ksks, message_extract, num_radix_blocks);
 
   for (int j = 0; j < mem->active_gpu_count; j++) {
     cuda_event_record(mem->outgoing_events2[j], mem->sub_streams_2[j],

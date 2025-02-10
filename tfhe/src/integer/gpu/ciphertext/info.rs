@@ -118,38 +118,6 @@ impl CudaRadixCiphertextInfo {
         }
     }
 
-    pub(crate) fn after_overflowing_sub(&self, other: &Self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .zip(&other.blocks)
-                .map(|(left, _)| CudaBlockInfo {
-                    degree: Degree::new(left.message_modulus.0 - 1),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        }
-    }
-    pub(crate) fn after_overflowing_add(&self, other: &Self) -> Self {
-        Self {
-            blocks: self
-                .blocks
-                .iter()
-                .zip(&other.blocks)
-                .map(|(left, _)| CudaBlockInfo {
-                    degree: Degree::new(left.message_modulus.0 - 1),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: NoiseLevel::NOMINAL,
-                })
-                .collect(),
-        }
-    }
     pub(crate) fn after_overflowing_scalar_add_sub(&self) -> Self {
         Self {
             blocks: self

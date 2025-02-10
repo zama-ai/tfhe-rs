@@ -10,8 +10,7 @@ use crate::integer::gpu::{
     unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
-use crate::shortint::ciphertext::NoiseLevel;
-use crate::shortint::parameters::{Degree, LweBskGroupingFactor};
+use crate::shortint::parameters::LweBskGroupingFactor;
 
 impl CudaServerKey {
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
@@ -369,22 +368,19 @@ impl CudaServerKey {
         let mut overflow_block: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(1, stream);
         let ciphertext = ct_res.as_mut();
-        let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
         let uses_input_borrow = INPUT_BORROW.map_or(0u32, |_block| 1u32);
 
-        let mut aux_block: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(1, stream);
-        let in_carry_dvec = INPUT_BORROW.map_or_else(
-            || &aux_block.as_mut().d_blocks.0.d_vec,
-            |block| &block.0.ciphertext.d_blocks.0.d_vec,
-        );
+        let aux_block: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(1, stream);
+        let in_carry_dvec =
+            INPUT_BORROW.map_or_else(|| aux_block.as_ref(), |block| block.as_ref().as_ref());
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async(
                     stream,
-                    &mut ciphertext.d_blocks.0.d_vec,
-                    &rhs.as_ref().d_blocks.0.d_vec,
-                    &mut overflow_block.as_mut().d_blocks.0.d_vec,
+                    ciphertext,
+                    rhs.as_ref(),
+                    overflow_block.as_mut(),
                     in_carry_dvec,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -395,7 +391,6 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_bsk.decomp_level_count(),
                     d_bsk.decomp_base_log(),
-                    num_blocks,
                     ciphertext.info.blocks.first().unwrap().message_modulus,
                     ciphertext.info.blocks.first().unwrap().carry_modulus,
                     PBSType::Classical,
@@ -407,9 +402,9 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async(
                     stream,
-                    &mut ciphertext.d_blocks.0.d_vec,
-                    &rhs.as_ref().d_blocks.0.d_vec,
-                    &mut overflow_block.as_mut().d_blocks.0.d_vec,
+                    ciphertext,
+                    rhs.as_ref(),
+                    overflow_block.as_mut(),
                     in_carry_dvec,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -420,7 +415,6 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count(),
                     d_multibit_bsk.decomp_base_log(),
-                    num_blocks,
                     ciphertext.info.blocks.first().unwrap().message_modulus,
                     ciphertext.info.blocks.first().unwrap().carry_modulus,
                     PBSType::MultiBit,
@@ -430,38 +424,7 @@ impl CudaServerKey {
                 );
             }
         }
-        ciphertext.info.blocks.iter_mut().for_each(|b| {
-            b.degree = Degree::new(b.message_modulus.0 - 1);
-            b.noise_level = NoiseLevel::NOMINAL;
-        });
-        overflow_block
-            .as_mut()
-            .info
-            .blocks
-            .iter_mut()
-            .for_each(|b| {
-                b.degree = Degree::new(1);
-                b.noise_level = NoiseLevel::ZERO;
-            });
-
-        if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
-            && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
-        {
-            overflow_block.as_mut().info =
-                overflow_block.as_ref().info.boolean_info(NoiseLevel::ZERO);
-        } else {
-            overflow_block.as_mut().info = overflow_block
-                .as_ref()
-                .info
-                .boolean_info(NoiseLevel::NOMINAL);
-        }
-
         let ct_overflowed = CudaBooleanBlock::from_cuda_radix_ciphertext(overflow_block.ciphertext);
-
-        ct_res.as_mut().info = ct_res
-            .as_ref()
-            .info
-            .after_overflowing_sub(&rhs.as_ref().info);
 
         (ct_res, ct_overflowed)
     }

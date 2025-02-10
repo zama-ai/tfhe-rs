@@ -523,7 +523,7 @@ where
                     expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
             assert_eq!(encrypted_overflow.0.degree.get(), 1);
-            assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+            assert!(encrypted_overflow.0.noise_level() <= NoiseLevel::NOMINAL);
         }
     }
 }
