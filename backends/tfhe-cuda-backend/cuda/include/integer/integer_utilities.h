@@ -799,7 +799,9 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
           params.carry_modulus, mux_lut_f);
       mux_lut->broadcast_lut(streams, gpu_indexes, 0);
 
-      auto cleaning_lut_f = [](Torus x) -> Torus { return x; };
+      auto cleaning_lut_f = [params](Torus x) -> Torus {
+        return x % params.message_modulus;
+      };
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], cleaning_lut->get_lut(0, 0),
           cleaning_lut->get_degree(0), cleaning_lut->get_max_degree(0),
