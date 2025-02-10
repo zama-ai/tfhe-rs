@@ -1,11 +1,12 @@
 use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, PaddingBit, ServerKey};
+use crate::shortint::server_key::{CheckError, GenericServerKey};
+use crate::shortint::{Ciphertext, PaddingBit};
 
-impl ServerKey {
+impl<AP: AtomicPatternOperations> GenericServerKey<AP> {
     /// Compute homomorphically an addition between a ciphertext and a scalar.
     ///
     /// The result is returned in a _new_ ciphertext.

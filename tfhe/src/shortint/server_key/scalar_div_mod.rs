@@ -1,7 +1,9 @@
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::server_key::GenericServerKey;
+use crate::shortint::Ciphertext;
 
-impl ServerKey {
+impl<AP: AtomicPatternOperations> GenericServerKey<AP> {
     /// Alias to [`unchecked_scalar_div`](`Self::unchecked_scalar_div`) provided for convenience
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will

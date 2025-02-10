@@ -9,7 +9,7 @@
 
 use crate::core_crypto::entities::*;
 
-use crate::shortint::{ServerKey, WopbsParameters};
+use crate::shortint::WopbsParameters;
 use serde::{Deserialize, Serialize};
 
 #[cfg(all(test, feature = "experimental"))]
@@ -20,8 +20,8 @@ mod test;
 #[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
 pub struct WopbsKey {
     //Key for the private functional keyswitch
-    pub wopbs_server_key: ServerKey,
-    pub pbs_server_key: ServerKey,
+    pub wopbs_server_key: ClassicalServerKey,
+    pub pbs_server_key: ClassicalServerKey,
     pub cbs_pfpksk: LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
     pub ksk_pbs_to_wopbs: LweKeyswitchKeyOwned<u64>,
     pub param: WopbsParameters,
@@ -30,6 +30,8 @@ pub struct WopbsKey {
 #[cfg(feature = "experimental")]
 pub use experimental::*;
 
+use super::server_key::ClassicalServerKey;
+
 #[cfg(feature = "experimental")]
 mod experimental {
     use crate::core_crypto::algorithms::*;
@@ -37,9 +39,12 @@ mod experimental {
     use crate::core_crypto::commons::traits::*;
     use crate::core_crypto::entities::*;
     use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
+    use crate::shortint::atomic_pattern::AtomicPatternOperations;
     use crate::shortint::ciphertext::*;
     use crate::shortint::engine::ShortintEngine;
-    use crate::shortint::server_key::ShortintBootstrappingKey;
+    use crate::shortint::server_key::{
+        ClassicalServerKey, ClassicalServerKeyView, ShortintBootstrappingKey,
+    };
 
     use super::WopbsKey;
     use crate::shortint::{ClientKey, ServerKey, WopbsParameters};
@@ -243,9 +248,12 @@ mod experimental {
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, sks.as_view().try_into().unwrap());
         /// ```
-        pub fn new_wopbs_key_only_for_wopbs(cks: &ClientKey, sks: &ServerKey) -> Self {
+        pub fn new_wopbs_key_only_for_wopbs(
+            cks: &ClientKey,
+            sks: ClassicalServerKeyView<'_>,
+        ) -> Self {
             ShortintEngine::with_thread_local_mut(|engine| {
                 engine.new_wopbs_key_only_for_wopbs(cks, sks).unwrap()
             })
@@ -262,11 +270,12 @@ mod experimental {
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, sks.as_view().try_into().unwrap(),
+        ///                                         &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// ```
         pub fn new_wopbs_key(
             cks: &ClientKey,
-            sks: &ServerKey,
+            sks: ClassicalServerKeyView<'_>,
             parameters: &WopbsParameters,
         ) -> Self {
             ShortintEngine::with_thread_local_mut(|engine| {
@@ -278,8 +287,8 @@ mod experimental {
         pub fn into_raw_parts(
             self,
         ) -> (
-            ServerKey,
-            ServerKey,
+            ClassicalServerKey,
+            ClassicalServerKey,
             LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
             LweKeyswitchKeyOwned<u64>,
             WopbsParameters,
@@ -307,8 +316,8 @@ mod experimental {
         ///
         /// Panics if the constituents are not compatible with each others.
         pub fn from_raw_parts(
-            wopbs_server_key: ServerKey,
-            pbs_server_key: ServerKey,
+            wopbs_server_key: ClassicalServerKey,
+            pbs_server_key: ClassicalServerKey,
             cbs_pfpksk: LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
             ksk_pbs_to_wopbs: LweKeyswitchKeyOwned<u64>,
             param: WopbsParameters,
@@ -348,7 +357,8 @@ mod experimental {
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let classical_sks = sks.as_view().try_into().unwrap();
+        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, classical_sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let message_modulus = LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let m = 2;
         /// let ct = cks.encrypt(m);
@@ -364,7 +374,12 @@ mod experimental {
             // The function is applied only on the message modulus bits
             let basis = ct.message_modulus.0 * ct.carry_modulus.0;
             let delta = 64 - f64::log2(basis as f64).ceil() as u64 - 1;
-            let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
+            let poly_size = self
+                .wopbs_server_key
+                .atomic_pattern
+                .bootstrapping_key
+                .polynomial_size()
+                .0;
             let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
             for (i, value) in lut.iter_mut().enumerate().take(basis as usize) {
                 *value = f(i as u64 % ct.message_modulus.0) << delta;
@@ -385,7 +400,8 @@ mod experimental {
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let classical_sks = sks.as_view().try_into().unwrap();
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, classical_sks);
         /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let m = 2;
         /// let ct = cks.encrypt_without_padding(m);
@@ -401,7 +417,12 @@ mod experimental {
             // The function is applied only on the message modulus bits
             let basis = ct.message_modulus.0 * ct.carry_modulus.0;
             let delta = 64 - f64::log2((basis) as f64).ceil() as u64;
-            let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
+            let poly_size = self
+                .wopbs_server_key
+                .atomic_pattern
+                .bootstrapping_key
+                .polynomial_size()
+                .0;
             let mut vec_lut = vec![0; poly_size];
             for (i, value) in vec_lut.iter_mut().enumerate().take(basis as usize) {
                 *value = f(i as u64 % ct.message_modulus.0) << delta;
@@ -422,7 +443,7 @@ mod experimental {
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, sks.as_view().try_into().unwrap());
         /// let message_modulus = MessageModulus(5);
         /// let m = 2;
         /// let ct = cks.encrypt_native_crt(m, message_modulus);
@@ -438,7 +459,12 @@ mod experimental {
             // The function is applied only on the message modulus bits
             let basis = ct.message_modulus.0 * ct.carry_modulus.0;
             let nb_bit = f64::log2((basis) as f64).ceil() as u64;
-            let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
+            let poly_size = self
+                .wopbs_server_key
+                .atomic_pattern
+                .bootstrapping_key
+                .polynomial_size()
+                .0;
             let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
             for i in 0..basis {
                 let index_lut = (((i % basis) << nb_bit) / basis) as usize;
@@ -462,7 +488,8 @@ mod experimental {
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let classical_sks = sks.as_view().try_into().unwrap();
+        /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, classical_sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut rng = rand::thread_rng();
         /// let message_modulus = LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus);
@@ -498,7 +525,8 @@ mod experimental {
         ///
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let classical_sks = sks.as_view().try_into().unwrap();
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, classical_sks);
         /// let mut rng = rand::thread_rng();
         /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus);
@@ -540,7 +568,8 @@ mod experimental {
         /// let mut msg_1_carry_0_params = LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
         /// msg_1_carry_0_params.carry_modulus = CarryModulus(1);
         /// let (cks, sks) = gen_keys(msg_1_carry_0_params);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let classical_sks = sks.as_view().try_into().unwrap();
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, classical_sks);
         /// let mut rng = rand::thread_rng();
         /// let ct = cks.encrypt_without_padding(rng.gen::<u64>() % 2);
         /// let lut = vec![1_u64 << 63; wopbs_key.param.polynomial_size.0].into();
@@ -584,7 +613,8 @@ mod experimental {
         /// use tfhe::shortint::wopbs::*;
         ///
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let classical_sks = sks.as_view().try_into().unwrap();
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, classical_sks);
         /// let msg = 2;
         /// let modulus = MessageModulus(5);
         /// let ct = cks.encrypt_native_crt(msg, modulus);
@@ -635,6 +665,7 @@ mod experimental {
             let server_key = &self.wopbs_server_key;
 
             let lwe_size = server_key
+                .atomic_pattern
                 .key_switching_key
                 .output_key_lwe_dimension()
                 .to_lwe_size();
@@ -665,8 +696,8 @@ mod experimental {
         {
             let server_key = &self.wopbs_server_key;
 
-            let bsk = &server_key.bootstrapping_key;
-            let ksk = &server_key.key_switching_key;
+            let bsk = &server_key.atomic_pattern.bootstrapping_key;
+            let ksk = &server_key.atomic_pattern.key_switching_key;
 
             let fft = Fft::new(bsk.polynomial_size());
             let fft = fft.as_view();
@@ -752,15 +783,20 @@ mod experimental {
             let acc = self.pbs_server_key.generate_lookup_table(|x| x);
 
             ShortintEngine::with_thread_local_mut(|engine| {
-                let (mut ciphertext_buffer, buffers) = engine.get_buffers(&self.pbs_server_key);
+                let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                    self.pbs_server_key
+                        .atomic_pattern
+                        .ciphertext_lwe_dimension(),
+                    self.pbs_server_key.atomic_pattern.ciphertext_modulus(),
+                );
                 // Compute a key switch
                 keyswitch_lwe_ciphertext(
-                    &self.pbs_server_key.key_switching_key,
+                    &self.pbs_server_key.atomic_pattern.key_switching_key,
                     &ct_in.ct,
                     &mut ciphertext_buffer,
                 );
 
-                let ct_out = match &self.pbs_server_key.bootstrapping_key {
+                let ct_out = match &self.pbs_server_key.atomic_pattern.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
                         bsk: fourier_bsk,
                         modulus_switch_noise_reduction_key: _,
@@ -853,7 +889,7 @@ mod experimental {
             LutCont: Container<Element = u64>,
         {
             let sks = &self.wopbs_server_key;
-            let fourier_bsk = &sks.bootstrapping_key;
+            let fourier_bsk = &sks.atomic_pattern.bootstrapping_key;
 
             let output_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
 
@@ -889,7 +925,7 @@ mod experimental {
 
                 let stack = buffers.stack();
 
-                match &sks.bootstrapping_key {
+                match &sks.atomic_pattern.bootstrapping_key {
                     ShortintBootstrappingKey::Classic{bsk, modulus_switch_noise_reduction_key:_ } => {
                         circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(
                             extracted_bits,

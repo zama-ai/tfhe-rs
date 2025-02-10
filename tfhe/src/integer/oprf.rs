@@ -1,6 +1,8 @@
 use super::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::DefaultRandomGenerator;
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
+use crate::shortint::server_key::ClassicalServerKeyView;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 pub use tfhe_csprng::seeders::{Seed, Seeder};
@@ -38,6 +40,8 @@ impl ServerKey {
 
         let random_bits_count = range_log_size;
 
+        let sk = &self.key;
+
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
@@ -61,11 +65,9 @@ impl ServerKey {
 
                         assert!(top_message_bits_count <= message_bits_count);
 
-                        self.key
-                            .generate_oblivious_pseudo_random(seed, top_message_bits_count)
+                        sk.generate_oblivious_pseudo_random(seed, top_message_bits_count)
                     } else {
-                        self.key
-                            .generate_oblivious_pseudo_random(seed, message_bits_count)
+                        sk.generate_oblivious_pseudo_random(seed, message_bits_count)
                     }
                 } else {
                     self.key.create_trivial(0)
@@ -112,6 +114,14 @@ impl ServerKey {
         assert!(self.message_modulus().0.is_power_of_two());
         let range_log_size = self.message_modulus().0.ilog2() as u64 * num_blocks;
 
+        let sk = ClassicalServerKeyView::try_from(self.key.as_view()).unwrap_or_else(|_| {
+            panic!(
+                "Trying to generate random, but this is not supported by the chosen atomic \
+                 pattern: {:?}",
+                self.key.atomic_pattern.atomic_pattern()
+            )
+        });
+
         assert!(
             random_bits_count <= range_log_size,
             "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, 2^{range_log_size}[", 
@@ -140,11 +150,9 @@ impl ServerKey {
 
                         assert!(top_message_bits_count <= message_bits_count);
 
-                        self.key
-                            .generate_oblivious_pseudo_random(seed, top_message_bits_count)
+                        sk.generate_oblivious_pseudo_random(seed, top_message_bits_count)
                     } else {
-                        self.key
-                            .generate_oblivious_pseudo_random(seed, message_bits_count)
+                        sk.generate_oblivious_pseudo_random(seed, message_bits_count)
                     }
                 } else {
                     self.key.create_trivial(0)
@@ -184,6 +192,14 @@ impl ServerKey {
         seed: Seed,
         num_blocks: u64,
     ) -> SignedRadixCiphertext {
+        let sk = ClassicalServerKeyView::try_from(self.key.as_view()).unwrap_or_else(|_| {
+            panic!(
+                "Trying to generate random, but this is not supported by the chosen atomic \
+                 pattern: {:?}",
+                self.key.atomic_pattern.atomic_pattern()
+            )
+        });
+
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
@@ -195,10 +211,7 @@ impl ServerKey {
 
         let blocks = seeds
             .into_par_iter()
-            .map(|seed| {
-                self.key
-                    .generate_oblivious_pseudo_random(seed, message_bits_count)
-            })
+            .map(|seed| sk.generate_oblivious_pseudo_random(seed, message_bits_count))
             .collect::<Vec<_>>();
 
         SignedRadixCiphertext::from(blocks)
@@ -250,6 +263,14 @@ impl ServerKey {
             );
         }
 
+        let sk = ClassicalServerKeyView::try_from(self.key.as_view()).unwrap_or_else(|_| {
+            panic!(
+                "Trying to generate random, but this is not supported by the chosen atomic \
+                 pattern: {:?}",
+                self.key.atomic_pattern.atomic_pattern()
+            )
+        });
+
         assert!(self.message_modulus().0.is_power_of_two());
         let message_bits_count = self.message_modulus().0.ilog2() as u64;
 
@@ -273,11 +294,9 @@ impl ServerKey {
 
                         assert!(top_message_bits_count <= message_bits_count);
 
-                        self.key
-                            .generate_oblivious_pseudo_random(seed, top_message_bits_count)
+                        sk.generate_oblivious_pseudo_random(seed, top_message_bits_count)
                     } else {
-                        self.key
-                            .generate_oblivious_pseudo_random(seed, message_bits_count)
+                        sk.generate_oblivious_pseudo_random(seed, message_bits_count)
                     }
                 } else {
                     self.key.create_trivial(0)

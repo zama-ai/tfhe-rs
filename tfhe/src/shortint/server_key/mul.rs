@@ -1,10 +1,11 @@
 use super::add::unchecked_add_assign;
-use super::{CiphertextNoiseDegree, ServerKey};
+use super::CiphertextNoiseDegree;
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::CheckError;
+use crate::shortint::server_key::{CheckError, GenericServerKey};
 use crate::shortint::Ciphertext;
 
-impl ServerKey {
+impl<AP: AtomicPatternOperations> GenericServerKey<AP> {
     /// Multiply two ciphertexts together without checks.
     ///
     /// Return the "least significant bits" of the multiplication, i.e., the result modulus the

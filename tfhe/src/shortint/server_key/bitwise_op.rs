@@ -1,9 +1,10 @@
-use super::ServerKey;
 use crate::core_crypto::algorithms::lwe_ciphertext_opposite_assign;
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::Degree;
+use crate::shortint::server_key::GenericServerKey;
 use crate::shortint::{CheckError, Ciphertext};
 
-impl ServerKey {
+impl<AP: AtomicPatternOperations> GenericServerKey<AP> {
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will

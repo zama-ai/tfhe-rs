@@ -700,6 +700,7 @@ pub mod gpu {
 mod tests {
     use crate::prelude::*;
     use crate::safe_serialization::{safe_deserialize, safe_serialize};
+    use crate::shortint::atomic_pattern::AtomicPatternParameters;
     // TODO GPU DRIFT UPDATE
     use crate::shortint::parameters::current_params::{
         V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -720,7 +721,10 @@ mod tests {
     #[test]
     fn test_compressed_ct_list_cpu_gpu() {
         // TODO GPU DRIFT UPDATE
-        let (test_params, comp_params) = if cfg!(feature = "gpu") {
+        let (test_params, comp_params): (
+            [PBSParameters; 2],
+            crate::shortint::parameters::CompressionParameters,
+        ) = if cfg!(feature = "gpu") {
             (
                 [
                     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
@@ -739,9 +743,11 @@ mod tests {
         };
 
         for params in test_params {
-            let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
-                .enable_compression(comp_params)
-                .build();
+            let config = crate::ConfigBuilder::with_custom_parameters(
+                AtomicPatternParameters::Classical(params),
+            )
+            .enable_compression(comp_params)
+            .build();
 
             let ck = crate::ClientKey::generate(config);
             let sk = crate::CompressedServerKey::new(&ck);
@@ -889,8 +895,8 @@ mod tests {
     #[cfg(feature = "strings")]
     #[test]
     fn test_compressed_strings_cpu() {
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-        let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let config = crate::ConfigBuilder::with_custom_parameters(params)
             .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
             .build();
 

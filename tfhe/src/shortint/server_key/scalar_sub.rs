@@ -1,11 +1,12 @@
 use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, MessageModulus, PaddingBit, ServerKey};
+use crate::shortint::server_key::{CheckError, GenericServerKey};
+use crate::shortint::{Ciphertext, MessageModulus, PaddingBit};
 
-impl ServerKey {
+impl<AP: AtomicPatternOperations> GenericServerKey<AP> {
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// The result is returned in a _new_ ciphertext.

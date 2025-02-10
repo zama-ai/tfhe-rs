@@ -49,11 +49,11 @@ impl Deprecable for ServerKey {
     const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
-#[derive(VersionsDispatch)]
-pub enum ServerKeyVersions {
-    V0(Deprecated<ServerKey>),
-    V1(ServerKey),
-}
+// #[derive(VersionsDispatch)]
+// pub enum ServerKeyVersions {
+//     V0(Deprecated<ServerKey>),
+//     V1(ServerKey),
+// }
 
 impl Deprecable for ShortintCompressedBootstrappingKey {
     const TYPE_NAME: &'static str = "ShortintCompressedBootstrappingKey";

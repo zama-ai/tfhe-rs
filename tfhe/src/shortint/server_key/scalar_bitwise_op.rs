@@ -1,8 +1,9 @@
-use super::ServerKey;
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::Degree;
+use crate::shortint::server_key::GenericServerKey;
 use crate::shortint::Ciphertext;
 
-impl ServerKey {
+impl<AP: AtomicPatternOperations> GenericServerKey<AP> {
     /// Compute homomorphically a bitwise AND between a ciphertext and a clear value
     ///
     ///

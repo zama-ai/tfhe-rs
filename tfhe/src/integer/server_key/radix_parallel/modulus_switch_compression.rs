@@ -4,6 +4,8 @@ use crate::integer::ciphertext::{
     CompressedModulusSwitchedSignedRadixCiphertext,
 };
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
+use crate::shortint::server_key::ClassicalServerKeyView;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 
@@ -61,6 +63,13 @@ impl ServerKey {
         &self,
         blocks: &[Ciphertext],
     ) -> CompressedModulusSwitchedRadixCiphertextGeneric {
+        let sk = ClassicalServerKeyView::try_from(self.key.as_view()).unwrap_or_else(|_| {
+            panic!(
+                "Compression is not supported by the chosen atomic pattern: {:?}",
+                self.key.atomic_pattern.atomic_pattern()
+            )
+        });
+
         assert!(
             self.message_modulus().0 <= self.carry_modulus().0,
             "Compression does not support message_modulus > carry_modulus"
@@ -95,11 +104,11 @@ impl ServerKey {
 
                 self.key.unchecked_add_assign(&mut packed, &scaled);
 
-                self.key.switch_modulus_and_compress(&packed)
+                sk.switch_modulus_and_compress(&packed)
             })
             .collect();
 
-        let last_block = last_block.map(|a| self.key.switch_modulus_and_compress(a));
+        let last_block = last_block.map(|a| sk.switch_modulus_and_compress(a));
 
         CompressedModulusSwitchedRadixCiphertextGeneric {
             paired_blocks,
@@ -111,6 +120,13 @@ impl ServerKey {
         &self,
         compressed_ct: &CompressedModulusSwitchedRadixCiphertextGeneric,
     ) -> Vec<Ciphertext> {
+        let sk = ClassicalServerKeyView::try_from(self.key.as_view()).unwrap_or_else(|_| {
+            panic!(
+                "Decompression is not supported by the chosen atomic pattern: {:?}",
+                self.key.atomic_pattern.atomic_pattern()
+            )
+        });
+
         let message_extract = self
             .key
             .generate_lookup_table(|x| x % self.message_modulus().0);
@@ -124,19 +140,14 @@ impl ServerKey {
             .par_iter()
             .flat_map(|a| {
                 [
-                    self.key
-                        .decompress_and_apply_lookup_table(a, &message_extract),
-                    self.key
-                        .decompress_and_apply_lookup_table(a, &carry_extract),
+                    sk.decompress_and_apply_lookup_table(a, &message_extract),
+                    sk.decompress_and_apply_lookup_table(a, &carry_extract),
                 ]
             })
             .collect();
 
         if let Some(last_block) = compressed_ct.last_block.as_ref() {
-            blocks.push(
-                self.key
-                    .decompress_and_apply_lookup_table(last_block, &message_extract),
-            );
+            blocks.push(sk.decompress_and_apply_lookup_table(last_block, &message_extract));
         }
 
         blocks

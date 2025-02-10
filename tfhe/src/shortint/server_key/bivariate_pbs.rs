@@ -1,7 +1,9 @@
-use super::{CheckError, CiphertextNoiseDegree, LookupTable, ServerKey};
+use super::{CheckError, CiphertextNoiseDegree, LookupTable};
 use crate::core_crypto::prelude::container::Container;
+use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
 use crate::shortint::server_key::add::unchecked_add_assign;
+use crate::shortint::server_key::GenericServerKey;
 use crate::shortint::{Ciphertext, MessageModulus};
 use std::cmp::Ordering;
 
@@ -22,8 +24,8 @@ pub type BivariateLookupTableView<'a> = BivariateLookupTable<&'a [u64]>;
 /// Returns whether it is possible to pack lhs and rhs into a unique
 /// ciphertext without exceeding the max storable value using the formula:
 /// `unique_ciphertext = (lhs * factor) + rhs`
-fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
-    server_key: &ServerKey,
+fn ciphertexts_can_be_packed_without_exceeding_space_or_noise<AP: AtomicPatternOperations>(
+    server_key: &GenericServerKey<AP>,
     lhs: CiphertextNoiseDegree,
     rhs: CiphertextNoiseDegree,
     factor: u64,
@@ -50,7 +52,7 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
     Ok(())
 }
 
-impl ServerKey {
+impl<AP: AtomicPatternOperations> GenericServerKey<AP> {
     /// Generates a bivariate accumulator
     pub fn generate_lookup_table_bivariate_with_factor<F>(
         &self,
