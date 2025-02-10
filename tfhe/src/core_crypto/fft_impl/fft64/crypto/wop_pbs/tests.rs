@@ -1,7 +1,7 @@
 use super::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::test::{FftWopPbsKeys, FftWopPbsTestParams};
-use crate::core_crypto::commons::dispersion::LogStandardDev;
+use crate::core_crypto::commons::dispersion::StandardDev;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::test_tools;
 use crate::core_crypto::fft_impl::common::tests::gen_keys_or_get_from_cache_if_enabled;
@@ -103,7 +103,7 @@ pub fn test_extract_bits() {
     let level_ksk = DecompositionLevelCount(7);
     let base_log_ksk = DecompositionBaseLog(4);
 
-    let std = LogStandardDev::from_log_standard_dev(-60.);
+    let std = StandardDev::from_log_standard_dev(-60.);
     let noise_distribution = DynamicDistribution::new_gaussian(std);
 
     let ciphertext_modulus = CiphertextModulus::new_native();
@@ -266,7 +266,7 @@ fn test_circuit_bootstrapping_binary() {
     let level_count_cbs = DecompositionLevelCount(1);
     let base_log_cbs = DecompositionBaseLog(10);
 
-    let std = LogStandardDev::from_log_standard_dev(-60.);
+    let std = StandardDev::from_log_standard_dev(-60.);
     let noise_distribution = DynamicDistribution::new_gaussian(std);
 
     let ciphertext_modulus = CiphertextModulus::new_native();
@@ -451,7 +451,7 @@ pub fn test_cmux_tree() {
     // Define settings for an insecure toy example
     let polynomial_size = PolynomialSize(512);
     let glwe_dimension = GlweDimension(1);
-    let std = LogStandardDev::from_log_standard_dev(-60.);
+    let std = StandardDev::from_log_standard_dev(-60.);
     let noise_distribution = DynamicDistribution::new_gaussian(std);
     let level = DecompositionLevelCount(3);
     let base_log = DecompositionBaseLog(6);
