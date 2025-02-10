@@ -1,6 +1,7 @@
 use super::CompressionPrivateKeys;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::*;
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::backward_compatibility::list_compression::{
     CompressionKeyVersions, DecompressionKeyVersions,
 };
@@ -10,7 +11,7 @@ use crate::shortint::parameters::{CompressionParameters, PolynomialSize};
 use crate::shortint::server_key::{
     PBSConformanceParams, PbsTypeConformanceParams, ShortintBootstrappingKey,
 };
-use crate::shortint::{EncryptionKeyChoice, PBSParameters};
+use crate::shortint::EncryptionKeyChoice;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
@@ -120,8 +121,10 @@ pub struct CompressionKeyConformanceParams {
     pub cipherext_modulus: CiphertextModulus<u64>,
 }
 
-impl From<(PBSParameters, CompressionParameters)> for CompressionKeyConformanceParams {
-    fn from((pbs_params, compression_params): (PBSParameters, CompressionParameters)) -> Self {
+impl From<(AtomicPatternParameters, CompressionParameters)> for CompressionKeyConformanceParams {
+    fn from(
+        (ap_params, compression_params): (AtomicPatternParameters, CompressionParameters),
+    ) -> Self {
         Self {
             br_level: compression_params.br_level,
             br_base_log: compression_params.br_base_log,
@@ -131,9 +134,9 @@ impl From<(PBSParameters, CompressionParameters)> for CompressionKeyConformanceP
             packing_ks_glwe_dimension: compression_params.packing_ks_glwe_dimension,
             lwe_per_glwe: compression_params.lwe_per_glwe,
             storage_log_modulus: compression_params.storage_log_modulus,
-            uncompressed_polynomial_size: pbs_params.polynomial_size(),
-            uncompressed_glwe_dimension: pbs_params.glwe_dimension(),
-            cipherext_modulus: pbs_params.ciphertext_modulus(),
+            uncompressed_polynomial_size: ap_params.polynomial_size(),
+            uncompressed_glwe_dimension: ap_params.glwe_dimension(),
+            cipherext_modulus: ap_params.ciphertext_modulus(),
         }
     }
 }

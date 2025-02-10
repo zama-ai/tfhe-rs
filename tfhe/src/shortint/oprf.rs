@@ -1,18 +1,18 @@
-use super::server_key::ShortintBootstrappingKey;
+use super::server_key::{
+    apply_programmable_bootstrap_no_ms_noise_reduction, GenericServerKey, LookupTableSize,
+    ShortintBootstrappingKey,
+};
 use super::Ciphertext;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, CiphertextModulus,
-    CiphertextModulusLog, LweCiphertext, LweCiphertextOwned, LweSize, Plaintext,
+    lwe_ciphertext_plaintext_add_assign, CiphertextModulus, CiphertextModulusLog, LweCiphertext,
+    LweCiphertextOwned, LweSize, Plaintext,
 };
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{AtomicPatternKind, NoiseLevel};
-use crate::shortint::server_key::{
-    apply_programmable_bootstrap_no_ms_noise_reduction, generate_lookup_table_no_encode,
-    LookupTableSize,
-};
-use crate::shortint::{PBSOrder, ServerKey};
+use crate::shortint::parameters::NoiseLevel;
+use crate::shortint::server_key::generate_lookup_table_no_encode;
 use tfhe_csprng::seeders::Seed;
 
 pub fn sha3_hash(values: &mut [u64], seed: Seed) {
@@ -116,7 +116,7 @@ pub(crate) fn generate_pseudo_random_from_pbs(
     ct
 }
 
-impl ServerKey {
+impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
     /// `2^random_bits_count` must be smaller than the message modulus
     /// The encryted value is oblivious to the server
@@ -160,82 +160,19 @@ impl ServerKey {
             "The number of random bits asked for (={random_bits_count}) is bigger than carry_bits_count (={carry_bits_count}) + message_bits_count(={message_bits_count})",
         );
 
-        self.generate_oblivious_pseudo_random_custom_encoding(
+        let ct = self.atomic_pattern.generate_oblivious_pseudo_random(
             seed,
             random_bits_count,
             1 + carry_bits_count + message_bits_count,
-        )
-    }
-
-    /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
-    /// The output in in the form 0000rrr000noise (rbc=3, fbc=7)
-    /// The encryted value is oblivious to the server
-    pub(crate) fn generate_oblivious_pseudo_random_custom_encoding(
-        &self,
-        seed: Seed,
-        random_bits_count: u64,
-        full_bits_count: u64,
-    ) -> Ciphertext {
-        assert!(
-            random_bits_count <= full_bits_count,
-            "The number of random bits asked for (={random_bits_count}) is bigger than full_bits_count (={full_bits_count})"
         );
-
-        let in_lwe_size = self.bootstrapping_key.input_lwe_dimension().to_lwe_size();
-
-        let seeded = create_random_from_seed_modulus_switched(
-            seed,
-            in_lwe_size,
-            self.bootstrapping_key
-                .polynomial_size()
-                .to_blind_rotation_input_modulus_log(),
-            self.ciphertext_modulus,
-        );
-
-        let p = 1 << random_bits_count;
-
-        let delta = 1_u64 << (64 - full_bits_count);
-
-        let poly_delta = 2 * self.bootstrapping_key.polynomial_size().0 as u64 / p;
-
-        let acc = self.generate_lookup_table_no_encode(|x| (2 * (x / poly_delta) + 1) * delta / 2);
-
-        let out_lwe_size = self.bootstrapping_key.output_lwe_dimension().to_lwe_size();
-
-        let mut ct = LweCiphertext::new(0, out_lwe_size, self.ciphertext_modulus);
-
-        ShortintEngine::with_thread_local_mut(|engine| {
-            let buffers = engine.get_computation_buffers();
-
-            apply_programmable_bootstrap_no_ms_noise_reduction(
-                &self.bootstrapping_key,
-                &seeded,
-                &mut ct,
-                &acc,
-                buffers,
-            );
-        });
-
-        lwe_ciphertext_plaintext_add_assign(&mut ct, Plaintext((p - 1) * delta / 2));
-
-        let ct = match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => ct,
-            PBSOrder::BootstrapKeyswitch => {
-                let mut ct_ksed = LweCiphertext::new(0, in_lwe_size, self.ciphertext_modulus);
-
-                keyswitch_lwe_ciphertext(&self.key_switching_key, &ct, &mut ct_ksed);
-
-                ct_ksed
-            }
-        };
 
         Ciphertext::new(
             ct,
-            Degree::new(p - 1),
+            Degree::new((1 << random_bits_count) - 1),
             NoiseLevel::NOMINAL,
             self.message_modulus,
             self.carry_modulus,
-            AtomicPatternKind::Classical(self.pbs_order),
+            self.atomic_pattern.kind(),
         )
     }
 }
@@ -244,7 +181,8 @@ impl ServerKey {
 pub(crate) mod test {
     use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
     use crate::shortint::oprf::create_random_from_seed_modulus_switched;
-    use crate::shortint::{ClientKey, ServerKey};
+    use crate::shortint::server_key::ClassicalServerKey;
+    use crate::shortint::ClientKey;
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
@@ -259,13 +197,14 @@ pub(crate) mod test {
         use crate::shortint::gen_keys;
         use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         let (ck, sk) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        let sk = sk.try_into().unwrap();
 
         for seed in 0..1000 {
             oprf_compare_plain_from_seed(Seed(seed), &ck, &sk);
         }
     }
 
-    fn oprf_compare_plain_from_seed(seed: Seed, ck: &ClientKey, sk: &ServerKey) {
+    fn oprf_compare_plain_from_seed(seed: Seed, ck: &ClientKey, sk: &ClassicalServerKey) {
         let params = ck.parameters;
 
         let random_bits_count = 2;
@@ -282,12 +221,17 @@ pub(crate) mod test {
 
         let img = sk.generate_oblivious_pseudo_random(seed, random_bits_count);
 
-        let lwe_size = sk.bootstrapping_key.input_lwe_dimension().to_lwe_size();
+        let lwe_size = sk
+            .atomic_pattern
+            .bootstrapping_key
+            .input_lwe_dimension()
+            .to_lwe_size();
 
         let ct = create_random_from_seed_modulus_switched(
             seed,
             lwe_size,
-            sk.bootstrapping_key
+            sk.atomic_pattern
+                .bootstrapping_key
                 .polynomial_size()
                 .to_blind_rotation_input_modulus_log(),
             sk.ciphertext_modulus,
@@ -333,6 +277,7 @@ pub(crate) mod test {
         use crate::shortint::gen_keys;
         use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         let (ck, sk) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        let sk = ClassicalServerKey::try_from(sk).unwrap();
 
         let test_uniformity = |distinct_values: u64, f: &(dyn Fn(usize) -> u64 + Sync)| {
             test_uniformity(sample_count, p_value_limit, distinct_values, f)
@@ -341,7 +286,9 @@ pub(crate) mod test {
         let random_bits_count = 2;
 
         test_uniformity(1 << random_bits_count, &|seed| {
-            let img = sk.generate_oblivious_pseudo_random(Seed(seed as u128), random_bits_count);
+            let img = sk
+                .as_view()
+                .generate_oblivious_pseudo_random(Seed(seed as u128), random_bits_count);
 
             ck.decrypt_message_and_carry(&img)
         });
