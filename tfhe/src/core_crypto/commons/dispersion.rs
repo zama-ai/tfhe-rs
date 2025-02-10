@@ -14,7 +14,7 @@
 //! defined.
 
 use serde::{Deserialize, Serialize};
-use tfhe_versionable::Versionize;
+use tfhe_versionable::{NotVersioned, Versionize};
 
 use crate::core_crypto::backward_compatibility::commons::dispersion::StandardDevVersions;
 
@@ -32,10 +32,10 @@ pub trait DispersionParameter: Copy {
     /// $\log\_2(\sigma)=p$
     fn get_log_standard_dev(&self) -> LogStandardDev;
     /// For a `Uint` type representing $\mathbb{Z}/2^q\mathbb{Z}$, we return $2^{q-p}$.
-    fn get_modular_standard_dev(&self, log2_modulus: u32) -> ModularStandardDev;
+    fn get_modular_standard_dev(&self, modulus: f64) -> ModularStandardDev;
 
     /// For a `Uint` type representing $\mathbb{Z}/2^q\mathbb{Z}$, we return $2^{2(q-p)}$.
-    fn get_modular_variance(&self, log2_modulus: u32) -> ModularVariance;
+    fn get_modular_variance(&self, modulus: f64) -> ModularVariance;
 
     /// For a `Uint` type representing $\mathbb{Z}/2^q\mathbb{Z}$, we return $q-p$.
     fn get_modular_log_standard_dev(&self, log2_modulus: u32) -> ModularLogStandardDev;
@@ -57,12 +57,12 @@ fn log2_modulus_to_modulus(log2_modulus: u32) -> f64 {
 /// assert_eq!(params.get_log_standard_dev().0, -25.);
 /// assert_eq!(params.get_variance().0, 2_f64.powf(-25.).powi(2));
 /// assert_eq!(
-///     params.get_modular_standard_dev(32).value,
+///     params.get_modular_standard_dev(32.0).value,
 ///     2_f64.powf(32. - 25.)
 /// );
 /// assert_eq!(params.get_modular_log_standard_dev(32).value, 32. - 25.);
 /// assert_eq!(
-///     params.get_modular_variance(32).value,
+///     params.get_modular_variance(32.0).value,
 ///     2_f64.powf(32. - 25.).powi(2)
 /// );
 ///
@@ -98,16 +98,18 @@ impl DispersionParameter for LogStandardDev {
     fn get_log_standard_dev(&self) -> Self {
         Self(self.0)
     }
-    fn get_modular_standard_dev(&self, log2_modulus: u32) -> ModularStandardDev {
+    fn get_modular_standard_dev(&self, modulus: f64) -> ModularStandardDev {
         ModularStandardDev {
-            value: f64::powf(2., log2_modulus as f64 + self.0),
-            modulus: log2_modulus_to_modulus(log2_modulus),
+            value: 2_f64.powf(self.0) * modulus,
+            modulus,
         }
     }
-    fn get_modular_variance(&self, log2_modulus: u32) -> ModularVariance {
+    fn get_modular_variance(&self, modulus: f64) -> ModularVariance {
+        let std_dev = 2_f64.powf(self.0) * modulus;
+
         ModularVariance {
-            value: f64::powf(2., (log2_modulus as f64 + self.0) * 2.),
-            modulus: log2_modulus_to_modulus(log2_modulus),
+            value: std_dev * std_dev,
+            modulus,
         }
     }
     fn get_modular_log_standard_dev(&self, log2_modulus: u32) -> ModularLogStandardDev {
@@ -129,12 +131,12 @@ impl DispersionParameter for LogStandardDev {
 /// assert_eq!(params.get_log_standard_dev().0, -25.);
 /// assert_eq!(params.get_variance().0, 2_f64.powf(-25.).powi(2));
 /// assert_eq!(
-///     params.get_modular_standard_dev(32).value,
+///     params.get_modular_standard_dev(32.0).value,
 ///     2_f64.powf(32. - 25.)
 /// );
 /// assert_eq!(params.get_modular_log_standard_dev(32).value, 32. - 25.);
 /// assert_eq!(
-///     params.get_modular_variance(32).value,
+///     params.get_modular_variance(32.0).value,
 ///     2_f64.powf(32. - 25.).powi(2)
 /// );
 /// ```
@@ -168,16 +170,18 @@ impl DispersionParameter for StandardDev {
     fn get_log_standard_dev(&self) -> LogStandardDev {
         LogStandardDev(self.0.log2())
     }
-    fn get_modular_standard_dev(&self, log2_modulus: u32) -> ModularStandardDev {
+    fn get_modular_standard_dev(&self, modulus: f64) -> ModularStandardDev {
         ModularStandardDev {
-            value: 2_f64.powf(log2_modulus as f64 + self.0.log2()),
-            modulus: log2_modulus_to_modulus(log2_modulus),
+            value: self.0 * modulus,
+            modulus,
         }
     }
-    fn get_modular_variance(&self, log2_modulus: u32) -> ModularVariance {
+    fn get_modular_variance(&self, modulus: f64) -> ModularVariance {
+        let std_dev = self.0 * modulus;
+
         ModularVariance {
-            value: 2_f64.powf(2. * (log2_modulus as f64 + self.0.log2())),
-            modulus: log2_modulus_to_modulus(log2_modulus),
+            value: std_dev * std_dev,
+            modulus,
         }
     }
     fn get_modular_log_standard_dev(&self, log2_modulus: u32) -> ModularLogStandardDev {
@@ -199,16 +203,16 @@ impl DispersionParameter for StandardDev {
 /// assert_eq!(params.get_log_standard_dev().0, -25.);
 /// assert_eq!(params.get_variance().0, 2_f64.powf(-25.).powi(2));
 /// assert_eq!(
-///     params.get_modular_standard_dev(32).value,
+///     params.get_modular_standard_dev(32.0).value,
 ///     2_f64.powf(32. - 25.)
 /// );
 /// assert_eq!(params.get_modular_log_standard_dev(32).value, 32. - 25.);
 /// assert_eq!(
-///     params.get_modular_variance(32).value,
+///     params.get_modular_variance(32.0).value,
 ///     2_f64.powf(32. - 25.).powi(2)
 /// );
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, NotVersioned, Serialize, Deserialize)]
 pub struct Variance(pub f64);
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
@@ -222,8 +226,8 @@ impl Variance {
         Self(var)
     }
 
-    pub fn from_modular_variance(var: f64, log2_modulus: u32) -> Self {
-        Self(var / 2_f64.powf(log2_modulus as f64 * 2.))
+    pub fn from_modular_variance(var: f64, modulus: f64) -> Self {
+        Self(var / (modulus * modulus))
     }
 }
 
@@ -237,16 +241,16 @@ impl DispersionParameter for Variance {
     fn get_log_standard_dev(&self) -> LogStandardDev {
         LogStandardDev(self.0.sqrt().log2())
     }
-    fn get_modular_standard_dev(&self, log2_modulus: u32) -> ModularStandardDev {
+    fn get_modular_standard_dev(&self, modulus: f64) -> ModularStandardDev {
         ModularStandardDev {
-            value: 2_f64.powf(log2_modulus as f64 + self.0.sqrt().log2()),
-            modulus: log2_modulus_to_modulus(log2_modulus),
+            value: self.0.sqrt() * modulus,
+            modulus,
         }
     }
-    fn get_modular_variance(&self, log2_modulus: u32) -> ModularVariance {
+    fn get_modular_variance(&self, modulus: f64) -> ModularVariance {
         ModularVariance {
-            value: 2_f64.powf(2. * (log2_modulus as f64 + self.0.sqrt().log2())),
-            modulus: log2_modulus_to_modulus(log2_modulus),
+            value: self.0 * modulus * modulus,
+            modulus,
         }
     }
     fn get_modular_log_standard_dev(&self, log2_modulus: u32) -> ModularLogStandardDev {
