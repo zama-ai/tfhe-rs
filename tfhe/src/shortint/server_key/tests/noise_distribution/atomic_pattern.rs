@@ -2992,9 +2992,10 @@ const PBS128_PARAMS: PBS128Parameters = PBS128Parameters {
     decomp_base_log: DecompositionBaseLog(24),
     decomp_level_count: DecompositionLevelCount(3),
     modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-        modulus_switch_zeros_count: LweCiphertextCount(1161),
+        modulus_switch_zeros_count: LweCiphertextCount(1449),
         ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
-        ms_r_sigma_factor: RSigmaFactor(14.6186301624361f64),
+        ms_r_sigma_factor: RSigmaFactor(13.179852282053789f64),
+        ms_input_variance: Variance(2.63039184094559E-7f64),
     }),
     mantissa_size: 104f64,
     // 2^128
@@ -3090,7 +3091,7 @@ fn br_to_squash_pbs_128_inner_helper(
                 ModulusSwitchNoiseReductionKey::new(
                     ms_param,
                     &thread_cks.small_lwe_secret_key(),
-                    &mut engine.encryption_generator,
+                    &mut engine,
                     block_params.ciphertext_modulus(),
                     block_params.lwe_noise_distribution(),
                 )
@@ -3503,7 +3504,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
     let before_pbs_128_ms_noise_reduction_key = Some(ModulusSwitchNoiseReductionKey::new(
         pbs128_params.modulus_switch_noise_reduction_params.unwrap(),
         &cks.small_lwe_secret_key(),
-        &mut engine.encryption_generator,
+        &mut engine,
         block_params.ciphertext_modulus(),
         block_params.lwe_noise_distribution(),
     ));
@@ -3914,7 +3915,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
     let before_pbs_128_ms_noise_reduction_key = Some(ModulusSwitchNoiseReductionKey::new(
         pbs128_params.modulus_switch_noise_reduction_params.unwrap(),
         &cks.small_lwe_secret_key(),
-        &mut engine.encryption_generator,
+        &mut engine,
         block_params.ciphertext_modulus(),
         block_params.lwe_noise_distribution(),
     ));

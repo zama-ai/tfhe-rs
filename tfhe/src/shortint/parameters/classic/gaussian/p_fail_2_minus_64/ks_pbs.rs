@@ -5,6 +5,7 @@ use crate::shortint::parameters::{
 };
 
 // p-fail = 2^-128.377, algorithmic cost ~ 110, 2-norm = 5
+// Average number of encryptions of 0s ~ 17, peak noise ~ Variance(0.00000141649065433221)
 pub const V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(866),
@@ -27,9 +28,10 @@ pub const V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128: ClassicPBSParamete
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(1092),
+            modulus_switch_zeros_count: LweCiphertextCount(1446),
             ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
-            ms_r_sigma_factor: RSigmaFactor(15.0501465920567f64),
+            ms_r_sigma_factor: RSigmaFactor(13.128441378136914f64),
+            ms_input_variance: Variance(3.38639994643900E-7f64),
         }),
     };
 

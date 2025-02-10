@@ -441,6 +441,7 @@ impl PBSParameters {
 
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
 #[versionize(ShortintParameterSetInnerVersions)]
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum ShortintParameterSetInner {
     PBSOnly(PBSParameters),
     WopbsOnly(WopbsParameters),
@@ -838,5 +839,5 @@ pub struct ModulusSwitchNoiseReductionParams {
     pub modulus_switch_zeros_count: LweCiphertextCount,
     pub ms_bound: NoiseEstimationMeasureBound,
     pub ms_r_sigma_factor: RSigmaFactor,
-    pub input_variance: Variance,
+    pub ms_input_variance: Variance,
 }

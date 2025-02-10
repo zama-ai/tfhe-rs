@@ -55,7 +55,7 @@ pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
                 modulus_switch_zeros_count: LweCiphertextCount(*modulus_switch_zeros_count),
                 ms_bound: NoiseEstimationMeasureBound(*ms_bound),
                 ms_r_sigma_factor: RSigmaFactor(*ms_r_sigma_factor),
-                input_variance: todo!(),
+                ms_input_variance: todo!(),
             }
         },
     );

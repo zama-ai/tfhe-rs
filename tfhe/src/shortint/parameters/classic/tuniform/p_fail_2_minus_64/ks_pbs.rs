@@ -25,9 +25,10 @@ pub const V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ClassicPBSParamete
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(1161),
+            modulus_switch_zeros_count: LweCiphertextCount(1449),
             ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
-            ms_r_sigma_factor: RSigmaFactor(14.6186301624361f64),
+            ms_r_sigma_factor: RSigmaFactor(13.179852282053789f64),
+            ms_input_variance: Variance(2.63039184094559E-7f64),
         }),
     };
 

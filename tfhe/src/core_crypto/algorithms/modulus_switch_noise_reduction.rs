@@ -129,7 +129,11 @@ where
         "Expected at least one encryption of zero"
     );
 
-    let modulus = lwe.ciphertext_modulus().raw_modulus() as f64;
+    let modulus = if lwe.ciphertext_modulus().is_native_modulus() {
+        2.0f64.powi(Scalar::BITS as i32)
+    } else {
+        lwe.ciphertext_modulus().get_custom_modulus() as f64
+    };
 
     let input_variance = input_variance.get_modular_variance(modulus);
 
