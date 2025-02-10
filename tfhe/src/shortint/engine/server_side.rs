@@ -69,7 +69,7 @@ impl ShortintEngine {
         cks: &ClientKey,
         max_degree: MaxDegree,
     ) -> ServerKey {
-        let ap_key = ServerKeyAtomicPattern::new(cks, self);
+        let ap_key = AtomicPatternServerKey::new(cks, self);
 
         // Pack the keys in the server key set:
         ServerKey {
