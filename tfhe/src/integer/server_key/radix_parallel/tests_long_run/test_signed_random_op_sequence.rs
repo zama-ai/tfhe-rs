@@ -612,27 +612,26 @@ pub(crate) fn signed_random_op_sequence_test<P>(
         + rotate_shift_ops.len()
         + scalar_rotate_shift_ops.len();
     let binary_ops_range = 0..binary_ops.len();
-    let unary_ops_range = binary_ops_range.end..binary_ops_range.len() + unary_ops.len();
+    let unary_ops_range = binary_ops_range.end..binary_ops_range.end + unary_ops.len();
     let scalar_binary_ops_range =
-        unary_ops_range.end..unary_ops_range.len() + scalar_binary_ops.len();
+        unary_ops_range.end..unary_ops_range.end + scalar_binary_ops.len();
     let overflowing_ops_range =
-        scalar_binary_ops_range.end..scalar_binary_ops_range.len() + overflowing_ops.len();
+        scalar_binary_ops_range.end..scalar_binary_ops_range.end + overflowing_ops.len();
     let scalar_overflowing_ops_range =
-        overflowing_ops_range.end..overflowing_ops_range.len() + scalar_overflowing_ops.len();
+        overflowing_ops_range.end..overflowing_ops_range.end + scalar_overflowing_ops.len();
     let comparison_ops_range =
-        scalar_overflowing_ops_range.end..scalar_overflowing_ops_range.len() + comparison_ops.len();
+        scalar_overflowing_ops_range.end..scalar_overflowing_ops_range.end + comparison_ops.len();
     let scalar_comparison_ops_range =
-        comparison_ops_range.end..comparison_ops_range.len() + scalar_comparison_ops.len();
+        comparison_ops_range.end..comparison_ops_range.end + scalar_comparison_ops.len();
     let select_op_range =
-        scalar_comparison_ops_range.end..scalar_comparison_ops_range.len() + select_op.len();
-    let div_rem_op_range = select_op_range.end..select_op_range.len() + div_rem_op.len();
+        scalar_comparison_ops_range.end..scalar_comparison_ops_range.end + select_op.len();
+    let div_rem_op_range = select_op_range.end..select_op_range.end + div_rem_op.len();
     let scalar_div_rem_op_range =
-        div_rem_op_range.end..div_rem_op_range.len() + scalar_div_rem_op.len();
-    let log2_ops_range =
-        scalar_div_rem_op_range.end..scalar_div_rem_op_range.len() + log2_ops.len();
-    let rotate_shift_ops_range = log2_ops_range.end..log2_ops_range.len() + rotate_shift_ops.len();
+        div_rem_op_range.end..div_rem_op_range.end + scalar_div_rem_op.len();
+    let log2_ops_range = scalar_div_rem_op_range.end..scalar_div_rem_op_range.end + log2_ops.len();
+    let rotate_shift_ops_range = log2_ops_range.end..log2_ops_range.end + rotate_shift_ops.len();
     let scalar_rotate_shift_ops_range =
-        rotate_shift_ops_range.end..rotate_shift_ops_range.len() + scalar_rotate_shift_ops.len();
+        rotate_shift_ops_range.end..rotate_shift_ops_range.end + scalar_rotate_shift_ops.len();
     let mut clear_left_vec: Vec<i64> = (0..total_num_ops)
         .map(|_| rng.gen()) // Generate random i64 values
         .collect();
