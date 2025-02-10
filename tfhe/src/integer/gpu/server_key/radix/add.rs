@@ -540,11 +540,6 @@ impl CudaServerKey {
                 output_flag,
             );
 
-        ct_res.as_mut().info = ct_res
-            .as_ref()
-            .info
-            .after_overflowing_add(&rhs.as_ref().info);
-
         if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
             && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
         {
@@ -580,11 +575,6 @@ impl CudaServerKey {
                 input_carry,
                 output_flag,
             );
-
-        ct_res.as_mut().info = ct_res
-            .as_ref()
-            .info
-            .after_overflowing_add(&rhs.as_ref().info);
 
         if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
             && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO

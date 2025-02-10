@@ -131,19 +131,17 @@ void cuda_add_and_propagate_single_carry_kb_64_inplace(
 
 void cuda_integer_overflowing_sub_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lhs_array, const void *rhs_array, void *overflow_block,
-    const void *input_borrow, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, uint32_t num_blocks, uint32_t compute_overflow,
+    CudaRadixCiphertextFFI *lhs_array, const CudaRadixCiphertextFFI *rhs_array,
+    CudaRadixCiphertextFFI *overflow_block,
+    const CudaRadixCiphertextFFI *input_borrow, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks, uint32_t compute_overflow,
     uint32_t uses_input_borrow) {
 
   host_integer_overflowing_sub<uint64_t>(
-      (cudaStream_t const *)streams, gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lhs_array), static_cast<uint64_t *>(lhs_array),
-      static_cast<const uint64_t *>(rhs_array),
-      static_cast<uint64_t *>(overflow_block),
-      static_cast<const uint64_t *>(input_borrow),
+      (cudaStream_t const *)streams, gpu_indexes, gpu_count, lhs_array,
+      lhs_array, rhs_array, overflow_block, input_borrow,
       (int_borrow_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks,
-      num_blocks, compute_overflow, uses_input_borrow);
+      compute_overflow, uses_input_borrow);
 }
 
 void cleanup_cuda_propagate_single_carry(void *const *streams,

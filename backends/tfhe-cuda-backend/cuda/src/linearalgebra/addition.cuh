@@ -355,7 +355,7 @@ unchecked_sub_with_correcting_term(T *output, T const *input_1,
   }
 }
 template <typename T>
-__host__ void host_unchecked_sub_with_correcting_term(
+__host__ void legacy_host_unchecked_sub_with_correcting_term(
     cudaStream_t stream, uint32_t gpu_index, T *output, T const *input_1,
     T const *input_2, uint32_t input_lwe_dimension,
     uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
@@ -376,6 +376,57 @@ __host__ void host_unchecked_sub_with_correcting_term(
       output, input_1, input_2, num_entries, lwe_size, message_modulus,
       carry_modulus, degree);
   check_cuda_error(cudaGetLastError());
+}
+
+template <typename T>
+__host__ void host_unchecked_sub_with_correcting_term(
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *input_1,
+    CudaRadixCiphertextFFI const *input_2, uint32_t num_radix_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus) {
+
+  if (output->lwe_dimension != input_1->lwe_dimension ||
+      output->lwe_dimension != input_2->lwe_dimension)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  if (output->num_radix_blocks < num_radix_blocks ||
+      input_1->num_radix_blocks < num_radix_blocks ||
+      input_2->num_radix_blocks < num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be larger or "
+          "equal to the num blocks to add")
+
+  cuda_set_device(gpu_index);
+  // lwe_size includes the presence of the body
+  // whereas lwe_dimension is the number of elements in the mask
+  int lwe_size = output->lwe_dimension + 1;
+  // Create a 1-dimensional grid of threads
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = num_radix_blocks * lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  // Here we assume this function is always called with correcting term
+  // message_modulus - 1 in the radix blocks
+  unchecked_sub_with_correcting_term<T><<<grid, thds, 0, stream>>>(
+      (T *)output->ptr, (T *)input_1->ptr, (T *)input_2->ptr, num_entries,
+      lwe_size, message_modulus, carry_modulus, message_modulus - 1);
+  check_cuda_error(cudaGetLastError());
+  uint8_t zb = 0;
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    auto input_2_degree = input_2->degrees[i];
+
+    if (zb != 0) {
+      input_2_degree += static_cast<uint64_t>(zb);
+    }
+    T z = std::max(static_cast<T>(1),
+                   static_cast<T>(ceil(input_2_degree / message_modulus))) *
+          message_modulus;
+
+    output->degrees[i] = input_1->degrees[i] + z - static_cast<uint64_t>(zb);
+    output->noise_levels[i] =
+        input_1->noise_levels[i] + input_2->noise_levels[i];
+    zb = z / message_modulus;
+  }
 }
 
 #endif // CUDA_ADD_H
