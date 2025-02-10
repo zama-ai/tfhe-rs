@@ -11,26 +11,16 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  MSG_MINIMAL: event,action url,commit
-  BRANCH: ${{ github.head_ref || github.ref }}
-  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
-  REF: ${{ github.event.pull_request.head.sha || github.sha }}
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  # Secrets will be available only to zama-ai organization members
+  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+  EXTERNAL_CONTRIBUTION_RUNNER: "large_ubuntu_64-22.04"
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-  # Trigger pull_request event on CI files to be able to test changes before merging to main branch.
-  # Workflow would fail if changes come from a forked repository since secrets are not available with this event.
   pull_request:
-    paths:
-      - '.github/**'
-      - 'ci/**'
-  # General entry point for Zama's pull request as well as contribution from forks.
-  pull_request_target:
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!ci/**'
 
 jobs:
   should-run:
@@ -69,8 +59,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: 'false'
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-          ref: ${{ env.REF }}
+          token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Check for file changes
         id: changed-files
@@ -138,34 +127,18 @@ jobs:
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
-  check-ci-files:
-    uses: ./.github/workflows/check_ci_files_change.yml
-    with:
-      checkout_ref: ${{ github.event.pull_request.head.sha || github.sha }}
-    secrets:
-      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-  # Fail if the triggering actor is not part of Zama organization.
-  # If pull_request_target is emitted and CI files have changed, skip this job. This would skip following jobs.
-  check-user-permission:
-    needs: check-ci-files
-    if: github.event_name != 'pull_request_target' ||
-      (github.event_name == 'pull_request_target' && needs.check-ci-files.outputs.ci_file_changed == 'false')
-    uses: ./.github/workflows/check_actor_permissions.yml
-    secrets:
-      TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   setup-instance:
     name: Setup instance (fast-tests)
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name != 'workflow_dispatch' && needs.should-run.outputs.any_file_changed == 'true')
-    needs: [ should-run, check-user-permission ]
+    needs: should-run
     runs-on: ubuntu-latest
     outputs:
-      runner-name: ${{ steps.start-instance.outputs.label }}
+      runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
     steps:
-      - name: Start instance
-        id: start-instance
+      - name: Start remote instance
+        id: start-remote-instance
+        if: env.SECRETS_AVAILABLE == 'true'
         uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: start
@@ -174,6 +147,13 @@ jobs:
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: aws
           profile: cpu-big
+
+      # This instance will be spawned especially for pull-request from forked repository
+      - name: Start GitHub instance
+        id: start-github-instance
+        if: env.SECRETS_AVAILABLE == 'false'
+        run: |
+          echo "runner_group=${{ env.EXTERNAL_CONTRIBUTION_RUNNER }}" >> "$GITHUB_OUTPUT"
 
   fast-tests:
     name: Fast CPU tests
@@ -187,8 +167,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-          ref: ${{ env.REF }}
+          token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
@@ -287,7 +266,7 @@ jobs:
           make test_zk
 
       - name: Slack Notification
-        if: ${{ failure() }}
+        if: ${{ failure() && env.SECRETS_AVAILABLE == 'true' }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
@@ -302,6 +281,7 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
+        if: env.SECRETS_AVAILABLE == 'true'
         uses: zama-ai/slab-github-runner@79939325c3c429837c10d6041e4fd8589d328bac
         with:
           mode: stop

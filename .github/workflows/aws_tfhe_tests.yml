@@ -10,28 +10,13 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  MSG_MINIMAL: event,action url,commit
-  BRANCH: ${{ github.head_ref || github.ref }}
-  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
-  REF: ${{ github.event.pull_request.head.sha || github.sha }}
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-  # Trigger pull_request event on CI files to be able to test changes before merging to main branch.
-  # Workflow would fail if changes come from a forked repository since secrets are not available with this event.
   pull_request:
     types: [ labeled ]
-    paths:
-      - '.github/**'
-      - 'ci/**'
-  # General entry point for Zama's pull request as well as contribution from forks.
-  pull_request_target:
-    types: [ labeled ]
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!ci/**'
   schedule:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
@@ -80,7 +65,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-          ref: ${{ env.REF }}
 
       - name: Check for file changes
         id: changed-files
@@ -148,28 +132,11 @@ jobs:
         run: |
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
-  check-ci-files:
-    uses: ./.github/workflows/check_ci_files_change.yml
-    with:
-      checkout_ref: ${{ github.event.pull_request.head.sha || github.sha }}
-    secrets:
-      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-  # Fail if the triggering actor is not part of Zama organization.
-  # If pull_request_target is emitted and CI files have changed, skip this job. This would skip following jobs.
-  check-user-permission:
-    needs: check-ci-files
-    if: github.event_name != 'pull_request_target' ||
-      (github.event_name == 'pull_request_target' && needs.check-ci-files.outputs.ci_file_changed == 'false')
-    uses: ./.github/workflows/check_actor_permissions.yml
-    secrets:
-      TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   setup-instance:
     name: Setup instance (cpu-tests)
-    if: github.event_name != 'pull_request_target' ||
+    if: github.event_name != 'pull_request' ||
       (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.any_file_changed == 'true')
-    needs: [ should-run, check-user-permission ]
+    needs: should-run
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -187,8 +154,8 @@ jobs:
 
   cpu-tests:
     name: CPU tests
-    if: github.event_name != 'pull_request_target' ||
-      (github.event_name == 'pull_request_target' && needs.setup-instance.result != 'skipped')
+    if: github.event_name != 'pull_request' ||
+      (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     needs: [ should-run, setup-instance ]
     concurrency:
       group: ${{ github.workflow }}_${{github.event_name}}_${{ github.head_ref || github.ref }}
@@ -200,7 +167,6 @@ jobs:
         with:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-          ref: ${{ env.REF }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
