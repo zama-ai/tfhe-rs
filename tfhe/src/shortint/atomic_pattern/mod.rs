@@ -6,6 +6,8 @@
 
 pub mod classical;
 
+use std::any::Any;
+
 use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::NotVersioned;
@@ -45,7 +47,7 @@ pub enum AtomicPattern {
 /// The atomic pattern can be seen as a black box that will apply a lookup table and refresh the
 /// ciphertext noise to a nominal level. Between applications of the AP, it is possible to do a
 /// certain number of linear operations.
-pub trait AtomicPatternOperations {
+pub trait AtomicPatternOperations: std::fmt::Debug {
     /// The LWE dimension of the ciphertext used as input and output of the AP
     fn ciphertext_lwe_dimension(&self) -> LweDimension;
 
@@ -108,6 +110,52 @@ pub trait AtomicPatternOperations {
 pub trait AtomicPatternMutOperations: AtomicPatternOperations {
     /// Configures the atomic pattern for deterministic execution
     fn set_deterministic_execution(&mut self, new_deterministic_execution: bool);
+}
+
+// Prevent user implementation of this trait
+mod private {
+    use super::*;
+    /// This trait allow the use of [`AtomicPatternOperations`] in a dynamic context.
+    ///
+    /// It should be automatically derived for types that implement "PartialEq + Clone +
+    /// AtomicPatternMutOperations"
+    pub trait DynamicAtomicPatternOperations:
+        AtomicPatternMutOperations
+        + Send
+        + Sync
+        + std::panic::UnwindSafe
+        + std::panic::RefUnwindSafe
+    {
+        fn as_any(&self) -> &dyn Any;
+        fn dyn_eq(&self, other: &dyn DynamicAtomicPatternOperations) -> bool;
+        fn dyn_clone(&self) -> Box<dyn DynamicAtomicPatternOperations>;
+    }
+
+    impl<
+            AP: 'static
+                + PartialEq
+                + Clone
+                + AtomicPatternMutOperations
+                + Send
+                + Sync
+                + std::panic::UnwindSafe
+                + std::panic::RefUnwindSafe,
+        > DynamicAtomicPatternOperations for AP
+    {
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+
+        fn dyn_eq(&self, other: &dyn DynamicAtomicPatternOperations) -> bool {
+            // Do a type-safe casting. If the types are different,
+            // return false, otherwise test the values for equality.
+            other.as_any().downcast_ref::<AP>() == Some(self)
+        }
+
+        fn dyn_clone(&self) -> Box<dyn DynamicAtomicPatternOperations> {
+            Box::new(self.clone())
+        }
+    }
 }
 
 // This blancket impl is used to allow "views" of server keys, without having to re-implement the
@@ -176,33 +224,59 @@ impl<T: AtomicPatternOperations> AtomicPatternOperations for &T {
 }
 
 /// The server key materials for all the supported Atomic Patterns
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, NotVersioned)] // TODO: Versionize
+#[derive(Debug, Serialize, Deserialize, NotVersioned)] // TODO: Versionize
+#[allow(clippy::large_enum_variant)] // The most common variant should be `Classical` so we optimize for it
 pub enum ServerKeyAtomicPattern {
     Classical(ClassicalAtomicPatternServerKey),
+    #[serde(skip)]
+    Dynamic(Box<dyn private::DynamicAtomicPatternOperations>),
+}
+
+impl PartialEq for ServerKeyAtomicPattern {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Classical(ap_self), Self::Classical(ap_other)) => ap_self.eq(ap_other),
+            (Self::Dynamic(ap_self), Self::Dynamic(ap_other)) => ap_self.dyn_eq(ap_other.as_ref()),
+            _ => false,
+        }
+    }
+}
+
+impl Clone for ServerKeyAtomicPattern {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Classical(ap) => Self::Classical(ap.clone()),
+            Self::Dynamic(ap) => Self::Dynamic(ap.dyn_clone()),
+        }
+    }
 }
 
 impl AtomicPatternOperations for ServerKeyAtomicPattern {
     fn ciphertext_lwe_dimension(&self) -> LweDimension {
         match self {
             Self::Classical(ap) => ap.ciphertext_lwe_dimension(),
+            Self::Dynamic(ap) => ap.ciphertext_lwe_dimension(),
         }
     }
 
     fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self {
             Self::Classical(ap) => ap.ciphertext_modulus(),
+            Self::Dynamic(ap) => ap.ciphertext_modulus(),
         }
     }
 
     fn ciphertext_decompression_method(&self) -> MsDecompressionType {
         match self {
             Self::Classical(ap) => ap.ciphertext_decompression_method(),
+            Self::Dynamic(ap) => ap.ciphertext_decompression_method(),
         }
     }
 
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         match self {
             Self::Classical(ap) => ap.apply_lookup_table_assign(ct, acc),
+            Self::Dynamic(ap) => ap.apply_lookup_table_assign(ct, acc),
         }
     }
 
@@ -213,24 +287,28 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
     ) -> Vec<Ciphertext> {
         match self {
             Self::Classical(ap) => ap.apply_many_lookup_table(ct, lut),
+            Self::Dynamic(ap) => ap.apply_many_lookup_table(ct, lut),
         }
     }
 
     fn lookup_table_size(&self) -> LookupTableSize {
         match self {
             Self::Classical(ap) => ap.lookup_table_size(),
+            Self::Dynamic(ap) => ap.lookup_table_size(),
         }
     }
 
     fn atomic_pattern(&self) -> AtomicPattern {
         match self {
             Self::Classical(ap) => ap.atomic_pattern(),
+            Self::Dynamic(ap) => ap.atomic_pattern(),
         }
     }
 
     fn deterministic_execution(&self) -> bool {
         match self {
             Self::Classical(ap) => ap.deterministic_execution(),
+            Self::Dynamic(ap) => ap.deterministic_execution(),
         }
     }
 
@@ -244,12 +322,16 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
             Self::Classical(ap) => {
                 ap.generate_oblivious_pseudo_random(seed, random_bits_count, full_bits_count)
             }
+            Self::Dynamic(ap) => {
+                ap.generate_oblivious_pseudo_random(seed, random_bits_count, full_bits_count)
+            }
         }
     }
 
     fn switch_modulus_and_compress(&self, ct: &Ciphertext) -> CompressedModulusSwitchedCiphertext {
         match self {
             Self::Classical(ap) => ap.switch_modulus_and_compress(ct),
+            Self::Dynamic(ap) => ap.switch_modulus_and_compress(ct),
         }
     }
 
@@ -260,12 +342,14 @@ impl AtomicPatternOperations for ServerKeyAtomicPattern {
     ) -> Ciphertext {
         match self {
             Self::Classical(ap) => ap.decompress_and_apply_lookup_table(compressed_ct, lut),
+            Self::Dynamic(ap) => ap.decompress_and_apply_lookup_table(compressed_ct, lut),
         }
     }
 
     fn prepare_for_noise_squashing(&self, ct: &Ciphertext) -> LweCiphertextOwned<u64> {
         match self {
             Self::Classical(ap) => ap.prepare_for_noise_squashing(ct),
+            Self::Dynamic(ap) => ap.prepare_for_noise_squashing(ct),
         }
     }
 }
@@ -274,6 +358,7 @@ impl AtomicPatternMutOperations for ServerKeyAtomicPattern {
     fn set_deterministic_execution(&mut self, new_deterministic_execution: bool) {
         match self {
             Self::Classical(ap) => ap.set_deterministic_execution(new_deterministic_execution),
+            Self::Dynamic(ap) => ap.set_deterministic_execution(new_deterministic_execution),
         }
     }
 }
