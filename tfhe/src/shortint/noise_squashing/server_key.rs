@@ -1,21 +1,21 @@
 use super::NoiseSquashingPrivateKey;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_conversion::par_convert_standard_lwe_bootstrap_key_to_fourier_128;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_generation::par_allocate_and_generate_new_lwe_bootstrap_key;
-use crate::core_crypto::algorithms::lwe_keyswitch::keyswitch_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::{
     generate_programmable_bootstrap_glwe_lut,
     programmable_bootstrap_f128_lwe_ciphertext_mem_optimized,
     programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement,
 };
-use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, LweCiphertext};
+use crate::core_crypto::entities::Fourier128LweBootstrapKeyOwned;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::{compute_delta, PaddingBit};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
-use crate::shortint::parameters::{CarryModulus, MessageModulus, PBSOrder};
+use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::server_key::{ModulusSwitchNoiseReductionKey, ServerKey};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -106,25 +106,9 @@ impl NoiseSquashingKey {
         let output_message_modulus =
             MessageModulus(ciphertext.message_modulus.0 * ciphertext.carry_modulus.0);
 
-        let mut lwe_before_noise_squashing = match src_server_key.pbs_order {
-            // Under the big key, first need to keyswitch
-            PBSOrder::KeyswitchBootstrap => {
-                let mut after_ks_ct = LweCiphertext::new(
-                    0u64,
-                    src_server_key.key_switching_key.output_lwe_size(),
-                    src_server_key.key_switching_key.ciphertext_modulus(),
-                );
-
-                keyswitch_lwe_ciphertext(
-                    &src_server_key.key_switching_key,
-                    &ciphertext.ct,
-                    &mut after_ks_ct,
-                );
-                after_ks_ct
-            }
-            // Under the small key, no need to keyswitch
-            PBSOrder::BootstrapKeyswitch => ciphertext.ct.clone(),
-        };
+        let mut lwe_before_noise_squashing = src_server_key
+            .atomic_pattern
+            .prepare_for_noise_squashing(ciphertext);
 
         let lwe_ciphertext_to_squash_noise = match &self.modulus_switch_noise_reduction_key {
             Some(key) => {
