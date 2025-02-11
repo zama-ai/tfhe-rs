@@ -503,5 +503,10 @@ void cleanup_cuda_integer_is_at_least_one_comparisons_block_true(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr_void);
 
+void cuda_small_scalar_multiplication_integer_64_inplace(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    void *lwe_array, uint64_t scalar, uint32_t lwe_dimension,
+    uint32_t num_blocks);
+
 } // extern C
 #endif // CUDA_INTEGER_H

@@ -80,7 +80,7 @@ fn test_noise_check_secret_key_encryption_noise_tuniform() {
         let shortint_block = radix.blocks.into_iter().next().unwrap();
 
         let noise = shortint_key.decrypt_no_decode(&shortint_block);
-        let signed_noise: i64 = noise as i64;
+        let signed_noise: i64 = noise.0 as i64;
 
         assert!(
             signed_noise >= inclusive_min_val,
