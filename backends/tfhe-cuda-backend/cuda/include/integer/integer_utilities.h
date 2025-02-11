@@ -3516,7 +3516,9 @@ template <typename Torus> struct int_comparison_buffer {
 
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
 
-    identity_lut_f = [](Torus x) -> Torus { return x; };
+    identity_lut_f = [params](Torus x) -> Torus {
+      return x % params.message_modulus;
+    };
 
     auto big_lwe_size = params.big_lwe_dimension + 1;
 
