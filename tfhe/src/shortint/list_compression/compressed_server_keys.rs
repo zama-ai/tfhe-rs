@@ -1,13 +1,13 @@
 use super::{
-    CompressionConformanceParameters, CompressionKey, CompressionPrivateKeys, DecompressionKey,
+    CompressionKey, CompressionKeyConformanceParams, CompressionPrivateKeys, DecompressionKey,
 };
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_seeded_lwe_packing_keyswitch_key,
     par_allocate_and_generate_new_seeded_lwe_bootstrap_key,
     par_convert_standard_lwe_bootstrap_key_to_fourier, CiphertextModulusLog,
-    FourierLweBootstrapKey, LweCiphertextCount, PackingKeyswitchConformanceParams,
+    FourierLweBootstrapKey, LweCiphertextCount, LwePackingKeyswitchKeyConformanceParams,
     SeededLweBootstrapKeyOwned, SeededLwePackingKeyswitchKey,
 };
 use crate::shortint::backward_compatibility::list_compression::{
@@ -15,7 +15,7 @@ use crate::shortint::backward_compatibility::list_compression::{
 };
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::server_key::{PBSConformanceParameters, ShortintBootstrappingKey};
+use crate::shortint::server_key::{PBSConformanceParams, ShortintBootstrappingKey};
 use crate::shortint::EncryptionKeyChoice;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -137,7 +137,7 @@ impl ClientKey {
 }
 
 impl ParameterSetConformant for CompressedCompressionKey {
-    type ParameterSet = CompressionConformanceParameters;
+    type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
@@ -146,7 +146,7 @@ impl ParameterSetConformant for CompressedCompressionKey {
             storage_log_modulus,
         } = self;
 
-        let params = PackingKeyswitchConformanceParams {
+        let params = LwePackingKeyswitchKeyConformanceParams {
             decomp_base_log: parameter_set.packing_ks_base_log,
             decomp_level_count: parameter_set.packing_ks_level,
             input_lwe_dimension: parameter_set
@@ -164,7 +164,7 @@ impl ParameterSetConformant for CompressedCompressionKey {
 }
 
 impl ParameterSetConformant for CompressedDecompressionKey {
-    type ParameterSet = CompressionConformanceParameters;
+    type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
@@ -172,9 +172,9 @@ impl ParameterSetConformant for CompressedDecompressionKey {
             lwe_per_glwe,
         } = self;
 
-        let params: PBSConformanceParameters = parameter_set.into();
+        let params: PBSConformanceParams = parameter_set.into();
 
-        let params: BootstrapKeyConformanceParams = (&params).into();
+        let params: LweBootstrapKeyConformanceParams = (&params).into();
 
         blind_rotate_key.is_conformant(&params) && *lwe_per_glwe == parameter_set.lwe_per_glwe
     }

@@ -750,7 +750,7 @@ pub type LweCiphertextMutView<'data, Scalar> = LweCiphertext<&'data mut [Scalar]
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
 #[derive(Copy, Clone)]
-pub struct LweCiphertextParameters<T: UnsignedInteger> {
+pub struct LweCiphertextConformanceParams<T: UnsignedInteger> {
     pub lwe_dim: LweDimension,
     pub ct_modulus: CiphertextModulus<T>,
     pub ms_decompression_method: MsDecompressionType,
@@ -766,9 +766,12 @@ impl<C: Container> ParameterSetConformant for LweCiphertext<C>
 where
     C::Element: UnsignedInteger,
 {
-    type ParameterSet = LweCiphertextParameters<C::Element>;
+    type ParameterSet = LweCiphertextConformanceParams<C::Element>;
 
-    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<C::Element>) -> bool {
+    fn is_conformant(
+        &self,
+        lwe_ct_parameters: &LweCiphertextConformanceParams<C::Element>,
+    ) -> bool {
         let Self {
             data,
             ciphertext_modulus,

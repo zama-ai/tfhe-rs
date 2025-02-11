@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::entities::{
-    LweCiphertextParameters, MsDecompressionType, MultiBitBootstrapKeyConformanceParams,
+    LweCiphertextConformanceParams, MsDecompressionType, MultiBitBootstrapKeyConformanceParams,
 };
 use crate::core_crypto::prelude::{DynamicDistribution, LweBskGroupingFactor};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -100,7 +100,7 @@ use crate::shortint::parameters::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_
 };
 use crate::shortint::parameters::{CiphertextConformanceParams, MultiBitPBSParametersVersions};
 use crate::shortint::prelude::*;
-use crate::shortint::server_key::PBSConformanceParameters;
+use crate::shortint::server_key::PBSConformanceParams;
 use crate::shortint::{
     CarryModulus, CiphertextModulus, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus, PBSOrder,
 };
@@ -168,7 +168,7 @@ impl MultiBitPBSParameters {
         let noise_level = NoiseLevel::NOMINAL;
 
         CiphertextConformanceParams {
-            ct_params: LweCiphertextParameters {
+            ct_params: LweCiphertextConformanceParams {
                 lwe_dim: expected_dim,
                 ct_modulus: ciphertext_modulus,
                 ms_decompression_method: MsDecompressionType::MultiBitPbs(self.grouping_factor),
@@ -182,10 +182,10 @@ impl MultiBitPBSParameters {
     }
 }
 
-impl TryFrom<&PBSConformanceParameters> for MultiBitBootstrapKeyConformanceParams {
+impl TryFrom<&PBSConformanceParams> for MultiBitBootstrapKeyConformanceParams {
     type Error = ();
 
-    fn try_from(value: &PBSConformanceParameters) -> Result<Self, ()> {
+    fn try_from(value: &PBSConformanceParams) -> Result<Self, ()> {
         Ok(Self {
             decomp_base_log: value.base_log,
             decomp_level_count: value.level,
@@ -193,10 +193,10 @@ impl TryFrom<&PBSConformanceParameters> for MultiBitBootstrapKeyConformanceParam
             output_glwe_size: value.out_glwe_dimension.to_glwe_size(),
             polynomial_size: value.out_polynomial_size,
             grouping_factor: match value.pbs_type {
-                crate::shortint::server_key::PbsTypeConformanceParameters::Classic { .. } => {
+                crate::shortint::server_key::PbsTypeConformanceParams::Classic { .. } => {
                     return Err(());
                 }
-                crate::shortint::server_key::PbsTypeConformanceParameters::MultiBit {
+                crate::shortint::server_key::PbsTypeConformanceParams::MultiBit {
                     lwe_bsk_grouping_factor,
                 } => lwe_bsk_grouping_factor,
             },

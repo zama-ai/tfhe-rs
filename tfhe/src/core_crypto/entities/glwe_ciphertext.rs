@@ -627,7 +627,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
 #[derive(Copy, Clone)]
-pub struct GlweCiphertextConformanceParameters<T: UnsignedInteger> {
+pub struct GlweCiphertextConformanceParams<T: UnsignedInteger> {
     pub glwe_dim: GlweDimension,
     pub polynomial_size: PolynomialSize,
     pub ct_modulus: CiphertextModulus<T>,
@@ -637,11 +637,11 @@ impl<C: Container> ParameterSetConformant for GlweCiphertext<C>
 where
     C::Element: UnsignedInteger,
 {
-    type ParameterSet = GlweCiphertextConformanceParameters<C::Element>;
+    type ParameterSet = GlweCiphertextConformanceParams<C::Element>;
 
     fn is_conformant(
         &self,
-        glwe_ct_parameters: &GlweCiphertextConformanceParameters<C::Element>,
+        glwe_ct_parameters: &GlweCiphertextConformanceParams<C::Element>,
     ) -> bool {
         let Self {
             data,

@@ -3,7 +3,7 @@ use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_lwe_secret_key,
     allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
     Cleartext, Container, LweCiphertextCount, LweCompactCiphertextListOwned,
-    LweCompactPublicKeyEncryptionParameters, LweCompactPublicKeyOwned, LweSecretKey, Plaintext,
+    LweCompactPublicKeyConformanceParams, LweCompactPublicKeyOwned, LweSecretKey, Plaintext,
     PlaintextList, SeededLweCompactPublicKeyOwned,
 };
 use crate::shortint::backward_compatibility::public_key::{
@@ -564,7 +564,7 @@ impl ParameterSetConformant for CompactPublicKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key, parameters } = self;
 
-        let core_params = LweCompactPublicKeyEncryptionParameters {
+        let core_params = LweCompactPublicKeyConformanceParams {
             encryption_lwe_dimension: parameter_set.encryption_lwe_dimension,
             ciphertext_modulus: parameter_set.ciphertext_modulus,
         };
@@ -579,7 +579,7 @@ impl ParameterSetConformant for CompressedCompactPublicKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key, parameters } = self;
 
-        let core_params = LweCompactPublicKeyEncryptionParameters {
+        let core_params = LweCompactPublicKeyConformanceParams {
             encryption_lwe_dimension: parameter_set.encryption_lwe_dimension,
             ciphertext_modulus: parameter_set.ciphertext_modulus,
         };

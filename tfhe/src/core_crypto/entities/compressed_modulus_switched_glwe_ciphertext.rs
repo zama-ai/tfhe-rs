@@ -195,12 +195,9 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedGlweCiphertext<Scalar> {
 impl<Scalar: UnsignedInteger> ParameterSetConformant
     for CompressedModulusSwitchedGlweCiphertext<Scalar>
 {
-    type ParameterSet = GlweCiphertextConformanceParameters<Scalar>;
+    type ParameterSet = GlweCiphertextConformanceParams<Scalar>;
 
-    fn is_conformant(
-        &self,
-        lwe_ct_parameters: &GlweCiphertextConformanceParameters<Scalar>,
-    ) -> bool {
+    fn is_conformant(&self, lwe_ct_parameters: &GlweCiphertextConformanceParams<Scalar>) -> bool {
         let Self {
             packed_integers,
             glwe_dimension,

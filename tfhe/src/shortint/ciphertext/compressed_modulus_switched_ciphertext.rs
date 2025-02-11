@@ -4,7 +4,7 @@ use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
 use crate::core_crypto::prelude::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
-use crate::core_crypto::prelude::LweCiphertextParameters;
+use crate::core_crypto::prelude::LweCiphertextConformanceParams;
 use crate::shortint::backward_compatibility::ciphertext::{
     CompressedModulusSwitchedCiphertextVersions,
     InternalCompressedModulusSwitchedCiphertextVersions,
@@ -76,9 +76,9 @@ pub(crate) enum InternalCompressedModulusSwitchedCiphertext {
 }
 
 impl ParameterSetConformant for InternalCompressedModulusSwitchedCiphertext {
-    type ParameterSet = LweCiphertextParameters<u64>;
+    type ParameterSet = LweCiphertextConformanceParams<u64>;
 
-    fn is_conformant(&self, param: &LweCiphertextParameters<u64>) -> bool {
+    fn is_conformant(&self, param: &LweCiphertextConformanceParams<u64>) -> bool {
         match self {
             Self::Classic(a) => a.is_conformant(param),
             Self::MultiBit(a) => a.is_conformant(param),

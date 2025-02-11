@@ -120,10 +120,10 @@ impl ClientKey {
     }
 }
 
-use crate::shortint::list_compression::CompressionConformanceParameters;
+use crate::shortint::list_compression::CompressionKeyConformanceParams;
 
 impl ParameterSetConformant for CompressionKey {
-    type ParameterSet = CompressionConformanceParameters;
+    type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
@@ -133,7 +133,7 @@ impl ParameterSetConformant for CompressionKey {
 }
 
 impl ParameterSetConformant for DecompressionKey {
-    type ParameterSet = CompressionConformanceParameters;
+    type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
@@ -143,7 +143,7 @@ impl ParameterSetConformant for DecompressionKey {
 }
 
 impl ParameterSetConformant for CompressedCompressionKey {
-    type ParameterSet = CompressionConformanceParameters;
+    type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
@@ -153,7 +153,7 @@ impl ParameterSetConformant for CompressedCompressionKey {
 }
 
 impl ParameterSetConformant for CompressedDecompressionKey {
-    type ParameterSet = CompressionConformanceParameters;
+    type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;

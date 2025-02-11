@@ -620,7 +620,7 @@ where
     }
 }
 
-pub struct BootstrapKeyConformanceParams {
+pub struct LweBootstrapKeyConformanceParams {
     pub decomp_base_log: DecompositionBaseLog,
     pub decomp_level_count: DecompositionLevelCount,
     pub input_lwe_dimension: LweDimension,
@@ -630,7 +630,7 @@ pub struct BootstrapKeyConformanceParams {
 }
 
 impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweBootstrapKey<C> {
-    type ParameterSet = BootstrapKeyConformanceParams;
+    type ParameterSet = LweBootstrapKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {

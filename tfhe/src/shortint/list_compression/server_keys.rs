@@ -8,7 +8,7 @@ use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CompressionParameters, PolynomialSize};
 use crate::shortint::server_key::{
-    PBSConformanceParameters, PbsTypeConformanceParameters, ShortintBootstrappingKey,
+    PBSConformanceParams, PbsTypeConformanceParams, ShortintBootstrappingKey,
 };
 use crate::shortint::{EncryptionKeyChoice, PBSParameters};
 use serde::{Deserialize, Serialize};
@@ -106,7 +106,7 @@ impl ClientKey {
     }
 }
 
-pub struct CompressionConformanceParameters {
+pub struct CompressionKeyConformanceParams {
     pub br_level: DecompositionLevelCount,
     pub br_base_log: DecompositionBaseLog,
     pub packing_ks_level: DecompositionLevelCount,
@@ -120,7 +120,7 @@ pub struct CompressionConformanceParameters {
     pub cipherext_modulus: CiphertextModulus<u64>,
 }
 
-impl From<(PBSParameters, CompressionParameters)> for CompressionConformanceParameters {
+impl From<(PBSParameters, CompressionParameters)> for CompressionKeyConformanceParams {
     fn from((pbs_params, compression_params): (PBSParameters, CompressionParameters)) -> Self {
         Self {
             br_level: compression_params.br_level,
@@ -139,7 +139,7 @@ impl From<(PBSParameters, CompressionParameters)> for CompressionConformancePara
 }
 
 impl ParameterSetConformant for CompressionKey {
-    type ParameterSet = CompressionConformanceParameters;
+    type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
@@ -148,7 +148,7 @@ impl ParameterSetConformant for CompressionKey {
             storage_log_modulus,
         } = self;
 
-        let params = PackingKeyswitchConformanceParams {
+        let params = LwePackingKeyswitchKeyConformanceParams {
             decomp_base_log: parameter_set.packing_ks_base_log,
             decomp_level_count: parameter_set.packing_ks_level,
             input_lwe_dimension: parameter_set
@@ -166,7 +166,7 @@ impl ParameterSetConformant for CompressionKey {
 }
 
 impl ParameterSetConformant for DecompressionKey {
-    type ParameterSet = CompressionConformanceParameters;
+    type ParameterSet = CompressionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
@@ -174,14 +174,14 @@ impl ParameterSetConformant for DecompressionKey {
             lwe_per_glwe,
         } = self;
 
-        let params: PBSConformanceParameters = parameter_set.into();
+        let params: PBSConformanceParams = parameter_set.into();
 
         blind_rotate_key.is_conformant(&params) && *lwe_per_glwe == parameter_set.lwe_per_glwe
     }
 }
 
-impl From<&CompressionConformanceParameters> for PBSConformanceParameters {
-    fn from(value: &CompressionConformanceParameters) -> Self {
+impl From<&CompressionKeyConformanceParams> for PBSConformanceParams {
+    fn from(value: &CompressionKeyConformanceParams) -> Self {
         Self {
             in_lwe_dimension: value
                 .packing_ks_glwe_dimension
@@ -191,7 +191,7 @@ impl From<&CompressionConformanceParameters> for PBSConformanceParameters {
             base_log: value.br_base_log,
             level: value.br_level,
             ciphertext_modulus: value.cipherext_modulus,
-            pbs_type: PbsTypeConformanceParameters::Classic {
+            pbs_type: PbsTypeConformanceParams::Classic {
                 modulus_switch_noise_reduction: None,
             },
         }

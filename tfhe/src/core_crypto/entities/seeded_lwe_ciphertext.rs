@@ -22,9 +22,9 @@ pub struct SeededLweCiphertext<Scalar: UnsignedInteger> {
 }
 
 impl<T: UnsignedInteger> ParameterSetConformant for SeededLweCiphertext<T> {
-    type ParameterSet = LweCiphertextParameters<T>;
+    type ParameterSet = LweCiphertextConformanceParams<T>;
 
-    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<T>) -> bool {
+    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextConformanceParams<T>) -> bool {
         let Self {
             data,
             lwe_size,

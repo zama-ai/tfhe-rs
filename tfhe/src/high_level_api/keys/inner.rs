@@ -1,6 +1,6 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::{DefaultRandomGenerator, KeyswitchKeyConformanceParams};
+use crate::core_crypto::prelude::{DefaultRandomGenerator, LweKeyswitchKeyConformanceParams};
 use crate::high_level_api::backward_compatibility::keys::*;
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
@@ -517,7 +517,7 @@ impl
         .try_into()?;
 
         Ok(Self {
-            keyswitch_key_conformance_params: KeyswitchKeyConformanceParams {
+            keyswitch_key_conformance_params: LweKeyswitchKeyConformanceParams {
                 decomp_base_log: ks_params.ks_base_log,
                 decomp_level_count: ks_params.ks_level,
                 output_lwe_size,

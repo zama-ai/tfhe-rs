@@ -235,7 +235,7 @@ impl<C: Container> ParameterSetConformant for SeededLweCompactPublicKey<C>
 where
     C::Element: UnsignedInteger,
 {
-    type ParameterSet = LweCompactPublicKeyEncryptionParameters<C::Element>;
+    type ParameterSet = LweCompactPublicKeyConformanceParams<C::Element>;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
@@ -246,7 +246,7 @@ where
             return false;
         }
 
-        let glwe_ciphertext_conformance_parameters = GlweCiphertextConformanceParameters {
+        let glwe_ciphertext_conformance_parameters = GlweCiphertextConformanceParams {
             glwe_dim: GlweDimension(1),
             polynomial_size: PolynomialSize(parameter_set.encryption_lwe_dimension.0),
             ct_modulus: parameter_set.ciphertext_modulus,

@@ -2,11 +2,11 @@
 
 use super::{
     CompressedModulusSwitchNoiseReductionKey, MaxDegree,
-    ModulusSwitchNoiseReductionKeyConformanceParameters, PBSConformanceParameters,
-    PbsTypeConformanceParameters,
+    ModulusSwitchNoiseReductionKeyConformanceParams, PBSConformanceParams,
+    PbsTypeConformanceParams,
 };
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
 use crate::shortint::backward_compatibility::server_key::{
     CompressedServerKeyVersions, ShortintCompressedBootstrappingKeyVersions,
@@ -397,7 +397,7 @@ impl CompressedServerKey {
 }
 
 impl ParameterSetConformant for ShortintCompressedBootstrappingKey {
-    type ParameterSet = PBSConformanceParameters;
+    type ParameterSet = PBSConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         match (self, parameter_set.pbs_type) {
@@ -406,11 +406,11 @@ impl ParameterSetConformant for ShortintCompressedBootstrappingKey {
                     bsk,
                     modulus_switch_noise_reduction_key,
                 },
-                PbsTypeConformanceParameters::Classic { .. },
+                PbsTypeConformanceParams::Classic { .. },
             ) => {
                 let modulus_switch_noise_reduction_key_conformant = match (
                     modulus_switch_noise_reduction_key,
-                    ModulusSwitchNoiseReductionKeyConformanceParameters::try_from(parameter_set),
+                    ModulusSwitchNoiseReductionKeyConformanceParams::try_from(parameter_set),
                 ) {
                     (None, Err(())) => true,
                     (Some(modulus_switch_noise_reduction_key), Ok(param)) => {
@@ -419,7 +419,7 @@ impl ParameterSetConformant for ShortintCompressedBootstrappingKey {
                     _ => false,
                 };
 
-                let param: BootstrapKeyConformanceParams = parameter_set.into();
+                let param: LweBootstrapKeyConformanceParams = parameter_set.into();
 
                 bsk.is_conformant(&param) && modulus_switch_noise_reduction_key_conformant
             }
@@ -428,7 +428,7 @@ impl ParameterSetConformant for ShortintCompressedBootstrappingKey {
                     seeded_bsk,
                     deterministic_execution: _,
                 },
-                PbsTypeConformanceParameters::MultiBit { .. },
+                PbsTypeConformanceParams::MultiBit { .. },
             ) => {
                 let param: MultiBitBootstrapKeyConformanceParams =
                     parameter_set.try_into().unwrap();
@@ -455,11 +455,11 @@ impl ParameterSetConformant for CompressedServerKey {
             pbs_order,
         } = self;
 
-        let params: PBSConformanceParameters = parameter_set.into();
+        let params: PBSConformanceParams = parameter_set.into();
 
         let pbs_key_ok = bootstrapping_key.is_conformant(&params);
 
-        let param: KeyswitchKeyConformanceParams = parameter_set.into();
+        let param: LweKeyswitchKeyConformanceParams = parameter_set.into();
 
         let ks_key_ok = key_switching_key.is_conformant(&param);
 
