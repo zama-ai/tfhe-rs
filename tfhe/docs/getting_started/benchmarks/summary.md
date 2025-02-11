@@ -4,7 +4,7 @@ This document summarizes the timings of some homomorphic operations over 64-bit 
 
 The cryptographic parameters used for benchmarking follow a tweaked uniform (TUniform) noise distribution instead of a Gaussian. The main advantage of this distribution is to be bounded, whereas the usual Gaussian one is not. In some practical cases, this can simplify the use of homomorphic computation. See the [noise section](../security\_and\_cryptography.md#noise) of the Security and cryptography documentation page for more information on the noise distributions.
 
-You can get the parameters used for benchmarks by cloning the repository and checking out the commit you want to use (starting with the v0.11.0 release) and run the following make command:
+You can get the parameters used for benchmarks by cloning the repository and checking out the commit you want to use (starting with the v1.0.0 release) and run the following make command:
 
 ```console
 make print_doc_bench_parameters
