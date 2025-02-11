@@ -113,6 +113,10 @@ impl CudaServerKey {
             return;
         }
 
+        if decomposed_scalar.is_empty() {
+            return;
+        }
+
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_mul_integer_radix_kb_async(

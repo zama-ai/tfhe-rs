@@ -139,3 +139,14 @@ void cleanup_cuda_integer_radix_scalar_mul_high_kb_64(
 
   mem_ptr->release((cudaStream_t *)streams, gpu_indexes, gpu_count);
 }
+
+void cuda_small_scalar_multiplication_integer_64_inplace(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    void *lwe_array, uint64_t scalar, uint32_t lwe_dimension,
+    uint32_t num_blocks) {
+
+  host_integer_small_scalar_mul_radix<uint64_t>(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+      static_cast<uint64_t *>(lwe_array), static_cast<uint64_t *>(lwe_array),
+      scalar, lwe_dimension, num_blocks);
+}

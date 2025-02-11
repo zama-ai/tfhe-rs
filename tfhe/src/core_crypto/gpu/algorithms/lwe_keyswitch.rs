@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{keyswitch_async, CudaStreams};
+use crate::core_crypto::gpu::{cuda_modulus_switch_ciphertext_async, keyswitch_async, CudaStreams};
 use crate::core_crypto::prelude::UnsignedInteger;
 
 /// # Safety
@@ -103,6 +103,23 @@ pub fn cuda_keyswitch_lwe_ciphertext<Scalar>(
             input_indexes,
             output_indexes,
             streams,
+        );
+    }
+    streams.synchronize();
+}
+
+pub fn cuda_modulus_switch_ciphertext<Scalar>(
+    output_lwe_ciphertext: &mut CudaLweCiphertextList<Scalar>,
+    log_modulus: u32,
+    streams: &CudaStreams,
+) where
+    Scalar: UnsignedInteger,
+{
+    unsafe {
+        cuda_modulus_switch_ciphertext_async(
+            streams,
+            &mut output_lwe_ciphertext.0.d_vec,
+            log_modulus,
         );
     }
     streams.synchronize();
