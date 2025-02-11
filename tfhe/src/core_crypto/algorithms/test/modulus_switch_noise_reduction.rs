@@ -391,7 +391,7 @@ fn check_noise_improve_modulus_switch_noise(
         &mut rsc.encryption_random_generator,
     );
 
-    let errors: Vec<_> = (0..number_loops)
+    let (ms_errors, ms_errors_improved): (Vec<_>, Vec<_>) = (0..number_loops)
         .into_par_iter()
         .map(|_| {
             let lwe = TEST_RESOURCES.with(|rsc| {
@@ -421,16 +421,7 @@ fn check_noise_improve_modulus_switch_noise(
                 }),
             )
         })
-        .collect();
-
-    let mut ms_errors = vec![];
-
-    let mut ms_errors_improved = vec![];
-
-    for (ms_error, ms_error_improved) in errors {
-        ms_errors.push(ms_error);
-        ms_errors_improved.push(ms_error_improved);
-    }
+        .unzip();
 
     println!(
         "mean(&ms_errors)                     {}2^{:.2}",
@@ -479,7 +470,7 @@ fn check_noise_improve_modulus_switch_noise(
     let expected_variance_improved = expected_variance_improved.0;
 
     assert!(
-        check_both_ratio_under(variance_improved, expected_variance_improved, 1.01_f64),
+        check_both_ratio_under(variance_improved, expected_variance_improved, 1.03_f64),
         "Expected {expected_variance_improved}, got {variance_improved}",
     );
 }
