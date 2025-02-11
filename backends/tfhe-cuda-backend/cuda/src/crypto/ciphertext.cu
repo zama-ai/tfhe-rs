@@ -1,5 +1,6 @@
 #include "ciphertext.cuh"
 #include "polynomial/parameters.cuh"
+#include "torus.cuh"
 
 void cuda_convert_lwe_ciphertext_vector_to_gpu_64(void *stream,
                                                   uint32_t gpu_index,

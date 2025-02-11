@@ -15,6 +15,16 @@ impl CudaBlockInfo {
     pub fn carry_is_empty(&self) -> bool {
         self.degree.get() < self.message_modulus.0
     }
+
+    #[cfg_attr(any(feature = "noise-asserts", test), track_caller)]
+    pub fn set_noise_level(&mut self, noise_level: NoiseLevel, max_noise_level: MaxNoiseLevel) {
+        if cfg!(feature = "noise-asserts") || cfg!(test) {
+            max_noise_level.validate(noise_level).unwrap()
+        } else {
+            let _ = max_noise_level;
+        }
+        self.noise_level = noise_level;
+    }
 }
 
 #[derive(Clone)]

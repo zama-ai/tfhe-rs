@@ -189,6 +189,19 @@ unsafe extern "C" {
         mem_ptr_void: *mut *mut i8,
     );
 }
+unsafe extern "C" {
+    pub fn cuda_integer_extract_glwe_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        lwe_array_out: *mut ffi::c_void,
+        glwe_list: *const ffi::c_void,
+        glwe_index: u32,
+        log_modulus: u32,
+        polynomial_size: u32,
+        glwe_dimension: u32,
+        body_count: u32,
+    );
+}
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_SHIFT: SHIFT_OR_ROTATE_TYPE = 0;
 pub const SHIFT_OR_ROTATE_TYPE_RIGHT_SHIFT: SHIFT_OR_ROTATE_TYPE = 1;
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_ROTATE: SHIFT_OR_ROTATE_TYPE = 2;
@@ -1400,6 +1413,17 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn cuda_small_scalar_multiplication_integer_64_inplace(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_array: *mut ffi::c_void,
+        scalar: u64,
+        lwe_dimension: u32,
+        num_blocks: u32,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_keyswitch_lwe_ciphertext_vector_32(
         stream: *mut ffi::c_void,
         gpu_index: u32,
@@ -1624,6 +1648,17 @@ unsafe extern "C" {
         lwe_array_out: *mut ffi::c_void,
         lwe_array_in: *const ffi::c_void,
         plaintext_in: u64,
+        input_lwe_dimension: u32,
+        input_lwe_ciphertext_count: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_sub_lwe_ciphertext_vector_plaintext_vector_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_array_in: *mut ffi::c_void,
+        plaintext_array_in: *const ffi::c_void,
         input_lwe_dimension: u32,
         input_lwe_ciphertext_count: u32,
     );

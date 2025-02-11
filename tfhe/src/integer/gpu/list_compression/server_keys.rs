@@ -13,6 +13,7 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
+    extract_glwe_async,
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;
@@ -92,6 +93,37 @@ impl Clone for CudaPackedGlweCiphertextList {
             lwe_per_glwe: self.lwe_per_glwe,
             initial_len: self.initial_len,
         }
+    }
+}
+
+impl CudaPackedGlweCiphertext {
+    pub fn extract_glwe(
+        &self,
+        glwe_index: usize,
+        streams: &CudaStreams,
+    ) -> CudaGlweCiphertextList<u64> {
+        let mut output_cuda_glwe_list = CudaGlweCiphertextList::new(
+            self.glwe_ciphertext_list.glwe_dimension(),
+            self.glwe_ciphertext_list.polynomial_size(),
+            GlweCiphertextCount(1),
+            self.glwe_ciphertext_list.ciphertext_modulus(),
+            streams,
+        );
+
+        unsafe {
+            extract_glwe_async(
+                streams,
+                &mut output_cuda_glwe_list.0.d_vec,
+                &self.glwe_ciphertext_list.0.d_vec,
+                glwe_index as u32,
+                self.storage_log_modulus.0 as u32,
+                self.glwe_ciphertext_list.glwe_dimension(),
+                self.glwe_ciphertext_list.polynomial_size(),
+                self.bodies_count as u32,
+            );
+        }
+        streams.synchronize();
+        output_cuda_glwe_list
     }
 }
 
@@ -231,13 +263,13 @@ impl CudaDecompressionKey {
         end_block_index: usize,
         streams: &CudaStreams,
     ) -> Result<CudaRadixCiphertext, crate::Error> {
-        if self.message_modulus.0 != self.carry_modulus.0 {
-            return Err(crate::Error::new(format!(
-                "Tried to unpack values from a list where message modulus \
-                ({:?}) is != carry modulus ({:?}), this is not supported.",
-                self.message_modulus, self.carry_modulus,
-            )));
-        }
+        // if self.message_modulus.0 != self.carry_modulus.0 {
+        //     return Err(crate::Error::new(format!(
+        //         "Tried to unpack values from a list where message modulus \
+        //         ({:?}) is != carry modulus ({:?}), this is not supported.",
+        //         self.message_modulus, self.carry_modulus,
+        //     )));
+        // }
 
         if end_block_index >= packed_list.bodies_count {
             return Err(crate::Error::new(format!(

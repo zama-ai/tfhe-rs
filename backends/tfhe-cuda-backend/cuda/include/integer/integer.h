@@ -546,5 +546,10 @@ void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI *output,
                               CudaRadixCiphertextFFI const *input,
                               void *const *streams,
                               uint32_t const *gpu_indexes);
+void cuda_small_scalar_multiplication_integer_64_inplace(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    void *lwe_array, uint64_t scalar, uint32_t lwe_dimension,
+    uint32_t num_blocks);
+
 } // extern C
 #endif // CUDA_INTEGER_H

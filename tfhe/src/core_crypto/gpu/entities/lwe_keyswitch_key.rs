@@ -3,7 +3,7 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
     convert_lwe_keyswitch_key_async, CiphertextModulus, CudaStreams, DecompositionBaseLog,
-    DecompositionLevelCount,
+    DecompositionLevelCount, LweDimension,
 };
 use crate::core_crypto::prelude::{
     lwe_keyswitch_key_input_key_element_encrypted_size, LweKeyswitchKeyOwned, LweSize,
@@ -68,5 +68,15 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
     }
     pub(crate) fn decomposition_level_count(&self) -> DecompositionLevelCount {
         self.decomp_level_count
+    }
+
+    pub(crate) fn input_key_lwe_dimension(&self) -> LweDimension {
+        self.input_key_lwe_size().to_lwe_dimension()
+    }
+    pub(crate) fn output_key_lwe_dimension(&self) -> LweDimension {
+        self.output_key_lwe_size().to_lwe_dimension()
+    }
+    pub(crate) fn ciphertext_modulus(&self) -> CiphertextModulus<T> {
+        self.ciphertext_modulus
     }
 }

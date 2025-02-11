@@ -5,7 +5,8 @@ use crate::core_crypto::gpu::{
     add_lwe_ciphertext_vector_plaintext_vector_assign_async,
     add_lwe_ciphertext_vector_plaintext_vector_async, mult_lwe_ciphertext_vector_cleartext_vector,
     mult_lwe_ciphertext_vector_cleartext_vector_assign_async,
-    negate_lwe_ciphertext_vector_assign_async, negate_lwe_ciphertext_vector_async, CudaStreams,
+    negate_lwe_ciphertext_vector_assign_async, negate_lwe_ciphertext_vector_async,
+    sub_lwe_ciphertext_vector_plaintext_vector_assign_async, CudaStreams,
 };
 use crate::core_crypto::prelude::UnsignedInteger;
 
@@ -226,6 +227,29 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_assign_async<Scalar>(
 ///
 /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
 ///   be dropped until stream is synchronised
+pub unsafe fn cuda_lwe_ciphertext_plaintext_sub_assign_async<Scalar>(
+    lhs: &mut CudaLweCiphertextList<Scalar>,
+    rhs: &CudaVec<Scalar>,
+    stream: &CudaStreams,
+) where
+    Scalar: UnsignedInteger,
+{
+    let num_samples = lhs.lwe_ciphertext_count().0 as u32;
+    let lwe_dimension = &lhs.lwe_dimension();
+
+    sub_lwe_ciphertext_vector_plaintext_vector_assign_async(
+        stream,
+        &mut lhs.0.d_vec,
+        rhs,
+        *lwe_dimension,
+        num_samples,
+    );
+}
+
+/// # Safety
+///
+/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
+///   be dropped until stream is synchronised
 pub unsafe fn cuda_lwe_ciphertext_negate_async<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     input: &CudaLweCiphertextList<Scalar>,
@@ -415,6 +439,19 @@ pub fn cuda_lwe_ciphertext_plaintext_add_assign<Scalar>(
         cuda_lwe_ciphertext_plaintext_add_assign_async(lhs, rhs, streams);
     }
     streams.synchronize();
+}
+
+pub fn cuda_lwe_ciphertext_plaintext_sub_assign<Scalar>(
+    lhs: &mut CudaLweCiphertextList<Scalar>,
+    rhs: &CudaVec<Scalar>,
+    stream: &CudaStreams,
+) where
+    Scalar: UnsignedInteger,
+{
+    unsafe {
+        cuda_lwe_ciphertext_plaintext_sub_assign_async(lhs, rhs, stream);
+    }
+    stream.synchronize();
 }
 
 pub fn cuda_lwe_ciphertext_negate<Scalar>(

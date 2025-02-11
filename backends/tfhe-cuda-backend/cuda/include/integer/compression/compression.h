@@ -40,6 +40,11 @@ void cleanup_cuda_integer_compress_radix_ciphertext_64(
 void cleanup_cuda_integer_decompress_radix_ciphertext_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr_void);
-}
 
+void cuda_integer_extract_glwe_64(
+    void *const *streams, uint32_t const *gpu_indexes, void *lwe_array_out,
+    void const *glwe_list, uint32_t const glwe_index,
+    uint32_t const log_modulus, uint32_t const polynomial_size,
+    uint32_t const glwe_dimension, uint32_t const body_count);
+}
 #endif

@@ -147,3 +147,44 @@ void cuda_add_lwe_ciphertext_vector_plaintext_64(
       static_cast<const uint64_t *>(lwe_array_in), plaintext_in,
       input_lwe_dimension, input_lwe_ciphertext_count);
 }
+
+/*
+ * Perform the subtraction of a u64 input LWE ciphertext vector with a u64 input
+ * plaintext vector.
+ * - `stream` is a void pointer to the Cuda stream to be used in the kernel
+ * launch
+ * - `gpu_index` is the index of the GPU to be used in the kernel launch
+ * - `lwe_array_out` is an array of size
+ * `(input_lwe_dimension + 1) * input_lwe_ciphertext_count` that should have
+ * been allocated on the GPU before calling this function, and that will hold
+ * the result of the computation.
+ * - `lwe_array_in` is the LWE ciphertext vector used as input, it should have
+ * been allocated and initialized before calling this function. It has the same
+ * size as the output array.
+ * - `plaintext_array_in` is the plaintext vector used as input, it should have
+ * been allocated and initialized before calling this function. It should be of
+ * size `input_lwe_ciphertext_count`.
+ * - `input_lwe_dimension` is the number of mask elements in the input and
+ * output LWE ciphertext vectors
+ * - `input_lwe_ciphertext_count` is the number of ciphertexts contained in the
+ * input LWE ciphertext vector, as well as in the output. It is also the number
+ * of plaintexts in the input plaintext vector.
+ *
+ * Each plaintext of the input plaintext vector is subtracted to the body of the
+ * corresponding LWE ciphertext in the LWE ciphertext vector. The result of the
+ * operation is stored in the output LWE ciphertext vector. The two input
+ * vectors are unchanged. This function is a wrapper to a device function that
+ * performs the operation on the GPU.
+ */
+void cuda_sub_lwe_ciphertext_vector_plaintext_vector_64(
+    void *stream, uint32_t gpu_index, void *lwe_array_out, void *lwe_array_in,
+    void const *plaintext_array_in, uint32_t input_lwe_dimension,
+    uint32_t input_lwe_ciphertext_count) {
+
+  host_subtraction_plaintext<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<uint64_t *>(lwe_array_in),
+      static_cast<const uint64_t *>(plaintext_array_in), input_lwe_dimension,
+      input_lwe_ciphertext_count);
+}
