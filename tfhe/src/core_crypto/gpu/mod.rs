@@ -561,6 +561,7 @@ pub unsafe fn cuda_improve_noise_modulus_switch_ciphertext_async<T: UnsignedInte
     );
 }
 
+
 /// Addition of a vector of LWE ciphertexts
 ///
 /// # Safety
@@ -724,6 +725,30 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_assign_async<T: Unsigne
         streams.gpu_indexes[0].get(),
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_out.as_c_ptr(0),
+        plaintext_in.as_c_ptr(0),
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
+}
+
+/// Assigned subtraction of a vector of LWE ciphertexts with a vector of plaintexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn sub_lwe_ciphertext_vector_plaintext_vector_assign_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    plaintext_in: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_sub_lwe_ciphertext_vector_plaintext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].0,
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_out.as_mut_c_ptr(0),
         plaintext_in.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,

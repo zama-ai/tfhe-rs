@@ -271,7 +271,8 @@ __host__ void host_subtraction(cudaStream_t stream, uint32_t gpu_index,
 }
 
 template <typename T>
-__global__ void radix_body_subtraction_inplace(T *lwe_ct, T *plaintext_input,
+__global__ void radix_body_subtraction_inplace(T *lwe_ct,
+                                               const T *plaintext_input,
                                                uint32_t input_lwe_dimension,
                                                uint32_t num_entries) {
 
@@ -288,7 +289,7 @@ __global__ void radix_body_subtraction_inplace(T *lwe_ct, T *plaintext_input,
 template <typename T>
 __host__ void host_subtraction_plaintext(cudaStream_t stream,
                                          uint32_t gpu_index, T *output,
-                                         T *lwe_input, T *plaintext_input,
+                                         T *lwe_input, const T *plaintext_input,
                                          uint32_t input_lwe_dimension,
                                          uint32_t input_lwe_ciphertext_count) {
 
