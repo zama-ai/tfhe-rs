@@ -1,5 +1,6 @@
 #include "ciphertext.cuh"
 #include "polynomial/parameters.cuh"
+#include "torus.cuh"
 
 void cuda_convert_lwe_ciphertext_vector_to_gpu_64(void *stream,
                                                   uint32_t gpu_index,
@@ -74,4 +75,13 @@ void cuda_glwe_sample_extract_64(void *stream, uint32_t gpu_index,
     PANIC("Cuda error: unsupported polynomial size. Supported "
           "N's are powers of two in the interval [256..16384].")
   }
+}
+
+void cuda_modulus_switch_inplace_64(void *stream, uint32_t gpu_index,
+                                    void *lwe_array_out, uint32_t size,
+                                    uint32_t log_modulus) {
+
+  host_modulus_switch_inplace<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out), size, log_modulus);
 }
