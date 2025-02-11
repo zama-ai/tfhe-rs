@@ -89,3 +89,16 @@ void cleanup_cuda_integer_decompress_radix_ciphertext_64(
       (int_decompression<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
 }
+
+void cuda_integer_extract_glwe_64(
+    void *const *streams, uint32_t const *gpu_indexes, void *lwe_array_out,
+    void const *glwe_list, uint32_t const glwe_index,
+    uint32_t const log_modulus, uint32_t const polynomial_size,
+    uint32_t const glwe_dimension, uint32_t const body_count) {
+
+  host_extract_nomem<uint64_t>((cudaStream_t *)(streams), gpu_indexes,
+                               static_cast<uint64_t *>(lwe_array_out),
+                               static_cast<const uint64_t *>(glwe_list),
+                               glwe_index, log_modulus, polynomial_size,
+                               glwe_dimension, body_count);
+}

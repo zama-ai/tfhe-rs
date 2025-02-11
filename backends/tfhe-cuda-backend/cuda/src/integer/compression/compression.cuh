@@ -231,6 +231,44 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   check_cuda_error(cudaGetLastError());
 }
 
+/// Extracts the glwe_index-nth GLWE ciphertext
+template <typename Torus>
+__host__ void host_extract_nomem(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    Torus *glwe_array_out, Torus const *array_in, const uint32_t glwe_index,
+    const uint32_t log_modulus, const uint32_t polynomial_size,
+    const uint32_t glwe_dimension, const uint32_t body_count_in) {
+  if (array_in == glwe_array_out)
+    PANIC("Cuda error: Input and output must be different");
+
+  cudaSetDevice(gpu_indexes[0]);
+
+  uint32_t body_count = std::min(body_count_in, polynomial_size);
+  auto initial_out_len = glwe_dimension * polynomial_size + body_count;
+
+  auto compressed_glwe_accumulator_size =
+      (glwe_dimension + 1) * polynomial_size;
+
+  auto number_bits_to_unpack = compressed_glwe_accumulator_size * log_modulus;
+  auto nbits = sizeof(Torus) * 8;
+  // number_bits_to_unpack.div_ceil(Scalar::BITS)
+  auto input_len = (number_bits_to_unpack + nbits - 1) / nbits;
+
+  // We assure the tail of the glwe is zeroed
+  auto zeroed_slice = glwe_array_out + initial_out_len;
+  cuda_memset_async(zeroed_slice, 0,
+                    (polynomial_size - body_count) * sizeof(Torus), streams[0],
+                    gpu_indexes[0]);
+  int num_blocks = 0, num_threads = 0;
+  getNumBlocksAndThreads(initial_out_len, 128, num_blocks, num_threads);
+  dim3 grid(num_blocks);
+  dim3 threads(num_threads);
+  extract<Torus><<<grid, threads, 0, streams[0]>>>(glwe_array_out, array_in,
+                                                   glwe_index, log_modulus,
+                                                   input_len, initial_out_len);
+  check_cuda_error(cudaGetLastError());
+}
+
 template <typename Torus>
 __host__ void host_integer_decompress(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
