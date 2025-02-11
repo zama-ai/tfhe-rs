@@ -87,7 +87,13 @@ unsafe impl Sync for HpuBackendWrapped {}
 impl HpuBackend {
     pub fn new(config: &config::HpuConfig) -> Self {
         let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);
-        let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
+        let regmap = config
+            .fpga
+            .regmap
+            .iter()
+            .map(|f| f.as_str())
+            .collect::<Vec<_>>();
+        let regmap = hw_regmap::FlatRegmap::from_file(&regmap);
 
         let params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
 

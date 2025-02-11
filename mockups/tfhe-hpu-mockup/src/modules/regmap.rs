@@ -49,8 +49,9 @@ pub enum RegisterEvent {
 }
 
 impl RegisterMap {
-    pub fn new(rtl_params: HpuParameters, regmap: &str) -> Self {
-        let regmap = FlatRegmap::from_file(regmap);
+    pub fn new(rtl_params: HpuParameters, regmap: &Vec<String>) -> Self {
+        let regmap_str = regmap.iter().map(|f| f.as_str()).collect::<Vec<_>>();
+        let regmap = FlatRegmap::from_file(&regmap_str);
         Self {
             rtl_params,
             regmap,

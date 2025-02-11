@@ -1,6 +1,6 @@
  
 [fpga]
-  regmap="backends/tfhe-hpu-backend/config/hpu_regif_core.toml"
+  regmap=["backends/tfhe-hpu-backend/config/hpu_regif_core.toml"]
   polling_us=10
 [fpga.ffi.Xrt]
   id= 0
