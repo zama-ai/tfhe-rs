@@ -21,7 +21,7 @@ pub enum FFIMode {
 /// Define Bitstream and kernel properties
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct FpgaConfig {
-    pub regmap: String,
+    pub regmap: Vec<String>,
     pub polling_us: u64,
     pub ffi: FFIMode,
 }
