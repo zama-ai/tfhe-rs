@@ -437,7 +437,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
       mem_ptr->overflow_sub_mem->update_lut_indexes(
           streams, gpu_indexes, first_indexes, second_indexes, scalar_indexes,
           merged_interesting_remainder.len);
-      host_integer_overflowing_sub<uint64_t>(
+      legacy_host_integer_overflowing_sub<uint64_t>(
           streams, gpu_indexes, gpu_count, new_remainder.data,
           (uint64_t *)merged_interesting_remainder.data,
           interesting_divisor.data, subtraction_overflowed.data,

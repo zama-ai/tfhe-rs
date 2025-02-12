@@ -2121,9 +2121,9 @@ template <typename Torus> struct int_sc_prop_memory {
 };
 
 template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
-  Torus *shifted_blocks_and_borrow_states;
-  Torus *shifted_blocks;
-  Torus *borrow_states;
+  CudaRadixCiphertextFFI *shifted_blocks_and_borrow_states;
+  CudaRadixCiphertextFFI *shifted_blocks;
+  CudaRadixCiphertextFFI *borrow_states;
 
   int_radix_lut<Torus> *luts_array_first_step;
 
@@ -2136,23 +2136,19 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
     auto polynomial_size = params.polynomial_size;
     auto message_modulus = params.message_modulus;
     auto carry_modulus = params.carry_modulus;
-    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
-    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-    shifted_blocks_and_borrow_states = (Torus *)cuda_malloc_async(
-        num_many_lut * num_radix_blocks * big_lwe_size_bytes, streams[0],
-        gpu_indexes[0]);
-    cuda_memset_async(shifted_blocks_and_borrow_states, 0,
-                      num_many_lut * num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
-    shifted_blocks = (Torus *)cuda_malloc_async(
-        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(shifted_blocks, 0, num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
-    borrow_states = (Torus *)cuda_malloc_async(
-        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(borrow_states, 0, num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
+    shifted_blocks_and_borrow_states = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], shifted_blocks_and_borrow_states,
+        num_radix_blocks * num_many_lut, params.big_lwe_dimension);
+    shifted_blocks = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              shifted_blocks, num_radix_blocks,
+                                              params.big_lwe_dimension);
+    borrow_states = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              borrow_states, num_radix_blocks,
+                                              params.big_lwe_dimension);
 
     uint32_t num_luts_first_step = 2 * grouping_size + 1;
 
@@ -2302,10 +2298,13 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
 
-    cuda_drop_async(shifted_blocks_and_borrow_states, streams[0],
-                    gpu_indexes[0]);
-    cuda_drop_async(shifted_blocks, streams[0], gpu_indexes[0]);
-    cuda_drop_async(borrow_states, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0],
+                             shifted_blocks_and_borrow_states);
+    delete shifted_blocks_and_borrow_states;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], shifted_blocks);
+    delete shifted_blocks;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], borrow_states);
+    delete borrow_states;
 
     luts_array_first_step->release(streams, gpu_indexes, gpu_count);
     delete luts_array_first_step;
@@ -2318,7 +2317,7 @@ template <typename Torus> struct int_borrow_prop_memory {
 
   uint32_t group_size;
   uint32_t num_groups;
-  Torus *overflow_block;
+  CudaRadixCiphertextFFI *overflow_block;
 
   int_radix_lut<Torus> *lut_message_extract;
   int_radix_lut<Torus> *lut_borrow_flag;
@@ -2348,8 +2347,6 @@ template <typename Torus> struct int_borrow_prop_memory {
     auto polynomial_size = params.polynomial_size;
     auto message_modulus = params.message_modulus;
     auto carry_modulus = params.carry_modulus;
-    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
-    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
     compute_overflow = compute_overflow_in;
     // for compute shifted blocks and block states
     uint32_t block_modulus = message_modulus * carry_modulus;
@@ -2371,10 +2368,10 @@ template <typename Torus> struct int_borrow_prop_memory {
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
         grouping_size, num_groups, true);
 
-    overflow_block = (Torus *)cuda_malloc_async(big_lwe_size_bytes, streams[0],
-                                                gpu_indexes[0]);
-    cuda_memset_async(overflow_block, 0, big_lwe_size_bytes, streams[0],
-                      gpu_indexes[0]);
+    overflow_block = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              overflow_block, 1,
+                                              params.big_lwe_dimension);
 
     lut_message_extract =
         new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
@@ -2450,7 +2447,8 @@ template <typename Torus> struct int_borrow_prop_memory {
 
     shifted_blocks_borrow_state_mem->release(streams, gpu_indexes, gpu_count);
     prop_simu_group_carries_mem->release(streams, gpu_indexes, gpu_count);
-    cuda_drop_async(overflow_block, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], overflow_block);
+    delete overflow_block;
 
     lut_message_extract->release(streams, gpu_indexes, gpu_count);
     delete lut_message_extract;
@@ -2784,9 +2782,6 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     tmp_rotated = pre_allocated_buffer;
     reuse_memory = true;
 
-    uint32_t max_amount_of_pbs = num_radix_blocks;
-    uint32_t big_lwe_size = params.big_lwe_dimension + 1;
-    uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
     set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                                  tmp_rotated, 0,
                                                  tmp_rotated->num_radix_blocks);
