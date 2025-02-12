@@ -2877,7 +2877,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
   SHIFT_OR_ROTATE_TYPE shift_type;
 
-  Torus *tmp_rotated;
+  CudaRadixCiphertextFFI *tmp_rotated;
 
   cudaStream_t *local_streams_1;
   cudaStream_t *local_streams_2;
@@ -2909,13 +2909,10 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       uint32_t big_lwe_size = params.big_lwe_dimension + 1;
       uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-      tmp_rotated = (Torus *)cuda_malloc_async((num_radix_blocks + 3) *
-                                                   big_lwe_size_bytes,
-                                               streams[0], gpu_indexes[0]);
-
-      cuda_memset_async(tmp_rotated, 0,
-                        (num_radix_blocks + 3) * big_lwe_size_bytes, streams[0],
-                        gpu_indexes[0]);
+      tmp_rotated = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_rotated, num_radix_blocks + 3,
+          params.big_lwe_dimension);
 
       uint32_t num_bits_in_block = (uint32_t)std::log2(params.message_modulus);
 
@@ -3051,7 +3048,8 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     lut_buffers_bivariate.clear();
     lut_buffers_univariate.clear();
 
-    cuda_drop_async(tmp_rotated, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_rotated);
+    delete tmp_rotated;
   }
 };
 
