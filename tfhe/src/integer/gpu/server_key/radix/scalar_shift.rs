@@ -194,7 +194,7 @@ impl CudaServerKey {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_async(
                         streams,
-                        &mut ct.as_mut().d_blocks.0.d_vec,
+                        ct.as_mut(),
                         u32::cast_from(shift),
                         &d_bsk.d_vec,
                         &self.key_switching_key.d_vec,
@@ -212,7 +212,6 @@ impl CudaServerKey {
                         self.key_switching_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
-                        lwe_ciphertext_count.0 as u32,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
                     );
@@ -220,7 +219,7 @@ impl CudaServerKey {
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_async(
                         streams,
-                        &mut ct.as_mut().d_blocks.0.d_vec,
+                        ct.as_mut(),
                         u32::cast_from(shift),
                         &d_multibit_bsk.d_vec,
                         &self.key_switching_key.d_vec,
@@ -238,7 +237,6 @@ impl CudaServerKey {
                         self.key_switching_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
-                        lwe_ciphertext_count.0 as u32,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
                     );

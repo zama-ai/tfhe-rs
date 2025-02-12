@@ -2121,9 +2121,9 @@ template <typename Torus> struct int_sc_prop_memory {
 };
 
 template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
-  Torus *shifted_blocks_and_borrow_states;
-  Torus *shifted_blocks;
-  Torus *borrow_states;
+  CudaRadixCiphertextFFI *shifted_blocks_and_borrow_states;
+  CudaRadixCiphertextFFI *shifted_blocks;
+  CudaRadixCiphertextFFI *borrow_states;
 
   int_radix_lut<Torus> *luts_array_first_step;
 
@@ -2136,23 +2136,19 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
     auto polynomial_size = params.polynomial_size;
     auto message_modulus = params.message_modulus;
     auto carry_modulus = params.carry_modulus;
-    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
-    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-    shifted_blocks_and_borrow_states = (Torus *)cuda_malloc_async(
-        num_many_lut * num_radix_blocks * big_lwe_size_bytes, streams[0],
-        gpu_indexes[0]);
-    cuda_memset_async(shifted_blocks_and_borrow_states, 0,
-                      num_many_lut * num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
-    shifted_blocks = (Torus *)cuda_malloc_async(
-        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(shifted_blocks, 0, num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
-    borrow_states = (Torus *)cuda_malloc_async(
-        num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    cuda_memset_async(borrow_states, 0, num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0]);
+    shifted_blocks_and_borrow_states = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], shifted_blocks_and_borrow_states,
+        num_radix_blocks * num_many_lut, params.big_lwe_dimension);
+    shifted_blocks = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              shifted_blocks, num_radix_blocks,
+                                              params.big_lwe_dimension);
+    borrow_states = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              borrow_states, num_radix_blocks,
+                                              params.big_lwe_dimension);
 
     uint32_t num_luts_first_step = 2 * grouping_size + 1;
 
@@ -2302,10 +2298,13 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
 
-    cuda_drop_async(shifted_blocks_and_borrow_states, streams[0],
-                    gpu_indexes[0]);
-    cuda_drop_async(shifted_blocks, streams[0], gpu_indexes[0]);
-    cuda_drop_async(borrow_states, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0],
+                             shifted_blocks_and_borrow_states);
+    delete shifted_blocks_and_borrow_states;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], shifted_blocks);
+    delete shifted_blocks;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], borrow_states);
+    delete borrow_states;
 
     luts_array_first_step->release(streams, gpu_indexes, gpu_count);
     delete luts_array_first_step;
@@ -2318,7 +2317,7 @@ template <typename Torus> struct int_borrow_prop_memory {
 
   uint32_t group_size;
   uint32_t num_groups;
-  Torus *overflow_block;
+  CudaRadixCiphertextFFI *overflow_block;
 
   int_radix_lut<Torus> *lut_message_extract;
   int_radix_lut<Torus> *lut_borrow_flag;
@@ -2348,8 +2347,6 @@ template <typename Torus> struct int_borrow_prop_memory {
     auto polynomial_size = params.polynomial_size;
     auto message_modulus = params.message_modulus;
     auto carry_modulus = params.carry_modulus;
-    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
-    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
     compute_overflow = compute_overflow_in;
     // for compute shifted blocks and block states
     uint32_t block_modulus = message_modulus * carry_modulus;
@@ -2371,10 +2368,10 @@ template <typename Torus> struct int_borrow_prop_memory {
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
         grouping_size, num_groups, true);
 
-    overflow_block = (Torus *)cuda_malloc_async(big_lwe_size_bytes, streams[0],
-                                                gpu_indexes[0]);
-    cuda_memset_async(overflow_block, 0, big_lwe_size_bytes, streams[0],
-                      gpu_indexes[0]);
+    overflow_block = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              overflow_block, 1,
+                                              params.big_lwe_dimension);
 
     lut_message_extract =
         new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
@@ -2450,7 +2447,8 @@ template <typename Torus> struct int_borrow_prop_memory {
 
     shifted_blocks_borrow_state_mem->release(streams, gpu_indexes, gpu_count);
     prop_simu_group_carries_mem->release(streams, gpu_indexes, gpu_count);
-    cuda_drop_async(overflow_block, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], overflow_block);
+    delete overflow_block;
 
     lut_message_extract->release(streams, gpu_indexes, gpu_count);
     delete lut_message_extract;
@@ -2784,9 +2782,6 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     tmp_rotated = pre_allocated_buffer;
     reuse_memory = true;
 
-    uint32_t max_amount_of_pbs = num_radix_blocks;
-    uint32_t big_lwe_size = params.big_lwe_dimension + 1;
-    uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
     set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                                  tmp_rotated, 0,
                                                  tmp_rotated->num_radix_blocks);
@@ -2883,7 +2878,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
   SHIFT_OR_ROTATE_TYPE shift_type;
 
-  Torus *tmp_rotated;
+  CudaRadixCiphertextFFI *tmp_rotated;
 
   cudaStream_t *local_streams_1;
   cudaStream_t *local_streams_2;
@@ -2915,13 +2910,10 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       uint32_t big_lwe_size = params.big_lwe_dimension + 1;
       uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-      tmp_rotated = (Torus *)cuda_malloc_async((num_radix_blocks + 3) *
-                                                   big_lwe_size_bytes,
-                                               streams[0], gpu_indexes[0]);
-
-      cuda_memset_async(tmp_rotated, 0,
-                        (num_radix_blocks + 3) * big_lwe_size_bytes, streams[0],
-                        gpu_indexes[0]);
+      tmp_rotated = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_rotated, num_radix_blocks + 3,
+          params.big_lwe_dimension);
 
       uint32_t num_bits_in_block = (uint32_t)std::log2(params.message_modulus);
 
@@ -3057,7 +3049,8 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     lut_buffers_bivariate.clear();
     lut_buffers_univariate.clear();
 
-    cuda_drop_async(tmp_rotated, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_rotated);
+    delete tmp_rotated;
   }
 };
 
@@ -3173,8 +3166,8 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   COMPARISON_TYPE op;
   int_radix_params params;
 
-  Torus *tmp_out;
-  Torus *tmp_block_accumulated;
+  CudaRadixCiphertextFFI *tmp_out;
+  CudaRadixCiphertextFFI *tmp_block_accumulated;
 
   // This map store LUTs that checks the equality between some input and values
   // of interest in are_all_block_true(), as with max_value (the maximum message
@@ -3194,12 +3187,15 @@ template <typename Torus> struct int_are_all_block_true_buffer {
       uint32_t max_value = (total_modulus - 1) / (params.message_modulus - 1);
 
       int max_chunks = (num_radix_blocks + max_value - 1) / max_value;
-      tmp_block_accumulated = (Torus *)cuda_malloc_async(
-          (params.big_lwe_dimension + 1) * max_chunks * sizeof(Torus),
-          streams[0], gpu_indexes[0]);
-      tmp_out = (Torus *)cuda_malloc_async((params.big_lwe_dimension + 1) *
-                                               num_radix_blocks * sizeof(Torus),
-                                           streams[0], gpu_indexes[0]);
+      tmp_out = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                tmp_out, num_radix_blocks,
+                                                params.big_lwe_dimension);
+      tmp_block_accumulated = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_block_accumulated, max_chunks,
+          params.big_lwe_dimension);
+
       is_max_value =
           new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
                                    max_chunks, allocate_gpu_memory);
@@ -3222,8 +3218,10 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     is_max_value->release(streams, gpu_indexes, gpu_count);
     delete (is_max_value);
 
-    cuda_drop_async(tmp_block_accumulated, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_out, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_out);
+    delete tmp_out;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_block_accumulated);
+    delete tmp_block_accumulated;
   }
 };
 
@@ -3336,8 +3334,8 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
 
   int_radix_lut<Torus> *tree_last_leaf_scalar_lut;
 
-  Torus *tmp_x;
-  Torus *tmp_y;
+  CudaRadixCiphertextFFI *tmp_x;
+  CudaRadixCiphertextFFI *tmp_y;
 
   int_tree_sign_reduction_buffer(cudaStream_t const *streams,
                                  uint32_t const *gpu_indexes,
@@ -3358,10 +3356,14 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     };
 
     if (allocate_gpu_memory) {
-      tmp_x = (Torus *)cuda_malloc_async(big_size * num_radix_blocks,
-                                         streams[0], gpu_indexes[0]);
-      tmp_y = (Torus *)cuda_malloc_async(big_size * num_radix_blocks,
-                                         streams[0], gpu_indexes[0]);
+      tmp_x = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                tmp_x, num_radix_blocks,
+                                                params.big_lwe_dimension);
+      tmp_y = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                tmp_y, num_radix_blocks,
+                                                params.big_lwe_dimension);
       // LUTs
       tree_inner_leaf_lut =
           new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
@@ -3392,8 +3394,10 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     tree_last_leaf_scalar_lut->release(streams, gpu_indexes, gpu_count);
     delete tree_last_leaf_scalar_lut;
 
-    cuda_drop_async(tmp_x, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_y, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_x);
+    delete tmp_x;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_y);
+    delete tmp_y;
   }
 };
 
@@ -3401,14 +3405,14 @@ template <typename Torus> struct int_comparison_diff_buffer {
   int_radix_params params;
   COMPARISON_TYPE op;
 
-  Torus *tmp_packed;
+  CudaRadixCiphertextFFI *tmp_packed;
 
   std::function<Torus(Torus)> operator_f;
 
   int_tree_sign_reduction_buffer<Torus> *tree_buffer;
 
-  Torus *tmp_signs_a;
-  Torus *tmp_signs_b;
+  CudaRadixCiphertextFFI *tmp_signs_a;
+  CudaRadixCiphertextFFI *tmp_signs_b;
   int_radix_lut<Torus> *reduce_signs_lut;
 
   int_comparison_diff_buffer(cudaStream_t const *streams,
@@ -3438,16 +3442,22 @@ template <typename Torus> struct int_comparison_diff_buffer {
 
       Torus big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
 
-      tmp_packed = (Torus *)cuda_malloc_async(big_size * num_radix_blocks,
-                                              streams[0], gpu_indexes[0]);
+      tmp_packed = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                tmp_packed, num_radix_blocks,
+                                                params.big_lwe_dimension);
 
       tree_buffer = new int_tree_sign_reduction_buffer<Torus>(
           streams, gpu_indexes, gpu_count, operator_f, params, num_radix_blocks,
           allocate_gpu_memory);
-      tmp_signs_a = (Torus *)cuda_malloc_async(big_size * num_radix_blocks,
-                                               streams[0], gpu_indexes[0]);
-      tmp_signs_b = (Torus *)cuda_malloc_async(big_size * num_radix_blocks,
-                                               streams[0], gpu_indexes[0]);
+      tmp_signs_a = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                tmp_signs_a, num_radix_blocks,
+                                                params.big_lwe_dimension);
+      tmp_signs_b = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                tmp_signs_b, num_radix_blocks,
+                                                params.big_lwe_dimension);
       // LUTs
       reduce_signs_lut =
           new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
@@ -3462,9 +3472,12 @@ template <typename Torus> struct int_comparison_diff_buffer {
     reduce_signs_lut->release(streams, gpu_indexes, gpu_count);
     delete reduce_signs_lut;
 
-    cuda_drop_async(tmp_packed, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_signs_a, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_signs_b, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_packed);
+    delete tmp_packed;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_signs_a);
+    delete tmp_signs_a;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_signs_b);
+    delete tmp_signs_b;
   }
 };
 
@@ -3482,12 +3495,12 @@ template <typename Torus> struct int_comparison_buffer {
   int_comparison_eq_buffer<Torus> *eq_buffer;
   int_comparison_diff_buffer<Torus> *diff_buffer;
 
-  Torus *tmp_block_comparisons;
-  Torus *tmp_lwe_array_out;
-  Torus *tmp_trivial_sign_block;
+  CudaRadixCiphertextFFI *tmp_block_comparisons;
+  CudaRadixCiphertextFFI *tmp_lwe_array_out;
+  CudaRadixCiphertextFFI *tmp_trivial_sign_block;
 
   // Scalar EQ / NE
-  Torus *tmp_packed_input;
+  CudaRadixCiphertextFFI *tmp_packed_input;
 
   // Max Min
   int_cmux_buffer<Torus> *cmux_buffer;
@@ -3515,8 +3528,6 @@ template <typename Torus> struct int_comparison_buffer {
 
     identity_lut_f = [](Torus x) -> Torus { return x; };
 
-    auto big_lwe_size = params.big_lwe_dimension + 1;
-
     if (allocate_gpu_memory) {
       lsb_streams =
           (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
@@ -3528,18 +3539,21 @@ template <typename Torus> struct int_comparison_buffer {
       }
 
       // +1 to have space for signed comparison
-      tmp_lwe_array_out = (Torus *)cuda_malloc_async(
-          big_lwe_size * (num_radix_blocks + 1) * sizeof(Torus), streams[0],
-          gpu_indexes[0]);
+      tmp_lwe_array_out = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_lwe_array_out, num_radix_blocks + 1,
+          params.big_lwe_dimension);
 
-      tmp_packed_input = (Torus *)cuda_malloc_async(
-          big_lwe_size * 2 * num_radix_blocks * sizeof(Torus), streams[0],
-          gpu_indexes[0]);
+      tmp_packed_input = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_packed_input, 2 * num_radix_blocks,
+          params.big_lwe_dimension);
 
       // Block comparisons
-      tmp_block_comparisons = (Torus *)cuda_malloc_async(
-          big_lwe_size * num_radix_blocks * sizeof(Torus), streams[0],
-          gpu_indexes[0]);
+      tmp_block_comparisons = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_block_comparisons, num_radix_blocks,
+          params.big_lwe_dimension);
 
       // Cleaning LUT
       identity_lut =
@@ -3602,8 +3616,10 @@ template <typename Torus> struct int_comparison_buffer {
 
       if (is_signed) {
 
-        tmp_trivial_sign_block = (Torus *)cuda_malloc_async(
-            big_lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
+        tmp_trivial_sign_block = new CudaRadixCiphertextFFI;
+        create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                  tmp_trivial_sign_block, 1,
+                                                  params.big_lwe_dimension);
 
         signed_lut = new int_radix_lut<Torus>(
             streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
@@ -3678,12 +3694,17 @@ template <typename Torus> struct int_comparison_buffer {
     delete identity_lut;
     is_zero_lut->release(streams, gpu_indexes, gpu_count);
     delete is_zero_lut;
-    cuda_drop_async(tmp_lwe_array_out, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_block_comparisons, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_packed_input, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_lwe_array_out);
+    delete tmp_lwe_array_out;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_block_comparisons);
+    delete tmp_block_comparisons;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_packed_input);
+    delete tmp_packed_input;
 
     if (is_signed) {
-      cuda_drop_async(tmp_trivial_sign_block, streams[0], gpu_indexes[0]);
+      release_radix_ciphertext(streams[0], gpu_indexes[0],
+                               tmp_trivial_sign_block);
+      delete tmp_trivial_sign_block;
       signed_lut->release(streams, gpu_indexes, gpu_count);
       delete (signed_lut);
       signed_msb_lut->release(streams, gpu_indexes, gpu_count);
