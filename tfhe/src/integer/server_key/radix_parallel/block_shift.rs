@@ -61,7 +61,13 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         if d_range.is_empty() {
-            return ct.clone();
+            let mut result = ct.clone();
+            result
+                .blocks_mut()
+                .par_iter_mut()
+                .filter(|b| b.noise_level > NoiseLevel::NOMINAL)
+                .for_each(|block| self.key.message_extract_assign(block));
+            return result;
         }
 
         assert!(

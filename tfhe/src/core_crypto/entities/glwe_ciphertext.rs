@@ -219,6 +219,12 @@ pub fn glwe_ciphertext_size(glwe_size: GlweSize, polynomial_size: PolynomialSize
     glwe_size.0 * polynomial_size.0
 }
 
+/// Return the number of elements in the **mask** of a [`GlweCiphertext`]
+///  given a [`GlweDimension`] and [`PolynomialSize`].
+pub fn glwe_mask_size(glwe_dim: GlweDimension, polynomial_size: PolynomialSize) -> usize {
+    glwe_dim.0 * polynomial_size.0
+}
+
 /// Return the number of elements in a [`GlweMask`] given a [`GlweDimension`] and
 /// [`PolynomialSize`].
 pub fn glwe_ciphertext_mask_size(
