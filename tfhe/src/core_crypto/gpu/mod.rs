@@ -24,6 +24,7 @@ pub struct CudaStreams {
 unsafe impl Send for CudaStreams {}
 unsafe impl Sync for CudaStreams {}
 
+// Comment to trigger GPU CI
 impl CudaStreams {
     /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine
     pub fn new_multi_gpu() -> Self {
