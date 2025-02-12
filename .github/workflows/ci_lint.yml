@@ -6,6 +6,7 @@ on:
 
 env:
   ACTIONLINT_VERSION: 1.6.27
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 jobs:
   lint-check:
@@ -16,7 +17,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Get actionlint
         run: |

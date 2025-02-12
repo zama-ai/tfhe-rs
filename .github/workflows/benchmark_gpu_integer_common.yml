@@ -154,7 +154,7 @@ jobs:
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup Hyperstack dependencies
-        uses: ./.github/actions/hyperstack_setup
+        uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}

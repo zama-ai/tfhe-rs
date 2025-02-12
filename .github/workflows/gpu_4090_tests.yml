@@ -11,52 +11,20 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  MSG_MINIMAL: event,action url,commit
-  BRANCH: ${{ github.head_ref || github.ref }}
-  REF: ${{ github.event.pull_request.head.sha || github.sha }}
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-  # Trigger pull_request event on CI files to be able to test changes before merging to main branch.
-  # Workflow would fail if changes come from a forked repository since secrets are not available with this event.
   pull_request:
     types: [ labeled ]
-    paths:
-      - '.github/**'
-      - 'ci/**'
-  # General entry point for Zama's pull request as well as contribution from forks.
-  pull_request_target:
-    types: [ labeled ]
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!ci/**'
   schedule:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
 
 jobs:
-  check-ci-files:
-    uses: ./.github/workflows/check_ci_files_change.yml
-    with:
-      checkout_ref: ${{ github.event.pull_request.head.sha || github.sha }}
-    secrets:
-      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-  # Fail if the triggering actor is not part of Zama organization.
-  # If pull_request_target is emitted and CI files have changed, skip this job. This would skip following jobs.
-  check-user-permission:
-    needs: check-ci-files
-    if: github.event_name != 'pull_request_target' ||
-      (github.event_name == 'pull_request_target' && needs.check-ci-files.outputs.ci_file_changed == 'false')
-    uses: ./.github/workflows/check_actor_permissions.yml
-    secrets:
-      TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   cuda-tests-linux:
     name: CUDA tests (RTX 4090)
-    needs: check-user-permission
     if: github.event_name == 'workflow_dispatch' ||
       contains(github.event.label.name, '4090_test') ||
       (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs')
@@ -70,8 +38,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-          ref: ${{ env.REF }}
+          token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
@@ -103,7 +70,7 @@ jobs:
           make test_high_level_api_gpu
 
       - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
-        if: ${{ always() && github.event_name == 'pull_request_target' }}
+        if: ${{ always() && github.event_name == 'pull_request' }}
         with:
           labels: 4090_test
           github_token: ${{ secrets.GITHUB_TOKEN }}
