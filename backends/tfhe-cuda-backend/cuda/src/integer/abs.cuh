@@ -48,7 +48,7 @@ __host__ void legacy_host_integer_abs_kb_async(
   cuda_memcpy_async_gpu_to_gpu(mask, ct, num_blocks * big_lwe_size_bytes,
                                streams[0], gpu_indexes[0]);
 
-  host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
+  legacy_host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
       streams, gpu_indexes, gpu_count, mask, num_bits_in_ciphertext - 1,
       mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks, num_blocks);
   legacy_host_addition<Torus>(streams[0], gpu_indexes[0], ct, mask, ct,
@@ -84,9 +84,8 @@ host_integer_abs_kb(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], mask, ct);
 
   host_integer_radix_arithmetic_scalar_shift_kb_inplace<Torus>(
-      streams, gpu_indexes, gpu_count, (Torus *)(mask->ptr),
-      num_bits_in_ciphertext - 1, mem_ptr->arithmetic_scalar_shift_mem, bsks,
-      ksks, ct->num_radix_blocks);
+      streams, gpu_indexes, gpu_count, mask, num_bits_in_ciphertext - 1,
+      mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
   host_addition<Torus>(streams[0], gpu_indexes[0], ct, mask, ct,
                        ct->num_radix_blocks);
 
