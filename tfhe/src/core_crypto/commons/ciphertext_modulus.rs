@@ -345,6 +345,13 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             }
         }
     }
+
+    pub fn raw_modulus_float(&self) -> f64 {
+        match self.inner {
+            CiphertextModulusInner::Native => 2_f64.powi(Scalar::BITS as i32),
+            CiphertextModulusInner::Custom(non_zero) => non_zero.get() as f64,
+        }
+    }
 }
 
 impl<Scalar: UnsignedInteger> std::fmt::Display for CiphertextModulus<Scalar> {

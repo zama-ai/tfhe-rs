@@ -1,6 +1,6 @@
 use std::path::Path;
 use tfhe::core_crypto::prelude::{
-    LweCiphertextCount, NoiseEstimationMeasureBound, RSigmaFactor, TUniform,
+    LweCiphertextCount, NoiseEstimationMeasureBound, RSigmaFactor, TUniform, Variance,
 };
 use tfhe::shortint::parameters::ModulusSwitchNoiseReductionParams;
 use tfhe_backward_compat_data::load::{
@@ -50,11 +50,13 @@ pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
              modulus_switch_zeros_count,
              ms_bound,
              ms_r_sigma_factor,
+             ms_input_variance,
          }| {
             ModulusSwitchNoiseReductionParams {
                 modulus_switch_zeros_count: LweCiphertextCount(*modulus_switch_zeros_count),
                 ms_bound: NoiseEstimationMeasureBound(*ms_bound),
                 ms_r_sigma_factor: RSigmaFactor(*ms_r_sigma_factor),
+                ms_input_variance: Variance(*ms_input_variance),
             }
         },
     );

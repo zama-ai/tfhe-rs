@@ -3,7 +3,7 @@ pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use crate::core_crypto::commons::parameters::{NoiseEstimationMeasureBound, RSigmaFactor};
-use crate::core_crypto::prelude::LweCiphertextCount;
+use crate::core_crypto::prelude::{LweCiphertextCount, Variance};
 pub use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::ModulusSwitchNoiseReductionParams as RustModulusSwitchNoiseReductionParams;
@@ -50,6 +50,7 @@ pub struct ModulusSwitchNoiseReductionParams {
     pub modulus_switch_zeros_count: u32,
     pub ms_bound: f64,
     pub ms_r_sigma_factor: f64,
+    pub ms_input_variance: f64,
 }
 
 #[repr(C)]
@@ -67,6 +68,7 @@ impl ModulusSwitchNoiseReductionParamsOption {
                 modulus_switch_zeros_count: 0,
                 ms_bound: 0.0,
                 ms_r_sigma_factor: 0.0,
+                ms_input_variance: 0.0,
             },
         }
     }
@@ -96,12 +98,17 @@ pub unsafe extern "C" fn modulus_switch_noise_reduction_params_option_some(
 
 impl From<ModulusSwitchNoiseReductionParams> for RustModulusSwitchNoiseReductionParams {
     fn from(value: ModulusSwitchNoiseReductionParams) -> Self {
+        let ModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count,
+            ms_bound,
+            ms_r_sigma_factor,
+            ms_input_variance,
+        } = value;
         Self {
-            modulus_switch_zeros_count: LweCiphertextCount(
-                value.modulus_switch_zeros_count as usize,
-            ),
-            ms_bound: NoiseEstimationMeasureBound(value.ms_bound),
-            ms_r_sigma_factor: RSigmaFactor(value.ms_r_sigma_factor),
+            modulus_switch_zeros_count: LweCiphertextCount(modulus_switch_zeros_count as usize),
+            ms_bound: NoiseEstimationMeasureBound(ms_bound),
+            ms_r_sigma_factor: RSigmaFactor(ms_r_sigma_factor),
+            ms_input_variance: Variance(ms_input_variance),
         }
     }
 }
@@ -127,6 +134,7 @@ impl RustModulusSwitchNoiseReductionParams {
             modulus_switch_zeros_count: self.modulus_switch_zeros_count.0 as u32,
             ms_bound: self.ms_bound.0,
             ms_r_sigma_factor: self.ms_r_sigma_factor.0,
+            ms_input_variance: self.ms_input_variance.0,
         }
     }
 }
