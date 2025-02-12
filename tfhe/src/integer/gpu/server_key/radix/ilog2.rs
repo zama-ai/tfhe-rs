@@ -129,12 +129,8 @@ impl CudaServerKey {
             .checked_mul(original_num_blocks as u32)
             .expect("Number of bits encrypted exceeds u32::MAX");
 
-        let mut leading_count_per_blocks = self.prepare_count_of_consecutive_bits_async(
-            &ct.duplicate_async(streams),
-            direction,
-            bit_value,
-            streams,
-        );
+        let mut leading_count_per_blocks =
+            self.prepare_count_of_consecutive_bits_async(ct, direction, bit_value, streams);
 
         // `num_bits_in_ciphertext` is the max value we want to represent
         // its ilog2 + 1 gives use how many bits we need to be able to represent it.
@@ -377,7 +373,7 @@ impl CudaServerKey {
         // PC = bitnot(message(C)) + bitnot(blockshift(carry(C), 1)) + 2
 
         let mut leading_zeros_per_blocks = self.prepare_count_of_consecutive_bits_async(
-            &ct.duplicate_async(streams),
+            ct,
             Direction::Leading,
             BitValue::Zero,
             streams,

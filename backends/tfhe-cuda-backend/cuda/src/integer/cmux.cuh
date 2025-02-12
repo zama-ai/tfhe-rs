@@ -18,7 +18,7 @@ __host__ void zero_out_if(cudaStream_t const *streams,
   // We can't use integer_radix_apply_bivariate_lookup_table_kb since the
   // second operand is not an array
   auto tmp_lwe_array_input = mem_ptr->tmp;
-  pack_bivariate_blocks_with_single_block<Torus>(
+  host_pack_bivariate_blocks_with_single_block<Torus>(
       streams, gpu_indexes, gpu_count, tmp_lwe_array_input,
       predicate->lwe_indexes_in, lwe_array_input, lwe_condition,
       predicate->lwe_indexes_in, params.big_lwe_dimension,

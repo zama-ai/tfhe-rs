@@ -154,11 +154,9 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
     // host_pack bits into one block so that we have
     // control_bit|b|a
-    pack_bivariate_blocks<Torus>(
-        streams, gpu_indexes, gpu_count, (Torus *)mux_inputs->ptr,
-        mux_lut->lwe_indexes_out, (Torus *)rotated_input->ptr,
-        (Torus *)input_bits_a->ptr, mux_lut->lwe_indexes_in, big_lwe_dimension,
-        2, total_nb_bits);
+    host_pack_bivariate_blocks<Torus>(
+        streams, gpu_indexes, gpu_count, mux_inputs, mux_lut->lwe_indexes_out,
+        rotated_input, input_bits_a, mux_lut->lwe_indexes_in, 2, total_nb_bits);
 
     // The shift bit is already properly aligned/positioned
     host_add_the_same_block_to_all_blocks<Torus>(

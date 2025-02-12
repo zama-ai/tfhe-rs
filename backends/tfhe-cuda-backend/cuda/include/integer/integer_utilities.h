@@ -160,7 +160,7 @@ template <typename Torus> struct int_radix_lut {
   // lwe_trivial_indexes is the intermediary index we need in case
   // lwe_indexes_in != lwe_indexes_out
   Torus *lwe_trivial_indexes;
-  Torus *tmp_lwe_before_ks;
+  CudaRadixCiphertextFFI *tmp_lwe_before_ks;
 
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
@@ -270,12 +270,10 @@ template <typename Torus> struct int_radix_lut {
                                  num_radix_blocks);
 
       // Keyswitch
-      Torus big_size =
-          (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-      Torus small_size =
-          (params.small_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-      tmp_lwe_before_ks =
-          (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
+      tmp_lwe_before_ks = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_lwe_before_ks, num_radix_blocks,
+          params.big_lwe_dimension);
     }
     degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
     max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
@@ -465,12 +463,10 @@ template <typename Torus> struct int_radix_lut {
                                  num_radix_blocks);
 
       // Keyswitch
-      Torus big_size =
-          (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-      Torus small_size =
-          (params.small_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-      tmp_lwe_before_ks =
-          (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
+      tmp_lwe_before_ks = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_lwe_before_ks, num_radix_blocks,
+          params.big_lwe_dimension);
     }
     degrees = (uint64_t *)malloc(num_many_lut * num_luts * sizeof(uint64_t));
     max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
@@ -555,7 +551,8 @@ template <typename Torus> struct int_radix_lut {
     free(h_lwe_indexes_out);
 
     if (!mem_reuse) {
-      cuda_drop_async(tmp_lwe_before_ks, streams[0], gpu_indexes[0]);
+      release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_lwe_before_ks);
+      delete tmp_lwe_before_ks;
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       for (int i = 0; i < buffer.size(); i++) {
         switch (params.pbs_type) {
