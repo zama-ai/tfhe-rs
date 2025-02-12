@@ -73,10 +73,6 @@ jobs:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
 
-      - name: Set up home
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:

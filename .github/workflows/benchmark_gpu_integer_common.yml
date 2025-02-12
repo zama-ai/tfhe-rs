@@ -167,11 +167,6 @@ jobs:
             echo "COMMIT_HASH=$(git describe --tags --dirty)";
           } >> "${GITHUB_ENV}"
 
-      - name: Set up home
-        # "Install rust" step require root user to have a HOME directory which is not set.
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-
       - name: Install rust
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
