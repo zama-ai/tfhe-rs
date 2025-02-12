@@ -1,4 +1,5 @@
 mod test_common;
+mod test_compact;
 mod test_concat;
 mod test_contains;
 mod test_find_replace;

@@ -24,25 +24,29 @@ impl<Id: FheUintId> Expandable for FheUint<Id> {
                         Tag::default(),
                     ))
                 } else {
-                    Err(crate::Error::new(format!(
+                    Err(crate::error!(
                         "Tried to expand a FheUint{} while a FheUint{} is stored in this slot",
                         Id::num_bits(),
                         stored_num_bits
-                    )))
+                    ))
                 }
             }
             DataKind::Signed(_) => {
                 let stored_num_bits = num_bits_of_blocks(&blocks) as usize;
-                Err(crate::Error::new(format!(
+                Err(crate::error!(
                     "Tried to expand a FheUint{} while a FheInt{} is stored in this slot",
                     Id::num_bits(),
                     stored_num_bits
-                )))
+                ))
             }
-            DataKind::Boolean => Err(crate::Error::new(format!(
+            DataKind::Boolean => Err(crate::error!(
                 "Tried to expand a FheUint{} while a FheBool is stored in this slot",
                 Id::num_bits(),
-            ))),
+            )),
+            DataKind::String { .. } => Err(crate::error!(
+                "Tried to expand a FheUint{}  while a string is stored in this slot",
+                Id::num_bits()
+            )),
         }
     }
 }
@@ -52,11 +56,11 @@ impl<Id: FheIntId> Expandable for FheInt<Id> {
         match kind {
             DataKind::Unsigned(_) => {
                 let stored_num_bits = num_bits_of_blocks(&blocks) as usize;
-                Err(crate::Error::new(format!(
+                Err(crate::error!(
                     "Tried to expand a FheInt{} while a FheUint{} is stored in this slot",
                     Id::num_bits(),
                     stored_num_bits
-                )))
+                ))
             }
             DataKind::Signed(_) => {
                 let stored_num_bits = num_bits_of_blocks(&blocks) as usize;
@@ -67,17 +71,21 @@ impl<Id: FheIntId> Expandable for FheInt<Id> {
                         Tag::default(),
                     ))
                 } else {
-                    Err(crate::Error::new(format!(
+                    Err(crate::error!(
                         "Tried to expand a FheInt{} while a FheInt{} is stored in this slot",
                         Id::num_bits(),
                         stored_num_bits
-                    )))
+                    ))
                 }
             }
-            DataKind::Boolean => Err(crate::Error::new(format!(
-                "Tried to expand a FheUint{} while a FheBool is stored in this slot",
+            DataKind::Boolean => Err(crate::error!(
+                "Tried to expand a FheInt{} while a FheBool is stored in this slot",
                 Id::num_bits(),
-            ))),
+            )),
+            DataKind::String { .. } => Err(crate::error!(
+                "Tried to expand a FheInt{}  while a string is stored in this slot",
+                Id::num_bits()
+            )),
         }
     }
 }
@@ -87,15 +95,15 @@ impl Expandable for FheBool {
         match kind {
             DataKind::Unsigned(_) => {
                 let stored_num_bits = num_bits_of_blocks(&blocks) as usize;
-                Err(crate::Error::new(format!(
+                Err(crate::error!(
                     "Tried to expand a FheBool while a FheUint{stored_num_bits} is stored in this slot",
-                )))
+                ))
             }
             DataKind::Signed(_) => {
                 let stored_num_bits = num_bits_of_blocks(&blocks) as usize;
-                Err(crate::Error::new(format!(
+                Err(crate::error!(
                     "Tried to expand a FheBool while a FheInt{stored_num_bits} is stored in this slot",
-                )))
+                ))
             }
             DataKind::Boolean => {
                 let mut boolean_block = BooleanBlock::new_unchecked(blocks[0].clone());
@@ -105,6 +113,9 @@ impl Expandable for FheBool {
                 // The expander will be responsible for setting the correct tag
                 Ok(Self::new(boolean_block, Tag::default()))
             }
+            DataKind::String { .. } => Err(crate::Error::new(
+                "Tried to expand a FheBool while a string is stored in this slot".to_string(),
+            )),
         }
     }
 }

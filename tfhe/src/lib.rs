@@ -149,6 +149,8 @@ pub mod error;
 #[cfg(feature = "zk-pok")]
 pub mod zk;
 
+#[cfg(feature = "integer")]
+pub(crate) use error::error;
 pub use error::{Error, ErrorKind};
 pub type Result<T> = std::result::Result<T, Error>;
 

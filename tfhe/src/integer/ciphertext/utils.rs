@@ -1,6 +1,6 @@
 use super::{BooleanBlock, IntegerRadixCiphertext};
 use crate::integer::backward_compatibility::ciphertext::DataKindVersions;
-use crate::shortint::Ciphertext;
+use crate::shortint::{Ciphertext, MessageModulus};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -12,13 +12,21 @@ pub enum DataKind {
     /// The held value is a number of radix blocks.
     Signed(usize),
     Boolean,
+    String {
+        n_chars: u32,
+        padded: bool,
+    },
 }
 
 impl DataKind {
-    pub fn num_blocks(self) -> usize {
+    pub fn num_blocks(self, message_modulus: MessageModulus) -> usize {
         match self {
             Self::Unsigned(n) | Self::Signed(n) => n,
             Self::Boolean => 1,
+            Self::String { n_chars, .. } => {
+                let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
+                (n_chars * blocks_per_char) as usize
+            }
         }
     }
 }
@@ -48,6 +56,9 @@ where
             (DataKind::Signed(_), false) => Err(crate::Error::new(
                 "Tried to expand an unsigned radix while a signed radix is stored".to_string(),
             )),
+            (DataKind::String { .. }, _) => Err(crate::Error::new(
+                "Tried to expand an unsigned radix while a string is stored".to_string(),
+            )),
         }
     }
 }
@@ -62,6 +73,9 @@ impl Expandable for BooleanBlock {
                 "Tried to expand a boolean block while a signed radix was stored".to_string(),
             )),
             DataKind::Boolean => Ok(Self::new_unchecked(blocks[0].clone())),
+            DataKind::String { .. } => Err(crate::Error::new(
+                "Tried to expand a boolean block while a string is stored".to_string(),
+            )),
         }
     }
 }
