@@ -5,6 +5,7 @@ use crate::core_crypto::commons::math::decomposition::{
 };
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
+use crate::core_crypto::prelude::{Cleartext, Plaintext};
 use std::marker::PhantomData;
 
 /// A structure which allows to decompose unsigned integers into a set of smaller terms.
@@ -143,6 +144,12 @@ where
     #[inline]
     pub fn closest_representable(&self, input: Scalar) -> Scalar {
         native_closest_representable(input, self.level_count, self.base_log)
+    }
+
+    /// Decode a plaintext value using the decoder to compute the closest representable.
+    pub fn decode_plaintext(&self, input: Plaintext<Scalar>) -> Cleartext<Scalar> {
+        let shift = Scalar::BITS - self.level_count * self.base_log;
+        Cleartext(self.closest_representable(input.0) >> shift)
     }
 
     #[inline(always)]
@@ -484,6 +491,28 @@ where
             ValueSign::Positive => abs_closest,
             ValueSign::Negative => abs_closest.wrapping_neg_custom_mod(modulus_as_scalar),
         }
+    }
+
+    /// Decode a plaintext value using the decoder modulo a custom modulus.
+    pub fn decode_plaintext(&self, input: Plaintext<Scalar>) -> Cleartext<Scalar> {
+        let input = input.0;
+
+        let ciphertext_modulus_as_scalar: Scalar =
+            self.ciphertext_modulus.get_custom_modulus().cast_into();
+        let mut negate_input = false;
+        let mut ptxt = input;
+        if input > ciphertext_modulus_as_scalar >> 1 {
+            negate_input = true;
+            ptxt = ptxt.wrapping_neg_custom_mod(ciphertext_modulus_as_scalar);
+        }
+        let number_of_message_bits = self.base_log().0 * self.level_count().0;
+        let delta = ciphertext_modulus_as_scalar >> number_of_message_bits;
+        let half_delta = delta >> 1;
+        let mut decoded = (ptxt + half_delta) / delta;
+        if negate_input {
+            decoded = decoded.wrapping_neg_custom_mod(ciphertext_modulus_as_scalar);
+        }
+        Cleartext(decoded)
     }
 
     #[inline(always)]
