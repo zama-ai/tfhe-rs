@@ -437,7 +437,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
       mem_ptr->overflow_sub_mem->update_lut_indexes(
           streams, gpu_indexes, first_indexes, second_indexes, scalar_indexes,
           merged_interesting_remainder.len);
-      host_integer_overflowing_sub<uint64_t>(
+      legacy_host_integer_overflowing_sub<uint64_t>(
           streams, gpu_indexes, gpu_count, new_remainder.data,
           (uint64_t *)merged_interesting_remainder.data,
           interesting_divisor.data, subtraction_overflowed.data,
@@ -459,7 +459,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
         // We could call unchecked_scalar_ne
         // But we are in the special case where scalar == 0
         // So we can skip some stuff
-        host_compare_with_zero_equality<Torus>(
+        legacy_host_compare_with_zero_equality<Torus>(
             streams, gpu_indexes, gpu_count, tmp_1.data, trivial_blocks.data,
             mem_ptr->comparison_buffer, bsks, ksks, trivial_blocks.len,
             mem_ptr->comparison_buffer->eq_buffer->is_non_zero_lut);
@@ -467,7 +467,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
         tmp_1.len =
             ceil_div(trivial_blocks.len, message_modulus * carry_modulus - 1);
 
-        is_at_least_one_comparisons_block_true<Torus>(
+        legacy_is_at_least_one_comparisons_block_true<Torus>(
             streams, gpu_indexes, gpu_count,
             at_least_one_upper_block_is_non_zero.data, tmp_1.data,
             mem_ptr->comparison_buffer, bsks, ksks, tmp_1.len);
