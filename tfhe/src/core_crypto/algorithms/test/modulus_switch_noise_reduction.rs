@@ -466,12 +466,14 @@ fn check_noise_improve_modulus_switch_noise(
         variance_improved / base_variance,
     );
 
+    let modulus = ciphertext_modulus.raw_modulus_float();
+
     let expected_base_variance = {
         let lwe_dim = lwe_dimension.0 as f64;
 
         let poly_size = 2_f64.powi((log_modulus.0 - 1) as i32);
 
-        (lwe_dim + 2.) * 2_f64.powi(128) / (96. * poly_size * poly_size) + (lwe_dim - 4.) / 48.
+        (lwe_dim + 2.) * modulus * modulus / (96. * poly_size * poly_size) + (lwe_dim - 4.) / 48.
     };
 
     assert!(
@@ -480,7 +482,7 @@ fn check_noise_improve_modulus_switch_noise(
     );
 
     let expected_variance_improved = Variance(expected_variance_improved.0 - input_variance.0)
-        .get_modular_variance(2_f64.powi(64))
+        .get_modular_variance(modulus)
         .value;
 
     assert!(

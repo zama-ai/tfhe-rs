@@ -6,7 +6,7 @@ use crate::core_crypto::commons::traits::{Container, ContainerMut, UnsignedInteg
 use crate::core_crypto::entities::{LweCiphertext, LweCiphertextList};
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
-    CiphertextModulusLog, ContiguousEntityContainer, DispersionParameter,
+    CiphertextModulus, CiphertextModulusLog, ContiguousEntityContainer, DispersionParameter,
 };
 use itertools::Itertools;
 
@@ -127,6 +127,12 @@ where
         encryptions_of_zero.lwe_ciphertext_count().0,
         0,
         "Expected at least one encryption of zero"
+    );
+    assert_eq!(
+        lwe.ciphertext_modulus(),
+        CiphertextModulus::new_native(),
+        "Non native modulus are not supported, got {}",
+        lwe.ciphertext_modulus(),
     );
 
     let modulus = lwe.ciphertext_modulus().raw_modulus_float();
