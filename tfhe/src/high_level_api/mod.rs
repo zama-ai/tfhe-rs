@@ -68,10 +68,17 @@ pub use crate::high_level_api::booleans::{CompressedFheBool, FheBool, FheBoolCon
 expand_pub_use_fhe_type!(
     pub use crate::high_level_api::integers{
         FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16,
-        FheUint32, FheUint64, FheUint128, FheUint160, FheUint256, FheUint512, FheUint1024, FheUint2048,
+        FheUint24, FheUint32, FheUint40, FheUint48, FheUint56, FheUint64, FheUint72, FheUint80,
+        FheUint88, FheUint96, FheUint104, FheUint112, FheUint120, FheUint128, FheUint136,
+        FheUint144, FheUint152, FheUint160, FheUint168, FheUint176, FheUint184, FheUint192,
+        FheUint200, FheUint208, FheUint216, FheUint224, FheUint232, FheUint240, FheUint248,
+        FheUint256, FheUint512, FheUint1024, FheUint2048,
 
-        FheInt2, FheInt4, FheInt6, FheInt8, FheInt10, FheInt12, FheInt14, FheInt16,
-        FheInt32, FheInt64, FheInt128, FheInt160, FheInt256
+        FheInt2, FheInt4, FheInt6, FheInt8, FheInt10, FheInt12, FheInt14, FheInt16, FheInt24,
+        FheInt32, FheInt40, FheInt48, FheInt56, FheInt64, FheInt72, FheInt80, FheInt88, FheInt96,
+        FheInt104, FheInt112, FheInt120, FheInt128, FheInt136, FheInt144, FheInt152, FheInt160,
+        FheInt168, FheInt176, FheInt184, FheInt192, FheInt200, FheInt208, FheInt216, FheInt224,
+        FheInt232, FheInt240, FheInt248, FheInt256, FheInt512, FheInt1024, FheInt2048
     };
 );
 pub use array::{
@@ -145,6 +152,7 @@ pub enum Device {
 #[cfg_attr(test, derive(strum::EnumIter))]
 pub enum FheTypes {
     Bool = 0,
+
     Uint4 = 1,
     Uint8 = 2,
     Uint16 = 3,
@@ -161,6 +169,7 @@ pub enum FheTypes {
     Uint10 = 14,
     Uint12 = 15,
     Uint14 = 16,
+
     Int2 = 17,
     Int4 = 18,
     Int6 = 19,
@@ -175,4 +184,60 @@ pub enum FheTypes {
     Int160 = 28,
     Int256 = 29,
     AsciiString = 30,
+
+    Int512 = 31,
+    Int1024 = 32,
+    Int2048 = 33,
+
+    Uint24 = 34,
+    Uint40 = 35,
+    Uint48 = 36,
+    Uint56 = 37,
+    Uint72 = 38,
+    Uint80 = 39,
+    Uint88 = 40,
+    Uint96 = 41,
+    Uint104 = 42,
+    Uint112 = 43,
+    Uint120 = 44,
+    Uint136 = 45,
+    Uint144 = 46,
+    Uint152 = 47,
+    Uint168 = 48,
+    Uint176 = 49,
+    Uint184 = 50,
+    Uint192 = 51,
+    Uint200 = 52,
+    Uint208 = 53,
+    Uint216 = 54,
+    Uint224 = 55,
+    Uint232 = 56,
+    Uint240 = 57,
+    Uint248 = 58,
+
+    Int24 = 59,
+    Int40 = 60,
+    Int48 = 61,
+    Int56 = 62,
+    Int72 = 63,
+    Int80 = 64,
+    Int88 = 65,
+    Int96 = 66,
+    Int104 = 67,
+    Int112 = 68,
+    Int120 = 69,
+    Int136 = 70,
+    Int144 = 71,
+    Int152 = 72,
+    Int168 = 73,
+    Int176 = 74,
+    Int184 = 75,
+    Int192 = 76,
+    Int200 = 77,
+    Int208 = 78,
+    Int216 = 79,
+    Int224 = 80,
+    Int232 = 81,
+    Int240 = 82,
+    Int248 = 83,
 }
