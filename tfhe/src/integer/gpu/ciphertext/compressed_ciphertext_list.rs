@@ -2,7 +2,7 @@ use crate::core_crypto::entities::packed_integers::PackedIntegers;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::{CiphertextCount, LweCiphertextCount};
+use crate::core_crypto::prelude::{glwe_ciphertext_size, CiphertextCount, LweCiphertextCount};
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -333,10 +333,24 @@ impl CompressedCiphertextList {
         let message_modulus = self.packed_list.message_modulus;
         let carry_modulus = self.packed_list.carry_modulus;
 
-        let flat_cpu_data = modulus_switched_glwe_ciphertext_list
+        let mut flat_cpu_data = modulus_switched_glwe_ciphertext_list
             .iter()
             .flat_map(|ct| ct.packed_integers.packed_coeffs.clone())
             .collect_vec();
+
+        let glwe_ciphertext_count = self.packed_list.modulus_switched_glwe_ciphertext_list.len();
+        let glwe_size = self.packed_list.modulus_switched_glwe_ciphertext_list[0]
+            .glwe_dimension()
+            .to_glwe_size();
+        let polynomial_size =
+            self.packed_list.modulus_switched_glwe_ciphertext_list[0].polynomial_size();
+
+        // FIXME: have a more precise memory handling, this is too long and should be "just" the
+        // original flat_cpu_data.len()
+        let unpacked_glwe_ciphertext_flat_len =
+            glwe_ciphertext_count * glwe_ciphertext_size(glwe_size, polynomial_size);
+
+        flat_cpu_data.resize(unpacked_glwe_ciphertext_flat_len, 0u64);
 
         let flat_gpu_data = unsafe {
             let v = CudaVec::from_cpu_async(flat_cpu_data.as_slice(), streams, 0);
