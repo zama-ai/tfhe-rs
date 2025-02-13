@@ -62,3 +62,12 @@ macro_rules! izip {
 }
 
 pub(crate) use izip;
+
+#[track_caller]
+pub fn combine_same_options<A, B>(a: Option<A>, b: Option<B>) -> Option<(A, B)> {
+    match (a, b) {
+        (None, None) => None,
+        (Some(in_a), Some(in_b)) => Some((in_a, in_b)),
+        _ => panic!("One Option was Some while the other was none"),
+    }
+}
