@@ -57,7 +57,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   auto bits = mem->tmp_bits;
   extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, bits, lwe_array, bsks,
                         ksks, num_radix_blocks * bits_per_block,
-                        mem->bit_extract_luts);
+                        num_radix_blocks, mem->bit_extract_luts);
 
   // Extract shift bits
   auto shift_bits = mem->tmp_shift_bits;
@@ -78,7 +78,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   // and we reduce noise growth
   extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, shift_bits, lwe_shift,
                         bsks, ksks, max_num_bits_that_tell_shift,
-                        mem->bit_extract_luts_with_offset_2);
+                        num_radix_blocks, mem->bit_extract_luts_with_offset_2);
 
   // If signed, do an "arithmetic shift" by padding with the sign bit
   CudaRadixCiphertextFFI last_bit;

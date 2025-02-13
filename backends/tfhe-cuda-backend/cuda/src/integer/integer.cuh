@@ -2161,10 +2161,21 @@ extract_n_bits(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
                const CudaRadixCiphertextFFI *lwe_array_in, void *const *bsks,
                Torus *const *ksks, uint32_t effective_num_radix_blocks,
+               uint32_t num_radix_blocks,
                int_bit_extract_luts_buffer<Torus> *bit_extract) {
 
+  copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                           lwe_array_out, 0, num_radix_blocks,
+                                           lwe_array_in, 0, num_radix_blocks);
+  if (effective_num_radix_blocks / num_radix_blocks > 0) {
+    for (uint i = 1; i < effective_num_radix_blocks / num_radix_blocks; i++) {
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams[0], gpu_indexes[0], lwe_array_out, i * num_radix_blocks,
+          (i + 1) * num_radix_blocks, lwe_array_in, 0, num_radix_blocks);
+    }
+  }
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in, bsks, ksks,
+      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_out, bsks, ksks,
       bit_extract->lut, effective_num_radix_blocks);
 }
 

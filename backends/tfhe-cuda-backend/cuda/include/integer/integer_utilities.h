@@ -2781,9 +2781,6 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     tmp_rotated = pre_allocated_buffer;
     reuse_memory = true;
 
-    uint32_t max_amount_of_pbs = num_radix_blocks;
-    uint32_t big_lwe_size = params.big_lwe_dimension + 1;
-    uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
     set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                                  tmp_rotated, 0,
                                                  tmp_rotated->num_radix_blocks);
