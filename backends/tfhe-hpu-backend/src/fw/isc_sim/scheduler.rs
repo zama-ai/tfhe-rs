@@ -146,7 +146,7 @@ impl Scheduler {
                             .collect();
                     }
                     false
-                },
+                }
                 EventType::QuantumEnd => {
                     break;
                 }
