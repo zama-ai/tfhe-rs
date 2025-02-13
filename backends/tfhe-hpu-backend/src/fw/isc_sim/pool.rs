@@ -323,9 +323,7 @@ impl Pool {
                     true
                 }) || filter
                     .dst_on_dst
-                    .and_then(|dst| {
-                        Some((dst.mode != DOpMode::Unused) && (elem.inst.dst_id == dst))
-                    })
+                    .map(|dst| (dst.mode != DOpMode::Unused) && (elem.inst.dst_id == dst))
                     .unwrap_or(false)
             })
             .map(|(idx, _)| idx)
@@ -377,7 +375,7 @@ impl ArgId {
     fn from_arg(arg: asm::DOpArg) -> Self {
         match arg {
             asm::DOpArg::Reg(rid) => Self {
-                mode: DOpMode::Register(usize::max_value()),
+                mode: DOpMode::Register(usize::MAX),
                 id: rid.0 as usize,
             },
             asm::DOpArg::Mem(ms) => {
@@ -417,7 +415,7 @@ impl ArgId {
                 | asm::DOp::PBS_ML8_F(DOpPbsMl8F(pbs)) => {
                     // PBS used muliple contiguous register in case of many-lut
                     let lut = asm::Pbs::from_hex(pbs.gid).expect("Invalid PbsGid");
-                    arg.mode = DOpMode::Register(lut.lut_msk() as usize);
+                    arg.mode = DOpMode::Register(lut.lut_msk());
                     tracing::trace!(
                         target = "pool",
                         "destination mask for {:?} = {:?}",
