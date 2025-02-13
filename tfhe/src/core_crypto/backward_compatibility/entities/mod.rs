@@ -6,6 +6,7 @@ pub mod ggsw_ciphertext;
 pub mod ggsw_ciphertext_list;
 pub mod glwe_ciphertext;
 pub mod glwe_ciphertext_list;
+pub mod glwe_keyswitch_key;
 pub mod glwe_secret_key;
 pub mod gsw_ciphertext;
 pub mod lwe_bootstrap_key;
