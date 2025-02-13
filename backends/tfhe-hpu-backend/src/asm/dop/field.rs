@@ -9,8 +9,15 @@ use crate::asm::CtId;
 /// Register argument
 /// Direct mapping of value to register Id
 /// 7bits wide -> 128 registers
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default)]
 pub struct RegId(pub u8);
+
+impl std::ops::Add<usize> for RegId {
+    type Output = RegId;
+    fn add(self, rhs: usize) -> Self::Output {
+        RegId(self.0 + (rhs as u8))
+    }
+}
 
 impl std::fmt::Display for RegId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

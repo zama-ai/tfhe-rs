@@ -10,7 +10,7 @@ use lazy_static::lazy_static;
 
 /// Minimum asm arg width to have aligned field
 pub const ARG_MIN_WIDTH: usize = 16;
-pub const DOP_MIN_WIDTH: usize = 8;
+pub const DOP_MIN_WIDTH: usize = 10;
 
 /// Generic arguments
 /// Used to pack argument under the same type
