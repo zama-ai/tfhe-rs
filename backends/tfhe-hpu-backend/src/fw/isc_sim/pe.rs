@@ -128,12 +128,8 @@ impl Pe {
     }
     fn fifo_free(&self) -> i32 {
         match self {
-            Pe::Single(pe) => {
-                pe.fifo_limit.unwrap_or(usize::max_value()) as i32 - (pe.fifo_in as i32)
-            }
-            Pe::Batch(pe) => {
-                pe.fifo_limit.unwrap_or(usize::max_value()) as i32 - (pe.fifo_in as i32)
-            }
+            Pe::Single(pe) => pe.fifo_limit.unwrap_or(usize::MAX) as i32 - (pe.fifo_in as i32),
+            Pe::Batch(pe) => pe.fifo_limit.unwrap_or(usize::MAX) as i32 - (pe.fifo_in as i32),
         }
     }
     fn is_full(&self) -> bool {
@@ -199,10 +195,7 @@ impl Pe {
 
                         // Register unlock event
                         vec![
-                            Event::new(
-                                EventType::BatchStart(pe_id),
-                                at_cycle,
-                            ),
+                            Event::new(EventType::BatchStart(pe_id), at_cycle),
                             Event::new(
                                 EventType::RdUnlock(pe.kind, pe_id),
                                 at_cycle + pe.cost.rd_lock,
@@ -232,17 +225,12 @@ impl Pe {
 
                         // Register unlock event
                         // First all rd_unlock then all wr_unlock
-                        let mut evt = vec![
-                            Event::new(
-                                EventType::BatchStart(pe_id),
-                                at_cycle,
-                            )
-                        ];
+                        let mut evt = vec![Event::new(EventType::BatchStart(pe_id), at_cycle)];
                         evt.extend((0..issued).map(|_| {
                             Event::new(
                                 EventType::RdUnlock(pe.kind, pe_id),
                                 at_cycle + pe.cost.rd_lock,
-                                )
+                            )
                         }));
                         evt.extend((0..issued).map(|_| {
                             Event::new(

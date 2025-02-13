@@ -98,7 +98,7 @@ where
         );
 
         let mut asm_ops = Vec::new();
-        for (line, val) in rd_f.lines().flatten().enumerate() {
+        for (line, val) in rd_f.lines().map_while(Result::ok).enumerate() {
             if let Some(comment) = val.trim().strip_prefix(ASM_COMMENT_PREFIX) {
                 asm_ops.push(AsmOp::Comment(comment.to_string()))
             } else if !val.is_empty() {
@@ -158,7 +158,7 @@ impl Program<dop::DOp> {
         );
 
         let mut prog = Self::default();
-        for (line, val) in rd_f.lines().flatten().enumerate() {
+        for (line, val) in rd_f.lines().map_while(Result::ok).enumerate() {
             if let Some(comment) = val.trim().strip_prefix(ASM_COMMENT_PREFIX) {
                 prog.push_comment(comment.to_string());
             } else {
@@ -245,7 +245,7 @@ impl Program<iop::IOp> {
         let mut word_stream = VecDeque::new();
         let mut file_len = 0;
 
-        for val in rd_f.lines().flatten() {
+        for val in rd_f.lines().map_while(Result::ok) {
             file_len += 1;
             if let Some(comment) = val.trim().strip_prefix(ASM_COMMENT_PREFIX) {
                 while !word_stream.is_empty() {

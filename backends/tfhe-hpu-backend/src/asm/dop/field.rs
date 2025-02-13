@@ -9,7 +9,9 @@ use crate::asm::CtId;
 /// Register argument
 /// Direct mapping of value to register Id
 /// 7bits wide -> 128 registers
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default,
+)]
 pub struct RegId(pub u8);
 
 impl std::ops::Add<usize> for RegId {
