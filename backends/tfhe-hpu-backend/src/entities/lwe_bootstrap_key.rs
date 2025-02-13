@@ -110,6 +110,10 @@ impl<C: Container> HpuLweBootstrapKey<C> {
         self.pc_data.iter().map(|c| c.container_len()).sum()
     }
 
+    pub fn is_empty(&self) -> bool {
+        !self.pc_data.iter().any(|c| c.container_len() != 0)
+    }
+
     /// Return a view of the [`HpuLweBootstrapKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> HpuLweBootstrapKey<&'_ [C::Element]> {

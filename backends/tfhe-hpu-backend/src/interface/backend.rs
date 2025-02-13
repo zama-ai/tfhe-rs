@@ -626,7 +626,7 @@ impl HpuBackend {
             // NB: ublaze expect addr with Hbm_pc offset
             // NB': Ublaze understand lut entry as ofst from PC_MEM => on't add cut_ofst in the
             // entry
-            let byte_ofst = (/* cut_ofst + */(ofst * std::mem::size_of::<u32>())) as u32;
+            let byte_ofst = /* cut_ofst + */(ofst * std::mem::size_of::<u32>()) as u32;
             tr_lut[id] = byte_ofst;
 
             // Write tr-table
