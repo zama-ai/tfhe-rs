@@ -7,8 +7,8 @@ mod macros;
 
 use super::isc_sim;
 use super::isc_sim::{report::PeStoreRpt, InstructionKind, PeFlush, PeStore};
-use super::metavar::{MetaVarCell, MetaVarCellWeak, VarPos};
-use super::program::Program;
+use super::metavar::{MetaVarCell, PosKind, VarPos, RegLockPtr};
+use super::program::{Program, AtomicRegType};
 use crate::asm::{Pbs, PbsLut};
 use crate::rtl_op;
 use enum_dispatch::enum_dispatch;
@@ -67,42 +67,17 @@ pub struct Var {
     loads: HashSet<OperationCell>,
     meta: Option<MetaVarCell>,
     load_stats: Option<LoadStats>,
-    rid: Option<usize>, // The RID currently allocated for this variable
     uid: usize,
 }
 
 impl Var {
-    pub fn unlinked(&self) -> Var {
+    pub fn clone_on(&self, prog: &Program) -> Var {
         Var {
-            driver: None,
+            driver: self.driver.as_ref().map(|(d, i)| (d.clone_on(prog), *i)),
             loads: HashSet::new(),
-            meta: self.meta.clone(),
+            meta: self.meta.as_ref().map(|m| m.clone_on(prog)),
             ..*self
         }
-    }
-
-    pub fn get_driver(&self) -> Option<&(OperationCell, usize)> {
-        self.driver.as_ref()
-    }
-
-    pub fn set_driver(&mut self, drv: Option<(OperationCell, usize)>) {
-        self.driver = drv;
-    }
-
-    pub fn set_loads(&mut self, loads: HashSet<OperationCell>) {
-        self.loads = loads;
-    }
-
-    pub fn add_load(&mut self, op: &OperationCell) {
-        self.loads.insert(op.clone());
-    }
-
-    pub fn clear_driver(&mut self) {
-        self.driver = None;
-    }
-
-    pub fn remove_load(&mut self, load: &OperationCell) {
-        self.loads.remove(load);
     }
 }
 
@@ -138,8 +113,8 @@ impl VarCell {
         self.0.borrow()
     }
 
-    pub fn unlinked(&self) -> Self {
-        self.borrow().unlinked().into()
+    pub fn clone_on(&self, prog: &Program) -> Self {
+        self.borrow().clone_on(prog).into()
     }
 
     pub fn copy_uid(&self) -> usize {
@@ -151,7 +126,7 @@ impl VarCell {
     }
 
     pub fn copy_driver(&self) -> Option<(OperationCell, usize)> {
-        if let Some(x) = self.borrow().get_driver() {
+        if let Some(x) = self.borrow().driver.as_ref() {
             Some(x.clone())
         } else {
             None
@@ -176,11 +151,11 @@ impl VarCell {
     }
 
     pub fn set_driver(&self, op: Option<(OperationCell, usize)>) {
-        self.0.borrow_mut().set_driver(op);
+        self.0.borrow_mut().driver = op;
     }
 
     pub fn set_loads(&self, loads: HashSet<OperationCell>) {
-        self.0.borrow_mut().set_loads(loads);
+        self.0.borrow_mut().loads = loads;
     }
 
     pub fn set_load_stats(&self, load_stats: LoadStats) -> LoadStats {
@@ -192,26 +167,16 @@ impl VarCell {
         self.0.borrow_mut().meta = Some(var);
     }
 
-    pub fn set_rid(&self, rid: usize) {
-        self.0.borrow_mut().rid = Some(rid);
-    }
-
     pub fn add_load(&self, op: &OperationCell) {
-        self.0.borrow_mut().add_load(op);
+        self.0.borrow_mut().loads.insert(op.clone());
     }
 
     pub fn clear_driver(&self) {
-        self.0.borrow_mut().clear_driver();
-    }
-
-    pub fn pop_rid(&self) -> usize {
-        let out = self.0.borrow().rid.unwrap();
-        self.0.borrow_mut().rid = None;
-        out
+        self.0.borrow_mut().driver = None;
     }
 
     pub fn remove_load(&self, load: &OperationCell) {
-        self.0.borrow_mut().remove_load(load);
+        self.0.borrow_mut().loads.remove(load);
     }
 
     pub fn copy_load_stats(&self) -> LoadStats {
@@ -250,7 +215,6 @@ impl VarCell {
             driver: None,
             loads: HashSet::new(),
             meta: None,
-            rid: None,
             uid: new_uid(),
             load_stats: None,
         })))
@@ -286,7 +250,7 @@ impl From<MetaVarCell> for VarCell {
 
 impl From<Var> for VarCell {
     fn from(var: Var) -> VarCell {
-        VarCell(Rc::new(RefCell::new(var.clone())))
+        VarCell(Rc::new(RefCell::new(var)))
     }
 }
 
@@ -297,11 +261,10 @@ impl std::hash::Hash for VarCell {
 }
 
 #[enum_dispatch(Operation)]
-pub trait OperationTrait
+trait OperationTrait
 where
     Self: Sized + Debug + std::hash::Hash,
 {
-    fn get_meta_var(&self, prog: &mut Option<Program>) -> Vec<MetaVarCell>;
     fn dst(&self) -> &Vec<Option<VarCell>>;
     fn dst_mut(&mut self) -> &mut Vec<Option<VarCell>>;
     fn src(&self) -> &Vec<VarCell>;
@@ -311,64 +274,313 @@ where
     fn clear_dst(&mut self);
     fn name(&self) -> &str;
     fn kind(&self) -> InstructionKind;
-    fn unlinked(&self) -> Self;
-    fn set_src(&mut self, src: Vec<VarCell>);
     fn set_load_stats(&mut self, stats: LoadStats);
+    fn clone_on(&self, prog: &Program) -> Operation;
+}
+
+#[enum_dispatch(Operation)]
+trait SetFlush
+where
+    Self: Sized + Debug + std::hash::Hash,
+{
+    fn set_flush(&mut self, _flush: bool) {}
+}
+
+#[enum_dispatch(Operation)]
+trait ProgManager
+where
+    Self: Sized + Debug + std::hash::Hash + OperationTrait,
+{
+    // Analyzes the current program state to know if this operation can be added
+    // The blanket implementation handles the typical case where an operation
+    // has many sources and only a single destination
+    fn peek_prog(&self, prog: &mut Program) -> bool {
+        if let Some(_) = self.dst()[0] {
+
+            let mut range: Vec<_> = 
+                self.src()
+                    .iter()
+                    .map(|src| {
+                        let meta = src.copy_meta().unwrap();
+                        match meta.get_pos() {
+                            PosKind::REG => AtomicRegType::Existing(meta.as_reg().unwrap()),
+                            PosKind::IMM | PosKind::PBS => AtomicRegType::None,
+                            PosKind::MEM => AtomicRegType::NewRange(1),
+                            PosKind::EMPTY => AtomicRegType::NewRange(1),
+                            // EMPTY variables are a specially case for
+                            // operations that result in a constant
+                            // independently on the variable value itself, such
+                            // as a-a
+                            _ => panic!("Unexpected metavar position" )
+                        }
+                    })
+                .collect();
+
+            if range.iter().fold(false, |acc, rng| acc || *rng != AtomicRegType::None) {
+                range.push(AtomicRegType::NewRange(1));
+            }
+
+            prog.atomic_reg_range(range.as_slice()).is_some()
+        } else {
+            // This operation is not needed, just say yes
+            true
+        }
+    }
+
+    // This blanket implementation handles the typical case where an operation
+    // has many sourcs and only a single destination
+    fn alloc1_prog(&mut self, prog: &mut Program) -> OpLock1 {
+        if let Some(dst) = self.dst()[0].as_ref() {
+            let a = self.src()[0].copy_meta().unwrap();
+            let b = self.src()[1].copy_meta().unwrap();
+            let mut d = prog.new_var();
+            dst.set_meta(d.clone());
+
+            a.reg_alloc_mv();
+            b.reg_alloc_mv();
+            if ! (a.is_in(PosKind::IMM) && b.is_in(PosKind::IMM)) {
+                d.reg_alloc_mv();
+            }
+
+            OpLock1 {
+                rd_lock: Some([a, b].iter_mut().map(|m| m.reg_lock()).collect()),
+                wr_lock: Some(d.reg_lock())
+            }
+        } else {
+            OpLock1::default()
+        }
+    }
+
+    // Allocates program resources for this operation, including locking the
+    // necessary registers to itself and moving metavariables to registers
+    fn alloc_prog(&mut self, prog: &mut Program);
+    // Adds the operation to the program. All resources keep locked
+    fn add_prog(&mut self, prog: &mut Program);
+    // Free read resources
+    fn free_rd(&mut self);
+    // Free write resources
+    fn free_wr(&mut self);
 }
 
 // Not every DOP is implemented, add more if you need more
 
-rtl_op!("ADD", Arith, (self, _) {
-    let a = self.src[0].copy_meta().unwrap();
-    let b = self.src[1].copy_meta().unwrap();
-    a.reg_alloc_mv();
-    b.reg_alloc_mv();
-    vec![&a+&b]
-});
+#[derive(Clone, Debug, Default)]
+struct OpLock1 {
+    rd_lock: Option<Vec<RegLockPtr>>,
+    wr_lock: Option<RegLockPtr>
+}
 
-rtl_op!("SUB", Arith, (self, _) {
-    let a = self.src[0].copy_meta().unwrap();
-    let b = self.src[1].copy_meta().unwrap();
-    a.reg_alloc_mv();
-    b.reg_alloc_mv();
-    vec![&a-&b]
-});
+#[derive(Clone, Debug, Default)]
+struct MacData {
+    lock: OpLock1,
+    mult: usize,
+}
 
-rtl_op!("MAC", Arith, usize, (self, _) {
-    let a = self.src[0].copy_meta().unwrap();
-    let b = self.src[1].copy_meta().unwrap();
-    a.reg_alloc_mv();
-    b.reg_alloc_mv();
-    vec![a.mac(self.data as u8, &b)]
-});
+#[derive(Clone, Debug)]
+struct PbsData {
+    lut: Pbs,
+    flush: bool,
+    rd_lock: Option<RegLockPtr>,
+    wr_lock: Option<Vec<RegLockPtr>>
+}
 
-rtl_op!("PBS", Pbs, Pbs, (self, prog) {
-    let pbs = prog.var_from(Some(VarPos::Pbs(self.data.clone())));
-    self.src[0].copy_meta().unwrap().pbs_many(&pbs, false)
-});
+rtl_op!("ADD", Arith, OpLock1);
+rtl_op!("SUB", Arith, OpLock1);
+rtl_op!("MAC", Arith, MacData);
+rtl_op!("PBS", Pbs, PbsData);
+rtl_op!("ST", MemSt, Option<RegLockPtr>);
 
-rtl_op!("ST", MemSt, (self, _) {
-    let rhs = self.src[0].copy_meta().unwrap();
-    if let Some(dst) = self.dst[0].as_ref() {
-        if let Some(mut lhs) = dst.copy_meta() {
-            lhs <<= rhs.clone();
-        } else {
-            dst.set_meta(rhs.clone());
+impl ProgManager for AddOp {
+    fn alloc_prog(&mut self, prog: &mut Program) {
+        self.data = self.alloc1_prog(prog)
+    }
+
+    fn add_prog(&mut self, _: &mut Program) {
+        if let Some(d) = self.dst[0].as_ref() {
+            let a = self.src[0].copy_meta().unwrap();
+            let b = self.src[1].copy_meta().unwrap();
+            let d = d.copy_meta().unwrap();
+            d.add_raw(&a, &b);
         }
     }
-    vec![rhs]
-});
 
-#[enum_dispatch]
-#[derive(EnumDiscriminants, Debug, Hash, PartialEq, Eq, Clone)]
-#[strum_discriminants(name(OperationNames))]
-#[strum_discriminants(derive(EnumString, Display))]
-pub enum Operation {
-    ADD(AddOp),
-    SUB(SubOp),
-    MAC(MacOp),
-    PBS(PbsOp),
-    ST(StOp),
+    fn free_rd(&mut self) {
+        self.data.rd_lock = None;
+    }
+
+    fn free_wr(&mut self) {
+        self.data.wr_lock = None;
+    }
+}
+
+impl ProgManager for SubOp {
+    fn alloc_prog(&mut self, prog: &mut Program) {
+        self.data = self.alloc1_prog(prog)
+    }
+
+    fn add_prog(&mut self, _: &mut Program) {
+        if let Some(d) = self.dst[0].as_ref() {
+            let a = self.src[0].copy_meta().unwrap();
+            let b = self.src[1].copy_meta().unwrap();
+            let d = d.copy_meta().unwrap();
+            d.sub_raw(&a, &b);
+        }
+    }
+
+    fn free_rd(&mut self) {
+        self.data.rd_lock = None;
+    }
+
+    fn free_wr(&mut self) {
+        self.data.wr_lock = None;
+    }
+}
+
+impl ProgManager for MacOp {
+    fn alloc_prog(&mut self, prog: &mut Program) {
+        self.data.lock = self.alloc1_prog(prog)
+    }
+
+    fn add_prog(&mut self, _: &mut Program) {
+        if let Some(d) = self.dst[0].as_ref() {
+            let a = self.src[0].copy_meta().unwrap();
+            let b = self.src[1].copy_meta().unwrap();
+            let d = d.copy_meta().unwrap();
+            d.mac_raw(&a, self.data.mult as u8, &b);
+        }
+    }
+
+    fn free_rd(&mut self) {
+        self.data.lock.rd_lock = None;
+    }
+
+    fn free_wr(&mut self) {
+        self.data.lock.wr_lock = None;
+    }
+}
+
+impl ProgManager for PbsOp {
+    fn peek_prog(&self, prog: &mut Program) -> bool {
+        // Make sure there's at least one used destination
+        assert!(self.dst().iter().fold(false, |acc, d| acc || d.is_some()));
+
+        let mut range: Vec<_> = 
+            self.src()
+                .iter()
+                .map(|src| {
+                    let meta = src.copy_meta().unwrap();
+                    match meta.get_pos() {
+                        PosKind::REG => AtomicRegType::Existing(meta.as_reg().unwrap()),
+                        PosKind::MEM => AtomicRegType::NewRange(1),
+                        PosKind::EMPTY => panic!("Cannot operate on an empty variable" ),
+                        _ => panic!("Unexpected metavar position" )
+                    }
+                })
+            .collect();
+        range.push(AtomicRegType::NewRange(self.dst().len()));
+
+        prog.atomic_reg_range(range.as_slice()).is_some()
+    }
+
+    fn alloc_prog(&mut self, prog: &mut Program) {
+        // Assume at least one destination is needed
+        let mut a = self.src()[0].copy_meta().unwrap();
+        a.reg_alloc_mv();
+
+        assert!(a.is_in(PosKind::REG),
+                "Cannot do a PBS from something other than a register");
+
+        let reg_start = prog.atomic_reg_range(
+            &[AtomicRegType::NewRange(self.dst.len())]).unwrap()[0];
+
+        let d = self.dst().iter().enumerate()
+            .map(|(i, d)| {
+                let meta = prog.new_var();
+                meta.force_reg_alloc(reg_start + i);
+                d.as_ref().inspect(|d| d.set_meta(meta.clone()));
+                meta
+            })
+            .collect::<Vec<_>>();
+
+        self.data.rd_lock = Some(a.reg_lock());
+        self.data.wr_lock = Some(d.into_iter().map(|mut d| d.reg_lock()).collect());
+    }
+
+    fn add_prog(&mut self, prog: &mut Program) {
+        let pbs = prog.var_from(Some(VarPos::Pbs(self.data.lut.clone())));
+        let tfhe_params = prog.params().clone().into();
+        let src = self.src[0].copy_meta().unwrap();
+        let dst = self.data.wr_lock.as_ref().unwrap()
+            .iter()
+            .map(|d| MetaVarCell::from(d))
+            .collect::<Vec<_>>();
+
+        MetaVarCell::pbs_raw(
+            &dst.iter().collect::<Vec<_>>(),
+            &src,
+            &pbs,
+            self.data.flush,
+            &tfhe_params);
+    }
+
+    fn free_rd(&mut self) {
+        self.data.rd_lock = None;
+    }
+
+    fn free_wr(&mut self) {
+        self.data.wr_lock = None;
+    }
+}
+
+impl ProgManager for StOp {
+    fn peek_prog(&self, prog: &mut Program) -> bool {
+        // If this is not needed or there's no meta to go to, it's definitely
+        // possible to add this operation to the program
+        if self.dst[0].is_none() || !self.dst[0].as_ref().unwrap().has_meta() {
+            return true;
+        }
+
+        let meta = self.src[0].copy_meta().unwrap();
+        let range = [
+            match meta.get_pos() {
+                PosKind::REG => AtomicRegType::Existing(meta.as_reg().unwrap()),
+                PosKind::MEM => AtomicRegType::NewRange(1),
+                PosKind::EMPTY => panic!("Cannot operate on an empty variable" ),
+                _ => panic!("Unexpected metavar position" )
+            }
+        ];
+        prog.atomic_reg_range(&range).is_some()
+    }
+
+    fn alloc_prog(&mut self, _: &mut Program) {
+        // There's no need to allocate anything if there's no destination or the
+        // destination has no meta yet, in which case we can simply copy the
+        // source meta to it
+        if !self.dst[0].is_none() && self.dst[0].as_ref().unwrap().has_meta() {
+            let mut a = self.src()[0].copy_meta().unwrap();
+            a.reg_alloc_mv();
+            assert!(a.is_in(PosKind::REG),
+                    "Cannot move to a destination from a location other than a register");
+            self.data = Some(a.reg_lock());
+        }
+    }
+
+    fn add_prog(&mut self, _: &mut Program) {
+        let rhs = self.src[0].copy_meta().unwrap();
+        if let Some(dst) = self.dst[0].as_ref() {
+            if let Some(mut lhs) = dst.copy_meta() {
+                lhs <<= rhs.clone();
+            } else {
+                dst.set_meta(rhs.clone());
+            }
+        }
+    }
+
+    fn free_rd(&mut self) {
+        self.data = None;
+    }
+
+    fn free_wr(&mut self) { }
 }
 
 impl AddOp {
@@ -378,6 +590,7 @@ impl AddOp {
             dst: vec![None],
             uid: new_uid(),
             load_stats: None,
+            data: OpLock1::default()
         };
         OperationCell(Rc::new(RefCell::new(Operation::ADD(op))))
     }
@@ -390,6 +603,7 @@ impl SubOp {
             dst: vec![None],
             uid: new_uid(),
             load_stats: None,
+            data: OpLock1::default()
         };
         OperationCell(Rc::new(RefCell::new(Operation::SUB(op))))
     }
@@ -400,9 +614,9 @@ impl MacOp {
         let op = MacOp {
             src: vec![lhs.clone(), rhs.clone()],
             dst: vec![None],
-            data: mult,
             uid: new_uid(),
             load_stats: None,
+            data: MacData{mult, lock: OpLock1::default()}
         };
         OperationCell(Rc::new(RefCell::new(Operation::MAC(op))))
     }
@@ -413,7 +627,7 @@ impl PbsOp {
         let op = PbsOp {
             src: vec![lhs.clone()],
             dst: dst.into_iter().map(|_| None).collect(),
-            data: lut.clone(),
+            data: PbsData{lut: lut.clone(), flush: false, rd_lock: None, wr_lock: None},
             uid: new_uid(),
             load_stats: None,
         };
@@ -428,9 +642,32 @@ impl StOp {
             dst: vec![None],
             uid: new_uid(),
             load_stats: None,
+            data: None,
         };
         OperationCell(Rc::new(RefCell::new(Operation::ST(op))))
     }
+}
+
+impl SetFlush for AddOp {}
+impl SetFlush for SubOp {}
+impl SetFlush for MacOp {}
+impl SetFlush for PbsOp {
+    fn set_flush(&mut self, flush: bool) {
+        self.data.flush = flush
+    }
+}
+impl SetFlush for StOp {}
+
+#[enum_dispatch]
+#[derive(EnumDiscriminants, Debug, Hash, PartialEq, Eq, Clone)]
+#[strum_discriminants(name(OperationNames))]
+#[strum_discriminants(derive(EnumString, Display))]
+pub enum Operation {
+    ADD(AddOp),
+    SUB(SubOp),
+    MAC(MacOp),
+    PBS(PbsOp),
+    ST(StOp),
 }
 
 // All pointers are reference counted pointers in the tree, both drivers and
@@ -462,6 +699,9 @@ impl OperationCell {
     }
     fn prio(&self) -> Prio {
         Prio::from(self)
+    }
+    fn kind(&self) -> InstructionKind {
+        self.0.borrow().kind()
     }
 
     fn set_load_stats(&self, stats: LoadStats) -> LoadStats {
@@ -576,6 +816,40 @@ impl OperationCell {
         ret
     }
 
+    fn set_flush(&self, flush: bool) {
+        self.0.borrow_mut().set_flush(flush)
+    }
+
+    fn peek_prog(&self, prog: Option<&mut Program>) -> bool {
+        prog.and_then(|prog| Some(self.0.borrow_mut().peek_prog(prog)))
+            .unwrap_or(true)
+    }
+
+    fn alloc_prog(&mut self, prog: Option<&mut Program>) {
+        if let Some(prog) = prog {
+            self.0.borrow_mut().alloc_prog(prog);
+        }
+    }
+
+    fn add_prog(&self, prog: Option<&mut Program>) {
+        if let Some(prog) = prog {
+            self.0.borrow_mut().add_prog(prog)
+        }
+    }
+
+    fn free_rd(&mut self) {
+        self.0.borrow_mut().free_rd();
+    }
+
+    // Free write resources
+    fn free_wr(&mut self) {
+        self.0.borrow_mut().free_wr();
+    }
+
+    fn clone_on(&self, prog: &Program) -> Self {
+        self.0.borrow().clone_on(prog).into()
+    }
+
     // {{{1 Debug
     // -----------------------------------------------------------------------
     #[cfg(feature = "rtl_graph")]
@@ -655,9 +929,9 @@ impl std::ops::ShlAssign<&VarCell> for VarCell {
 struct Arch {
     pe_store: PeStore,
     program: Option<Program>,
-    reg_rc: HashMap<usize, (Option<MetaVarCellWeak>, usize)>,
     cycle: usize,
     events: BinaryHeap<isc_sim::Event>,
+    queued: HashMap<usize, Vec<OperationCell>>,
     rd_pdg: HashMap<usize, Vec<OperationCell>>,
     wr_pdg: HashMap<usize, Vec<OperationCell>>,
     use_ipip: bool,
@@ -671,58 +945,43 @@ impl Arch {
     pub fn try_dispatch(&mut self, op: BinaryHeap<OperationCell>) -> BinaryHeap<OperationCell> {
         let ret = op
             .into_iter()
-            .filter_map(|op| {
-                if let Some(id) = {
-                    let op_borrow = op.borrow();
-                    let kind = op_borrow.kind();
-
-                    self.program
-                        .clone()
-                        .and_then(|mut p| {
-                            // Make sure all sources that are not already in
-                            // registers can be allocated
-                            let src = op_borrow
-                                .src()
-                                .iter()
-                                .filter(|src| src.copy_meta().is_some_and(|m| m.as_reg().is_none()))
-                                .map(|_| 1);
-                            // And all destinations too
-                            let ranges: Vec<_> =
-                                [op_borrow.dst().len()].into_iter().chain(src).collect();
-                            Some(p.reg_avail(ranges))
-                        })
-                        .unwrap_or(true)
-                        .then_some(kind)
-                        .and_then(|kind| self.pe_store.try_push(kind))
+            .filter_map(|mut op| if let Some(id) = {
+                    op.peek_prog(self.program.as_mut())
+                      .then_some(true)
+                      .and_then(|_| self.pe_store.try_push(op.kind()))
                 } {
-                    self.add(&op);
-                    self.rd_pdg.entry(id).or_insert(Vec::new()).push(op);
+                    trace!(target: "rtl", "{:?} queued", op);
+
+                    op.alloc_prog(self.program.as_mut());
+
+                    self.queued.entry(id)
+                        .or_insert(Vec::new())
+                        .push(op.clone());
+                    self.rd_pdg.entry(id)
+                        .or_insert(Vec::new())
+                        .push(op);
                     None
                 } else {
                     Some(op)
                 }
-            })
+            )
             .collect::<BinaryHeap<_>>();
 
-        // Flush if there's nothing else to do or ipip
-        let flush = (ret.len() == 0 || self.use_ipip).then_some(PeFlush::ByFlush);
-        self.pe_store
-            .probe_for_exec(self.cycle, flush)
-            .into_iter()
-            .filter(
-                |isc_sim::Event {
-                     at_cycle: _,
-                     event_type: ev,
-                 }| match ev {
-                    isc_sim::EventType::ReqTimeout(_, _) => false,
-                    _ => true,
-                },
-            )
-            .for_each(|evt| self.events.push(evt));
+        if !self.use_ipip  {
+            self.probe_for_exec(None);
+        }
+
+        // Flush if there's nothing else to do or use_ipip
+        if (ret.len() == 0 && self.events.len() == 0) || self.use_ipip {
+            self.probe_for_exec(Some(PeFlush::ByFlush));
+        }
+
         ret
     }
 
     pub fn done(&mut self) -> Option<OperationCell> {
+        trace!(target: "rtl", "Events: {:?}", self.events);
+
         let isc_sim::Event {
             at_cycle,
             event_type,
@@ -730,19 +989,29 @@ impl Arch {
         self.cycle = at_cycle;
 
         match event_type {
+            isc_sim::EventType::BatchStart(id) => {
+                let batch = self.queued.remove(&id).unwrap();
+                batch.last().unwrap().set_flush(true);
+                for op in batch {
+                    op.add_prog(self.program.as_mut())
+                }
+                None
+            }
             isc_sim::EventType::RdUnlock(_, id) => {
                 // update associated pe state
                 self.pe_store.rd_unlock(id);
-                let op = self.rd_pdg.get_mut(&id).unwrap().pop().unwrap();
-                self.rd_unlock(&op);
-                self.wr_pdg.entry(id).or_insert(Vec::new()).push(op);
+                let mut op = self.rd_pdg.get_mut(&id).unwrap().pop().unwrap();
+                op.free_rd();
+                self.wr_pdg.entry(id)
+                    .or_insert(Vec::new())
+                    .push(op);
                 None
             }
             isc_sim::EventType::WrUnlock(_, id) => {
                 // update associated pe state
                 self.pe_store.wr_unlock(id);
-                let op = self.wr_pdg.get_mut(&id).unwrap().pop().unwrap();
-                self.wr_unlock(&op);
+                let mut op = self.wr_pdg.get_mut(&id).unwrap().pop().unwrap();
+                op.free_wr();
                 Some(op)
             }
             _ => panic!("Received an unexpected event"),
@@ -757,92 +1026,18 @@ impl Arch {
         self.cycle
     }
 
-    //internal
-
-    // Adds it to the program
-    fn add(&mut self, op: &OperationCell) {
-        trace!(target: "rtl", "Adding {:?}", op);
-        let results = op.borrow().get_meta_var(&mut self.program);
-        op.copy_dst()
-            .into_iter()
-            .zip(results.into_iter())
-            .filter_map(|(dst, meta)| dst.and_then(|d| Some((meta, d))))
-            .for_each(|(meta, var)| {
-                // Once the operation is added to the program and while it is
-                // inflight, make sure all destination and source registers are
-                // not used by anybody else to avoid stalling any posterior
-                // operation
-                self.reg_writting(&meta);
-                var.set_meta(meta);
-            });
-        op.copy_src()
-            .into_iter()
-            .filter_map(|s| s.copy_meta())
-            .for_each(|s| {
-                self.reg_reading(&s);
-            });
-    }
-
-    fn reg_reading(&mut self, meta: &MetaVarCell) {
-        if let Some(prog) = &mut self.program {
-            if let Some(rid) = meta.as_reg() {
-                self.reg_rc
-                    .entry(rid.0 as usize)
-                    .and_modify(|e| {
-                        e.1 += 1;
-                    })
-                    .or_insert_with(|| (prog.reg_pop(&rid), 1));
-            }
-        }
-    }
-
-    fn reg_writting(&mut self, meta: &MetaVarCell) {
-        if let Some(prog) = &mut self.program {
-            let rid = meta.as_reg().unwrap();
-            prog.reg_pop(&rid);
-            self.reg_rc
-                .entry(rid.0 as usize)
-                .or_insert_with(|| (meta.try_into().ok(), 1));
-        }
-    }
-
-    fn reg_release(&mut self, meta: &MetaVarCell) {
-        if let Some(prog) = &mut self.program {
-            if let Some(rid) = meta.as_reg() {
-                let entry = self.reg_rc.remove(&(rid.0 as usize));
-                if let Some(mut e) = entry {
-                    e.1 -= 1;
-                    if e.1 != 0 {
-                        self.reg_rc.insert(rid.0 as usize, e);
-                    } else {
-                        prog.reg_put(rid, e.0);
-                    }
-                }
-            }
-        }
-    }
-
-    fn rd_unlock(&mut self, op: &OperationCell) {
-        op.copy_src()
-            .into_iter()
-            .filter_map(|x| x.copy_meta())
-            .for_each(|m| {
-                self.reg_release(&m);
-            });
-    }
-
-    fn wr_unlock(&mut self, op: &OperationCell) {
-        op.copy_dst()
-            .into_iter()
-            .filter_map(|d| d)
-            .filter_map(|x| x.copy_meta())
-            .for_each(|m| {
-                self.reg_release(&m);
-            });
-    }
-
     fn report_usage(&self) -> PeStoreRpt {
         PeStoreRpt::from(&self.pe_store)
+    }
+
+    fn probe_for_exec(&mut self, flush: Option<PeFlush>) {
+        self.events.extend(
+            self.pe_store.probe_for_exec(self.cycle, flush)
+            .into_iter()
+            .filter(|isc_sim::Event{at_cycle: _, event_type: ev}| match ev {
+                isc_sim::EventType::ReqTimeout(_, _) => false,
+                _ => true,
+            }));
     }
 }
 
@@ -850,14 +1045,18 @@ impl From<&Program> for Arch {
     fn from(program: &Program) -> Self {
         let params = program.params();
         let mut pe_store = PeStore::from(params.pe_cfg.clone());
-        pe_store.set_batch_limit();
+        if params.fill_batch_fifo {
+            pe_store.set_fifo_limit(params.total_pbs_nb);
+        } else {
+            pe_store.set_fifo_to_batch_limit();
+        }
         Arch {
             pe_store,
             program: Some(program.clone()),
-            reg_rc: HashMap::new(),
             cycle: 0,
             use_ipip: params.use_ipip,
             events: BinaryHeap::new(),
+            queued: HashMap::new(),
             rd_pdg: HashMap::new(),
             wr_pdg: HashMap::new(),
         }
@@ -892,7 +1091,7 @@ impl Rtl {
     fn find_roots(from: &mut Vec<VarCell>) -> HashSet<OperationCell> {
         let res: HashSet<OperationCell> = from
             .iter()
-            .filter_map(|v| v.copy_driver().and_then(|(d, _)| Some(d)))
+            .filter_map(|v| v.copy_driver().map(|(d, _)| d))
             .map(|d| {
                 if d.is_ready() {
                     HashSet::from([d]).into_iter()
@@ -910,15 +1109,15 @@ impl Rtl {
         res
     }
 
-    pub fn raw_add(mut self, prog: &Program, dry_run: bool) -> (usize, Vec<MetaVarCell>) {
+    pub fn raw_add(mut self, prog: &Program) -> (usize, Vec<MetaVarCell>) {
         self.load();
         self.write_dot(0);
 
         let mut arch = Arch::from(prog);
-        if dry_run {
-            arch.program = None;
-        };
-        let mut todo: BinaryHeap<_> = Rtl::find_roots(&mut self.0).into_iter().collect();
+        let mut todo: BinaryHeap<_> = 
+            Rtl::find_roots(&mut self.0)
+                .into_iter()
+                .collect();
 
         trace!(target: "rtl", "todo: {:?}", &todo);
 
@@ -948,11 +1147,11 @@ impl Rtl {
     }
 
     pub fn add(self, prog: &Program) -> Vec<MetaVarCell> {
-        self.raw_add(prog, false).1
+        self.raw_add(prog).1
     }
 
     pub fn estimate(self, prog: &Program) -> usize {
-        self.raw_add(prog, true).0
+        self.raw_add(&prog).0
     }
 }
 
@@ -1127,7 +1326,7 @@ impl Debug for Var {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         f.debug_struct("Var")
             .field("uid", &self.uid)
-            .field("meta", &self.meta.is_some())
+            .field("meta", &self.meta.as_ref())
             .field("loads", &self.loads.len())
             .finish()
     }

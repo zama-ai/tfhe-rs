@@ -561,12 +561,14 @@ impl HpuBackend {
             isc_depth: self.params.isc_params.depth,
             heap_size: config.board.heap_size,
             pbs_batch_w: self.params.ntt_params.batch_pbs_nb,
+            total_pbs_nb: self.params.ntt_params.total_pbs_nb,
             msg_w: self.params.pbs_params.message_width,
             carry_w: self.params.pbs_params.carry_width,
             nu: 5,
             integer_w: config.firmware.integer_w[0],
             use_ipip: config.firmware.use_ipip,
             kogge_cfg: config.firmware.kogge_cfg.clone(),
+            fill_batch_fifo: config.firmware.fill_batch_fifo,
             pe_cfg,
         };
 
