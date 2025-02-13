@@ -175,6 +175,21 @@ impl crate::integer::ciphertext::Expandable for FheString {
     }
 }
 
+impl crate::integer::ciphertext::Compressible for FheString {
+    fn compress_into(self, messages: &mut Vec<crate::shortint::Ciphertext>) -> DataKind {
+        let n_chars = self.chars().len() as u32;
+        let padded = self.is_padded();
+
+        for char in self.enc_string {
+            for block in char.enc_char.blocks {
+                messages.push(block);
+            }
+        }
+
+        DataKind::String { n_chars, padded }
+    }
+}
+
 #[derive(Clone)]
 pub enum GenericPattern {
     Clear(ClearString),
