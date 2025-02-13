@@ -1,7 +1,10 @@
 use crate::high_level_api::traits::BitSlice;
+#[cfg(feature = "extended-types")]
 use crate::integer::U256;
 use crate::prelude::*;
-use crate::{ClientKey, FheUint256, FheUint32, FheUint64, FheUint8};
+#[cfg(feature = "extended-types")]
+use crate::FheUint256;
+use crate::{ClientKey, FheUint32, FheUint64, FheUint8};
 use rand::{thread_rng, Rng};
 
 mod cpu;
@@ -65,6 +68,7 @@ fn test_case_uint8_trivial(client_key: &ClientKey) {
     assert_eq!(clear, 234);
 }
 
+#[cfg(feature = "extended-types")]
 fn test_case_uint256_trivial(client_key: &ClientKey) {
     let clear_a = U256::from(u128::MAX);
     let a = FheUint256::try_encrypt_trivial(clear_a).unwrap();

@@ -67,16 +67,16 @@ pub trait FheUintId: IntegerId {}
 /// This struct is generic over some Id, as its the Id
 /// that controls how many bit they represent.
 ///
-/// You will need to use one of this type specialization (e.g., [FheUint8], [FheUint12],
-/// [FheUint16]).
+/// You will need to use one of this type specialization (e.g., [FheUint8], [FheUint16],
+/// [FheUint32]).
 ///
 /// Its the type that overloads the operators (`+`, `-`, `*`),
 /// since the `FheUint` type is not `Copy` the operators are also overloaded
 /// to work with references.
 ///
 /// [FheUint8]: crate::high_level_api::FheUint8
-/// [FheUint12]: crate::high_level_api::FheUint12
 /// [FheUint16]: crate::high_level_api::FheUint16
+/// [FheUint32]: crate::high_level_api::FheUint32
 #[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
 #[versionize(FheUintVersions)]
 pub struct FheUint<Id: FheUintId> {
