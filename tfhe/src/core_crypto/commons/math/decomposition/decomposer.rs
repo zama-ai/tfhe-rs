@@ -145,6 +145,12 @@ where
         native_closest_representable(input, self.level_count, self.base_log)
     }
 
+    /// Decode a plaintext value using the decoder to compute the closest representable.
+    pub fn decode_plaintext(&self, input: Scalar) -> Scalar {
+        let shift = Scalar::BITS - self.level_count * self.base_log;
+        self.closest_representable(input) >> shift
+    }
+
     #[inline(always)]
     pub fn init_decomposer_state(&self, input: Scalar) -> Scalar {
         // The closest number representable by the decomposition can be computed by performing
@@ -484,6 +490,26 @@ where
             ValueSign::Positive => abs_closest,
             ValueSign::Negative => abs_closest.wrapping_neg_custom_mod(modulus_as_scalar),
         }
+    }
+
+    /// Decode a plaintext value using the decoder modulo a custom modulus.
+    pub fn decode_plaintext(&self, input: Scalar) -> Scalar {
+        let ciphertext_modulus_as_scalar: Scalar =
+            self.ciphertext_modulus.get_custom_modulus().cast_into();
+        let mut negate_input = false;
+        let mut ptxt = input;
+        if input > ciphertext_modulus_as_scalar >> 1 {
+            negate_input = true;
+            ptxt = ptxt.wrapping_neg_custom_mod(ciphertext_modulus_as_scalar);
+        }
+        let number_of_message_bits = self.base_log().0 * self.level_count().0;
+        let delta = ciphertext_modulus_as_scalar >> number_of_message_bits;
+        let half_delta = delta >> 1;
+        let mut decoded = (ptxt + half_delta) / delta;
+        if negate_input {
+            decoded = decoded.wrapping_neg_custom_mod(ciphertext_modulus_as_scalar);
+        }
+        decoded
     }
 
     #[inline(always)]

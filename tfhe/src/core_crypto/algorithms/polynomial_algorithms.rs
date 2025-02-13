@@ -1,5 +1,7 @@
 //! Module providing algorithms to perform computations on polynomials modulo $X^{N} + 1$.
 
+use itertools::Itertools;
+
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::commons::traits::*;
@@ -916,6 +918,65 @@ pub fn polynomial_wrapping_sub_mul_assign_custom_mod<Scalar, OutputCont, InputCo
         polynomial_wrapping_sub_assign_custom_mod(output, &tmp, custom_modulus);
     } else {
         polynomial_wrapping_sub_mul_schoolbook_assign_custom_mod(output, lhs, rhs, custom_modulus)
+    }
+}
+
+pub fn polynomial_list_wrapping_sub_scalar_mul_assign<Scalar, InputCont, OutputCont, PolyCont>(
+    output_poly_list: &mut PolynomialList<OutputCont>,
+    input_poly_list: &PolynomialList<InputCont>,
+    scalar_poly: &Polynomial<PolyCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        output_poly_list.polynomial_size(),
+        input_poly_list.polynomial_size()
+    );
+    assert_eq!(
+        output_poly_list.polynomial_count(),
+        input_poly_list.polynomial_count()
+    );
+    for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip_eq(input_poly_list.iter())
+    {
+        polynomial_wrapping_sub_mul_assign(&mut output_poly, &input_poly, scalar_poly)
+    }
+}
+
+pub fn polynomial_list_wrapping_sub_scalar_mul_assign_custom_mod<
+    Scalar,
+    InputCont,
+    OutputCont,
+    PolyCont,
+>(
+    output_poly_list: &mut PolynomialList<OutputCont>,
+    input_poly_list: &PolynomialList<InputCont>,
+    scalar_poly: &Polynomial<PolyCont>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        output_poly_list.polynomial_size(),
+        input_poly_list.polynomial_size()
+    );
+    assert_eq!(
+        output_poly_list.polynomial_count(),
+        input_poly_list.polynomial_count()
+    );
+    for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip_eq(input_poly_list.iter())
+    {
+        polynomial_wrapping_sub_mul_assign_custom_mod(
+            &mut output_poly,
+            &input_poly,
+            scalar_poly,
+            custom_modulus,
+        )
     }
 }
 
