@@ -20,6 +20,7 @@ use crate::shortint::parameters::{
     CiphertextModulus, CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
     LweDimension,
 };
+use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkeCrs, CompactPkeZkScheme, ZkComputeLoad, ZkVerificationOutcome};
@@ -28,137 +29,76 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
-/// Unpack message and carries and additionally sanitizes blocks that correspond to boolean values
-/// to make sure they encrypt a 0 or a 1.
-fn unpack_and_sanitize_message_and_carries(
-    packed_blocks: Vec<Ciphertext>,
+/// Unpack message and carries and additionally sanitizes blocks
+///
+/// * boolean blocks: make sure they encrypt a 0 or a 1
+/// * last block of ascii char: make sure only necessary bits contain information
+/// * default case: make sure they have no carries
+fn unpack_and_sanitize(
+    mut packed_blocks: Vec<Ciphertext>,
     sks: &ServerKey,
     infos: &[DataKind],
 ) -> Vec<Ciphertext> {
-    let IntegerUnpackingToShortintCastingModeHelper {
-        msg_extract,
-        carry_extract,
-        msg_extract_bool,
-        carry_extract_bool,
-    } = IntegerUnpackingToShortintCastingModeHelper::new(
-        sks.message_modulus(),
-        sks.carry_modulus(),
-    );
-    let msg_extract = sks.key.generate_lookup_table(msg_extract);
-    let carry_extract = sks.key.generate_lookup_table(carry_extract);
-    let msg_extract_bool = sks.key.generate_lookup_table(msg_extract_bool);
-    let carry_extract_bool = sks.key.generate_lookup_table(carry_extract_bool);
-
-    let block_count: usize = infos.iter().map(|x| x.num_blocks()).sum();
+    let block_count: usize = infos
+        .iter()
+        .map(|x| x.num_blocks(sks.message_modulus()))
+        .sum();
     let packed_block_count = block_count.div_ceil(2);
     assert_eq!(
         packed_block_count,
         packed_blocks.len(),
         "Internal error, invalid packed blocks count during unpacking of a compact ciphertext list."
     );
-    let mut functions = vec![[None; 2]; packed_block_count];
+    let functions = IntegerUnpackingToShortintCastingModeHelper::new(
+        sks.message_modulus(),
+        sks.carry_modulus(),
+    )
+    .generate_unpacked_and_sanitize_luts(infos, sks);
 
-    let mut overall_block_idx = 0;
-
-    for data_kind in infos {
-        let block_count = data_kind.num_blocks();
-        for _ in 0..block_count {
-            let is_in_msg_part = overall_block_idx % 2 == 0;
-
-            let unpacking_function = if is_in_msg_part {
-                if matches!(data_kind, DataKind::Boolean) {
-                    &msg_extract_bool
-                } else {
-                    &msg_extract
-                }
-            } else if matches!(data_kind, DataKind::Boolean) {
-                &carry_extract_bool
-            } else {
-                &carry_extract
-            };
-
-            let packed_block_idx = overall_block_idx / 2;
-            let idx_in_packed_block = overall_block_idx % 2;
-
-            functions[packed_block_idx][idx_in_packed_block] = Some(unpacking_function);
-            overall_block_idx += 1;
-        }
+    // Create a new vec with the input blocks doubled
+    let mut unpacked = Vec::with_capacity(functions.len());
+    for block in packed_blocks.drain(..packed_block_count - 1) {
+        unpacked.push(block.clone());
+        unpacked.push(block);
     }
+    if block_count % 2 == 0 {
+        unpacked.push(packed_blocks[0].clone());
+    }
+    unpacked.push(packed_blocks.pop().unwrap());
 
-    packed_blocks
-        .into_par_iter()
-        .zip(functions.into_par_iter())
-        .flat_map(|(block, extract_function)| {
-            let mut low_block = block;
-            let mut high_block = low_block.clone();
-            let (msg_lut, carry_lut) = (extract_function[0], extract_function[1]);
+    unpacked
+        .par_iter_mut()
+        .zip(functions.par_iter())
+        .for_each(|(block, lut)| sks.key.apply_lookup_table_assign(block, lut));
 
-            rayon::join(
-                || {
-                    if let Some(msg_lut) = msg_lut {
-                        sks.key.apply_lookup_table_assign(&mut low_block, msg_lut);
-                    }
-                },
-                || {
-                    if let Some(carry_lut) = carry_lut {
-                        sks.key
-                            .apply_lookup_table_assign(&mut high_block, carry_lut);
-                    }
-                },
-            );
-
-            [low_block, high_block]
-        })
-        .collect::<Vec<_>>()
+    unpacked
 }
 
-/// This function sanitizes boolean blocks to make sure they encrypt a 0 or a 1
-fn sanitize_boolean_blocks(
-    expanded_blocks: Vec<Ciphertext>,
+/// This function sanitizes blocks depending on the data kind:
+///
+/// * boolean blocks: make sure they encrypt a 0 or a 1
+/// * last block of ascii char: make sure only necessary bits contain information
+/// * default case: make sure they have no carries
+fn sanitize_blocks(
+    mut expanded_blocks: Vec<Ciphertext>,
     sks: &ServerKey,
     infos: &[DataKind],
 ) -> Vec<Ciphertext> {
-    let message_modulus = sks.message_modulus().0;
-    let msg_extract = sks.key.generate_lookup_table(|x: u64| x % message_modulus);
-    let msg_extract_bool = sks.key.generate_lookup_table(|x: u64| {
-        let tmp = x % message_modulus;
-        if tmp == 0 {
-            0u64
-        } else {
-            1u64
-        }
-    });
+    let functions = IntegerUnpackingToShortintCastingModeHelper::new(
+        sks.message_modulus(),
+        sks.carry_modulus(),
+    )
+    .generate_sanitize_without_unpacking_luts(infos, sks);
 
-    let block_count: usize = infos.iter().map(|x| x.num_blocks()).sum();
-    let mut functions = vec![None; block_count];
-
-    let mut overall_block_idx = 0;
-
-    for data_kind in infos {
-        let block_count = data_kind.num_blocks();
-        for _ in 0..block_count {
-            let acc = if matches!(data_kind, DataKind::Boolean) {
-                Some(&msg_extract_bool)
-            } else {
-                Some(&msg_extract)
-            };
-
-            functions[overall_block_idx] = acc;
-            overall_block_idx += 1;
-        }
-    }
+    assert_eq!(functions.len(), expanded_blocks.len());
+    expanded_blocks
+        .par_iter_mut()
+        .zip(functions.par_iter())
+        .for_each(|(block, sanitize_acc)| {
+            sks.key.apply_lookup_table_assign(block, sanitize_acc);
+        });
 
     expanded_blocks
-        .into_par_iter()
-        .zip(functions.into_par_iter())
-        .map(|(mut block, sanitize_acc)| {
-            if let Some(sanitize_acc) = sanitize_acc {
-                sks.key.apply_lookup_table_assign(&mut block, sanitize_acc);
-            }
-
-            block
-        })
-        .collect::<Vec<_>>()
 }
 
 pub trait Compactable {
@@ -208,8 +148,8 @@ where
 }
 
 pub struct CompactCiphertextListBuilder {
-    messages: Vec<u64>,
-    info: Vec<DataKind>,
+    pub(crate) messages: Vec<u64>,
+    pub(crate) info: Vec<DataKind>,
     pub(crate) pk: CompactPublicKey,
 }
 
@@ -227,10 +167,11 @@ impl CompactCiphertextListBuilder {
         T: Compactable,
     {
         let n = self.messages.len();
-        let kind = data.compact_into(&mut self.messages, self.pk.key.message_modulus(), None);
-        assert_eq!(n + kind.num_blocks(), self.messages.len());
+        let msg_modulus = self.pk.key.message_modulus();
+        let kind = data.compact_into(&mut self.messages, msg_modulus, None);
+        assert_eq!(n + kind.num_blocks(msg_modulus), self.messages.len());
 
-        if kind.num_blocks() != 0 {
+        if kind.num_blocks(msg_modulus) != 0 {
             self.info.push(kind);
         }
 
@@ -247,12 +188,9 @@ impl CompactCiphertextListBuilder {
         }
 
         let n = self.messages.len();
-        let kind = data.compact_into(
-            &mut self.messages,
-            self.pk.key.message_modulus(),
-            Some(num_blocks),
-        );
-        assert_eq!(n + kind.num_blocks(), self.messages.len());
+        let msg_mod = self.pk.key.message_modulus();
+        let kind = data.compact_into(&mut self.messages, msg_mod, Some(num_blocks));
+        assert_eq!(n + kind.num_blocks(msg_mod), self.messages.len());
         self.info.push(kind);
         self
     }
@@ -394,13 +332,14 @@ impl CompactCiphertextListExpander {
     fn blocks_of(&self, index: usize) -> Option<(&[Ciphertext], DataKind)> {
         let preceding_infos = self.info.get(..index)?;
         let current_info = self.info.get(index).copied()?;
+        let msg_mod = self.expanded_blocks.first()?.message_modulus;
 
         let start_block_index = preceding_infos
             .iter()
             .copied()
-            .map(DataKind::num_blocks)
+            .map(|kind| kind.num_blocks(msg_mod))
             .sum();
-        let end_block_index = start_block_index + current_info.num_blocks();
+        let end_block_index = start_block_index + current_info.num_blocks(msg_mod);
 
         self.expanded_blocks
             .get(start_block_index..end_block_index)
@@ -456,6 +395,9 @@ struct IntegerUnpackingToShortintCastingModeHelper {
     carry_extract: Box<dyn Fn(u64) -> u64 + Sync>,
     msg_extract_bool: Box<dyn Fn(u64) -> u64 + Sync>,
     carry_extract_bool: Box<dyn Fn(u64) -> u64 + Sync>,
+    msg_extract_last_char_block: Box<dyn Fn(u64) -> u64 + Sync>,
+    carry_extract_last_char_block: Box<dyn Fn(u64) -> u64 + Sync>,
+    message_modulus: MessageModulus,
 }
 
 impl IntegerUnpackingToShortintCastingModeHelper {
@@ -472,73 +414,246 @@ impl IntegerUnpackingToShortintCastingModeHelper {
             let tmp = (x / carry_modulus) % message_modulus;
             u64::from(tmp != 0)
         });
+        let msg_extract_last_char_block = Box::new(move |x: u64| {
+            let bits_of_last_char_block = 7u32 % message_modulus.ilog2();
+            if bits_of_last_char_block == 0 {
+                // The full msg_mod of last block of the char is needed
+                x % message_modulus
+            } else {
+                // Only part of the msg_mod is needed
+                x % (1 << bits_of_last_char_block)
+            }
+        });
+
+        let carry_extract_last_char_block = Box::new(move |x: u64| {
+            let x = x / message_modulus;
+            let bits_of_last_char_block = 7u32 % message_modulus.ilog2();
+            if bits_of_last_char_block == 0 {
+                // The full msg_mod of last block of the char is needed
+                x % message_modulus
+            } else {
+                // Only part of the msg_mod is needed
+                x % (1 << bits_of_last_char_block)
+            }
+        });
 
         Self {
             msg_extract,
             carry_extract,
             msg_extract_bool,
             carry_extract_bool,
+            msg_extract_last_char_block,
+            carry_extract_last_char_block,
+            message_modulus: MessageModulus(message_modulus),
         }
     }
 
-    pub fn generate_unpack_and_sanitize_functions(
-        &self,
+    pub fn generate_unpack_and_sanitize_functions<'a>(
+        &'a self,
         infos: &[DataKind],
-    ) -> CastingFunctionsOwned {
-        let block_count: usize = infos.iter().map(|x| x.num_blocks()).sum();
+    ) -> CastingFunctionsOwned<'a> {
+        let block_count: usize = infos
+            .iter()
+            .map(|x| x.num_blocks(self.message_modulus))
+            .sum();
         let packed_block_count = block_count.div_ceil(2);
-        let mut functions = vec![Some(Vec::with_capacity(2)); packed_block_count];
-
+        let mut functions: CastingFunctionsOwned<'a> =
+            vec![Some(Vec::with_capacity(2)); packed_block_count];
         let mut overall_block_idx = 0;
 
-        for data_kind in infos {
-            let block_count = data_kind.num_blocks();
-            for _ in 0..block_count {
-                let is_in_msg_part = overall_block_idx % 2 == 0;
-
-                let unpacking_function: &(dyn Fn(u64) -> u64 + Sync) = if is_in_msg_part {
-                    if matches!(data_kind, DataKind::Boolean) {
-                        self.msg_extract_bool.as_ref()
+        // Small helper that handles the dispatch between the msg_fn and carry_fn
+        // depending on the overall block index (to know if the data is in the carry or msg)
+        let mut push_functions =
+            |block_count: usize,
+             msg_fn: &'a (dyn Fn(u64) -> u64 + Sync),
+             carry_fn: &'a (dyn Fn(u64) -> u64 + Sync)| {
+                for _ in 0..block_count {
+                    let is_in_msg_part = overall_block_idx % 2 == 0;
+                    let sub_vec = functions[overall_block_idx / 2].as_mut().unwrap();
+                    if is_in_msg_part {
+                        sub_vec.push(msg_fn);
                     } else {
-                        self.msg_extract.as_ref()
+                        sub_vec.push(carry_fn);
                     }
-                } else if matches!(data_kind, DataKind::Boolean) {
-                    self.carry_extract_bool.as_ref()
-                } else {
-                    self.carry_extract.as_ref()
-                };
-
-                let packed_block_idx = overall_block_idx / 2;
-
-                if let Some(block_fns) = functions[packed_block_idx].as_mut() {
-                    block_fns.push(unpacking_function)
+                    overall_block_idx += 1;
                 }
+            };
 
-                overall_block_idx += 1;
+        for data_kind in infos {
+            let block_count = data_kind.num_blocks(self.message_modulus);
+            match data_kind {
+                DataKind::Boolean => {
+                    push_functions(
+                        block_count,
+                        &self.msg_extract_bool,
+                        &self.carry_extract_bool,
+                    );
+                }
+                DataKind::String { n_chars, .. } => {
+                    let blocks_per_char = 7u32.div_ceil(self.message_modulus.0.ilog2());
+                    for _ in 0..*n_chars {
+                        push_functions(
+                            blocks_per_char as usize - 1,
+                            &self.msg_extract,
+                            &self.carry_extract,
+                        );
+                        push_functions(
+                            1,
+                            &self.msg_extract_last_char_block,
+                            &self.carry_extract_last_char_block,
+                        );
+                    }
+                }
+                _ => {
+                    push_functions(block_count, &self.msg_extract, &self.carry_extract);
+                }
             }
         }
 
         functions
     }
 
-    pub fn generate_sanitize_without_unpacking_functions(
-        &self,
+    pub fn generate_sanitize_without_unpacking_functions<'a>(
+        &'a self,
         infos: &[DataKind],
-    ) -> CastingFunctionsOwned {
-        let total_block_count: usize = infos.iter().map(|x| x.num_blocks()).sum();
+    ) -> CastingFunctionsOwned<'a> {
+        let total_block_count: usize = infos
+            .iter()
+            .map(|x| x.num_blocks(self.message_modulus))
+            .sum();
         let mut functions = Vec::with_capacity(total_block_count);
 
-        for data_kind in infos {
-            let block_count = data_kind.num_blocks();
+        let mut push_functions = |block_count: usize, func: &'a (dyn Fn(u64) -> u64 + Sync)| {
             for _ in 0..block_count {
-                let sanitize_function: &(dyn Fn(u64) -> u64 + Sync) =
-                    if matches!(data_kind, DataKind::Boolean) {
-                        self.msg_extract_bool.as_ref()
-                    } else {
-                        self.msg_extract.as_ref()
-                    };
+                functions.push(Some(vec![func]));
+            }
+        };
 
-                functions.push(Some(vec![sanitize_function]));
+        for data_kind in infos {
+            let block_count = data_kind.num_blocks(self.message_modulus);
+            match data_kind {
+                DataKind::Boolean => {
+                    push_functions(block_count, self.msg_extract_bool.as_ref());
+                }
+                DataKind::String { n_chars, .. } => {
+                    let blocks_per_char = 7u32.div_ceil(self.message_modulus.0.ilog2());
+                    for _ in 0..*n_chars {
+                        push_functions(blocks_per_char as usize - 1, self.msg_extract.as_ref());
+                        push_functions(1, self.msg_extract_last_char_block.as_ref());
+                    }
+                }
+                _ => {
+                    push_functions(block_count, self.msg_extract.as_ref());
+                }
+            }
+        }
+
+        functions
+    }
+
+    pub fn generate_sanitize_without_unpacking_luts(
+        &self,
+        infos: &[DataKind],
+        sks: &ServerKey,
+    ) -> Vec<LookupTableOwned> {
+        let total_block_count: usize = infos
+            .iter()
+            .map(|x| x.num_blocks(self.message_modulus))
+            .sum();
+        let mut functions = Vec::with_capacity(total_block_count);
+
+        let mut push_luts_for_function = |block_count: usize, func: &(dyn Fn(u64) -> u64)| {
+            let lut = sks.key.generate_lookup_table(func);
+            for _ in 0..block_count {
+                functions.push(lut.clone());
+            }
+        };
+
+        for data_kind in infos {
+            let block_count = data_kind.num_blocks(self.message_modulus);
+            match data_kind {
+                DataKind::Boolean => {
+                    push_luts_for_function(block_count, self.msg_extract_bool.as_ref());
+                }
+                DataKind::String { n_chars, .. } => {
+                    let blocks_per_char = 7u32.div_ceil(self.message_modulus.0.ilog2());
+                    for _ in 0..*n_chars {
+                        push_luts_for_function(
+                            blocks_per_char as usize - 1,
+                            self.msg_extract.as_ref(),
+                        );
+                        push_luts_for_function(1, self.msg_extract_last_char_block.as_ref());
+                    }
+                }
+                _ => {
+                    push_luts_for_function(block_count, self.msg_extract.as_ref());
+                }
+            }
+        }
+
+        functions
+    }
+
+    /// Generates a vec of LUTs to apply to both unpack an sanitize data
+    ///
+    /// The LUTs are stored flattened, thus 2 consecutive LUTs must be applied to the same input
+    /// block
+    pub fn generate_unpacked_and_sanitize_luts(
+        &self,
+        infos: &[DataKind],
+        sks: &ServerKey,
+    ) -> Vec<LookupTableOwned> {
+        let block_count: usize = infos
+            .iter()
+            .map(|x| x.num_blocks(self.message_modulus))
+            .sum();
+        let packed_block_count = block_count.div_ceil(2);
+        let mut functions = Vec::with_capacity(packed_block_count);
+        let mut overall_block_idx = 0;
+
+        // Small help that handles the dispatch between the msg_fn and carry_fn
+        // depending on the overall block index (to know if the data is in the carry or msg)
+        let mut push_functions =
+            |block_count: usize, msg_fn: &dyn Fn(u64) -> u64, carry_fn: &dyn Fn(u64) -> u64| {
+                for _ in 0..block_count {
+                    let is_in_msg_part = overall_block_idx % 2 == 0;
+                    if is_in_msg_part {
+                        functions.push(sks.key.generate_lookup_table(msg_fn));
+                    } else {
+                        functions.push(sks.key.generate_lookup_table(carry_fn));
+                    }
+                    overall_block_idx += 1;
+                }
+            };
+
+        for data_kind in infos {
+            let block_count = data_kind.num_blocks(self.message_modulus);
+            match data_kind {
+                DataKind::Boolean => {
+                    push_functions(
+                        block_count,
+                        &self.msg_extract_bool,
+                        &self.carry_extract_bool,
+                    );
+                }
+                DataKind::String { n_chars, .. } => {
+                    let blocks_per_char = 7u32.div_ceil(self.message_modulus.0.ilog2());
+                    for _ in 0..*n_chars {
+                        push_functions(
+                            blocks_per_char as usize - 1,
+                            &self.msg_extract,
+                            &self.carry_extract,
+                        );
+                        push_functions(
+                            1,
+                            &self.msg_extract_last_char_block,
+                            &self.carry_extract_last_char_block,
+                        );
+                    }
+                }
+                _ => {
+                    push_functions(block_count, &self.msg_extract, &self.carry_extract);
+                }
             }
         }
 
@@ -610,13 +725,9 @@ fn expansion_helper<ListType>(
                     }
                 }
 
-                Ok(unpack_and_sanitize_message_and_carries(
-                    expanded_blocks,
-                    sks,
-                    info,
-                ))
+                Ok(unpack_and_sanitize(expanded_blocks, sks, info))
             } else {
-                Ok(sanitize_boolean_blocks(expanded_blocks, sks, info))
+                Ok(sanitize_blocks(expanded_blocks, sks, info))
             }
         }
         IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking => {
@@ -677,8 +788,12 @@ impl CompactCiphertextList {
     ) -> Self {
         let sself = Self { ct_list, info };
         let expected_lwe_count: usize = {
-            let unpacked_expected_lwe_count: usize =
-                sself.info.iter().copied().map(DataKind::num_blocks).sum();
+            let unpacked_expected_lwe_count: usize = sself
+                .info
+                .iter()
+                .copied()
+                .map(|kind| kind.num_blocks(sself.message_modulus()))
+                .sum();
             if sself.is_packed() {
                 unpacked_expected_lwe_count.div_ceil(2)
             } else {
@@ -748,8 +863,17 @@ impl CompactCiphertextList {
     /// assert_eq!(u8::MAX, decrypted);
     /// ```
     pub fn reinterpret_data(&mut self, info: &[DataKind]) -> Result<(), crate::Error> {
-        let current_lwe_count: usize = self.info.iter().copied().map(DataKind::num_blocks).sum();
-        let new_lwe_count: usize = info.iter().copied().map(DataKind::num_blocks).sum();
+        let current_lwe_count: usize = self
+            .info
+            .iter()
+            .copied()
+            .map(|kind| kind.num_blocks(self.message_modulus()))
+            .sum();
+        let new_lwe_count: usize = info
+            .iter()
+            .copied()
+            .map(|kind| kind.num_blocks(self.message_modulus()))
+            .sum();
 
         if current_lwe_count != new_lwe_count {
             return Err(crate::Error::new(
@@ -797,13 +921,21 @@ impl CompactCiphertextList {
         self.ct_list.size_bytes()
     }
 
+    pub fn message_modulus(&self) -> MessageModulus {
+        self.ct_list.message_modulus
+    }
+
     fn is_conformant_with_shortint_params(
         &self,
         shortint_params: CiphertextConformanceParams,
     ) -> bool {
         let Self { ct_list, info } = self;
 
-        let mut num_blocks: usize = info.iter().copied().map(DataKind::num_blocks).sum();
+        let mut num_blocks: usize = info
+            .iter()
+            .copied()
+            .map(|kind| kind.num_blocks(self.message_modulus()))
+            .sum();
         // This expects packing, halve the number of blocks with enough capacity
         if shortint_params.degree.get()
             == (shortint_params.message_modulus.0 * shortint_params.carry_modulus.0) - 1
@@ -980,7 +1112,10 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { ct_list, info } = self;
 
-        let total_expected_num_blocks: usize = info.iter().map(|a| a.num_blocks()).sum();
+        let total_expected_num_blocks: usize = info
+            .iter()
+            .map(|a| a.num_blocks(self.message_modulus()))
+            .sum();
 
         let a = ProvenCompactCiphertextListConformanceParams {
             expansion_kind: parameter_set.expansion_kind,
@@ -1253,7 +1388,10 @@ mod tests {
             let mut infos_block_count = 0;
             let proven_ct_len = proven_ct.len();
             for idx in 0..proven_ct_len {
-                infos_block_count += proven_ct.get_kind_of(idx).unwrap().num_blocks();
+                infos_block_count += proven_ct
+                    .get_kind_of(idx)
+                    .unwrap()
+                    .num_blocks(pke_params.message_modulus);
             }
 
             infos_block_count
@@ -1279,7 +1417,10 @@ mod tests {
         }
 
         assert_eq!(
-            new_infos.iter().map(|x| x.num_blocks()).sum::<usize>(),
+            new_infos
+                .iter()
+                .map(|x| x.num_blocks(pke_params.message_modulus))
+                .sum::<usize>(),
             infos_block_count
         );
 

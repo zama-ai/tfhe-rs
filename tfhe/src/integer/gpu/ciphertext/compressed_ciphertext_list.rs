@@ -40,6 +40,12 @@ where
             (DataKind::Signed(_), false) => Err(crate::Error::new(
                 "Tried to expand an unsigned radix while a signed radix is stored".to_string(),
             )),
+            (DataKind::String { .. }, signed) => {
+                let signedness = if signed { "signed" } else { "unsigned" };
+                Err(crate::error!(
+                    "Tried to expand a {signedness} radix while a string is stored"
+                ))
+            }
         }
     }
 }
@@ -54,6 +60,9 @@ impl CudaExpandable for CudaBooleanBlock {
                 "Tried to expand a boolean block while a signed radix was stored".to_string(),
             )),
             DataKind::Boolean => Ok(Self::from_cuda_radix_ciphertext(blocks)),
+            DataKind::String { .. } => Err(crate::Error::new(
+                "Tried to expand a boolean block while a string  radix was stored".to_string(),
+            )),
         }
     }
 }
@@ -87,14 +96,15 @@ impl CudaCompressedCiphertextList {
     ) -> Option<(CudaRadixCiphertext, DataKind)> {
         let preceding_infos = self.info.get(..index)?;
         let current_info = self.info.get(index).copied()?;
+        let message_modulus = self.packed_list.message_modulus;
 
         let start_block_index: usize = preceding_infos
             .iter()
             .copied()
-            .map(DataKind::num_blocks)
+            .map(|kind| kind.num_blocks(message_modulus))
             .sum();
 
-        let end_block_index = start_block_index + current_info.num_blocks() - 1;
+        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
 
         Some((
             decomp_key
@@ -426,8 +436,9 @@ impl CudaCompressedCiphertextListBuilder {
 
     pub fn push<T: CudaCompressible>(&mut self, data: T, streams: &CudaStreams) -> &mut Self {
         let kind = data.compress_into(&mut self.ciphertexts, streams);
+        let message_modulus = self.ciphertexts.last().unwrap().info.blocks[0].message_modulus;
 
-        if kind.num_blocks() != 0 {
+        if kind.num_blocks(message_modulus) != 0 {
             self.info.push(kind);
         }
 

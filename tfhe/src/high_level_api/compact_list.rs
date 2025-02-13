@@ -74,6 +74,7 @@ impl crate::FheTypes {
                 }
             }
             DataKind::Boolean => Self::Bool,
+            DataKind::String { .. } => return None,
         })
     }
 }
