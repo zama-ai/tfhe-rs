@@ -26,6 +26,16 @@ impl Error {
     }
 }
 
+#[cfg(feature = "integer")]
+macro_rules! error{
+    ($($arg:tt)*) => {
+        $crate::error::Error::new(::std::format!($($arg)*))
+    }
+}
+
+#[cfg(feature = "integer")]
+pub(crate) use error;
+
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.kind() {
