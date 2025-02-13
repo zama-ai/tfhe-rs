@@ -5,9 +5,11 @@ use std::ops::*;
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::*;
 use tfhe::{
-    set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheUint10, FheUint12,
-    FheUint128, FheUint14, FheUint16, FheUint2, FheUint32, FheUint4, FheUint6, FheUint64, FheUint8,
+    set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheUint128, FheUint16,
+    FheUint32, FheUint64, FheUint8,
 };
+#[cfg(feature = "extended-types")]
+use tfhe::{FheUint10, FheUint12, FheUint14, FheUint2, FheUint4, FheUint6};
 
 fn bench_fhe_type<FheType>(c: &mut Criterion, client_key: &ClientKey, type_name: &str)
 where
@@ -95,17 +97,24 @@ macro_rules! bench_type {
     };
 }
 
-bench_type!(FheUint2);
-bench_type!(FheUint4);
-bench_type!(FheUint6);
 bench_type!(FheUint8);
-bench_type!(FheUint10);
-bench_type!(FheUint12);
-bench_type!(FheUint14);
 bench_type!(FheUint16);
 bench_type!(FheUint32);
 bench_type!(FheUint64);
 bench_type!(FheUint128);
+
+#[cfg(feature = "extended-types")]
+bench_type!(FheUint2);
+#[cfg(feature = "extended-types")]
+bench_type!(FheUint4);
+#[cfg(feature = "extended-types")]
+bench_type!(FheUint6);
+#[cfg(feature = "extended-types")]
+bench_type!(FheUint10);
+#[cfg(feature = "extended-types")]
+bench_type!(FheUint12);
+#[cfg(feature = "extended-types")]
+bench_type!(FheUint14);
 
 fn main() {
     let config = ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS).build();
@@ -116,17 +125,21 @@ fn main() {
 
     let mut c = Criterion::default().configure_from_args();
 
-    bench_fhe_uint2(&mut c, &cks);
-    bench_fhe_uint4(&mut c, &cks);
-    bench_fhe_uint6(&mut c, &cks);
     bench_fhe_uint8(&mut c, &cks);
-    bench_fhe_uint10(&mut c, &cks);
-    bench_fhe_uint12(&mut c, &cks);
-    bench_fhe_uint14(&mut c, &cks);
     bench_fhe_uint16(&mut c, &cks);
     bench_fhe_uint32(&mut c, &cks);
     bench_fhe_uint64(&mut c, &cks);
     bench_fhe_uint128(&mut c, &cks);
+
+    #[cfg(feature = "extended-types")]
+    {
+        bench_fhe_uint2(&mut c, &cks);
+        bench_fhe_uint4(&mut c, &cks);
+        bench_fhe_uint6(&mut c, &cks);
+        bench_fhe_uint10(&mut c, &cks);
+        bench_fhe_uint12(&mut c, &cks);
+        bench_fhe_uint14(&mut c, &cks);
+    }
 
     c.final_summary();
 }

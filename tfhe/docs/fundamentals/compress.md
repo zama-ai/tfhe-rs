@@ -64,7 +64,7 @@ use tfhe::shortint::parameters::{
 };
 use tfhe::{
     set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
-    FheInt64, FheUint16, FheUint2, FheUint32,
+    FheInt64, FheUint16, FheUint8, FheUint32,
 };
 
 fn main() {
@@ -84,7 +84,7 @@ fn main() {
 
     let ct3 = FheBool::encrypt(false, &ck);
 
-    let ct4 = FheUint2::encrypt(3u8, &ck);
+    let ct4 = FheUint8::encrypt(3u8, &ck);
 
     let compressed_list = CompressedCiphertextListBuilder::new()
         .push(ct1)
@@ -103,7 +103,7 @@ fn main() {
     let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
     let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
     let c: FheBool = compressed_list.get(2).unwrap().unwrap();
-    let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
+    let d: FheUint8 = compressed_list.get(3).unwrap().unwrap();
 
     let a: u32 = a.decrypt(&ck);
     assert_eq!(a, 17);

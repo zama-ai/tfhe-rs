@@ -14,9 +14,9 @@ use tfhe::shortint::parameters::classic::compact_pk::{
     V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
 };
 use tfhe::shortint::PBSParameters;
-use tfhe::{
-    generate_keys, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint256, FheUint32,
-};
+#[cfg(feature = "extended-types")]
+use tfhe::FheUint256;
+use tfhe::{generate_keys, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint32};
 
 fn write_result(file: &mut File, name: &str, value: usize) {
     let line = format!("{name},{value}\n");
