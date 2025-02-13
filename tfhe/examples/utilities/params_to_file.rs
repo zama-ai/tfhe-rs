@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -128,11 +129,23 @@ impl ParamDetails<u64> for CompressionParameters {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 enum ParametersFormat {
     Lwe,
     Glwe,
     LweGlwe,
+}
+
+type NoiseDistributionString = String;
+type LogCiphertextModulus = usize;
+
+#[derive(Eq, PartialEq, Hash)]
+struct ParamGroupKey {
+    lwe_dimension: LweDimension,
+    log_ciphertext_modulus: LogCiphertextModulus,
+    noise_distribution: NoiseDistributionString,
+    // TODO might not need to be hashed since LWE and GLWE share the same security check
+    parameters_format: ParametersFormat,
 }
 
 ///Function to print in the lattice_estimator format the parameters
@@ -143,6 +156,7 @@ pub fn format_lwe_parameters_to_lattice_estimator<
     T: ParamDetails<U> + NamedParam,
 >(
     param: &T,
+    similar_params: Vec<String>,
 ) -> String {
     let name = param.name();
 
@@ -152,13 +166,13 @@ pub fn format_lwe_parameters_to_lattice_estimator<
                 param.log_ciphertext_modulus() as f64 + distrib.standard_dev().0.log2();
 
             format!(
-                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_lwe' \n)\n\n",
-                name, param.lwe_dimension().0, (1u128<<param.log_ciphertext_modulus() as u128), 2.0_f64.powf(modular_std_dev), name)
+                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag=('{}_lwe',) \n)\n\n",
+                name, param.lwe_dimension().0, (1u128<<param.log_ciphertext_modulus() as u128), 2.0_f64.powf(modular_std_dev), similar_params.join("_lwe', '"))
         }
         DynamicDistribution::TUniform(distrib) => {
             format!(
-                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_lwe' \n)\n\n",
-                name, param.lwe_dimension().0, (1u128<<param.log_ciphertext_modulus() as u128), tuniform_equivalent_gaussian_std_dev(&distrib), name)
+                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag=('{}_lwe',) \n)\n\n",
+                name, param.lwe_dimension().0, (1u128<<param.log_ciphertext_modulus() as u128), tuniform_equivalent_gaussian_std_dev(&distrib), similar_params.join("_lwe', '"))
         }
     }
 }
@@ -171,6 +185,7 @@ pub fn format_glwe_parameters_to_lattice_estimator<
     T: ParamDetails<U> + NamedParam,
 >(
     param: &T,
+    similar_params: Vec<String>,
 ) -> String {
     let name = param.name();
 
@@ -180,13 +195,13 @@ pub fn format_glwe_parameters_to_lattice_estimator<
                 param.log_ciphertext_modulus() as f64 + distrib.standard_dev().0.log2();
 
             format!(
-                "{}_GLWE = LWE.Parameters(\n n = {},\n q = {},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_glwe' \n)\n\n",
-                name, param.glwe_dimension().0 * param.polynomial_size().0, (1u128<<param.log_ciphertext_modulus() as u128), 2.0_f64.powf(modular_std_dev), name)
+                "{}_GLWE = LWE.Parameters(\n n = {},\n q = {},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag=('{}_glwe',) \n)\n\n",
+                name, param.glwe_dimension().to_equivalent_lwe_dimension(param.polynomial_size()).0, 1u128<<param.log_ciphertext_modulus() as u128, 2.0_f64.powf(modular_std_dev), similar_params.join("_glwe', '"))
         }
         DynamicDistribution::TUniform(distrib) => {
             format!(
-                "{}_GLWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_glwe' \n)\n\n",
-                name, param.glwe_dimension().0 * param.polynomial_size().0, (1u128<<param.log_ciphertext_modulus() as u128), tuniform_equivalent_gaussian_std_dev(&distrib), name)
+                "{}_GLWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag=('{}_glwe',) \n)\n\n",
+                name, param.glwe_dimension().to_equivalent_lwe_dimension(param.polynomial_size()).0, 1u128<<param.log_ciphertext_modulus() as u128, tuniform_equivalent_gaussian_std_dev(&distrib), similar_params.join("_glwe', '"))
         }
     }
 }
@@ -213,36 +228,75 @@ fn write_all_params_in_file<U: UnsignedInteger, T: ParamDetails<U> + Copy + Name
         .open(path)
         .expect("cannot open parsed results file");
 
-    for params in params.iter() {
-        if format == ParametersFormat::LweGlwe || format == ParametersFormat::Lwe {
-            write_file(
-                &mut file,
-                path,
-                format_lwe_parameters_to_lattice_estimator(params),
-            );
-        }
+    let mut params_groups: HashMap<ParamGroupKey, Vec<T>> = HashMap::new();
 
-        if format == ParametersFormat::LweGlwe || format == ParametersFormat::Glwe {
-            write_file(
-                &mut file,
-                path,
-                format_glwe_parameters_to_lattice_estimator(params),
-            );
+    for params in params.iter() {
+        let keys = match format {
+            ParametersFormat::LweGlwe => vec![
+                ParamGroupKey {
+                    lwe_dimension: params.lwe_dimension(),
+                    log_ciphertext_modulus: params.log_ciphertext_modulus(),
+                    noise_distribution: params.lwe_noise_distribution().to_string(),
+                    parameters_format: ParametersFormat::Lwe,
+                },
+                ParamGroupKey {
+                    lwe_dimension: params
+                        .glwe_dimension()
+                        .to_equivalent_lwe_dimension(params.polynomial_size()),
+                    log_ciphertext_modulus: params.log_ciphertext_modulus(),
+                    noise_distribution: params.glwe_noise_distribution().to_string(),
+                    parameters_format: ParametersFormat::Glwe,
+                },
+            ],
+            ParametersFormat::Lwe => vec![ParamGroupKey {
+                lwe_dimension: params.lwe_dimension(),
+                log_ciphertext_modulus: params.log_ciphertext_modulus(),
+                noise_distribution: params.lwe_noise_distribution().to_string(),
+                parameters_format: ParametersFormat::Lwe,
+            }],
+            ParametersFormat::Glwe => vec![ParamGroupKey {
+                lwe_dimension: params
+                    .glwe_dimension()
+                    .to_equivalent_lwe_dimension(params.polynomial_size()),
+                log_ciphertext_modulus: params.log_ciphertext_modulus(),
+                noise_distribution: params.glwe_noise_distribution().to_string(),
+                parameters_format: ParametersFormat::Glwe,
+            }],
+        };
+
+        for key in keys.into_iter() {
+            match params_groups.get_mut(&key) {
+                Some(vec) => {
+                    vec.push(*params);
+                }
+                None => {
+                    params_groups.insert(key, vec![*params]);
+                }
+            };
         }
     }
-    write_file(&mut file, path, "all_params = [\n");
-    for params in params.iter() {
-        if format == ParametersFormat::LweGlwe || format == ParametersFormat::Lwe {
-            let param_lwe_name = format!("{}_LWE,", params.name());
-            write_file(&mut file, path, param_lwe_name);
-        }
 
-        if format == ParametersFormat::LweGlwe || format == ParametersFormat::Glwe {
-            let param_glwe_name = format!("{}_GLWE,", params.name());
-            write_file(&mut file, path, param_glwe_name);
-        }
+    let mut param_names_augmented = Vec::new();
+
+    for (key, group) in params_groups.iter() {
+        let similar_params = group.iter().map(|p| p.name()).collect::<Vec<String>>();
+        let ref_param = group[0];
+        let formatted_param = match key.parameters_format {
+            ParametersFormat::Lwe => {
+                param_names_augmented.push(format!("{}_LWE", ref_param.name()));
+                format_lwe_parameters_to_lattice_estimator(&ref_param, similar_params)
+            }
+            ParametersFormat::Glwe => {
+                param_names_augmented.push(format!("{}_GLWE", ref_param.name()));
+                format_glwe_parameters_to_lattice_estimator(&ref_param, similar_params)
+            }
+            ParametersFormat::LweGlwe => panic!("formatted parameters cannot be LweGlwe"),
+        };
+        write_file(&mut file, path, formatted_param);
     }
-    write_file(&mut file, path, "\n]\n");
+
+    let all_params = format!("all_params = [\n{}\n]\n", param_names_augmented.join(","));
+    write_file(&mut file, path, all_params);
 }
 
 fn main() {
