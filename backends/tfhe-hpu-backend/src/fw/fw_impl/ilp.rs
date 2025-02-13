@@ -74,19 +74,13 @@ pub fn iop_add_kogge(prog: &mut Program) {
 
     let rtl = {
         // Convert MetaVarCell in VarCell for Rtl analysis
-        let a = src_a
-            .into_iter()
-            .map(|x| VarCell::from(x))
-            .collect::<Vec<_>>();
-        let b = src_b
-            .into_iter()
-            .map(|x| VarCell::from(x))
-            .collect::<Vec<_>>();
+        let a = src_a.into_iter().map(VarCell::from).collect::<Vec<_>>();
+        let b = src_b.into_iter().map(VarCell::from).collect::<Vec<_>>();
 
         // Do a + b with the kogge stone adder
         cached_kogge_add(prog, a, b, None, dst)
     }; // Any reference to any metavar not linked to the RTL is dropped here
-    rtl.add(prog);
+    rtl.add_to_prog(prog);
 }
 
 pub fn iop_adds(prog: &mut Program) {
@@ -171,14 +165,8 @@ pub fn iop_sub_kogge(prog: &mut Program) {
 
     let rtl = {
         // Convert MetaVarCell in VarCell for Rtl analysis
-        let a = src_a
-            .into_iter()
-            .map(|x| VarCell::from(x))
-            .collect::<Vec<_>>();
-        let b = src_b
-            .into_iter()
-            .map(|x| VarCell::from(x))
-            .collect::<Vec<_>>();
+        let a = src_a.into_iter().map(VarCell::from).collect::<Vec<_>>();
+        let b = src_b.into_iter().map(VarCell::from).collect::<Vec<_>>();
 
         let imm = (0..a.len())
             .map(|_| VarCell::from(prog.new_imm((1 << prog.params().msg_w) - 1)))
@@ -195,7 +183,7 @@ pub fn iop_sub_kogge(prog: &mut Program) {
         // Do a + ~b + 1 with the kogge stone adder
         cached_kogge_add(prog, a, b_bw_inv, Some(one), dst)
     }; // Any reference to any metavar not linked to the RTL is dropped here
-    rtl.add(prog);
+    rtl.add_to_prog(prog);
 }
 
 pub fn iop_subs(prog: &mut Program) {
@@ -741,7 +729,7 @@ impl KoggeBlockCfg {
             KoggeBlockCfg::try_with_filename(filename, |f| std::fs::read_to_string(f))
         {
             let mut res: KoggeBlockCfg = toml::from_str(&contents)
-                .expect(&format!("{} is not a valid KoggeBlockCfg", filename));
+                .unwrap_or_else(|_| panic!("{} is not a valid KoggeBlockCfg", filename));
             res.filename = String::from(filename);
             res
         } else {
@@ -847,8 +835,8 @@ impl KoggeTree {
     }
 
     fn insert_subtree(&mut self, index: &Range) {
-        if !self.cache.contains_key(&index) {
-            let (lhs, rhs) = self.get_subindex(&index);
+        if !self.cache.contains_key(index) {
+            let (lhs, rhs) = self.get_subindex(index);
             self.insert_subtree(&lhs);
             self.insert_subtree(&rhs);
 
@@ -861,8 +849,8 @@ impl KoggeTree {
     }
 
     fn get_subtree(&mut self, index: &Range) -> &VarCell {
-        self.insert_subtree(&index);
-        self.cache.get(&index).unwrap()
+        self.insert_subtree(index);
+        self.cache.get(index).unwrap()
     }
 }
 
@@ -886,7 +874,7 @@ fn propagate_carry(
     // Split the result into message and propagate/generate information using a
     // manyLUT
     let (msg, mut carry): (Vec<_>, Vec<_>) = carrysave
-        .into_iter()
+        .iter()
         .map(|v| {
             let mut res = v.pbs(&pbs_genprop).into_iter();
             (res.next().unwrap(), res.next().unwrap())
@@ -896,10 +884,10 @@ fn propagate_carry(
     // Add the carry in as the first carry if any
     carry.insert(
         0,
-        cin.clone().unwrap_or(VarCell::from({
+        cin.clone().unwrap_or_else(|| {
             let new = prog.var_from(None);
             &VarCell::from(new.clone()) - &VarCell::from(new)
-        })),
+        }),
     );
 
     // Build a list of terminal outputs
@@ -925,11 +913,7 @@ fn kogge_adder(
     mut dst: Vec<VarCell>,
     par_w: usize,
 ) -> Rtl {
-    let csave: Vec<_> = a
-        .into_iter()
-        .zip(b.into_iter())
-        .map(|(a, b)| &a + &b)
-        .collect();
+    let csave: Vec<_> = a.into_iter().zip(b).map(|(a, b)| &a + &b).collect();
 
     (0..csave.len().div_ceil(par_w)).for_each(|chunk_idx| {
         let start = chunk_idx * par_w;
@@ -958,37 +942,35 @@ fn cached_kogge_add(
     let mut kogge_cfg = kogge_cfg_ptr.write().unwrap();
     let index: KoggeBlockTableIndex = prog.params().into();
     let dst: Vec<_> = dst.iter().map(|v| VarCell::from(v.clone())).collect();
-    let clone_on = |prog: &Program, v: &Vec<VarCell>| 
-                            v.iter().map(|v| v.clone_on(prog)).collect();
+    let clone_on = |prog: &Program, v: &Vec<VarCell>| v.iter().map(|v| v.clone_on(prog)).collect();
     let mut dirty = false;
 
     trace!(target: "rtl", "kogge config: {:?}", kogge_cfg);
 
     kogge_cfg
         .get(&index)
-        .map(|w| *w)
+        .copied()
         .or_else(|| {
             dirty = true;
-            (1..=prog.params().blk_w()).map(|w| {
-                // Build a new tree for every par_w trial, which means that we
-                // need to get fresh variables for each trial.
-                let mut tmp_prog = Program::new(&prog.params());
-                let a: Vec<_> = clone_on(&tmp_prog, &a);
-                let b: Vec<_> = clone_on(&tmp_prog, &b);
-                let dst: Vec<_> = clone_on(&tmp_prog, &dst);
-                let cin = cin.clone().and_then(|c| Some(c.clone_on(&tmp_prog)));
-                let tree = kogge_adder(&mut tmp_prog, a, b, cin, dst, w);
-                (w, tree.estimate(&tmp_prog))
-            })
-            .min_by_key(|(_, cycle_estimate)| *cycle_estimate)
-            .map(|(w, _)| w)
+            (1..=prog.params().blk_w())
+                .map(|w| {
+                    // Build a new tree for every par_w trial, which means that we
+                    // need to get fresh variables for each trial.
+                    let mut tmp_prog = Program::new(&prog.params());
+                    let a: Vec<_> = clone_on(&tmp_prog, &a);
+                    let b: Vec<_> = clone_on(&tmp_prog, &b);
+                    let dst: Vec<_> = clone_on(&tmp_prog, &dst);
+                    let cin = cin.clone().map(|c| c.clone_on(&tmp_prog));
+                    let tree = kogge_adder(&mut tmp_prog, a, b, cin, dst, w);
+                    (w, tree.estimate(&tmp_prog))
+                })
+                .min_by_key(|(_, cycle_estimate)| *cycle_estimate)
+                .map(|(w, _)| w)
         })
         .map(|w| {
             kogge_cfg.entry(index).or_insert(w);
-            if dirty {
-                if kogge_cfg.try_write().is_err() {
-                    warn!("Could not write kogge config");
-                }
+            if dirty && kogge_cfg.try_write().is_err() {
+                warn!("Could not write kogge config");
             }
             kogge_adder(prog, a, b, cin, dst, w)
         })

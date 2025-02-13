@@ -51,11 +51,11 @@ pub struct RegLockPtr(Option<Rc<RegLock>>);
 impl Drop for RegLock {
     fn drop(&mut self) {
         let rid = self.0.as_reg().unwrap();
-        let mut meta_inner = self.0.0.borrow_mut();
+        let mut meta_inner = self.0 .0.borrow_mut();
         {
             trace!(target: "MetaOp", "Unlocking register {}", rid);
             let mut prog = meta_inner.prog.borrow_mut();
-            prog.reg_put(rid.clone(), Some(MetaVarCellWeak::from(&self.0)));
+            prog.reg_put(rid, Some(MetaVarCellWeak::from(&self.0)));
             prog.reg_promote(rid);
         }
         meta_inner.reg_lock = None;
@@ -113,8 +113,10 @@ impl Drop for MetaVar {
             // Release ressource attached to inner
             match pos {
                 VarPos::Reg(rid) => {
-                    assert!(self.reg_lock.is_none(),
-                    "Dropping a metavariable with a locked register!");
+                    assert!(
+                        self.reg_lock.is_none(),
+                        "Dropping a metavariable with a locked register!"
+                    );
                     prog.reg_release(*rid);
                 }
                 VarPos::Mem(mid) => {
@@ -188,7 +190,7 @@ impl MetaVarCell {
             uid,
             pos: from,
             degree,
-            reg_lock: None
+            reg_lock: None,
         };
 
         Self(Rc::new(RefCell::new(metavar)))
@@ -196,8 +198,12 @@ impl MetaVarCell {
 
     pub fn clone_on(&self, prog: &program::Program) -> Self {
         let borrow = self.0.borrow();
-        MetaVarCell::new(prog.clone(), borrow.uid, borrow.pos.clone(), 
-                         DigitParameters::from(prog.params()))
+        MetaVarCell::new(
+            prog.clone(),
+            borrow.uid,
+            borrow.pos.clone(),
+            DigitParameters::from(prog.params()),
+        )
     }
 }
 
@@ -446,11 +452,9 @@ impl MetaVarCell {
         // and that all destinations are consecutive
         let dst = &dst_slice[0];
 
-        let in_reg = dst_slice
-            .iter()
-            .fold(false, |acc, d| acc || (d.get_pos() == PosKind::REG));
+        let in_reg = dst_slice.iter().any(|d| d.get_pos() == PosKind::REG);
 
-        if in_reg == false {
+        if !in_reg {
             // Get the best possible range of registers
             let dst_rid = dst
                 .0
@@ -466,7 +470,7 @@ impl MetaVarCell {
                 .for_each(|(i, d)| d.force_reg_alloc(asm::RegId(dst_rid.0 + i as u8)));
         } else {
             let lut_lg = lut.as_pbs().unwrap().lut_lg();
-            let mask = u8::max_value() << lut_lg;
+            let mask = u8::MAX << lut_lg;
             assert!(
                 dst.as_reg().is_some()
                     && dst_slice
@@ -764,6 +768,7 @@ impl MetaVarCell {
     ///  * Reg <- Reg|Mem|Imm
     ///  * Mem <- Reg
     ///  * Uninit <- Reg|Mem|Imm
+    ///
     /// NB: Option Mem <- Mem isn't provided.
     ///   Indeed, this operation induce useless LD/ST and could be replaced by
     //    MetaVarCell swapping [0 cost at runtime]
@@ -1291,16 +1296,19 @@ impl MetaVarCell {
         let rid = self.as_reg();
         let mut inner = self.0.borrow_mut();
 
-        inner.reg_lock.as_ref()
-            .and_then(|lock| Some(lock.into()))
-            .unwrap_or_else(
-                || rid.and_then(|rid| {
+        inner
+            .reg_lock
+            .as_ref()
+            .map(|lock| lock.into())
+            .unwrap_or_else(|| {
+                rid.map(|rid| {
                     trace!(target: "MetaOp", "Locking register {}", rid);
                     inner.prog.reg_pop(&rid);
                     let lock_ptr = RegLockPtr::from(RegLock(self.clone()));
                     inner.reg_lock = Some((&lock_ptr).into());
-                    Some(lock_ptr)
+                    lock_ptr
                 })
-                .unwrap_or(RegLockPtr(None)))
+                .unwrap_or(RegLockPtr(None))
+            })
     }
 }
