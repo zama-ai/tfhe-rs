@@ -3,8 +3,8 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
-    glwe_ciphertext_size, glwe_mask_size, CiphertextModulus, CiphertextModulusLog,
-    GlweCiphertextCount, LweCiphertextCount, PolynomialSize,
+    glwe_ciphertext_size, CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount,
+    LweCiphertextCount, PolynomialSize,
 };
 use crate::integer::ciphertext::DataKind;
 use crate::integer::compression_keys::CompressionKey;
@@ -173,12 +173,12 @@ impl CudaCompressionKey {
             .sum();
 
         let num_glwes = num_lwes.div_ceil(self.lwe_per_glwe.0);
-        let glwe_mask_size = glwe_mask_size(
-            compressed_glwe_size.to_glwe_dimension(),
-            compressed_polynomial_size,
-        );
+        let glwe_ciphertext_size =
+            glwe_ciphertext_size(compressed_glwe_size, compressed_polynomial_size);
         // The number of u64 (both mask and bodies)
-        let uncompressed_len = num_glwes * glwe_mask_size + num_lwes;
+        // FIXME: have a more precise memory handling, this is too long and should be
+        // num_glwes * glwe_mask_size + num_lwes
+        let uncompressed_len = num_glwes * glwe_ciphertext_size;
         let number_bits_to_pack = uncompressed_len * self.storage_log_modulus.0;
         let compressed_len = number_bits_to_pack.div_ceil(u64::BITS as usize);
         let mut packed_glwe_list = CudaVec::new(compressed_len, streams, 0);
