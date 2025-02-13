@@ -128,6 +128,25 @@ impl Scheduler {
                     };
                     false
                 }
+                EventType::BatchStart(_) => {
+                    // Reset the timer on the timeout in the queue
+                    if let Some(timeout) = bpip_timeout {
+                        let mut new_heap = BinaryHeap::new();
+                        std::mem::swap(&mut new_heap, &mut self.evt_pdg);
+                        self.evt_pdg = new_heap
+                            .into_iter()
+                            .map(|mut ev| {
+                                if ev.event_type == EventType::BpipTimeout {
+                                    ev.at_cycle = self.sim_cycles + timeout as usize;
+                                    ev
+                                } else {
+                                    ev
+                                }
+                            })
+                            .collect();
+                    }
+                    false
+                },
                 EventType::QuantumEnd => {
                     break;
                 }

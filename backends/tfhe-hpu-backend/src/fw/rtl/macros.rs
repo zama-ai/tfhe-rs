@@ -3,8 +3,7 @@ macro_rules! rtl_op {
     (
         $name: literal,
         $kind: ident,
-        $($data: ident,)?
-        ($this:ident, $prog:tt) $add:block
+        $data: ty
     ) => {
         ::paste::paste! {
             #[derive(Debug, Clone)]
@@ -13,7 +12,7 @@ macro_rules! rtl_op {
                 dst: Vec<Option<VarCell>>,
                 uid: usize,
                 load_stats: Option<LoadStats>,
-                $(data: $data)*
+                data: $data,
             }
 
             impl std::hash::Hash for [<$name:camel Op>] {
@@ -37,21 +36,21 @@ macro_rules! rtl_op {
             }
 
             impl OperationTrait for [<$name:camel Op>] {
+                fn clone_on(&self, prog: &Program) -> Operation {
+                    Operation::[<$name:upper>](Self {
+                        src: self.src.iter().map(|v| v.clone_on(prog)).collect(),
+                        dst: self.dst.iter().map(|_| None).collect(),
+                        uid: self.uid,
+                        load_stats: self.load_stats.clone(),
+                        data: self.data.clone()
+                    })
+                }
+
                 fn name(&self) -> &str {
                     $name
                 }
                 fn kind(&self) -> InstructionKind {
                     InstructionKind::$kind
-                }
-
-                fn get_meta_var(&$this, prog: &mut Option<Program>) -> Vec<MetaVarCell> {
-                    if let Some($prog) = prog {
-                        $add
-                    } else {
-                        (0..$this.dst.len())
-                            .map(|_| $this.src[0].copy_meta().unwrap())
-                            .collect()
-                    }
                 }
 
                 fn clear_src(&mut self) { self.src.clear() }
@@ -65,14 +64,7 @@ macro_rules! rtl_op {
                 fn uid(&self) -> &usize { &self.uid }
                 fn load_stats(&self) -> &Option<LoadStats> { &self.load_stats }
                 fn set_load_stats(&mut self, stats: LoadStats) { self.load_stats = Some(stats); }
-                fn set_src(&mut self, src: Vec<VarCell>) { self.src = src; }
                 fn dst_mut(&mut self) -> &mut Vec<Option<VarCell>> { &mut self.dst }
-                fn unlinked(&self) -> Self {
-                    let mut clone = self.clone();
-                    clone.src.clear();
-                    clone.dst.clear();
-                    clone
-                }
             }
         }
     }

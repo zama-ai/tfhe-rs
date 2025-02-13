@@ -200,6 +200,10 @@ impl Pe {
                         // Register unlock event
                         vec![
                             Event::new(
+                                EventType::BatchStart(pe_id),
+                                at_cycle,
+                            ),
+                            Event::new(
                                 EventType::RdUnlock(pe.kind, pe_id),
                                 at_cycle + pe.cost.rd_lock,
                             ),
@@ -228,14 +232,18 @@ impl Pe {
 
                         // Register unlock event
                         // First all rd_unlock then all wr_unlock
-                        let mut evt = (0..issued)
-                            .map(|_| {
-                                Event::new(
-                                    EventType::RdUnlock(pe.kind, pe_id),
-                                    at_cycle + pe.cost.rd_lock,
+                        let mut evt = vec![
+                            Event::new(
+                                EventType::BatchStart(pe_id),
+                                at_cycle,
+                            )
+                        ];
+                        evt.extend((0..issued).map(|_| {
+                            Event::new(
+                                EventType::RdUnlock(pe.kind, pe_id),
+                                at_cycle + pe.cost.rd_lock,
                                 )
-                            })
-                            .collect::<Vec<_>>();
+                        }));
                         evt.extend((0..issued).map(|_| {
                             Event::new(
                                 EventType::WrUnlock(pe.kind, pe_id),
@@ -341,9 +349,15 @@ impl PeStore {
         });
     }
 
-    pub(crate) fn set_batch_limit(&mut self) {
+    pub(crate) fn set_fifo_to_batch_limit(&mut self) {
         self.0.iter_mut().for_each(|(_, pe)| {
             *pe.fifo_limit() = Some(pe.batch_size());
+        });
+    }
+
+    pub(crate) fn set_fifo_limit(&mut self, size: usize) {
+        self.0.iter_mut().for_each(|(_, pe)| {
+            *pe.fifo_limit() = Some(size);
         });
     }
 }

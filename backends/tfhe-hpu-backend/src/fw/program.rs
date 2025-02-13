@@ -16,7 +16,7 @@ use super::FwParameters;
 
 use tracing::trace;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ProgramInner {
     uid: usize,
     pub(crate) params: FwParameters,
@@ -162,14 +162,7 @@ impl ProgramInner {
     }
 
     /// Release register entry
-    pub(crate) fn reg_release(&mut self, rid: asm::RegId) {
-        trace!(target: "Program", "Release Reg {rid}");
-
-        *(self
-            .regs
-            .get_mut(&rid)
-            .expect("Release an `unused` register")) = None;
-
+    pub(crate) fn reg_promote(&mut self, rid: asm::RegId) {
         // Update cache state
         // Put this slot in front of all `empty` slot instead of in lru pos
         self.regs.promote(&rid);
@@ -182,6 +175,18 @@ impl ProgramInner {
         demote_order
             .into_iter()
             .for_each(|rid| self.regs.demote(&rid));
+    }
+
+    /// Release register entry
+    pub(crate) fn reg_release(&mut self, rid: asm::RegId) {
+        trace!(target: "Program", "Release Reg {rid}");
+
+        *(self
+            .regs
+            .get_mut(&rid)
+            .expect("Release an `unused` register")) = None;
+
+        self.reg_promote(rid);
     }
 
     /// Notify register access to update LRU state
@@ -258,6 +263,12 @@ impl ProgramInner {
             .expect("Update an `unused` heap slot")) = Some((&var).into());
 
         (mid, evicted)
+    }
+
+    /// Adds the given register for use
+    pub(super) fn reg_put(&mut self, rid: asm::RegId, meta: Option<MetaVarCellWeak>) {
+        assert!(self.regs.peek(&rid).is_none());
+        self.regs.put(rid, meta);
     }
 }
 
@@ -379,7 +390,17 @@ impl Program {
             asm::OperandKind::Unknow => panic!("Template var required a known kind"),
         }
     }
+}
 
+#[derive(PartialEq, Eq)]
+pub enum AtomicRegType {
+    NewRange(usize),
+    Existing(asm::RegId),
+    None
+}
+
+// Register utilities
+impl Program {
     /// Bulk reserve
     /// Evict value from cache in a bulk manner. This enable to prevent false dependency of bulk
     /// opertions when cache is almost full Enforce that at least bulk_size register is `free`
@@ -411,36 +432,40 @@ impl Program {
     }
 
     /// Adds the given register for use
-    pub fn reg_put(&mut self, rid: asm::RegId, meta: Option<MetaVarCellWeak>) {
-        self.inner.borrow_mut().regs.put(rid, meta);
+    pub fn reg_put(&self, rid: asm::RegId, meta: Option<MetaVarCellWeak>) {
+        self.inner.borrow_mut().reg_put(rid, meta);
     }
 
-    // Checks if the provided register ranges are available
-    pub fn reg_avail(&mut self, range: Vec<usize>) -> bool {
-        let mut inner = self.inner.borrow_mut();
+    // Inspects the register cache and yields the requested register ranges, if
+    // possible. This does not touch the cache state.
+    pub fn atomic_reg_range(&self, ranges: &[AtomicRegType]) -> Option<Vec<asm::RegId>> {
+        let mut borrow = self.inner.borrow_mut();
 
-        // Make a copy of the current register cache to restore state after
-        // we're done. Unfortunately, the easiest thing I can come up with to
-        // test for this is to try to allocate them, which changes the cache
-        // state.
-        let reg_copy = inner.regs.clone();
+        // Clone the register cache to restore it at the end
+        let backup = borrow.regs.clone();
 
-        let avail = range.into_iter().fold(true, |acc, range| {
-            acc && inner
-                .aligned_reg_range(range)
-                .and_then(|id| Some(id.0 as usize))
-                .and_then(|id| {
-                    (id..id + range).for_each(|id| {
-                        inner.regs.pop(&asm::RegId(id as u8));
-                    });
-                    Some(true)
-                })
-                .is_some()
-        });
+        let result: Option<Vec<_>> = ranges
+            .iter()
+            .map(|r| {
+                match r {
+                    AtomicRegType::NewRange(r) => {
+                        borrow.aligned_reg_range(*r)
+                            .inspect(|rid| {borrow.regs.pop(rid);})
+                    }
+                    AtomicRegType::Existing(rid) =>  {
+                            borrow.regs.pop(&rid);
+                            Some(*rid)
+                    }
+                    // To ignore
+                    AtomicRegType::None => Some(asm::RegId::default())
+                }
+            })
+            .collect();
 
-        inner.regs = reg_copy;
+        // Restore the cache state
+        borrow.regs = backup;
 
-        avail
+        result
     }
 }
 

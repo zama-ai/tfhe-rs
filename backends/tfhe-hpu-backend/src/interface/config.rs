@@ -84,6 +84,9 @@ pub struct FwConfig {
     /// List of custom iop to load
     /// IopName -> Iop asm file
     pub custom_iop: HashMap<String, String>,
+
+    // Whether to fill the batch fifo when scheduling or not
+    pub fill_batch_fifo: bool,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
