@@ -127,19 +127,17 @@ impl ProgramInner {
     pub(crate) fn reg(&mut self, rid: &asm::RegId) -> Option<MetaVarCell> {
         let rdata = self
             .regs
-            .peek(&rid)
-            .expect(&format!("Error register {rid:} is not available"));
+            .peek(rid)
+            .unwrap_or_else(|| panic!("Error register {rid:} is not available"));
 
-        let evicted = if let Some(weak_evicted) = rdata {
+        if let Some(weak_evicted) = rdata {
             match weak_evicted.try_into() {
                 Ok(cell) => Some(cell),
                 Err(_) => None,
             }
         } else {
             None
-        };
-
-        evicted
+        }
     }
 
     // Insert the MetaVar in the indicated cache slot and return any evicted
@@ -150,13 +148,10 @@ impl ProgramInner {
         var: MetaVarCell,
     ) -> Option<MetaVarCell> {
         // Find lru slot
-        let evicted = self.reg(&rid);
+        let evicted = self.reg(rid);
 
         // Update cache state
-        *(self
-            .regs
-            .get_mut(&rid)
-            .expect("Update an `unused` register")) = Some((&var).into());
+        *(self.regs.get_mut(rid).expect("Update an `unused` register")) = Some((&var).into());
 
         evicted
     }
@@ -396,7 +391,7 @@ impl Program {
 pub enum AtomicRegType {
     NewRange(usize),
     Existing(asm::RegId),
-    None
+    None,
 }
 
 // Register utilities
@@ -448,16 +443,15 @@ impl Program {
             .iter()
             .map(|r| {
                 match r {
-                    AtomicRegType::NewRange(r) => {
-                        borrow.aligned_reg_range(*r)
-                            .inspect(|rid| {borrow.regs.pop(rid);})
-                    }
-                    AtomicRegType::Existing(rid) =>  {
-                            borrow.regs.pop(&rid);
-                            Some(*rid)
+                    AtomicRegType::NewRange(r) => borrow.aligned_reg_range(*r).inspect(|rid| {
+                        borrow.regs.pop(rid);
+                    }),
+                    AtomicRegType::Existing(rid) => {
+                        borrow.regs.pop(rid);
+                        Some(*rid)
                     }
                     // To ignore
-                    AtomicRegType::None => Some(asm::RegId::default())
+                    AtomicRegType::None => Some(asm::RegId::default()),
                 }
             })
             .collect();

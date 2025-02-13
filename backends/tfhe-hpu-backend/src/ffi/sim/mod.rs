@@ -89,7 +89,7 @@ impl HpuHw {
         req.send(cmd).unwrap();
 
         // Wait for ack
-        
+
         match ack.recv() {
             Ok(ack) => {
                 tracing::trace!("Ack => {ack:x?}");

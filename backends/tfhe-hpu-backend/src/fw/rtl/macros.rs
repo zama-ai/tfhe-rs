@@ -67,5 +67,5 @@ macro_rules! rtl_op {
                 fn dst_mut(&mut self) -> &mut Vec<Option<VarCell>> { &mut self.dst }
             }
         }
-    }
+    };
 }

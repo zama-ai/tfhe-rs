@@ -104,7 +104,7 @@ pub trait PbsLut {
     fn deg_at(&self, pos: usize, params: &DigitParameters, deg: usize) -> usize;
     // Blanket implementation
     fn lut_msk(&self) -> usize {
-        usize::max_value()<<self.lut_lg()
+        usize::MAX << self.lut_lg()
     }
 }
 

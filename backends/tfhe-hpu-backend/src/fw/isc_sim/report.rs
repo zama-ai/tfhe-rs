@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use super::InstructionKind;
 
-use super::pe::{Pe, PeStore, PeStats, PeCommon};
+use super::pe::{Pe, PeCommon, PeStats, PeStore};
 
 #[derive(Debug)]
 pub struct TimeRpt {
@@ -35,9 +35,11 @@ pub struct PeRpt {
 }
 impl std::fmt::Display for PeRpt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "issued: {}, batches: {}, by_timeout: {}, usage: {}", 
-                 self.stats.issued, self.stats.batches,
-                 self.stats.by_timeout, self.usage)?;
+        write!(
+            f,
+            "issued: {}, batches: {}, by_timeout: {}, usage: {}",
+            self.stats.issued, self.stats.batches, self.stats.by_timeout, self.usage
+        )?;
         Ok(())
     }
 }
@@ -52,11 +54,11 @@ impl PeStoreRpt {
 
 impl From<&PeStore> for PeStoreRpt {
     fn from(value: &PeStore) -> Self {
-        let report_collection: HashMap<String, PeRpt> =
-            value.0
-                .iter()
-                .map(|(name, pe)| (name.clone(), PeRpt::from(pe)))
-                .collect();
+        let report_collection: HashMap<String, PeRpt> = value
+            .0
+            .iter()
+            .map(|(name, pe)| (name.clone(), PeRpt::from(pe)))
+            .collect();
         PeStoreRpt::new(report_collection)
     }
 }
@@ -64,10 +66,9 @@ impl From<&PeStore> for PeStoreRpt {
 impl From<&Pe> for PeRpt {
     fn from(value: &Pe) -> Self {
         let stats = value.stats();
-        let usage = stats.issued as f64 /
-                    ((stats.batches as f64) * (value.batch_size() as f64));
+        let usage = stats.issued as f64 / ((stats.batches as f64) * (value.batch_size() as f64));
 
-        PeRpt { stats, usage } 
+        PeRpt { stats, usage }
     }
 }
 
