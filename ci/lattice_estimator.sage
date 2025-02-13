@@ -34,12 +34,22 @@ def check_security(filename):
     to_update = []
     to_watch = []
 
+    group_index = 1
+
     for param in all_params:
-        if param.tag.startswith("TFHE_LIB_PARAMETERS"):
+        if "TFHE_LIB_PARAMETERS" in param.tag:
             # This third-party parameters set is known to be less secure, just skip the analysis.
             continue
 
-        print(f"\t{param.tag}...\t", end="")
+        if len(param.tag) > 1:
+            print(f"\tParameters group #{group_index}:")
+            for param_name in sorted(param.tag):
+                print(
+                    f"\t\t{param_name}\t",
+                )
+            print(f"\tParameters group #{group_index}...\t", end="")
+        else:
+            print(f"\t{param.tag[0]}...\t", end="")
 
         is_n_size_too_low = param.n <= 450
         is_noise_level_too_low = param.Xe.stddev < 4.0
@@ -80,6 +90,9 @@ def check_security(filename):
         else:
             print(f"OK\t({security_level})")
 
+        if len(param.tag) > 1:
+            group_index += 1
+
     return to_update, to_watch
 
 
@@ -102,7 +115,9 @@ if __name__ == "__main__":
         print("Some parameters need attention")
         print("------------------------------")
         for param, reason in params_to_watch:
-            print(f"[{param.tag}] reason: {reason} (param: {param})")
+            params = ",\n\t".join(param.tag)
+            print("[\n\t", params, "\n]", sep="")
+            print(f"--> reason: {reason} (param: {param})\n")
 
     if params_to_update:
         if params_to_watch:
@@ -111,7 +126,9 @@ if __name__ == "__main__":
         print("Some parameters need update")
         print("---------------------------")
         for param, reason in params_to_update:
-            print(f"[{param.tag}] reason: {reason} (param: {param})")
+            params = ",\n\t".join(param.tag)
+            print("[\n\t", params, "\n]", sep="")
+            print(f"--> reason: {reason} (param: {param})\n")
         sys.exit(int(1))  # Explicit conversion is needed to make this call work
     else:
         print("All parameters passed the security check")

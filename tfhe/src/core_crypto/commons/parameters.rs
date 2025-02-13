@@ -68,7 +68,7 @@ impl LweSize {
 
 /// The number of scalar in an LWE mask, or the length of an LWE secret key.
 #[derive(
-    Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Versionize,
+    Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Serialize, Deserialize, Versionize,
 )]
 #[versionize(LweDimensionVersions)]
 pub struct LweDimension(pub usize);
