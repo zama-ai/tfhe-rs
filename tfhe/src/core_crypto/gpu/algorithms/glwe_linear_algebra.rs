@@ -71,7 +71,7 @@ pub fn cuda_glwe_wrapping_polynomial_mul_one_to_many<Scalar>(
             out.0.d_vec.as_mut_c_ptr(0),
             lhs.0.d_vec.as_c_ptr(0),
             rhs.as_c_ptr(0),
-            lhs.glwe_ciphertext_count().0 as u32,
+            lhs.polynomial_size().0 as u32,
             lhs.glwe_dimension().0 as u32,
             (rhs.len() / lhs.polynomial_size().0) as u32,
         );

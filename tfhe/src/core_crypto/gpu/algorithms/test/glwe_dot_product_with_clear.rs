@@ -117,11 +117,14 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         &mut encryption_generator,
     );
 
+    let mut out_cpu = GlweCiphertext::new(Scalar::ZERO, glwe.glwe_size(), glwe.polynomial_size(), glwe.ciphertext_modulus());
+
     let clear_range_1: Vec<usize>  = (0usize..poly_size).collect();
     let clear_1 : Vec<Scalar> = clear_range_1
         .iter()
         .map(|&x| Scalar::cast_from(x))
         .collect();
+    let clearPoly1 = Polynomial::from_container(clear_1);
 
     let clear_range: Vec<usize>  = (0usize..(poly_size * poly_size)).collect();
     let clear : Vec<Scalar> = clear_range
@@ -129,10 +132,23 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         .map(|x| Scalar::cast_from(x % poly_size))
         .collect();
 
+
+    for (mut out_poly, in_poly) in out_cpu
+        .as_mut_polynomial_list()
+        .iter_mut()
+        .zip(glwe.as_polynomial_list().iter())
+    {
+        polynomial_wrapping_mul(
+            &mut out_poly,
+            &in_poly,
+            &clearPoly1,
+        );
+    }
+
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
-    let mut d_input_glwe = CudaGlweCiphertextList::from_glwe_ciphertext(&glwe, &streams);
+    let d_input_glwe = CudaGlweCiphertextList::from_glwe_ciphertext(&glwe, &streams);
 
     let mut d_output_glwe = CudaGlweCiphertextList::new(
         glwe_secret_key.glwe_dimension(),
@@ -162,8 +178,11 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
 
     let result_glwe = output_glwe_list.get(0);
 
-    decrypt_glwe(&glwe_secret_key, &result_glwe, bits_reserved_for_computation);
+    let decrypted_result_gpu = decrypt_glwe(&glwe_secret_key, &result_glwe, bits_reserved_for_computation);
+    let decrypted_result_cpu = decrypt_glwe(&glwe_secret_key, &out_cpu, bits_reserved_for_computation);
 
+    println!("DOT GPU: {:?}", decrypted_result_gpu.last().unwrap());
+    println!("DOT CPU: {:?}", decrypted_result_cpu.last().unwrap());
     println!("TEST POLY PRODUCT ONE TO MANY PASSED");
 }
 
@@ -245,6 +264,6 @@ fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     println!("TEST CUDA POLY PRODUCT ONE TO MANY PASSED");
 }
 
-//create_gpu_parameterized_test!(glwe_dot_product_with_clear);
-create_gpu_parameterized_test!(poly_product_with_clear);
+create_gpu_parameterized_test!(glwe_dot_product_with_clear);
+//create_gpu_parameterized_test!(poly_product_with_clear);
 

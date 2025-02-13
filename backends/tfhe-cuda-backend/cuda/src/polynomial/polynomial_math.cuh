@@ -193,7 +193,7 @@ template <typename Torus, typename TorusVec>
 __host__ void host_wrapping_polynomial_mul_one_to_many(
   cudaStream_t stream, uint32_t gpu_index, 
   Torus* result, 
-  const Torus* poly_lhs,  
+  const Torus* poly_lhs,
   const Torus* poly_rhs,
   uint32_t polynomial_size,
   uint32_t n_rhs
