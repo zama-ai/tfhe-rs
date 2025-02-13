@@ -1,8 +1,9 @@
 #![allow(clippy::use_self)]
 use crate::high_level_api::prelude::*;
-use crate::integer::bigint::{
-    StaticSignedBigInt, StaticUnsignedBigInt, I1024, I2048, I512, U1024, U2048, U512,
-};
+use crate::integer::bigint::{StaticSignedBigInt, StaticUnsignedBigInt};
+#[cfg(feature = "extended-types")]
+use crate::integer::bigint::{I1024, I2048, I512, U1024, U2048, U512};
+#[cfg(feature = "extended-types")]
 use crate::integer::{I256, U256};
 use crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey;
 #[cfg(feature = "zk-pok")]
@@ -324,6 +325,22 @@ macro_rules! create_wrapper_type_non_native_type (
 
 create_wrapper_type_non_native_type!(
     {
+        type_name: FheUint128,
+        compressed_type_name: CompressedFheUint128,
+        proven_type: ProvenFheUint128,
+        rust_type: u128,
+    },
+    {
+        type_name: FheInt128,
+        compressed_type_name: CompressedFheInt128,
+        proven_type: ProvenFheInt128,
+        rust_type: i128,
+    },
+);
+
+#[cfg(feature = "extended-types")]
+create_wrapper_type_non_native_type!(
+    {
         type_name: FheUint72,
         compressed_type_name: CompressedFheUint72,
         proven_type: ProvenFheUint72,
@@ -363,12 +380,6 @@ create_wrapper_type_non_native_type!(
         type_name: FheUint120,
         compressed_type_name: CompressedFheUint120,
         proven_type: ProvenFheUint120,
-        rust_type: u128,
-    },
-    {
-        type_name: FheUint128,
-        compressed_type_name: CompressedFheUint128,
-        proven_type: ProvenFheUint128,
         rust_type: u128,
     },
     {
@@ -526,12 +537,6 @@ create_wrapper_type_non_native_type!(
         type_name: FheInt120,
         compressed_type_name: CompressedFheInt120,
         proven_type: ProvenFheInt120,
-        rust_type: i128,
-    },
-    {
-        type_name: FheInt128,
-        compressed_type_name: CompressedFheInt128,
-        proven_type: ProvenFheInt128,
         rust_type: i128,
     },
     {
@@ -832,13 +837,8 @@ macro_rules! create_wrapper_type_that_has_native_type (
     }
 );
 
+#[cfg(feature = "extended-types")]
 create_wrapper_type_that_has_native_type!(
-    {
-        type_name: FheBool,
-        compressed_type_name: CompressedFheBool,
-        proven_type: ProvenFheBool,
-        native_type: bool,
-    },
     {
         type_name: FheUint2,
         compressed_type_name: CompressedFheUint2,
@@ -855,12 +855,6 @@ create_wrapper_type_that_has_native_type!(
         type_name: FheUint6,
         compressed_type_name: CompressedFheUint6,
         proven_type: ProvenFheUint6,
-        native_type: u8,
-    },
-    {
-        type_name: FheUint8,
-        compressed_type_name: CompressedFheUint8,
-        proven_type: ProvenFheUint8,
         native_type: u8,
     },
     {
@@ -882,21 +876,9 @@ create_wrapper_type_that_has_native_type!(
         native_type: u16,
     },
     {
-        type_name: FheUint16,
-        compressed_type_name: CompressedFheUint16,
-        proven_type: ProvenFheUint16,
-        native_type: u16,
-    },
-    {
         type_name: FheUint24,
         compressed_type_name: CompressedFheUint24,
         proven_type: ProvenFheUint24,
-        native_type: u32,
-    },
-    {
-        type_name: FheUint32,
-        compressed_type_name: CompressedFheUint32,
-        proven_type: ProvenFheUint32,
         native_type: u32,
     },
     {
@@ -918,13 +900,6 @@ create_wrapper_type_that_has_native_type!(
         native_type: u64,
     },
     {
-        type_name: FheUint64,
-        compressed_type_name: CompressedFheUint64,
-        proven_type: ProvenFheUint64,
-        native_type: u64,
-    },
-    // Signed
-    {
         type_name: FheInt2,
         compressed_type_name: CompressedFheInt2,
         proven_type: ProvenFheInt2,
@@ -940,12 +915,6 @@ create_wrapper_type_that_has_native_type!(
         type_name: FheInt6,
         compressed_type_name: CompressedFheInt6,
         proven_type: ProvenFheInt6,
-        native_type: i8,
-    },
-    {
-        type_name: FheInt8,
-        compressed_type_name: CompressedFheInt8,
-        proven_type: ProvenFheInt8,
         native_type: i8,
     },
     {
@@ -967,21 +936,9 @@ create_wrapper_type_that_has_native_type!(
         native_type: i16,
     },
     {
-        type_name: FheInt16,
-        compressed_type_name: CompressedFheInt16,
-        proven_type: ProvenFheInt16,
-        native_type: i16,
-    },
-    {
         type_name: FheInt24,
         compressed_type_name: CompressedFheInt24,
         proven_type: ProvenFheInt24,
-        native_type: i32,
-    },
-    {
-        type_name: FheInt32,
-        compressed_type_name: CompressedFheInt32,
-        proven_type: ProvenFheInt32,
         native_type: i32,
     },
     {
@@ -1001,6 +958,57 @@ create_wrapper_type_that_has_native_type!(
         compressed_type_name: CompressedFheInt56,
         proven_type: ProvenFheInt56,
         native_type: i64,
+    },
+);
+
+create_wrapper_type_that_has_native_type!(
+    {
+        type_name: FheBool,
+        compressed_type_name: CompressedFheBool,
+        proven_type: ProvenFheBool,
+        native_type: bool,
+    },
+    {
+        type_name: FheUint8,
+        compressed_type_name: CompressedFheUint8,
+        proven_type: ProvenFheUint8,
+        native_type: u8,
+    },
+    {
+        type_name: FheUint16,
+        compressed_type_name: CompressedFheUint16,
+        proven_type: ProvenFheUint16,
+        native_type: u16,
+    },
+    {
+        type_name: FheUint32,
+        compressed_type_name: CompressedFheUint32,
+        proven_type: ProvenFheUint32,
+        native_type: u32,
+    },
+    {
+        type_name: FheUint64,
+        compressed_type_name: CompressedFheUint64,
+        proven_type: ProvenFheUint64,
+        native_type: u64,
+    },
+    {
+        type_name: FheInt8,
+        compressed_type_name: CompressedFheInt8,
+        proven_type: ProvenFheInt8,
+        native_type: i8,
+    },
+    {
+        type_name: FheInt16,
+        compressed_type_name: CompressedFheInt16,
+        proven_type: ProvenFheInt16,
+        native_type: i16,
+    },
+    {
+        type_name: FheInt32,
+        compressed_type_name: CompressedFheInt32,
+        proven_type: ProvenFheInt32,
+        native_type: i32,
     },
     {
         type_name: FheInt64,
@@ -1243,40 +1251,108 @@ macro_rules! define_builder_push_method {
     };
 }
 
+#[cfg(feature = "extended-types")]
 define_builder_push_method!(unsigned: {
     2 <= u8,
     4 <= u8,
     6 <= u8,
-    8 <= u8,
     10 <= u16,
     12 <= u16,
     14 <= u16,
-    16 <= u16,
     24 <= u32,
-    32 <= u32,
     40 <= u64,
     48 <= u64,
     56 <= u64,
+});
+
+define_builder_push_method!(unsigned: {
+    8 <= u8,
+    16 <= u16,
+    32 <= u32,
     64 <= u64,
 });
 
+#[cfg(feature = "extended-types")]
 define_builder_push_method!(signed: {
     2 <= i8,
     4 <= i8,
     6 <= i8,
-    8 <= i8,
     10 <= i16,
     12 <= i16,
     14 <= i16,
-    16 <= i16,
     24 <= i32,
-    32 <= i32,
     40 <= i64,
     48 <= i64,
     56 <= i64,
+});
+
+define_builder_push_method!(signed: {
+    8 <= i8,
+    16 <= i16,
+    32 <= i32,
     64 <= i64,
 });
 
+#[wasm_bindgen]
+impl CompactCiphertextListBuilder {
+    #[wasm_bindgen]
+    pub fn push_u128(&mut self, value: JsValue) -> Result<(), JsError> {
+        catch_panic_result(|| {
+            let value = u128::try_from(value).map_err(into_js_error)?;
+            self.0.push(value);
+            Ok(())
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn push_i128(&mut self, value: JsValue) -> Result<(), JsError> {
+        catch_panic_result(|| {
+            let value = i128::try_from(value).map_err(into_js_error)?;
+            self.0.push(value);
+            Ok(())
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn push_boolean(&mut self, value: bool) -> Result<(), JsError> {
+        catch_panic(|| {
+            self.0.push(value);
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn build(&self) -> Result<CompactCiphertextList, JsError> {
+        catch_panic(|| {
+            let inner = self.0.build();
+            CompactCiphertextList(inner)
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn build_packed(&self) -> Result<CompactCiphertextList, JsError> {
+        catch_panic(|| {
+            let inner = self.0.build_packed();
+            CompactCiphertextList(inner)
+        })
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn build_with_proof_packed(
+        &self,
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        compute_load: ZkComputeLoad,
+    ) -> Result<ProvenCompactCiphertextList, JsError> {
+        catch_panic_result(|| {
+            self.0
+                .build_with_proof_packed(&crs.0, metadata, compute_load.into())
+                .map_err(into_js_error)
+                .map(ProvenCompactCiphertextList)
+        })
+    }
+}
+
+#[cfg(feature = "extended-types")]
 #[wasm_bindgen]
 impl CompactCiphertextListBuilder {
     #[wasm_bindgen]
@@ -1338,15 +1414,6 @@ impl CompactCiphertextListBuilder {
         catch_panic_result(|| {
             let value = u128::try_from(value).map_err(into_js_error)?;
             self.0.push_with_num_bits(value, 120)?;
-            Ok(())
-        })
-    }
-
-    #[wasm_bindgen]
-    pub fn push_u128(&mut self, value: JsValue) -> Result<(), JsError> {
-        catch_panic_result(|| {
-            let value = u128::try_from(value).map_err(into_js_error)?;
-            self.0.push(value);
             Ok(())
         })
     }
@@ -1586,15 +1653,6 @@ impl CompactCiphertextListBuilder {
     }
 
     #[wasm_bindgen]
-    pub fn push_i128(&mut self, value: JsValue) -> Result<(), JsError> {
-        catch_panic_result(|| {
-            let value = i128::try_from(value).map_err(into_js_error)?;
-            self.0.push(value);
-            Ok(())
-        })
-    }
-
-    #[wasm_bindgen]
     pub fn push_i136(&mut self, value: JsValue) -> Result<(), JsError> {
         catch_panic_result(|| {
             let value = I256::try_from(value)?;
@@ -1764,44 +1822,6 @@ impl CompactCiphertextListBuilder {
             Ok(())
         })
     }
-
-    #[wasm_bindgen]
-    pub fn push_boolean(&mut self, value: bool) -> Result<(), JsError> {
-        catch_panic(|| {
-            self.0.push(value);
-        })
-    }
-
-    #[wasm_bindgen]
-    pub fn build(&self) -> Result<CompactCiphertextList, JsError> {
-        catch_panic(|| {
-            let inner = self.0.build();
-            CompactCiphertextList(inner)
-        })
-    }
-
-    #[wasm_bindgen]
-    pub fn build_packed(&self) -> Result<CompactCiphertextList, JsError> {
-        catch_panic(|| {
-            let inner = self.0.build_packed();
-            CompactCiphertextList(inner)
-        })
-    }
-
-    #[cfg(feature = "zk-pok")]
-    pub fn build_with_proof_packed(
-        &self,
-        crs: &CompactPkeCrs,
-        metadata: &[u8],
-        compute_load: ZkComputeLoad,
-    ) -> Result<ProvenCompactCiphertextList, JsError> {
-        catch_panic_result(|| {
-            self.0
-                .build_with_proof_packed(&crs.0, metadata, compute_load.into())
-                .map_err(into_js_error)
-                .map(ProvenCompactCiphertextList)
-        })
-    }
 }
 
 /// Helper macro to define get methods for the expander
@@ -1860,15 +1880,25 @@ macro_rules! define_expander_get_method {
         }
     };
 }
+
+#[cfg(feature = "extended-types")]
 define_expander_get_method!(
-    unsigned: { 2, 4, 6, 8, 10, 12, 14, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120,
-                128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256,
-                512, 1024, 2048 }
+    unsigned: { 2, 4, 6, 10, 12, 14, 24, 40, 48, 56, 72, 80, 88, 96, 104, 112, 120, 136, 144, 152,
+                160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 512, 1024, 2048 }
 );
+
 define_expander_get_method!(
-    signed: { 2, 4, 6, 8, 10, 12, 14, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120,
-              128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256,
-              512, 1024, 2048 }
+    unsigned: { 8, 16, 32, 64, 128 }
+);
+
+#[cfg(feature = "extended-types")]
+define_expander_get_method!(
+    signed: { 2, 4, 6, 10, 12, 14, 24, 40, 48, 56, 72, 80, 88, 96, 104, 112, 120, 136, 144, 152,
+                160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 512, 1024, 2048 }
+);
+
+define_expander_get_method!(
+    signed: { 8, 16, 32, 64, 128 }
 );
 
 #[wasm_bindgen]

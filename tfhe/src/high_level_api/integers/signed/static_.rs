@@ -49,43 +49,7 @@ macro_rules! static_int_type {
 
 static_int_type! {
     Signed {
-        num_bits: 2,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 4,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 6,
-    }
-}
-
-static_int_type! {
-    Signed {
         num_bits: 8,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 10,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 12,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 14,
     }
 }
 
@@ -97,31 +61,7 @@ static_int_type! {
 
 static_int_type! {
     Signed {
-        num_bits: 24,
-    }
-}
-
-static_int_type! {
-    Signed {
         num_bits: 32,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 40,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 48,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 56,
     }
 }
 
@@ -133,162 +73,266 @@ static_int_type! {
 
 static_int_type! {
     Signed {
-        num_bits: 72,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 80,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 88,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 96,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 104,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 112,
-    }
-}
-
-static_int_type! {
-    Signed {
-        num_bits: 120,
-    }
-}
-
-static_int_type! {
-    Signed {
         num_bits: 128,
     }
 }
 
-static_int_type! {
-    Signed {
-        num_bits: 136,
-    }
-}
+#[cfg(feature = "extended-types")]
+pub use extended::*;
 
-static_int_type! {
-    Signed {
-        num_bits: 144,
-    }
-}
+#[cfg(feature = "extended-types")]
+mod extended {
+    use super::*;
 
-static_int_type! {
-    Signed {
-        num_bits: 152,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 2,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 160,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 4,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 168,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 6,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 176,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 10,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 184,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 12,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 192,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 14,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 200,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 24,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 208,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 40,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 216,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 48,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 224,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 56,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 232,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 72,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 240,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 80,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 248,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 88,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 256,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 96,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 512,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 104,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 1024,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 112,
+        }
     }
-}
 
-static_int_type! {
-    Signed {
-        num_bits: 2048,
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 120,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 136,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 144,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 152,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 160,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 168,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 176,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 184,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 192,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 200,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 208,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 216,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 224,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 232,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 240,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 248,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 256,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 512,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 1024,
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    static_int_type! {
+        Signed {
+            num_bits: 2048,
+        }
     }
 }

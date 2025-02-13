@@ -11,9 +11,11 @@ use crate::high_level_api::traits::{
     DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
 };
+#[cfg(feature = "extended-types")]
 use crate::integer::bigint::{I1024, I2048, U1024, U2048};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::IntegerCiphertext;
+#[cfg(feature = "extended-types")]
 use crate::integer::{I256, I512, U256, U512};
 use crate::{FheBool, FheInt};
 use std::ops::{
@@ -428,22 +430,19 @@ macro_rules! generic_integer_impl_scalar_div_rem {
     };
 }
 
+#[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_div_rem!(
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -451,7 +450,6 @@ generic_integer_impl_scalar_div_rem!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -469,12 +467,21 @@ generic_integer_impl_scalar_div_rem!(
         (super::FheInt1024, I1024),
         (super::FheInt2048, I2048),
 );
+generic_integer_impl_scalar_div_rem!(
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
 
 use crate::high_level_api::integers::unsigned::scalar_ops::{
     generic_integer_impl_scalar_left_operation, generic_integer_impl_scalar_operation,
     generic_integer_impl_scalar_operation_assign,
 };
 
+#[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Add(add),
     implem: {
@@ -502,17 +509,13 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -520,7 +523,96 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
+        (super::FheInt160, I256),
+        (super::FheInt168, I256),
+        (super::FheInt176, I256),
+        (super::FheInt184, I256),
+        (super::FheInt192, I256),
+        (super::FheInt200, I256),
+        (super::FheInt208, I256),
+        (super::FheInt216, I256),
+        (super::FheInt224, I256),
+        (super::FheInt232, I256),
+        (super::FheInt240, I256),
+        (super::FheInt248, I256),
+        (super::FheInt256, I256),
+        (super::FheInt512, I512),
+        (super::FheInt1024, I1024),
+        (super::FheInt2048, I2048),
+);
+generic_integer_impl_scalar_operation!(
+    rust_trait: Add(add),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_add(
+                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
         (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation!(
+    rust_trait: Sub(sub),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_sub(
+                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, i8),
+        (super::FheInt4, i8),
+        (super::FheInt6, i8),
+        (super::FheInt10, i16),
+        (super::FheInt12, i16),
+        (super::FheInt14, i16),
+        (super::FheInt24, i32),
+        (super::FheInt40, i64),
+        (super::FheInt48, i64),
+        (super::FheInt56, i64),
+        (super::FheInt72, i128),
+        (super::FheInt80, i128),
+        (super::FheInt88, i128),
+        (super::FheInt96, i128),
+        (super::FheInt104, i128),
+        (super::FheInt112, i128),
+        (super::FheInt120, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -562,20 +654,48 @@ generic_integer_impl_scalar_operation!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation!(
+    rust_trait: Mul(mul),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_mul(
+                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -583,7 +703,6 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -625,20 +744,48 @@ generic_integer_impl_scalar_operation!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation!(
+    rust_trait: BitAnd(bitand),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_bitand(
+                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -646,7 +793,6 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -688,20 +834,48 @@ generic_integer_impl_scalar_operation!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation!(
+    rust_trait: BitOr(bitor),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_bitor(
+                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -709,7 +883,6 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -751,20 +924,49 @@ generic_integer_impl_scalar_operation!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation!(
+    rust_trait: BitXor(bitxor),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_bitxor(
+                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -772,7 +974,6 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -815,45 +1016,14 @@ generic_integer_impl_scalar_operation!(
         }
     },
     fhe_and_scalar_type:
-        (super::FheInt2, i8),
-        (super::FheInt4, i8),
-        (super::FheInt6, i8),
         (super::FheInt8, i8),
-        (super::FheInt10, i16),
-        (super::FheInt12, i16),
-        (super::FheInt14, i16),
         (super::FheInt16, i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
-        (super::FheInt40, i64),
-        (super::FheInt48, i64),
-        (super::FheInt56, i64),
         (super::FheInt64, i64),
-        (super::FheInt72, i128),
-        (super::FheInt80, i128),
-        (super::FheInt88, i128),
-        (super::FheInt96, i128),
-        (super::FheInt104, i128),
-        (super::FheInt112, i128),
-        (super::FheInt120, i128),
         (super::FheInt128, i128),
-        (super::FheInt160, I256),
-        (super::FheInt168, I256),
-        (super::FheInt176, I256),
-        (super::FheInt184, I256),
-        (super::FheInt192, I256),
-        (super::FheInt200, I256),
-        (super::FheInt208, I256),
-        (super::FheInt216, I256),
-        (super::FheInt224, I256),
-        (super::FheInt232, I256),
-        (super::FheInt240, I256),
-        (super::FheInt248, I256),
-        (super::FheInt256, I256),
-        (super::FheInt512, I512),
-        (super::FheInt1024, I1024),
-        (super::FheInt2048, I2048),
 );
+
+#[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Shl(shl),
     implem: {
@@ -881,17 +1051,13 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
         (super::FheInt6, u8, u16, u32, u64, u128),
-        (super::FheInt8, u8, u16, u32, u64, u128),
         (super::FheInt10, u8, u16, u32, u64, u128),
         (super::FheInt12, u8, u16, u32, u64, u128),
         (super::FheInt14, u8, u16, u32, u64, u128),
-        (super::FheInt16, u8, u16, u32, u64, u128),
         (super::FheInt24, u8, u16, u32, u64, u128),
-        (super::FheInt32, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
         (super::FheInt48, u8, u16, u32, u64, u128),
         (super::FheInt56, u8, u16, u32, u64, u128),
-        (super::FheInt64, u8, u16, u32, u64, u128),
         (super::FheInt72, u8, u16, u32, u64, u128),
         (super::FheInt80, u8, u16, u32, u64, u128),
         (super::FheInt88, u8, u16, u32, u64, u128),
@@ -899,7 +1065,99 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, u8, u16, u32, u64, u128),
         (super::FheInt112, u8, u16, u32, u64, u128),
         (super::FheInt120, u8, u16, u32, u64, u128),
+        (super::FheInt136, u8, u16, u32, u64, u128, U256),
+        (super::FheInt144, u8, u16, u32, u64, u128, U256),
+        (super::FheInt152, u8, u16, u32, u64, u128, U256),
+        (super::FheInt160, u8, u16, u32, u64, u128, U256),
+        (super::FheInt168, u8, u16, u32, u64, u128, U256),
+        (super::FheInt176, u8, u16, u32, u64, u128, U256),
+        (super::FheInt184, u8, u16, u32, u64, u128, U256),
+        (super::FheInt192, u8, u16, u32, u64, u128, U256),
+        (super::FheInt200, u8, u16, u32, u64, u128, U256),
+        (super::FheInt208, u8, u16, u32, u64, u128, U256),
+        (super::FheInt216, u8, u16, u32, u64, u128, U256),
+        (super::FheInt224, u8, u16, u32, u64, u128, U256),
+        (super::FheInt232, u8, u16, u32, u64, u128, U256),
+        (super::FheInt240, u8, u16, u32, u64, u128, U256),
+        (super::FheInt248, u8, u16, u32, u64, u128, U256),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt512, u8, u16, u32, u64, u128, U256, U512),
+        (super::FheInt1024, u8, u16, u32, u64, u128, U256, U512, U1024),
+        (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
+);
+generic_integer_impl_scalar_operation!(
+    rust_trait: Shl(shl),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_left_shift(
+                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
         (super::FheInt128, u8, u16, u32, u64, u128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation!(
+    rust_trait: Shr(shr),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_right_shift(
+                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, u8, u16, u32, u64, u128),
+        (super::FheInt4, u8, u16, u32, u64, u128),
+        (super::FheInt6, u8, u16, u32, u64, u128),
+        (super::FheInt10, u8, u16, u32, u64, u128),
+        (super::FheInt12, u8, u16, u32, u64, u128),
+        (super::FheInt14, u8, u16, u32, u64, u128),
+        (super::FheInt24, u8, u16, u32, u64, u128),
+        (super::FheInt40, u8, u16, u32, u64, u128),
+        (super::FheInt48, u8, u16, u32, u64, u128),
+        (super::FheInt56, u8, u16, u32, u64, u128),
+        (super::FheInt72, u8, u16, u32, u64, u128),
+        (super::FheInt80, u8, u16, u32, u64, u128),
+        (super::FheInt88, u8, u16, u32, u64, u128),
+        (super::FheInt96, u8, u16, u32, u64, u128),
+        (super::FheInt104, u8, u16, u32, u64, u128),
+        (super::FheInt112, u8, u16, u32, u64, u128),
+        (super::FheInt120, u8, u16, u32, u64, u128),
         (super::FheInt136, u8, u16, u32, u64, u128, U256),
         (super::FheInt144, u8, u16, u32, u64, u128, U256),
         (super::FheInt152, u8, u16, u32, u64, u128, U256),
@@ -944,20 +1202,48 @@ generic_integer_impl_scalar_operation!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation!(
+    rust_trait: RotateLeft(rotate_left),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_rotate_left(
+                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
         (super::FheInt6, u8, u16, u32, u64, u128),
-        (super::FheInt8, u8, u16, u32, u64, u128),
         (super::FheInt10, u8, u16, u32, u64, u128),
         (super::FheInt12, u8, u16, u32, u64, u128),
         (super::FheInt14, u8, u16, u32, u64, u128),
-        (super::FheInt16, u8, u16, u32, u64, u128),
         (super::FheInt24, u8, u16, u32, u64, u128),
-        (super::FheInt32, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
         (super::FheInt48, u8, u16, u32, u64, u128),
         (super::FheInt56, u8, u16, u32, u64, u128),
-        (super::FheInt64, u8, u16, u32, u64, u128),
         (super::FheInt72, u8, u16, u32, u64, u128),
         (super::FheInt80, u8, u16, u32, u64, u128),
         (super::FheInt88, u8, u16, u32, u64, u128),
@@ -965,7 +1251,6 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, u8, u16, u32, u64, u128),
         (super::FheInt112, u8, u16, u32, u64, u128),
         (super::FheInt120, u8, u16, u32, u64, u128),
-        (super::FheInt128, u8, u16, u32, u64, u128),
         (super::FheInt136, u8, u16, u32, u64, u128, U256),
         (super::FheInt144, u8, u16, u32, u64, u128, U256),
         (super::FheInt152, u8, u16, u32, u64, u128, U256),
@@ -1010,20 +1295,48 @@ generic_integer_impl_scalar_operation!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation!(
+    rust_trait: RotateRight(rotate_right),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.scalar_rotate_right(
+                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
         (super::FheInt6, u8, u16, u32, u64, u128),
-        (super::FheInt8, u8, u16, u32, u64, u128),
         (super::FheInt10, u8, u16, u32, u64, u128),
         (super::FheInt12, u8, u16, u32, u64, u128),
         (super::FheInt14, u8, u16, u32, u64, u128),
-        (super::FheInt16, u8, u16, u32, u64, u128),
         (super::FheInt24, u8, u16, u32, u64, u128),
-        (super::FheInt32, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
         (super::FheInt48, u8, u16, u32, u64, u128),
         (super::FheInt56, u8, u16, u32, u64, u128),
-        (super::FheInt64, u8, u16, u32, u64, u128),
         (super::FheInt72, u8, u16, u32, u64, u128),
         (super::FheInt80, u8, u16, u32, u64, u128),
         (super::FheInt88, u8, u16, u32, u64, u128),
@@ -1031,7 +1344,6 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, u8, u16, u32, u64, u128),
         (super::FheInt112, u8, u16, u32, u64, u128),
         (super::FheInt120, u8, u16, u32, u64, u128),
-        (super::FheInt128, u8, u16, u32, u64, u128),
         (super::FheInt136, u8, u16, u32, u64, u128, U256),
         (super::FheInt144, u8, u16, u32, u64, u128, U256),
         (super::FheInt152, u8, u16, u32, u64, u128, U256),
@@ -1076,48 +1388,14 @@ generic_integer_impl_scalar_operation!(
         }
     },
     fhe_and_scalar_type:
-        (super::FheInt2, u8, u16, u32, u64, u128),
-        (super::FheInt4, u8, u16, u32, u64, u128),
-        (super::FheInt6, u8, u16, u32, u64, u128),
         (super::FheInt8, u8, u16, u32, u64, u128),
-        (super::FheInt10, u8, u16, u32, u64, u128),
-        (super::FheInt12, u8, u16, u32, u64, u128),
-        (super::FheInt14, u8, u16, u32, u64, u128),
         (super::FheInt16, u8, u16, u32, u64, u128),
-        (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt32, u8, u16, u32, u64, u128),
-        (super::FheInt40, u8, u16, u32, u64, u128),
-        (super::FheInt48, u8, u16, u32, u64, u128),
-        (super::FheInt56, u8, u16, u32, u64, u128),
         (super::FheInt64, u8, u16, u32, u64, u128),
-        (super::FheInt72, u8, u16, u32, u64, u128),
-        (super::FheInt80, u8, u16, u32, u64, u128),
-        (super::FheInt88, u8, u16, u32, u64, u128),
-        (super::FheInt96, u8, u16, u32, u64, u128),
-        (super::FheInt104, u8, u16, u32, u64, u128),
-        (super::FheInt112, u8, u16, u32, u64, u128),
-        (super::FheInt120, u8, u16, u32, u64, u128),
         (super::FheInt128, u8, u16, u32, u64, u128),
-        (super::FheInt136, u8, u16, u32, u64, u128, U256),
-        (super::FheInt144, u8, u16, u32, u64, u128, U256),
-        (super::FheInt152, u8, u16, u32, u64, u128, U256),
-        (super::FheInt160, u8, u16, u32, u64, u128, U256),
-        (super::FheInt168, u8, u16, u32, u64, u128, U256),
-        (super::FheInt176, u8, u16, u32, u64, u128, U256),
-        (super::FheInt184, u8, u16, u32, u64, u128, U256),
-        (super::FheInt192, u8, u16, u32, u64, u128, U256),
-        (super::FheInt200, u8, u16, u32, u64, u128, U256),
-        (super::FheInt208, u8, u16, u32, u64, u128, U256),
-        (super::FheInt216, u8, u16, u32, u64, u128, U256),
-        (super::FheInt224, u8, u16, u32, u64, u128, U256),
-        (super::FheInt232, u8, u16, u32, u64, u128, U256),
-        (super::FheInt240, u8, u16, u32, u64, u128, U256),
-        (super::FheInt248, u8, u16, u32, u64, u128, U256),
-        (super::FheInt256, u8, u16, u32, u64, u128, U256),
-        (super::FheInt512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheInt1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
 );
+
+#[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Div(div),
     implem: {
@@ -1145,17 +1423,13 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1163,7 +1437,96 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
+        (super::FheInt160, I256),
+        (super::FheInt168, I256),
+        (super::FheInt176, I256),
+        (super::FheInt184, I256),
+        (super::FheInt192, I256),
+        (super::FheInt200, I256),
+        (super::FheInt208, I256),
+        (super::FheInt216, I256),
+        (super::FheInt224, I256),
+        (super::FheInt232, I256),
+        (super::FheInt240, I256),
+        (super::FheInt248, I256),
+        (super::FheInt256, I256),
+        (super::FheInt512, I512),
+        (super::FheInt1024, I1024),
+        (super::FheInt2048, I2048),
+);
+generic_integer_impl_scalar_operation!(
+    rust_trait: Div(div),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .signed_scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.signed_scalar_div(
+                            &lhs.ciphertext.on_gpu(streams), rhs, streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
         (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation!(
+    rust_trait: Rem(rem),
+    implem: {
+        |lhs: &FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let inner_result = cpu_key
+                        .pbs_key()
+                        .signed_scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
+                    RadixCiphertext::Cpu(inner_result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key.signed_scalar_rem(
+                            &lhs.ciphertext.on_gpu(streams), rhs, streams
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, i8),
+        (super::FheInt4, i8),
+        (super::FheInt6, i8),
+        (super::FheInt10, i16),
+        (super::FheInt12, i16),
+        (super::FheInt14, i16),
+        (super::FheInt24, i32),
+        (super::FheInt40, i64),
+        (super::FheInt48, i64),
+        (super::FheInt56, i64),
+        (super::FheInt72, i128),
+        (super::FheInt80, i128),
+        (super::FheInt88, i128),
+        (super::FheInt96, i128),
+        (super::FheInt104, i128),
+        (super::FheInt112, i128),
+        (super::FheInt120, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -1205,20 +1568,34 @@ generic_integer_impl_scalar_operation!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_left_operation!(
+    rust_trait: Add(add),
+    implem: {
+        |lhs, rhs: &FheInt<_>| {
+            // `+` is commutative
+            let result: FheInt<_> = rhs + lhs;
+            result.ciphertext
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1226,7 +1603,6 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -1244,7 +1620,6 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt1024, I1024),
         (super::FheInt2048, I2048),
 );
-
 generic_integer_impl_scalar_left_operation!(
     rust_trait: Add(add),
     implem: {
@@ -1255,13 +1630,7 @@ generic_integer_impl_scalar_left_operation!(
         }
     },
     fhe_and_scalar_type:
-        (super::FheInt2, i8),
-        (super::FheInt4, i8),
-        (super::FheInt6, i8),
         (super::FheInt8, i8),
-        (super::FheInt10, i16),
-        (super::FheInt12, i16),
-        (super::FheInt14, i16),
         (super::FheInt16,
             /// Adds a [super::FheInt16] to a clear
             ///
@@ -1284,38 +1653,12 @@ generic_integer_impl_scalar_left_operation!(
             /// assert_eq!(result, 23i16 + 3i16);
             /// ```
             i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
-        (super::FheInt40, i64),
-        (super::FheInt48, i64),
-        (super::FheInt56, i64),
         (super::FheInt64, i64),
-        (super::FheInt72, i128),
-        (super::FheInt80, i128),
-        (super::FheInt88, i128),
-        (super::FheInt96, i128),
-        (super::FheInt104, i128),
-        (super::FheInt112, i128),
-        (super::FheInt120, i128),
         (super::FheInt128, i128),
-        (super::FheInt160, I256),
-        (super::FheInt168, I256),
-        (super::FheInt176, I256),
-        (super::FheInt184, I256),
-        (super::FheInt192, I256),
-        (super::FheInt200, I256),
-        (super::FheInt208, I256),
-        (super::FheInt216, I256),
-        (super::FheInt224, I256),
-        (super::FheInt232, I256),
-        (super::FheInt240, I256),
-        (super::FheInt248, I256),
-        (super::FheInt256, I256),
-        (super::FheInt512, I512),
-        (super::FheInt1024, I1024),
-        (super::FheInt2048, I2048),
-
 );
+
+#[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_left_operation!(
     rust_trait: Sub(sub),
     implem: {
@@ -1348,10 +1691,67 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
+        (super::FheInt24, i32),
+        (super::FheInt40, i64),
+        (super::FheInt48, i64),
+        (super::FheInt56, i64),
+        (super::FheInt72, i128),
+        (super::FheInt80, i128),
+        (super::FheInt88, i128),
+        (super::FheInt96, i128),
+        (super::FheInt104, i128),
+        (super::FheInt112, i128),
+        (super::FheInt120, i128),
+        (super::FheInt160, I256),
+        (super::FheInt168, I256),
+        (super::FheInt176, I256),
+        (super::FheInt184, I256),
+        (super::FheInt192, I256),
+        (super::FheInt200, I256),
+        (super::FheInt208, I256),
+        (super::FheInt216, I256),
+        (super::FheInt224, I256),
+        (super::FheInt232, I256),
+        (super::FheInt240, I256),
+        (super::FheInt248, I256),
+        (super::FheInt256, I256),
+        (super::FheInt512, I512),
+        (super::FheInt1024, I1024),
+        (super::FheInt2048, I2048),
+);
+generic_integer_impl_scalar_left_operation!(
+    rust_trait: Sub(sub),
+    implem: {
+        |lhs, rhs: &FheInt<_>| {
+            // `-` is not commutative, so we resort to converting to trivial
+            // which should give same perf
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    let mut result = cpu_key
+                        .pbs_key()
+                        .create_trivial_radix(lhs, rhs.ciphertext.on_cpu().blocks().len());
+                    cpu_key
+                        .pbs_key()
+                        .sub_assign_parallelized(&mut result, &*rhs.ciphertext.on_cpu());
+                    RadixCiphertext::Cpu(result)
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_cuda_key) => {
+                    with_thread_local_cuda_streams(|_stream| {
+                        panic!("Cuda devices do not support subtracting a chiphertext to a clear")
+//                        let mut result = cuda_key.key.key.create_signed_trivial_radix(lhs, rhs.ciphertext.on_gpu(streams).ciphertext.info.blocks.len(), streams);
+//                        cuda_key.key.key.sub_assign(&mut result, &rhs.ciphertext.on_gpu(streams), streams);
+//                        RadixCiphertext::Cuda(result)
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
         (super::FheInt16,
             /// Subtract a [super::FheInt16] to a clear
             ///
@@ -1374,12 +1774,32 @@ generic_integer_impl_scalar_left_operation!(
             /// assert_eq!(result, 23i16 - 3i16);
             /// ```
             i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_left_operation!(
+    rust_trait: Mul(mul),
+    implem: {
+        |lhs, rhs: &FheInt<_>| {
+            // `*` is commutative
+            let result: FheInt<_> = rhs * lhs;
+            result.ciphertext
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, i8),
+        (super::FheInt4, i8),
+        (super::FheInt6, i8),
+        (super::FheInt10, i16),
+        (super::FheInt12, i16),
+        (super::FheInt14, i16),
+        (super::FheInt24, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1387,7 +1807,6 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -1404,7 +1823,6 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt512, I512),
         (super::FheInt1024, I1024),
         (super::FheInt2048, I2048),
-
 );
 generic_integer_impl_scalar_left_operation!(
     rust_trait: Mul(mul),
@@ -1416,13 +1834,7 @@ generic_integer_impl_scalar_left_operation!(
         }
     },
     fhe_and_scalar_type:
-        (super::FheInt2, i8),
-        (super::FheInt4, i8),
-        (super::FheInt6, i8),
         (super::FheInt8, i8),
-        (super::FheInt10, i16),
-        (super::FheInt12, i16),
-        (super::FheInt14, i16),
         (super::FheInt16,
             /// Multiplies a [super::FheInt16] to a clear
             ///
@@ -1445,12 +1857,32 @@ generic_integer_impl_scalar_left_operation!(
             /// assert_eq!(result, 23i16 * 3i16);
             /// ```
             i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_left_operation!(
+    rust_trait: BitAnd(bitand),
+    implem: {
+        |lhs, rhs: &FheInt<_>| {
+            // `&` is commutative
+            let result: FheInt<_> = rhs & lhs;
+            result.ciphertext
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, i8),
+        (super::FheInt4, i8),
+        (super::FheInt6, i8),
+        (super::FheInt10, i16),
+        (super::FheInt12, i16),
+        (super::FheInt14, i16),
+        (super::FheInt24, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1458,7 +1890,6 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -1486,13 +1917,7 @@ generic_integer_impl_scalar_left_operation!(
         }
     },
     fhe_and_scalar_type:
-        (super::FheInt2, i8),
-        (super::FheInt4, i8),
-        (super::FheInt6, i8),
         (super::FheInt8, i8),
-        (super::FheInt10, i16),
-        (super::FheInt12, i16),
-        (super::FheInt14, i16),
         (super::FheInt16,
             /// Performs a bitwise 'and' between a clear and [super::FheInt16]
             ///
@@ -1513,12 +1938,32 @@ generic_integer_impl_scalar_left_operation!(
             /// assert_eq!(result, 23i16 & 3i16);
             /// ```
             i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_left_operation!(
+    rust_trait: BitOr(bitor),
+    implem: {
+        |lhs, rhs: &FheInt<_>| {
+            // `|` is commutative
+            let result: FheInt<_> = rhs | lhs;
+            result.ciphertext
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, i8),
+        (super::FheInt4, i8),
+        (super::FheInt6, i8),
+        (super::FheInt10, i16),
+        (super::FheInt12, i16),
+        (super::FheInt14, i16),
+        (super::FheInt24, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1526,7 +1971,6 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -1543,7 +1987,6 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt512, I512),
         (super::FheInt1024, I1024),
         (super::FheInt2048, I2048),
-
 );
 generic_integer_impl_scalar_left_operation!(
     rust_trait: BitOr(bitor),
@@ -1555,13 +1998,7 @@ generic_integer_impl_scalar_left_operation!(
         }
     },
     fhe_and_scalar_type:
-        (super::FheInt2, i8),
-        (super::FheInt4, i8),
-        (super::FheInt6, i8),
         (super::FheInt8, i8),
-        (super::FheInt10, i16),
-        (super::FheInt12, i16),
-        (super::FheInt14, i16),
         (super::FheInt16,
             /// Performs a bitwise 'or' between a clear and [super::FheInt16]
             ///
@@ -1582,12 +2019,32 @@ generic_integer_impl_scalar_left_operation!(
             /// assert_eq!(result, 23i16 | 3i16);
             /// ```
             i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_left_operation!(
+    rust_trait: BitXor(bitxor),
+    implem: {
+        |lhs, rhs: &FheInt<_>| {
+            // `^` is commutative
+            let result: FheInt<_> = rhs ^ lhs;
+            result.ciphertext
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, i8),
+        (super::FheInt4, i8),
+        (super::FheInt6, i8),
+        (super::FheInt10, i16),
+        (super::FheInt12, i16),
+        (super::FheInt14, i16),
+        (super::FheInt24, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1595,7 +2052,6 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -1612,7 +2068,6 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt512, I512),
         (super::FheInt1024, I1024),
         (super::FheInt2048, I2048),
-
 );
 generic_integer_impl_scalar_left_operation!(
     rust_trait: BitXor(bitxor),
@@ -1624,13 +2079,7 @@ generic_integer_impl_scalar_left_operation!(
         }
     },
     fhe_and_scalar_type:
-        (super::FheInt2, i8),
-        (super::FheInt4, i8),
-        (super::FheInt6, i8),
         (super::FheInt8, i8),
-        (super::FheInt10, i16),
-        (super::FheInt12, i16),
-        (super::FheInt14, i16),
         (super::FheInt16,
             /// Performs a bitwise 'xor' between a clear and [super::FheInt16]
             ///
@@ -1651,39 +2100,12 @@ generic_integer_impl_scalar_left_operation!(
             /// assert_eq!(result, 23i16 ^ 3i16);
             /// ```
             i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
-        (super::FheInt40, i64),
-        (super::FheInt48, i64),
-        (super::FheInt56, i64),
         (super::FheInt64, i64),
-        (super::FheInt72, i128),
-        (super::FheInt80, i128),
-        (super::FheInt88, i128),
-        (super::FheInt96, i128),
-        (super::FheInt104, i128),
-        (super::FheInt112, i128),
-        (super::FheInt120, i128),
         (super::FheInt128, i128),
-        (super::FheInt160, I256),
-        (super::FheInt168, I256),
-        (super::FheInt176, I256),
-        (super::FheInt184, I256),
-        (super::FheInt192, I256),
-        (super::FheInt200, I256),
-        (super::FheInt208, I256),
-        (super::FheInt216, I256),
-        (super::FheInt224, I256),
-        (super::FheInt232, I256),
-        (super::FheInt240, I256),
-        (super::FheInt248, I256),
-        (super::FheInt256, I256),
-        (super::FheInt512, I512),
-        (super::FheInt1024, I1024),
-        (super::FheInt2048, I2048),
-
 );
 
+#[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: AddAssign(add_assign),
     implem: {
@@ -1708,10 +2130,59 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
+        (super::FheInt24, i32),
+        (super::FheInt40, i64),
+        (super::FheInt48, i64),
+        (super::FheInt56, i64),
+        (super::FheInt72, i128),
+        (super::FheInt80, i128),
+        (super::FheInt88, i128),
+        (super::FheInt96, i128),
+        (super::FheInt104, i128),
+        (super::FheInt112, i128),
+        (super::FheInt120, i128),
+        (super::FheInt160, I256),
+        (super::FheInt168, I256),
+        (super::FheInt176, I256),
+        (super::FheInt184, I256),
+        (super::FheInt192, I256),
+        (super::FheInt200, I256),
+        (super::FheInt208, I256),
+        (super::FheInt216, I256),
+        (super::FheInt224, I256),
+        (super::FheInt232, I256),
+        (super::FheInt240, I256),
+        (super::FheInt248, I256),
+        (super::FheInt256, I256),
+        (super::FheInt512, I512),
+        (super::FheInt1024, I1024),
+        (super::FheInt2048, I2048),
+);
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: AddAssign(add_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_add_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
         (super::FheInt16,
         /// Adds a clear to a [super::FheInt16]
         ///
@@ -1735,38 +2206,12 @@ generic_integer_impl_scalar_operation_assign!(
         /// assert_eq!(result, 23i16 + 3i16);
         /// ```
         i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
-        (super::FheInt40, i64),
-        (super::FheInt48, i64),
-        (super::FheInt56, i64),
         (super::FheInt64, i64),
-        (super::FheInt72, i128),
-        (super::FheInt80, i128),
-        (super::FheInt88, i128),
-        (super::FheInt96, i128),
-        (super::FheInt104, i128),
-        (super::FheInt112, i128),
-        (super::FheInt120, i128),
         (super::FheInt128, i128),
-        (super::FheInt160, I256),
-        (super::FheInt168, I256),
-        (super::FheInt176, I256),
-        (super::FheInt184, I256),
-        (super::FheInt192, I256),
-        (super::FheInt200, I256),
-        (super::FheInt208, I256),
-        (super::FheInt216, I256),
-        (super::FheInt224, I256),
-        (super::FheInt232, I256),
-        (super::FheInt240, I256),
-        (super::FheInt248, I256),
-        (super::FheInt256, I256),
-        (super::FheInt512, I512),
-        (super::FheInt1024, I1024),
-        (super::FheInt2048, I2048),
-
 );
+
+#[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: SubAssign(sub_assign),
     implem: {
@@ -1791,17 +2236,13 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1809,7 +2250,90 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
+        (super::FheInt160, I256),
+        (super::FheInt168, I256),
+        (super::FheInt176, I256),
+        (super::FheInt184, I256),
+        (super::FheInt192, I256),
+        (super::FheInt200, I256),
+        (super::FheInt208, I256),
+        (super::FheInt216, I256),
+        (super::FheInt224, I256),
+        (super::FheInt232, I256),
+        (super::FheInt240, I256),
+        (super::FheInt248, I256),
+        (super::FheInt256, I256),
+        (super::FheInt512, I512),
+        (super::FheInt1024, I1024),
+        (super::FheInt2048, I2048),
+);
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: SubAssign(sub_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_sub_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
         (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: MulAssign(mul_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_mul_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, i8),
+        (super::FheInt4, i8),
+        (super::FheInt6, i8),
+        (super::FheInt10, i16),
+        (super::FheInt12, i16),
+        (super::FheInt14, i16),
+        (super::FheInt24, i32),
+        (super::FheInt40, i64),
+        (super::FheInt48, i64),
+        (super::FheInt56, i64),
+        (super::FheInt72, i128),
+        (super::FheInt80, i128),
+        (super::FheInt88, i128),
+        (super::FheInt96, i128),
+        (super::FheInt104, i128),
+        (super::FheInt112, i128),
+        (super::FheInt120, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -1848,20 +2372,45 @@ generic_integer_impl_scalar_operation_assign!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: BitAndAssign(bitand_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_bitand_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1869,7 +2418,6 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -1908,20 +2456,45 @@ generic_integer_impl_scalar_operation_assign!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: BitOrAssign(bitor_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_bitor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1929,7 +2502,6 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -1968,20 +2540,45 @@ generic_integer_impl_scalar_operation_assign!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: BitXorAssign(bitxor_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_bitxor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
         (super::FheInt6, i8),
-        (super::FheInt8, i8),
         (super::FheInt10, i16),
         (super::FheInt12, i16),
         (super::FheInt14, i16),
-        (super::FheInt16, i16),
         (super::FheInt24, i32),
-        (super::FheInt32, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -1989,7 +2586,6 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -2028,45 +2624,14 @@ generic_integer_impl_scalar_operation_assign!(
         }
     },
     fhe_and_scalar_type:
-        (super::FheInt2, i8),
-        (super::FheInt4, i8),
-        (super::FheInt6, i8),
         (super::FheInt8, i8),
-        (super::FheInt10, i16),
-        (super::FheInt12, i16),
-        (super::FheInt14, i16),
         (super::FheInt16, i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
-        (super::FheInt40, i64),
-        (super::FheInt48, i64),
-        (super::FheInt56, i64),
         (super::FheInt64, i64),
-        (super::FheInt72, i128),
-        (super::FheInt80, i128),
-        (super::FheInt88, i128),
-        (super::FheInt96, i128),
-        (super::FheInt104, i128),
-        (super::FheInt112, i128),
-        (super::FheInt120, i128),
         (super::FheInt128, i128),
-        (super::FheInt160, I256),
-        (super::FheInt168, I256),
-        (super::FheInt176, I256),
-        (super::FheInt184, I256),
-        (super::FheInt192, I256),
-        (super::FheInt200, I256),
-        (super::FheInt208, I256),
-        (super::FheInt216, I256),
-        (super::FheInt224, I256),
-        (super::FheInt232, I256),
-        (super::FheInt240, I256),
-        (super::FheInt248, I256),
-        (super::FheInt256, I256),
-        (super::FheInt512, I512),
-        (super::FheInt1024, I1024),
-        (super::FheInt2048, I2048),
 );
+
+#[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: ShlAssign(shl_assign),
     implem: {
@@ -2091,17 +2656,13 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
         (super::FheInt6, u8, u16, u32, u64, u128),
-        (super::FheInt8, u8, u16, u32, u64, u128),
         (super::FheInt10, u8, u16, u32, u64, u128),
         (super::FheInt12, u8, u16, u32, u64, u128),
         (super::FheInt14, u8, u16, u32, u64, u128),
-        (super::FheInt16, u8, u16, u32, u64, u128),
         (super::FheInt24, u8, u16, u32, u64, u128),
-        (super::FheInt32, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
         (super::FheInt48, u8, u16, u32, u64, u128),
         (super::FheInt56, u8, u16, u32, u64, u128),
-        (super::FheInt64, u8, u16, u32, u64, u128),
         (super::FheInt72, u8, u16, u32, u64, u128),
         (super::FheInt80, u8, u16, u32, u64, u128),
         (super::FheInt88, u8, u16, u32, u64, u128),
@@ -2109,7 +2670,93 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt104, u8, u16, u32, u64, u128),
         (super::FheInt112, u8, u16, u32, u64, u128),
         (super::FheInt120, u8, u16, u32, u64, u128),
+        (super::FheInt136, u8, u16, u32, u64, u128, U256),
+        (super::FheInt144, u8, u16, u32, u64, u128, U256),
+        (super::FheInt152, u8, u16, u32, u64, u128, U256),
+        (super::FheInt160, u8, u16, u32, u64, u128, U256),
+        (super::FheInt168, u8, u16, u32, u64, u128, U256),
+        (super::FheInt176, u8, u16, u32, u64, u128, U256),
+        (super::FheInt184, u8, u16, u32, u64, u128, U256),
+        (super::FheInt192, u8, u16, u32, u64, u128, U256),
+        (super::FheInt200, u8, u16, u32, u64, u128, U256),
+        (super::FheInt208, u8, u16, u32, u64, u128, U256),
+        (super::FheInt216, u8, u16, u32, u64, u128, U256),
+        (super::FheInt224, u8, u16, u32, u64, u128, U256),
+        (super::FheInt232, u8, u16, u32, u64, u128, U256),
+        (super::FheInt240, u8, u16, u32, u64, u128, U256),
+        (super::FheInt248, u8, u16, u32, u64, u128, U256),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt512, u8, u16, u32, u64, u128, U256, U512),
+        (super::FheInt1024, u8, u16, u32, u64, u128, U256, U512, U1024),
+        (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
+);
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: ShlAssign(shl_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_left_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
         (super::FheInt128, u8, u16, u32, u64, u128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: ShrAssign(shr_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_right_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, u8, u16, u32, u64, u128),
+        (super::FheInt4, u8, u16, u32, u64, u128),
+        (super::FheInt6, u8, u16, u32, u64, u128),
+        (super::FheInt10, u8, u16, u32, u64, u128),
+        (super::FheInt12, u8, u16, u32, u64, u128),
+        (super::FheInt14, u8, u16, u32, u64, u128),
+        (super::FheInt24, u8, u16, u32, u64, u128),
+        (super::FheInt40, u8, u16, u32, u64, u128),
+        (super::FheInt48, u8, u16, u32, u64, u128),
+        (super::FheInt56, u8, u16, u32, u64, u128),
+        (super::FheInt72, u8, u16, u32, u64, u128),
+        (super::FheInt80, u8, u16, u32, u64, u128),
+        (super::FheInt88, u8, u16, u32, u64, u128),
+        (super::FheInt96, u8, u16, u32, u64, u128),
+        (super::FheInt104, u8, u16, u32, u64, u128),
+        (super::FheInt112, u8, u16, u32, u64, u128),
+        (super::FheInt120, u8, u16, u32, u64, u128),
         (super::FheInt136, u8, u16, u32, u64, u128, U256),
         (super::FheInt144, u8, u16, u32, u64, u128, U256),
         (super::FheInt152, u8, u16, u32, u64, u128, U256),
@@ -2151,20 +2798,45 @@ generic_integer_impl_scalar_operation_assign!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: RotateLeftAssign(rotate_left_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_rotate_left_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
         (super::FheInt6, u8, u16, u32, u64, u128),
-        (super::FheInt8, u8, u16, u32, u64, u128),
         (super::FheInt10, u8, u16, u32, u64, u128),
         (super::FheInt12, u8, u16, u32, u64, u128),
         (super::FheInt14, u8, u16, u32, u64, u128),
-        (super::FheInt16, u8, u16, u32, u64, u128),
         (super::FheInt24, u8, u16, u32, u64, u128),
-        (super::FheInt32, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
         (super::FheInt48, u8, u16, u32, u64, u128),
         (super::FheInt56, u8, u16, u32, u64, u128),
-        (super::FheInt64, u8, u16, u32, u64, u128),
         (super::FheInt72, u8, u16, u32, u64, u128),
         (super::FheInt80, u8, u16, u32, u64, u128),
         (super::FheInt88, u8, u16, u32, u64, u128),
@@ -2172,7 +2844,6 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt104, u8, u16, u32, u64, u128),
         (super::FheInt112, u8, u16, u32, u64, u128),
         (super::FheInt120, u8, u16, u32, u64, u128),
-        (super::FheInt128, u8, u16, u32, u64, u128),
         (super::FheInt136, u8, u16, u32, u64, u128, U256),
         (super::FheInt144, u8, u16, u32, u64, u128, U256),
         (super::FheInt152, u8, u16, u32, u64, u128, U256),
@@ -2214,20 +2885,45 @@ generic_integer_impl_scalar_operation_assign!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: RotateRightAssign(rotate_right_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .scalar_rotate_right_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        cuda_key.key.key
+                            .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                    })
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
         (super::FheInt6, u8, u16, u32, u64, u128),
-        (super::FheInt8, u8, u16, u32, u64, u128),
         (super::FheInt10, u8, u16, u32, u64, u128),
         (super::FheInt12, u8, u16, u32, u64, u128),
         (super::FheInt14, u8, u16, u32, u64, u128),
-        (super::FheInt16, u8, u16, u32, u64, u128),
         (super::FheInt24, u8, u16, u32, u64, u128),
-        (super::FheInt32, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
         (super::FheInt48, u8, u16, u32, u64, u128),
         (super::FheInt56, u8, u16, u32, u64, u128),
-        (super::FheInt64, u8, u16, u32, u64, u128),
         (super::FheInt72, u8, u16, u32, u64, u128),
         (super::FheInt80, u8, u16, u32, u64, u128),
         (super::FheInt88, u8, u16, u32, u64, u128),
@@ -2235,7 +2931,6 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt104, u8, u16, u32, u64, u128),
         (super::FheInt112, u8, u16, u32, u64, u128),
         (super::FheInt120, u8, u16, u32, u64, u128),
-        (super::FheInt128, u8, u16, u32, u64, u128),
         (super::FheInt136, u8, u16, u32, u64, u128, U256),
         (super::FheInt144, u8, u16, u32, u64, u128, U256),
         (super::FheInt152, u8, u16, u32, u64, u128, U256),
@@ -2277,47 +2972,65 @@ generic_integer_impl_scalar_operation_assign!(
         }
     },
     fhe_and_scalar_type:
-        (super::FheInt2, u8, u16, u32, u64, u128),
-        (super::FheInt4, u8, u16, u32, u64, u128),
-        (super::FheInt6, u8, u16, u32, u64, u128),
         (super::FheInt8, u8, u16, u32, u64, u128),
-        (super::FheInt10, u8, u16, u32, u64, u128),
-        (super::FheInt12, u8, u16, u32, u64, u128),
-        (super::FheInt14, u8, u16, u32, u64, u128),
         (super::FheInt16, u8, u16, u32, u64, u128),
-        (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt32, u8, u16, u32, u64, u128),
-        (super::FheInt40, u8, u16, u32, u64, u128),
-        (super::FheInt48, u8, u16, u32, u64, u128),
-        (super::FheInt56, u8, u16, u32, u64, u128),
         (super::FheInt64, u8, u16, u32, u64, u128),
-        (super::FheInt72, u8, u16, u32, u64, u128),
-        (super::FheInt80, u8, u16, u32, u64, u128),
-        (super::FheInt88, u8, u16, u32, u64, u128),
-        (super::FheInt96, u8, u16, u32, u64, u128),
-        (super::FheInt104, u8, u16, u32, u64, u128),
-        (super::FheInt112, u8, u16, u32, u64, u128),
-        (super::FheInt120, u8, u16, u32, u64, u128),
         (super::FheInt128, u8, u16, u32, u64, u128),
-        (super::FheInt136, u8, u16, u32, u64, u128, U256),
-        (super::FheInt144, u8, u16, u32, u64, u128, U256),
-        (super::FheInt152, u8, u16, u32, u64, u128, U256),
-        (super::FheInt160, u8, u16, u32, u64, u128, U256),
-        (super::FheInt168, u8, u16, u32, u64, u128, U256),
-        (super::FheInt176, u8, u16, u32, u64, u128, U256),
-        (super::FheInt184, u8, u16, u32, u64, u128, U256),
-        (super::FheInt192, u8, u16, u32, u64, u128, U256),
-        (super::FheInt200, u8, u16, u32, u64, u128, U256),
-        (super::FheInt208, u8, u16, u32, u64, u128, U256),
-        (super::FheInt216, u8, u16, u32, u64, u128, U256),
-        (super::FheInt224, u8, u16, u32, u64, u128, U256),
-        (super::FheInt232, u8, u16, u32, u64, u128, U256),
-        (super::FheInt240, u8, u16, u32, u64, u128, U256),
-        (super::FheInt248, u8, u16, u32, u64, u128, U256),
-        (super::FheInt256, u8, u16, u32, u64, u128, U256),
-        (super::FheInt512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheInt1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: DivAssign(div_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .signed_scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_) => {
+                    panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, i8),
+        (super::FheInt4, i8),
+        (super::FheInt6, i8),
+        (super::FheInt10, i16),
+        (super::FheInt12, i16),
+        (super::FheInt14, i16),
+        (super::FheInt24, i32),
+        (super::FheInt40, i64),
+        (super::FheInt48, i64),
+        (super::FheInt56, i64),
+        (super::FheInt72, i128),
+        (super::FheInt80, i128),
+        (super::FheInt88, i128),
+        (super::FheInt96, i128),
+        (super::FheInt104, i128),
+        (super::FheInt112, i128),
+        (super::FheInt120, i128),
+        (super::FheInt160, I256),
+        (super::FheInt168, I256),
+        (super::FheInt176, I256),
+        (super::FheInt184, I256),
+        (super::FheInt192, I256),
+        (super::FheInt200, I256),
+        (super::FheInt208, I256),
+        (super::FheInt216, I256),
+        (super::FheInt224, I256),
+        (super::FheInt232, I256),
+        (super::FheInt240, I256),
+        (super::FheInt248, I256),
+        (super::FheInt256, I256),
+        (super::FheInt512, I512),
+        (super::FheInt1024, I1024),
+        (super::FheInt2048, I2048),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: DivAssign(div_assign),
@@ -2337,13 +3050,42 @@ generic_integer_impl_scalar_operation_assign!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
         (super::FheInt16, i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+);
+
+#[cfg(feature = "extended-types")]
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: RemAssign(rem_assign),
+    implem: {
+        |lhs: &mut FheInt<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(cpu_key) => {
+                    cpu_key
+                        .pbs_key()
+                        .signed_scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_) => {
+                    panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
+                }
+            })
+        }
+    },
+    fhe_and_scalar_type:
+        (super::FheInt2, i8),
+        (super::FheInt4, i8),
+        (super::FheInt6, i8),
+        (super::FheInt10, i16),
+        (super::FheInt12, i16),
+        (super::FheInt14, i16),
+        (super::FheInt24, i32),
         (super::FheInt40, i64),
         (super::FheInt48, i64),
         (super::FheInt56, i64),
-        (super::FheInt64, i64),
         (super::FheInt72, i128),
         (super::FheInt80, i128),
         (super::FheInt88, i128),
@@ -2351,7 +3093,6 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt104, i128),
         (super::FheInt112, i128),
         (super::FheInt120, i128),
-        (super::FheInt128, i128),
         (super::FheInt160, I256),
         (super::FheInt168, I256),
         (super::FheInt176, I256),
@@ -2387,35 +3128,9 @@ generic_integer_impl_scalar_operation_assign!(
         }
     },
     fhe_and_scalar_type:
+        (super::FheInt8, i8),
         (super::FheInt16, i16),
-        (super::FheInt24, i32),
         (super::FheInt32, i32),
-        (super::FheInt40, i64),
-        (super::FheInt48, i64),
-        (super::FheInt56, i64),
         (super::FheInt64, i64),
-        (super::FheInt72, i128),
-        (super::FheInt80, i128),
-        (super::FheInt88, i128),
-        (super::FheInt96, i128),
-        (super::FheInt104, i128),
-        (super::FheInt112, i128),
-        (super::FheInt120, i128),
         (super::FheInt128, i128),
-        (super::FheInt160, I256),
-        (super::FheInt168, I256),
-        (super::FheInt176, I256),
-        (super::FheInt184, I256),
-        (super::FheInt192, I256),
-        (super::FheInt200, I256),
-        (super::FheInt208, I256),
-        (super::FheInt216, I256),
-        (super::FheInt224, I256),
-        (super::FheInt232, I256),
-        (super::FheInt240, I256),
-        (super::FheInt248, I256),
-        (super::FheInt256, I256),
-        (super::FheInt512, I512),
-        (super::FheInt1024, I1024),
-        (super::FheInt2048, I2048),
 );

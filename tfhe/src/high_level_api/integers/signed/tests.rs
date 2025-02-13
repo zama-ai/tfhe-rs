@@ -1,10 +1,13 @@
+#[cfg(feature = "extended-types")]
 use crate::integer::I256;
 use crate::prelude::*;
 use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+#[cfg(feature = "extended-types")]
+use crate::FheInt256;
 use crate::{
     generate_keys, set_server_key, ClientKey, CompactCiphertextList, CompactPublicKey,
-    CompressedFheInt16, CompressedFheInt32, Config, ConfigBuilder, FheInt16, FheInt256, FheInt32,
+    CompressedFheInt16, CompressedFheInt32, Config, ConfigBuilder, FheInt16, FheInt32,
     FheInt32ConformanceParams, FheInt64, FheInt8, FheUint64, FheUint8,
 };
 use rand::prelude::*;
@@ -530,6 +533,7 @@ fn test_trivial_fhe_int8() {
     assert_eq!(clear, -1i8);
 }
 
+#[cfg(feature = "extended-types")]
 #[test]
 fn test_trivial_fhe_int256_small() {
     let config = ConfigBuilder::with_custom_parameters(

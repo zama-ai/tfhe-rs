@@ -68,6 +68,7 @@ fn test_trivial_uint8_gpu() {
     super::test_case_uint8_trivial(&client_key);
 }
 
+#[cfg(feature = "extended-types")]
 #[test]
 fn test_trivial_uint256_small_gpu() {
     let client_key = setup_default_gpu();

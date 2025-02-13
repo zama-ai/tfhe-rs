@@ -538,7 +538,9 @@ impl CompactCiphertextListBuilder {
 mod tests {
     use super::*;
     use crate::prelude::*;
-    use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
+    use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint32, FheUint8};
+    #[cfg(feature = "extended-types")]
+    use crate::{FheInt40, FheUint2};
 
     #[test]
     fn test_compact_list() {
@@ -555,8 +557,7 @@ mod tests {
             .push(-1i64)
             .push(false)
             .push(true)
-            .push_with_num_bits(3u8, 2)
-            .unwrap()
+            .push(3u8)
             .build_packed();
 
         let serialized = bincode::serialize(&compact_list).unwrap();
@@ -568,7 +569,7 @@ mod tests {
             let b: FheInt64 = expander.get(1).unwrap().unwrap();
             let c: FheBool = expander.get(2).unwrap().unwrap();
             let d: FheBool = expander.get(3).unwrap().unwrap();
-            let e: FheUint2 = expander.get(4).unwrap().unwrap();
+            let e: FheUint8 = expander.get(4).unwrap().unwrap();
 
             let a: u32 = a.decrypt(&ck);
             assert_eq!(a, 17);
@@ -590,6 +591,47 @@ mod tests {
 
             // Correct type but wrong number of bits
             assert!(expander.get::<FheUint16>(0).is_err());
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    #[test]
+    fn test_compact_list_extended_types() {
+        let config = crate::ConfigBuilder::default().build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::ServerKey::new(&ck);
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(sk);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push_with_num_bits(-17i64, 40)
+            .unwrap()
+            .push_with_num_bits(3u8, 2)
+            .unwrap()
+            .build_packed();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+        let expander = compact_list.expand().unwrap();
+
+        {
+            let a: FheInt40 = expander.get(0).unwrap().unwrap();
+            let b: FheUint2 = expander.get(1).unwrap().unwrap();
+
+            let a: i64 = a.decrypt(&ck);
+            assert_eq!(a, -17);
+            let b: u8 = b.decrypt(&ck);
+            assert_eq!(b, 3);
+        }
+
+        {
+            // Incorrect type
+            assert!(expander.get::<FheUint32>(0).is_err());
+
+            // Correct type but wrong number of bits
+            assert!(expander.get::<FheInt64>(0).is_err());
         }
     }
 
@@ -617,8 +659,7 @@ mod tests {
             .push(-1i64)
             .push(false)
             .push(true)
-            .push_with_num_bits(3u8, 2)
-            .unwrap()
+            .push(3u8)
             .build_packed();
 
         let serialized = bincode::serialize(&compact_list).unwrap();
@@ -630,7 +671,7 @@ mod tests {
             let b: FheInt64 = expander.get(1).unwrap().unwrap();
             let c: FheBool = expander.get(2).unwrap().unwrap();
             let d: FheBool = expander.get(3).unwrap().unwrap();
-            let e: FheUint2 = expander.get(4).unwrap().unwrap();
+            let e: FheUint8 = expander.get(4).unwrap().unwrap();
 
             let a: u32 = a.decrypt(&ck);
             assert_eq!(a, 17);
@@ -686,8 +727,7 @@ mod tests {
             .push(17u32)
             .push(-1i64)
             .push(false)
-            .push_with_num_bits(3u32, 2)
-            .unwrap()
+            .push(3u8)
             .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
             .unwrap();
 
@@ -701,7 +741,7 @@ mod tests {
             let a: FheUint32 = expander.get(0).unwrap().unwrap();
             let b: FheInt64 = expander.get(1).unwrap().unwrap();
             let c: FheBool = expander.get(2).unwrap().unwrap();
-            let d: FheUint2 = expander.get(3).unwrap().unwrap();
+            let d: FheUint8 = expander.get(3).unwrap().unwrap();
 
             let a: u32 = a.decrypt(&ck);
             assert_eq!(a, 17);
@@ -729,7 +769,7 @@ mod tests {
             let a: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
             let b: FheInt64 = unverified_expander.get(1).unwrap().unwrap();
             let c: FheBool = unverified_expander.get(2).unwrap().unwrap();
-            let d: FheUint2 = unverified_expander.get(3).unwrap().unwrap();
+            let d: FheUint8 = unverified_expander.get(3).unwrap().unwrap();
 
             let a: u32 = a.decrypt(&ck);
             assert_eq!(a, 17);
