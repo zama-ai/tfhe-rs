@@ -97,7 +97,31 @@ static_int_type! {
 
 static_int_type! {
     Signed {
+        num_bits: 24,
+    }
+}
+
+static_int_type! {
+    Signed {
         num_bits: 32,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 40,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 48,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 56,
     }
 }
 
@@ -109,7 +133,67 @@ static_int_type! {
 
 static_int_type! {
     Signed {
+        num_bits: 72,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 80,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 88,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 96,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 104,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 112,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 120,
+    }
+}
+
+static_int_type! {
+    Signed {
         num_bits: 128,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 136,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 144,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 152,
     }
 }
 
@@ -121,6 +205,90 @@ static_int_type! {
 
 static_int_type! {
     Signed {
+        num_bits: 168,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 176,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 184,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 192,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 200,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 208,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 216,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 224,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 232,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 240,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 248,
+    }
+}
+
+static_int_type! {
+    Signed {
         num_bits: 256,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 512,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 1024,
+    }
+}
+
+static_int_type! {
+    Signed {
+        num_bits: 2048,
     }
 }
