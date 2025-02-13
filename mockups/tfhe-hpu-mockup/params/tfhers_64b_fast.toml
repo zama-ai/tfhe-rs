@@ -13,7 +13,7 @@
     ciphertext_width=64
 [ntt_params]
     core_arch= {GF64=[5,5]}
-    batch_pbs_nb= 16
+    batch_pbs_nb= 12
     total_pbs_nb= 32
     ct_width= 64
     radix= 2
