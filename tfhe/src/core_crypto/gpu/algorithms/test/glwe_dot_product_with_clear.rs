@@ -1,10 +1,14 @@
+use clap::builder::TypedValueParser;
+use combine::stream::Range;
 use super::*;
 
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
 
-use crate::core_crypto::gpu::algorithms::cuda_wrapping_polynomial_mul_one_to_many;
+use crate::core_crypto::gpu::algorithms::glwe_linear_algebra::*;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+use crate::core_crypto::prelude::polynomial_algorithms::polynomial_wrapping_mul;
+use crate::core_crypto::prelude::ContiguousEntityContainerMut;
 
 pub fn encryption_delta<Scalar: UnsignedInteger>(
     bits_reserved_for_computation: usize,
@@ -113,15 +117,17 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         &mut encryption_generator,
     );
 
+    let clear_range_1: Vec<usize>  = (0usize..poly_size).collect();
+    let clear_1 : Vec<Scalar> = clear_range_1
+        .iter()
+        .map(|&x| Scalar::cast_from(x))
+        .collect();
+
     let clear_range: Vec<usize>  = (0usize..(poly_size * poly_size)).collect();
     let clear : Vec<Scalar> = clear_range
         .iter()
         .map(|x| Scalar::cast_from(x % poly_size))
         .collect();
-
-
-    let mut out =
-        GlweCiphertext::new(Scalar::ZERO, glwe_size, polynomial_size, ciphertext_modulus);
 
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
@@ -131,18 +137,23 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     let mut d_output_glwe = CudaGlweCiphertextList::new(
         glwe_secret_key.glwe_dimension(),
         glwe_secret_key.polynomial_size(),
-        GlweCiphertextCount(1),
+        GlweCiphertextCount(poly_size),
         ciphertext_modulus,
         &streams,
     );
 
+    assert_eq!(d_output_glwe.0.d_vec.len(), poly_size * poly_size * (glwe_secret_key.glwe_dimension().0 + 1));
+    assert_eq!(glwe.glwe_size().0, 2, "Cuda circulant polynomial product only supports glwe_dimension==2");
+
+    // TODO: make this function use Glwe and new CudaPolynomialList
+    // and add checks
     unsafe {
         let clear_gpu = CudaVec::from_cpu_async(clear.as_ref(), &streams, 0);
 
-        cuda_wrapping_polynomial_mul_one_to_many(
-            &d_input_glwe.0.d_vec,
+        cuda_glwe_wrapping_polynomial_mul_one_to_many(
+            &d_input_glwe,
             &clear_gpu,
-            &mut d_output_glwe.0.d_vec,
+            &mut d_output_glwe,
             &streams,
             );
     }
@@ -156,4 +167,84 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     println!("TEST POLY PRODUCT ONE TO MANY PASSED");
 }
 
-create_gpu_parameterized_test!(glwe_dot_product_with_clear);
+use std::fs;
+use std::fs::File;
+use std::io::Write;
+
+fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
+    params: ClassicTestParams<Scalar>,
+) {
+    let poly_size= 32usize; //2048usize;
+    let polynomial_size = PolynomialSize(poly_size as usize);
+
+    let clear_range_lhs: Vec<usize>  = (0usize..poly_size).collect();
+    let clear_lhs : Vec<Scalar> = clear_range_lhs
+        .iter()
+        .map(|&x| Scalar::cast_from(x))
+        .collect();
+
+    let clear_range_rhs: Vec<usize>  = (0usize..(poly_size * poly_size)).collect();
+    let clear_rhs : Vec<Scalar> = clear_range_rhs
+        .iter()
+        .map(|x| Scalar::cast_from(x % poly_size))
+        .collect();
+
+    let poly_lhs = Polynomial::from_container(clear_lhs);
+    let poly_list_rhs = PolynomialList::from_container(clear_rhs, polynomial_size);
+    let mut poly_list_result = PolynomialList::new(Scalar::ZERO, polynomial_size, poly_list_rhs.polynomial_count());
+
+    for (rhs, mut out) in poly_list_rhs
+        .iter()
+        .zip(poly_list_result.iter_mut()) {
+        polynomial_wrapping_mul(&mut out, &poly_lhs, &rhs);
+    }
+
+    let mut fp = File::create("ref.csv").unwrap();
+    for p in poly_list_result.iter() {
+        for (pos, v) in p.iter().enumerate() {
+            let str = format!("{}", *v);
+            fp.write_all(str.as_bytes()).unwrap();
+            if pos < poly_size - 1 {
+                fp.write_all(",".as_bytes()).unwrap();
+            }
+        }
+        fp.write_all("\n".as_bytes()).unwrap();
+    }
+
+    let mut cpu_results = PolynomialList::new(Scalar::ZERO, polynomial_size, poly_list_rhs.polynomial_count());
+
+    let gpu_index = 0;
+    let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+
+    // TODO: make this function use Glwe and new CudaPolynomialList
+    // and add checks
+    unsafe {
+        let clear_gpu_lhs = CudaVec::from_cpu_async(poly_lhs.as_ref(), &streams, 0);
+        let clear_gpu_rhs = CudaVec::from_cpu_async(poly_list_rhs.as_ref(), &streams, 0);
+        let mut clear_result_gpu = CudaVec::new(poly_list_result.as_ref().len(), &streams, 0 );
+
+        cuda_wrapping_polynomial_mul_one_to_many(
+            &clear_gpu_lhs, //d_input_glwe.0.d_vec,
+            &clear_gpu_rhs,
+            &mut clear_result_gpu,
+            &streams,
+        );
+
+        clear_result_gpu.copy_to_cpu_async(cpu_results.as_mut(), &streams, 0);
+        streams.synchronize();
+    }
+
+    let cnt = cpu_results.as_ref()
+        .iter()
+        .zip(poly_list_result.get(0).iter())
+        .filter(|(x, y)| x != y)
+        .count();
+
+    assert_eq!(cnt, 0);
+
+    println!("TEST CUDA POLY PRODUCT ONE TO MANY PASSED");
+}
+
+//create_gpu_parameterized_test!(glwe_dot_product_with_clear);
+create_gpu_parameterized_test!(poly_product_with_clear);
+

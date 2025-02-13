@@ -1,10 +1,14 @@
 #ifndef CUDA_POLYNOMIAL_MATH_CUH
 #define CUDA_POLYNOMIAL_MATH_CUH
 
+#include <stdio.h>
+
 #include "crypto/torus.cuh"
 #include "parameters.cuh"
 #include "types/complex/operations.cuh"
 #include "linearalgebra/multiplication.cuh"
+
+#define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
 template <typename T>
 __device__ T *get_chunk(T *data, int chunk_num, int chunk_size) {
@@ -158,8 +162,31 @@ __global__ void polynomial_make_circulant(
   }
   __syncthreads();
 
+  Torus fact = blockIdx.x * CIRCULANT_BLOCKTILE + threadIdx.x >
+    blockIdx.y * CIRCULANT_BLOCKTILE + threadIdx.y ? -1 : 1;
   result[block_start + threadIdx.x * polynomial_size + threadIdx.y] 
-    = buf[threadIdx.y - threadIdx.x + CIRCULANT_BLOCKTILE - 1];
+    = buf[threadIdx.y - threadIdx.x + CIRCULANT_BLOCKTILE - 1] * fact;
+}
+
+static void dump_2d_64(const char* fname, uint64_t const* gpu_buf, int lines, int cols, int stride, cudaStream_t stream) {
+    FILE* fp_lwe = fopen(fname, "wt");
+    uint64_t* buf_host = (uint64_t* )malloc(lines * stride * sizeof(uint64_t));
+
+    printf("Dump %d %d %d to %s\n", lines, cols, stride, fname);
+    cudaMemcpy(buf_host, gpu_buf, lines * stride * sizeof(uint64_t), cudaMemcpyDeviceToHost);
+    cudaStreamSynchronize(stream);
+
+    for (int i = 0; i < lines; ++i) {
+      for (int j = 0; j < cols; ++j) { //
+        uint64_t val = buf_host[i*stride + j];
+        fprintf(fp_lwe, "%llu", val);
+        if (j < cols - 1)
+            fprintf(fp_lwe, ",");
+      }
+      fprintf(fp_lwe, "\n");
+    }
+    fclose(fp_lwe);
+    free(buf_host);
 }
 
 template <typename Torus, typename TorusVec>
@@ -194,14 +221,23 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
   );
   check_cuda_error(cudaGetLastError());  
 
+  printf("BUILT CIRCULANT MATRIX of size %d x %d \n", polynomial_size, polynomial_size);
+
+   dump_2d_64("circulant.csv", circulant, polynomial_size, polynomial_size, polynomial_size, stream);
+   dump_2d_64("rhs.csv", poly_rhs, n_rhs, polynomial_size, polynomial_size, stream);
+
+  printf("MULT CIRCULANT MATRIX with %d Polys of size %d \n", n_rhs, polynomial_size);
+
   //matmul circulant matrix with poly list
-  dim3 grid_gemm(polynomial_size / BLOCK_SIZE_GEMM, polynomial_size / BLOCK_SIZE_GEMM);
+  dim3 grid_gemm(CEIL_DIV(polynomial_size, BLOCK_SIZE_GEMM), CEIL_DIV(polynomial_size, BLOCK_SIZE_GEMM));
   dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
   uint32_t sharedMemSize = BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
   tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
-      polynomial_size, polynomial_size, polynomial_size, circulant, poly_rhs, polynomial_size, result
+      polynomial_size, n_rhs, polynomial_size, poly_rhs, circulant, polynomial_size, result
   );
   check_cuda_error(cudaGetLastError());  
+
+   dump_2d_64("result.csv", result, polynomial_size, n_rhs, n_rhs, stream);
 
   cuda_drop_async(circulant, stream, gpu_index);
 }

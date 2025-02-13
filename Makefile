@@ -585,7 +585,7 @@ test_core_crypto_gpu: install_rs_build_toolchain
 .PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
 test_core_crypto_poly_product_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=gpu -p $(TFHE_SPEC) -- core_crypto::gpu::algorithms::test::glwe_dot_product_with_clear --nocapture
+		--features=gpu -p $(TFHE_SPEC) -- core_crypto::gpu::algorithms::test::glwe_dot_product_with_clear:: --nocapture
 
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
 test_integer_gpu: install_rs_build_toolchain
