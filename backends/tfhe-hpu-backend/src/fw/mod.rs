@@ -23,6 +23,7 @@ pub struct FwParameters {
     pub isc_depth: usize,
     pub heap_size: usize,
     pub pbs_batch_w: usize,
+    pub total_pbs_nb: usize,
 
     pub msg_w: usize,
     pub carry_w: usize,
@@ -31,6 +32,7 @@ pub struct FwParameters {
     pub use_ipip: bool,
     pub kogge_cfg: String,
     pub pe_cfg: isc_sim::PeConfigStore,
+    pub fill_batch_fifo: bool,
 }
 
 impl FwParameters {

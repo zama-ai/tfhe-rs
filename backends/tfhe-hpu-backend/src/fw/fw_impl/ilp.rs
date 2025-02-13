@@ -5,13 +5,14 @@
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
+use std::ops::Deref;
 
 use super::*;
 use crate::asm::{self, OperandKind, Pbs};
 use crate::fw::program::Program;
 use crate::fw::FwParameters;
 use itertools::Itertools;
-use tracing::{debug, instrument, trace};
+use tracing::{debug, instrument, trace, warn};
 
 use crate::asm::iop::opcode::*;
 use crate::new_pbs;
@@ -699,7 +700,7 @@ use lazy_static::lazy_static;
 use std::cmp::{Eq, PartialEq};
 use std::env;
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 // For the kogge block table
 use serde::{Deserialize, Serialize};
@@ -760,6 +761,7 @@ impl KoggeBlockCfg {
     }
 
     fn try_write(&self) -> Result<(), Box<dyn Error>> {
+        trace!(target: "rtl", "Saving {}", self.filename);
         // Convert in toml string
         let toml = toml::to_string(&self)?;
 
@@ -776,27 +778,35 @@ impl KoggeBlockCfg {
     }
 }
 
-impl Drop for KoggeBlockCfg {
-    fn drop(&mut self) {
-        if let Err(err) = self.try_write() {
-            print!("Could not write {}: {}\n", self.filename, err);
-        }
+#[derive(Clone)]
+struct KoggeBlockCfgPtr(Arc<RwLock<KoggeBlockCfg>>);
+
+impl KoggeBlockCfgPtr {
+    fn new(filename: &str) -> Self {
+        KoggeBlockCfgPtr(Arc::new(RwLock::new(KoggeBlockCfg::new(filename))))
     }
 }
 
-impl From<&str> for KoggeBlockCfg {
+impl Deref for KoggeBlockCfgPtr {
+    type Target = RwLock<KoggeBlockCfg>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<&str> for KoggeBlockCfgPtr {
     fn from(cfg_f: &str) -> Self {
-        let mut hash = KOGGE_BLOCK_CFG.lock().unwrap();
+        let mut hash = KOGGE_BLOCK_CFG.write().unwrap();
         (hash
             .entry(cfg_f.to_string())
-            .or_insert_with_key(|key| KoggeBlockCfg::new(key)))
+            .or_insert_with_key(|key| KoggeBlockCfgPtr::new(key)))
         .clone()
     }
 }
 
 lazy_static! {
-    static ref KOGGE_BLOCK_CFG: Arc<Mutex<HashMap<String, KoggeBlockCfg>>> =
-        Arc::new(Mutex::new(HashMap::new()));
+    static ref KOGGE_BLOCK_CFG: Arc<RwLock<HashMap<String, KoggeBlockCfgPtr>>> =
+        Arc::new(RwLock::new(HashMap::new()));
 }
 
 #[derive(Hash, PartialEq, Eq, Clone)]
@@ -944,29 +954,42 @@ fn cached_kogge_add(
     cin: Option<VarCell>,
     dst: Vec<metavar::MetaVarCell>,
 ) -> Rtl {
-    let mut kogge_cfg = KoggeBlockCfg::from(prog.params().kogge_cfg.as_str());
+    let kogge_cfg_ptr = KoggeBlockCfgPtr::from(prog.params().kogge_cfg.as_str());
+    let mut kogge_cfg = kogge_cfg_ptr.write().unwrap();
     let index: KoggeBlockTableIndex = prog.params().into();
     let dst: Vec<_> = dst.iter().map(|v| VarCell::from(v.clone())).collect();
+    let clone_on = |prog: &Program, v: &Vec<VarCell>| 
+                            v.iter().map(|v| v.clone_on(prog)).collect();
+    let mut dirty = false;
+
+    trace!(target: "rtl", "kogge config: {:?}", kogge_cfg);
 
     kogge_cfg
         .get(&index)
-        .and_then(|w| Some(*w..=*w))
-        .or_else(|| Some(1..=prog.params().blk_w()))
-        .unwrap()
-        .map(|w| {
-            // Build a new tree for every par_w trial, which means that we
-            // need to get fresh variables for each trial.
-            let unlink = |v: &Vec<VarCell>| v.iter().map(|v| v.unlinked()).collect();
-            let a: Vec<_> = unlink(&a);
-            let b: Vec<_> = unlink(&b);
-            let dst: Vec<_> = unlink(&dst);
-            let cin = cin.clone().and_then(|c| Some(c.unlinked()));
-            let tree = kogge_adder(prog, a, b, cin, dst, w);
-            (w, tree.estimate(prog))
+        .map(|w| *w)
+        .or_else(|| {
+            dirty = true;
+            (1..=prog.params().blk_w()).map(|w| {
+                // Build a new tree for every par_w trial, which means that we
+                // need to get fresh variables for each trial.
+                let mut tmp_prog = Program::new(&prog.params());
+                let a: Vec<_> = clone_on(&tmp_prog, &a);
+                let b: Vec<_> = clone_on(&tmp_prog, &b);
+                let dst: Vec<_> = clone_on(&tmp_prog, &dst);
+                let cin = cin.clone().and_then(|c| Some(c.clone_on(&tmp_prog)));
+                let tree = kogge_adder(&mut tmp_prog, a, b, cin, dst, w);
+                (w, tree.estimate(&tmp_prog))
+            })
+            .min_by_key(|(_, cycle_estimate)| *cycle_estimate)
+            .map(|(w, _)| w)
         })
-        .min_by_key(|(_, cycle_estimate)| *cycle_estimate)
-        .map(|(w, _)| {
+        .map(|w| {
             kogge_cfg.entry(index).or_insert(w);
+            if dirty {
+                if kogge_cfg.try_write().is_err() {
+                    warn!("Could not write kogge config");
+                }
+            }
             kogge_adder(prog, a, b, cin, dst, w)
         })
         .unwrap()
