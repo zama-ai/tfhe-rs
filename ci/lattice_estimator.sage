@@ -34,12 +34,17 @@ def check_security(filename):
     to_update = []
     to_watch = []
 
-    for param in all_params:
-        if param.tag.startswith("TFHE_LIB_PARAMETERS"):
+    for group_index, param in enumerate(all_params):
+        if "TFHE_LIB_PARAMETERS_lwe" in param.tag or "TFHE_LIB_PARAMETERS_glwe" in param.tag:
             # This third-party parameters set is known to be less secure, just skip the analysis.
             continue
 
-        print(f"\t{param.tag}...\t", end="")
+        print(f"\tParameters group #{group_index}:")
+        for param_name in sorted(param.tag):
+            print(
+                f"\t\t{param_name}\t",
+            )
+        print(f"\tParameters group #{group_index}...\t", end="")
 
         is_n_size_too_low = param.n <= 450
         is_noise_level_too_low = param.Xe.stddev < 4.0
@@ -102,7 +107,9 @@ if __name__ == "__main__":
         print("Some parameters need attention")
         print("------------------------------")
         for param, reason in params_to_watch:
-            print(f"[{param.tag}] reason: {reason} (param: {param})")
+            params = ",\n\t".join(param.tag)
+            print("[\n\t", params, "\n]", sep="")
+            print(f"--> reason: {reason} (param: {param})\n")
 
     if params_to_update:
         if params_to_watch:
@@ -111,7 +118,9 @@ if __name__ == "__main__":
         print("Some parameters need update")
         print("---------------------------")
         for param, reason in params_to_update:
-            print(f"[{param.tag}] reason: {reason} (param: {param})")
+            params = ",\n\t".join(param.tag)
+            print("[\n\t", params, "\n]", sep="")
+            print(f"--> reason: {reason} (param: {param})\n")
         sys.exit(int(1))  # Explicit conversion is needed to make this call work
     else:
         print("All parameters passed the security check")
