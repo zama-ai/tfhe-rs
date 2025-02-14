@@ -33,6 +33,7 @@ pub struct FwParameters {
     pub kogge_cfg: String,
     pub pe_cfg: isc_sim::PeConfigStore,
     pub fill_batch_fifo: bool,
+    pub min_batch_size: bool,
 }
 
 impl FwParameters {

@@ -40,4 +40,8 @@
   custom_iop.'IOP[20]' = "backends/tfhe-hpu-backend/config/custom_iop/cust_20.asm"
   custom_iop.'IOP[21]' = "backends/tfhe-hpu-backend/config/custom_iop/cust_21.asm"
   kogge_cfg = "backends/tfhe-hpu-backend/config/kogge_cfg.ron"
-  use_ipip = false
+  # Set to true for the firmware scheduler to try to fill the PE batch FIFO
+  # first even at the expense of missing dependencies
+  fill_batch_fifo = true
+  # Use the minimum batch size for kogge stone firmware generation
+  min_batch_size = true
