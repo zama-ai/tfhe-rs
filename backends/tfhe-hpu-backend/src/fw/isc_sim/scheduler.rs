@@ -128,7 +128,10 @@ impl Scheduler {
                     };
                     false
                 }
-                EventType::BatchStart(_) => {
+                EventType::BatchStart {
+                    pe_id: _,
+                    issued: _,
+                } => {
                     // Reset the timer on the timeout in the queue
                     if let Some(timeout) = bpip_timeout {
                         let mut new_heap = BinaryHeap::new();
