@@ -6,7 +6,7 @@ macro_rules! rtl_op {
         $data: ty
     ) => {
         ::paste::paste! {
-            #[derive(Debug, Clone)]
+            #[derive(Clone)]
             pub struct [<$name:camel Op>] {
                 src: Vec<VarCell>,
                 dst: Vec<Option<VarCell>>,
@@ -46,6 +46,7 @@ macro_rules! rtl_op {
                     })
                 }
 
+                #[cfg(feature = "rtl_graph")]
                 fn name(&self) -> &str {
                     $name
                 }
@@ -65,6 +66,16 @@ macro_rules! rtl_op {
                 fn load_stats(&self) -> &Option<LoadStats> { &self.load_stats }
                 fn set_load_stats(&mut self, stats: LoadStats) { self.load_stats = Some(stats); }
                 fn dst_mut(&mut self) -> &mut Vec<Option<VarCell>> { &mut self.dst }
+            }
+
+            impl Debug for [<$name:camel Op>] {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+                    f.debug_struct($name)
+                        .field("uid", self.uid())
+                        .field("dst", &self.dst().len())
+                        .field("data", &self.data)
+                        .finish()
+                }
             }
         }
     };
