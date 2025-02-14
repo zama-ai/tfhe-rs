@@ -2904,9 +2904,6 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     this->params = params;
 
     if (allocate_gpu_memory) {
-      uint32_t big_lwe_size = params.big_lwe_dimension + 1;
-      uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-
       tmp_rotated = new CudaRadixCiphertextFFI;
       create_zero_radix_ciphertext_async<Torus>(
           streams[0], gpu_indexes[0], tmp_rotated, num_radix_blocks + 3,
