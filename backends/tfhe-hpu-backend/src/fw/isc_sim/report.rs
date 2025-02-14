@@ -66,8 +66,7 @@ impl From<&PeStore> for PeStoreRpt {
 impl From<&Pe> for PeRpt {
     fn from(value: &Pe) -> Self {
         let stats = value.stats();
-        let usage = stats.issued as f64 / ((stats.batches as f64) * (value.batch_size() as f64));
-
+        let usage = stats.usage_sum / (stats.batches as f64);
         PeRpt { stats, usage }
     }
 }
