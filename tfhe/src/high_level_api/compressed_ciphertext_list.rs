@@ -706,7 +706,7 @@ mod tests {
     use crate::shortint::PBSParameters;
     use crate::{
         set_server_key, unset_server_key, ClientKey, CompressedCiphertextList,
-        CompressedCiphertextListBuilder, FheBool, FheInt64, FheUint16, FheUint2, FheUint32,
+        CompressedCiphertextListBuilder, FheBool, FheInt64, FheUint16, FheUint32, FheUint8,
     };
 
     #[test]
@@ -727,7 +727,7 @@ mod tests {
                 let ct1 = FheUint32::encrypt(17_u32, &ck);
                 let ct2 = FheInt64::encrypt(-1i64, &ck);
                 let ct3 = FheBool::encrypt(false, &ck);
-                let ct4 = FheUint2::encrypt(3u8, &ck);
+                let ct4 = FheUint8::encrypt(3u8, &ck);
 
                 let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
                 compressed_list_builder
@@ -783,7 +783,7 @@ mod tests {
                 let mut ct1 = FheUint32::encrypt(17_u32, &ck);
                 let mut ct2 = FheInt64::encrypt(-1i64, &ck);
                 let mut ct3 = FheBool::encrypt(false, &ck);
-                let mut ct4 = FheUint2::encrypt(3u8, &ck);
+                let mut ct4 = FheUint8::encrypt(3u8, &ck);
 
                 ct1.move_to_device(crate::Device::CudaGpu);
                 ct2.move_to_device(crate::Device::Cpu);
@@ -837,7 +837,7 @@ mod tests {
                     let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
                     let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
                     let c: FheBool = compressed_list.get(2).unwrap().unwrap();
-                    let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
+                    let d: FheUint8 = compressed_list.get(3).unwrap().unwrap();
 
                     let a: u32 = a.decrypt(ck);
                     assert_eq!(a, 17);

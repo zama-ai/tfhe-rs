@@ -84,6 +84,7 @@ getrandom = { version = "0.2.8", optional = true }
 bytemuck = { workspace = true }
 
 [features]
+default = ["extended-types"]
 boolean = []
 shortint = ["dep:sha3"]
 integer = ["shortint"]
@@ -91,6 +92,9 @@ strings = ["integer"]
 internal-keycache = ["dep:fs2"]
 gpu = ["dep:tfhe-cuda-backend"]
 zk-pok = ["dep:tfhe-zk-pok"]
+
+# Adds more FheUint/FheInt types to the HL
+extended-types = []
 
 pbs-stats = []
 noise-asserts = []
@@ -105,7 +109,7 @@ __c_api = ["dep:cbindgen"]
 __force_skip_cbindgen = []
 boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
-high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer"]
+high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer", "extended-types"]
 
 __wasm_api = [
     "dep:wasm-bindgen",
@@ -235,7 +239,7 @@ required-features = ["integer", "zk-pok", "internal-keycache"]
 name = "hlapi"
 path = "benches/high_level_api/bench.rs"
 harness = false
-required-features = ["integer", "internal-keycache"]
+required-features = ["integer", "extended-types", "internal-keycache"]
 
 [[bench]]
 name = "hlapi-erc20"
@@ -280,7 +284,7 @@ required-features = ["shortint", "internal-keycache"]
 [[example]]
 name = "hlapi_compact_pk_ct_sizes"
 path = "examples/utilities/hlapi_compact_pk_ct_sizes.rs"
-required-features = ["integer", "internal-keycache"]
+required-features = ["integer", "extended-types", "internal-keycache"]
 
 [[example]]
 name = "micro_bench_and"

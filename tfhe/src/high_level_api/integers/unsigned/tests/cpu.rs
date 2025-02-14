@@ -2,6 +2,7 @@ use crate::conformance::ListSizeConstraint;
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::tests::{setup_cpu, setup_default_cpu};
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
+#[cfg(feature = "extended-types")]
 use crate::integer::U256;
 use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 use crate::shortint::parameters::classic::compact_pk::*;
@@ -10,12 +11,15 @@ use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11
 use crate::shortint::parameters::*;
 use crate::{
     ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams, CompactPublicKey,
-    CompressedCompactPublicKey, CompressedFheUint16, CompressedFheUint256, CompressedFheUint32,
-    CompressedPublicKey, CompressedServerKey, FheInt16, FheInt32, FheInt8, FheUint128, FheUint16,
-    FheUint256, FheUint32, FheUint32ConformanceParams,
+    CompressedCompactPublicKey, CompressedFheUint16, CompressedFheUint32, CompressedPublicKey,
+    CompressedServerKey, FheInt16, FheInt32, FheInt8, FheUint128, FheUint16, FheUint32,
+    FheUint32ConformanceParams,
 };
+#[cfg(feature = "extended-types")]
+use crate::{CompressedFheUint256, FheUint256};
 use rand::prelude::*;
 
+#[cfg(feature = "extended-types")]
 #[test]
 fn test_integer_compressed_can_be_serialized() {
     let config = ConfigBuilder::default().build();
@@ -239,6 +243,7 @@ fn test_trivial_uint8() {
     super::test_case_uint8_trivial(&client_key);
 }
 
+#[cfg(feature = "extended-types")]
 #[test]
 fn test_trivial_uint256_small() {
     let client_key = setup_default_cpu();
@@ -342,6 +347,7 @@ fn test_if_then_else() {
     super::test_case_if_then_else(&client_key);
 }
 
+#[cfg(feature = "extended-types")]
 #[test]
 fn test_scalar_shift_when_clear_type_is_small() {
     // This is a regression tests

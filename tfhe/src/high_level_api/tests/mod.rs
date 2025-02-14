@@ -3,9 +3,12 @@ mod gpu_selection;
 mod tags_on_entities;
 
 use crate::high_level_api::prelude::*;
+#[cfg(feature = "extended-types")]
+use crate::high_level_api::FheUint256;
 use crate::high_level_api::{
-    generate_keys, ClientKey, ConfigBuilder, FheBool, FheUint256, FheUint8, PublicKey, ServerKey,
+    generate_keys, ClientKey, ConfigBuilder, FheBool, FheUint8, PublicKey, ServerKey,
 };
+#[cfg(feature = "extended-types")]
 use crate::integer::U256;
 use crate::shortint::{ClassicPBSParameters, PBSParameters};
 use crate::{
@@ -82,6 +85,7 @@ fn test_small_uint8() {
     assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint8, u8>(235, &pks, &cks);
 }
 
+#[cfg(feature = "extended-types")]
 #[test]
 fn test_small_uint256() {
     let config = ConfigBuilder::default().build();

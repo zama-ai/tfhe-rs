@@ -341,10 +341,19 @@ macro_rules! declare_concrete_array_types {
 }
 
 declare_concrete_array_types!(
-    unsigned: 2, 4, 8, 16, 32, 64, 128, 256
+    unsigned: 8, 16, 32, 64, 128
 );
 declare_concrete_array_types!(
-    signed: 2, 4, 8, 16, 32, 64, 128, 256
+    signed: 8, 16, 32, 64, 128
+);
+
+#[cfg(feature = "extended-types")]
+declare_concrete_array_types!(
+    unsigned: 2, 4, 256
+);
+#[cfg(feature = "extended-types")]
+declare_concrete_array_types!(
+    signed: 2, 4, 256
 );
 
 pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]) -> FheBool {

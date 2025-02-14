@@ -42,10 +42,35 @@ impl crate::FheTypes {
                     12 => Self::Uint12,
                     14 => Self::Uint14,
                     16 => Self::Uint16,
+                    24 => Self::Uint24,
                     32 => Self::Uint32,
+                    40 => Self::Uint40,
+                    48 => Self::Uint48,
+                    56 => Self::Uint56,
                     64 => Self::Uint64,
+                    72 => Self::Uint72,
+                    80 => Self::Uint80,
+                    88 => Self::Uint88,
+                    96 => Self::Uint96,
+                    104 => Self::Uint104,
+                    112 => Self::Uint112,
+                    120 => Self::Uint120,
                     128 => Self::Uint128,
+                    136 => Self::Uint136,
+                    144 => Self::Uint144,
+                    152 => Self::Uint152,
                     160 => Self::Uint160,
+                    168 => Self::Uint168,
+                    176 => Self::Uint176,
+                    184 => Self::Uint184,
+                    192 => Self::Uint192,
+                    200 => Self::Uint200,
+                    208 => Self::Uint208,
+                    216 => Self::Uint216,
+                    224 => Self::Uint224,
+                    232 => Self::Uint232,
+                    240 => Self::Uint240,
+                    248 => Self::Uint248,
                     256 => Self::Uint256,
                     512 => Self::Uint512,
                     1024 => Self::Uint1024,
@@ -65,11 +90,39 @@ impl crate::FheTypes {
                     12 => Self::Int12,
                     14 => Self::Int14,
                     16 => Self::Int16,
+                    24 => Self::Int24,
                     32 => Self::Int32,
+                    40 => Self::Int40,
+                    48 => Self::Int48,
+                    56 => Self::Int56,
                     64 => Self::Int64,
+                    72 => Self::Int72,
+                    80 => Self::Int80,
+                    88 => Self::Int88,
+                    96 => Self::Int96,
+                    104 => Self::Int104,
+                    112 => Self::Int112,
+                    120 => Self::Int120,
                     128 => Self::Int128,
+                    136 => Self::Int136,
+                    144 => Self::Int144,
+                    152 => Self::Int152,
                     160 => Self::Int160,
+                    168 => Self::Int168,
+                    176 => Self::Int176,
+                    184 => Self::Int184,
+                    192 => Self::Int192,
+                    200 => Self::Int200,
+                    208 => Self::Int208,
+                    216 => Self::Int216,
+                    224 => Self::Int224,
+                    232 => Self::Int232,
+                    240 => Self::Int240,
+                    248 => Self::Int248,
                     256 => Self::Int256,
+                    512 => Self::Int512,
+                    1024 => Self::Int1024,
+                    2048 => Self::Int2048,
                     _ => return None,
                 }
             }
@@ -485,7 +538,9 @@ impl CompactCiphertextListBuilder {
 mod tests {
     use super::*;
     use crate::prelude::*;
-    use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
+    use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint32, FheUint8};
+    #[cfg(feature = "extended-types")]
+    use crate::{FheInt40, FheUint2};
 
     #[test]
     fn test_compact_list() {
@@ -502,8 +557,7 @@ mod tests {
             .push(-1i64)
             .push(false)
             .push(true)
-            .push_with_num_bits(3u8, 2)
-            .unwrap()
+            .push(3u8)
             .build_packed();
 
         let serialized = bincode::serialize(&compact_list).unwrap();
@@ -515,7 +569,7 @@ mod tests {
             let b: FheInt64 = expander.get(1).unwrap().unwrap();
             let c: FheBool = expander.get(2).unwrap().unwrap();
             let d: FheBool = expander.get(3).unwrap().unwrap();
-            let e: FheUint2 = expander.get(4).unwrap().unwrap();
+            let e: FheUint8 = expander.get(4).unwrap().unwrap();
 
             let a: u32 = a.decrypt(&ck);
             assert_eq!(a, 17);
@@ -537,6 +591,47 @@ mod tests {
 
             // Correct type but wrong number of bits
             assert!(expander.get::<FheUint16>(0).is_err());
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    #[test]
+    fn test_compact_list_extended_types() {
+        let config = crate::ConfigBuilder::default().build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::ServerKey::new(&ck);
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(sk);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push_with_num_bits(-17i64, 40)
+            .unwrap()
+            .push_with_num_bits(3u8, 2)
+            .unwrap()
+            .build_packed();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+        let expander = compact_list.expand().unwrap();
+
+        {
+            let a: FheInt40 = expander.get(0).unwrap().unwrap();
+            let b: FheUint2 = expander.get(1).unwrap().unwrap();
+
+            let a: i64 = a.decrypt(&ck);
+            assert_eq!(a, -17);
+            let b: u8 = b.decrypt(&ck);
+            assert_eq!(b, 3);
+        }
+
+        {
+            // Incorrect type
+            assert!(expander.get::<FheUint32>(0).is_err());
+
+            // Correct type but wrong number of bits
+            assert!(expander.get::<FheInt64>(0).is_err());
         }
     }
 
@@ -564,8 +659,7 @@ mod tests {
             .push(-1i64)
             .push(false)
             .push(true)
-            .push_with_num_bits(3u8, 2)
-            .unwrap()
+            .push(3u8)
             .build_packed();
 
         let serialized = bincode::serialize(&compact_list).unwrap();
@@ -577,7 +671,7 @@ mod tests {
             let b: FheInt64 = expander.get(1).unwrap().unwrap();
             let c: FheBool = expander.get(2).unwrap().unwrap();
             let d: FheBool = expander.get(3).unwrap().unwrap();
-            let e: FheUint2 = expander.get(4).unwrap().unwrap();
+            let e: FheUint8 = expander.get(4).unwrap().unwrap();
 
             let a: u32 = a.decrypt(&ck);
             assert_eq!(a, 17);
@@ -633,8 +727,7 @@ mod tests {
             .push(17u32)
             .push(-1i64)
             .push(false)
-            .push_with_num_bits(3u32, 2)
-            .unwrap()
+            .push(3u8)
             .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
             .unwrap();
 
@@ -648,7 +741,7 @@ mod tests {
             let a: FheUint32 = expander.get(0).unwrap().unwrap();
             let b: FheInt64 = expander.get(1).unwrap().unwrap();
             let c: FheBool = expander.get(2).unwrap().unwrap();
-            let d: FheUint2 = expander.get(3).unwrap().unwrap();
+            let d: FheUint8 = expander.get(3).unwrap().unwrap();
 
             let a: u32 = a.decrypt(&ck);
             assert_eq!(a, 17);
@@ -676,7 +769,7 @@ mod tests {
             let a: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
             let b: FheInt64 = unverified_expander.get(1).unwrap().unwrap();
             let c: FheBool = unverified_expander.get(2).unwrap().unwrap();
-            let d: FheUint2 = unverified_expander.get(3).unwrap().unwrap();
+            let d: FheUint8 = unverified_expander.get(3).unwrap().unwrap();
 
             let a: u32 = a.decrypt(&ck);
             assert_eq!(a, 17);

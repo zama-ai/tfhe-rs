@@ -11,7 +11,7 @@
 //! due to the huge difference between clear computation and FHE computation
 //! it is absolutely worth to compute the approximation of the inverse.
 use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric, SignedNumeric, UnsignedInteger};
-use crate::integer::bigint::{StaticUnsignedBigInt, U1024, U2048, U4096};
+use crate::integer::bigint::{StaticUnsignedBigInt, I1024, I2048, I4096, U1024, U2048, U4096};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::radix::scalar_mul::ScalarMultiplier;
@@ -205,6 +205,36 @@ impl SignedReciprocable for I256 {
     type Unsigned = U256;
 
     type DoublePrecision = I512;
+
+    fn wrapping_abs(self) -> Self {
+        self.wrapping_abs()
+    }
+}
+
+impl SignedReciprocable for I512 {
+    type Unsigned = U512;
+
+    type DoublePrecision = I1024;
+
+    fn wrapping_abs(self) -> Self {
+        self.wrapping_abs()
+    }
+}
+
+impl SignedReciprocable for I1024 {
+    type Unsigned = U1024;
+
+    type DoublePrecision = I2048;
+
+    fn wrapping_abs(self) -> Self {
+        self.wrapping_abs()
+    }
+}
+
+impl SignedReciprocable for I2048 {
+    type Unsigned = U2048;
+
+    type DoublePrecision = I4096;
 
     fn wrapping_abs(self) -> Self {
         self.wrapping_abs()

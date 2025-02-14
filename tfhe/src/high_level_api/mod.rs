@@ -65,13 +65,28 @@ pub use keys::{
 mod tests;
 
 pub use crate::high_level_api::booleans::{CompressedFheBool, FheBool, FheBoolConformanceParams};
+
+#[cfg(feature = "extended-types")]
 expand_pub_use_fhe_type!(
     pub use crate::high_level_api::integers{
-        FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16,
-        FheUint32, FheUint64, FheUint128, FheUint160, FheUint256, FheUint512, FheUint1024, FheUint2048,
+        FheUint2, FheUint4, FheUint6, FheUint10, FheUint12, FheUint14, FheUint24, FheUint40,
+        FheUint48, FheUint56, FheUint72, FheUint80,FheUint88, FheUint96, FheUint104,
+        FheUint112, FheUint120, FheUint136, FheUint144, FheUint152, FheUint160, FheUint168,
+        FheUint176, FheUint184, FheUint192, FheUint200, FheUint208, FheUint216, FheUint224,
+        FheUint232, FheUint240, FheUint248, FheUint256, FheUint512, FheUint1024, FheUint2048,
 
-        FheInt2, FheInt4, FheInt6, FheInt8, FheInt10, FheInt12, FheInt14, FheInt16,
-        FheInt32, FheInt64, FheInt128, FheInt160, FheInt256
+        FheInt2, FheInt4, FheInt6, FheInt10, FheInt12, FheInt14, FheInt24, FheInt40,
+        FheInt48, FheInt56, FheInt72, FheInt80,FheInt88, FheInt96, FheInt104,
+        FheInt112, FheInt120, FheInt136, FheInt144, FheInt152, FheInt160, FheInt168,
+        FheInt176, FheInt184, FheInt192, FheInt200, FheInt208, FheInt216, FheInt224,
+        FheInt232, FheInt240, FheInt248, FheInt256, FheInt512, FheInt1024, FheInt2048,
+    };
+);
+
+expand_pub_use_fhe_type!(
+    pub use crate::high_level_api::integers{
+        FheUint8, FheUint16, FheUint32, FheUint64, FheUint128,
+        FheInt8, FheInt16, FheInt32, FheInt64, FheInt128,
     };
 );
 pub use array::{
@@ -82,8 +97,15 @@ pub use array::{
 export_concrete_array_types!(
     pub use array{
         FheBool,
-        FheUint2, FheUint4, FheUint8, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
-        FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256,
+        FheUint8, FheUint16, FheUint32, FheUint64, FheUint128,
+        FheInt8, FheInt16, FheInt32, FheInt64, FheInt128,
+    };
+);
+#[cfg(feature = "extended-types")]
+export_concrete_array_types!(
+    pub use array{
+        FheUint2, FheUint4, FheUint256,
+        FheInt2, FheInt4, FheInt256,
     };
 );
 
@@ -140,10 +162,11 @@ pub enum Device {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-#[repr(i32)]
+#[repr(C)]
 #[cfg_attr(test, derive(strum::EnumIter))]
 pub enum FheTypes {
     Bool = 0,
+    // Classical unsigned types
     Uint4 = 1,
     Uint8 = 2,
     Uint16 = 3,
@@ -160,6 +183,8 @@ pub enum FheTypes {
     Uint10 = 14,
     Uint12 = 15,
     Uint14 = 16,
+
+    // Classical signed types
     Int2 = 17,
     Int4 = 18,
     Int6 = 19,
@@ -173,4 +198,61 @@ pub enum FheTypes {
     Int128 = 27,
     Int160 = 28,
     Int256 = 29,
+    Int512 = 30,
+    Int1024 = 31,
+    Int2048 = 32,
+
+    // Extended unsigned types
+    Uint24 = 33,
+    Uint40 = 34,
+    Uint48 = 35,
+    Uint56 = 36,
+    Uint72 = 37,
+    Uint80 = 38,
+    Uint88 = 39,
+    Uint96 = 40,
+    Uint104 = 41,
+    Uint112 = 42,
+    Uint120 = 43,
+    Uint136 = 44,
+    Uint144 = 45,
+    Uint152 = 46,
+    Uint168 = 47,
+    Uint176 = 48,
+    Uint184 = 49,
+    Uint192 = 50,
+    Uint200 = 51,
+    Uint208 = 52,
+    Uint216 = 53,
+    Uint224 = 54,
+    Uint232 = 55,
+    Uint240 = 56,
+    Uint248 = 57,
+
+    // Extended signed types
+    Int24 = 58,
+    Int40 = 59,
+    Int48 = 60,
+    Int56 = 61,
+    Int72 = 62,
+    Int80 = 63,
+    Int88 = 64,
+    Int96 = 65,
+    Int104 = 66,
+    Int112 = 67,
+    Int120 = 68,
+    Int136 = 69,
+    Int144 = 70,
+    Int152 = 71,
+    Int168 = 72,
+    Int176 = 73,
+    Int184 = 74,
+    Int192 = 75,
+    Int200 = 76,
+    Int208 = 77,
+    Int216 = 78,
+    Int224 = 79,
+    Int232 = 80,
+    Int240 = 81,
+    Int248 = 82,
 }
