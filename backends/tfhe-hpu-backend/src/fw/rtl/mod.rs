@@ -264,10 +264,14 @@ where
     fn load_stats(&self) -> &Option<LoadStats>;
     fn clear_src(&mut self);
     fn clear_dst(&mut self);
-    fn name(&self) -> &str;
     fn kind(&self) -> InstructionKind;
     fn set_load_stats(&mut self, stats: LoadStats);
     fn clone_on(&self, prog: &Program) -> Operation;
+    // {{{1 Debug
+    // -----------------------------------------------------------------------
+    #[cfg(feature = "rtl_graph")]
+    fn name(&self) -> &str;
+    // }}}
 }
 
 #[enum_dispatch(Operation)]
@@ -474,15 +478,6 @@ impl ProgManager for PbsOp {
     }
 
     fn alloc_prog(&mut self, prog: &mut Program) {
-        // Assume at least one destination is needed
-        let mut a = self.src()[0].copy_meta().unwrap();
-        a.reg_alloc_mv();
-
-        assert!(
-            a.is_in(PosKind::REG),
-            "Cannot do a PBS from something other than a register"
-        );
-
         let reg_start = prog
             .atomic_reg_range(&[AtomicRegType::NewRange(self.dst.len())])
             .unwrap()[0];
@@ -499,8 +494,16 @@ impl ProgManager for PbsOp {
             })
             .collect::<Vec<_>>();
 
-        self.data.rd_lock = Some(a.reg_lock());
         self.data.wr_lock = Some(d.into_iter().map(|mut d| d.reg_lock()).collect());
+        // Assume at least one destination is needed
+        let mut a = self.src()[0].copy_meta().unwrap();
+        a.reg_alloc_mv();
+
+        assert!(
+            a.is_in(PosKind::REG),
+            "Cannot do a PBS from something other than a register"
+        );
+        self.data.rd_lock = Some(a.reg_lock());
     }
 
     fn add_prog(&mut self, prog: &mut Program) {
@@ -685,7 +688,7 @@ pub enum Operation {
 // variables, while when scheduling we'll hold source variables. While
 // scheduling the tree needs to be de-constructed carefully so that it can be
 // fully dropped.
-#[derive(Clone, Eq)]
+#[derive(Clone, Eq, Debug)]
 pub struct OperationCell(Rc<RefCell<Operation>>);
 
 impl OperationCell {
@@ -703,9 +706,6 @@ impl OperationCell {
     }
     fn copy_src(&self) -> Vec<VarCell> {
         self.0.borrow().src().clone()
-    }
-    fn copy_name(&self) -> String {
-        String::from(self.borrow().name())
     }
     fn prio(&self) -> Prio {
         Prio::from(self)
@@ -865,6 +865,10 @@ impl OperationCell {
     fn copy_uid(&self) -> usize {
         *self.0.borrow().uid()
     }
+    #[cfg(feature = "rtl_graph")]
+    fn copy_name(&self) -> String {
+        String::from(self.borrow().name())
+    }
     // -----------------------------------------------------------------------
     // }}}
 }
@@ -961,8 +965,7 @@ impl Arch {
 
                     op.alloc_prog(self.program.as_mut());
 
-                    self.queued.entry(id).or_default().push(op.clone());
-                    self.rd_pdg.entry(id).or_default().push(op);
+                    self.queued.entry(id).or_default().push(op);
                     None
                 } else {
                     Some(op)
@@ -984,6 +987,9 @@ impl Arch {
 
     pub fn done(&mut self) -> Option<OperationCell> {
         trace!(target: "rtl", "Events: {:?}", self.events);
+        trace!(target: "rtl", "queued: {:?}", self.queued);
+        trace!(target: "rtl", "rd_pdg: {:?}", self.rd_pdg);
+        trace!(target: "rtl", "wr_pdg: {:?}", self.wr_pdg);
 
         let isc_sim::Event {
             at_cycle,
@@ -992,12 +998,17 @@ impl Arch {
         self.cycle = at_cycle;
 
         match event_type {
-            isc_sim::EventType::BatchStart(id) => {
-                let batch = self.queued.remove(&id).unwrap();
-                batch.last().unwrap().set_flush(true);
-                for op in batch {
-                    op.add_prog(self.program.as_mut())
-                }
+            isc_sim::EventType::BatchStart { pe_id, issued } => {
+                self.queued.entry(pe_id).and_modify(|fifo| {
+                    let batch = fifo.drain(0..issued).collect::<Vec<_>>();
+                    batch.last().unwrap().set_flush(true);
+                    self.rd_pdg
+                        .entry(pe_id)
+                        .or_default()
+                        .extend(batch.into_iter().inspect(|op| {
+                            op.add_prog(self.program.as_mut());
+                        }))
+                });
                 None
             }
             isc_sim::EventType::RdUnlock(_, id) => {
@@ -1054,6 +1065,10 @@ impl From<&Program> for Arch {
             pe_store.set_fifo_limit(params.total_pbs_nb);
         } else {
             pe_store.set_fifo_to_batch_limit();
+        }
+
+        if params.min_batch_size {
+            pe_store.set_min_batch_limit();
         }
         Arch {
             pe_store,
@@ -1339,15 +1354,6 @@ impl Debug for VarCell {
     }
 }
 
-impl Debug for OperationCell {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        f.debug_struct("Operation")
-            .field("name", &self.copy_name())
-            .field("uid", self.borrow().uid())
-            .field("dst", &self.borrow().dst().len())
-            .finish()
-    }
-}
 // ----------------------------------------------------------------------------
 // }}}
 

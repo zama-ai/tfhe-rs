@@ -45,8 +45,16 @@ pub struct Args {
     kogge_cfg: String,
 
     /// Use ipip configuration
-    #[clap(long, value_parser)]
+    #[clap(long, value_parser, default_value = false)]
     use_ipip: bool,
+
+    /// Try to fill the batch fifo
+    #[clap(long, value_parser, default_value = false)]
+    fill_batch_fifo: bool,
+
+    /// Use the minimum batch size for a PE
+    #[clap(long, value_parser, default_value = false)]
+    min_batch_size: bool,
 
     /// Integer bit width
     #[clap(long, value_parser, default_value_t = 8)]
@@ -115,12 +123,15 @@ fn main() -> Result<(), anyhow::Error> {
         register: params.regf_params.reg_nb,
         isc_depth: params.isc_params.depth,
         heap_size: args.heap,
+        total_pbs_nb: params.ntt_params.total_pbs_nb,
         pbs_batch_w: params.ntt_params.batch_pbs_nb,
         msg_w: params.pbs_params.message_width,
         carry_w: params.pbs_params.carry_width,
         nu: args.nu,
         integer_w: args.integer_width,
         use_ipip: args.use_ipip,
+        fill_batch_fifo: args.fill_batch_fifo,
+        min_batch_size: args.min_batch_size,
         kogge_cfg: args.kogge_cfg.clone(),
         pe_cfg,
     };

@@ -566,9 +566,10 @@ impl HpuBackend {
             carry_w: self.params.pbs_params.carry_width,
             nu: 5,
             integer_w: config.firmware.integer_w[0],
-            use_ipip: config.firmware.use_ipip,
+            use_ipip: !config.rtl.bpip_used,
             kogge_cfg: config.firmware.kogge_cfg.clone(),
             fill_batch_fifo: config.firmware.fill_batch_fifo,
+            min_batch_size: config.firmware.min_batch_size,
             pe_cfg,
         };
 
