@@ -73,10 +73,6 @@ pub struct FwConfig {
     /// NB: Currently only one width is supported at a time
     pub integer_w: Vec<usize>,
 
-    /// Target IPIP fw generation
-    /// By default use BPIP mode
-    pub use_ipip: bool,
-
     /// Kogge config filename
     /// Used to depicts best tradeoff for kogge Add/Sub algorithm
     pub kogge_cfg: String,
@@ -85,8 +81,12 @@ pub struct FwConfig {
     /// IopName -> Iop asm file
     pub custom_iop: HashMap<String, String>,
 
-    // Whether to fill the batch fifo when scheduling or not
+    /// Whether to fill the batch fifo when scheduling or not
     pub fill_batch_fifo: bool,
+
+    /// Uses the minimum batch size in the firmware generation
+    /// Only kogge add/sub uses this right now, but could be extended to others
+    pub min_batch_size: bool,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

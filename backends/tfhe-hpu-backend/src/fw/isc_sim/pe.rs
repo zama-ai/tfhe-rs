@@ -12,20 +12,35 @@ pub enum Flush {
     ByFlush,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct PeCost {
-    rd_lock: usize,
-    wr_lock: usize,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+enum BatchCost {
+    Fixed(usize),
+    Linear {
+        cnst: usize, // Fixed batch cost
+        ppbs: usize, // Cost per PBS
+        bmin: usize, // The minimum batch size
+    },
 }
-impl PeCost {
-    pub fn new(rd_lock: usize, wr_lock: usize) -> Self {
-        Self { rd_lock, wr_lock }
+
+impl BatchCost {
+    fn cost(&self, batch_size: usize) -> usize {
+        match self {
+            BatchCost::Fixed(cost) => *cost,
+            BatchCost::Linear { cnst, ppbs, bmin } => *cnst + *ppbs * batch_size.max(*bmin),
+        }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PeCost {
+    rd_lock: BatchCost,
+    wr_lock: BatchCost,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct PeStats {
     pub batches: usize,
+    pub usage_sum: f64,
     pub issued: usize,
     pub by_timeout: usize,
 }
@@ -35,8 +50,21 @@ pub(crate) trait PeCommon {
     fn pending(&self) -> usize;
     fn stats(&self) -> PeStats;
     fn stats_mut(&mut self) -> &mut PeStats;
-    fn batch_size(&self) -> usize;
+    fn batch_size(&self) -> BatchSize;
     fn fifo_limit(&mut self) -> &mut Option<usize>;
+    fn set_batch_limit(&mut self, limit: usize);
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Copy)]
+pub struct BatchSize {
+    pub min: usize,
+    pub max: usize,
+}
+
+impl BatchSize {
+    fn one() -> Self {
+        BatchSize { min: 1, max: 1 }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -63,13 +91,15 @@ impl PeCommon for PeSingle {
         self.fifo_in
     }
 
-    fn batch_size(&self) -> usize {
-        1
+    fn batch_size(&self) -> BatchSize {
+        BatchSize::one()
     }
 
     fn fifo_limit(&mut self) -> &mut Option<usize> {
         &mut self.fifo_limit
     }
+
+    fn set_batch_limit(&mut self, _: usize) {}
 }
 
 #[derive(Clone, Debug)]
@@ -78,7 +108,8 @@ pub(crate) struct PeBatch {
     wr_lock: usize,
     fifo_in: usize,
     fifo_limit: Option<usize>,
-    batch_size: usize,
+    batch_size: BatchSize,
+    batch_limit: usize,
     cost: PeCost,
     kind: InstructionKind,
     stats: PeStats,
@@ -97,12 +128,16 @@ impl PeCommon for PeBatch {
         self.fifo_in
     }
 
-    fn batch_size(&self) -> usize {
+    fn batch_size(&self) -> BatchSize {
         self.batch_size
     }
 
     fn fifo_limit(&mut self) -> &mut Option<usize> {
         &mut self.fifo_limit
+    }
+
+    fn set_batch_limit(&mut self, limit: usize) {
+        self.batch_limit = limit;
     }
 }
 
@@ -192,17 +227,18 @@ impl Pe {
                         pe.wr_lock = true;
                         pe.stats.issued += 1;
                         pe.stats.batches += 1;
+                        pe.stats.usage_sum += 1.0f64;
 
                         // Register unlock event
                         vec![
-                            Event::new(EventType::BatchStart(pe_id), at_cycle),
+                            Event::new(EventType::BatchStart { pe_id, issued: 1 }, at_cycle),
                             Event::new(
                                 EventType::RdUnlock(pe.kind, pe_id),
-                                at_cycle + pe.cost.rd_lock,
+                                at_cycle + pe.cost.rd_lock.cost(1),
                             ),
                             Event::new(
                                 EventType::WrUnlock(pe.kind, pe_id),
-                                at_cycle + pe.cost.wr_lock,
+                                at_cycle + pe.cost.wr_lock.cost(1),
                             ),
                         ]
                     } else {
@@ -211,8 +247,9 @@ impl Pe {
                 }
                 Pe::Batch(pe) => {
                     // Batch full or batch flush
-                    if (pe.fifo_in >= pe.batch_size) || (pe.fifo_in != 0 && batch_flush.is_some()) {
-                        let issued = std::cmp::min(pe.batch_size, pe.fifo_in);
+                    if (pe.fifo_in >= pe.batch_limit) || (pe.fifo_in != 0 && batch_flush.is_some())
+                    {
+                        let issued = std::cmp::min(pe.batch_limit, pe.fifo_in);
 
                         // update state
                         pe.fifo_in -= issued;
@@ -222,20 +259,25 @@ impl Pe {
                         pe.stats.batches += 1;
                         pe.stats.by_timeout +=
                             batch_flush.is_some_and(|f| f == Flush::ByTimeout) as usize;
+                        pe.stats.usage_sum +=
+                            (issued as f64 / pe.batch_size.min as f64).min(1.0f64);
 
                         // Register unlock event
                         // First all rd_unlock then all wr_unlock
-                        let mut evt = vec![Event::new(EventType::BatchStart(pe_id), at_cycle)];
+                        let mut evt = vec![Event::new(
+                            EventType::BatchStart { pe_id, issued },
+                            at_cycle,
+                        )];
                         evt.extend((0..issued).map(|_| {
                             Event::new(
                                 EventType::RdUnlock(pe.kind, pe_id),
-                                at_cycle + pe.cost.rd_lock,
+                                at_cycle + pe.cost.rd_lock.cost(issued),
                             )
                         }));
                         evt.extend((0..issued).map(|_| {
                             Event::new(
                                 EventType::WrUnlock(pe.kind, pe_id),
-                                at_cycle + pe.cost.wr_lock,
+                                at_cycle + pe.cost.wr_lock.cost(issued),
                             )
                         }));
                         evt
@@ -337,9 +379,15 @@ impl PeStore {
         });
     }
 
+    pub(crate) fn set_min_batch_limit(&mut self) {
+        self.0.iter_mut().for_each(|(_, pe)| {
+            pe.set_batch_limit(pe.batch_size().min);
+        });
+    }
+
     pub(crate) fn set_fifo_to_batch_limit(&mut self) {
         self.0.iter_mut().for_each(|(_, pe)| {
-            *pe.fifo_limit() = Some(pe.batch_size());
+            *pe.fifo_limit() = Some(pe.batch_size().max);
         });
     }
 
@@ -356,10 +404,10 @@ impl PeStore {
 pub struct PeConfig {
     pub cost: PeCost,
     pub kind: InstructionKind,
-    pub batch_size: usize,
+    pub batch_size: BatchSize,
 }
 impl PeConfig {
-    pub fn new(cost: PeCost, kind: InstructionKind, batch_size: usize) -> Self {
+    pub fn new(cost: PeCost, kind: InstructionKind, batch_size: BatchSize) -> Self {
         Self {
             cost,
             kind,
@@ -376,8 +424,8 @@ impl From<PeConfig> for Pe {
             batch_size,
         } = config;
 
-        assert!(batch_size > 0, "Invalid batch_size value");
-        if batch_size == 1 {
+        assert!(batch_size.max > 0, "Invalid batch_size value");
+        if batch_size.max == 1 {
             Self::Single(PeSingle {
                 cost,
                 kind,
@@ -392,6 +440,7 @@ impl From<PeConfig> for Pe {
                 cost,
                 kind,
                 batch_size,
+                batch_limit: batch_size.max,
                 rd_lock: 0,
                 wr_lock: 0,
                 fifo_in: 0,
@@ -405,7 +454,7 @@ impl From<PeConfig> for Pe {
 impl From<&Pe> for PeConfig {
     fn from(pe: &Pe) -> Self {
         let (cost, kind, batch_size) = match pe {
-            Pe::Single(pe) => (pe.cost.clone(), pe.kind, 1),
+            Pe::Single(pe) => (pe.cost.clone(), pe.kind, BatchSize { min: 1, max: 1 }),
             Pe::Batch(pe) => (pe.cost.clone(), pe.kind, pe.batch_size),
         };
 
@@ -434,6 +483,7 @@ impl From<&HpuParameters> for PeConfigStore {
         let ldst_pe_nb = 1;
         let lin_pe_nb = 1;
         let pbs_pe_nb = 1;
+
         // Extract used parameters for ease of access
         let batch_pbs = params.ntt_params.batch_pbs_nb;
         let lwe_k = params.pbs_params.lwe_dimension;
@@ -442,6 +492,10 @@ impl From<&HpuParameters> for PeConfigStore {
         let pem_axi_w = params.pc_params.pem_pc * params.pc_params.pem_bytes_w * 8;
         let ct_w = params.ntt_params.ct_width as usize;
         let lbx = params.ks_params.lbx;
+
+        // TODO: Add registers to know the minimum batchsize filling the
+        // hardware. This kind of works for the last two generations though.
+        let min_batch_size = batch_pbs - 2;
 
         // Compute some intermediate values
         let blwe_coefs = (poly_size * glwe_k) + 1;
@@ -467,9 +521,12 @@ impl From<&HpuParameters> for PeConfigStore {
         let ldst_cycle = ldst_raw_cycle * 2;
         for i in 0..ldst_pe_nb {
             let name = format!("LdSt_{i}");
-            let cost = PeCost::new(ldst_cycle, ldst_cycle + 1);
+            let cost = PeCost {
+                rd_lock: BatchCost::Fixed(ldst_cycle),
+                wr_lock: BatchCost::Fixed(ldst_cycle + 1),
+            };
             let kind = InstructionKind::MemLd | InstructionKind::MemSt;
-            pe_config_store.push((name, PeConfig::new(cost, kind, 1)));
+            pe_config_store.push((name, PeConfig::new(cost, kind, BatchSize::one())));
         }
 
         // Linear operation
@@ -479,9 +536,12 @@ impl From<&HpuParameters> for PeConfigStore {
         let lin_cycle = blwe_coefs;
         for i in 0..lin_pe_nb {
             let name = format!("Lin_{i}");
-            let cost = PeCost::new(lin_cycle, lin_cycle + 1);
+            let cost = PeCost {
+                rd_lock: BatchCost::Fixed(lin_cycle),
+                wr_lock: BatchCost::Fixed(lin_cycle + 1),
+            };
             let kind = InstructionKind::Arith;
-            pe_config_store.push((name, PeConfig::new(cost, kind, 1)));
+            pe_config_store.push((name, PeConfig::new(cost, kind, BatchSize::one())));
         }
 
         // KsPbs operation
@@ -489,16 +549,36 @@ impl From<&HpuParameters> for PeConfigStore {
         // IPIP/BPIP Mode is handle by the scheduler module
         // Thus we view the KsPbs engine as a list of batch_pbs alu with full latency each
         let kspbs_rd_cycle = blwe_coefs.div_ceil(params.regf_params.coef_nb);
-        let kspbs_wr_cycle = 2* kspbs_rd_cycle  // read from regfile and write to regfile
-            + ks_cycles // latency of keyswitch
-             + lwe_k * cmux_lat  // Loop of cmux lat
-             + batch_pbs * blwe_coefs.div_ceil(rpsi / 2 /* approx */); //Sample extract latency
+        let kspbs_cnst_cost = 2 * kspbs_rd_cycle; // read from regfile and write to regfile
+        let kspbs_pbs_cost = (
+            ks_cycles // latency of keyswitch
+            + lwe_k * cmux_lat // Loop of cmux lat
+            + blwe_coefs.div_ceil(rpsi / 2 /* approx */)
+            //Sample extract latency
+        ) / batch_pbs;
 
         for i in 0..pbs_pe_nb {
             let name = format!("KsPbs_{}", i);
-            let cost = PeCost::new(kspbs_rd_cycle, kspbs_wr_cycle);
+            let cost = PeCost {
+                rd_lock: BatchCost::Fixed(kspbs_rd_cycle),
+                wr_lock: BatchCost::Linear {
+                    cnst: kspbs_cnst_cost,
+                    ppbs: kspbs_pbs_cost,
+                    bmin: min_batch_size,
+                },
+            };
             let kind = InstructionKind::Pbs;
-            pe_config_store.push((name, PeConfig::new(cost, kind, batch_pbs)));
+            pe_config_store.push((
+                name,
+                PeConfig::new(
+                    cost,
+                    kind,
+                    BatchSize {
+                        min: min_batch_size,
+                        max: batch_pbs,
+                    },
+                ),
+            ));
         }
 
         Self::new(pe_config_store)

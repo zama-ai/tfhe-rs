@@ -39,8 +39,14 @@ pub enum VarPos {
     Pbs(asm::dop::Pbs),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct RegLock(MetaVarCell);
+
+impl std::fmt::Debug for RegLock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "Lock: {}", self.0.as_reg().unwrap())
+    }
+}
 
 #[derive(Debug, Clone)]
 struct RegLockWeakPtr(Weak<RegLock>);

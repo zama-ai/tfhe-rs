@@ -66,7 +66,7 @@ pub(crate) enum EventType {
     RdUnlock(InstructionKind, usize),
     WrUnlock(InstructionKind, usize),
     ReqTimeout(InstructionKind, usize),
-    BatchStart(usize),
+    BatchStart { pe_id: usize, issued: usize },
     QuantumEnd,
     BpipTimeout,
     Query,
