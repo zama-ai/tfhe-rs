@@ -391,12 +391,13 @@ impl ServerKey {
                         }
                         BarrelShifterOperation::LeftRotate => {
                             let shifted = (input << shift_within_block) % self.message_modulus().0;
-                            let wrapped = input >> (shift_within_block);
+                            let wrapped = input >> (message_bits_per_block - shift_within_block);
                             shifted | wrapped
                         }
                         BarrelShifterOperation::RightRotate => {
                             let shifted = input >> shift_within_block;
-                            let wrapped = (input << shift_within_block) % self.message_modulus().0;
+                            let wrapped = (input << (message_bits_per_block - shift_within_block))
+                                % self.message_modulus().0;
                             wrapped | shifted
                         }
                         BarrelShifterOperation::RightShift => {
