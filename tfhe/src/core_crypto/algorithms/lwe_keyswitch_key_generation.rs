@@ -426,7 +426,7 @@ pub fn generate_seeded_lwe_keyswitch_key<
                 .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
         }
 
-        encrypt_seeded_lwe_ciphertext_list_with_existing_generator(
+        encrypt_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
             output_lwe_sk,
             &mut keyswitch_key_block,
             &decomposition_plaintexts_buffer,

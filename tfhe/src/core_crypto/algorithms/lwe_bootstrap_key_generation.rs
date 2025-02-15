@@ -415,7 +415,7 @@ pub fn generate_seeded_lwe_bootstrap_key<
         .zip(input_lwe_secret_key.as_ref())
         .zip(gen_iter)
     {
-        encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
+        encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator(
             output_glwe_secret_key,
             &mut ggsw,
             Cleartext(input_key_element),
@@ -538,7 +538,7 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
         .zip(input_lwe_secret_key.as_ref().par_iter())
         .zip(gen_iter)
         .for_each(|((mut ggsw, &input_key_element), mut generator)| {
-            par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
+            par_encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator(
                 output_glwe_secret_key,
                 &mut ggsw,
                 Cleartext(input_key_element),
