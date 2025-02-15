@@ -9,7 +9,7 @@ use rayon::prelude::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededGgswCiphertext`] between all functions needing it.
-pub fn decompress_seeded_ggsw_ciphertext_with_existing_generator<
+pub fn decompress_seeded_ggsw_ciphertext_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -48,7 +48,7 @@ pub fn decompress_seeded_ggsw_ciphertext_with_existing_generator<
             .zip(matrix_out.as_mut_glwe_list().iter_mut())
             .zip(gen_iter)
         {
-            decompress_seeded_glwe_ciphertext_with_existing_generator::<_, _, _, Gen>(
+            decompress_seeded_glwe_ciphertext_with_pre_seeded_generator::<_, _, _, Gen>(
                 &mut row_glwe_out,
                 &row_glwe_in,
                 &mut inner_loop_generator,
@@ -69,15 +69,15 @@ pub fn decompress_seeded_ggsw_ciphertext<Scalar, InputCont, OutputCont, Gen>(
     Gen: ByteRandomGenerator,
 {
     let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_ggsw.compression_seed().seed);
-    decompress_seeded_ggsw_ciphertext_with_existing_generator::<_, _, _, Gen>(
+    decompress_seeded_ggsw_ciphertext_with_pre_seeded_generator::<_, _, _, Gen>(
         output_ggsw,
         input_seeded_ggsw,
         &mut generator,
     );
 }
 
-/// Parallel variant of [`decompress_seeded_ggsw_ciphertext_with_existing_generator`].
-pub fn par_decompress_seeded_ggsw_ciphertext_with_existing_generator<
+/// Parallel variant of [`decompress_seeded_ggsw_ciphertext_with_pre_seeded_generator`].
+pub fn par_decompress_seeded_ggsw_ciphertext_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -117,7 +117,7 @@ pub fn par_decompress_seeded_ggsw_ciphertext_with_existing_generator<
                 .zip(gen_iter)
                 .for_each(
                     |((row_glwe_in, mut row_glwe_out), mut inner_loop_generator)| {
-                        decompress_seeded_glwe_ciphertext_with_existing_generator::<_, _, _, Gen>(
+                        decompress_seeded_glwe_ciphertext_with_pre_seeded_generator::<_, _, _, Gen>(
                             &mut row_glwe_out,
                             &row_glwe_in,
                             &mut inner_loop_generator,
@@ -138,7 +138,7 @@ pub fn par_decompress_seeded_ggsw_ciphertext<Scalar, InputCont, OutputCont, Gen>
     Gen: ParallelByteRandomGenerator,
 {
     let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_ggsw.compression_seed().seed);
-    par_decompress_seeded_ggsw_ciphertext_with_existing_generator::<_, _, _, Gen>(
+    par_decompress_seeded_ggsw_ciphertext_with_pre_seeded_generator::<_, _, _, Gen>(
         output_ggsw,
         input_seeded_ggsw,
         &mut generator,
