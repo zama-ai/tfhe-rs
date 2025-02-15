@@ -26,7 +26,7 @@ pub fn decompress_seeded_lwe_public_key<Scalar, InputCont, OutputCont, Gen>(
     );
 
     let mut generator = MaskRandomGenerator::<Gen>::new(input_pk.compression_seed().seed);
-    decompress_seeded_lwe_ciphertext_list_with_existing_generator::<_, _, _, Gen>(
+    decompress_seeded_lwe_ciphertext_list_with_pre_seeded_generator::<_, _, _, Gen>(
         output_pk,
         input_pk,
         &mut generator,
@@ -54,7 +54,7 @@ pub fn par_decompress_seeded_lwe_public_key<Scalar, InputCont, OutputCont, Gen>(
     );
 
     let mut generator = MaskRandomGenerator::<Gen>::new(input_pk.compression_seed().seed);
-    par_decompress_seeded_lwe_ciphertext_list_with_existing_generator::<_, _, _, Gen>(
+    par_decompress_seeded_lwe_ciphertext_list_with_pre_seeded_generator::<_, _, _, Gen>(
         output_pk,
         input_pk,
         &mut generator,

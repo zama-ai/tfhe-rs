@@ -1256,7 +1256,10 @@ pub fn encrypt_lwe_ciphertext_iterator_with_seeded_public_key<Scalar, KeyCont, O
 
 /// Convenience function to share the core logic of the seeded LWE encryption between all functions
 /// needing it.
-pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
+///
+/// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
+/// the right bytes are generated at the right time.
+pub fn encrypt_seeded_lwe_ciphertext_list_with_pre_seeded_generator<
     Scalar,
     NoiseDistribution,
     KeyCont,
@@ -1412,7 +1415,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list<
         noise_seeder,
     );
 
-    encrypt_seeded_lwe_ciphertext_list_with_existing_generator(
+    encrypt_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
         lwe_secret_key,
         output,
         encoded,
@@ -1423,7 +1426,10 @@ pub fn encrypt_seeded_lwe_ciphertext_list<
 
 /// Convenience function to share the core logic of the seeded LWE encryption between all functions
 /// needing it.
-pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
+///
+/// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
+/// the right bytes are generated at the right time.
+pub fn par_encrypt_seeded_lwe_ciphertext_list_with_pre_seeded_generator<
     Scalar,
     NoiseDistribution,
     KeyCont,
@@ -1580,7 +1586,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list<
         noise_seeder,
     );
 
-    par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator(
+    par_encrypt_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
         lwe_secret_key,
         output,
         encoded,
@@ -1591,7 +1597,10 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list<
 
 /// Convenience function to share the core logic of the seeded LWE encryption between all functions
 /// needing it.
-pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<
+///
+/// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
+/// the right bytes are generated at the right time.
+pub fn encrypt_seeded_lwe_ciphertext_with_pre_seeded_generator<
     Scalar,
     NoiseDistribution,
     KeyCont,
@@ -1704,7 +1713,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, NoiseSe
         noise_seeder,
     );
 
-    encrypt_seeded_lwe_ciphertext_with_existing_generator(
+    encrypt_seeded_lwe_ciphertext_with_pre_seeded_generator(
         lwe_secret_key,
         output,
         encoded,

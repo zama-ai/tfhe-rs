@@ -7,7 +7,7 @@ use crate::core_crypto::entities::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededLweKeyswitchKey`] between all functions needing it.
-pub fn decompress_seeded_lwe_keyswitch_key_with_existing_generator<
+pub fn decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -22,7 +22,7 @@ pub fn decompress_seeded_lwe_keyswitch_key_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    decompress_seeded_lwe_ciphertext_list_with_existing_generator(
+    decompress_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
         &mut output_ksk.as_mut_lwe_ciphertext_list(),
         &input_ksk.as_seeded_lwe_ciphertext_list(),
         generator,
@@ -41,15 +41,15 @@ pub fn decompress_seeded_lwe_keyswitch_key<Scalar, InputCont, OutputCont, Gen>(
     Gen: ByteRandomGenerator,
 {
     let mut generator = MaskRandomGenerator::<Gen>::new(input_ksk.compression_seed().seed);
-    decompress_seeded_lwe_keyswitch_key_with_existing_generator::<_, _, _, Gen>(
+    decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_ksk,
         input_ksk,
         &mut generator,
     );
 }
 
-/// Parallel variant of [`decompress_seeded_lwe_keyswitch_key_with_existing_generator`].
-pub fn par_decompress_seeded_lwe_keyswitch_key_with_existing_generator<
+/// Parallel variant of [`decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator`].
+pub fn par_decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -64,7 +64,7 @@ pub fn par_decompress_seeded_lwe_keyswitch_key_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ParallelByteRandomGenerator,
 {
-    par_decompress_seeded_lwe_ciphertext_list_with_existing_generator(
+    par_decompress_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
         &mut output_ksk.as_mut_lwe_ciphertext_list(),
         &input_ksk.as_seeded_lwe_ciphertext_list(),
         generator,
@@ -82,7 +82,7 @@ pub fn par_decompress_seeded_lwe_keyswitch_key<Scalar, InputCont, OutputCont, Ge
     Gen: ParallelByteRandomGenerator,
 {
     let mut generator = MaskRandomGenerator::<Gen>::new(input_ksk.compression_seed().seed);
-    par_decompress_seeded_lwe_keyswitch_key_with_existing_generator::<_, _, _, Gen>(
+    par_decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_ksk,
         input_ksk,
         &mut generator,

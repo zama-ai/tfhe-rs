@@ -376,7 +376,7 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, Ou
 ///
 /// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
 /// the right bytes are generated at the right time.
-pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
+pub fn encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator<
     Scalar,
     NoiseDistribution,
     KeyCont,
@@ -540,7 +540,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<
         noise_seeder,
     );
 
-    encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
+    encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator(
         glwe_secret_key,
         output,
         cleartext,
@@ -556,7 +556,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<
 ///
 /// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
 /// the right bytes are generated at the right time.
-pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
+pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator<
     Scalar,
     NoiseDistribution,
     KeyCont,
@@ -718,7 +718,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext<
         noise_seeder,
     );
 
-    par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
+    par_encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator(
         glwe_secret_key,
         output,
         cleartext,
@@ -790,7 +790,7 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<
         };
         body.as_mut()[0] = encoded;
     }
-    encrypt_seeded_glwe_ciphertext_assign_with_existing_generator(
+    encrypt_seeded_glwe_ciphertext_assign_with_pre_seeded_generator(
         glwe_secret_key,
         row_as_glwe,
         noise_distribution,

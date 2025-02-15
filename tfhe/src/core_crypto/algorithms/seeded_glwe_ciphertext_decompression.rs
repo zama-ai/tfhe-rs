@@ -7,7 +7,7 @@ use crate::core_crypto::entities::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededGlweCiphertext`] between all functions needing it.
-pub fn decompress_seeded_glwe_ciphertext_with_existing_generator<
+pub fn decompress_seeded_glwe_ciphertext_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -62,7 +62,7 @@ pub fn decompress_seeded_glwe_ciphertext<Scalar, InputCont, OutputCont, Gen>(
     Gen: ByteRandomGenerator,
 {
     let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_glwe.compression_seed().seed);
-    decompress_seeded_glwe_ciphertext_with_existing_generator::<_, _, _, Gen>(
+    decompress_seeded_glwe_ciphertext_with_pre_seeded_generator::<_, _, _, Gen>(
         output_glwe,
         input_seeded_glwe,
         &mut generator,
