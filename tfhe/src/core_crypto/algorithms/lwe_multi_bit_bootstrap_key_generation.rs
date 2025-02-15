@@ -574,7 +574,7 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
             // Use the index of the ggsw as a way to know which bit to invert
             let key_bits_plaintext = combine_key_bits(bit_inversion_idx, input_key_elements);
 
-            encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
+            encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator(
                 output_glwe_secret_key,
                 &mut ggsw,
                 Cleartext(key_bits_plaintext),
@@ -729,7 +729,7 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
                             let key_bits_plaintext =
                                 combine_key_bits(bit_inversion_idx, input_key_elements);
 
-                            par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
+                            par_encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator(
                                 output_glwe_secret_key,
                                 &mut ggsw,
                                 Cleartext(key_bits_plaintext),

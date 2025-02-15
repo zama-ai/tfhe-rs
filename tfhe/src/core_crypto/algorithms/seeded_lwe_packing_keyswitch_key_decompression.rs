@@ -7,7 +7,7 @@ use crate::core_crypto::entities::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededLwePackingKeyswitchKey`] between all functions needing it.
-pub fn decompress_seeded_lwe_packing_keyswitch_key_with_existing_generator<
+pub fn decompress_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -22,7 +22,7 @@ pub fn decompress_seeded_lwe_packing_keyswitch_key_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    decompress_seeded_glwe_ciphertext_list_with_existing_generator(
+    decompress_seeded_glwe_ciphertext_list_with_pre_seeded_generator(
         &mut output_pksk.as_mut_glwe_ciphertext_list(),
         &input_pksk.as_seeded_glwe_ciphertext_list(),
         generator,
@@ -41,7 +41,7 @@ pub fn decompress_seeded_lwe_packing_keyswitch_key<Scalar, InputCont, OutputCont
     Gen: ByteRandomGenerator,
 {
     let mut generator = MaskRandomGenerator::<Gen>::new(input_pksk.compression_seed().seed);
-    decompress_seeded_lwe_packing_keyswitch_key_with_existing_generator::<_, _, _, Gen>(
+    decompress_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_pksk,
         input_pksk,
         &mut generator,

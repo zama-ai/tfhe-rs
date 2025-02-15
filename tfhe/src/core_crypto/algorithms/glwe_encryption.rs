@@ -276,7 +276,7 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, NoiseDistribution, KeyCont, Output
 ///
 /// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
 /// the right bytes are generated at the right time.
-pub fn encrypt_seeded_glwe_ciphertext_assign_with_existing_generator<
+pub fn encrypt_seeded_glwe_ciphertext_assign_with_pre_seeded_generator<
     Scalar,
     NoiseDistribution,
     KeyCont,
@@ -1129,7 +1129,10 @@ where
 
 /// Convenience function to share the core logic of the seeded GLWE encryption between all
 /// functions needing it.
-pub fn encrypt_seeded_glwe_ciphertext_with_existing_generator<
+///
+/// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
+/// the right bytes are generated at the right time.
+pub fn encrypt_seeded_glwe_ciphertext_with_pre_seeded_generator<
     Scalar,
     NoiseDistribution,
     KeyCont,
@@ -1294,7 +1297,7 @@ pub fn encrypt_seeded_glwe_ciphertext<
         noise_seeder,
     );
 
-    encrypt_seeded_glwe_ciphertext_with_existing_generator(
+    encrypt_seeded_glwe_ciphertext_with_pre_seeded_generator(
         glwe_secret_key,
         output_glwe_ciphertext,
         input_plaintext_list,
@@ -1310,7 +1313,7 @@ pub fn encrypt_seeded_glwe_ciphertext<
 ///
 /// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
 /// the right bytes are generated at the right time.
-pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
+pub fn encrypt_seeded_glwe_ciphertext_list_with_pre_seeded_generator<
     Scalar,
     NoiseDistribution,
     KeyCont,
@@ -1484,7 +1487,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list<
         noise_seeder,
     );
 
-    encrypt_seeded_glwe_ciphertext_list_with_existing_generator(
+    encrypt_seeded_glwe_ciphertext_list_with_pre_seeded_generator(
         glwe_secret_key,
         output,
         encoded,

@@ -8,7 +8,7 @@ use crate::core_crypto::entities::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededLweCiphertext`] between all functions needing it.
-pub fn decompress_seeded_lwe_ciphertext_with_existing_generator<Scalar, OutputCont, Gen>(
+pub fn decompress_seeded_lwe_ciphertext_with_pre_seeded_generator<Scalar, OutputCont, Gen>(
     output_lwe: &mut LweCiphertext<OutputCont>,
     input_seeded_lwe: &SeededLweCiphertext<Scalar>,
     generator: &mut MaskRandomGenerator<Gen>,
@@ -66,7 +66,7 @@ pub fn decompress_seeded_lwe_ciphertext<Scalar, OutputCont, Gen>(
     );
 
     let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_lwe.compression_seed().seed);
-    decompress_seeded_lwe_ciphertext_with_existing_generator::<_, _, Gen>(
+    decompress_seeded_lwe_ciphertext_with_pre_seeded_generator::<_, _, Gen>(
         output_lwe,
         input_seeded_lwe,
         &mut generator,
