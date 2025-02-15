@@ -70,7 +70,7 @@ sha3 = { version = "0.10", optional = true }
 itertools = { workspace = true }
 rand_core = { version = "0.6.4", features = ["std"] }
 tfhe-zk-pok = { version = "0.4.0", path = "../tfhe-zk-pok", optional = true }
-tfhe-versionable = { version = "0.4.0", path = "../utils/tfhe-versionable" }
+tfhe-versionable = { version = "0.5.0", path = "../utils/tfhe-versionable" }
 
 # wasm deps
 wasm-bindgen = { workspace = true, features = [
