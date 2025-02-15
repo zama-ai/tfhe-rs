@@ -7,7 +7,7 @@ use crate::core_crypto::entities::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededLweCompactPublicKey`] between all functions needing it.
-pub fn decompress_seeded_lwe_compact_public_key_with_existing_generator<
+pub fn decompress_seeded_lwe_compact_public_key_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -22,7 +22,7 @@ pub fn decompress_seeded_lwe_compact_public_key_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    decompress_seeded_glwe_ciphertext_with_existing_generator(
+    decompress_seeded_glwe_ciphertext_with_pre_seeded_generator(
         &mut output_cpk.as_mut_glwe_ciphertext(),
         &input_seeded_cpk.as_seeded_glwe_ciphertext(),
         generator,
@@ -41,7 +41,7 @@ pub fn decompress_seeded_lwe_compact_public_key<Scalar, InputCont, OutputCont, G
     Gen: ByteRandomGenerator,
 {
     let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_cpk.compression_seed().seed);
-    decompress_seeded_lwe_compact_public_key_with_existing_generator::<_, _, _, Gen>(
+    decompress_seeded_lwe_compact_public_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_cpk,
         input_seeded_cpk,
         &mut generator,

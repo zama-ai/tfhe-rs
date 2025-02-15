@@ -9,7 +9,7 @@ use rayon::prelude::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededLweMultiBitBootstrapKey`] between all functions needing it.
-pub fn decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator<
+pub fn decompress_seeded_lwe_multi_bit_bootstrap_key_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -57,7 +57,7 @@ pub fn decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator<
             .zip(input_ggsw_group.iter())
             .zip(gen_iter)
         {
-            decompress_seeded_ggsw_ciphertext_with_existing_generator(
+            decompress_seeded_ggsw_ciphertext_with_pre_seeded_generator(
                 &mut output_ggsw,
                 &input_ggsw,
                 &mut inner_loop_generator,
@@ -87,15 +87,15 @@ pub fn decompress_seeded_lwe_multi_bit_bootstrap_key<Scalar, InputCont, OutputCo
     );
 
     let mut generator = MaskRandomGenerator::<Gen>::new(input_bsk.compression_seed().seed);
-    decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator::<_, _, _, Gen>(
+    decompress_seeded_lwe_multi_bit_bootstrap_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_bsk,
         input_bsk,
         &mut generator,
     );
 }
 
-/// Parallel variant of [`decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator`].
-pub fn par_decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator<
+/// Parallel variant of [`decompress_seeded_lwe_multi_bit_bootstrap_key_with_pre_seeded_generator`].
+pub fn par_decompress_seeded_lwe_multi_bit_bootstrap_key_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -145,7 +145,7 @@ pub fn par_decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator
                     .zip(gen_iter)
                     .for_each(
                         |((mut output_ggsw, input_ggsw), mut inner_loop_generator)| {
-                            decompress_seeded_ggsw_ciphertext_with_existing_generator(
+                            decompress_seeded_ggsw_ciphertext_with_pre_seeded_generator(
                                 &mut output_ggsw,
                                 &input_ggsw,
                                 &mut inner_loop_generator,
@@ -176,7 +176,7 @@ pub fn par_decompress_seeded_lwe_multi_bit_bootstrap_key<Scalar, InputCont, Outp
     );
 
     let mut generator = MaskRandomGenerator::<Gen>::new(input_bsk.compression_seed().seed);
-    par_decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator::<_, _, _, Gen>(
+    par_decompress_seeded_lwe_multi_bit_bootstrap_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_bsk,
         input_bsk,
         &mut generator,

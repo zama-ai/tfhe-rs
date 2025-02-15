@@ -7,7 +7,7 @@ use crate::core_crypto::entities::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededLweBootstrapKey`] between all functions needing it.
-pub fn decompress_seeded_lwe_bootstrap_key_with_existing_generator<
+pub fn decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -31,7 +31,7 @@ pub fn decompress_seeded_lwe_bootstrap_key_with_existing_generator<
         output_bsk.ciphertext_modulus(),
     );
 
-    decompress_seeded_ggsw_ciphertext_list_with_existing_generator(
+    decompress_seeded_ggsw_ciphertext_list_with_pre_seeded_generator(
         output_bsk, input_bsk, generator,
     );
 }
@@ -57,15 +57,15 @@ pub fn decompress_seeded_lwe_bootstrap_key<Scalar, InputCont, OutputCont, Gen>(
     );
 
     let mut generator = MaskRandomGenerator::<Gen>::new(input_bsk.compression_seed().seed);
-    decompress_seeded_lwe_bootstrap_key_with_existing_generator::<_, _, _, Gen>(
+    decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_bsk,
         input_bsk,
         &mut generator,
     );
 }
 
-/// Parallel variant of [`decompress_seeded_lwe_bootstrap_key_with_existing_generator`].
-pub fn par_decompress_seeded_lwe_bootstrap_key_with_existing_generator<
+/// Parallel variant of [`decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator`].
+pub fn par_decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator<
     Scalar,
     InputCont,
     OutputCont,
@@ -89,7 +89,7 @@ pub fn par_decompress_seeded_lwe_bootstrap_key_with_existing_generator<
         output_bsk.ciphertext_modulus(),
     );
 
-    par_decompress_seeded_ggsw_ciphertext_list_with_existing_generator(
+    par_decompress_seeded_ggsw_ciphertext_list_with_pre_seeded_generator(
         output_bsk, input_bsk, generator,
     );
 }
@@ -114,7 +114,7 @@ pub fn par_decompress_seeded_lwe_bootstrap_key<Scalar, InputCont, OutputCont, Ge
     );
 
     let mut generator = MaskRandomGenerator::<Gen>::new(input_bsk.compression_seed().seed);
-    par_decompress_seeded_lwe_bootstrap_key_with_existing_generator::<_, _, _, Gen>(
+    par_decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_bsk,
         input_bsk,
         &mut generator,

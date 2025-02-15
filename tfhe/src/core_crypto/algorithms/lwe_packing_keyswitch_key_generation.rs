@@ -3,7 +3,7 @@
 //! generation`](`SeededLwePackingKeyswitchKey`).
 
 use crate::core_crypto::algorithms::{
-    encrypt_glwe_ciphertext_list, encrypt_seeded_glwe_ciphertext_list_with_existing_generator,
+    encrypt_glwe_ciphertext_list, encrypt_seeded_glwe_ciphertext_list_with_pre_seeded_generator,
 };
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
@@ -341,7 +341,7 @@ pub fn generate_seeded_lwe_packing_keyswitch_key<
                     .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
         }
 
-        encrypt_seeded_glwe_ciphertext_list_with_existing_generator(
+        encrypt_seeded_glwe_ciphertext_list_with_pre_seeded_generator(
             output_glwe_sk,
             &mut packing_keyswitch_key_block,
             &decomposition_plaintexts_buffer,
