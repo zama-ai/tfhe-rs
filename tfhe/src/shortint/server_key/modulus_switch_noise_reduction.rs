@@ -225,22 +225,22 @@ impl CompressedModulusSwitchNoiseReductionKey {
 
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
-        par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator(
+        par_encrypt_seeded_lwe_ciphertext_list(
             secret_key,
             &mut modulus_switch_zeros,
             &plaintext_list,
             lwe_noise_distribution,
-            &mut engine.encryption_generator,
+            &mut engine.seeder,
         );
 
         // No parallelism allowed
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
-        encrypt_seeded_lwe_ciphertext_list_with_existing_generator(
+        encrypt_seeded_lwe_ciphertext_list(
             secret_key,
             &mut modulus_switch_zeros,
             &plaintext_list,
             lwe_noise_distribution,
-            &mut engine.encryption_generator,
+            &mut engine.seeder,
         );
 
         Self {
