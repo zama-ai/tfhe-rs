@@ -212,7 +212,7 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
   uint32_t shared_mem_size = get_shared_mem_size_tgemm<Torus>();
   tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
       num_lwes, glwe_accumulator_size, lwe_dimension, d_mem_0, fp_ksk_array,
-      stride_KSK_buffer, d_mem_1);
+      stride_KSK_buffer, d_mem_1, glwe_accumulator_size);
   check_cuda_error(cudaGetLastError());
 
   auto ksk_block_size = glwe_accumulator_size;
@@ -226,7 +226,7 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
     tgemm<Torus, TorusVec>
         <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
             num_lwes, glwe_accumulator_size, lwe_dimension, d_mem_0,
-            fp_ksk_array + li * ksk_block_size, stride_KSK_buffer, d_mem_1);
+            fp_ksk_array + li * ksk_block_size, stride_KSK_buffer, d_mem_1, glwe_accumulator_size);
     check_cuda_error(cudaGetLastError());
   }
 

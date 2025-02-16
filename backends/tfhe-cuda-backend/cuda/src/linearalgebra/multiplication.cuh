@@ -103,7 +103,7 @@ const int THREADS_GEMM = 8;
 // to any matrix dimension
 template <typename Torus, typename TorusVec>
 __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
-                      int stride_B, Torus *C) {
+                      int stride_B, Torus *C, int stride_C) {
 
   const int BM = BLOCK_SIZE_GEMM;
   const int BN = BLOCK_SIZE_GEMM;
@@ -174,7 +174,7 @@ __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
 
   // Initialize the pointer to the output block of size (BLOCK_SIZE_GEMM,
   // BLOCK_SIZE_GEMM)
-  C += cRow * BM * N + cCol * BN;
+  C += cRow * BM * stride_C + cCol * BN;
 
   // write out the results
   for (uint resIdx = 0; resIdx < TM; ++resIdx) {
@@ -186,7 +186,7 @@ __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
     if (outCol >= N)
       continue;
 
-    C[(threadRow * TM + resIdx) * N + threadCol] += threadResults[resIdx];
+    C[(threadRow * TM + resIdx) * stride_C + threadCol] += threadResults[resIdx];
   }
 }
 

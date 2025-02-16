@@ -196,6 +196,7 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
   const Torus* poly_lhs,
   const Torus* poly_rhs,
   uint32_t polynomial_size,
+  uint32_t glwe_dimension,
   uint32_t n_rhs
 ) {  
 
@@ -221,24 +222,49 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
   );
   check_cuda_error(cudaGetLastError());  
 
-  printf("BUILT CIRCULANT MATRIX of size %d x %d \n", polynomial_size, polynomial_size);
-
-   dump_2d_64("circulant.csv", circulant, polynomial_size, polynomial_size, polynomial_size, stream);
-   dump_2d_64("rhs.csv", poly_rhs, n_rhs, polynomial_size, polynomial_size, stream);
-
-  printf("MULT CIRCULANT MATRIX with %d Polys of size %d \n", n_rhs, polynomial_size);
-
   //matmul circulant matrix with poly list
   dim3 grid_gemm(CEIL_DIV(polynomial_size, BLOCK_SIZE_GEMM), CEIL_DIV(polynomial_size, BLOCK_SIZE_GEMM));
   dim3 threads_gemm(BLOCK_SIZE_GEMM * THREADS_GEMM);
   uint32_t sharedMemSize = BLOCK_SIZE_GEMM * THREADS_GEMM * 2 * sizeof(Torus);
+
+  // Write the output with a stride of the GLWE total number of values
   tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, sharedMemSize, stream>>>(
-      polynomial_size, n_rhs, polynomial_size, poly_rhs, circulant, polynomial_size, result
+      polynomial_size, n_rhs, polynomial_size, poly_rhs, circulant, polynomial_size, result,
+      (polynomial_size * (glwe_dimension + 1))
   );
   check_cuda_error(cudaGetLastError());  
 
-   dump_2d_64("result.csv", result, polynomial_size, n_rhs, n_rhs, stream);
-
   cuda_drop_async(circulant, stream, gpu_index);
+}
+
+template <typename Torus, typename TorusVec>
+__host__ void host_glwe_wrapping_polynomial_mul_one_to_many(
+  cudaStream_t stream, uint32_t gpu_index,
+  Torus* result,
+  const Torus* glwe_lhs,
+  const Torus* poly_rhs,
+  uint32_t polynomial_size,
+  uint32_t glwe_dimension,
+  uint32_t n_rhs
+) {
+    uint64_t const* glwe_lhs_t = static_cast<uint64_t const*>(glwe_lhs);
+
+   //dump_2d_64("polys_lhs.csv", glwe_lhs, 1, polynomial_size * (glwe_dimension + 1), polynomial_size * (glwe_dimension + 1), stream);
+   //dump_2d_64("rhs.csv", poly_rhs, n_rhs, polynomial_size, polynomial_size, stream);
+
+    for (unsigned i = 0; i < glwe_dimension + 1; ++i) {
+        host_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
+            stream, gpu_index,
+            result + i * polynomial_size,
+            glwe_lhs + i * polynomial_size,
+            poly_rhs,
+            polynomial_size,
+            glwe_dimension,
+            n_rhs
+        );
+    }
+
+   //dump_2d_64("result.csv", result, n_rhs, polynomial_size * (glwe_dimension + 1), polynomial_size * (glwe_dimension + 1), stream);
+
 }
 #endif // CNCRT_POLYNOMIAL_MATH_H

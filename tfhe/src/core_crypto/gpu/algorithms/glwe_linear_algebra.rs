@@ -35,7 +35,7 @@ pub fn cuda_wrapping_polynomial_mul_one_to_many<Scalar>(
             (rhs.len() / lhs.len()) as u32,
         );
     }
-
+    stream.synchronize();
 }
 
 
@@ -76,5 +76,6 @@ pub fn cuda_glwe_wrapping_polynomial_mul_one_to_many<Scalar>(
             (rhs.len() / lhs.polynomial_size().0) as u32,
         );
     }
+    stream.synchronize();
 
 }

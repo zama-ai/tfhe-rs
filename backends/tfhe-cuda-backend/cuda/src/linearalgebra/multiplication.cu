@@ -70,7 +70,8 @@ void cuda_wrapping_polynomial_mul_one_to_many_64(
         static_cast<uint64_t *>(result), 
         static_cast<uint64_t const*>(poly_lhs),
         static_cast<uint64_t const*>(poly_rhs),
-        polynomial_size, 
+        polynomial_size,
+        0,
         n_rhs);
   }
 
@@ -80,16 +81,12 @@ void cuda_glwe_wrapping_polynomial_mul_one_to_many_64(
   uint32_t polynomial_size,
   uint32_t glwe_dimension,
   uint32_t n_rhs) {
-
-    uint64_t const* glwe_lhs_t = static_cast<uint64_t const*>(glwe_lhs);
-
-    for (unsigned i = 0; i < glwe_dimension; ++i) {
-        host_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
-            static_cast<cudaStream_t>(stream), gpu_index,
-            static_cast<uint64_t *>(result),
-            static_cast<uint64_t const*>(glwe_lhs + i * polynomial_size),
-            static_cast<uint64_t const*>(poly_rhs),
-            polynomial_size,
-            n_rhs);
-    }
+    host_glwe_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        static_cast<uint64_t *>(result),
+        static_cast<uint64_t const*>(glwe_lhs),
+        static_cast<uint64_t const*>(poly_rhs),
+        polynomial_size,
+        glwe_dimension,
+        n_rhs);
   }

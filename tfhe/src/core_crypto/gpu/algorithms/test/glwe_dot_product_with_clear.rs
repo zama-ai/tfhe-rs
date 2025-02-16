@@ -10,6 +10,8 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::prelude::polynomial_algorithms::polynomial_wrapping_mul;
 use crate::core_crypto::prelude::ContiguousEntityContainerMut;
 
+use rand::{distributions::Uniform, Rng};
+
 pub fn encryption_delta<Scalar: UnsignedInteger>(
     bits_reserved_for_computation: usize,
     ciphertext_modulus: CiphertextModulus<Scalar>,
@@ -29,6 +31,23 @@ pub fn encryption_delta<Scalar: UnsignedInteger>(
     }
 }
 
+pub fn encode_data_for_encryption<Scalar, OutputCont>(
+    input: &[Scalar],
+    plaintext_list: &mut PlaintextList<OutputCont>,
+    bits_reserved_for_computation: usize,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    assert!(input.len() <= plaintext_list.entity_count());
+
+    let delta = encryption_delta(bits_reserved_for_computation, ciphertext_modulus);
+
+    for (plain, input) in plaintext_list.iter_mut().zip(input.iter()) {
+        *plain.0 = (*input) * delta;
+    }
+}
 
 pub fn decrypt_glwe<Scalar, InputCont, KeyCont>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
@@ -74,15 +93,15 @@ where
 fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     params: ClassicTestParams<Scalar>,
 ) {
-    let poly_size= 2048usize;
+    let poly_size= 64usize;
     let encryption_glwe_dimension = GlweDimension(1);
     let glwe_size = encryption_glwe_dimension.to_glwe_size();
     let polynomial_size = PolynomialSize(poly_size as usize);
     let ciphertext_modulus = CiphertextModulus::new_native();
     let glwe_noise_distribution =
-        Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
+        Gaussian::from_dispersion_parameter(StandardDev(0.0), 0.0); //0.00000000000000029403601535432533
 
-    let bits_reserved_for_computation = 12;
+    let bits_reserved_for_computation = 27;
 
     // This could be a method to generate a private key object
     let mut seeder = new_seeder();
@@ -97,6 +116,14 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         &mut secret_rng,
     );
 
+    // Generate list of polynomials
+    let clear_range: Vec<usize>  = (0usize..(poly_size * poly_size)).collect();
+    let clear_polys: Vec<Scalar> = clear_range
+        .iter()
+        .map(|x| Scalar::cast_from(poly_size - 1 - x % poly_size))
+        .collect();
+
+    // Generate GLWE and list of polynomials
     let mut glwe = GlweCiphertext::new(
         Scalar::ZERO,
         glwe_size,
@@ -104,11 +131,30 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         ciphertext_modulus,
     );
 
-    let delta = encryption_delta(bits_reserved_for_computation, ciphertext_modulus);
+    let mut rng = rand::thread_rng();
+    let range = Uniform::new(0, 32);
+    let to_encrypt: Vec<usize> = (0usize..poly_size).map(|_| rng.sample(&range)).collect(); //
 
-    let plaintext_list =
-        PlaintextList::new(delta, PlaintextCount(glwe.polynomial_size().0));
+    let to_encrypt_vec: Vec<Scalar> = to_encrypt
+        .iter()
+        .map(|&x| Scalar::cast_from(x))
+        .collect();
+    let clear_poly_rhs = Polynomial::from_container(clear_polys[0..poly_size].to_vec());
 
+    // Encrypt GLWE
+    let mut plaintext_list = PlaintextList::new(
+        Scalar::ZERO,
+        PlaintextCount(glwe_secret_key.polynomial_size().0),
+    );
+
+    encode_data_for_encryption(
+        to_encrypt_vec.as_slice(),
+        &mut plaintext_list,
+        bits_reserved_for_computation,
+        ciphertext_modulus,
+    );
+
+    println!("Last plaintext: {:?}", plaintext_list.last().unwrap().0);
     encrypt_glwe_ciphertext(
         &glwe_secret_key,
         &mut glwe,
@@ -116,22 +162,16 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         glwe_noise_distribution,
         &mut encryption_generator,
     );
-
+/*
+    for mut poly in glwe.as_mut_polynomial_list().iter_mut() {
+        for coeff in poly.iter_mut() {
+            *coeff = Scalar::ONE;
+        }
+    }*/
+    // CPU polynomial product
+    // only a single GLWE vs poly product is computed as all the clear polys
+    // are the same
     let mut out_cpu = GlweCiphertext::new(Scalar::ZERO, glwe.glwe_size(), glwe.polynomial_size(), glwe.ciphertext_modulus());
-
-    let clear_range_1: Vec<usize>  = (0usize..poly_size).collect();
-    let clear_1 : Vec<Scalar> = clear_range_1
-        .iter()
-        .map(|&x| Scalar::cast_from(x))
-        .collect();
-    let clearPoly1 = Polynomial::from_container(clear_1);
-
-    let clear_range: Vec<usize>  = (0usize..(poly_size * poly_size)).collect();
-    let clear : Vec<Scalar> = clear_range
-        .iter()
-        .map(|x| Scalar::cast_from(x % poly_size))
-        .collect();
-
 
     for (mut out_poly, in_poly) in out_cpu
         .as_mut_polynomial_list()
@@ -141,10 +181,11 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         polynomial_wrapping_mul(
             &mut out_poly,
             &in_poly,
-            &clearPoly1,
+            &clear_poly_rhs,
         );
     }
 
+    // GPU polynomial product
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
 
@@ -164,7 +205,7 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     // TODO: make this function use Glwe and new CudaPolynomialList
     // and add checks
     unsafe {
-        let clear_gpu = CudaVec::from_cpu_async(clear.as_ref(), &streams, 0);
+        let clear_gpu = CudaVec::from_cpu_async(clear_polys.as_ref(), &streams, 0);
 
         cuda_glwe_wrapping_polynomial_mul_one_to_many(
             &d_input_glwe,
@@ -178,11 +219,29 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
 
     let result_glwe = output_glwe_list.get(0);
 
+
     let decrypted_result_gpu = decrypt_glwe(&glwe_secret_key, &result_glwe, bits_reserved_for_computation);
     let decrypted_result_cpu = decrypt_glwe(&glwe_secret_key, &out_cpu, bits_reserved_for_computation);
 
-    println!("DOT GPU: {:?}", decrypted_result_gpu.last().unwrap());
-    println!("DOT CPU: {:?}", decrypted_result_cpu.last().unwrap());
+    let dot_product_gpu = decrypted_result_gpu.last().unwrap();
+    for v in decrypted_result_cpu.clone() {
+        println!("{:?}", v);
+    }
+    let dot_product_cpu = decrypted_result_cpu.last().unwrap();
+
+    println!("DOT GPU: {:?}", dot_product_gpu);
+    println!("DOT CPU: {:?}", dot_product_cpu);
+
+    result_glwe
+        .as_polynomial_list()
+        .iter().zip(out_cpu.as_polynomial_list().iter())
+        .for_each(|(x, y)|
+            x.iter().zip(y.iter()).for_each(|(x, y)| assert_eq!(x, y))
+        );
+
+    decrypted_result_cpu.iter().zip(decrypted_result_gpu.iter()).for_each(|(x, y)| assert_eq!(x, y));
+
+    assert_eq!(dot_product_gpu, dot_product_cpu);
     println!("TEST POLY PRODUCT ONE TO MANY PASSED");
 }
 
@@ -193,10 +252,13 @@ use std::io::Write;
 fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     params: ClassicTestParams<Scalar>,
 ) {
-    let poly_size= 32usize; //2048usize;
+    let poly_size= 512usize; //2048usize;
     let polynomial_size = PolynomialSize(poly_size as usize);
 
-    let clear_range_lhs: Vec<usize>  = (0usize..poly_size).collect();
+    let mut rng = rand::thread_rng();
+    let range = Uniform::new(0, 32);
+    let clear_range_lhs: Vec<usize> = (0usize..poly_size).map(|_| rng.sample(&range)).collect();
+
     let clear_lhs : Vec<Scalar> = clear_range_lhs
         .iter()
         .map(|&x| Scalar::cast_from(x))
@@ -265,5 +327,4 @@ fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
 }
 
 create_gpu_parameterized_test!(glwe_dot_product_with_clear);
-//create_gpu_parameterized_test!(poly_product_with_clear);
-
+create_gpu_parameterized_test!(poly_product_with_clear);
