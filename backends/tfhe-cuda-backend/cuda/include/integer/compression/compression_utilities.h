@@ -8,7 +8,7 @@ template <typename Torus> struct int_compression {
   uint32_t storage_log_modulus;
   uint32_t lwe_per_glwe;
 
-  uint32_t body_count;
+  uint32_t num_lwes;
 
   // Compression
   int8_t *fp_ks_buffer;
@@ -17,19 +17,19 @@ template <typename Torus> struct int_compression {
 
   int_compression(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                   uint32_t gpu_count, int_radix_params compression_params,
-                  uint32_t num_radix_blocks, uint32_t lwe_per_glwe,
+                  uint32_t num_lwes, uint32_t lwe_per_glwe,
                   uint32_t storage_log_modulus, bool allocate_gpu_memory) {
     this->compression_params = compression_params;
     this->lwe_per_glwe = lwe_per_glwe;
     this->storage_log_modulus = storage_log_modulus;
-    this->body_count = num_radix_blocks;
+    this->num_lwes = num_lwes;
 
     if (allocate_gpu_memory) {
       Torus glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
                                     compression_params.polynomial_size;
 
       tmp_lwe = (Torus *)cuda_malloc_async(
-          num_radix_blocks * (compression_params.small_lwe_dimension + 1) *
+          num_lwes * (compression_params.small_lwe_dimension + 1) *
               sizeof(Torus),
           streams[0], gpu_indexes[0]);
       tmp_glwe_array_out = (Torus *)cuda_malloc_async(
@@ -40,7 +40,7 @@ template <typename Torus> struct int_compression {
           streams[0], gpu_indexes[0], &fp_ks_buffer,
           compression_params.small_lwe_dimension,
           compression_params.glwe_dimension, compression_params.polynomial_size,
-          num_radix_blocks, true);
+          num_lwes, true);
     }
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -59,7 +59,7 @@ template <typename Torus> struct int_decompression {
   uint32_t storage_log_modulus;
 
   uint32_t num_radix_blocks;
-  uint32_t body_count;
+  uint32_t num_lwes;
 
   Torus *tmp_extracted_glwe;
   Torus *tmp_extracted_lwe;
@@ -70,13 +70,12 @@ template <typename Torus> struct int_decompression {
   int_decompression(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                     uint32_t gpu_count, int_radix_params encryption_params,
                     int_radix_params compression_params,
-                    uint32_t num_radix_blocks, uint32_t body_count,
-                    uint32_t storage_log_modulus, bool allocate_gpu_memory) {
-    this->encryption_params = encryption_params;
-    this->compression_params = compression_params;
-    this->storage_log_modulus = storage_log_modulus;
-    this->num_radix_blocks = num_radix_blocks;
-    this->body_count = body_count;
+                    uint32_t num_radix_blocks, uint32_t num_lwes,
+                    uint32_t storage_log_modulus, bool allocate_gpu_memory)
+      : encryption_params(encryption_params),
+        compression_params(compression_params),
+        storage_log_modulus(storage_log_modulus),
+        num_radix_blocks(num_radix_blocks), num_lwes(num_lwes) {
 
     if (allocate_gpu_memory) {
       Torus glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
@@ -102,9 +101,7 @@ template <typename Torus> struct int_decompression {
       // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits
       // space, we want to keep the original 2 bits value in the 4 bits space,
       // so we apply the identity and the encoding will rescale it for us.
-      auto decompression_rescale_f = [encryption_params](Torus x) -> Torus {
-        return x;
-      };
+      auto decompression_rescale_f = [](Torus x) -> Torus { return x; };
 
       auto effective_compression_message_modulus =
           encryption_params.carry_modulus;
