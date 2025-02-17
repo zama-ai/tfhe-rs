@@ -255,20 +255,28 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
 impl IfThenElse<Self> for FheBool {
     fn if_then_else(&self, ct_then: &Self, ct_else: &Self) -> Self {
         let ct_condition = self;
-        global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let new_ct = key.pbs_key().if_then_else_parallelized(
                     &ct_condition.ciphertext.on_cpu(),
                     &*ct_then.ciphertext.on_cpu(),
                     &*ct_else.ciphertext.on_cpu(),
                 );
-                Self::new(new_ct, key.tag.clone())
+                (InnerBoolean::Cpu(new_ct), key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support signed integers")
-            }
-        })
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let inner = cuda_key.key.key.if_then_else(
+                    &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
+                    &*ct_then.ciphertext.on_gpu(streams),
+                    &*ct_else.ciphertext.on_gpu(streams),
+                    streams,
+                );
+                let boolean_inner = CudaBooleanBlock(inner);
+                (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
+            }),
+        });
+        Self::new(ciphertext, tag)
     }
 }
 
