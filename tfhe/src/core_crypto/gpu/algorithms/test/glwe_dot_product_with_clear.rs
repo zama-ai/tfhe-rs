@@ -60,9 +60,9 @@ where
     KeyCont: Container<Element = Scalar>,
 {
     let mut decrypted = PlaintextList::new(Scalar::ZERO, PlaintextCount(glwe.polynomial_size().0));
-    let mut decoded = vec![Scalar::ZERO; decrypted.plaintext_count().0];
     decrypt_glwe_ciphertext(glwe_secret_key, glwe, &mut decrypted);
 
+    let mut decoded = vec![Scalar::ZERO; decrypted.plaintext_count().0];
     let ciphertext_modulus = glwe.ciphertext_modulus();
     let delta = encryption_delta(bits_reserved_for_computation, ciphertext_modulus);
 
@@ -70,8 +70,8 @@ where
         DecompositionBaseLog(
             bits_reserved_for_computation
                 + ciphertext_modulus
-                    .get_power_of_two_scaling_to_native_torus()
-                    .ilog2() as usize,
+                .get_power_of_two_scaling_to_native_torus()
+                .ilog2() as usize,
         ),
         DecompositionLevelCount(1),
     );
@@ -86,14 +86,53 @@ where
             *decoded_value = (decryption_modulus - *decoded_value).wrapping_neg();
         }
     }
-
     decoded
 }
+
+pub fn decrypt_lwe<Scalar, InputCont, KeyCont>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    lwe: &LweCiphertext<InputCont>,
+    bits_reserved_for_computation: usize,
+) -> Scalar
+where
+    Scalar: UnsignedTorus,
+    InputCont: Container<Element = Scalar>,
+    KeyCont: Container<Element = Scalar>,
+{
+    let mut decrypted_value = decrypt_lwe_ciphertext(lwe_secret_key, lwe);
+
+    let ciphertext_modulus = lwe.ciphertext_modulus();
+    let delta = encryption_delta(bits_reserved_for_computation, ciphertext_modulus);
+
+    let decomposer = SignedDecomposer::new(
+        DecompositionBaseLog(
+            bits_reserved_for_computation
+                + ciphertext_modulus
+                .get_power_of_two_scaling_to_native_torus()
+                .ilog2() as usize,
+        ),
+        DecompositionLevelCount(1),
+    );
+
+    let decryption_modulus = Scalar::ONE << bits_reserved_for_computation;
+
+    let mut decoded_value =
+        (decomposer.closest_representable(decrypted_value.0) / delta) % decryption_modulus;
+
+    if decoded_value >= decryption_modulus / Scalar::TWO {
+        decoded_value = (decryption_modulus - decoded_value).wrapping_neg();
+    }
+
+    decoded_value
+}
+
+
+
 
 fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     params: ClassicTestParams<Scalar>,
 ) {
-    let poly_size= 64usize;
+    let poly_size= 256usize;
     let encryption_glwe_dimension = GlweDimension(1);
     let glwe_size = encryption_glwe_dimension.to_glwe_size();
     let polynomial_size = PolynomialSize(poly_size as usize);
@@ -154,7 +193,6 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         ciphertext_modulus,
     );
 
-    println!("Last plaintext: {:?}", plaintext_list.last().unwrap().0);
     encrypt_glwe_ciphertext(
         &glwe_secret_key,
         &mut glwe,
@@ -191,63 +229,50 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
 
     let d_input_glwe = CudaGlweCiphertextList::from_glwe_ciphertext(&glwe, &streams);
 
-    let mut d_output_glwe = CudaGlweCiphertextList::new(
-        glwe_secret_key.glwe_dimension(),
-        glwe_secret_key.polynomial_size(),
-        GlweCiphertextCount(poly_size),
+    let mut d_output_lwe = CudaLweCiphertextList::<Scalar>::new(
+        LweDimension(poly_size),
+        LweCiphertextCount(poly_size),
         ciphertext_modulus,
         &streams,
     );
 
-    assert_eq!(d_output_glwe.0.d_vec.len(), poly_size * poly_size * (glwe_secret_key.glwe_dimension().0 + 1));
-    assert_eq!(glwe.glwe_size().0, 2, "Cuda circulant polynomial product only supports glwe_dimension==2");
+    assert_eq!(d_output_lwe.0.d_vec.len(), poly_size * (poly_size + 1));
 
     // TODO: make this function use Glwe and new CudaPolynomialList
     // and add checks
     unsafe {
         let clear_gpu = CudaVec::from_cpu_async(clear_polys.as_ref(), &streams, 0);
 
-        cuda_glwe_wrapping_polynomial_mul_one_to_many(
+        cuda_glwe_dot_product_with_clear_one_to_many(
             &d_input_glwe,
             &clear_gpu,
-            &mut d_output_glwe,
+            &mut d_output_lwe,
             &streams,
             );
     }
 
-    let output_glwe_list = d_output_glwe.to_glwe_ciphertext_list(&streams);
+    let output_lwe_list = d_output_lwe.to_lwe_ciphertext_list(&streams);
 
-    let result_glwe = output_glwe_list.get(0);
+    let result_lwe = output_lwe_list.get(0);
 
+    let glwe_secret_key_as_lwe_secret_key = glwe_secret_key.as_lwe_secret_key();
 
-    let decrypted_result_gpu = decrypt_glwe(&glwe_secret_key, &result_glwe, bits_reserved_for_computation);
+    let decrypted_result_gpu = decrypt_lwe(&glwe_secret_key_as_lwe_secret_key, &result_lwe, bits_reserved_for_computation);
     let decrypted_result_cpu = decrypt_glwe(&glwe_secret_key, &out_cpu, bits_reserved_for_computation);
 
-    let dot_product_gpu = decrypted_result_gpu.last().unwrap();
-    for v in decrypted_result_cpu.clone() {
-        println!("{:?}", v);
-    }
-    let dot_product_cpu = decrypted_result_cpu.last().unwrap();
+    let dot_product_gpu = decrypted_result_gpu;
+    let dot_product_cpu = decrypted_result_cpu.last().unwrap().clone();
 
     println!("DOT GPU: {:?}", dot_product_gpu);
     println!("DOT CPU: {:?}", dot_product_cpu);
 
-    result_glwe
-        .as_polynomial_list()
-        .iter().zip(out_cpu.as_polynomial_list().iter())
-        .for_each(|(x, y)|
-            x.iter().zip(y.iter()).for_each(|(x, y)| assert_eq!(x, y))
-        );
-
-    decrypted_result_cpu.iter().zip(decrypted_result_gpu.iter()).for_each(|(x, y)| assert_eq!(x, y));
-
     assert_eq!(dot_product_gpu, dot_product_cpu);
-    println!("TEST POLY PRODUCT ONE TO MANY PASSED");
 }
 
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 
 fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     params: ClassicTestParams<Scalar>,
@@ -280,18 +305,6 @@ fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         polynomial_wrapping_mul(&mut out, &poly_lhs, &rhs);
     }
 
-    let mut fp = File::create("ref.csv").unwrap();
-    for p in poly_list_result.iter() {
-        for (pos, v) in p.iter().enumerate() {
-            let str = format!("{}", *v);
-            fp.write_all(str.as_bytes()).unwrap();
-            if pos < poly_size - 1 {
-                fp.write_all(",".as_bytes()).unwrap();
-            }
-        }
-        fp.write_all("\n".as_bytes()).unwrap();
-    }
-
     let mut cpu_results = PolynomialList::new(Scalar::ZERO, polynomial_size, poly_list_rhs.polynomial_count());
 
     let gpu_index = 0;
@@ -322,8 +335,6 @@ fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         .count();
 
     assert_eq!(cnt, 0);
-
-    println!("TEST CUDA POLY PRODUCT ONE TO MANY PASSED");
 }
 
 create_gpu_parameterized_test!(glwe_dot_product_with_clear);
