@@ -9,6 +9,7 @@ use crate::core_crypto::prelude::Numeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{Compactable, DataKind, Expandable};
 use crate::integer::encryption::KnowsMessageModulus;
 use crate::integer::parameters::{
@@ -398,6 +399,15 @@ fn num_bits_to_strict_num_blocks(
     Ok(num_bits.div_ceil(bits_per_block as usize))
 }
 
+pub trait HlCompactable: Compactable {}
+
+impl HlCompactable for bool {}
+
+impl<T> HlCompactable for T where
+    T: Numeric + DecomposableInto<u64> + std::ops::Shl<usize, Output = T>
+{
+}
+
 pub struct CompactCiphertextListBuilder {
     inner: crate::integer::ciphertext::CompactCiphertextListBuilder,
     tag: Tag,
@@ -413,7 +423,7 @@ impl CompactCiphertextListBuilder {
 
     pub fn push<T>(&mut self, value: T) -> &mut Self
     where
-        T: Compactable,
+        T: HlCompactable,
     {
         self.inner.push(value);
         self
@@ -421,7 +431,7 @@ impl CompactCiphertextListBuilder {
 
     pub fn extend<T>(&mut self, values: impl Iterator<Item = T>) -> &mut Self
     where
-        T: Compactable,
+        T: HlCompactable,
     {
         self.inner.extend(values);
         self
@@ -429,7 +439,7 @@ impl CompactCiphertextListBuilder {
 
     pub fn push_with_num_bits<T>(&mut self, number: T, num_bits: usize) -> crate::Result<&mut Self>
     where
-        T: Compactable + Numeric,
+        T: HlCompactable + Numeric,
     {
         let num_blocks =
             num_bits_to_strict_num_blocks(num_bits, self.inner.pk.key.message_modulus())?;
@@ -443,7 +453,7 @@ impl CompactCiphertextListBuilder {
         num_bits: usize,
     ) -> crate::Result<&mut Self>
     where
-        T: Compactable + Numeric,
+        T: HlCompactable + Numeric,
     {
         let num_blocks =
             num_bits_to_strict_num_blocks(num_bits, self.inner.pk.key.message_modulus())?;

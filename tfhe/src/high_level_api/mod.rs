@@ -96,6 +96,7 @@ pub use crate::strings::ciphertext::ClearString;
 pub use compact_list::ProvenCompactCiphertextList;
 pub use compact_list::{
     CompactCiphertextList, CompactCiphertextListBuilder, CompactCiphertextListExpander,
+    HlCompactable,
 };
 pub use compressed_ciphertext_list::{
     CompressedCiphertextList, CompressedCiphertextListBuilder, HlCompressible, HlExpandable,
