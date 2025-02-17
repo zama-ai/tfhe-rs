@@ -235,10 +235,6 @@ __host__ void host_integer_decompress(
 
   auto compression_params = h_mem_ptr->compression_params;
   auto lwe_per_glwe = compression_params.polynomial_size;
-  if (indexes_array_size > lwe_per_glwe)
-    PANIC("Cuda error: too many LWEs to decompress. The number of LWEs should "
-          "be smaller than "
-          "polynomial_size.")
 
   auto num_radix_blocks = h_mem_ptr->num_radix_blocks;
   if (num_radix_blocks != indexes_array_size)
@@ -269,7 +265,7 @@ __host__ void host_integer_decompress(
       glwe_vec.push_back(std::make_pair(i, extracted_glwe));
     } else {
       // Updates the index
-      glwe_vec.back().first++;
+      ++glwe_vec.back().first;
     }
   }
   // Sample extract all LWEs
@@ -279,7 +275,7 @@ __host__ void host_integer_decompress(
   uint32_t current_idx = 0;
   auto d_indexes_array_chunk = d_indexes_array;
   for (const auto &max_idx_and_glwe : glwe_vec) {
-    uint32_t last_idx = max_idx_and_glwe.first;
+    const uint32_t last_idx = max_idx_and_glwe.first;
     extracted_glwe = max_idx_and_glwe.second;
 
     auto num_lwes = last_idx + 1 - current_idx;
