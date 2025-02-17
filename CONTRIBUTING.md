@@ -105,19 +105,33 @@ You can now open a pull-request. For more details on how to do so from a forked 
 ## 7. Continuous Integration
 
 Several tests suites are executed automatically before being able to merge a pull-request.
-The process follows this steps:
 
-**Faire un diagramme mermaid !!!!!!!!!**
 
-1. contributor open a pull-request
-2. contributor sign Contributor License Agreement (done only once)
-3. reviewer approve and launch the continuous integration pipeline
-4. reviewer do a proper review
-5. contributor push modifications then get back to step 3.
-6. reviewer approve final code changes
-7. reviewer approve and launch approval pipeline
-8. reviewer merge commit
-
+```mermaid
+---
+title: Continuous Integration Process
+---
+sequenceDiagram
+    autonumber
+    
+    participant Contributor
+    participant GitHub
+    participant Reviewer
+    participant CI-pipeline
+    
+    Contributor ->> GitHub: Open pull-request
+    GitHub -->> Contributor: Ask for CLA signing (once) 
+    loop
+        Reviewer ->> GitHub: Review code
+        Reviewer ->> CI-pipeline: Approve workflows (short-run)
+        CI-pipeline -->> GitHub: Send checks results
+        Contributor ->> GitHub: Make changes
+    end
+    Reviewer ->> GitHub: Pull-request approval    
+    Reviewer ->> CI-pipeline: Approve workflows (long-run)
+    CI-pipeline -->> GitHub: Send checks results
+    Reviewer -->> GitHub: Merge if pipeline green
+```
 
 >Useful details
 >* pipeline is triggered by humans
