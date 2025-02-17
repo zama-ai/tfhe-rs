@@ -861,4 +861,50 @@ mod tests {
             }
         }
     }
+
+    #[cfg(feature = "strings")]
+    #[test]
+    fn test_compressed_strings_cpu() {
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into();
+        let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+            .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::CompressedServerKey::new(&ck);
+
+        // Test with input data being on CPU
+        {
+            let ct1 = crate::FheAsciiString::encrypt("Hello, World", &ck);
+            let ct2 =
+                crate::FheAsciiString::try_encrypt_with_fixed_sized("Hello", 50, &ck).unwrap();
+
+            let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
+            compressed_list_builder.push(ct1).push(ct2);
+
+            set_server_key(sk.decompress());
+            let compressed_list = compressed_list_builder.build().unwrap();
+
+            // Add a serialize-deserialize round trip as it will generally be
+            // how compressed list are use as its meant for data exchange
+            let mut serialized = vec![];
+            safe_serialize(&compressed_list, &mut serialized, 1024 * 1024 * 16).unwrap();
+            let compressed_list: CompressedCiphertextList =
+                safe_deserialize(serialized.as_slice(), 1024 * 1024 * 16).unwrap();
+
+            check_is_correct(&compressed_list, &ck);
+        }
+
+        fn check_is_correct(compressed_list: &CompressedCiphertextList, ck: &ClientKey) {
+            {
+                let a: crate::FheAsciiString = compressed_list.get(0).unwrap().unwrap();
+                let b: crate::FheAsciiString = compressed_list.get(1).unwrap().unwrap();
+
+                let a = a.decrypt(ck);
+                assert_eq!(&a, "Hello, World");
+                let b = b.decrypt(ck);
+                assert_eq!(&b, "Hello");
+            }
+        }
+    }
 }
