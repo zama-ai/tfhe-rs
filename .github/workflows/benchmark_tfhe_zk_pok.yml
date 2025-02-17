@@ -3,6 +3,14 @@ name: tfhe-zk-pok benchmarks
 
 on:
   workflow_dispatch:
+    inputs:
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
   push:
     branches:
       - main
@@ -20,6 +28,7 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  BENCH_TYPE: ${{ inputs.bench_type || 'latency' }}
 
 jobs:
   should-run:
@@ -105,7 +114,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make bench_tfhe_zk_pok
+          make BENCH_TYPE=${{ env.BENCH_TYPE }} bench_tfhe_zk_pok
 
       - name: Parse results
         run: |
@@ -119,7 +128,8 @@ jobs:
           --commit-date "${{ env.COMMIT_DATE }}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
-          --name-suffix avx512
+          --name-suffix avx512 \
+          --bench-type ${{ env.BENCH_TYPE }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
