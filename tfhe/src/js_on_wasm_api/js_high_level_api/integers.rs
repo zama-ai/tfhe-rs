@@ -1181,6 +1181,7 @@ pub enum FheTypes {
     Int128,
     Int160,
     Int256,
+    AsciiString,
 }
 
 impl From<crate::FheTypes> for FheTypes {
@@ -1216,6 +1217,7 @@ impl From<crate::FheTypes> for FheTypes {
             crate::FheTypes::Int128 => Self::Int128,
             crate::FheTypes::Int160 => Self::Int160,
             crate::FheTypes::Int256 => Self::Int256,
+            crate::FheTypes::AsciiString => Self::AsciiString,
         }
     }
 }
